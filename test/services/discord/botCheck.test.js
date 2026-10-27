@@ -25,6 +25,8 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
 }));
 const mockAddon = { channelId: "", roleId: "" };
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
+const mockInviteCodes = [];
+jest.mock("../../../src/stores/discordInviteStore", () => ({ knownCodes: () => mockInviteCodes }));
 
 const { botCheck, channelPurposes, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 
@@ -58,6 +60,7 @@ beforeEach(() => {
     mockAddon.channelId = "";
     mockAddon.roleId = "";
     mockEvents.length = 0;
+    mockInviteCodes.length = 0;
 });
 
 describe("functions", () => {
@@ -124,6 +127,16 @@ describe("functions", () => {
         const byKey = Object.fromEntries(check.functions.map((f) => [f.key, f.state]));
         expect(byKey.roles).toBe("unknown");
         expect(byKey.members).toBe("ok");
+    });
+    it("asks for the invite rights only on a server where the bot made an invite (#905)", () => {
+        const byKey = () => Object.fromEntries(botCheck(EVENT, SRV).functions.map((f) => [f.key, f]));
+        expect(byKey().invites.state).toBe("not_needed");
+        mockInviteCodes.push({ code: "abc", guildId: EVENT, linkKey: `${EVENT}:${TALK}` });
+        const invites = byKey().invites;
+        expect(invites.state).toBe("missing");
+        expect(invites.rights.map((r) => r.label)).toEqual(["Einladung erstellen", "Server verwalten"]);
+        mockGuild = guild({ rights: [...ALL, F.CreateInstantInvite, F.ManageGuild] });
+        expect(byKey().invites.state).toBe("ok");
     });
 });
 

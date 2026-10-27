@@ -7,9 +7,9 @@
 //
 // One record per server and member: the first known origin wins — a member
 // who leaves and comes back through another invite keeps the partner that
-// brought them first. `inviteCode` "" = the origin is unknown (none or several
-// invites rose); `linkKey` "" = not one of the link invites (the general
-// invite, or one somebody else made). Records stay when a member leaves, so
+// brought them first. Only known origins are stored: a join whose invite is
+// unknown (none or several counters rose) leaves no record at all (data
+// economy). `linkKey` "" = the server's general invite. Records stay when a member leaves, so
 // "joined" does not shrink (docs/data-storage.md). Beyond MAX_ENTRIES the
 // oldest drop out.
 const { settingsPath } = require("../config/paths");
@@ -30,7 +30,8 @@ function normalizeOrigin(raw) {
     const joinedAt = Number(raw.joinedAt);
     if (!guildId || !userId || !Number.isFinite(joinedAt) || joinedAt <= 0) return null;
     const inviteCode = CODE.test(str(raw.inviteCode)) ? str(raw.inviteCode) : "";
-    const linkKey = inviteCode && LINK_KEY.test(str(raw.linkKey)) ? str(raw.linkKey) : "";
+    if (!inviteCode) return null;
+    const linkKey = LINK_KEY.test(str(raw.linkKey)) ? str(raw.linkKey) : "";
     return { guildId, userId, inviteCode, linkKey, joinedAt };
 }
 
@@ -48,24 +49,18 @@ const useFile = store.useFile;
 
 /**
  * Record a member's origin. A member already known on that server keeps the
- * first origin — except an unknown one, which a known origin replaces.
- * Returns the stored record, or null for one that is not valid.
+ * first origin. Returns the stored record, or null for one that is not valid
+ * (an unknown invite included: it is never stored).
  */
 function recordOrigin(origin = {}, { now = Date.now() } = {}) {
     const entry = normalizeOrigin({ joinedAt: now, ...origin });
     if (!entry) return null;
     const { origins } = store.read();
     const index = origins.findIndex((o) => o.guildId === entry.guildId && o.userId === entry.userId);
-    if (index >= 0) {
-        const known = origins[index];
-        if (known.inviteCode || !entry.inviteCode) return known;
-        origins[index] = { ...entry, joinedAt: known.joinedAt };
-    } else {
-        origins.push(entry);
-    }
-    const kept = origins.slice(Math.max(0, origins.length - MAX_ENTRIES));
-    store.write({ origins: kept });
-    return index >= 0 ? origins[index] : entry;
+    if (index >= 0) return origins[index];
+    origins.push(entry);
+    store.write({ origins: origins.slice(Math.max(0, origins.length - MAX_ENTRIES)) });
+    return entry;
 }
 
 /** The stored origin of one member on one server, null when none is known. */

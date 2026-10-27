@@ -32,10 +32,10 @@ import { t as translate, useT } from "../../i18n";
 
 const MAX_SERVERS = 10;
 
-type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite" | "joined" | "signedUp";
+type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite";
 
 /** What an invite cell shows: the invite itself, or why there is none. */
-type InviteView = { code: string; url: string; error: string };
+type InviteView = { code: string; url: string; error: string; deleted: boolean };
 type ServerSortKey = "server" | "status" | "categories" | "members";
 
 function initials(name: string): string {
@@ -96,7 +96,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     const [invites, setInvites] = useState<PugInvites | null>(null);
     const [inviteBusy, setInviteBusy] = useState("");
     const linkSort = useTableSort<LinkSortKey>("settings-links-sort", {
-        link: "asc", channel: "asc", status: "asc", summary: "asc", invite: "asc", joined: "desc", signedUp: "desc",
+        link: "asc", channel: "asc", status: "asc", summary: "asc", invite: "desc",
     }, "link");
     const serverSort = useTableSort<ServerSortKey>("settings-servers-sort", { server: "asc", status: "desc", categories: "desc", members: "desc" }, "server");
 
@@ -157,11 +157,14 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     const removeLink = async (link: ServerLink) => {
         const ok = await ask({
             title: t("settings.discordServers.removeLinkTitle"),
-            text: t("settings.discordServers.removeLinkText", {
-                from: guildName(data, link.from),
-                to: guildName(data, link.to),
-                channel: channelName(guildChannels(data, link.to), link.channelId),
-            }),
+            text: [
+                t("settings.discordServers.removeLinkText", {
+                    from: guildName(data, link.from),
+                    to: guildName(data, link.to),
+                    channel: channelName(guildChannels(data, link.to), link.channelId),
+                }),
+                inviteOf(link)?.url ? t("settings.discordServers.removeLinkInvite") : "",
+            ].filter(Boolean).join(" "),
             action: t("settings.discordServers.removeLink"),
             tone: "danger",
         });
@@ -170,12 +173,15 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
     };
 
     const removeServer = async (row: ServerRow) => {
-        const dropped = config.links.filter((l) => l.from === row.id).length;
+        const droppedLinks = config.links.filter((l) => l.from === row.id);
+        const dropped = droppedLinks.length;
+        const withInvite = droppedLinks.some((l) => inviteOf(l)?.url) || !!invites?.servers.find((s) => s.guildId === row.id)?.url;
         const ok = await ask({
             title: t("settings.discordServers.removeServerTitle"),
             text: [
                 t("settings.discordServers.removeServerText", { name: row.name || row.id }),
                 dropped ? t("settings.discordServers.removeServerLinks", { count: dropped }) : "",
+                withInvite ? t("settings.discordServers.removeServerInvites") : "",
             ].filter(Boolean).join(" "),
             action: t("settings.discordServers.removeServer"),
             tone: "danger",
@@ -208,6 +214,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 text: t("settings.discordServers.regenerateText"),
                 action: t("settings.discordServers.regenerateInvite"),
                 tone: "danger",
+                icon: <RefreshIcon />,
+                actionIcon: <RefreshIcon />,
             });
             if (!ok) return;
         }
@@ -265,25 +273,19 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 if (!inv) return <span className="srv-muted">—</span>;
                 const key = linkKey(l);
                 return (
-                    <>
+                    <span className="srv-invite-cell">
                         <InviteCell invite={inv} busy={inviteBusy === key} disabled={!!inviteBusy} onCopy={copyInvite}
                             onCreate={() => runInvite({ key }, false, key)} onRegenerate={() => runInvite({ key }, true, key)} />
-                        {/* Narrow screens hide the two number columns; this line carries them instead. */}
-                        <span className="srv-sub">
-                            <span>{t("settings.discordServers.joinedCount", { count: inv.joined })}</span>
-                            <span>{t("settings.discordServers.signedUpCount", { count: inv.signedUp })}</span>
-                        </span>
-                    </>
+                        {inv.url && (
+                            <span className="srv-counts">
+                                <span data-tip={t("settings.discordServers.joinedTip")}>{t("settings.discordServers.joinedCount", { count: inv.joined })}</span>
+                                <span aria-hidden="true"> · </span>
+                                <span data-tip={t("settings.discordServers.signedUpTip")}>{t("settings.discordServers.signedUpCount", { count: inv.signedUp })}</span>
+                            </span>
+                        )}
+                    </span>
                 );
             },
-        },
-        {
-            id: "joined", label: t("settings.discordServers.colJoined"), sortKey: "joined", className: "srv-num",
-            cell: (l) => <span data-tip={t("settings.discordServers.joinedTip")}>{inviteOf(l)?.joined ?? "—"}</span>,
-        },
-        {
-            id: "signedUp", label: t("settings.discordServers.colSignedUp"), sortKey: "signedUp", className: "srv-num",
-            cell: (l) => <span data-tip={t("settings.discordServers.signedUpTip")}>{inviteOf(l)?.signedUp ?? "—"}</span>,
         },
         {
             id: "actions", actions: true, className: "srv-actions",
@@ -305,9 +307,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         if (key === "channel") return channelName(guildChannels(data, l.to), l.channelId).toLowerCase();
         if (key === "status") return linkStatusBadge(statusOf(l), now).label;
         if (key === "summary") return linkSummary(l, data.versions);
-        if (key === "invite") return inviteOf(l)?.error ? "0" : inviteOf(l)?.url ? "1" : "2";
-        if (key === "joined") return inviteOf(l)?.joined ?? -1;
-        if (key === "signedUp") return inviteOf(l)?.signedUp ?? -1;
+        // By who came through it; a link without an invite after one with nobody yet.
+        if (key === "invite") return inviteOf(l)?.url ? inviteOf(l)?.joined ?? 0 : -1;
         return `${guildName(data, l.from)} ${guildName(data, l.to)}`.toLowerCase();
     };
 
@@ -530,6 +531,7 @@ function LinkModal({ data, onClose, onSave }: {
             kicker={t("settings.sections.discordserver.label")}
             title={t("settings.discordServers.addLink")}
             width={520}
+            className="srv-dlg"
             initialFocus="select"
             hint={<AdminOnlyBadge />}
             footer={(
@@ -614,6 +616,19 @@ function InviteCell({ invite, busy, disabled, onCopy, onCreate, onRegenerate }: 
     onRegenerate: () => void;
 }) {
     const t = useT();
+    // Someone removed the invite on Discord (found by the check): say so and offer a new one right away.
+    if (invite.deleted && !invite.url) {
+        return (
+            <span className="srv-invite">
+                <span className="srv-muted">{t("settings.discordServers.inviteDeleted")}</span>
+                <Button size="sm" variant="go" icon={<RefreshIcon />} onClick={onCreate} disabled={disabled} running={busy}>
+                    {t("settings.discordServers.createInvite")}
+                </Button>
+            </span>
+        );
+    }
+    // With a code the error is about that invite (e.g. the check failed); without one nothing could be made.
+    const problem = invite.url ? t("settings.discordServers.inviteCheck") : t("settings.discordServers.inviteProblem");
     return (
         <span className="srv-invite">
             {invite.url ? (
@@ -624,10 +639,10 @@ function InviteCell({ invite, busy, disabled, onCopy, onCreate, onRegenerate }: 
                         onClick={onRegenerate} disabled={disabled} aria-busy={busy || undefined} />
                 </>
             ) : (
-                <Button size="sm" icon={<PlusIcon />} onClick={onCreate} disabled={disabled} running={busy}>{t("settings.discordServers.createInvite")}</Button>
+                <Button size="sm" variant="go" icon={<PlusIcon />} onClick={onCreate} disabled={disabled} running={busy}>{t("settings.discordServers.createInvite")}</Button>
             )}
             {invite.error && (
-                <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.discordServers.inviteProblem")} tipSub={invite.error}>{t("settings.discordServers.inviteProblem")}</Badge>
+                <Badge tone="bad" icon={<WarnIcon />} tip={problem} tipSub={invite.error}>{problem}</Badge>
             )}
         </span>
     );
@@ -652,6 +667,8 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
     const [fields, setFields] = useState<ServerEntry>(entry || { guildId: "", label: "" });
     const [inviteChannel, setInviteChannel] = useState(invite?.inviteChannelId || "");
     const [busy, setBusy] = useState(false);
+    // The invites load next to the servers and refresh after every save: follow the stored channel.
+    useEffect(() => setInviteChannel(invite?.inviteChannelId || ""), [invite?.inviteChannelId]);
     const taken = new Set(data.discordServers.servers.map((s) => s.guildId));
     const free = data.guilds.filter((g) => !taken.has(g.id));
     const withInvites = !!(entry && invite && invite.source);
@@ -679,6 +696,7 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
             kicker={t("settings.sections.discordserver.label")}
             title={entry ? guildName(data, entry.guildId) : t("settings.discordServers.addServer")}
             width={480}
+            className="srv-dlg"
             initialFocus={entry ? "input" : "select"}
             hint={<AdminOnlyBadge />}
             footer={(
@@ -762,6 +780,7 @@ function ChannelsModal({ data, onClose, onSave }: {
             kicker={t("settings.editKicker")}
             title={t("settings.discordServers.channelsTitle")}
             width={520}
+            className="srv-dlg"
             initialFocus="select, input"
             hint={<AdminOnlyBadge />}
             footer={(

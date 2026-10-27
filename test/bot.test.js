@@ -25,12 +25,12 @@ const mockReactionsCleared = jest.fn(async () => "synced");
 const mockMemberAdd = jest.fn();
 const mockMemberRemove = jest.fn();
 jest.mock("../src/services/discord/memberActivity", () => ({ onMemberAdd: (...a) => mockMemberAdd(...a), onMemberRemove: (...a) => mockMemberRemove(...a) }));
-const mockPugInvites = { onMemberAdd: jest.fn(), onInviteCreate: jest.fn(), onInviteDelete: jest.fn(), ensureAllInvites: jest.fn(async () => {}) };
+const mockPugInvites = { onMemberAdd: jest.fn(), onInviteCreate: jest.fn(), onInviteDelete: jest.fn(), startInviteCheck: jest.fn() };
 jest.mock("../src/services/discord/pugInvites", () => ({
     onMemberAdd: (...a) => mockPugInvites.onMemberAdd(...a),
     onInviteCreate: (...a) => mockPugInvites.onInviteCreate(...a),
     onInviteDelete: (...a) => mockPugInvites.onInviteDelete(...a),
-    ensureAllInvites: (...a) => mockPugInvites.ensureAllInvites(...a),
+    startInviteCheck: (...a) => mockPugInvites.startInviteCheck(...a),
 }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real

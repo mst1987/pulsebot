@@ -21,21 +21,23 @@ describe("memberOriginStore", () => {
 
     it("keeps the first known origin when the member joins again", () => {
         store.recordOrigin({ guildId: PUG, userId: U1, inviteCode: "abc", linkKey: KEY }, { now: 10 });
-        store.recordOrigin({ guildId: PUG, userId: U1, inviteCode: "other", linkKey: "" }, { now: 20 });
+        const again = store.recordOrigin({ guildId: PUG, userId: U1, inviteCode: "other", linkKey: "" }, { now: 20 });
+        expect(again).toEqual(expect.objectContaining({ inviteCode: "abc", joinedAt: 10 }));
         expect(store.originOf(PUG, U1)).toEqual(expect.objectContaining({ inviteCode: "abc", joinedAt: 10 }));
         expect(store.listOrigins()).toHaveLength(1);
     });
 
-    it("lets a known origin replace an unknown one, keeping the first join time", () => {
-        store.recordOrigin({ guildId: PUG, userId: U2 }, { now: 10 });
-        expect(store.originOf(PUG, U2).inviteCode).toBe("");
-        store.recordOrigin({ guildId: PUG, userId: U2, inviteCode: "abc", linkKey: KEY }, { now: 20 });
-        expect(store.originOf(PUG, U2)).toEqual({ guildId: PUG, userId: U2, inviteCode: "abc", linkKey: KEY, joinedAt: 10 });
+    it("never stores an unknown origin", () => {
+        expect(store.recordOrigin({ guildId: PUG, userId: U2 }, { now: 10 })).toBeNull();
+        expect(store.recordOrigin({ guildId: PUG, userId: U2, inviteCode: "", linkKey: KEY }, { now: 10 })).toBeNull();
+        expect(store.originOf(PUG, U2)).toBeNull();
+        expect(store.listOrigins()).toEqual([]);
     });
 
-    it("refuses an invalid record and drops a link key without a code", () => {
-        expect(store.recordOrigin({ guildId: "x", userId: U1 })).toBeNull();
-        expect(store.recordOrigin({ guildId: PUG, userId: U1, linkKey: KEY }, { now: 5 }).linkKey).toBe("");
+    it("refuses an invalid record and drops a malformed link key", () => {
+        expect(store.recordOrigin({ guildId: "x", userId: U1, inviteCode: "abc" })).toBeNull();
+        expect(store.recordOrigin({ guildId: PUG, userId: U1, inviteCode: "abc", linkKey: "nope" }, { now: 5 }).linkKey).toBe("");
         expect(store.normalizeOrigin(null)).toBeNull();
+        expect(store.normalizeOrigin({ guildId: PUG, userId: U1, joinedAt: 5, inviteCode: "" })).toBeNull();
     });
 });

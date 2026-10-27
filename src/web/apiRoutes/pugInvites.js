@@ -8,12 +8,30 @@ const discord = require("../../services/discord/discord");
 const pugInvites = require("../../services/discord/pugInvites");
 const inviteStore = require("../../stores/discordInviteStore");
 
+/** How long the page waits for the check against Discord before it answers anyway. */
+const RECONCILE_WAIT_MS = 5000;
+
+/** Run the invite check, but never longer than `ms`: a slow Discord must not hang the page. */
+function reconcileBriefly(ms = RECONCILE_WAIT_MS) {
+    let timer;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(resolve, ms);
+        if (timer.unref) timer.unref();
+    });
+    const check = Promise.resolve()
+        .then(() => pugInvites.reconcileInvites())
+        .catch(() => {});
+    return Promise.race([check, timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
  * GET /api/settings/pug-invites — `{ links, servers }`: every link with its
- * invite URL, error, "joined" and "signedUp"; every server with its general
- * invite and the channel its invites point at.
+ * invite URL, error, "deleted", "joined" and "signedUp"; every server with its
+ * general invite and the channel its invites point at. Checks the invites
+ * against Discord first (one deleted by hand shows as deleted).
  */
 const getPugInvites = withUser({ full: true }, async ({ res }) => {
+    await reconcileBriefly();
     ok(res, pugInvites.inviteOverview());
 });
 
@@ -64,4 +82,4 @@ const routes = [
     { method: "POST", path: "/api/settings/pug-invites/channel", handler: postInviteChannel, area: "settings" },
 ];
 
-module.exports = { getPugInvites, postPugInvite, postInviteChannel, routes };
+module.exports = { getPugInvites, postPugInvite, postInviteChannel, reconcileBriefly, routes };

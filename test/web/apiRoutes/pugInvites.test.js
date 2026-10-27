@@ -1,5 +1,5 @@
 // The settings routes of the invites per link (src/web/apiRoutes/pugInvites.js, #905).
-jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1" } }));
+jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: { id: "1" }, fullAdmin: () => mockFullAdmin }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(() => null), listTextChannels: jest.fn(() => []) }));
 jest.mock("../../../src/services/discord/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
@@ -14,10 +14,12 @@ const signupStore = require("../../../src/stores/signupStore");
 const inviteStore = require("../../../src/stores/discordInviteStore");
 const originStore = require("../../../src/stores/memberOriginStore");
 const pugInvites = require("../../../src/services/discord/pugInvites");
-const { getPugInvites, postPugInvite, postInviteChannel } = require("../../../src/web/apiRoutes/pugInvites");
+const { getPugInvites, postPugInvite, postInviteChannel, reconcileBriefly } = require("../../../src/web/apiRoutes/pugInvites");
 const { AREA_BY_PATH } = require("../../../src/web/http/apiAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { mockRes, status, body } = require("../../helpers/http");
+
+let mockFullAdmin = { id: "1" };
 
 const PUG = "900000000000000001";
 const PARTNER = "900000000000000002";
@@ -25,6 +27,7 @@ const KEY = `${PUG}:${PARTNER}`;
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockFullAdmin = { id: "1" };
     inviteStore.useFile(tempStoreFile("discord-invites.json"));
     originStore.useFile(tempStoreFile("member-origins.json"));
     pugInvites.resetForTests();
@@ -106,5 +109,34 @@ describe("apiRoutes/pugInvites", () => {
         readJsonBody.mockResolvedValueOnce({ guildId: PUG, channelId: "" });
         const cleared = await call(postInviteChannel, "/api/settings/pug-invites/channel");
         expect(body(cleared).servers[0].inviteChannelId).toBe("");
+    });
+
+    it("GET checks the invites against Discord first and shows a deleted one", async () => {
+        inviteStore.setLinkInvite(KEY, { code: "abc" });
+        const fetch = jest.fn(async () => new Map());
+        discord.getGuild.mockImplementation((id) => (id === PUG ? { id: PUG, invites: { fetch } } : null));
+        const res = await call(getPugInvites, "/api/settings/pug-invites");
+        expect(fetch).toHaveBeenCalled();
+        expect(body(res).links[0]).toEqual(expect.objectContaining({ code: "abc", url: "", deleted: true }));
+    });
+
+    it("GET answers even when the check hangs", async () => {
+        jest.useFakeTimers();
+        const spy = jest.spyOn(pugInvites, "reconcileInvites").mockReturnValue(new Promise(() => {}));
+        const pending = reconcileBriefly(50);
+        jest.advanceTimersByTime(60);
+        await expect(pending).resolves.toBeUndefined();
+        spy.mockRestore();
+        jest.useRealTimers();
+    });
+
+    it("refuses an account that is no full admin on GET and POST", async () => {
+        mockFullAdmin = null;
+        const ensure = jest.spyOn(pugInvites, "ensureLinkInvite");
+        expect(status(await call(getPugInvites, "/api/settings/pug-invites"))).toBe(401);
+        readJsonBody.mockResolvedValueOnce({ key: KEY });
+        expect(status(await call(postPugInvite, "/api/settings/pug-invites"))).toBe(401);
+        expect(ensure).not.toHaveBeenCalled();
+        ensure.mockRestore();
     });
 });

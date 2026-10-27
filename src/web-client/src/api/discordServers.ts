@@ -100,6 +100,8 @@ export type PugLinkInvite = {
     channelId: string;
     createdAt: number;
     error: string;
+    /** The check found the invite gone on Discord (someone deleted it); `url` is "" then. */
+    deleted: boolean;
     /** Members who joined through this invite. */
     joined: number;
     /** Of them, signed up for a raid of the source server (absence does not count). */
@@ -116,6 +118,8 @@ export type PugServerInvite = {
     channelId: string;
     inviteChannelId: string;
     error: string;
+    /** The general invite was deleted on Discord. */
+    deleted: boolean;
 };
 
 export type PugInvites = { links: PugLinkInvite[]; servers: PugServerInvite[] };

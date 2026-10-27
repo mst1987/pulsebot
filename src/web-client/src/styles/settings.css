@@ -188,19 +188,21 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-table td { vertical-align: middle; }
 .srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
 .srv-table .srv-remove-off { opacity: 0.45; cursor: not-allowed; }
-/* link | channel | status | language | invite | joined | signed up | actions (#905 added 5-7) */
+/* link | channel | status | language | invite with its counts (#905) | actions; the link takes the rest */
 .srv-links { max-width: 1280px; }
-.srv-links th:nth-child(2) { width: 13%; }
+.srv-links th:nth-child(2) { width: 14%; }
 .srv-links th:nth-child(3) { width: 15%; }
-.srv-links th:nth-child(4) { width: 12%; }
-.srv-links th:nth-child(5) { width: 176px; }
-.srv-links th:nth-child(6), .srv-links th:nth-child(7) { width: 84px; }
-.srv-links th:last-child { width: 170px; }
-.srv-num { text-align: right; font-variant-numeric: tabular-nums; }
+.srv-links th:nth-child(4) { width: 11%; }
+.srv-links th:nth-child(5) { width: 200px; }
+.srv-links th:last-child { width: 168px; }
+.srv-links td { overflow-wrap: anywhere; }
+.srv-links .row-actions .btn { white-space: nowrap; }
+.srv-invite-cell { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .srv-invite { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; max-width: 100%; }
 .srv-code { font-family: var(--font-mono); font-size: 12.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .srv-invite .badge { white-space: normal; }
-.srv-links .srv-sub { margin-top: 4px; }
+.srv-counts { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.srv-counts > span { white-space: nowrap; }
 /* a long status ("noch nicht gepostet") wraps in its column instead of running under the buttons */
 .srv-links td:nth-child(3) .badge { white-space: normal; max-width: 100%; }
 .srv-servers th:nth-child(2) { width: 22%; }
@@ -220,7 +222,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-initials { flex: 0 0 auto; display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 6px; background: var(--panel2); font-size: 10.5px; font-weight: 800; letter-spacing: .02em; }
 .srv-channels { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .srv-pair { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.srv-hint svg { flex: 0 0 auto; color: var(--medium); }
+.srv-hint svg { flex: 0 0 auto; width: 16px; height: 16px; color: var(--medium); }
 
 /* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
 .sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
@@ -281,14 +283,23 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
     .srv-channels, .srv-pair { grid-template-columns: 1fr; }
-    .srv-links th:nth-child(2), .srv-links td:nth-child(2), .srv-links th:nth-child(4), .srv-links td:nth-child(4) { display: none; }
-    .srv-links th:nth-child(6), .srv-links td:nth-child(6), .srv-links th:nth-child(7), .srv-links td:nth-child(7) { display: none; }
-    .srv-links th:nth-child(5) { width: 128px; }
+    /* the links stack: one block per link, every value under its column name */
+    .srv-links table { table-layout: auto; }
+    .srv-links thead { display: none; }
+    .srv-links table, .srv-links tbody, .srv-links tr, .srv-links td { display: block; width: auto; }
+    .srv-links tr { padding: 10px 0; border-bottom: 1px solid var(--line-soft); }
+    .srv-links td { padding: 3px 0; border: 0; }
+    .srv-links td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .srv-links td:first-child::before { content: none; }
+    .srv-links td .srv-invite-cell { display: inline-flex; vertical-align: top; }
+    .srv-links .row-actions { justify-content: flex-start; padding-top: 4px; }
+    /* the server dialog keeps Abbrechen and Speichern on one line; the hint takes its own line above */
+    dialog.dlg.srv-dlg .dlg-foot .btn { white-space: nowrap; }
+    /* the hint is the foot's leading span (Modal); named by position, its class belongs to the shared layer */
+    dialog.dlg.srv-dlg .dlg-foot > span:first-child { flex-basis: 100%; }
     .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
     .srv-sub { display: flex; flex-wrap: wrap; }
     .srv-server-text > .srv-muted { font-size: 13px; }
-    .srv-links th:nth-child(3) { width: 34%; }
-    .srv-links th:last-child { width: 132px; }
     .srv-servers th:nth-child(2) { width: 112px; }
     .rhr-item { grid-template-columns: auto minmax(0, 1fr); }
     .rhr-value, .rhr-act { justify-self: start; }

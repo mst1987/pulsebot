@@ -50,8 +50,8 @@ const client = new Client({
         // the reactions on the role messages (services/discord/roleMessages.js): a reaction
         // gives its role, taking it back takes the role
         GatewayIntentBits.GuildMessageReactions,
-        // not privileged: inviteCreate / inviteDelete keep the invite counters current
-        // (services/discord/pugInvites.js — through which invite a member joined, #905)
+        // not privileged: inviteCreate / inviteDelete speed up the invite check (they only come
+        // with "Kanäle verwalten"; services/discord/pugInvites.js does not rely on them, #905)
         GatewayIntentBits.GuildInvites,
     ],
     // The role messages' reactions must work on messages from before a restart too, which
@@ -91,9 +91,13 @@ client.on(Events.ClientReady, () => {
     } catch (error) {
         logger.warn("member list warm-up failed:", error.message);
     }
-    // The invite of every link and the general one per source server (#905): missing or deleted
-    // ones are created again, then the use counters are read for the origin of new members.
-    pugInvites.ensureAllInvites().catch((error) => logger.warn("invites not ensured:", error.message));
+    // The bot's invites (#905), now and every 10 minutes: vanished ones are marked deleted (never
+    // made again on their own), those of removed links/servers deleted, the use counters read.
+    try {
+        pugInvites.startInviteCheck();
+    } catch (error) {
+        logger.warn("invite check not started:", error.message);
+    }
 });
 
 // Watch the configured log channels for Warcraft-Logs links and offer to evaluate them.

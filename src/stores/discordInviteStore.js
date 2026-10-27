@@ -1,23 +1,25 @@
 // The bot's own invites to its servers (#905, PuG server).
 //
 // `data/settings/discord-invites.json` = {
-//   links:    { ["from:to"]: { code, channelId, createdAt, error } } — one
+//   links:    { ["from:to"]: { code, channelId, createdAt, error, deleted } } — one
 //             invite per link, on the link's source server: a member who
 //             joins through it came from that partner;
-//   general:  { [guildId]: { code, channelId, createdAt, error } } — one
+//   general:  { [guildId]: { code, channelId, createdAt, error, deleted } } — one
 //             general invite per server (the web hands it to non-members);
 //   channels: { [guildId]: channelId } — the channel the invites of a server
 //             point at ("" = the bot picks one, see services/discord/pugInvites.js).
 // }
 // Kept out of the settings config on purpose (like talkOverviewStore): the bot
 // writes it on its own, and a PATCH of the settings page must never race it.
-// A record whose link is gone stays until its invite is replaced; it is
-// harmless (nobody reads it) and keeps the origin of old members readable.
+// Invites exist only after a click in the settings, never on their own.
+// `deleted` marks one that vanished on Discord (deleted by hand): its URL is ""
+// then and the page offers to create it again. A record whose link or server
+// is gone is removed by the next check (pugInvites.reconcileInvites).
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
-const EMPTY = { code: "", channelId: "", createdAt: 0, error: "" };
+const EMPTY = { code: "", channelId: "", createdAt: 0, error: "", deleted: false };
 
 function cleanRecord(raw) {
     const r = raw && typeof raw === "object" ? raw : {};
@@ -26,6 +28,7 @@ function cleanRecord(raw) {
         channelId: typeof r.channelId === "string" ? r.channelId : "",
         createdAt: Number.isFinite(r.createdAt) ? r.createdAt : 0,
         error: typeof r.error === "string" ? r.error : "",
+        deleted: r.deleted === true,
     };
 }
 
@@ -87,6 +90,36 @@ function setGeneralInvite(guildId, patch) {
     return patchSection("general", guildId, patch);
 }
 
+function removeFromSection(section, id) {
+    const key = String(id || "");
+    const data = read();
+    if (!key || !data[section][key]) return false;
+    const next = { ...data[section] };
+    delete next[key];
+    store.write({ ...data, [section]: next });
+    return true;
+}
+
+/** Drop the record of one link (its link is gone). True when there was one. */
+function removeLinkInvite(key) {
+    return removeFromSection("links", key);
+}
+
+/** Drop the general invite record of one server (the server is gone). True when there was one. */
+function removeGeneralInvite(guildId) {
+    return removeFromSection("general", guildId);
+}
+
+/** Every link key with a stored record, deleted ones included. */
+function linkKeys() {
+    return Object.keys(read().links);
+}
+
+/** Every server with a stored general invite record, deleted ones included. */
+function generalGuildIds() {
+    return Object.keys(read().general);
+}
+
 /** The channel set for the invites of a server ("" = none set). */
 function getInviteChannel(guildId) {
     return read().channels[String(guildId || "")] || "";
@@ -104,20 +137,24 @@ function setInviteChannel(guildId, channelId) {
     return channels[id] || "";
 }
 
-/** Every stored invite code with what it stands for: `[{ code, guildId, linkKey }]` (linkKey "" = general). */
+/**
+ * Every live stored invite code with what it stands for: `[{ code, guildId, linkKey }]`
+ * (linkKey "" = general). Codes marked deleted are left out.
+ */
 function knownCodes() {
     const data = read();
     const out = [];
     for (const [key, r] of Object.entries(data.links)) {
-        if (r.code) out.push({ code: r.code, guildId: key.split(":")[0], linkKey: key });
+        if (r.code && !r.deleted) out.push({ code: r.code, guildId: key.split(":")[0], linkKey: key });
     }
     for (const [guildId, r] of Object.entries(data.general)) {
-        if (r.code) out.push({ code: r.code, guildId, linkKey: "" });
+        if (r.code && !r.deleted) out.push({ code: r.code, guildId, linkKey: "" });
     }
     return out;
 }
 
 module.exports = {
     getLinkInvite, setLinkInvite, getGeneralInvite, setGeneralInvite,
+    removeLinkInvite, removeGeneralInvite, linkKeys, generalGuildIds,
     getInviteChannel, setInviteChannel, knownCodes, useFile,
 };
