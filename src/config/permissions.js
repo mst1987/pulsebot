@@ -202,7 +202,10 @@ function userCan(user, area, level = "read") {
 /** Whether a user may use the admin menu at all (full admin or any granted area). */
 function userHasMenuAccess(user) {
     if (!user) return false;
-    return !!user.isAdmin || hasAnyAccess(user.access);
+    // `allAccess` (#925): the rights over every server - an account whose roles
+    // sit on another server still reaches the pages under "Alle Server" (Mein
+    // Profil, Addons); every route of one server checks `access` alone.
+    return !!user.isAdmin || hasAnyAccess(user.access) || hasAnyAccess(user.allAccess);
 }
 
 /** Whether a session user may read/write at least one of the given areas. */

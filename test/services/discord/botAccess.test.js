@@ -14,6 +14,7 @@ const {
     resolveBotAccess, ruleFor, accessOwner, eventMemberRoles, denyMessage, guardInteraction,
 } = require("../../../src/services/discord/botAccess");
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction");
+const userAccess = require("../../../src/services/discord/userAccess");
 
 const GUILD = "900000000000000001";
 const ORGA = "123456789012345678";
@@ -192,13 +193,79 @@ describe("guardInteraction", () => {
         expect(interaction.reply).not.toHaveBeenCalled();
     });
 
-    it("reads the roles on the first server of the list, not on the server of the click (#897)", async () => {
+    describe("per server (#925)", () => {
         const OTHER = "900000000000000002";
-        settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: { servers: [{ guildId: OTHER }, { guildId: GUILD }], links: [] } });
-        const interaction = mockInteraction({ userId: "555", customId: "event-next", guild: { id: GUILD } });
-        interaction.member = { roles: { cache: makeCollection([[ORGA, {}]]) } };
-        expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(false);
-        expect(discord.getGuild).toHaveBeenCalledWith(OTHER);
+        const servers = { servers: [{ guildId: OTHER }, { guildId: GUILD }], links: [] };
+
+        it("reads the roles on the server of the click, not on the first server of the list", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers });
+            const interaction = mockInteraction({ userId: "555", customId: "event-next", guild: { id: GUILD } });
+            interaction.guildId = GUILD;
+            interaction.member = { roles: { cache: makeCollection([[ORGA, {}]]) } };
+            expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(true);
+            expect(discord.getGuild).not.toHaveBeenCalled();
+        });
+
+        it("judges by the rules of the server of the click: a role granted on B opens nothing on A", async () => {
+            settingsStore.getConfig.mockReturnValue({
+                guildId: GUILD,
+                discordServers: servers,
+                serverSettings: { [OTHER]: { botCommandAccess: { fillsetup: { mode: "roles", roleIds: [RAIDLEAD] } } } },
+            });
+            const onA = mockInteraction({ userId: "555", customId: "fillsetup", guild: { id: GUILD } });
+            onA.guildId = GUILD;
+            onA.member = { roles: { cache: makeCollection([[RAIDLEAD, {}]]) } };
+            expect(await guardInteraction(onA, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
+            const onB = mockInteraction({ userId: "555", customId: "fillsetup", guild: { id: OTHER } });
+            onB.guildId = OTHER;
+            onB.member = { roles: { cache: makeCollection([[RAIDLEAD, {}]]) } };
+            expect(await guardInteraction(onB, COMMANDS.get("fillsetup"), COMMANDS)).toBe(true);
+        });
+
+        it("ignores rules stored on the top level (only serverSettings count)", async () => {
+            settingsStore.getConfig.mockReturnValue({
+                guildId: GUILD,
+                botCommandAccess: { fillsetup: { mode: "everyone", roleIds: [] } },
+            });
+            const interaction = mockInteraction({ userId: "555", guild: { id: GUILD } });
+            interaction.guildId = GUILD;
+            expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
+        });
+
+        it("lets a full admin through on every server, also by an admin role held on another server", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers, adminRoleIds: [ADMIN_ROLE] });
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess").mockResolvedValue({ isAdmin: true, guilds: {} });
+            const interaction = mockInteraction({ userId: "555", guild: { id: OTHER } });
+            interaction.guildId = OTHER;
+            interaction.member = { roles: { cache: makeCollection([]) } };
+            expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(true);
+            expect(spy).toHaveBeenCalledWith("555");
+            spy.mockResolvedValue({ isAdmin: false, guilds: {} });
+            const again = mockInteraction({ userId: "555", guild: { id: OTHER } });
+            again.guildId = OTHER;
+            again.member = { roles: { cache: makeCollection([]) } };
+            expect(await guardInteraction(again, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
+            spy.mockRestore();
+        });
+
+        it("asks nobody about other servers when no admin role is configured", async () => {
+            const spy = jest.spyOn(userAccess, "resolveGuildAccess");
+            const interaction = mockInteraction({ userId: "555", guild: { id: GUILD } });
+            interaction.guildId = GUILD;
+            expect(await guardInteraction(interaction, COMMANDS.get("fillsetup"), COMMANDS)).toBe(false);
+            expect(spy).not.toHaveBeenCalled();
+            spy.mockRestore();
+        });
+
+        it("judges a DM by the home server", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: servers });
+            const interaction = mockInteraction({ userId: "555", customId: "event-next" });
+            interaction.guild = null;
+            interaction.guildId = null;
+            interaction.member = null;
+            expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(false);
+            expect(discord.getGuild).toHaveBeenCalledWith(OTHER);
+        });
     });
 
     it("answers a refused autocomplete with no choices instead of a reply", async () => {

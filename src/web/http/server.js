@@ -8,6 +8,7 @@ const discord = require("../../services/discord/discord");
 const staticClient = require("./staticClient");
 const { findPageRoute, send } = require("./pageRoutes");
 const compression = require("./compression");
+const auth = require("./auth");
 
 /**
  * One request: the first entry of pageRoutes.js that fits method and path
@@ -22,6 +23,8 @@ async function handle(req, res) {
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
 
     compression.install(req, res, pathname);
+    // a session from before #925 gets its per-server rights before a page reads them
+    if (typeof auth.ensureAccess === "function") await auth.ensureAccess(req);
     const hit = findPageRoute(req.method, pathname);
     if (hit) return hit.route.handler({ req, res, url, pathname, params: hit.params, rest: hit.rest });
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, renderNotFound());

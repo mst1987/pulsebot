@@ -261,7 +261,7 @@ describe("overview / diff", () => {
     });
 
     test("orga roles of the server must keep seeing the category", async () => {
-        mockConfig = baseConfig({ orgaRoleIds: ["r-orga", "r-elsewhere"] });
+        mockConfig = baseConfig({ serverSettings: { [GID]: { orgaRoleIds: ["r-orga", "r-elsewhere"] } } });
         mockGuild = guild({ roles: [makeRole({ id: "r-orga", name: "Orga" })], categories: { [TBC_CAT]: { "r-orga": true } } });
         const o = await svc.overview(GID);
         expect(o.categories.find((c) => c.id === FOREVER_CAT)).toMatchObject({ missing: ["everyone", "version", "orga", "bot"], orga: [{ id: "r-orga", name: "Orga" }] });
@@ -385,7 +385,7 @@ describe("privileged roles", () => {
     });
 
     test("an orga role found by name is privileged", async () => {
-        mockConfig = baseConfig({ orgaRoleIds: ["r-druid"] });
+        mockConfig = baseConfig({ serverSettings: { [GID]: { orgaRoleIds: ["r-druid"] } } });
         mockGuild = guild({ roles: [makeRole({ id: "r-druid", name: "Druid" })] });
         const o = await svc.overview(GID);
         expect(o.roles.find((r) => r.key === "class:Druid").privileged).toMatchObject({ code: "orga" });
@@ -514,7 +514,7 @@ describe("apply", () => {
     });
 
     test("orga roles get View Channel before @everyone is hidden", async () => {
-        mockConfig = baseConfig({ orgaRoleIds: ["r-orga"] });
+        mockConfig = baseConfig({ serverSettings: { [GID]: { orgaRoleIds: ["r-orga"] } } });
         mockGuild = guild({ roles: [makeRole({ id: "r-orga", name: "Orga" })] });
         await run({ categoryIds: [TBC_CAT] });
         const calls = mockGuild.channels.cache.get(TBC_CAT).permissionOverwrites.edit.mock.calls.map((c) => [c[0], c[1].ViewChannel]);

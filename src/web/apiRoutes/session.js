@@ -9,7 +9,8 @@ const { readJsonBody } = require("../http/apiBody");
 const userPrefs = require("../../stores/userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess, userIsOrga, can } = require("../../config/permissions");
 const { getConfig } = require("../../stores/settingsStore");
-const { guildId: envGuildId, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+const { guildId: envGuildId } = require("../../config/variables");
+const { configForGuild, accessSettings, fullAdminRoleIds } = require("../../services/discord/serverAccess");
 const { normalizeRoleIds, MAX_ROLES } = require("../http/viewAs");
 const { contentVersions } = require("../../services/events/contentVersions");
 const { areaAudience, orgaRoleNames } = require("../http/areaAudience");
@@ -33,7 +34,10 @@ async function getSession(req, res) {
                 isAdmin: !!user.isAdmin,
                 // The client hides areas/actions accordingly; the server gates
                 // them for real in apiAccess.js.
+                // Since #925 `access` is the rights on the active server (`guildId`) only; `allAccess`
+                // the rights over every server, for the pages under "Alle Server" (Mein Profil, Addons).
                 access: user.isAdmin ? fullAccess() : { ...emptyAccess(), ...(user.access || {}) },
+                allAccess: user.isAdmin ? fullAccess() : { ...emptyAccess(), ...(user.allAccess || user.access || {}) },
                 // The menu language the account chose ("de" | "en"), left out
                 // while it never chose one — the browser's own choice stands then.
                 ...langField(user.id),
@@ -48,7 +52,7 @@ async function getSession(req, res) {
                 orgaCategories,
                 // Who sees each area the caller may open (areaAudience.js): the client marks an area
                 // only admins and orga roles open as "Orga-Bereich" and names those orga roles.
-                ...audienceFields(user),
+                ...audienceFields(user, req),
             }
             : null,
         csrfToken: user ? auth.csrfToken(req) : null,
@@ -75,13 +79,15 @@ async function orgaCategoriesOf(user, req) {
  * `{ audience, orgaRoles }`: areaAudience() for the areas the caller may open (a full admin: all
  * of them), and the names of the orga roles (the orga zones name them). Best-effort: empty on failure.
  */
-function audienceFields(user) {
+function audienceFields(user, req) {
     try {
-        const config = getConfig();
-        const admins = [...(config.adminRoleIds || []), ...(envAdminRoleIds || [])];
+        const guildId = permissionGuildId(req);
+        // the rights settings of the active server (#925); the full-admin roles count everywhere
+        const config = configForGuild(getConfig(), guildId);
+        const admins = fullAdminRoleIds(config);
         let roles = [];
         try {
-            roles = discord.listRoles(permissionGuildId()) || [];
+            roles = (guildId && discord.listRoles(guildId)) || [];
         } catch {
             roles = [];
         }
@@ -134,17 +140,22 @@ const postLang = withUser({ csrf: true, body: true }, async ({ user, body, res }
 
 // ---- "Ansicht als Rolle" (src/web/http/viewAs.js) --------------------------------
 
-/** The server whose roles carry the menu rights (Einstellungen › Zugang/Berechtigungen). */
-function permissionGuildId() {
-    return String(getConfig().guildId || envGuildId || "");
+/**
+ * The server whose roles carry the menu rights: the active server (#925) - its
+ * Einstellungen > Berechtigungen decide what a role there may open.
+ */
+function permissionGuildId(req) {
+    return String(activeGuildFor(req) || "");
 }
 
-/** The roles of that server, each marked admin role / with permissions of its own. */
-function viewAsRoles() {
+/** The roles of the active server, each marked admin role / with permissions of its own there. */
+function viewAsRoles(req) {
+    const guildId = permissionGuildId(req);
+    if (!guildId) return [];
     const config = getConfig();
-    const adminIds = new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])].map(String));
-    const perms = config.rolePermissions || {};
-    return discord.listRoles(permissionGuildId()).map((r) => ({
+    const adminIds = new Set(fullAdminRoleIds(config).map(String));
+    const perms = accessSettings(guildId, config).rolePermissions;
+    return (discord.listRoles(guildId) || []).map((r) => ({
         id: r.id, name: r.name, color: r.color || "",
         admin: adminIds.has(r.id),
         configured: !!perms[r.id] && Object.keys(perms[r.id]).length > 0,
@@ -156,7 +167,7 @@ function viewAsFields(req, user) {
     const real = auth.getRealUser(req);
     const out = { canViewAs: !!(real && real.isAdmin) };
     if (user.viewAs) {
-        const names = new Map(viewAsRoles().map((r) => [r.id, r.name]));
+        const names = new Map(viewAsRoles(req).map((r) => [r.id, r.name]));
         out.viewAs = {
             roleIds: user.viewAs.roleIds,
             roleNames: user.viewAs.roleIds.map((id) => names.get(id) || id),
@@ -174,7 +185,7 @@ function getViewAs(req, res) {
     const real = auth.getRealUser(req);
     if (!real) return error(res, 401, "unauthorized", "Nicht angemeldet.");
     if (!real.isAdmin) return error(res, 403, "forbidden", "Nur für Administratoren.");
-    ok(res, { roles: viewAsRoles(), maxRoles: MAX_ROLES });
+    ok(res, { roles: viewAsRoles(req), maxRoles: MAX_ROLES });
 }
 
 /**
@@ -193,7 +204,7 @@ async function postViewAs(req, res) {
         return ok(res, { viewAs: null });
     }
     if (!real.isAdmin) return error(res, 403, "forbidden", "Nur für Administratoren.");
-    const known = new Set(viewAsRoles().map((r) => r.id));
+    const known = new Set(viewAsRoles(req).map((r) => r.id));
     const roleIds = normalizeRoleIds(body.roleIds).filter((id) => known.has(id));
     auth.setViewAs(req, roleIds);
     ok(res, { viewAs: { roleIds } });

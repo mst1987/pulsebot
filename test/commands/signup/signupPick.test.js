@@ -92,7 +92,7 @@ describe("access of the dialog steps", () => {
     });
 
     it("the router guard refuses every step when the orga restricts the signup to a role", async () => {
-        settings.getConfig.mockReturnValue({ botCommandAccess: { "event-signup": { mode: "roles", roleIds: ["300000000000000001"] } } });
+        settings.getConfig.mockReturnValue({ serverSettings: { "guild-1": { botCommandAccess: { "event-signup": { mode: "roles", roleIds: ["300000000000000001"] } } } } });
         for (const [c, customId] of [[command, "signup-pick:eh-kara:a:::"], [statusCommand, "signup-status:eh-kara:s:::"], [commentCommand, "signup-comment:eh-kara:::"]]) {
             const i = mockInteraction({ customId });
             expect(await guardInteraction(i, c, commands)).toBe(false);

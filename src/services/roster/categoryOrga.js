@@ -119,7 +119,8 @@ async function isCategoryOrga(user, categoryId, { config, ...opts } = {}) {
 async function isCategoryOrgaById(userId, categoryId, opts = {}) {
     const uid = str(userId);
     if (!uid) return false;
-    return isCategoryOrga({ id: uid, ...(await resolveAccess(uid)) }, categoryId, opts);
+    // the rights on the server of the click (#925, opts.guildId); none: only full admins and managers
+    return isCategoryOrga({ id: uid, ...(await resolveAccess(uid, { guildId: opts.guildId })) }, categoryId, opts);
 }
 
 /**

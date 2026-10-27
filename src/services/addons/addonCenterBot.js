@@ -29,6 +29,7 @@ const { TIMEZONE } = require("../../config/timezone");
 const { getConfig } = require("../../stores/configStore");
 const store = require("../../stores/addonCenterStore");
 const { resolveAccess } = require("../discord/userAccess");
+const { interactionGuildId } = require("../discord/serverAccess");
 const { langOfInteraction } = require("../discord/botLanguage");
 const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { enabledAddons, releaseFor, resolveDownload } = require("./addonReleases");
@@ -153,7 +154,8 @@ async function download(interaction, addonId, assetId = "") {
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const lang = langOfInteraction(interaction);
     const userId = str(interaction.user && interaction.user.id);
-    const user = { id: userId, ...(await resolveAccess(userId)) };
+    // the rights on the server of the click (#925)
+    const user = { id: userId, ...(await resolveAccess(userId, { guildId: interactionGuildId(interaction) })) };
     if (!userCanAny(user, AREAS, "read")) {
         log.warn(`download refused (no access): ${addonId} by ${whoOf(interaction)} via discord`);
         return interaction.editReply(denied(lang));

@@ -8,17 +8,23 @@ const {
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../../config/variables");
 const { getConfig } = require("../../stores/settingsStore");
-const { fullAccess, emptyAccess } = require("../../config/permissions");
+const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissions");
 // What an account may do (its roles on the configured servers, the base access) is
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
-const { computeAccess, resolveAccess } = require("../../services/discord/userAccess");
+const {
+    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild,
+} = require("../../services/discord/userAccess");
+const { configForGuild } = require("../../services/discord/serverAccess");
+const { pickActiveGuild } = require("./guildChoice");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
-// sid -> { id, name, isAdmin, isOrga?, access, csrf, createdAt, adminCheckedAt } (isOrga only when true: an orga role)
-// `access` is the per-area read/write map from config/permissions.js; full
-// admins carry fullAccess().
+// sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, adminCheckedAt, activeGuildId? }
+// `guildAccess` is userAccess.computeGuildAccess(): `{ isAdmin, guilds: { [guildId]:
+// { access, isOrga? } } }` — the rights per Discord server (#925). The session
+// never carries one "global" access map: getUser() hands out the rights of the
+// request's active server (activeGuildOf) only.
 const SESSIONS_FILE = dataPath("sessions.json");
 const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 // How long a session's isAdmin flag and area access are trusted before they are
@@ -78,7 +84,7 @@ function devSession() {
             id: logcheckAdminIds[0] || "dev",
             name: "Dev (lokal)",
             isAdmin: true,
-            access: fullAccess(),
+            guildAccess: { isAdmin: true, guilds: {} },
             csrf: crypto.randomBytes(18).toString("hex"),
             createdAt: Date.now(),
         };
@@ -93,7 +99,7 @@ function sessionFor(req) {
     const s = sid && sessions.get(sid);
     if (s && (Date.now() - (s.createdAt || 0)) < SESSION_TTL) {
         maybeRefreshAdmin(sid, s);
-        return withAccess(s);
+        return s;
     }
     if (s) { sessions.delete(sid); saveSessions(); }
     return devSession();
@@ -103,14 +109,73 @@ function sessionFor(req) {
 // objects so the flag is never persisted to disk).
 const refreshingSids = new Set();
 
+/** Store a computeGuildAccess() result on a session; the old global fields go. */
+function applyGuildAccess(s, guildAccess) {
+    s.guildAccess = guildAccess;
+    s.isAdmin = !!guildAccess.isAdmin;
+    delete s.access;
+    delete s.isOrga;
+}
+
 /**
- * Fill in a session's `access` map when it predates the permission model (a
- * session persisted before this feature, or restored from an older file): full
- * admins get everything, anyone else nothing until the next re-check.
+ * The server the request works on - the same rule as activeGuild.activeGuildFor
+ * (guildChoice.js). The rights of a request are those of this server (#925).
  */
-function withAccess(s) {
-    if (!s.access) s.access = s.isAdmin ? fullAccess() : emptyAccess();
-    return s;
+function activeGuildOf(req) {
+    const s = sessionFor(req);
+    return pickActiveGuild((s && s.activeGuildId) || null);
+}
+
+/**
+ * The union of a session's rights over every server — what the pages under
+ * "Alle Server" (Mein Profil, Addons) and the question "may this account open
+ * the menu at all" go by. Never used for a route of one server.
+ */
+function allServersAccessOf(guildAccess) {
+    if (guildAccess.isAdmin) return fullAccess();
+    let all = emptyAccess();
+    for (const entry of Object.values(guildAccess.guilds || {})) all = mergeAccess(all, entry.access);
+    return all;
+}
+
+/**
+ * The user object a reader sees: a copy of the session carrying the rights of
+ * the active server — `access`, `isOrga` — plus `allAccess` (the union over
+ * every server) and `guildId`. A session without per-server rights yet (one
+ * from before #925, until ensureAccess or the next re-check filled it) gets only
+ * the base access of the server: fail closed, never the old global map.
+ */
+function userView(s, guildId) {
+    const copy = { ...s };
+    delete copy.guildAccess;
+    delete copy.access;
+    delete copy.isOrga;
+    const ga = s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
+    const { isAdmin, access, isOrga } = accessForGuild(ga, s.id, guildId);
+    return {
+        ...copy,
+        isAdmin,
+        access,
+        ...(isOrga ? { isOrga: true } : {}),
+        allAccess: isAdmin ? fullAccess() : mergeAccess(allServersAccessOf(ga), access),
+        guildId: guildId || "",
+    };
+}
+
+/**
+ * Compute the per-server rights of a session that has none yet (logged in
+ * before #925) before the request goes on, so its first request after the
+ * update is answered with the right rights instead of the base access. A no-op
+ * for every other request.
+ */
+async function ensureAccess(req) {
+    const sid = parseCookies(req).sid;
+    const s = sid && sessions.get(sid);
+    if (!s || s.guildAccess || sid === DEV_SID) return;
+    if ((Date.now() - (s.createdAt || 0)) >= SESSION_TTL) return;
+    applyGuildAccess(s, await resolveGuildAccess(s.id));
+    s.adminCheckedAt = Date.now();
+    saveSessions();
 }
 
 /**
@@ -125,14 +190,8 @@ function maybeRefreshAdmin(sid, s) {
     const checkedAt = s.adminCheckedAt || s.createdAt || 0;
     if (Date.now() - checkedAt < ADMIN_REFRESH_MS || refreshingSids.has(sid)) return;
     refreshingSids.add(sid);
-    computeAccess(s.id)
-        .then(({ isAdmin, access, isOrga }) => {
-            s.isAdmin = isAdmin;
-            s.access = access;
-            // an orga role (config.orgaRoleIds): kept only while true, like the login sets it
-            if (isOrga) s.isOrga = true;
-            else delete s.isOrga;
-        })
+    computeGuildAccess(s.id)
+        .then((guildAccess) => applyGuildAccess(s, guildAccess))
         .catch((e) => console.warn(`Admin re-check failed for ${s.id}:`, e.message))
         .finally(() => {
             s.adminCheckedAt = Date.now();
@@ -149,14 +208,17 @@ function maybeRefreshAdmin(sid, s) {
 function getUser(req) {
     const s = sessionFor(req);
     if (!s) return null;
-    if (!s.viewAs) return s;
+    const guildId = activeGuildOf(req);
+    const own = userView(s, guildId);
+    if (!s.viewAs) return own;
     if (!viewAsActive(s.viewAs)) {
         // A view that ran out ends by itself.
         delete s.viewAs;
         saveSessions();
-        return s;
+        return userView(s, guildId);
     }
-    return effectiveUser(s, getConfig(), envAdminRoleIds || []);
+    // the roles are looked at with the rights settings of the active server
+    return effectiveUser(own, configForGuild(getConfig(), guildId), envAdminRoleIds || []);
 }
 
 /**
@@ -164,7 +226,8 @@ function getUser(req) {
  * Rolle" — only for starting and stopping that view.
  */
 function getRealUser(req) {
-    return sessionFor(req) || null;
+    const s = sessionFor(req);
+    return s ? userView(s, activeGuildOf(req)) : null;
 }
 
 /**
@@ -250,15 +313,14 @@ async function completeLogin(code) {
     const me = await axios.get("https://discord.com/api/users/@me", {
         headers: { Authorization: `Bearer ${token.data.access_token}` },
     });
-    const { isAdmin, access, isOrga } = await resolveAccess(me.data.id);
+    const guildAccess = await resolveGuildAccess(me.data.id);
     const user = {
         id: me.data.id,
         name: me.data.global_name || me.data.username,
         // The account's Discord picture for the menu's user circle; none when it has no own picture.
         ...(me.data.avatar ? { avatarUrl: `https://cdn.discordapp.com/avatars/${me.data.id}/${me.data.avatar}.png?size=64` } : {}),
-        isAdmin,
-        ...(isOrga ? { isOrga: true } : {}),
-        access,
+        isAdmin: !!guildAccess.isAdmin,
+        guildAccess,
         csrf: crypto.randomBytes(18).toString("hex"),
         createdAt: Date.now(),
         adminCheckedAt: Date.now(),
@@ -275,7 +337,7 @@ function destroy(sid) {
 
 module.exports = {
     configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
-    csrfToken, checkCsrf, getActiveGuild, setActiveGuild,
+    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess,
     // services/discord/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,
 };

@@ -6,14 +6,23 @@
 // in web/ because commands/ and utils/ never require from web/
 // (test/docs/layering.test.js).
 //
-//   computeAccess(userId)   the roles on every configured server; throws
-//                           when not one of them could be reached
-//   resolveAccess(userId)   the same, the base access when the lookup fails
-//   userMayAny(userId, areas, level)   resolveAccess + permissions.userCanAny
-const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+// Since #925 rights are per Discord server: the roles a member holds on server B
+// open nothing on server A. Only the full admins (.env ADMIN_USER_ID /
+// LOGCHECK_ADMIN_IDS, the admin roles of config.adminRoleIds + ADMIN_ROLE_IDS)
+// count on every server.
+//
+//   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga? } } }`
+//                                for every server; throws when not one could be reached
+//   resolveGuildAccess(userId)   the same, the base access of each server when it fails
+//   computeAccess(userId, { guildId })   the rights on that one server (fail closed
+//                                without a guild id: only a full admin gets anything)
+//   resolveAccess(userId, { guildId })   the same, the base access when the lookup fails
+//   userMayAny(userId, areas, level, { guildId })   resolveAccess + permissions.userCanAny
+const { logcheckAdminIds } = require("../../config/variables");
 const { getConfig } = require("../../stores/settingsStore");
 const guildRoles = require("./guildRoles");
 const discord = require("./discord");
+const { accessSettings, accessGuildIds, fullAdminRoleIds } = require("./serverAccess");
 const {
     fullAccess, emptyAccess, accessForRoles, accessForUser, baseAccessMap, mergeAccess, userCanAny,
 } = require("../../config/permissions");
@@ -27,22 +36,26 @@ const UNKNOWN_USER = 10013;
 const NO_ACCESS = () => ({ isAdmin: false, access: emptyAccess() });
 const ALL_ACCESS = () => ({ isAdmin: true, access: fullAccess() });
 
+const gidOf = (guildId) => String(guildId || "").trim();
+
 /**
- * What a logged-in account gets without any role: config.baseAccess plus the
- * grants configured for this account itself (config.userPermissions), both
- * edited in Einstellungen → Berechtigungen.
+ * What a logged-in account gets on one server without any role: that server's
+ * base access plus the grants configured there for this account itself, both
+ * edited in Einstellungen → Berechtigungen of that server. No server, nothing.
  *
  * Deliberately independent of Discord — it is the fallback when the role lookup
  * says "not a member" or fails outright, so a guest can still open the loot
  * views the guild decided to share, and the one person the loot council was
  * handed to does not lose it because the bot is offline.
  */
-function BASE_ACCESS(userId) {
+function BASE_ACCESS(userId, guildId) {
+    const gid = gidOf(guildId);
+    if (!gid) return NO_ACCESS();
     try {
-        const config = getConfig();
+        const settings = accessSettings(gid, getConfig());
         return {
             isAdmin: false,
-            access: mergeAccess(baseAccessMap(config.baseAccess), accessForUser(config.userPermissions, userId)),
+            access: mergeAccess(baseAccessMap(settings.baseAccess), accessForUser(settings.userPermissions, userId)),
         };
     } catch {
         return NO_ACCESS();
@@ -56,41 +69,43 @@ function memberRoleIds(member) {
     return [...cache.keys()];
 }
 
+/** Every server rights may be asked for: the configured servers plus every server holding settings. */
+function knownGuildIds(config) {
+    return [...new Set([...guildRoles.eventGuildIds(config), ...accessGuildIds(config)].map(gidOf).filter(Boolean))];
+}
+
+/** The base access of every known server, the starting point and the fallback. */
+function baseGuilds(userId, config) {
+    const guilds = {};
+    for (const gid of knownGuildIds(config)) guilds[gid] = { access: BASE_ACCESS(userId, gid).access };
+    return guilds;
+}
+
 /**
- * What the given Discord user id may currently do: `{ isAdmin, access, isOrga? }`.
- * `isOrga: true` when a non-admin holds one of the orga roles (config.orgaRoleIds) on an
- * configured server — full admins are orga anyway (permissions.userIsOrga).
- * Full admin if the id is in the static admin list, or a member of ANY
- * configured server (#361 — several can exist now) holding one of the
- * admin roles there — full admins get every area at write level. Otherwise
- * the union of the role permissions of the roles they hold across every
- * configured server they belong to (see config/permissions.js). Not
- * being a member of a given server is not fatal — the next one is
- * tried. Throws only when not a single configured server could be
- * reached at all (bot not logged in, Discord unreachable), so callers can
- * distinguish "no access" from "unknown".
+ * What the given Discord user id may do on each server:
+ * `{ isAdmin, guilds: { [guildId]: { access, isOrga? } } }`.
+ *
+ * Full admin (on every server) if the id is a .env admin, or a member of ANY
+ * known server holding one of the full-admin roles. Otherwise, per server, that
+ * server's base access merged with the role grants of the roles held on that
+ * server; `isOrga` when one of that server's orga roles is held there. Not being
+ * a member of a server is not fatal — it keeps its base access. Throws only when
+ * not a single server could be reached (bot not logged in, Discord unreachable),
+ * so callers can tell "no access" from "unknown".
  */
-async function computeAccess(userId) {
+async function computeGuildAccess(userId) {
     // ADMIN_USER_ID (+ optional LOGCHECK_ADMIN_IDS) is the bootstrap admin from .env.
-    if (logcheckAdminIds.includes(String(userId))) return ALL_ACCESS();
+    if (logcheckAdminIds.includes(String(userId))) return { isAdmin: true, guilds: {} };
     const config = getConfig();
-    // Role IDs are configured in the admin menu (data/settings/config.json),
-    // with any .env ADMIN_ROLE_IDS merged in as an optional fallback.
-    const adminRoleIds = [...new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])])];
-    const rolePermissions = config.rolePermissions || {};
-    const orgaRoleIds = (config.orgaRoleIds || []).map(String);
-    // What this account gets before any role is looked at: the guild-wide base
-    // access plus its own per-account grants (see BASE_ACCESS).
-    const base = BASE_ACCESS(userId).access;
+    const adminRoleIds = fullAdminRoleIds(config);
+    const guildIds = knownGuildIds(config);
+    const guilds = baseGuilds(userId, config);
+    const settingsOf = Object.fromEntries(guildIds.map((gid) => [gid, accessSettings(gid, config)]));
+    const roleBased = guildIds.some((gid) => Object.keys(settingsOf[gid].rolePermissions).length || settingsOf[gid].orgaRoleIds.length);
     // Nothing role-based is configured at all — no need to hit Discord.
-    if (!adminRoleIds.length && !Object.keys(rolePermissions).length && !orgaRoleIds.length) return { isAdmin: false, access: base };
-    // The servers are admin-editable (data/settings/config.json); an
-    // install that never configured one falls back to guildId, .env-only in turn.
-    const guildIds = guildRoles.eventGuildIds(config);
+    if (!adminRoleIds.length && !roleBased) return { isAdmin: false, guilds };
     const botClient = discord.getClient();
     if (!botClient || !guildIds.length) throw new Error("bot client or guild id not available");
-    let access = base;
-    let isOrga = false;
     let reachedAnyGuild = false;
     let lastGuildError = null;
     for (const guildId of guildIds) {
@@ -98,7 +113,7 @@ async function computeAccess(userId) {
         try {
             guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
         } catch (e) {
-            lastGuildError = e; // bot not on this server — try the next one
+            lastGuildError = e; // bot not on this server — it keeps its base access
             continue;
         }
         reachedAnyGuild = true;
@@ -106,35 +121,66 @@ async function computeAccess(userId) {
         try {
             member = await guild.members.fetch(userId);
         } catch (e) {
-            // Not a member of this server — they still keep what they have so far; try the next.
+            // Not a member of this server — it keeps its base access; try the next.
             if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) continue;
             throw e;
         }
-        if (adminRoleIds.some((rid) => member.roles.cache.has(rid))) return ALL_ACCESS();
-        const roleIds = memberRoleIds(member);
-        access = mergeAccess(access, accessForRoles(rolePermissions, roleIds));
-        if (roleIds.some((rid) => orgaRoleIds.includes(String(rid)))) isOrga = true;
+        const roleIds = memberRoleIds(member).map(String);
+        if (adminRoleIds.some((rid) => roleIds.includes(rid))) return { isAdmin: true, guilds: {} };
+        const settings = settingsOf[guildId];
+        const access = mergeAccess(guilds[guildId].access, accessForRoles(settings.rolePermissions, roleIds));
+        const isOrga = roleIds.some((rid) => settings.orgaRoleIds.includes(rid));
+        guilds[guildId] = { access, ...(isOrga ? { isOrga: true } : {}) };
     }
     if (!reachedAnyGuild) throw lastGuildError || new Error("no configured server reachable");
-    return { isAdmin: false, access, ...(isOrga ? { isOrga: true } : {}) };
+    return { isAdmin: false, guilds };
 }
 
-/** computeAccess(), falling back to the base access when the lookup fails. */
-async function resolveAccess(userId) {
+/** computeGuildAccess(), falling back to the base access of every server when the lookup fails. */
+async function resolveGuildAccess(userId) {
     try {
-        return await computeAccess(userId);
+        return await computeGuildAccess(userId);
     } catch (e) {
         logger.warn(`Role lookup failed for ${userId}: ${e && e.message}`);
-        return BASE_ACCESS(userId);
+        try {
+            return { isAdmin: false, guilds: baseGuilds(userId, getConfig()) };
+        } catch {
+            return { isAdmin: false, guilds: {} };
+        }
     }
 }
 
-/** Whether the account may `level` ("read" | "write") at least one of `areas` — full admins always may. */
-async function userMayAny(userId, areas, level = "read") {
-    return userCanAny(await resolveAccess(userId), areas, level);
+/**
+ * The rights of one server out of a computeGuildAccess() result:
+ * `{ isAdmin, access, isOrga? }`. A full admin gets everything; a server without
+ * an entry gets its base access; no guild id gets nothing (fail closed).
+ */
+function accessForGuild(guildAccess, userId, guildId) {
+    if (guildAccess && guildAccess.isAdmin) return ALL_ACCESS();
+    const gid = gidOf(guildId);
+    if (!gid) return NO_ACCESS();
+    const entry = guildAccess && guildAccess.guilds && guildAccess.guilds[gid];
+    if (!entry) return BASE_ACCESS(userId, gid);
+    return { isAdmin: false, access: entry.access, ...(entry.isOrga ? { isOrga: true } : {}) };
+}
+
+/** What the user may do on `guildId`; throws when no server could be reached (see computeGuildAccess). */
+async function computeAccess(userId, { guildId } = {}) {
+    return accessForGuild(await computeGuildAccess(userId), userId, guildId);
+}
+
+/** computeAccess(), falling back to the base access of the server when the lookup fails. */
+async function resolveAccess(userId, { guildId } = {}) {
+    return accessForGuild(await resolveGuildAccess(userId), userId, guildId);
+}
+
+/** Whether the account may `level` ("read" | "write") at least one of `areas` on `guildId` — full admins always may. */
+async function userMayAny(userId, areas, level = "read", { guildId } = {}) {
+    return userCanAny(await resolveAccess(userId, { guildId }), areas, level);
 }
 
 module.exports = {
     BASE_ACCESS, NO_ACCESS, ALL_ACCESS, UNKNOWN_MEMBER, UNKNOWN_USER,
+    computeGuildAccess, resolveGuildAccess, accessForGuild,
     computeAccess, resolveAccess, memberRoleIds, userMayAny,
 };

@@ -36,7 +36,7 @@ jest.mock("../../../src/services/roster/categoryRoles", () => ({
     mirrorCategoryRoles: jest.fn(() => true),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: jest.fn(() => ({ adminRoleIds: ["adm"], orgaRoleIds: ["orga", "gone"] })),
+    getConfig: jest.fn(() => ({ adminRoleIds: ["adm"], serverSettings: { g1: { orgaRoleIds: ["orga", "gone"] } } })),
 }));
 
 const fs = require("fs");
@@ -604,7 +604,7 @@ describe("services/roster/rosterTakeover without a linked roster", () => {
         { id: "rc3", name: "Classic", active: true, versionId: "classic" },
         { id: "rc4", name: "Alt", active: false, versionId: "forever" },
     ];
-    const SETTINGS = { adminRoleIds: ["adm"], orgaRoleIds: ["orga", "gone"] };
+    const SETTINGS = { adminRoleIds: ["adm"], serverSettings: { g1: { orgaRoleIds: ["orga", "gone"] } } };
     const withLeads = () => {
         const p = kaderStore.readPlanner("g1");
         p.kaders[0].leads = [U.e];

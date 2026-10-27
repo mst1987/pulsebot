@@ -282,7 +282,7 @@ describe("web/apiRoutes/settings", () => {
             it("sends the Discord pictures of the accounts with a per-user grant, only those the bot knows", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 activeGuildFor.mockReturnValue("guild-1");
-                settingsStore.getConfig.mockReturnValue({ userPermissions: { u1: { loot: { read: true } }, u2: { loot: { read: true } } } });
+                settingsStore.getConfig.mockReturnValue({ serverSettings: { "guild-1": { userPermissions: { u1: { loot: { read: true } }, u2: { loot: { read: true } } } } } });
                 discord.avatarUrlFor.mockImplementation((guildId, id) => (id === "u1" ? "https://cdn/u1.png" : ""));
                 const res = mockRes();
                 await handle("/api/settings", { method: "GET" }, res);
@@ -884,10 +884,10 @@ describe("web/apiRoutes/settings", () => {
                     },
                 });
 
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": {
                     // write implied read, the unknown area and the empty role dropped
                     rolePermissions: { role1: { raids: { read: true, write: true } } },
-                });
+                } } });
             });
 
             it("normalises the base access before saving it", async () => {
@@ -898,17 +898,17 @@ describe("web/apiRoutes/settings", () => {
                     baseAccess: { loot: { read: true }, history: { write: true }, nonsense: { read: true }, cla: { read: false } },
                 });
 
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": {
                     // write implied read; the unknown area and the empty grant dropped
                     baseAccess: { loot: { read: true, write: false }, history: { read: true, write: true } },
-                });
+                } } });
             });
 
             it("saves which roles count as orga, trimmed - and only for a full admin", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
                 await patch("/api/settings", { orgaRoleIds: [" r-lead ", "", "r-officer"] });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-lead", "r-officer"] });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": { orgaRoleIds: ["r-lead", "r-officer"] } } });
 
                 settingsStore.saveConfig.mockClear();
                 auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } } });
@@ -924,7 +924,7 @@ describe("web/apiRoutes/settings", () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
                 const pugRoles = { g1: { versions: { tbc: "r-pug-tbc" }, classes: { Mage: "r-pug-mage" } } };
-                settingsStore.getConfig.mockReturnValue({ pugRoles, orgaRoleIds: ["r-pug-tbc"] });
+                settingsStore.getConfig.mockReturnValue({ pugRoles, serverSettings: { "guild-1": { orgaRoleIds: ["r-pug-tbc"] } } });
                 try {
                     const res = await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-pug-mage"] });
                     expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
@@ -933,7 +933,7 @@ describe("web/apiRoutes/settings", () => {
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                     // the old orga entry does not block another save
                     await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-lead"] });
-                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { "guild-1": { orgaRoleIds: ["r-pug-tbc", "r-lead"] } } });
                 } finally {
                     settingsStore.getConfig.mockReturnValue({});
                     rosterStore.listRosters.mockRestore();
@@ -1374,9 +1374,9 @@ describe("web/apiRoutes/settings", () => {
                 });
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { g1: {
                     userPermissions: { "123456789012345678": { lootcouncil: { read: true, write: true } } },
-                });
+                } } });
             });
 
             it("stays full-admin-only", async () => {
@@ -1397,9 +1397,9 @@ describe("web/apiRoutes/settings", () => {
                     },
                 });
                 await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { g1: {
                     botCommandAccess: { fillsetup: { mode: "roles", roleIds: ["123456789012345678"] } },
-                });
+                } } });
             });
 
             it("cannot be saved by a settings user who is not a full admin", async () => {
@@ -1409,6 +1409,85 @@ describe("web/apiRoutes/settings", () => {
                 await updateSettings({ headers: {} }, mockRes());
                 expect(requireFullAdmin).toHaveBeenCalled();
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+        });
+
+        // #925: the rights belong to one server; adminRoleIds stays global
+        describe("rights per server (#925)", () => {
+            const STORED = {
+                adminRoleIds: ["r-admin"],
+                botLanguage: "de",
+                serverSettings: {
+                    g1: { rolePermissions: { "r-a": { loot: { read: true, write: false } } }, orgaRoleIds: ["r-orga-a"], ianaTimezone: "Europe/Berlin" },
+                    g2: { rolePermissions: { "r-b": { raids: { read: true, write: true } } }, orgaRoleIds: ["r-orga-b"], userPermissions: { "123456789012345678": { cla: { read: true, write: false } } } },
+                },
+            };
+            const LIMITED = { id: "7", isAdmin: false, access: { settings: { read: true, write: true } } };
+            afterEach(() => settingsStore.getConfig.mockReturnValue({}));
+
+            it("GET: a full admin sees the rights of the active server only, as top-level fields", async () => {
+                settingsStore.getConfig.mockReturnValue(STORED);
+                const res = mockRes();
+                await getSettings({}, res);
+                const cfg = body(res).config;
+                expect(cfg.rolePermissions).toEqual({ "r-a": { loot: { read: true, write: false } } });
+                expect(cfg.orgaRoleIds).toEqual(["r-orga-a"]);
+                expect(cfg.userPermissions).toEqual({});
+                expect(cfg.adminRoleIds).toEqual(["r-admin"]);
+                // no block carries rights; the other settings of a block stay
+                expect(cfg.serverSettings.g1).toEqual({ ianaTimezone: "Europe/Berlin" });
+                expect(JSON.stringify(cfg)).not.toContain("r-orga-b");
+                expect(JSON.stringify(cfg)).not.toContain("r-b");
+            });
+
+            it("GET: a limited settings user sees no rights of any server", async () => {
+                requireAdmin.mockReturnValue(LIMITED);
+                settingsStore.getConfig.mockReturnValue(STORED);
+                const res = mockRes();
+                await getSettings({}, res);
+                const text = JSON.stringify(body(res).config);
+                for (const leak of ["rolePermissions", "orgaRoleIds", "userPermissions", "baseAccess", "botCommandAccess", "adminRoleIds", "r-orga-a", "r-orga-b"]) {
+                    expect(text).not.toContain(leak);
+                }
+            });
+
+            it("PATCH: writes the rights to the active server and nowhere else, adminRoleIds globally", async () => {
+                activeGuildFor.mockReturnValue("g2");
+                readJsonBody.mockResolvedValue({ orgaRoleIds: ["r-new"], adminRoleIds: ["r-admin", "r-admin2"] });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ adminRoleIds: ["r-admin", "r-admin2"], serverSettings: { g2: { orgaRoleIds: ["r-new"] } } });
+            });
+
+            it("PATCH: refuses rights without an active server", async () => {
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ rolePermissions: { "r-x": { raids: { write: true } } } });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("PATCH: a limited settings user can not write rights through serverSettings either", async () => {
+                requireAdmin.mockReturnValue(LIMITED);
+                requireFullAdmin.mockReturnValue(null);
+                readJsonBody.mockResolvedValue({ serverSettings: { g1: { rolePermissions: { "r-me": { settings: { write: true } } } } } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(requireFullAdmin).toHaveBeenCalled();
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("PATCH: the answer to a limited settings user leaks no rights", async () => {
+                requireAdmin.mockReturnValue(LIMITED);
+                settingsStore.getConfig.mockReturnValue(STORED);
+                settingsStore.saveConfig.mockReturnValueOnce({ ...STORED, botLanguage: "en" });
+                readJsonBody.mockResolvedValue({ botLanguage: "en" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                const text = JSON.stringify(body(res).config);
+                expect(body(res).config.botLanguage).toBe("en");
+                for (const leak of ["rolePermissions", "orgaRoleIds", "userPermissions", "adminRoleIds", "r-orga-a"]) {
+                    expect(text).not.toContain(leak);
+                }
             });
         });
 

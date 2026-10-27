@@ -1,4 +1,4 @@
-jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn(), fetchGuildMembersCached: jest.fn() }));
+jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn(() => null), getGuild: jest.fn(() => null) }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
@@ -78,7 +78,7 @@ describe("/event anlegen — access", () => {
             expect(i.showModal).not.toHaveBeenCalled();
         }
 
-        settings.getConfig.mockReturnValue({ botLanguage: "en", categoryIds: [CAT_EH], botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } });
+        settings.getConfig.mockReturnValue({ botLanguage: "en", categoryIds: [CAT_EH], serverSettings: { "guild-1": { botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } } } });
         serverIds.mockReturnValue(["guild-1"]);
         const orga = mockInteraction({ customId: draft._internal.formId(state) });
         orga.member = { roles: [ORGA] };

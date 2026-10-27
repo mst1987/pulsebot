@@ -76,7 +76,8 @@ async function handleRename(interaction, guildId) {
     // Acknowledge first, then check; every refusal is an edit of that reply.
     await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const refuse = (title, kind = "error") => interaction.editReply(card({ kind, title }));
-    if (!(await userMayAny(interaction.user.id, ["channels"], "write"))) return refuse(denied, "warn");
+    // the right on the server of the channel (#925)
+    if (!(await userMayAny(interaction.user.id, ["channels"], "write", { guildId }))) return refuse(denied, "warn");
     const found = renamable(guildId, channelId);
     if (found.error) return refuse(found.error);
 

@@ -8,8 +8,6 @@ const {
     guildId, raidhelperServerId,
     blizzardClientId, blizzardClientSecret,
 } = require("../config/variables");
-const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess } = require("../config/permissions");
-const { normalizeBotCommandAccess } = require("../config/botCommands");
 const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const { normalizeCategoryPlanning } = require("../services/events/planning");
@@ -30,27 +28,9 @@ const CONFIG_DEFAULTS = {
     // Discord role IDs that grant access to the admin menu (in addition to the
     // ADMIN_USER_ID bootstrap from .env, which can never be locked out).
     adminRoleIds: [],
-    // Fine-grained rights for roles that are NOT full admins:
-    // { [roleId]: { [areaId]: { read, write } } } — see config/permissions.js.
-    // A member's rights are the union over all the roles they hold.
-    rolePermissions: {},
-    // What every logged-in Discord account may do without holding any configured
-    // role: { [areaId]: { read, write } }, merged into the role grants as a union.
-    // Empty by default — the menu only opens up where an admin says so.
-    baseAccess: {},
-    // Rights handed to single Discord accounts rather than to a role:
-    // { [userId]: { [areaId]: { read, write } } }, unioned in like the base
-    // access. For areas that go to named people (the loot council), where a
-    // Discord role would only be a second list to keep in sync.
-    userPermissions: {},
-    // The roles that count as orga (guild leads, raid leads) — the others are raider roles,
-    // whatever areas they hold. Who is orga sees the orga's parts (the dashboard's orga
-    // block, everybody's absences); an area only orga roles open is marked "Orga-Bereich".
-    orgaRoleIds: [],
-    // Who may use which bot command: { [commandName]: { mode, roleIds } } with
-    // mode "everyone" | "roles" | "admins". Empty = every command follows its
-    // own defaultAccess (see config/botCommands.js and services/discord/botAccess.js).
-    botCommandAccess: {},
+    // The rights of roles and accounts (rolePermissions, baseAccess, userPermissions,
+    // orgaRoleIds, botCommandAccess) live per server in serverSettings since #925;
+    // see SERVER_SETTING_DEFAULTS. Only the full-admin roles above stay global.
     // Home guild used to verify admin-role membership (resolveIsAdmin in auth.js).
     // With discordServers.servers set, getConfig() reports the first one here —
     // this key is only the fallback for an install that never picked one.
@@ -916,9 +896,18 @@ function blizzardCredentials(raw) {
 
 /**
  * The keys a server block may hold, with the default each part reads when a
- * server has none (#917). Empty for now: the parts 4-8 of epic #926 add theirs.
+ * server has none (#917). The parts of epic #926 add theirs.
  */
-const SERVER_SETTING_DEFAULTS = Object.freeze({});
+const SERVER_SETTING_DEFAULTS = Object.freeze({
+    // #925: the rights of roles and accounts on this server, read (and normalised)
+    // through services/discord/serverAccess.js. A server without them grants nothing
+    // but what full admins (global adminRoleIds, .env) have everywhere.
+    rolePermissions: Object.freeze({}),
+    baseAccess: Object.freeze({}),
+    userPermissions: Object.freeze({}),
+    orgaRoleIds: Object.freeze([]),
+    botCommandAccess: Object.freeze({}),
+});
 
 /**
  * The guild ids that may hold a serverSettings block: every server, every pure
@@ -991,11 +980,6 @@ function normalizeConfig(raw) {
         discordServers,
         serverSettings: normalizeServerSettings(stored.serverSettings, discordServers, homeGuildId),
         adminRoleIds: Array.isArray(stored.adminRoleIds) ? stored.adminRoleIds : CONFIG_DEFAULTS.adminRoleIds,
-        rolePermissions: normalizeRolePermissions(stored.rolePermissions),
-        baseAccess: normalizeAreaAccess(stored.baseAccess),
-        userPermissions: normalizeUserPermissions(stored.userPermissions),
-        orgaRoleIds: Array.isArray(stored.orgaRoleIds) ? [...new Set(stored.orgaRoleIds.map((id) => String(id).trim()).filter(Boolean))] : CONFIG_DEFAULTS.orgaRoleIds,
-        botCommandAccess: normalizeBotCommandAccess(stored.botCommandAccess),
         categoryIds: Array.isArray(stored.categoryIds) ? stored.categoryIds : CONFIG_DEFAULTS.categoryIds,
         categoryRoles: normalizeCategoryRoles(stored.categoryRoles),
         logChannelIds: Array.isArray(stored.logChannelIds) ? stored.logChannelIds : CONFIG_DEFAULTS.logChannelIds,

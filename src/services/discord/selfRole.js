@@ -4,9 +4,9 @@
 // (services/discord/roleMessages.js). A role that grants anything must never be
 // handed out that way (`privilegedReason`):
 //   - bot rights: a full-admin role (config.adminRoleIds or ADMIN_ROLE_IDS), an orga role
-//     (config.orgaRoleIds), the officer role pinged on applications (config.officerRoleId:
-//     whoever takes it reads every new application), a role with area grants (config.rolePermissions), a role a bot
-//     command allows (config.botCommandAccess[*].roleIds), a raider role of a category
+//     (orgaRoleIds of any server, #925), the officer role pinged on applications (config.officerRoleId:
+//     whoever takes it reads every new application), a role with area grants (rolePermissions of any
+//     server), a role a bot command allows (botCommandAccess[*].roleIds of any server), a raider role of a category
 //     (config.categoryRoles), a role of a roster (roleIds, trialRoleId, managers.roleIds),
 //     a role of the role sync between the servers (config.roleSync, both sides: the sync
 //     hands out the other one or gives this one back after an unsubscribe);
@@ -22,7 +22,7 @@
 // or removes. It never throws and never logs; the caller logs its `code` and `detail`.
 const { PermissionsBitField } = require("discord.js");
 const { normalizeRolePermissions } = require("../../config/permissions");
-const { adminRoleIds: envAdminRoleIds } = require("../../config/variables");
+const { allServersAccess, fullAdminRoleIds } = require("./serverAccess");
 const rosterStore = require("../../stores/rosterStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -70,20 +70,47 @@ function pugVersionIdsOf(c, id) {
  *   (services/discord/pugRoleGuard.js checks a roster before it is saved)
  * @returns {object[]}
  */
+/**
+ * The rights settings a role may carry, over every server (#925): a role id is unique across
+ * servers, so the union tells whether the role carries a right anywhere. The old top-level
+ * fields (before the migration moved them) count as well - refusing one role too many is the
+ * safe side here. Never used to GRANT a right.
+ * @returns {{ orgaRoleIds: string[], rolePermissions: object, botCommandAccess: [string, object][] }}
+ */
+function rightsAnywhere(c) {
+    const all = allServersAccess(c);
+    const legacy = normalizeRolePermissions(c.rolePermissions || {});
+    const rolePermissions = { ...legacy };
+    for (const [roleId, grants] of Object.entries(normalizeRolePermissions(all.rolePermissions))) {
+        rolePermissions[roleId] = { ...(rolePermissions[roleId] || {}), ...grants };
+        for (const area of Object.keys(legacy[roleId] || {})) {
+            const a = legacy[roleId][area];
+            const b = grants[area];
+            if (a && b) rolePermissions[roleId][area] = { read: !!(a.read || b.read), write: !!(a.write || b.write) };
+        }
+    }
+    return {
+        orgaRoleIds: [...new Set([...ids(all.orgaRoleIds), ...ids(c.orgaRoleIds)])],
+        rolePermissions,
+        botCommandAccess: [...entries(all.botCommandAccess), ...entries(c.botCommandAccess)],
+    };
+}
+
 function roleUses(cfg, roleId, { rosters } = {}) {
     const c = cfg || {};
     const id = str(roleId);
     const out = [];
     if (!id) return out;
-    if ([...ids(c.adminRoleIds), ...ids(envAdminRoleIds)].includes(id)) out.push({ code: "admin" });
-    if (ids(c.orgaRoleIds).includes(id)) out.push({ code: "orga" });
+    const access = rightsAnywhere(c);
+    if (fullAdminRoleIds(c).includes(id)) out.push({ code: "admin" });
+    if (access.orgaRoleIds.includes(id)) out.push({ code: "orga" });
     if (str(c.officerRoleId) === id) out.push({ code: "officer" });
-    const grants = normalizeRolePermissions(c.rolePermissions || {})[id];
+    const grants = access.rolePermissions[id];
     if (grants) {
         const areas = Object.keys(grants).sort();
         out.push({ code: "rolePermissions", areas, levels: Object.fromEntries(areas.map((a) => [a, grants[a].write ? "write" : "read"])) });
     }
-    const commands = entries(c.botCommandAccess).filter(([, rule]) => rule && ids(rule.roleIds).includes(id)).map(([name]) => name).sort();
+    const commands = access.botCommandAccess.filter(([, rule]) => rule && ids(rule.roleIds).includes(id)).map(([name]) => name).sort();
     if (commands.length) out.push({ code: "botCommand", commands });
     const categoryIds = entries(c.categoryRoles).filter(([, list]) => ids(list).includes(id)).map(([catId]) => catId);
     if (categoryIds.length) out.push({ code: "categoryRaider", categoryIds });

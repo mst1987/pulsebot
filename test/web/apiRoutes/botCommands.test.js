@@ -1,5 +1,6 @@
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "900000000000000001") }));
 jest.mock("../../../src/services/discord/discord", () => ({
     getClient: jest.fn(() => null),
     getGuild: jest.fn(() => null),
@@ -8,6 +9,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const { requireFullAdmin } = require("../../../src/web/http/apiMiddleware");
+const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../../src/web/apiRoutes/botCommands");
@@ -19,6 +21,7 @@ const { mockRes, body } = require("../../helpers/http");
 beforeEach(() => {
     jest.clearAllMocks();
     requireFullAdmin.mockReturnValue({ id: "1", isAdmin: true });
+    activeGuildFor.mockReturnValue("900000000000000001");
     settingsStore.getConfig.mockReturnValue({ guildId: "900000000000000001" });
 });
 
@@ -96,6 +99,30 @@ describe("GET /api/bot-commands", () => {
         expect(discord.fetchGuildMembersCached).toHaveBeenCalledWith("900000000000000001", guild);
         expect(data.roles).toEqual([{ id: ORGA, name: "Orga", color: "", memberCount: 2 }]);
         expect(data.guildName).toBe("Pulse Events");
+    });
+
+    it("shows the rules and the roles of the active server, never those of another (#925)", async () => {
+        discord.getClient.mockReturnValue({ commands: new Map([
+            ["fillsetup", { name: "fillsetup", description: "Setup", group: "raids", defaultAccess: "admins" }],
+        ]) });
+        settingsStore.getConfig.mockReturnValue({
+            serverSettings: {
+                "900000000000000002": { botCommandAccess: { fillsetup: { mode: "everyone" } } },
+                "900000000000000001": { botCommandAccess: { fillsetup: { mode: "roles", roleIds: [ORGA] } } },
+            },
+        });
+        activeGuildFor.mockReturnValue("900000000000000002");
+        const res = mockRes();
+        await getBotCommands({}, res);
+        expect(body(res).commands[0]).toMatchObject({ name: "fillsetup", access: { mode: "everyone" } });
+        expect(discord.listRoles).toHaveBeenCalledWith("900000000000000002");
+
+        // no server chosen: no rule of any server, no roles
+        activeGuildFor.mockReturnValue("");
+        discord.listRoles.mockClear();
+        const res2 = mockRes();
+        await getBotCommands({}, res2);
+        expect(body(res2).commands[0]).toMatchObject({ access: null, effective: { mode: "admins" } });
     });
 
     it("reports an unknown member count as null when the member list cannot be fetched", async () => {

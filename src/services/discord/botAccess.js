@@ -8,13 +8,17 @@
 // Buttons, selects and modals name their command with `accessOf` and are judged
 // by that command's rule.
 //
-// Roles are always resolved against the first server of the list (where the
-// access roles are set up), whichever server the interaction came from.
+// Since #925 the rules are per Discord server: an interaction on a server is
+// judged by that server's botCommandAccess and the member's roles there - a role
+// on server B opens nothing on server A. The full admins (.env, the admin roles
+// of Zugang on ANY server) pass everywhere. A DM has no server: it is judged as
+// before by the first server of the list (the home server).
 const { card } = require("../../utils/discord/card");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
-const { serverIds } = require("./guildRoles");
+const { configForGuild, fullAdminRoleIds, interactionGuildId } = require("./serverAccess");
+const userAccess = require("./userAccess");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
@@ -67,7 +71,7 @@ function ruleFor(commandName, { commands, config = {} } = {}) {
 function isBotAdmin(member, config = {}) {
     if (!member) return false;
     if (logcheckAdminIds.includes(String(member.id))) return true;
-    const adminRoles = new Set([...(config.adminRoleIds || []), ...(envAdminRoleIds || [])].map(String));
+    const adminRoles = new Set([...fullAdminRoleIds(config), ...(envAdminRoleIds || [])].map(String));
     return (member.roleIds || []).some((id) => adminRoles.has(String(id)));
 }
 
@@ -151,16 +155,20 @@ function denyMessage(rule, guildId, lang = "de") {
  * whether the command may run.
  */
 async function guardInteraction(interaction, command, commands) {
-    const config = getConfig();
+    const stored = getConfig();
+    // the server the interaction came from; a DM: the home server (#925)
+    const guildId = interactionGuildId(interaction, stored);
+    const config = configForGuild(stored, guildId);
     const name = command && command.name;
     // "Jeder" needs no Discord lookup at all.
     const rule = ruleFor(name, { commands, config });
     const userId = String(interaction.user && interaction.user.id);
     if (rule.mode === "everyone") return true;
-    const guildId = serverIds(config)[0] || "";
     const roleIds = await eventMemberRoles(interaction, guildId);
     const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config });
     if (result.allowed) return true;
+    // a full admin through an admin role on another server (#925): asked only on a refusal
+    if (await isFullAdminAnywhere(userId)) return true;
     console.log(`Bot access denied: ${name} for ${userId}`);
     try {
         if (typeof interaction.isAutocomplete === "function" && interaction.isAutocomplete()) {
@@ -175,7 +183,18 @@ async function guardInteraction(interaction, command, commands) {
     return false;
 }
 
+/** Whether the account is a full admin through an admin role on any server (userAccess). */
+async function isFullAdminAnywhere(userId) {
+    if (!fullAdminRoleIds(getConfig()).length && !(envAdminRoleIds || []).length) return false;
+    try {
+        return !!(await userAccess.resolveGuildAccess(userId)).isAdmin;
+    } catch {
+        return false;
+    }
+}
+
 module.exports = {
+    isFullAdminAnywhere,
     accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
     eventMemberRoles, denyMessage, guardInteraction,
 };

@@ -18,6 +18,11 @@
 // works whatever the viewed role may do, and a view older than MAX_AGE_MS ends
 // by itself — nobody should stay stuck in a raider's view by accident.
 //
+// The rights settings are those of the active server (#925): auth.getUser passes
+// serverAccess.configForGuild(config, activeGuild), so a role is looked at with
+// the grants of the server the admin is on. Under "Alle Server" the view has the
+// same rights (allAccess = access).
+//
 // Pure: config in, rights out.
 const { fullAccess, emptyAccess, mergeAccess, baseAccessMap, accessForRoles } = require("../../config/permissions");
 const { isSnowflake } = require("../../utils/ids");
@@ -64,7 +69,7 @@ function effectiveUser(session, config, envAdminRoleIds = [], now = Date.now()) 
     // the role's orga flag, never the admin's own
     const rest = { ...session };
     delete rest.isOrga;
-    return { ...rest, isAdmin, access, ...(isOrga ? { isOrga: true } : {}), viewAs: { roleIds: session.viewAs.roleIds.slice(), at: session.viewAs.at } };
+    return { ...rest, isAdmin, access, allAccess: access, ...(isOrga ? { isOrga: true } : {}), viewAs: { roleIds: session.viewAs.roleIds.slice(), at: session.viewAs.at } };
 }
 
 module.exports = { MAX_AGE_MS, MAX_ROLES, normalizeRoleIds, accessAsRoles, viewAsActive, effectiveUser };

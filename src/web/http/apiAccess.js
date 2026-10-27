@@ -101,7 +101,11 @@ function checkAccess(pathname, method, user) {
         return user.isAdmin ? null : { status: 403, code: "forbidden", message: "Kein Zugang zu diesem Bereich." };
     }
     const level = levelFor(method, route);
-    if (userCanAny(user, areas, level)) return null;
+    // A route under "Alle Server" (#925, `scope: "all"`: Mein Profil, Addons) is
+    // about the account itself, not one server: it goes by the rights over every
+    // server. Every other route by the rights of the active server only.
+    const rights = route && route.scope === "all" && user.allAccess ? { ...user, access: user.allAccess } : user;
+    if (userCanAny(rights, areas, level)) return null;
     // The first area is the endpoint's home; the others only widen access, so it
     // is the one to name in the refusal.
     const label = LABELS[areas[0]] || areas[0];

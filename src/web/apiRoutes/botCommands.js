@@ -5,7 +5,8 @@ const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
 const { ruleFor } = require("../../services/discord/botAccess");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { activeGuildFor } = require("../http/activeGuild");
+const { configForGuild } = require("../../services/discord/serverAccess");
 const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "commands");
@@ -97,11 +98,12 @@ function buildBotCommandList(commands, config) {
 }
 
 /** GET /api/bot-commands */
-const getBotCommands = withUser({ full: true }, async ({ res }) => {
-    const config = getConfig();
-    // the access roles live on the first server of the list (botAccess.guardInteraction)
-    const guildId = serverIds(config)[0] || "";
-    const guild = typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
+const getBotCommands = withUser({ full: true }, async ({ req, res }) => {
+    // the rules of the active server (#925): a command is judged by the rules and
+    // the member roles of the server it is used on (botAccess.guardInteraction)
+    const guildId = activeGuildFor(req) || "";
+    const config = configForGuild(getConfig(), guildId);
+    const guild = guildId && typeof discord.getGuild === "function" ? discord.getGuild(guildId) : null;
     const commands = buildBotCommandList(loadedCommands(), config);
     const used = new Set(commands.map((c) => c.group));
     ok(res, {

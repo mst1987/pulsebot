@@ -326,15 +326,15 @@ const postCalendarToken = withUser({ csrf: true, body: true }, async ({ user, bo
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/roster/character-claims", handler: getCharacterClaims, area: "roster" },
-    { method: "GET", path: "/api/profile", handler: getProfile, area: "signup" },
-    { method: "PUT", path: "/api/profile", handler: putProfile, area: "signup" },
-    { method: "GET", path: "/api/profile/log-characters", handler: getLogCharacters, area: "signup" },
-    { method: "POST", path: "/api/profile/characters", handler: postProfileCharacter, area: "signup" },
-    { method: "GET", path: "/api/profile/calendar", handler: getCalendarTokens, area: "signup" },
-    { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup" },
-    { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup" },
-    { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup" },
-    { method: "GET", path: "/api/profile/item-search", handler: getItemSearch, area: "signup" },
+    { method: "GET", path: "/api/profile", handler: getProfile, area: "signup", scope: "all" },
+    { method: "PUT", path: "/api/profile", handler: putProfile, area: "signup", scope: "all" },
+    { method: "GET", path: "/api/profile/log-characters", handler: getLogCharacters, area: "signup", scope: "all" },
+    { method: "POST", path: "/api/profile/characters", handler: postProfileCharacter, area: "signup", scope: "all" },
+    { method: "GET", path: "/api/profile/calendar", handler: getCalendarTokens, area: "signup", scope: "all" },
+    { method: "POST", path: "/api/profile/calendar", handler: postCalendarToken, area: "signup", scope: "all" },
+    { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup", scope: "all" },
+    { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup", scope: "all" },
+    { method: "GET", path: "/api/profile/item-search", handler: getItemSearch, area: "signup", scope: "all" },
     { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
 ];
 
