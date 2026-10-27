@@ -156,6 +156,7 @@
             "categoryRaiderAny": "Raider-Rolle einer Kategorie",
             "roleSync": "Rollen-Abgleich ({servers})",
             "roleSyncAny": "Rollen-Abgleich",
+            "pugVersion": "PuG-Versionsrolle",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "Mitglied",

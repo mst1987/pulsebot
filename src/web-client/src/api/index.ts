@@ -20,6 +20,7 @@ export * from "./roleMessages";
 export * from "./discordRoles";
 export * from "./discordOverview";
 export * from "./discordMembers";
+export * from "./pugOnboarding";
 export * from "./raidDetail";
 export * from "./raidManage";
 export * from "./eventSeries";
