@@ -22,7 +22,7 @@ const { raidViewer, visibleEvents } = require("../../services/signups/eventVisib
 const { userCan } = require("../../config/permissions");
 const { isGlobalRaidOrga, canOrgaRaid, canCreateRaids, withOrgaFlags } = require("../events/raidOrgaAccess");
 const { requestCache } = require("../../services/roster/categoryOrga");
-const { newEventRow, eventCategoryScope, createGuard, updateRefusal } = require("../events/eventCreateAccess");
+const { newEventRow, eventCategoryScope, createGuard, updateRefusal, foreignChannelRefusal } = require("../events/eventCreateAccess");
 
 /**
  * GET /api/raids[?version=<id>] — the active guild's upcoming events of both
@@ -324,6 +324,10 @@ const getChannelName = withUser({}, async ({ req, res, url }) => {
 const createRaid = withUser({ orgaScoped: newEventRow, write: "raids", csrf: true, body: true }, async ({ user, body, req, res }) => {
     // The orga of a category (#728) creates in their categories only, in the version the category plays
     // now, with channels of that category (eventCreateAccess.js) - checked on what createEvent works out.
+    // Every channel of the request belongs to the active server (#925), before anything is cloned or
+    // posted - for the global orga too: their rights hold on this server only, a full admin on all.
+    const foreign = foreignChannelRefusal(user, req, body);
+    if (foreign) return sendResult(res, foreign);
     const guard = isGlobalRaidOrga(user) ? null : createGuard(user, req);
     const result = await createEvent({ guildId: activeGuildFor(req), user, body, guard });
     if (result.error) return sendResult(res, result);
@@ -336,6 +340,14 @@ const createRaid = withUser({ orgaScoped: newEventRow, write: "raids", csrf: tru
  * The orga of the raid's category as well (#728), without changing its version.
  */
 const updateRaid = withUser({ orgaScoped: (body) => body.id, write: "raids", csrf: true, body: true, archived: (body) => body.id }, async ({ user, body, req, res }) => {
+    // a changed voice channel belongs to the active server (#925)
+    const id = String(body.id || "").trim();
+    const before = eventStore.isOwnEventId(id) ? eventStore.getEvent(id) : null;
+    const voice = String(body.voiceChannelId === undefined || body.voiceChannelId === null ? "" : body.voiceChannelId).trim();
+    if (body.voiceChannelId !== undefined && voice !== String((before && before.voiceChannelId) || "").trim()) {
+        const foreign = foreignChannelRefusal(user, req, { voiceChannelId: voice });
+        if (foreign) return sendResult(res, foreign);
+    }
     if (!isGlobalRaidOrga(user)) {
         const current = eventStore.isOwnEventId(String(body.id || "").trim()) ? eventStore.getEvent(String(body.id).trim()) : null;
         const refused = current ? updateRefusal(current, body, req) : null;

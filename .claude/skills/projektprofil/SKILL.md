@@ -197,6 +197,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
     Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
     Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
+    Kanal-IDs aus dem Body: Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
+    Quell-Event aus dem Request nimmt und darüber postet, klont oder anlegt, prüft jede davon per
+    `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der
+    Kanal-Cache des Bots und `linkCheck` sind keine Server-Prüfung. Ein unbekannter Server zählt auf
+    schreibenden Routen als fremd (fail closed, `eventServer.allOnServer`).
 
 ## Fach-Agenten
 

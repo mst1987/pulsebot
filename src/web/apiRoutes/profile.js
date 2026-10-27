@@ -23,6 +23,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { userIsOrga } = require("../../config/permissions");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../services/characters/characterEdit");
+const discord = require("../../services/discord/discord");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -270,10 +271,26 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
     ok(res, { items: await searchWishItems(versionId, url.searchParams.get("q") || "", { config }) });
 });
 
-/** GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker. */
-const getRaiderSearch = withUser({}, async ({ user, res, url }) => {
+/**
+ * The account ids of the active server's members (#925, rights per server): null for a full admin
+ * (every server), an empty set when the server or its member list is unknown - fail closed.
+ */
+async function memberIdsOfActiveServer(user, req) {
+    if (user && user.isAdmin) return null;
+    const guildId = String(activeGuildFor(req) || "").trim();
+    if (!guildId) return new Set();
+    const listed = await discord.listHumanMembers(guildId);
+    return new Set(((listed && listed.members) || []).map((m) => String(m.id)));
+}
+
+/**
+ * GET /api/profile/raiders?q= — raiders with a profile, names only, for the wish picker: the members of
+ * the active server only (#925) - a full admin finds everybody.
+ */
+const getRaiderSearch = withUser({}, async ({ user, req, res, url }) => {
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
-    ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }) }) });
+    const onlyUserIds = await memberIdsOfActiveServer(user, req);
+    ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }), onlyUserIds }) });
 });
 
 /** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for everybody else (epic #723). */

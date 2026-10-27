@@ -10,7 +10,11 @@ jest.mock("../../../src/stores/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
     getConfig: jest.fn(() => mockConfig),
 }));
+// the stored series (by category) and the bot's live channel cache decide a category's server (#925)
+let mockSeries = {};
+let mockLive = {};
 jest.mock("../../../src/stores/eventSeriesStore", () => ({
+    getSeries: jest.fn((id) => mockSeries[id] || null),
     deleteSeries: jest.fn(() => true),
     getRuns: jest.fn(() => ({})),
     clearRun: jest.fn(),
@@ -23,6 +27,13 @@ jest.mock("../../../src/web/events/eventSeries", () => ({
     previewSeries: jest.fn(async () => ({ error: "", summary: "Mi 19:30", upcoming: [] })),
     saveSeriesFor: jest.fn(() => ({ series: { categoryId: "cat1", enabled: true } })),
     runSeries: jest.fn(async () => ({ created: 1, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
+}));
+jest.mock("../../../src/services/discord/discord", () => ({
+    getClient: () => ({ channels: { cache: { get: (id) => (mockLive[id] ? { id, guildId: mockLive[id] } : null) } } }),
+}));
+jest.mock("../../../src/services/discord/serverOf", () => ({
+    ...jest.requireActual("../../../src/services/discord/serverOf"),
+    storedCategoryGuilds: () => new Map(),
 }));
 // the categories whose current roster the caller manages (#728) - the rule has its own tests
 jest.mock("../../../src/services/roster/categoryOrga", () => ({
@@ -54,7 +65,11 @@ async function call(handler, user, payload, query) {
     return r;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    mockSeries = { cat1: { categoryId: "cat1", guildId: "g1" } };
+    mockLive = { cat2: "g1" };
+});
 
 describe("access", () => {
     it("puts every path under raids: a reader reads, only write saves, others get nothing", () => {
@@ -119,6 +134,7 @@ describe("handlers", () => {
     it("deletes, or answers 404", async () => {
         expect(status(await call(route.deleteSeries, ORGA, { categoryId: "cat1" }))).toBe(200);
         store.deleteSeries.mockReturnValueOnce(false);
+        mockLive.nope = "g1";
         expect(status(await call(route.deleteSeries, ORGA, { categoryId: "nope" }))).toBe(404);
     });
 
@@ -143,6 +159,39 @@ describe("handlers", () => {
 
 // #728 review: a global orga reading only sees every series, as before, and writes - as at the gate - only
 // the rows of the categories whose roster they manage (writableCategoryIds)
+// #925: a category of another server - or of no known one - is not reachable, only a full admin's
+describe("rights per server", () => {
+    it("refuses to delete the series of a category of another server, even one not in the snapshot yet", async () => {
+        mockLive = { catA: "gA" };
+        mockSeries.catA = { categoryId: "catA", guildId: "gA" };
+        const r = await call(route.deleteSeries, ORGA, { categoryId: "catA" });
+        expect(status(r)).toBe(404);
+        expect(store.deleteSeries).not.toHaveBeenCalled();
+    });
+
+    it("takes the live server before the stored series' one", async () => {
+        mockLive = { cat1: "gA" };
+        expect(status(await call(route.deleteSeries, ORGA, { categoryId: "cat1" }))).toBe(404);
+        expect(store.deleteSeries).not.toHaveBeenCalled();
+    });
+
+    it("refuses a category no source knows, for every write", async () => {
+        for (const handler of [route.putSeries, route.deleteSeries, route.postRun]) {
+            expect(status(await call(handler, ORGA, { categoryId: "ghost" }))).toBe(404);
+        }
+        expect(store.deleteSeries).not.toHaveBeenCalled();
+        expect(service.saveSeriesFor).not.toHaveBeenCalled();
+        expect(service.runSeries).not.toHaveBeenCalled();
+    });
+
+    it("lets a full admin reach every server", async () => {
+        mockLive = { catA: "gA" };
+        const admin = { id: "admin", isAdmin: true, access: {} };
+        expect(status(await call(route.deleteSeries, admin, { categoryId: "catA" }))).toBe(200);
+        expect(store.deleteSeries).toHaveBeenCalledWith("catA");
+    });
+});
+
 describe("the global orga without `raids` write", () => {
     it("sees every category; managing cat1 writes cat1 only", async () => {
         const categoryOrga = require("../../../src/services/roster/categoryOrga");

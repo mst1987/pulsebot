@@ -708,12 +708,14 @@ function firstCharacter(profile, versionId = "", { preferVersion = "" } = {}) {
 /**
  * Search the raiders who have a profile, for the "gerne zusammen raiden mit"
  * picker. Names only — never anybody's wishes, notes or availability.
- * `preferVersion`: whose characters name a raider (raiderRef).
+ * `preferVersion`: whose characters name a raider (raiderRef); `onlyUserIds` (a Set) keeps those
+ * accounts only - the members of the active server (#925), null for everybody.
  */
-function searchRaiders(query, exceptUserId = "", limit = 10, { preferVersion = "" } = {}) {
+function searchRaiders(query, exceptUserId = "", limit = 10, { preferVersion = "", onlyUserIds = null } = {}) {
     const q = String(query || "").trim().toLowerCase();
     return listProfiles()
         .filter((p) => p.userId !== String(exceptUserId))
+        .filter((p) => !onlyUserIds || onlyUserIds.has(p.userId))
         .filter((p) => p.name || p.characters.length)
         .filter((p) => !q
             || p.name.toLowerCase().includes(q)

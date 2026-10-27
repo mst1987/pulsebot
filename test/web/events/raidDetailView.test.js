@@ -6,6 +6,10 @@ const ADMIN = { id: "1", name: "Admin", isAdmin: true };
 let mockUser = ADMIN;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+// the server of a raid is eventServer.test's / apiHandler.server.test's matter (#925): every raid here is on g1
+jest.mock("../../../src/services/events/eventServer", () => ({
+    allOnServer: jest.fn(() => true), serverOfEntry: jest.fn(() => "g1"), guildOfCategory: jest.fn(() => "g1"), liveGuildOf: jest.fn(() => "g1"),
+}));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),

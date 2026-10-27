@@ -21,6 +21,8 @@ const eventCreate = require("../../services/events/eventCreate");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const discord = require("../../services/discord/discord");
 const { activeGuildFor } = require("../http/activeGuild");
+const { mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
+const { allOnServer, guildOfCategory } = require("../../services/events/eventServer");
 const { fail } = require("../http/apiResult");
 const { NOT_CATEGORY_ORGA } = require("../http/apiHandler");
 const { isGlobalRaidOrga } = require("./raidOrgaAccess");
@@ -175,6 +177,32 @@ function updateRefusal(event, body, req) {
     return null;
 }
 
+/**
+ * The server check of the channels a create or edit request names (#925): the channel the event goes
+ * to, the event whose channel is cloned, the new channel's category and template channel, the voice
+ * channel. Each must belong to the caller's active server - a channel the bot does not see, a source
+ * event or category no source knows, counts as foreign (fail closed). null for a full admin and when
+ * everything is on the active server, else 403 "other_server". The bot's channel cache and linkCheck
+ * are no server check: they see every server.
+ * @returns {{ error: object }|null}
+ */
+function foreignChannelRefusal(user, req, body) {
+    if (user && user.isAdmin) return null;
+    const b = body || {};
+    const refuse = () => fail(403, "other_server", OTHER_SERVER);
+    const channelOk = (id) => !str(id) || mayUseChannel(user, req, str(id));
+    if (!channelOk(b.channelId) || !channelOk(b.voiceChannelId)) return refuse();
+    const active = () => str(activeGuildFor(req));
+    if (str(b.sourceEventId) && !allOnServer(str(b.sourceEventId), active)) return refuse();
+    const nc = b.newChannel && typeof b.newChannel === "object" ? b.newChannel : null;
+    if (nc) {
+        const categoryId = str(nc.categoryId);
+        if (categoryId && (!active() || guildOfCategory(categoryId) !== active())) return refuse();
+        if (!channelOk(nc.templateChannelId)) return refuse();
+    }
+    return null;
+}
+
 module.exports = {
-    newEventRow, eventCategoryScope, voiceAllowed, templateChannelAllowed, createGuard, updateRefusal, quickCreateAccess,
+    foreignChannelRefusal, newEventRow, eventCategoryScope, voiceAllowed, templateChannelAllowed, createGuard, updateRefusal, quickCreateAccess,
 };

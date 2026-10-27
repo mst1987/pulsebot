@@ -12,6 +12,10 @@ jest.mock("../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+// the server of a raid is eventServer.test's / apiHandler.server.test's matter (#925): every raid here is on g1
+jest.mock("../../../src/services/events/eventServer", () => ({
+    allOnServer: jest.fn(() => true), serverOfEntry: jest.fn(() => "g1"), guildOfCategory: jest.fn(() => "g1"), liveGuildOf: jest.fn(() => "g1"),
+}));
 jest.mock("../../../src/stores/rosterStore", () => {
     const actual = jest.requireActual("../../../src/stores/rosterStore");
     const roster = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: ["role-mgr"] } };
