@@ -4,7 +4,8 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../dashboard/dashboardData");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
-const { listLogs, deleteLog } = require("../../stores/logStore");
+const { listLogs } = require("../../stores/logStore");
+const { deleteLogKeepingReportGuild } = require("../../services/logcheck/reportGuild");
 const { logPostedAt } = require("../../services/logcheck/reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
@@ -130,7 +131,8 @@ const getHistoryData = withUser({}, async ({ user, req, res, url }) => {
         // back through the message-id snowflake to detectedAt) — same field the
         // legacy SSR page and the dashboard's "Latest Events" card show. One
         // game version (#741): a log without a raid in every one, a linked log in its raid's.
-        logs: listLogs().filter((l) => inVersionList(l, versionId)).map((l) => ({ ...l, postedAt: logPostedAt(l) })),
+        // Only the active server's logs (#920), as on the Log-Auswertung page.
+        logs: listLogs().filter((l) => !!guildId && l.guildId === guildId && inVersionList(l, versionId)).map((l) => ({ ...l, postedAt: logPostedAt(l) })),
         // For labelling the loot rows' category ids, so one that Discord no
         // longer lists keeps its name (categoryNames.js). The import form's
         // validation stays on the live list — see pickedCategory().
@@ -195,7 +197,7 @@ const getLootAwards = withUser({}, async ({ res, url }) => {
 
 /** POST /api/history/log-delete — body: { logId }. */
 const deleteHistoryLog = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    deleteLog(String(body.logId || "").trim());
+    deleteLogKeepingReportGuild(String(body.logId || "").trim());
     ok(res, { id: body.logId });
 });
 

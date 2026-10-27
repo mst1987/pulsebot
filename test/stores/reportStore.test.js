@@ -23,6 +23,8 @@ jest.mock("fs", () => {
             keys: () => store.keys(),
         },
         mkdirSync: jest.fn(),
+        // the reports folder "exists" once a report is in it
+        existsSync: jest.fn(() => store.size > 0),
         writeFileSync: jest.fn(write),
         readFileSync: jest.fn((p) => {
             if (!store.has(p)) throw enoent(p);
@@ -60,6 +62,8 @@ const {
     deleteReport,
     listReports,
     resetCache,
+    assignGuilds,
+    setReportGuild,
     REPORTS_DIR,
 } = require("../../src/stores/reportStore.js");
 
@@ -352,5 +356,59 @@ describe("getReportHints", () => {
         expect(getReportHints("abcdef99")).toBeNull();
         const id = saveReport({ title: "old", roster: [] });
         expect(getReportHints(id).players).toEqual({});
+    });
+});
+
+describe("stores/reportStore assignGuilds (#920)", () => {
+    it("lists the server of a report in its metadata", () => {
+        const id = saveReport({ title: "T", guildId: "A" });
+        const bare = saveReport({ title: "U" });
+        const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+        expect(byId[id].guildId).toBe("A");
+        expect(byId[bare].guildId).toBe("");
+    });
+
+    it("writes the picked server onto reports without one, once", () => {
+        const own = saveReport({ title: "own", guildId: "B" });
+        const bare = saveReport({ title: "bare" });
+        const skipped = saveReport({ title: "skipped" });
+        const pick = jest.fn((meta) => (meta.id === skipped ? "" : "A"));
+        expect(assignGuilds(pick)).toBe(1);
+        expect(getReport(bare).guildId).toBe("A");
+        expect(getReport(bare).title).toBe("bare");
+        expect(getReport(own).guildId).toBe("B");
+        expect(getReport(skipped)).not.toHaveProperty("guildId");
+        // the report with a server was never asked about
+        expect(pick.mock.calls.map(([m]) => m.id)).not.toContain(own);
+        fs.writeFileSync.mockClear();
+        expect(assignGuilds(() => "A")).toBe(1); // only "skipped" is left
+        expect(assignGuilds(() => "A")).toBe(0);
+        expect(listReports().every((r) => r.guildId)).toBe(true);
+    });
+
+    it("does nothing without a reports folder", () => {
+        expect(assignGuilds(() => "A")).toBeNull();
+        expect(fs.readdirSync).not.toHaveBeenCalled();
+    });
+});
+
+describe("stores/reportStore setReportGuild (#920)", () => {
+    it("writes the server onto one report, only when it differs", () => {
+        const id = saveReport({ title: "T" });
+        expect(setReportGuild(id, "B")).toBe(true);
+        expect(getReport(id)).toMatchObject({ title: "T", guildId: "B" });
+        fs.writeFileSync.mockClear();
+        expect(setReportGuild(id, "B")).toBe(false);
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(setReportGuild(id, "A")).toBe(true);
+        expect(getReport(id).guildId).toBe("A");
+    });
+
+    it("does nothing for an unknown report or an empty server", () => {
+        const id = saveReport({ title: "T" });
+        expect(setReportGuild(id, "")).toBe(false);
+        expect(setReportGuild("abcdef99", "A")).toBe(false);
+        expect(setReportGuild("", "A")).toBe(false);
+        expect(getReport(id)).not.toHaveProperty("guildId");
     });
 });

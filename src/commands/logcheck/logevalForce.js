@@ -186,7 +186,7 @@ function forcedLink(reportId, host) {
 async function runForcedReport(interaction, reportId, host) {
     let result;
     try {
-        result = await buildReport(forcedLink(reportId, host), { force: true });
+        result = await buildReport(forcedLink(reportId, host), { force: true, guildId: interaction.guildId || "" });
     } catch (e) {
         if (e && e.unsupported) return interaction.editReply(unsupportedCard(interaction, e.versionId));
         if (e instanceof ReportError) return interaction.editReply(refusalCard({ error: e.message }));

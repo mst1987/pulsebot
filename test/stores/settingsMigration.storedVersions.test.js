@@ -4,7 +4,7 @@
 // attendance night or roster (golden master below), and a rescan keeps TBC.
 jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 // Attendance without evaluated logs: the signups decide (the report directory needs a real disk).
-jest.mock("../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null }));
+jest.mock("../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, assignGuilds: () => 0 }));
 jest.mock("../../src/stores/logStore", () => ({ listLogs: () => [], migrateGuilds: () => 0 }));
 
 const fs = require("fs");
