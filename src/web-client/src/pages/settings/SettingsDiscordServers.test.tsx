@@ -181,8 +181,16 @@ describe("Discord-Server: Server", () => {
     it("words members and raid categories with their noun", async () => {
         vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ raidCategories: 1 }));
         render();
-        expect(await screen.findByText("12 Mitglieder")).toBeInTheDocument();
-        expect(screen.getByText("1 Raid-Kategorie")).toBeInTheDocument();
+        // once in its column, once in the line under the name that narrow screens show instead
+        expect(await screen.findAllByText("12 Mitglieder")).toHaveLength(2);
+        expect(screen.getAllByText("1 Raid-Kategorie")).toHaveLength(2);
+    });
+
+    it("words no raid category with its noun in the line under the name", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ raidCategories: 0 }));
+        render();
+        await screen.findAllByText("12 Mitglieder");
+        expect(document.querySelector(".srv-sub")?.textContent).toContain("0 Raid-Kategorien");
     });
 });
 

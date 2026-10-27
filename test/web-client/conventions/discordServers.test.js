@@ -61,6 +61,17 @@ describe("Discord-Server section", () => {
         expect(section.indexOf("rows={config.links}")).toBeLessThan(section.indexOf("rows={data.servers}"));
     });
 
+    it("keeps the full server name readable on a phone, without hover", () => {
+        // a cut name with only a hover title is unreadable on touch: the name
+        // wraps, and the narrow layout moves categories and members under it
+        const css = read("styles", "settings.css");
+        expect(css).not.toMatch(/\.srv-name[^{]*\{[^}]*text-overflow:\s*ellipsis/);
+        expect(css).toMatch(/\.srv-server-text > \* \{[^}]*overflow-wrap:\s*break-word/);
+        expect(css).toMatch(/\.srv-servers th:nth-child\(3\), \.srv-servers td:nth-child\(3\)[^{]*\{ display: none; \}/);
+        expect(section).toContain("<span className=\"srv-sub\">");
+        expect(section).toContain("t(\"settings.discordServers.raidCategoryCount\", { count: s.raidCategories })");
+    });
+
     it("says counts with their noun and raid categories as words, none being normal", () => {
         expect(de["settings.discordServers.memberCount"]).toEqual({ one: "{count} Mitglied", other: "{count} Mitglieder" });
         expect(de["settings.discordServers.noRaidCategory"]).toBe("keine");

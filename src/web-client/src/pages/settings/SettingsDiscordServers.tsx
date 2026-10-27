@@ -233,14 +233,26 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         return `${guildName(data, l.from)} ${guildName(data, l.to)}`.toLowerCase();
     };
 
+    const membersText = (s: ServerRow) => (s.memberCount == null
+        ? t("settings.discordServers.membersUnknown")
+        : t("settings.discordServers.memberCount", { count: s.memberCount }));
+
     const serverColumns: Column<ServerRow, ServerSortKey>[] = [
         {
             id: "server", label: t("settings.discordServers.colServer"), sortKey: "server",
             cell: (s) => (
                 <span className="srv-server" data-tip={s.name || s.id} data-tip-sub={t("settings.discordServers.serverId", { id: s.id })}>
                     {s.iconUrl ? <img className="srv-icon" src={s.iconUrl} alt="" /> : <span className="srv-initials">{initials(s.name || s.id)}</span>}
-                    <b className="srv-name">{s.name || s.id}</b>
-                    {s.label && <span className="srv-muted">{s.label}</span>}
+                    <span className="srv-server-text">
+                        <b className="srv-name">{s.name || s.id}</b>
+                        {s.label && <span className="srv-muted">{s.label}</span>}
+                        {/* Narrow screens hide the categories and members columns; this line carries them
+                            instead, with the noun even for none ("0 Raid-Kategorien" rather than a bare "keine"). */}
+                        <span className="srv-sub">
+                            <span>{t("settings.discordServers.raidCategoryCount", { count: s.raidCategories })}</span>
+                            <span>{membersText(s)}</span>
+                        </span>
+                    </span>
                 </span>
             ),
         },
@@ -251,7 +263,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         },
         {
             id: "members", label: t("settings.discordServers.colMembers"), sortKey: "members", className: "srv-muted",
-            cell: (s) => (s.memberCount == null ? t("settings.discordServers.membersUnknown") : t("settings.discordServers.memberCount", { count: s.memberCount })),
+            cell: membersText,
         },
         {
             id: "actions", actions: true, className: "srv-actions",
