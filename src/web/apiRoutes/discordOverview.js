@@ -4,7 +4,8 @@
 //
 // GET /api/discord/servers
 //   → { data: [{ guildId, name, label, online, iconUrl }] }   the server list (#895) in its
-//     order, name = the Discord name ("" offline), label = the optional own label
+//     order, name = the Discord name ("" offline), label = the optional own label; a full
+//     admin sees every server, everybody else the server active in their session (#925)
 //
 // GET /api/discord/overview?guildId=<one of the servers>[&fresh=1]   (none: the first server)
 //   → { data: { guildId, online,
@@ -21,9 +22,10 @@
 //   message of the server. botCheck.channels leaves out a channel that lies on another
 //   server; botCheck.functions reads "not_needed" for what is not set up on this server. Counts are null where the bot cannot say
 //   (offline, or `empty` while the member cache is incomplete).
-//   400 unknown_guild for a guildId outside the server list.
+//   400 unknown_guild for a guildId outside the server list, 403 other_server for another
+//   server than the active one (full admins excepted, #925).
 const { ok } = require("../http/apiResponse");
-const { serverFromQuery } = require("../http/serverQuery");
+const { serverFromQuery, mayUseServer } = require("../http/serverQuery");
 const { withUser } = require("../http/apiHandler");
 const { getConfig } = require("../../stores/configStore");
 const discord = require("../../services/discord/discord");
@@ -35,15 +37,15 @@ const { roleHygiene } = require("../../services/discord/roleHygiene");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
-/** GET /api/discord/servers */
-const listServers = withUser(async ({ res }) => {
-    ok(res, guildRoles.serverChoices(getConfig()));
+/** GET /api/discord/servers - a full admin sees every server, everybody else their active one (#925). */
+const listServers = withUser(async ({ user, req, res }) => {
+    ok(res, guildRoles.serverChoices(getConfig()).filter((s) => mayUseServer(user, req, s.guildId)));
 });
 
 /** GET /api/discord/overview?guildId= */
-const getOverview = withUser(async ({ query, res }) => {
+const getOverview = withUser(async ({ user, req, query, res }) => {
     const config = getConfig();
-    const guildId = serverFromQuery(query, res, config);
+    const guildId = serverFromQuery(query, res, { user, req, config });
     if (guildId === null) return undefined;
     ok(res, {
         guildId,

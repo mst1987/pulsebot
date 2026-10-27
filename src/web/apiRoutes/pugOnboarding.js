@@ -27,8 +27,8 @@ const pugOnboarding = require("../../services/discord/pugOnboarding");
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** GET /api/discord/pug-onboarding */
-const getOverview = withUser({ full: true }, async ({ query, res }) => {
-    const guildId = str(query.get("guildId")) ? serverFromQuery(query, res) : (pugOnboarding.firstPugServer() || serverFromQuery(query, res));
+const getOverview = withUser({ full: true }, async ({ user, req, query, res }) => {
+    const guildId = str(query.get("guildId")) ? serverFromQuery(query, res, { user, req }) : (pugOnboarding.firstPugServer() || serverFromQuery(query, res, { user, req }));
     if (guildId === null) return undefined;
     const raw = query.get("categories");
     const categoryIds = raw === null ? undefined : raw.split(",").map(str).filter(Boolean);
@@ -37,8 +37,8 @@ const getOverview = withUser({ full: true }, async ({ query, res }) => {
 });
 
 /** POST /api/discord/pug-onboarding */
-const postApply = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
-    const guildId = serverFromQuery(new URLSearchParams({ guildId: str(body && body.guildId) }), res);
+const postApply = withUser({ full: true, csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const guildId = serverFromQuery(new URLSearchParams({ guildId: str(body && body.guildId) }), res, { user, req });
     if (guildId === null) return undefined;
     try {
         const b = body || {};

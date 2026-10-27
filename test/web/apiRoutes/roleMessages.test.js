@@ -3,6 +3,8 @@
 // the role and the reason of a refused role.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
+let mockActive = "900000000000000001";
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 jest.mock("../../../src/services/discord/linkCheck", () => ({ messageLink: (g, c, m) => `https://discord.com/channels/${g}/${c}/${m}` }));
 // the server list (#895): two equal servers
 jest.mock("../../../src/stores/configStore", () => ({
@@ -38,6 +40,7 @@ const ENTRY = { id: "abc", guildSide: "event", channelId: "100000000000000001", 
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockActive = "900000000000000001";
     store.useFile(tempStoreFile("role-messages.json"));
     mockUser = ADMIN;
 });
@@ -115,6 +118,7 @@ describe("POST, PUT, DELETE", () => {
     });
 
     it("updates by the id in the body and passes on a 404", async () => {
+        store.saveMessage(ENTRY);
         svc.updateRoleMessage.mockResolvedValue({ entry: ENTRY, url: "", warnings: [], reposted: true });
         const res = await request("PUT", "/api/role-messages", { id: "abc", title: "T" });
         expect(body(res)).toMatchObject({ reposted: true, entry: { id: "abc" } });
@@ -125,6 +129,7 @@ describe("POST, PUT, DELETE", () => {
     });
 
     it("deletes by the id in the body", async () => {
+        store.saveMessage(ENTRY);
         svc.deleteRoleMessage.mockResolvedValue({ id: "abc", messageDeleted: false });
         expect(body(await request("DELETE", "/api/role-messages", { id: "abc" }))).toEqual({ id: "abc", messageDeleted: false });
         expect(svc.deleteRoleMessage).toHaveBeenCalledWith("abc");
@@ -132,7 +137,72 @@ describe("POST, PUT, DELETE", () => {
     });
 
     it("lets an unexpected error through to the router", async () => {
+        store.saveMessage(ENTRY);
         svc.deleteRoleMessage.mockRejectedValue(new Error("boom"));
         expect(status(await request("DELETE", "/api/role-messages", { id: "abc" }))).toBe(500);
+    });
+});
+
+describe("rights per server (#925)", () => {
+    const A = "900000000000000001";
+    const B = "900000000000000002";
+    const onB = { ...ENTRY, id: "onB", guildSide: undefined, guildId: B };
+
+    beforeEach(() => {
+        store.saveMessage(ENTRY); // on server A (the first)
+        store.saveMessage(onB);
+        mockUser = WRITER;
+        mockActive = A;
+    });
+
+    it("lists only the role messages of the active server", async () => {
+        expect(body(await get("/api/role-messages")).messages.map((m) => m.id)).toEqual(["abc"]);
+        mockActive = B;
+        expect(body(await get("/api/role-messages")).messages.map((m) => m.id)).toEqual(["onB"]);
+    });
+
+    it("answers 403 other_server for the options of another server", async () => {
+        const res = await get("/api/role-messages/options", { guildId: B });
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("other_server");
+        expect(svc.roleMessageOptions).not.toHaveBeenCalled();
+    });
+
+    it("answers 403 other_server for a new message on another server, posts on the active one", async () => {
+        const res = await post("/api/role-messages", { guildId: B, channelId: ENTRY.channelId });
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("other_server");
+        expect(svc.createRoleMessage).not.toHaveBeenCalled();
+        svc.createRoleMessage.mockResolvedValue({ entry: ENTRY, url: "", warnings: [] });
+        expect(status(await post("/api/role-messages", { channelId: ENTRY.channelId }))).toBe(201);
+        expect(svc.createRoleMessage).toHaveBeenCalledWith(expect.objectContaining({ guildId: A }), { userId: "7" });
+    });
+
+    it("answers 404 for changing or deleting a role message of another server", async () => {
+        const put = await request("PUT", "/api/role-messages", { id: "onB", title: "T" });
+        expect(status(put)).toBe(404);
+        expect(json(put).error.code).toBe("not_found");
+        expect(status(await request("DELETE", "/api/role-messages", { id: "onB" }))).toBe(404);
+        expect(svc.updateRoleMessage).not.toHaveBeenCalled();
+        expect(svc.deleteRoleMessage).not.toHaveBeenCalled();
+    });
+
+    it("answers 403 for moving an own role message to another server, keeps its server without guildId", async () => {
+        const res = await request("PUT", "/api/role-messages", { id: "abc", guildId: B });
+        expect(status(res)).toBe(403);
+        expect(svc.updateRoleMessage).not.toHaveBeenCalled();
+        svc.updateRoleMessage.mockResolvedValue({ entry: ENTRY, url: "", warnings: [], reposted: false });
+        await request("PUT", "/api/role-messages", { id: "abc", title: "T" });
+        expect(svc.updateRoleMessage).toHaveBeenCalledWith("abc", expect.objectContaining({ guildId: A }));
+    });
+
+    it("lets a full admin list, change and delete on every server", async () => {
+        mockUser = ADMIN;
+        expect(body(await get("/api/role-messages")).messages.map((m) => m.id).sort()).toEqual(["abc", "onB"]);
+        svc.updateRoleMessage.mockResolvedValue({ entry: onB, url: "", warnings: [], reposted: false });
+        expect(status(await request("PUT", "/api/role-messages", { id: "onB", title: "T" }))).not.toBe(404);
+        expect(svc.updateRoleMessage).toHaveBeenCalledWith("onB", expect.objectContaining({ guildId: B }));
+        svc.deleteRoleMessage.mockResolvedValue({ id: "onB", messageDeleted: true });
+        expect(body(await request("DELETE", "/api/role-messages", { id: "onB" }))).toEqual({ id: "onB", messageDeleted: true });
     });
 });

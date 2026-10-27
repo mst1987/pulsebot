@@ -3,6 +3,8 @@
 // 400/404 and the tab counts per server.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true, getActiveGuild: () => "" }));
+let mockActive = "900000000000000001";
+jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockGuildId }));
 let mockGuildId = "900000000000000001";
 // the server list (#895): two equal servers
@@ -37,6 +39,7 @@ const user = (level) => ({ id: "7", name: "Bob", isAdmin: false, access: { ...em
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockActive = "900000000000000001";
     store.useFile(tempStoreFile("role-messages.json"));
     mockUser = ADMIN;
     mockGuildId = "900000000000000001";
