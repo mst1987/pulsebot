@@ -537,6 +537,8 @@ async function makeRole(guild, plan, kader) {
             ...(plan.role.color !== null ? { colors: { primaryColor: plan.role.color } } : {}),
             ...(icon ? { unicodeEmoji: icon } : {}),
             ...(image ? { icon: image } : {}),
+            // its own group in the member list instead of "Online"
+            hoist: true,
             permissions: [],
             reason: `EventHelper: Übernahme des Kaders ${kader.name}`,
         });

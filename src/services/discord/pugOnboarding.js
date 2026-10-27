@@ -607,8 +607,10 @@ async function applyRoles(guild, gid, snap, entry, done, reason) {
         for (const item of snap.d.roles) {
             let id = item.roleId;
             if (item.status === "new") {
+                // A version role gets its own group in the member list; class roles stay under "Online".
                 const role = await step(`Rolle ${item.name} anlegen`, done, () => guild.roles.create({
-                    name: item.name, colors: { primaryColor: item.color || 0 }, permissions: [], mentionable: false, reason,
+                    name: item.name, colors: { primaryColor: item.color || 0 }, permissions: [], mentionable: false,
+                    hoist: item.kind === "version", reason,
                 }));
                 id = str(role.id);
                 done.roles += 1;

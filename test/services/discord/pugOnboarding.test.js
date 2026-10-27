@@ -434,6 +434,10 @@ describe("apply", () => {
 
         expect(done).toEqual({ roles: 11, categories: 2, channels: 0, onboarding: true });
         expect(order[0]).toBe("role");
+        // the version roles get their own group in the member list, the class roles stay under "Online"
+        const created = mockGuild.roles.create.mock.calls.map(([opts]) => [opts.name, opts.hoist]);
+        expect(created.filter(([, hoist]) => hoist).map(([name]) => name).sort()).toEqual(["TBC Anniversary", "WoW Forever"]);
+        expect(created.filter(([, hoist]) => !hoist)).toHaveLength(9);
         expect(order[order.length - 1]).toBe("onboarding");
         // per category: the bot first, @everyone last
         const forever = order.filter((x) => x.startsWith("rights:"));

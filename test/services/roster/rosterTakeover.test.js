@@ -267,7 +267,7 @@ describe("services/roster/rosterTakeover start", () => {
         expect(res.steps.map((s) => [s.step, s.ok])).toEqual([["role", true], ["roster", true], ["category", true], ["channel", true], ["channel", true]]);
         expect(res.steps[0]).toMatchObject({ icon: "set", name: "Forever Raider" });
         const roleOpts = guild.roles.create.mock.calls[0][0];
-        expect(roleOpts).toMatchObject({ name: "Forever Raider", colors: { primaryColor: 0x3366aa }, unicodeEmoji: "⚔️", permissions: [] });
+        expect(roleOpts).toMatchObject({ name: "Forever Raider", colors: { primaryColor: 0x3366aa }, unicodeEmoji: "⚔️", permissions: [], hoist: true });
         const roleId = res.steps[0].id;
         // the new role replaces the roster's old roles (they stay in Discord, unsynced)
         expect(rosterNow().roleIds).toEqual([roleId]);
