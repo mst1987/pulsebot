@@ -3,7 +3,7 @@
 let mockUser = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => null) }));
+jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => null), getActiveGuild: jest.fn(() => "500000") }));
 const mockEvents = {};
 jest.mock("../../../src/stores/eventStore", () => ({
     ...jest.requireActual("../../../src/stores/eventStore"),

@@ -4,7 +4,7 @@ let mockUser = null;
 let mockViewer = null;
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../src/web/http/apiBody", () => require("../../helpers/http").apiBodyMock());
-jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
+jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
 jest.mock("../../../src/services/raidplan/raidplanProgress", () => ({
     progressFor: jest.fn(async () => ({ live: true, killed: ["bt/high-warlord-najentus"], current: null, next: "bt/supremus", updatedAt: 5 })),
 }));

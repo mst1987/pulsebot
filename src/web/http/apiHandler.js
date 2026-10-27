@@ -46,6 +46,16 @@
 //                         is the first: the orga of its category plans it
 //                         (#726) without the area `raidplan`. The wrapper
 //                         carries `orgaRead = true` (routeTable.isOrgaRead).
+//
+//   onServer: (body, query) => eventId(s)
+//                         names the raid(s) of a route that has none of the
+//                         marks above (a read with its own visibility rule): only
+//                         the server check below, nothing else.
+//
+// Every raid `orgaScoped`, `orgaRead`, `onServer` and `archived` name must belong to the
+// caller's active server (#925): a raid of another server answers 404
+// "not_found" before any other check of the raid - rights hold per server, only
+// a full admin acts on every server (services/events/eventServer.js).
 const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
@@ -54,9 +64,23 @@ const { AREAS, userCan, userIsOrga } = require("../../config/permissions");
 const { archivedRefusal } = require("../../services/events/eventArchive");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
+const { allOnServer } = require("../../services/events/eventServer");
 
 const ORGA_ONLY = "Das darf nur die Orga.";
 const NOT_CATEGORY_ORGA = "Das darf nur die Orga dieser Kategorie.";
+const NOT_HERE = "Raid nicht gefunden.";
+
+/**
+ * Whether every raid the route names (`orgaScoped`, `orgaRead`, `onServer`, `archived`) belongs to the
+ * caller's active server, or to no known server (#925, services/events/eventServer.js).
+ */
+function raidsOnActiveServer(req, body, query, { orgaScoped, orgaRead, onServer, archived }) {
+    const named = [];
+    for (const pick of [orgaScoped, orgaRead, onServer]) if (pick) named.push(pick(body, query, req));
+    if (archived) named.push(archived(body, query));
+    const entries = named.flat().filter((e) => e !== undefined && e !== null && e !== "");
+    return !entries.length || allOnServer(entries, () => activeGuildFor(req));
+}
 
 /** The event groups of the caller's server, for a Raid-Helper event without snapshot (loaded on demand). */
 const groupsLoaderFor = (req) => () => loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
@@ -95,6 +119,8 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  *        for the events the function names (403 "not_category_orga" otherwise)
  * @param {boolean} [opts.globalByWrite]  with `orgaScoped` + `write`: that write right alone is the global
  *        path (every raid), whatever the orga rank - an area handed to people outside the orga (#726)
+ * @param {(body: object, query: URLSearchParams, req: object) => string|Array<string>} [opts.onServer]
+ *        the raid(s) of a route without the marks above: they must belong to the active server (#925)
  * @param {string}  [opts.write]  the area the caller needs at write level (403 otherwise)
  * @param {boolean} [opts.csrf]   check the X-CSRF-Token header (every mutating call)
  * @param {boolean} [opts.body]   parse the JSON body (always an object; `{}` when empty or invalid)
@@ -105,7 +131,8 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, orga = false, orgaScoped = null, orgaRead = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null } = opts || {};
+    const { full = false, orga = false, orgaScoped = null, orgaRead = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null, onServer = null } = opts || {};
+    if (onServer !== null && typeof onServer !== "function") throw new Error("withUser: onServer names the event(s) as (body, query) => id(s)");
     if (orgaScoped !== null && typeof orgaScoped !== "function") throw new Error("withUser: orgaScoped names the event(s) as (body, query) => id(s)");
     if (orgaRead !== null && typeof orgaRead !== "function") throw new Error("withUser: orgaRead names the event(s) as (body, query) => id(s)");
     if (orgaRead && (orgaScoped || orga || write)) throw new Error("withUser: orgaRead is a read - no orga, orgaScoped or write beside it");
@@ -137,6 +164,12 @@ function withUser(opts, fn) {
         if (csrf && !requireCsrf(req, res)) return undefined;
         const parsed = body ? ((await readJsonBody(req)) || {}) : undefined;
         const query = url && url.searchParams ? url.searchParams : new URLSearchParams();
+        // the server before anything else (#925): a raid of another server does not exist here -
+        // the rights of an orga hold on their own server only, a full admin acts on every server
+        if (!user.isAdmin && !raidsOnActiveServer(req, parsed || {}, query, { orgaScoped, orgaRead, onServer, archived })) {
+            error(res, 404, "not_found", NOT_HERE);
+            return undefined;
+        }
         // the category first: a raid of another category is "not yours", whatever its archive state
         if (scoped && !(await categoryOrgaOfAll(user, orgaScoped(parsed || {}, query, req), req))) {
             error(res, 403, "not_category_orga", NOT_CATEGORY_ORGA);

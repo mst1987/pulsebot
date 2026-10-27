@@ -158,7 +158,7 @@ function eventOf(res, id) {
  * when somebody else changed the setup: no Discord names, no attendance (the page
  * keeps the ones it has), so it answers at once.
  */
-const getSetup = withUser({}, async ({ user, req, res, url }) => {
+const getSetup = withUser({ onServer: BY_QUERY }, async ({ user, req, res, url }) => {
     const event = eventOf(res, url.searchParams.get("event"));
     if (!event) return;
     // a raid of a category the raider may not see: the same 404 as an unknown one (eventVisibility.js) - the

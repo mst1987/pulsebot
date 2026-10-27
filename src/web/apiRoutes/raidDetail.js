@@ -82,7 +82,7 @@ function linkCardOf(found) {
  * A raider gets only the raids they may see (eventVisibility.js; any other answers
  * 404 like an unknown one) and none of the orga's parts (raidDetailView.js).
  */
-const getRaidDetail = withUser({}, async ({ user, req, res, url }) => {
+const getRaidDetail = withUser({ onServer: (body, query) => query.get("event") }, async ({ user, req, res, url }) => {
     const eventId = (url.searchParams.get("event") || "").trim();
     const guildId = activeGuildFor(req);
     const loadGroups = () => loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });

@@ -10,7 +10,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
-    getActiveGuild: jest.fn(() => ""),
+    getActiveGuild: jest.fn(() => "g1"),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));

@@ -36,7 +36,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
     specNameFor: jest.requireActual("../../../src/services/events/eventSources").specNameFor,
 }));
-jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => ""), listGuilds: () => [{ id: "g1" }] }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),

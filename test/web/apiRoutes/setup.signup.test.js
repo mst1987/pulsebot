@@ -14,7 +14,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [] }));
+jest.mock("../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [{ id: "g1" }] }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
