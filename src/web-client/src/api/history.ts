@@ -20,6 +20,8 @@ export type LootEventSummary = {
      * setLootCategory() assigns after the fact.
      */
     categoryId: string;
+    /** The Discord server of the bucket (#919) - the client's second filter (lib/discord/ofServer). */
+    guildId?: string;
     count: number;
     importedAt?: number;
     awardedAt?: number;

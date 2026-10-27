@@ -5,6 +5,14 @@ jest.mock("../../../src/services/characters/characterInfo", () => ({
     annotatedCharacters: (...a) => mockAnnotatedCharacters(...a),
 }));
 
+// The loot rows of every server; the roster keeps only the active one's (#919).
+// The server rule itself is lootServer.test.js - here: a row's `guildId`.
+const mockListAllLoot = jest.fn(() => []);
+jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAllLoot(...a) }));
+jest.mock("../../../src/services/loot/lootServer", () => ({
+    lootOfGuild: (rows, guildId) => (guildId === undefined ? rows : rows.filter((r) => !!guildId && r.guildId === guildId)),
+}));
+
 const mockListAllAssignments = jest.fn(() => ({}));
 jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     listAllAssignments: (...a) => mockListAllAssignments(...a),
@@ -237,5 +245,23 @@ describe("web/characters/roster buildRoster", () => {
     it("ignores a blank character name in the assignments", () => {
         mockListAllAssignments.mockReturnValue({ cat1: { u1: "   " } });
         expect(buildRoster("guild-1").chars).toEqual([]);
+    });
+
+    // #919: a character whose only loot is from server B is not on A's roster,
+    // and its loot of B never counts on A.
+    it("only joins the loot of the active Discord server", () => {
+        mockListAllLoot.mockReturnValue([
+            { character: "Anna", guildId: "gA" },
+            { character: "Bert", guildId: "gB" },
+        ]);
+        mockAnnotatedCharacters.mockImplementation(({ rows } = {}) => (rows || [])
+            .map((r) => lootChar({ key: r.character.toLowerCase(), character: r.character, count: 1 })));
+
+        const onA = buildRoster("gA");
+        expect(onA.chars.map((c) => c.character)).toEqual(["Anna"]);
+        expect(byName(onA, "Anna").lootCount).toBe(1);
+        expect(buildRoster("gB").chars.map((c) => c.character)).toEqual(["Bert"]);
+        // no active server: no loot at all (fail closed)
+        expect(buildRoster("").chars).toEqual([]);
     });
 });

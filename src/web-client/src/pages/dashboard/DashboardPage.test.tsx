@@ -5,7 +5,7 @@ import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
-import type { DashboardData, DashboardRaid, DashboardTask, NextRaidDetails } from "../../api";
+import type { DashboardData, DashboardRaid, DashboardTask, NextRaidDetails, TopLootAward } from "../../api";
 import { t } from "../../i18n";
 import { CONTENT_ARIA, renderPage, twoVersions } from "../../test/render";
 import { dayDate } from "../../lib/raids/overviewDates";
@@ -184,6 +184,14 @@ describe("Übersicht (DashboardPage)", () => {
         await user.click(within(content).getByRole("radio", { name: /Forever/ }));
         await waitFor(() => expect(api.getDashboard).toHaveBeenLastCalledWith("forever"));
         localStorage.removeItem("eh-content-version");
+    });
+
+    // #919: the second filter - an award of another Discord server never shows on the loot card.
+    it("leaves an award of another server off the loot card", async () => {
+        const award = (itemName: string, guildId: string): TopLootAward => ({ itemId: 1, itemName, itemIconUrl: "", itemQuality: 4, itemLink: "", character: "Thrall", realm: "", boss: "", response: "", offspec: false, reason: "ms", reasonLabel: "Main Spec", reasonTone: "ok", contentId: "bt", categoryId: "", eventId: "1", eventLabel: "BT", awardedAt: Date.now(), className: "", spec: "", classColor: "", specIconUrl: "", guildId });
+        await showPage(dashboard({ topLoot: { items: [award("Hier-Item", "g1"), award("Fremd-Item", "g2")], configured: 2 } }));
+        expect(await screen.findByText("Hier-Item")).toBeInTheDocument();
+        expect(screen.queryByText("Fremd-Item")).not.toBeInTheDocument();
     });
 
     it("shows 'Alles erledigt' when there are no open tasks", async () => {
