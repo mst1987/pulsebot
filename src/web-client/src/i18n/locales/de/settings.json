@@ -295,8 +295,8 @@
         "tokenMissing": "Token fehlt"
     },
     "direction": {
-        "toTalk": "Event → Talk",
-        "toEvent": "Talk → Event",
+        "toTarget": "Erster → zweiter Server",
+        "toSource": "Zweiter → erster Server",
         "both": "beide Richtungen"
     },
     "target": {
@@ -482,9 +482,9 @@
     },
     "roleSync": {
         "title": "Rollen-Abgleich",
-        "tipSub": "Ordnet eine Rolle des Event-Discords einer Rolle des Kommunikations-Discords zu. Läuft bei jeder Rollenänderung und alle 10 Minuten. Er vergibt nur und entfernt nie.",
-        "dirToTalkTip": "Wer die Rolle auf dem Event-Discord hat, bekommt sie auf dem Kommunikations-Discord.",
-        "dirToEventTip": "Wer die Rolle auf dem Kommunikations-Discord hat, bekommt sie auf dem Event-Discord.",
+        "tipSub": "Ordnet eine Rolle eines Servers einer Rolle eines anderen Servers der Liste zu. Läuft bei jeder Rollenänderung und alle 10 Minuten. Er vergibt nur und entfernt nie.",
+        "dirToTargetTip": "Wer die Rolle auf dem ersten Server hat, bekommt sie auf dem zweiten.",
+        "dirToSourceTip": "Wer die Rolle auf dem zweiten Server hat, bekommt sie auf dem ersten.",
         "dirBoth": "Beide",
         "dirBothTip": "In beide Richtungen.",
         "deleteAsk": "Zuordnung {label} löschen?",
@@ -507,16 +507,24 @@
             "other": "Mitglieder haben"
         },
         "driftOnlyOn": "nur noch auf {where}",
-        "driftTalk": "dem Kommunikations-Discord",
-        "driftEvent": "dem Event-Discord",
         "who": "Wer",
         "removeTip": "@{role} entfernen",
         "notOnSource": "Nicht mehr auf dem anderen Server. Entfernen in Discord.",
         "lostSource": "Hat @{role} nicht mehr. Entfernen in Discord.",
-        "eventTip": "Rolle auf dem Event-Discord",
-        "talkTip": "Rolle auf dem Kommunikations-Discord",
         "direction": "Richtung",
-        "directionSub": "Der Abgleich vergibt nur. Eine verlorene Rolle bleibt auf der anderen Seite und erscheint als Abweichung."
+        "directionSub": "Der Abgleich vergibt nur. Eine verlorene Rolle bleibt auf der anderen Seite und erscheint als Abweichung.",
+        "fromServer": "Erster Server",
+        "toServer": "Zweiter Server",
+        "fromServerTip": "Der Server der ersten Rolle",
+        "toServerTip": "Der Server der zweiten Rolle, ein anderer als der erste",
+        "role": "Rolle",
+        "pickServer": "— Server wählen —",
+        "sameServer": "Zwei verschiedene Server wählen.",
+        "notConnected": "Bot nicht auf dem Server",
+        "needTwo": "Der Rollen-Abgleich braucht mindestens zwei Server in der Liste.",
+        "overlap": "{both} von {count} auf beiden",
+        "overlapTip": "{both} Mitglieder von {from} sind auch auf {to}. Nur sie können die Rolle dort bekommen.",
+        "overlapError": "Überschneidung unbekannt"
     },
     "discordServers": {
         "tipSub": "Alle Server sind gleichwertig. Eine Verknüpfung postet die Raid-Liste eines Servers in einen Kanal auf einem anderen oder demselben Server.",

@@ -50,6 +50,8 @@ const render = () => renderPage(<DiscordServersSection onConfig={() => undefined
 
 beforeEach(() => {
     vi.mocked(api.getTalkOverview).mockResolvedValue({ statuses: [] });
+    // #896: the role sync part mounts with a single server as well
+    vi.mocked(api.getRoleSync).mockResolvedValue({ roleSync: [], servers: [], overlaps: [], drift: [], driftTotal: 0, driftError: null, lastRun: null });
     vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], pingTargets: { talk: false, talkGuildName: "", talkChannelName: "" }, lastRun: null });
     vi.mocked(api.updateSettings).mockReset();
     vi.mocked(api.updateSettings).mockResolvedValue({ config: {} as AdminConfig });

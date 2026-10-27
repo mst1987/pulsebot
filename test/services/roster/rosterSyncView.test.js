@@ -157,20 +157,29 @@ describe("services/roster/rosterSyncView logCharsList", () => {
 });
 
 describe("services/roster/rosterSyncView mirroredRoles", () => {
-    it("names every roster role the role sync touches, with the direction seen from this side", () => {
+    // #896: pairs of servers; the roster lies on g1
+    const pair = (fromGuildId, fromRoleId, toGuildId, toRoleId, direction) => ({ fromGuildId, fromRoleId, toGuildId, toRoleId, direction });
+
+    it("names every roster role the role sync touches, with the direction seen from this server", () => {
         const config = {
             roleSync: [
-                { eventRoleId: "main", talkRoleId: "t1", direction: "toTalk" },
-                { eventRoleId: "e2", talkRoleId: "trial", direction: "toEvent" },
-                { eventRoleId: "trial", talkRoleId: "t3", direction: "both" },
-                { eventRoleId: "x", talkRoleId: "y", direction: "both" },
+                pair("g1", "main", "g2", "t1", "toTarget"),
+                pair("g2", "e2", "g1", "trial", "toSource"),
+                pair("g1", "trial", "g3", "t3", "both"),
+                pair("g2", "e4", "g1", "main", "toTarget"),
+                pair("g1", "x", "g2", "y", "both"),
             ],
         };
         expect(mirroredRoles(roster, config)).toEqual([
-            { roleId: "main", otherRoleId: "t1", direction: "toTalk", side: "event", incoming: false, outgoing: true },
-            { roleId: "trial", otherRoleId: "e2", direction: "toEvent", side: "talk", incoming: false, outgoing: true },
-            { roleId: "trial", otherRoleId: "t3", direction: "both", side: "event", incoming: true, outgoing: true },
+            { roleId: "main", otherRoleId: "t1", otherGuildId: "g2", direction: "toTarget", side: "from", incoming: false, outgoing: true },
+            { roleId: "trial", otherRoleId: "e2", otherGuildId: "g2", direction: "toSource", side: "to", incoming: false, outgoing: true },
+            { roleId: "trial", otherRoleId: "t3", otherGuildId: "g3", direction: "both", side: "from", incoming: true, outgoing: true },
+            { roleId: "main", otherRoleId: "e4", otherGuildId: "g2", direction: "toTarget", side: "to", incoming: true, outgoing: false },
         ]);
         expect(mirroredRoles(roster, {})).toEqual([]);
+    });
+
+    it("ignores a pair between two other servers, even with the same role id", () => {
+        expect(mirroredRoles(roster, { roleSync: [pair("g2", "main", "g3", "trial", "both"), null] })).toEqual([]);
     });
 });

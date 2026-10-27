@@ -21,11 +21,12 @@ const { makeClient, makeGuild, makeMember } = require("../../helpers/discordClie
 const RAIDER = "900000000000000001";
 const ORGA = "900000000000000002";
 const TALK_RAIDER = "900000000000000003";
+const TALK_GUILD = "300000";
 const CONFIG = {
     orgaRoleIds: [ORGA],
     rolePermissions: { [RAIDER]: { signup: { read: true, write: true } }, [ORGA]: { raids: { read: true, write: true } } },
     categoryRoles: { "700000000000000001": [RAIDER] },
-    roleSync: [{ eventRoleId: RAIDER, talkRoleId: TALK_RAIDER, direction: "toTalk" }],
+    roleSync: [{ fromGuildId: "g1", fromRoleId: RAIDER, toGuildId: TALK_GUILD, toRoleId: TALK_RAIDER, direction: "toTarget" }],
 };
 
 /** The event server with its two roles under the given names (ids never change). */
@@ -71,9 +72,9 @@ describe("a renamed role (#744)", () => {
 
     it("syncs the same roles between the servers", () => {
         const talk = [liteMember(memberWith("u1", []))];
-        const plan = (name) => planRoleSync(CONFIG.roleSync, { event: [liteMember(memberWith("u1", [{ id: RAIDER, name }]))], talk });
+        const plan = (name) => planRoleSync(CONFIG.roleSync, { g1: [liteMember(memberWith("u1", [{ id: RAIDER, name }]))], [TALK_GUILD]: talk });
         expect(plan("Forever Raider")).toEqual(plan("TBC Raider"));
-        expect(plan("Forever Raider")).toEqual([{ side: "talk", userId: "u1", roleId: TALK_RAIDER, name: "u1" }]);
+        expect(plan("Forever Raider")).toEqual([{ guildId: TALK_GUILD, userId: "u1", roleId: TALK_RAIDER, name: "u1" }]);
     });
 
     it("leaves a roster and a category's raider roles alone", () => {

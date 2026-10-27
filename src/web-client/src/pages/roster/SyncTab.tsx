@@ -174,7 +174,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
             <Notice>
                 {sync.roles.length ? t("roster.sync.info", { roles: roleList }) : t("roster.sync.infoNoRole")}
                 {sync.mirrored.map((m) => (
-                    <span key={`${m.roleId}-${m.side}`} className="rn-notice-line">
+                    <span key={`${m.roleId}-${m.side}-${m.otherGuildId}-${m.otherRoleId}`} className="rn-notice-line">
                         {m.outgoing && t("roster.sync.mirrorOut", { role: roleLabel(sync.roles.find((r) => r.id === m.roleId) || { name: "", id: m.roleId }) })}
                         {m.outgoing && m.incoming && " "}
                         {m.incoming && t("roster.sync.mirrorIn", { role: roleLabel(sync.roles.find((r) => r.id === m.roleId) || { name: "", id: m.roleId }) })}

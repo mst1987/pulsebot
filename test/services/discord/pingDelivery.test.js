@@ -192,7 +192,7 @@ describe("deliverAnnouncement", () => {
     });
 
     it("maps a synced role to its talk role, mentions members of unmapped roles and DMs who is not there", async () => {
-        const cfg = config({ roleSync: [{ eventRoleId: "500000", talkRoleId: "600000", direction: "toTalk" }] });
+        const cfg = config({ roleSync: [{ fromGuildId: "100000", fromRoleId: "500000", toGuildId: "200000", toRoleId: "600000", direction: "toTarget" }] });
         discord.listMembersWithRoles.mockImplementation(async (guildId, roleIds) => {
             if (roleIds.length === 2) return { members: [{ id: "1" }, { id: "2" }, { id: "3" }], error: null };
             return { members: [{ id: "1" }], error: null }; // holders of the mapped role 500000
@@ -207,6 +207,16 @@ describe("deliverAnnouncement", () => {
         expect(discord.sendDirectMessage.mock.calls[0][0]).toBe("3");
         expect(dmTexts()["3"]).toContain("**Anmeldung**\nBitte eintragen");
         expect(r.dm).toEqual({ sent: ["3"], failed: [] });
+    });
+
+    // #896: a pair counts in either orientation, but only between this raid server and the talk server.
+    it("maps a pair the other way round and ignores a pair to a third server", async () => {
+        const cfg = config({ roleSync: [
+            { fromGuildId: "200000", fromRoleId: "600000", toGuildId: "100000", toRoleId: "500000", direction: "toSource" },
+            { fromGuildId: "100000", fromRoleId: "700000", toGuildId: "300000", toRoleId: "800000", direction: "both" },
+        ] });
+        expect(ping.mapRoles(["500000", "700000"], cfg, "100000", "200000")).toEqual({ talkRoleIds: ["600000"], unmapped: ["700000"] });
+        expect(ping.mapRoles(["500000"], cfg, "", "200000")).toEqual({ talkRoleIds: [], unmapped: ["500000"] });
     });
 
     it("posts in both places and sends no DM for target both", async () => {

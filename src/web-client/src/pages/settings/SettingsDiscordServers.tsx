@@ -354,8 +354,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                 </ul>
             </section>
 
-            {/* #264: the role sync still needs the talk server until #896 replaces it; reminders work with one server as well. */}
-            {data.talk && <RoleSyncPart onConfig={onConfig} />}
+            {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
+            <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
             <RemindersPart onConfig={onConfig} />
 
             {dialog === "link" && (

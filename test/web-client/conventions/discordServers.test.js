@@ -45,6 +45,15 @@ describe("Discord-Server section", () => {
         expect(de["settings.discordServers.addEvent"]).toBeUndefined();
     });
 
+    it("keeps role sync and reminders in their own parts below the tables", () => {
+        // #896: the role sync pairs any two servers of the list and is always
+        // mounted (it says itself when there is only one); reminders too.
+        // reloadKey: a saved server list reloads the pair selects (#896 review)
+        expect(section).toContain("<RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />");
+        expect(section).not.toContain("{data.talk && <RoleSyncPart");
+        expect(section).toContain("<RemindersPart onConfig={onConfig} />");
+    });
+
     it("shows links and servers as sortable tables, links first", () => {
         expect(section).toContain("useTableSort<LinkSortKey>(\"settings-links-sort\"");
         expect(section).toContain("useTableSort<ServerSortKey>(\"settings-servers-sort\"");

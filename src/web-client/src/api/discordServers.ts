@@ -53,7 +53,7 @@ export type DiscordServersData = {
     servers: ServerRow[];
     guilds: GuildOption[];
     versions: VersionOption[];
-    /** The talk server's card, only for the role sync block (until #896/#897 replace it). */
+    /** The talk server's card, only to lock removing the old talk server (until #897 drops it). */
     talk: DiscordServerCard | null;
 };
 

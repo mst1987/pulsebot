@@ -72,8 +72,8 @@ export function setRosterRole(rosterId: string, userId: string, give: boolean, r
 /** One role of the roster as the Abgleich tab lists it. */
 export type RosterSyncRole = { id: string; name: string; color: string; main: boolean; trial: boolean; exists: boolean };
 
-/** A roster role the role sync mirrors to or from the other server (docs/discord-servers.md). */
-export type RosterMirror = { roleId: string; otherRoleId: string; direction: string; side: "event" | "talk"; incoming: boolean; outgoing: boolean };
+/** A roster role a role-sync pair mirrors to or from another server (docs/discord-servers.md); side = which end of the pair the roster's server is (#896). */
+export type RosterMirror = { roleId: string; otherRoleId: string; otherGuildId: string; direction: string; side: "from" | "to"; incoming: boolean; outgoing: boolean };
 
 export type RosterSync = {
     rosterId: string;
