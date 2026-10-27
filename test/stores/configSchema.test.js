@@ -113,7 +113,22 @@ function after890(config) {
     if (rest.talkGuildId && !servers.some((x) => x.guildId === rest.talkGuildId)) servers.push({ guildId: rest.talkGuildId, label: "" });
     return { ...config, discordServers: { ...rest, servers, links } };
 }
-const schemaOnly = frozen.map((g) => ({ ...g, config: after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))) }));
+// #894: pings and reminders stay on the raid's server - the talk server's ping channel and the
+// `target` of reminders and announcements are gone (an old one is dropped on read).
+function after894(config) {
+    const servers = { ...config.discordServers };
+    delete servers.talkPingChannelId;
+    const dropTarget = (map) => Object.fromEntries(Object.entries(map || {}).map(([k, v]) => {
+        const rest = { ...v };
+        delete rest.target;
+        return [k, rest];
+    }));
+    return {
+        ...config, discordServers: servers,
+        categoryReminders: dropTarget(config.categoryReminders), categoryAnnounce: dropTarget(config.categoryAnnounce),
+    };
+}
+const schemaOnly = frozen.map((g) => ({ ...g, config: after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))) }));
 const golden = schemaOnly.map((g, i) => ({ ...g, config: afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config) }));
 const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)"));
 
@@ -220,7 +235,7 @@ describe("stores/configSchema server federation (#890)", () => {
     const T = "333333333333333333";
     const C1 = "444444444444444444";
     const C2 = "555555555555555555";
-    const blank = { talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" };
+    const blank = { signupNoteChannelId: "", guildBankChannelId: "" };
 
     describe("migrates every old shape on read", () => {
         it("only event servers: they become the servers, labels kept, no links", () => {
@@ -233,7 +248,8 @@ describe("stores/configSchema server federation (#890)", () => {
             const out = schema.normalizeDiscordServers({ eventGuilds: [{ guildId: A }], talkGuildId: T, talkPingChannelId: C1 });
             expect(out.servers.map((x) => x.guildId)).toEqual([A, T]);
             expect(out.talkGuildId).toBe(T);
-            expect(out.talkPingChannelId).toBe(C1);
+            // #894: the talk server's ping channel is gone, an old one is dropped
+            expect(out).not.toHaveProperty("talkPingChannelId");
         });
 
         it("an overview target on another server becomes a link, the target does not become a server", () => {

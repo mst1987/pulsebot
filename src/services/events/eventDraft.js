@@ -332,8 +332,8 @@ function announceFor(state) {
 /** "Raider-Rolle pingen (Event-Kanal)" / "aus". */
 function announceLine(announce) {
     if (!announce.enabled) return "aus";
-    const where = { event: "Event-Kanal", talk: "Kommunikations-Discord", both: "beide Server" }[announce.target] || "Event-Kanal";
-    return `Raider-Rolle pingen (${where})`;
+    // always the raid's own channel (#894)
+    return "Raider-Rolle pingen (Event-Kanal)";
 }
 
 // ---- step 1: the message with the selects ----

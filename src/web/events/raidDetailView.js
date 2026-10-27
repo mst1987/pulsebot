@@ -49,7 +49,6 @@ const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
-const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const { planningOf } = require("../../services/events/planning");
 const { featureState, sheetOffered } = require("../../services/events/versionCapabilities");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
@@ -378,7 +377,6 @@ function forRaider(payload, userId) {
         steps: null,
         playerSummaries: {},
     };
-    delete out.pingTargets;
     return out;
 }
 
@@ -444,8 +442,6 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         notifyTemplates: listNotify(),
         // the Anmelde-Aufruf's roles: the category's raider roles only for whom POST /api/raids/notify allows no more (#727, #729)
         roles: notifyRoles(guildId, found.g.categoryId, version.versionId, config, !!(rights && rights.categoryRolesOnly)),
-        // Whether the ping/notify modals may offer the talk server as a target.
-        pingTargets: pingTargetInfo(),
         raidsheets,
         matchedSheetId: matched ? matched.id : "",
         setup: setupInfo.setup,

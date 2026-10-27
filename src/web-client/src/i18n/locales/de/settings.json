@@ -249,9 +249,7 @@
     },
     "announce": {
         "off": "aus",
-        "event": "Event-Kanal",
-        "talk": "Talk-Server",
-        "both": "beide Server"
+        "event": "Event-Kanal"
     },
     "signupNote": {
         "required": "Pflicht",
@@ -304,11 +302,6 @@
         "toTalk": "Event → Talk",
         "toEvent": "Talk → Event",
         "both": "beide Richtungen"
-    },
-    "target": {
-        "event": "Event-Kanal",
-        "talk": "Kommunikations-Discord",
-        "both": "Beides"
     },
     "drift": {
         "unknown": "Abgleich unbekannt",
@@ -469,10 +462,6 @@
         "empty": "Noch keine Raid-Kategorien — sie werden unter Einstellungen → Kategorien eingeschaltet.",
         "unknownCategory": "Unbekannte Kategorie",
         "unknownCategorySub": "Kategorie-ID {id} — auf dem Event-Discord nicht (mehr) gefunden.",
-        "where": "Wohin",
-        "whereSub": "Event-Kanal, Ping-Kanal des Kommunikations-Discords oder beides. Wer bei „Talk“ nicht auf dem Kommunikations-Discord ist, bekommt eine DM.",
-        "targetTalk": "Talk",
-        "targetBoth": "Beides",
         "noRole": "Keine Raider-Rolle",
         "noRoleSub": "Ohne Raider-Rolle der Kategorie weiß der Bot nicht, wer fehlt — die Erinnerung an Fehlende geht dann nicht raus.",
         "noRoleBadge": "keine Rolle",
@@ -740,9 +729,7 @@
     "categories": {
         "announceMode": {
             "off": "aus",
-            "event": "Event-Kanal",
-            "talk": "Talk",
-            "both": "beide"
+            "event": "Event-Kanal"
         },
         "stillRhTip": "{count} noch auf Raid-Helper",
         "stillRhSub": "Neue Events von {names} werden noch bei Raid-Helper angelegt. Umstellen: Kategorie öffnen › Neue Events. Die Abschalt-Checkliste steht unter Verbindungen › Raid-Helper.",
@@ -795,7 +782,7 @@
         "absences": "In Abwesenheiten zeigen",
         "absencesSub": "Raids dieser Kategorie und Abwesenheiten, die nur für sie gelten, erscheinen in der Zeitleiste, unter „Pro Raid“ und bei den Hinweisen. Aus: die Kategorie bleibt dort draußen.",
         "absencesAria": "In Abwesenheiten zeigen {name}",
-        "announceSub": "Ein neues EventHelper-Event postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt dabei die Raider-Rollen dieser Kategorie — genau einmal je Event, auch bei Serien-Events. „Talk“/„beide“ brauchen einen Ping-Kanal auf dem Kommunikations-Discord.",
+        "announceSub": "Ein neues EventHelper-Event postet eine kurze Zeile mit Titel, Termin und Link zur Anmeldung und pingt dabei die Raider-Rollen dieser Kategorie — genau einmal je Event, auch bei Serien-Events.",
         "announce": "Ankündigung",
         "announceAria": "Ankündigung {name}",
         "notes": "Nachricht bei Vielleicht/Absage",

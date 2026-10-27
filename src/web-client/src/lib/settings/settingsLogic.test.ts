@@ -207,15 +207,15 @@ describe("save bar change list", () => {
         ]);
     });
 
-    it("names the create announcement and its target, missing = off (#306)", () => {
+    it("names the create announcement, missing = off (#306; #894: always the event channel)", () => {
         const draft = base();
-        draft.categoryAnnounce = { c1: { enabled: true, target: "both" } };
-        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → beide Server"]);
-        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true, target: "event" } } };
-        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false, target: "event" } } }, names))
+        draft.categoryAnnounce = { c1: { enabled: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → Event-Kanal"]);
+        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true } } };
+        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false } } }, names))
             .toEqual(["Hyjal & BT · Ankündigung → aus"]);
         expect(logic.announceMode(undefined)).toBe("");
-        expect(logic.announceMode({ enabled: true, target: "" })).toBe("event");
+        expect(logic.announceMode({ enabled: true })).toBe("event");
     });
 
     it("names the characters per signup, missing = 8, clamped into 1..8", () => {
@@ -418,21 +418,9 @@ describe("category list", () => {
 
 // Pings, reminders and role sync across both servers (#264).
 describe("ping targets, role sync and reminders", () => {
-    it("offers no Wohin segment without a talk ping channel", () => {
-        expect(logic.pingTargetOptions(null)).toEqual([]);
-        expect(logic.pingTargetOptions({ talk: false })).toEqual([]);
-        const options = logic.pingTargetOptions({ talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" });
-        expect(options.map((o) => o.value)).toEqual(["event", "talk", "both"]);
-        expect(options[1].tip).toContain("#pings auf Pulse Talk");
-        expect(options[1].tip).toContain("DM");
-    });
-
-    it("says in the modal head where the ping goes", () => {
-        const info = { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" };
-        expect(logic.targetHint("event", "kara-mi", info)).toBe("in #kara-mi");
-        expect(logic.targetHint("talk", "kara-mi", info)).toBe("in #pings");
-        expect(logic.targetHint("both", "kara-mi", info)).toBe("in #kara-mi + #pings");
-        expect(logic.targetHint("event", "", undefined)).toBeUndefined();
+    it("says in the modal head which channel the ping goes to (#894: always the raid's own)", () => {
+        expect(logic.channelHint("kara-mi")).toBe("in #kara-mi");
+        expect(logic.channelHint("")).toBeUndefined();
     });
 
     it("sends only complete role pairs, once per pair", () => {
@@ -460,16 +448,16 @@ describe("ping targets, role sync and reminders", () => {
 
     it("sums a reminder rule up in one short line", () => {
         expect(logic.reminderSummary(undefined)).toBe("aus");
-        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h vor Schluss · 1 h vor Raid");
-        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2, target: "event" })).toBe("2 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h vor Schluss · 1 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2 })).toBe("2 h vor Raid");
     });
 
     it("sets one category's reminders and removes a switched-off one", () => {
-        const current = { a: { missingHours: 24, signedHours: 0, target: "event" } };
-        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999, target: "both" })).toEqual({
-            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168, target: "both" } },
+        const current = { a: { missingHours: 24, signedHours: 0 } };
+        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999 })).toEqual({
+            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168 } },
         });
-        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1, target: "event" })).toEqual({ categoryReminders: {} });
+        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1 })).toEqual({ categoryReminders: {} });
         expect(current.a.missingHours).toBe(24);
     });
 });
@@ -512,7 +500,7 @@ describe("the labels in English", () => {
             expect(logic.connectionState("lootsync", { tokenCount: 2 }).label).toBe("2 tokens");
             expect(logic.serverCardState({ connected: true, permissions: [], missing: ["a", "b"] }, false).label).toBe("2 permissions missing");
             expect(logic.driftBadge(1, null).label).toBe("1 drift");
-            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1, target: "talk" })).toBe("24 h before close · 1 h before raid");
+            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h before close · 1 h before raid");
             expect(logic.reminderSummary(undefined)).toBe("off");
             expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("5 min ago");
             expect(logic.noteChannelPick([], "", "").defaultLabel).toBe("Default (not set)");
@@ -523,7 +511,7 @@ describe("the labels in English", () => {
 
     it("tells an unset reminder apart without reading its text", () => {
         expect(logic.reminderOff(undefined)).toBe(true);
-        expect(logic.reminderOff({ missingHours: 0, signedHours: 0, target: "event" })).toBe(true);
-        expect(logic.reminderOff({ missingHours: 0, signedHours: 2, target: "event" })).toBe(false);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 0 })).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 2 })).toBe(false);
     });
 });

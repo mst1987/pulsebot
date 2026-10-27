@@ -25,20 +25,6 @@
     "itemSearch": {
         "placeholder": "Search item names (Wowhead) …"
     },
-    "target": {
-        "tip": "Where",
-        "tipSub": "The event channel as before, the ping channel of the communication Discord, or both. With “Talk”, anyone not on the communication Discord gets a DM.",
-        "label": "Where",
-        "event": "Event channel",
-        "eventTip": "Only in the event's channel",
-        "talk": "Talk",
-        "talkTip": "In {where} on {server}; whoever is not there gets a DM",
-        "both": "Both",
-        "bothTip": "In the event channel and in {where}; no extra DMs",
-        "pingChannel": "the ping channel",
-        "talkServer": "the communication Discord",
-        "in": "in {where}"
-    },
     "logAssign": {
         "title": "Assign log",
         "hint": {
@@ -117,7 +103,6 @@
         "unnamed": "(no name)",
         "rolesTip": "Ping roles",
         "rolesTipEvent": "The selected roles are pinged in the event channel.",
-        "rolesTipTalk": "On the communication Discord, a synced role becomes its counterpart; members of other roles are mentioned one by one, anyone not there gets a DM (only with “Talk”).",
         "rolesLabel": "Ping roles",
         "noRoles": "No roles found (server selected?)."
     },
@@ -127,7 +112,8 @@
             "one": "Ping {count} raider",
             "other": "Ping {count} raiders"
         },
-        "placeholder": "Please sign up or sign off for the raid."
+        "placeholder": "Please sign up or sign off for the raid.",
+        "dmNote": "Anyone not on the raid's server gets a DM."
     },
     "player": {
         "kicker": "Raider",

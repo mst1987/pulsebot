@@ -19,7 +19,6 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const { lastReminderRun } = require("../events/reminders");
-const { pingTargetInfo } = require("../../services/discord/pingDelivery");
 const wowhead = require("../../utils/loot/wowhead");
 const {
     AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
@@ -201,7 +200,7 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS];
 
-const DISCORD_SERVER_FIELDS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
+const DISCORD_SERVER_FIELDS = ["talkGuildId", "signupNoteChannelId", "guildBankChannelId"];
 
 /** The guild bank's orga channel of a config ("" = none). */
 const guildBankOf = (config) => String(((config && config.discordServers) || {}).guildBankChannelId || "");
@@ -347,8 +346,7 @@ const getRoleSync = withUser({ full: true }, async ({ res }) => {
 
 /**
  * GET /api/settings/reminders — the reminder block: the stored rules, every
- * configured event server's raid categories with names, whether the talk
- * server's ping channel exists as a target, and the last sweep.
+ * configured event server's raid categories with names and the last sweep.
  */
 const getReminders = withUser({}, async ({ res }) => {
     const config = getConfig();
@@ -364,7 +362,6 @@ const getReminders = withUser({}, async ({ res }) => {
         categoryReminders: config.categoryReminders || {},
         // `active: false`: a deactivated category (#744) — its rule stays, but it reminds nobody.
         categories: ids.map((id) => ({ id, name: names.get(id) || "", roleCount: expectedRoleIds(id, config).length, active: categoryLifecycle.isCategoryActive(id, config) })),
-        pingTargets: pingTargetInfo(config),
         lastRun: lastReminderRun(),
     });
 });

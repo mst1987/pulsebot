@@ -162,8 +162,9 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
                         if (!reminderStore.markSent(event.id, kind, now)) continue;
                         if (!userIds.length) continue; // nobody to remind — done for good
                         try {
+                            // on the raid's server, a DM for whoever is not there (#894)
                             await deliverUserPing({
-                                target: rule.target, event, userIds, text: (lang) => reminderText(kind, event, lang), guildId, config,
+                                event, userIds, text: (lang) => reminderText(kind, event, lang), guildId, config,
                             });
                             summary.sent += 1;
                         } catch (e) {

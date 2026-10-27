@@ -149,7 +149,7 @@ describe("Jetzt pingen", () => {
         expect(buttons(first)).toEqual([]);
         expect(isEphemeral(first)).toBe(false);
         expect(pingMissingRaiders).toHaveBeenCalledTimes(1);
-        expect(pingMissingRaiders).toHaveBeenCalledWith({ guildId: "100000", eventId: "eh-abc", target: "event" });
+        expect(pingMissingRaiders).toHaveBeenCalledWith({ guildId: "100000", eventId: "eh-abc" });
         expect(eventStore.appendEventLog).toHaveBeenCalledWith("eh-abc", { action: "ping", by: "42", byName: "Orga", detail: "3 Raider · Anmelde-Nachricht" });
         const done = i.editReply.mock.calls[0][0];
         expect(container(done).accent_color).toBe(KIND_COLORS.ok);

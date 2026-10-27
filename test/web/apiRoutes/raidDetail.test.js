@@ -166,6 +166,8 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     postMissingPing: jest.fn(),
     postLink: jest.fn(),
     editLink: jest.fn(),
+    fetchGuildMembersCached: jest.fn(() => Promise.resolve([])),
+    sendDirectMessage: jest.fn(),
 }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
@@ -847,6 +849,9 @@ describe("web/apiRoutes/raidDetail", () => {
                 members: [{ id: "1", displayName: "Anna" }, { id: "2", displayName: "Bob" }],
                 error: null,
             });
+            // #894: the ping goes to the raid's server; both raiders are members there
+            discord.getGuild.mockReturnValue({ id: "g1" });
+            discord.fetchGuildMembersCached.mockResolvedValue([{ id: "1" }, { id: "2" }]);
         }
 
         it("returns 400 when Raid-Helper events can't be loaded", async () => {
@@ -922,7 +927,7 @@ describe("web/apiRoutes/raidDetail", () => {
             const res = await post("/api/raids/ping-missing", { event: "e1", text: "Bitte melden" });
 
             expect(discord.postMissingPing).toHaveBeenCalledWith("chan1", ["2"], "Bitte melden");
-            expect(json(res)).toEqual({ data: { message: "1 fehlende Raider gepingt." } });
+            expect(json(res).data).toMatchObject({ message: "1 fehlende Raider gepingt.", delivery: { mentioned: 1, dm: null } });
         });
 
         it("pings with the default text in the server language when the orga wrote none", async () => {

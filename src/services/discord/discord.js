@@ -132,8 +132,8 @@ async function postAnnouncement(channelId, template, roleIds = [], userIds = [])
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
 
     const roles = (roleIds || []).filter(Boolean);
-    // Single members are mentioned where a role cannot be: on the talk server
-    // an event-server role means nothing (see pingDelivery.js).
+    // Single members can be mentioned next to the roles (a role mention only
+    // works on the role's own server, see pingDelivery.js).
     const users = [...new Set((userIds || []).map(String).filter(Boolean))];
     const mentions = [...roles.map((id) => `<@&${id}>`), ...users.map((id) => `<@${id}>`)].join(" ");
     if (!mentions && !template.title && !template.body) {

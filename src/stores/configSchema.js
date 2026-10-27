@@ -65,7 +65,7 @@ const CONFIG_DEFAULTS = {
     // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
     // any server. `guildBankChannelId` is where the guild bank requests of every
     // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
-    discordServers: { servers: [], links: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "" },
+    discordServers: { servers: [], links: [], talkGuildId: "", signupNoteChannelId: "", guildBankChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -152,7 +152,7 @@ const CONFIG_DEFAULTS = {
     // differs from the default is stored: { [categoryId]: { raidArt?, titleSize? } }.
     categoryMessageLook: {},
     // "Beim Anlegen ankündigen" per Discord category (#306):
-    // { [categoryId]: { enabled: true, target: "event" | "talk" | "both" } }.
+    // { [categoryId]: { enabled: true } } — always in the raid's own channel (#894).
     // Off by default — only switched-on categories are stored.
     categoryAnnounce: {},
     // A message with "Vielleicht" / "Absagen" per Discord category:
@@ -250,7 +250,7 @@ const CONFIG_DEFAULTS = {
     // the other and shows up as a hint in the admin menu.
     roleSync: [],
     // Automatic reminders per raid category (#264): { [categoryId]:
-    // { missingHours, signedHours, target } } — hours before the sign-up
+    // { missingHours, signedHours } } — hours before the sign-up
     // deadline (else the raid start) to the members still missing, hours before
     // the raid to the signed-up ones; 0 = off. See src/web/events/reminders.js.
     categoryReminders: {},
@@ -359,7 +359,6 @@ function normalizeCategoryEras(raw) {
     return out;
 }
 
-const REMINDER_TARGETS = ["event", "talk", "both"];
 // A week: a reminder further ahead than that is an announcement, not a reminder.
 const MAX_REMINDER_HOURS = 168;
 
@@ -371,9 +370,11 @@ function reminderHours(value) {
 
 /**
  * Normalise the per-category reminders to `{ [categoryId]: { missingHours,
- * signedHours, target } }`. Hours are whole numbers from 1 to 168, anything
+ * signedHours } }`. Hours are whole numbers from 1 to 168, anything
  * else is 0 (= off); a category with both reminders off is dropped, so "off"
- * is stored the same way however it was entered.
+ * is stored the same way however it was entered. A reminder always goes to the
+ * raid's server, a DM for whoever is not there (#894): an old `target`
+ * ("talk" / "both") is dropped here, which reads as that.
  */
 function normalizeCategoryReminders(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -384,16 +385,14 @@ function normalizeCategoryReminders(raw) {
         const missingHours = reminderHours(rule.missingHours);
         const signedHours = reminderHours(rule.signedHours);
         if (!missingHours && !signedHours) continue;
-        out[key] = {
-            missingHours,
-            signedHours,
-            target: REMINDER_TARGETS.includes(rule.target) ? rule.target : "event",
-        };
+        out[key] = { missingHours, signedHours };
     }
     return out;
 }
 
-const DISCORD_SERVER_KEYS = ["talkGuildId", "talkPingChannelId", "signupNoteChannelId", "guildBankChannelId"];
+// talkPingChannelId is gone (#894: pings stay on the raid's server) — an old
+// value is dropped here.
+const DISCORD_SERVER_KEYS = ["talkGuildId", "signupNoteChannelId", "guildBankChannelId"];
 // A sanity bound, not a real product constraint.
 const MAX_EVENT_GUILDS = 10;
 const EVENT_GUILD_LABEL_MAX = 60;
@@ -536,7 +535,7 @@ function legacyServersAndLinks(eventGuilds) {
 
 /**
  * Normalise the servers block to `{ servers, links, talkGuildId,
- * talkPingChannelId, signupNoteChannelId, guildBankChannelId }` (#890). The
+ * signupNoteChannelId, guildBankChannelId }` (#890). The
  * scalars stay single snowflakes or "". A block with a `servers` array is
  * the current shape; one without it is an old `eventGuilds` block, migrated
  * here on every read (idempotent: the result has `servers`, so a second run
@@ -695,14 +694,10 @@ function normalizeCategoryVoiceChannel(raw) {
     return out;
 }
 
-// pingDelivery.PING_TARGETS, written out: that module reads this one, so it
-// cannot be required here without a cycle.
-const ANNOUNCE_TARGETS = ["event", "talk", "both"];
-
 /**
- * Normalise categoryAnnounce to `{ [categoryId]: { enabled: true, target } }`
- * (#306) — off is the default and is not stored, an unknown target becomes
- * "event" (the event channel, the safe one: it needs no talk server).
+ * Normalise categoryAnnounce to `{ [categoryId]: { enabled: true } }` (#306) —
+ * off is the default and is not stored. The announcement always goes to the
+ * raid's own channel (#894): an old `target` ("talk" / "both") is dropped.
  */
 function normalizeCategoryAnnounce(raw) {
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
@@ -710,7 +705,7 @@ function normalizeCategoryAnnounce(raw) {
     for (const [catId, value] of Object.entries(raw)) {
         const key = String(catId).trim();
         if (!key || !value || typeof value !== "object" || value.enabled !== true) continue;
-        out[key] = { enabled: true, target: ANNOUNCE_TARGETS.includes(value.target) ? value.target : "event" };
+        out[key] = { enabled: true };
     }
     return out;
 }
@@ -934,7 +929,7 @@ function normalizeConfig(raw) {
 }
 
 module.exports = {
-    CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS, REMINDER_TARGETS,
+    CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
     normalizeConfig, normalizeDiscordServers, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS,
     normalizeRoleSync, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,

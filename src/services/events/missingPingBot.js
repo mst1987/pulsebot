@@ -10,8 +10,8 @@
 // Who is missing is missingPing.findMissingRaiders — the same derivation as the
 // raid detail's "Fehlende pingen" and "Event verwalten" (role holders of the
 // category without a reaction to the event); the ping itself is
-// missingPing.pingMissingRaiders with target "event" (discord.postMissingPing,
-// a card with the mentions). It re-derives the list, so a raider who signed up
+// missingPing.pingMissingRaiders (pingDelivery.deliverUserPing: a card with the
+// mentions on the raid server, a DM for whoever is not there). It re-derives the list, so a raider who signed up
 // between the preview and the click is not pinged.
 //
 // Access is `/event`'s (accessOf in commands/event/missingPingButton.js): the
@@ -126,7 +126,7 @@ async function confirmPing(interaction, guildId, event, now = Date.now()) {
     inFlight.add(event.id);
     try {
         await interaction.update(asEdit(answer({ kind: "info", kicker: kickerOf(event), title: "Pinge die Fehlenden …" })));
-        const result = await pingMissingRaiders({ guildId, eventId: event.id, target: "event" });
+        const result = await pingMissingRaiders({ guildId, eventId: event.id });
         if (result.error) return interaction.editReply(asEdit(errorCard(event, result.error.message)));
         if (!result.count) return interaction.editReply(asEdit(allThereCard(event)));
         const actor = actorOf(interaction);

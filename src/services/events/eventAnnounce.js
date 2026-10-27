@@ -6,9 +6,9 @@
 // Two rules shape this module:
 //
 //   * it is the ping machinery of #264 and nothing beside it — pingDelivery's
-//     deliverAnnouncement() decides what a role mention means on which server,
-//     who gets a DM instead and what "event | talk | both" costs. There is no
-//     second delivery path here;
+//     deliverAnnouncement() posts it with the role mentions in the raid's own
+//     channel (#894: only the raid's server, the role holders are all there).
+//     There is no second delivery path here;
 //   * it happens exactly once per event. `event.announcedAt` is written when a
 //     post went out (eventStore.setEventAnnounced, which never overwrites an
 //     earlier moment), and every caller runs through announceEvent(), so
@@ -20,7 +20,7 @@
 const eventStore = require("../../stores/eventStore");
 const linkCheck = require("../discord/linkCheck");
 const { getConfig } = require("../../stores/settingsStore");
-const { normalizePingTarget, deliverAnnouncement } = require("../discord/pingDelivery");
+const { deliverAnnouncement } = require("../discord/pingDelivery");
 const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
@@ -31,14 +31,13 @@ const { versionOfEvent } = require("./mainVersion");
  * The category's announcement setting (#306), or the caller's own choice.
  * `want` is what a create dialog sent: `true`/`false` overrides the category,
  * `undefined` follows it.
- * @returns {{ enabled: boolean, target: string }}
+ * @returns {{ enabled: boolean }}
  */
 function announceSetting(categoryId, { config = getConfig(), want } = {}) {
     const entry = ((config && config.categoryAnnounce) || {})[String(categoryId || "")] || {};
-    const target = normalizePingTarget(entry.target);
-    if (want === true) return { enabled: true, target };
-    if (want === false) return { enabled: false, target };
-    return { enabled: entry.enabled === true, target };
+    if (want === true) return { enabled: true };
+    if (want === false) return { enabled: false };
+    return { enabled: entry.enabled === true };
 }
 
 /** A jump link to the event's signup message, else to its channel, else "". */
@@ -68,7 +67,7 @@ function buildAnnouncement(event, lang = "de") {
  * @param {string} eventId
  * @param {{ want?: boolean, config?: object, now?: number }} opts
  *   `want`: the create dialog's own switch — true/false overrides the category.
- * @returns {Promise<{ announced: boolean, target?: string, skipped?: string, error?: string, delivery?: object }>}
+ * @returns {Promise<{ announced: boolean, skipped?: string, error?: string, delivery?: object }>}
  *   `skipped`: "off" (nobody asked for it), "already" (this event was announced),
  *   "not_own" / "not_found" — never a throw, a create is never failed by its ping.
  */
@@ -82,21 +81,17 @@ async function announceEvent(eventId, { want, config = getConfig(), now = Date.n
     const roleIds = expectedRoleIds(event.categoryId, config, { versionId: versionOfEvent(event, { config }) });
     try {
         const delivery = await deliverAnnouncement({
-            target: setting.target,
-            event,
             channelId: event.channelId,
             template: buildAnnouncement(event, eventLang(event, config)),
             roleIds,
-            guildId: event.guildId,
-            config,
         });
         eventStore.setEventAnnounced(event.id, now);
-        eventStore.appendEventLog(event.id, { action: "announce", detail: `Ziel ${setting.target}`, at: now });
-        return { announced: true, target: setting.target, delivery };
+        eventStore.appendEventLog(event.id, { action: "announce", detail: "Event-Kanal", at: now });
+        return { announced: true, delivery };
     } catch (e) {
         // Nothing is marked, so the announcement can still be sent by hand
         // (Raid-Detail → Anmelde-Aufruf) without the event counting as announced.
-        return { announced: false, target: setting.target, error: e.message || "Die Ankündigung konnte nicht gepostet werden." };
+        return { announced: false, error: e.message || "Die Ankündigung konnte nicht gepostet werden." };
     }
 }
 

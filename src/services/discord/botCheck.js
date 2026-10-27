@@ -61,7 +61,6 @@ function channelPurposes(config) {
     const add = (key, label, channelId, needs, extra = {}) => out.push({ key, label, channelId: str(channelId), needs, ...extra });
     add("applications", "Bewerbungen", config.applicationChannelId, [...POST, "CreatePublicThreads", "SendMessagesInThreads"], { required: true });
     (config.logChannelIds || []).forEach((id) => add("logs", "Log-Kanal", id, [...POST, "ReadMessageHistory"]));
-    add("talkPings", "Pings auf dem Talk-Server", servers.talkPingChannelId, POST, { side: "talk" });
     add("signupNotes", "Vielleicht und Absagen", servers.signupNoteChannelId, POST);
     for (const id of new Set(Object.values(config.categorySignupNoteChannel || {}).map(str))) add("signupNotes", "Vielleicht und Absagen (Kategorie)", id, POST);
     add("guildBank", "Gildenbank-Anfragen", servers.guildBankChannelId, POST);

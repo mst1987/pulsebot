@@ -11,9 +11,7 @@
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, hasStarted } = require("../../utils/attendance");
-const discord = require("../discord/discord");
-const { normalizePingTarget, deliverUserPing, dmSummary, TARGET_LABELS, missingPingText } = require("../discord/pingDelivery");
-const { eventLang } = require("../discord/botLanguage");
+const { deliverUserPing, dmSummary } = require("../discord/pingDelivery");
 const { fail } = require("../../web/http/apiResult");
 const { hasExpected, listExpectedMembers } = require("../roster/expectedRaiders");
 const { versionOfEvent, isVersionVisible } = require("./mainVersion");
@@ -58,10 +56,12 @@ async function findMissingRaiders({ guildId, eventId }) {
 }
 
 /**
- * @param {{ guildId: string, eventId: string, target?: string, text?: string }} p
+ * Ping them on the raid's server (#894): mentioned in the raid channel, a DM
+ * for whoever is not on that server (pingDelivery.deliverUserPing).
+ * @param {{ guildId: string, eventId: string, text?: string }} p
  * @returns {Promise<{ message: string, count: number, delivery?: object } | { error: { status: number, code: string, message: string } }>}
  */
-async function pingMissingRaiders({ guildId, eventId, target: rawTarget, text }) {
+async function pingMissingRaiders({ guildId, eventId, text }) {
     // Timings are logged because a slow step here is invisible from the outside:
     // when the whole handler outlives the reverse proxy's 60s ceiling, the admin
     // only ever sees a 504 gateway page and cannot tell which of the three
@@ -70,22 +70,13 @@ async function pingMissingRaiders({ guildId, eventId, target: rawTarget, text })
     if (derived.error) return derived;
     const { event, missing, timings } = derived;
     if (!missing.length) return { message: "Niemand fehlt — es haben schon alle reagiert.", count: 0 };
-    const target = normalizePingTarget(rawTarget);
     try {
-        let delivery = null;
-        if (target === "event") {
-            // the orga's own words as they are, else the default in the event's language
-            await discord.postMissingPing(event.channelId, missing.map((m) => m.id), String(text || "").trim() || missingPingText(eventLang(event)));
-        } else {
-            delivery = await deliverUserPing({
-                target, event, userIds: missing.map((m) => m.id), text, guildId,
-            });
-        }
+        // the orga's own words as they are, else the default in the event's language
+        const delivery = await deliverUserPing({ event, userIds: missing.map((m) => m.id), text, guildId });
         console.log(
-            `ping-missing (${target}): ${missing.length} Raider — events ${timings.events}ms, members ${timings.members}ms, post ${Date.now() - timings.at}ms`,
+            `ping-missing: ${missing.length} Raider — events ${timings.events}ms, members ${timings.members}ms, post ${Date.now() - timings.at}ms`,
         );
-        if (!delivery) return { message: `${missing.length} fehlende Raider gepingt.`, count: missing.length };
-        return { message: `${missing.length} fehlende Raider gepingt (${TARGET_LABELS[target]})${dmSummary(delivery.dm)}.`, count: missing.length, delivery };
+        return { message: `${missing.length} fehlende Raider gepingt${dmSummary(delivery.dm)}.`, count: missing.length, delivery };
     } catch (e) {
         console.error("ping-missing failed:", e.message);
         return fail(500, "post_failed", e.message || "Posten fehlgeschlagen.");

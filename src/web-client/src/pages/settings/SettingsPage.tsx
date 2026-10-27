@@ -411,7 +411,7 @@ export default function SettingsPage() {
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onAnnounce={(id, mode) => patch({
-                        categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode, target: mode || "event" } },
+                        categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode } },
                     })}
                     onSheet={(id, sheet) => patch({ categorySheets: { ...draft.categorySheets, [id]: sheet } })}
                     raidTemplates={{

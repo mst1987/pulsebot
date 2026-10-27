@@ -1312,9 +1312,10 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("stores only the sent fields of the block", async () => {
-                readJsonBody.mockResolvedValue({ discordServers: { talkPingChannelId: " 302 ", bogus: "x" } });
+                // #894: talkPingChannelId is gone and dropped like any unknown field
+                readJsonBody.mockResolvedValue({ discordServers: { signupNoteChannelId: " 302 ", talkPingChannelId: "303", bogus: "x" } });
                 await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { talkPingChannelId: "302" } });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { signupNoteChannelId: "302" } });
             });
 
             it("stores the guild bank channel and redraws the organizers when it changes", async () => {
@@ -1333,8 +1334,8 @@ describe("web/apiRoutes/settings", () => {
                 availabilityPanel.refreshPanels.mockClear();
                 auth.checkCsrf.mockReturnValue(true);
                 settingsStore.getConfig.mockReturnValue({ discordServers: { guildBankChannelId: "4001" } });
-                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001", talkPingChannelId: "302" } });
-                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: "4001", talkPingChannelId: "302" } });
+                settingsStore.saveConfig.mockReturnValueOnce({ discordServers: { guildBankChannelId: "4001", signupNoteChannelId: "302" } });
+                readJsonBody.mockResolvedValue({ discordServers: { guildBankChannelId: "4001", signupNoteChannelId: "302" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(availabilityPanel.refreshPanels).not.toHaveBeenCalled();
                 settingsStore.getConfig.mockReturnValue({});
@@ -1449,7 +1450,7 @@ describe("web/apiRoutes/settings", () => {
                     { id: "900000", name: "Raids Mittwoch", roleCount: 2, active: true },
                     { id: "910000", name: "", roleCount: 0, active: false },
                 ]);
-                expect(data.pingTargets.talk).toBe(false);
+                expect(data).not.toHaveProperty("pingTargets");
                 expect(data.categoryReminders["910000"].missingHours).toBe(24);
                 settingsStore.getConfig.mockReturnValue({});
             });

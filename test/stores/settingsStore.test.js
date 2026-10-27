@@ -86,7 +86,7 @@ describe("stores/settingsStore", () => {
 
             it("defaults to no servers (= nothing configured yet)", () => {
                 expect(getConfig().discordServers).toEqual({
-                    servers: [], links: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "",
+                    servers: [], links: [], talkGuildId: "", signupNoteChannelId: "", guildBankChannelId: "",
                 });
                 expect(getConfig().guildId).toBe(defaultGuildId);
             });
@@ -101,7 +101,7 @@ describe("stores/settingsStore", () => {
                 // the old dialog's list is migrated (#890): a half-set overview target gives no link
                 expect(saved.discordServers).toEqual({
                     servers: [{ guildId: "111111", label: "PvE" }, { guildId: "222222", label: "" }], links: [],
-                    talkGuildId: "222222", talkPingChannelId: "333333", signupNoteChannelId: "444444", guildBankChannelId: "666666",
+                    talkGuildId: "222222", signupNoteChannelId: "444444", guildBankChannelId: "666666",
                 });
             });
 
@@ -120,7 +120,7 @@ describe("stores/settingsStore", () => {
                 expect(out.talkGuildId).toBe("111111");
                 expect(out.servers).toEqual([{ guildId: "111111", label: "" }]);
                 expect(normalizeDiscordServers(null)).toEqual({
-                    servers: [], links: [], talkGuildId: "", talkPingChannelId: "", signupNoteChannelId: "", guildBankChannelId: "",
+                    servers: [], links: [], talkGuildId: "", signupNoteChannelId: "", guildBankChannelId: "",
                 });
                 expect(normalizeDiscordServers(["x"]).servers).toEqual([]);
             });
@@ -153,10 +153,12 @@ describe("stores/settingsStore", () => {
 
             it("merges a partial update instead of replacing the block", () => {
                 saveConfig({ discordServers: { eventGuilds: [{ guildId: "111111" }], talkGuildId: "222222" } });
-                const saved = saveConfig({ discordServers: { talkPingChannelId: "444444" } });
+                const saved = saveConfig({ discordServers: { signupNoteChannelId: "444444" } });
                 expect(saved.discordServers).toMatchObject({
-                    servers: [{ guildId: "111111" }, { guildId: "222222" }], talkGuildId: "222222", talkPingChannelId: "444444",
+                    servers: [{ guildId: "111111" }, { guildId: "222222" }], talkGuildId: "222222", signupNoteChannelId: "444444",
                 });
+                // #894: an old talk ping channel is dropped on save
+                expect(saveConfig({ discordServers: { talkPingChannelId: "555555" } }).discordServers).not.toHaveProperty("talkPingChannelId");
             });
 
             // guildId stays the fallback: the first event server wins, and clearing
@@ -334,9 +336,10 @@ describe("stores/settingsStore", () => {
         it("keeps the create announcement off by default and stores only switched-on categories (#306)", () => {
             expect(getConfig().categoryAnnounce).toEqual({});
             saveConfig({ categoryAnnounce: { c1: { enabled: true, target: "both" }, c2: { enabled: false, target: "event" }, c3: { enabled: true, target: "nirgends" } } });
-            expect(getConfig().categoryAnnounce).toEqual({ c1: { enabled: true, target: "both" }, c3: { enabled: true, target: "event" } });
+            // #894: always the raid's own channel, an old target is dropped
+            expect(getConfig().categoryAnnounce).toEqual({ c1: { enabled: true }, c3: { enabled: true } });
             saveConfig({ categoryAnnounce: { c1: { enabled: false } } });
-            expect(getConfig().categoryAnnounce).toEqual({ c3: { enabled: true, target: "event" } });
+            expect(getConfig().categoryAnnounce).toEqual({ c3: { enabled: true } });
         });
 
         it("stores only the non-default message modes per category and merges them", () => {
@@ -773,15 +776,15 @@ describe("stores/settingsStore roleSync and categoryReminders", () => {
         expect(normalizeRoleSync("x")).toEqual([]);
     });
 
-    it("clamps reminder hours, drops switched-off categories and defaults the target", () => {
+    it("clamps reminder hours, drops switched-off categories and an old target", () => {
         expect(normalizeCategoryReminders({
             123456: { missingHours: "24", signedHours: 1.4, target: "talk" },
             234567: { missingHours: 500, signedHours: -3 },
             345678: { missingHours: 0, signedHours: "" },
             nope: { missingHours: 5 },
         })).toEqual({
-            123456: { missingHours: 24, signedHours: 1, target: "talk" },
-            234567: { missingHours: 168, signedHours: 0, target: "event" },
+            123456: { missingHours: 24, signedHours: 1 },
+            234567: { missingHours: 168, signedHours: 0 },
         });
         expect(normalizeCategoryReminders([])).toEqual({});
     });
@@ -790,6 +793,6 @@ describe("stores/settingsStore roleSync and categoryReminders", () => {
         saveConfig({ roleSync: [{ eventRoleId: "111111", talkRoleId: "222222" }], categoryReminders: { 123456: { signedHours: 2 } } });
         const saved = saveConfig({ roleSync: [], categoryReminders: { 234567: { missingHours: 12, target: "both" } } });
         expect(saved.roleSync).toEqual([]);
-        expect(saved.categoryReminders).toEqual({ 234567: { missingHours: 12, signedHours: 0, target: "both" } });
+        expect(saved.categoryReminders).toEqual({ 234567: { missingHours: 12, signedHours: 0 } });
     });
 });

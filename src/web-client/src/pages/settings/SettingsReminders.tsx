@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
 import {
     getReminders, updateSettings,
-    type AdminConfig, type ApiError, type PingTarget, type ReminderRule, type RemindersData,
+    type AdminConfig, type ApiError, type ReminderRule, type RemindersData,
 } from "../../api";
-import { pingTargetOptions, reminderOff, reminderSummary, remindersPatch, targetText } from "../../lib/settings/settingsLogic";
+import { reminderOff, reminderSummary, remindersPatch } from "../../lib/settings/settingsLogic";
 import { useT } from "../../i18n";
 import { useToast } from "../../components/shell/Jobs";
 import { Modal } from "../../components/ui/Modal";
@@ -11,15 +11,14 @@ import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
-import Segment from "../../components/ui/Segment";
-import Field, { FieldLabel } from "../../components/ui/Field";
+import Field from "../../components/ui/Field";
 import { PenIcon, SaveIcon } from "../../components/ui/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a
 // pen that opens the dialog. The rules themselves live in src/web/reminders.js.
 
-const OFF: ReminderRule = { missingHours: 0, signedHours: 0, target: "event" };
+const OFF: ReminderRule = { missingHours: 0, signedHours: 0 };
 
 export default function RemindersPart({ onConfig }: {
     onConfig: (config: AdminConfig) => void;
@@ -68,7 +67,6 @@ export default function RemindersPart({ onConfig }: {
                                         ? <span className="sync-role">{c.name}</span>
                                         : <span className="sync-role is-unknown" tabIndex={0} data-tip={t("settings.reminders.unknownCategory")} data-tip-sub={t("settings.reminders.unknownCategorySub", { id: c.id })}>{t("settings.reminders.unknownCategory")}</span>}
                                     <span className="sync-muted">{reminderSummary(rule)}</span>
-                                    {rule && rule.target !== "event" && <Badge tip={t("settings.reminders.where")} tipSub={targetText(rule.target)}>{rule.target === "talk" ? t("settings.reminders.targetTalk") : t("settings.reminders.targetBoth")}</Badge>}
                                     {/* #744: a deactivated category keeps its rule, but reminds nobody until it is active again */}
                                     {!off && c.active === false && (
                                         <Badge tone="mid" tip={t("settings.reminders.inactiveTip")} tipSub={t("settings.reminders.inactiveSub")}>{t("settings.reminders.inactive")}</Badge>
@@ -88,7 +86,6 @@ export default function RemindersPart({ onConfig }: {
                 <ReminderModal
                     name={editingCategory.name || t("settings.reminders.unknownCategory")}
                     rule={data.categoryReminders[editingCategory.id] || OFF}
-                    data={data}
                     onClose={() => setEditing(null)}
                     onSave={async (rule) => {
                         try {
@@ -107,24 +104,21 @@ export default function RemindersPart({ onConfig }: {
     );
 }
 
-/** The two hours and, with a talk server, where the reminders go. */
-function ReminderModal({ name, rule, data, onClose, onSave }: {
+/** The two hours; the reminders go to the raid's own server, the rest by DM (#894). */
+function ReminderModal({ name, rule, onClose, onSave }: {
     name: string;
     rule: ReminderRule;
-    data: RemindersData;
     onClose: () => void;
     onSave: (rule: ReminderRule) => Promise<void>;
 }) {
     const [missingHours, setMissingHours] = useState(rule.missingHours ? String(rule.missingHours) : "");
     const [signedHours, setSignedHours] = useState(rule.signedHours ? String(rule.signedHours) : "");
-    const [target, setTarget] = useState<PingTarget>(rule.target);
     const [busy, setBusy] = useState(false);
     const t = useT();
-    const targets = pingTargetOptions(data.pingTargets);
 
     const submit = async () => {
         setBusy(true);
-        await onSave({ missingHours: Number(missingHours) || 0, signedHours: Number(signedHours) || 0, target: targets.length ? target : "event" });
+        await onSave({ missingHours: Number(missingHours) || 0, signedHours: Number(signedHours) || 0 });
         setBusy(false);
     };
 
@@ -154,12 +148,6 @@ function ReminderModal({ name, rule, data, onClose, onSave }: {
                         <input id="rem-signed" type="number" min={0} max={168} step={1} value={signedHours} placeholder={t("settings.reminderSummary.off")} onChange={(e) => setSignedHours(e.target.value)} />
                     </Field>
                 </div>
-                {targets.length > 0 && (
-                    <div className="dlg-field">
-                        <FieldLabel tip={t("settings.reminders.where")} tipSub={t("settings.reminders.whereSub")}>{t("settings.reminders.where")}</FieldLabel>
-                        <Segment<PingTarget> size="sm" ariaLabel={t("settings.reminders.where")} options={targets} value={target} onChange={setTarget} />
-                    </div>
-                )}
             </div>
         </Modal>
     );

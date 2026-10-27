@@ -34,7 +34,7 @@ function serversData(guildBankChannelId: string): DiscordServersData {
 
 beforeEach(() => {
     vi.mocked(api.getTalkOverview).mockResolvedValue({ statuses: [] });
-    vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], pingTargets: { talk: false, talkGuildName: "", talkChannelName: "" }, lastRun: null });
+    vi.mocked(api.getReminders).mockResolvedValue({ categoryReminders: {}, categories: [], lastRun: null });
     vi.mocked(api.updateSettings).mockResolvedValue({ config: {} as AdminConfig });
 });
 

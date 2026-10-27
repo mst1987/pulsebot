@@ -1,6 +1,6 @@
 // Einstellungen, part "Erinnerungen" (SettingsReminders, #264): one line per
-// raid category with what is set, the details in a dialog, the target only with
-// the talk server's ping channel, and never a bare category id (#435: formerly
+// raid category with what is set, the details in a dialog, no target (#894:
+// always the raid's own server), and never a bare category id (#435: formerly
 // source scans in test/web-client/pingsRoleSync.test.js).
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -21,9 +21,8 @@ const UNKNOWN_ID = "123456789012345678";
 
 function reminders(over: Partial<RemindersData> = {}): RemindersData {
     return {
-        categoryReminders: { c1: { missingHours: 24, signedHours: 1, target: "event" } },
+        categoryReminders: { c1: { missingHours: 24, signedHours: 1 } },
         categories: [{ id: "c1", name: "Raids Mittwoch", roleCount: 1 }, { id: "c2", name: "Raids Sonntag", roleCount: 1 }],
-        pingTargets: { talk: false, talkGuildName: "", talkChannelName: "" },
         lastRun: null,
         ...over,
     };
@@ -60,8 +59,8 @@ describe("Erinnerungen part", () => {
 
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({
             categoryReminders: {
-                c1: { missingHours: 24, signedHours: 1, target: "event" },
-                c2: { missingHours: 12, signedHours: 0, target: "event" },
+                c1: { missingHours: 24, signedHours: 1 },
+                c2: { missingHours: 12, signedHours: 0 },
             },
         }));
         await waitFor(() => expect(onConfig).toHaveBeenCalledWith({ saved: true }));
@@ -75,22 +74,15 @@ describe("Erinnerungen part", () => {
         expect(screen.queryByText(UNKNOWN_ID, { exact: false })).not.toBeInTheDocument();
     });
 
-    it("offers the target only with a talk ping channel", async () => {
+    it("offers no target in the dialog: reminders go to the raid's own server", async () => {
         const user = userEvent.setup();
         await show(reminders());
         await user.click(within(row("Raids Mittwoch")).getByRole("button", { name: "Erinnerungen bearbeiten" }));
-        expect(within(screen.getByRole("dialog")).queryByRole("radiogroup")).not.toBeInTheDocument();
-    });
-
-    it("sends the chosen target when the talk server has a ping channel", async () => {
-        const user = userEvent.setup();
-        await show(reminders({ pingTargets: { talk: true, talkGuildName: "Pulse Talk", talkChannelName: "pings" } }));
-        await user.click(within(row("Raids Mittwoch")).getByRole("button", { name: "Erinnerungen bearbeiten" }));
         const dialog = screen.getByRole("dialog");
-        await user.click(within(within(dialog).getByRole("radiogroup", { name: "Wohin" })).getByRole("radio", { name: "Talk" }));
+        expect(within(dialog).queryByRole("radiogroup")).not.toBeInTheDocument();
         await user.click(within(dialog).getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({
-            categoryReminders: { c1: { missingHours: 24, signedHours: 1, target: "talk" } },
+            categoryReminders: { c1: { missingHours: 24, signedHours: 1 } },
         }));
     });
 

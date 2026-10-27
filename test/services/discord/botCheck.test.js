@@ -96,10 +96,11 @@ describe("channels", () => {
         expect(byKey.talkPings).toBeUndefined();
     });
 
-    it("puts the talk ping channel on the talk side and a channel by its server", () => {
+    // #894: there is no talk ping channel any more - an old value is not checked
+    it("puts a channel by its server and checks no talk ping channel", () => {
         mockClient.channels.cache.set("300000000000000003", { guildId: TALK });
         const keys = botCheck("talk", TALK, config, GUILDS).channels.map((c) => c.key);
-        expect(keys).toEqual(["talkPings", "guildBank"]);
+        expect(keys).toEqual(["guildBank"]);
     });
 
     it("leaves out a channel on a server that is neither side (a second event server)", () => {
