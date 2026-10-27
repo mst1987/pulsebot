@@ -47,8 +47,10 @@ describe("services/discord/foreignRoleCleanup (#925)", () => {
     it("takes each server's foreign roles out and keeps its own, the unknown and every other right", () => {
         writeFile(base());
         const log = jest.fn();
-        const { removed } = cleanForeignRoles(both(), { log });
+        const { removed, moved } = cleanForeignRoles(both(), { log });
         expect(removed).toEqual({ [A]: [ORGA_B], [B]: [ORGA_A, RAID_A] });
+        // every target already had its own entry: nothing moves, the target wins
+        expect(moved).toEqual({});
         const { serverSettings: s } = readFile();
         expect(Object.keys(s[A].rolePermissions).sort()).toEqual([ORGA_A, RAID_A, GONE].sort());
         expect(s[A].orgaRoleIds).toEqual([ORGA_A, GONE]);
@@ -59,6 +61,57 @@ describe("services/discord/foreignRoleCleanup (#925)", () => {
         expect(s[B].rolePermissions[ORGA_B]).toEqual(copied().rolePermissions[ORGA_B]);
         expect(s[A].baseAccess).toEqual(copied().baseAccess);
         expect(log).toHaveBeenCalledWith(expect.stringContaining("3 Rollen anderer Server"));
+    });
+
+    it("moves a PuG role out of the home server block into the PuG block", () => {
+        // home server A holds B's orga role with its grant; B's block knows nothing of it yet
+        writeFile(base({ serverSettings: {
+            [A]: { rolePermissions: { [ORGA_A]: { loot: { read: true } }, [ORGA_B]: { kader: { read: true, write: true } } }, orgaRoleIds: [ORGA_A, ORGA_B] },
+            [B]: { baseAccess: { loot: { read: true } } },
+        } }));
+        const log = jest.fn();
+        const { removed, moved } = cleanForeignRoles(both(), { log });
+        expect(removed).toEqual({ [A]: [ORGA_B] });
+        expect(moved).toEqual({ [A]: { [ORGA_B]: B } });
+        const { serverSettings: s } = readFile();
+        expect(s[A].rolePermissions).toEqual({ [ORGA_A]: { loot: { read: true } } });
+        expect(s[A].orgaRoleIds).toEqual([ORGA_A]);
+        expect(s[B].rolePermissions).toEqual({ [ORGA_B]: { kader: { read: true, write: true } } });
+        expect(s[B].orgaRoleIds).toEqual([ORGA_B]);
+        expect(s[B].baseAccess).toEqual({ loot: { read: true } });
+        expect(log).toHaveBeenCalledWith(expect.stringContaining("davon 1 in den Block ihres Servers verschoben"));
+    });
+
+    it("creates the target block when the role's server has none yet", () => {
+        writeFile(base({ serverSettings: { [A]: { rolePermissions: { [ORGA_B]: { kader: { read: true } } } } } }));
+        expect(cleanForeignRoles(both()).moved).toEqual({ [A]: { [ORGA_B]: B } });
+        const { serverSettings: s } = readFile();
+        expect(s[A].rolePermissions).toEqual({});
+        expect(s[B]).toEqual({ rolePermissions: { [ORGA_B]: { kader: { read: true } } } });
+    });
+
+    it("keeps the target's entry when it already has one (the target wins)", () => {
+        writeFile(base({ serverSettings: {
+            [A]: { rolePermissions: { [ORGA_B]: { kader: { read: true, write: true } } }, orgaRoleIds: [ORGA_B] },
+            [B]: { rolePermissions: { [ORGA_B]: { loot: { read: true } } }, orgaRoleIds: [] },
+        } }));
+        const { removed, moved } = cleanForeignRoles(both());
+        expect(removed).toEqual({ [A]: [ORGA_B] });
+        // the grant stays B's own; only the orga flag was missing there and moves
+        expect(moved).toEqual({ [A]: { [ORGA_B]: B } });
+        const { serverSettings: s } = readFile();
+        expect(s[B].rolePermissions).toEqual({ [ORGA_B]: { loot: { read: true } } });
+        expect(s[B].orgaRoleIds).toEqual([ORGA_B]);
+        expect(s[A].rolePermissions).toEqual({});
+        expect(s[A].orgaRoleIds).toEqual([]);
+    });
+
+    it("leaves a role found on no server where it is, also next to a moved one", () => {
+        writeFile(base({ serverSettings: { [A]: { rolePermissions: { [GONE]: { loot: { read: true } }, [ORGA_B]: { loot: { read: true } } } } } }));
+        cleanForeignRoles(both());
+        const { serverSettings: s } = readFile();
+        expect(s[A].rolePermissions).toEqual({ [GONE]: { loot: { read: true } } });
+        expect(s[B].rolePermissions).toEqual({ [ORGA_B]: { loot: { read: true } } });
     });
 
     it("is idempotent: a second run removes and writes nothing", () => {

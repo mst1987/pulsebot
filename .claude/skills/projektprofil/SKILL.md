@@ -211,6 +211,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der
     Kanal-Cache des Bots und `linkCheck` sind keine Server-Prüfung. Ein unbekannter Server zählt auf
     schreibenden Routen als fremd (fail closed, `eventServer.allOnServer`).
+25. Bereinigungen je Server verschieben statt löschen (#925): Ein Eintrag, der aus dem Block eines
+    Servers fliegt, weil er nachweislich einem anderen Server gehört, wandert in dessen Block — nur
+    wenn der Zielblock ihn noch nicht hat (Ziel gewinnt), sonst nur aus dem falschen Block entfernen
+    (Muster `foreignRoleCleanup.cleanForeignRoles`). Ohne Nachweis (Server offline, nirgends gefunden)
+    bleibt alles, wie es ist.
 
 ## Fach-Agenten
 

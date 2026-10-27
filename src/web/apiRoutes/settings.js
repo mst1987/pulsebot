@@ -928,7 +928,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
             );
             const channels = checkServerChannels(body.discordServers.channels, known);
             if (channels.error) return error(res, 400, "invalid_discord_servers", channels.error);
-            partial.serverSettings = channels.channels;
+            // merged per server: rights sent in the same body (above) must not get lost
+            const servers = { ...(partial.serverSettings || {}) };
+            for (const [gid, block] of Object.entries(channels.channels || {})) servers[gid] = { ...(servers[gid] || {}), ...block };
+            partial.serverSettings = servers;
         }
         if (!Object.keys(partial.discordServers).length) delete partial.discordServers;
     }

@@ -2218,6 +2218,30 @@ describe("web/apiRoutes/settings", () => {
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                 });
 
+                it("keeps the rights sent in the same save next to the channels of that server", async () => {
+                    activeGuildFor.mockReturnValue("200");
+                    try {
+                        settingsStore.getConfig.mockReturnValue(stored);
+                        readJsonBody.mockResolvedValue({
+                            serverSettingsGuildId: "200",
+                            orgaRoleIds: ["2002"],
+                            discordServers: { channels: { "200": { signupNoteChannelId: "302000" }, "300": { guildBankChannelId: "400001" } } },
+                        });
+                        const res = mockRes();
+                        await updateSettings({ headers: {} }, res);
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(settingsStore.saveConfig).toHaveBeenCalledWith(expect.objectContaining({
+                            serverSettings: {
+                                "200": { orgaRoleIds: ["2002"], signupNoteChannelId: "302000" },
+                                "300": { guildBankChannelId: "400001" },
+                            },
+                        }));
+                    } finally {
+                        settingsStore.getConfig.mockReturnValue({});
+                        activeGuildFor.mockReturnValue("");
+                    }
+                });
+
                 it("takes a server added in the same save", async () => {
                     const oneServer = { guildId: "40000", discordServers: { servers: [{ guildId: "40000", label: "" }], links: [] } };
                     readJsonBody.mockResolvedValue({ discordServers: {
