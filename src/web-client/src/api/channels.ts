@@ -195,7 +195,7 @@ export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guild
 }
 
 /** Setting keys stored per Discord server — mirrors SERVER_SCOPED_KEYS in src/web/apiRoutes/settings.js. */
-export const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+export const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "wclGuilds"];
 
 export function getChannels(): Promise<ChannelsData> {
     return get<ChannelsData>("/api/channels");

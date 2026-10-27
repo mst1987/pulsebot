@@ -38,6 +38,7 @@ const { capabilityMatrix } = require("../../services/events/versionCapabilities"
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../services/logcheck/logChannelSettings");
+const { wclGuildsOf, wclGuildsFromBody } = require("../../services/logcheck/wclGuildSettings");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../services/events/contentVersions");
@@ -220,7 +221,7 @@ const guildBankOf = (config) => String(((config && config.discordServers) || {})
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "wclGuilds"];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows); every other key then needs one.
 const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
@@ -729,6 +730,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.serverSettings = { ...(partial.serverSettings || {}) };
         partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), logChannels };
     }
+    // #922 the WCL guilds of the active server: version, guild, realm, region,
+    // interval from the page; lastRunAt/lastResult stay the job's.
+    if (body.wclGuilds !== undefined) {
+        const { guildId } = server;
+        const wclGuilds = wclGuildsFromBody(body.wclGuilds, { current: wclGuildsOf(guildId, { config: getConfig() }) });
+        partial.serverSettings = { ...(partial.serverSettings || {}) };
+        partial.serverSettings[guildId] = { ...(partial.serverSettings[guildId] || {}), wclGuilds };
+    }
     if (body.raidDefaults !== undefined && typeof body.raidDefaults === "object") partial.raidDefaults = body.raidDefaults;
     // blizzard: only the known fields, the secret only when sent (omit = keep, "" = clear)
     if (body.blizzard !== undefined && typeof body.blizzard === "object") {
@@ -862,6 +871,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
+        ...(body.wclGuilds !== undefined && server ? { wclGuilds: wclGuildsOf(server.guildId, { config: saved }) } : {}),
     });
 });
 

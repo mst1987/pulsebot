@@ -1516,5 +1516,40 @@
         "channel": "Channel for guild records",
         "channelSub": "The bot posts every new guild record here, in the bot language.",
         "noChannel": "Without a channel nothing is posted."
+    },
+    "wclGuilds": {
+        "title": "Warcraft Logs guild",
+        "titleSub": "One guild per game version: the bot fetches its new logs from Warcraft Logs itself, at the chosen interval, and files them under this server and version – like a link in a log channel.",
+        "version": "Version",
+        "guild": "Guild",
+        "realm": "Realm",
+        "region": "Region",
+        "interval": "Fetch",
+        "last": "Last fetch",
+        "versionFor": "Version of row {n}",
+        "guildFor": "Guild of row {n}",
+        "realmFor": "Realm of row {n}",
+        "regionFor": "Region of row {n}",
+        "intervalFor": "Fetch of row {n}",
+        "intervalOff": "Off",
+        "intervalMinutes": "every {count} min",
+        "intervalHours": "every {count} h",
+        "never": "never",
+        "found": {
+            "one": "{count} new log",
+            "other": "{count} new logs"
+        },
+        "fetch": "Fetch now",
+        "fetchTip": "Fetches this guild's new logs right away, whatever the interval.",
+        "saveFirst": "Save first, then fetch.",
+        "fetched": {
+            "one": "Fetched {count} new log.",
+            "other": "Fetched {count} new logs."
+        },
+        "add": "Add guild",
+        "empty": "No guild yet. Without one, logs only come in through the log channels.",
+        "incomplete": "Every row needs a version, a guild and a realm.",
+        "saved": "Warcraft Logs guilds saved.",
+        "save": "Save guilds"
     }
 }

@@ -14,6 +14,7 @@ import ConnectionsSection from "./SettingsConnections";
 import AddonsSection from "./AddonsSection";
 import DiscordServersSection from "./SettingsDiscordServers";
 import RaidhelperServerSection from "./SettingsRaidhelperServer";
+import WclGuildsSection from "./SettingsWclGuilds";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
@@ -545,6 +546,19 @@ export default function SettingsPage() {
                                 />
                             ) : <p className="muted">{t("settings.fields.logNoServer")}</p>}
                         </div>
+                        {/* #922 the WCL guild per version of the active server, saved on its own */}
+                        {data.activeGuildId && (
+                            <WclGuildsSection
+                                value={data.config.serverSettings?.[data.activeGuildId]?.wclGuilds || []}
+                                activeGuildId={data.activeGuildId}
+                                versions={(data.gameVersions || []).map((v) => ({ id: v.id, label: v.label }))}
+                                onSaved={(wclGuilds) => setData((cur) => {
+                                    if (!cur || !cur.activeGuildId) return cur;
+                                    const all = cur.config.serverSettings || {};
+                                    return { ...cur, config: { ...cur.config, serverSettings: { ...all, [cur.activeGuildId]: { ...(all[cur.activeGuildId] || {}), wclGuilds } } } };
+                                })}
+                            />
+                        )}
                     </ModuleCard>
                 </>
             );

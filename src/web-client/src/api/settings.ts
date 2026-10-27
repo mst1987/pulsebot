@@ -8,6 +8,7 @@ import type { BotAccessRule } from "./botCommands";
 import type { VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
+import type { WclGuild, WclGuildInput } from "./wclGuilds";
 
 /**
  * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
@@ -58,7 +59,7 @@ export type AdminConfig = {
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     /** Settings per Discord server (#917); the log channels with their version (#921). */
-    serverSettings?: Record<string, { logChannels?: LogChannel[] }>;
+    serverSettings?: Record<string, { logChannels?: LogChannel[]; wclGuilds?: WclGuild[] }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -349,7 +350,7 @@ export type SwitchedCategory = {
  * go with `serverSettingsGuildId` — the server the page loaded; a session
  * switched to another server since answers 409 `server_switched`.
  */
-export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; serverSettingsGuildId?: string }): Promise<{ config: AdminConfig; raidhelper?: RaidhelperServer; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; wclGuilds?: WclGuildInput[]; serverSettingsGuildId?: string }): Promise<{ config: AdminConfig; raidhelper?: RaidhelperServer; wclGuilds?: WclGuild[]; switchedCategories?: SwitchedCategory[]; deactivatedCategories?: DeactivatedCategory[] }> {
     return send("PATCH", "/api/settings", partial);
 }
 

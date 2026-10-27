@@ -1516,5 +1516,40 @@
         "channel": "Kanal für Gildenrekorde",
         "channelSub": "Hier postet der Bot jeden neuen Gildenrekord, in der Bot-Sprache.",
         "noChannel": "Ohne Kanal wird nichts gepostet."
+    },
+    "wclGuilds": {
+        "title": "Warcraft-Logs-Gilde",
+        "titleSub": "Je Spielversion eine Gilde: der Bot holt ihre neuen Logs selbst von Warcraft Logs, im gewählten Abstand, und ordnet sie diesem Server und der Version zu – wie ein Link im Log-Kanal.",
+        "version": "Version",
+        "guild": "Gilde",
+        "realm": "Realm",
+        "region": "Region",
+        "interval": "Abruf",
+        "last": "Letzter Abruf",
+        "versionFor": "Version von Zeile {n}",
+        "guildFor": "Gilde von Zeile {n}",
+        "realmFor": "Realm von Zeile {n}",
+        "regionFor": "Region von Zeile {n}",
+        "intervalFor": "Abruf von Zeile {n}",
+        "intervalOff": "Aus",
+        "intervalMinutes": "alle {count} Min.",
+        "intervalHours": "alle {count} Std.",
+        "never": "noch nie",
+        "found": {
+            "one": "{count} neues Log",
+            "other": "{count} neue Logs"
+        },
+        "fetch": "Jetzt abrufen",
+        "fetchTip": "Holt die neuen Logs dieser Gilde sofort, unabhängig vom Abstand.",
+        "saveFirst": "Erst speichern, dann abrufen.",
+        "fetched": {
+            "one": "{count} neues Log abgerufen.",
+            "other": "{count} neue Logs abgerufen."
+        },
+        "add": "Gilde hinzufügen",
+        "empty": "Noch keine Gilde eingetragen. Ohne Gilde kommen Logs nur über die Log-Kanäle.",
+        "incomplete": "Jede Zeile braucht Version, Gilde und Realm.",
+        "saved": "Warcraft-Logs-Gilden gespeichert.",
+        "save": "Gilden speichern"
     }
 }
