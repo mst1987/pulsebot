@@ -250,3 +250,14 @@ describe("stores/lootInboxStore", () => {
         });
     });
 });
+
+describe("stores/lootInboxStore per server (#919)", () => {
+    it("remembers the server an accepted session went to, else none", () => {
+        const first = upsertPending(session());
+        resolvePending(first.entry.id, "accepted", { eventId: "e1", guildId: "gB" });
+        expect(resolutionFor("s1").guildId).toBe("gB");
+        const second = upsertPending(session({ sessionId: "s2" }));
+        resolvePending(second.entry.id, "accepted", { eventId: "e2" });
+        expect(resolutionFor("s2").guildId).toBe("");
+    });
+});

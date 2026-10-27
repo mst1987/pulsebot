@@ -14,7 +14,6 @@
 // was accepted into (see lootInboxStore.js's header for why that matters).
 const { ok, error } = require("../http/apiResponse");
 const { readJsonBody } = require("../http/apiBody");
-const { activeGuildFor } = require("../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const { addImport: addLootImport, eventsWithLoot } = require("../../stores/lootStore");
 const { rememberFromLoot } = require("../../services/characters/characterInfo");
@@ -28,6 +27,8 @@ const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery"
 const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = require("../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
+const { serverIds } = require("../../services/discord/guildRoles");
+const { serverWithoutSession } = require("../../services/loot/lootServer");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
@@ -66,16 +67,17 @@ function sessionTime(session) {
 
 /**
  * The Raid-Helper event a session most likely belongs to, as a *suggestion* only
- * — the admin confirms it in the inbox. Best-effort: if Raid-Helper is
+ * — the admin confirms it in the inbox. The upload has no session and the addon
+ * does not know the Discord server, so the raids of every server are searched;
+ * the match carries its server and the card shows there (#919). Best-effort: if Raid-Helper is
  * unreachable the upload still succeeds without a suggestion, because losing the
  * raid's loot to a failed API call would be far worse than losing the convenience.
  */
-async function suggestMatch(req, session) {
+async function suggestMatch(session) {
     const at = sessionTime(session);
     if (!at) return null;
     try {
-        const { groups } = await loadEventGroups(activeGuildFor(req), { sinceSeconds: eventLookbackSince() });
-        const all = groups.flatMap((g) => g.events.map((ev) => ({ ev, g })));
+        const all = await eventsOfAllServers();
         const { match, candidates, ambiguous } = bestDayMatch(at, all.map((x) => x.ev));
         const shape = (ev) => {
             const found = all.find((x) => x.ev === ev);
@@ -85,6 +87,7 @@ async function suggestMatch(req, session) {
                 startTime: Number(ev.startTime) || 0,
                 categoryId: found ? (found.g.categoryId || "") : "",
                 categoryName: found ? (found.g.categoryName || "") : "",
+                guildId: found ? found.guildId : "",
             };
         };
         return {
@@ -96,6 +99,23 @@ async function suggestMatch(req, session) {
         console.error("ingest: event match failed:", (e && e.message) || e);
         return null;
     }
+}
+
+/** The raids of every configured server, each with its group and server; a raid listed twice counts once. */
+async function eventsOfAllServers() {
+    const seen = new Set();
+    const all = [];
+    for (const guildId of serverIds(getConfig())) {
+        const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+        for (const g of groups) {
+            for (const ev of g.events) {
+                if (seen.has(ev.id)) continue;
+                seen.add(ev.id);
+                all.push({ ev, g, guildId });
+            }
+        }
+    }
+    return all;
 }
 
 async function ingestLoot(req, res) {
@@ -135,6 +155,7 @@ async function ingestLoot(req, res) {
             const { added, skipped } = addLootImport(prior.eventId, session.items, {
                 categoryId: prior.categoryId,
                 eventLabel: prior.eventLabel,
+                guildId: prior.guildId || "",
             });
             if (added) {
                 rememberFromLoot(session.items);
@@ -152,7 +173,7 @@ async function ingestLoot(req, res) {
             continue;
         }
 
-        const match = await suggestMatch(req, session);
+        const match = await suggestMatch(session);
         const { entry, added, created } = upsertPending(session, {
             realm: meta.realm,
             reporter: meta.reporter,
@@ -268,8 +289,8 @@ async function ingestRaidStatus(req, res) {
     const body = await readJsonBody(req);
     const sessions = Array.isArray(body.sessions) ? body.sessions : [];
 
-    const guildId = activeGuildFor(req);
-    const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    // No session behind the token: the first server (#919), never a guess.
+    const { groups } = await loadEventGroups(serverWithoutSession(), { sinceSeconds: eventLookbackSince() });
     const events = groups.flatMap((g) => g.events.map((ev) => ({
         ...ev,
         categoryId: g.categoryId || "",
@@ -310,20 +331,22 @@ async function ingestCouncil(req, res, url) {
 
     const params = url ? url.searchParams : new URLSearchParams();
     if (!params.has("category") && Number(params.get("v")) >= 3) {
-        return ok(res, councilSyncPayloadV3(await councilEntries(req)));
+        return ok(res, councilSyncPayloadV3(await councilEntries()));
     }
     if (!params.has("category") && (params.get("v") === "2" || params.get("categories") === "council")) {
-        return ok(res, councilSyncPayloadV2(await councilEntries(req)));
+        return ok(res, councilSyncPayloadV2(await councilEntries()));
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
+    // No session: the asked category's server, else the first server (#919).
+    const guildId = serverWithoutSession(params.get("category") || "");
     const opts = councilOptsFromQuery(new URLSearchParams({
         category: params.get("category") || "",
         role: params.get("role") || "",
-    }));
+    }), { guildId });
     const built = councilRoster(opts);
     ok(res, councilSyncPayload(built, {
         categoryId: opts.categoryId,
-        categories: categoryOptions(activeGuildFor(req)),
+        categories: categoryOptions(guildId),
         role: opts.role,
         bisTierDerived: !opts.bisTier,
     }));
@@ -341,11 +364,15 @@ async function ingestCouncil(req, res, url) {
  * left out: the addon picks a council by the raid's instances, and such a
  * roster has no raid template to name them (docs/loot-import.md).
  */
-async function councilEntries(req) {
+async function councilEntries() {
     const config = getConfig();
-    // Live names first, else the ones seen earlier (categoryNames.js) - the
-    // token request has no session, so the active guild may be a guess.
-    const names = new Map(listKnownCategories(activeGuildFor(req)).filter((c) => c.name).map((c) => [c.id, c.name]));
+    // Live names first, else the ones seen earlier (categoryNames.js). The token
+    // request has no session and the categories span every server (#919): each
+    // name comes from the server that has the category.
+    const names = new Map();
+    for (const guildId of serverIds(config)) {
+        for (const c of listKnownCategories(guildId)) if (c.name && !names.has(c.id)) names.set(c.id, c.name);
+    }
     const entries = [];
     for (const id of councilCategoryIds(config)) {
         const { opts, built, profile, roster } = await categoryCouncil(id);

@@ -39,6 +39,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "logs", group: "server", icon: "inv_misc_pocketwatch_01" },
     { id: "recruitment", group: "server", icon: "inv_misc_grouplooking" },
     { id: "raidsheets", group: "server", icon: "inv_scroll_03", standalone: true },
+    // #927: Raid-Helper per server - switch, id, key, the sync and the retirement; full admins only
+    { id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true },
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },

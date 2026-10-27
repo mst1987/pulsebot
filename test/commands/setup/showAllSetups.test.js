@@ -1,6 +1,8 @@
 const { MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
+// #927: Raid-Helper on for every server, as before it was set per server
+jest.mock("../../../src/utils/raidhelper/servers", () => require("../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/utils/discord/reply.js");
 jest.mock("../../../src/utils/raidhelper/queries.js");

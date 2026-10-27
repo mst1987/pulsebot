@@ -1,4 +1,5 @@
 // #291: the switch-over checklist — every item, what blocks the switch, and the switch itself.
+// #927: both per Discord server; the switch is serverSettings[guildId].raidhelper.enabled.
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
@@ -7,7 +8,13 @@ jest.mock("../../../src/stores/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../src/services/events/raidEventGroups", () => ({ fetchEventsCached: jest.fn(async () => ({ events: [], stale: false })) }));
+// the upcoming events come from the server's synced list, never from raid-helper.xyz
+const mockGetAllEvents = jest.fn(async () => []);
+const mockCreateClient = jest.fn(() => ({ getAllEvents: mockGetAllEvents }));
+jest.mock("../../../src/utils/raidhelper/client", () => ({
+    ...jest.requireActual("../../../src/utils/raidhelper/client"),
+    createRaidhelperClient: (...args) => mockCreateClient(...args),
+}));
 jest.mock("../../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     botPermissionsIn: jest.fn(() => null),
@@ -18,7 +25,6 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCateg
 jest.mock("../../../src/stores/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
 
 const { getConfig, saveConfig } = require("../../../src/stores/settingsStore");
-const { fetchEventsCached } = require("../../../src/services/events/raidEventGroups");
 const discord = require("../../../src/services/discord/discord");
 const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
 const specHistory = require("../../../src/stores/specHistoryStore");
@@ -130,49 +136,64 @@ describe("web/events/raidhelperRetirement", () => {
     });
 
     describe("loadChecklist", () => {
+        const G1 = "111111111111111111";
+        const G2 = "222222222222222222";
+        // G1 with Raid-Helper switched on, G2 without
+        const config = (extra = {}, raidhelper = { enabled: true, apiKey: "fake-key-for-tests" }) => ({
+            discordServers: { servers: [{ guildId: G1 }, { guildId: G2 }] },
+            serverSettings: { [G1]: { raidhelper } },
+            ...extra,
+        });
+
         it("gathers categories with names and sources, upcoming events, emojis and rights", async () => {
-            getConfig.mockReturnValue({
-                guildId: "g1", categoryIds: ["c1", "c2"], categorySignupSource: { c1: "eventhelper" }, signupSourceDefault: "eventhelper",
-            });
+            getConfig.mockReturnValue(config({ categoryIds: ["c1", "c2"], categorySignupSource: { c1: "eventhelper" }, signupSourceDefault: "eventhelper" }));
             listKnownCategories.mockReturnValue([{ id: "c1", name: "Mittwoch" }, { id: "c2", name: "Sonntag" }]);
-            fetchEventsCached.mockResolvedValue({ events: [{ id: "7", title: "SSC", startTime: 4000000000, channelId: "ch" }, { id: "8", title: "alt", startTime: 1 }] });
+            mockGetAllEvents.mockResolvedValue([{ id: "7", title: "SSC", startTime: 4000000000, channelId: "ch" }, { id: "8", title: "alt", startTime: 1 }]);
             discord.getChannelCategoryMap.mockReturnValue({ ch: { name: "ssc-mi" } });
             discord.botPermissionsIn.mockReturnValue([{ key: "SendMessages", label: "Nachrichten senden", ok: true }]);
             appEmojis.setAppEmojis([{ id: "1", name: "eh_priest_shadow" }]);
 
             const list = await loadChecklist();
+            expect(mockCreateClient).toHaveBeenCalledWith({ guildId: G1 });
             expect(item(list, "categories")).toMatchObject({ status: "ok", value: "2 / 2" });
             expect(item(list, "upcoming")).toMatchObject({ status: "bad", value: "1 geplant" });
             expect(item(list, "upcoming").detail[0]).toMatch(/#ssc-mi/);
             expect(item(list, "emojis").status).toBe("mid");
             expect(item(list, "emojis").value).toMatch(/^1 \/ \d+$/);
             expect(item(list, "permissions").status).toBe("ok");
-            expect(discord.botPermissionsIn).toHaveBeenCalledWith("g1");
+            expect(discord.botPermissionsIn).toHaveBeenCalledWith(G1);
             // #305: no category wants a Discord event here
             expect(item(list, "discordevent").status).toBe("info");
         });
 
         it("reads the categories that want a Discord event and the right for it (#305)", async () => {
-            getConfig.mockReturnValue({
-                guildId: "g1", categoryIds: ["c1"], signupSourceDefault: "eventhelper", categoryDiscordEvent: { c1: true, c2: false },
-            });
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], signupSourceDefault: "eventhelper", categoryDiscordEvent: { c1: true, c2: false } }));
             listKnownCategories.mockReturnValue([{ id: "c1", name: "Mittwoch" }]);
             discord.botCanManageEvents.mockReturnValue(true);
             const list = await loadChecklist();
             expect(item(list, "discordevent")).toMatchObject({ status: "ok", value: "1 Kategorie", detail: ["Mittwoch"] });
-            expect(discord.botCanManageEvents).toHaveBeenCalledWith("g1");
+            expect(discord.botCanManageEvents).toHaveBeenCalledWith(G1);
         });
 
-        it("does not ask Raid-Helper once it is switched off", async () => {
-            getConfig.mockReturnValue({ guildId: "g1", categoryIds: ["c1"], signupSourceDefault: "eventhelper", raidhelperRetirement: { disabled: true, at: 9, byName: "Orga" } });
+        it("does not ask Raid-Helper once it is switched off, and names who did", async () => {
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], signupSourceDefault: "eventhelper" }, { enabled: false, apiKey: "fake-key-for-tests", at: 9, byName: "Orga" }));
             const list = await loadChecklist();
-            expect(fetchEventsCached).not.toHaveBeenCalled();
-            expect(list).toMatchObject({ disabled: true, disabledBy: "Orga" });
+            expect(mockCreateClient).not.toHaveBeenCalled();
+            expect(list).toMatchObject({ disabled: true, disabledAt: 9, disabledBy: "Orga" });
+        });
+
+        it("checks a server without Raid-Helper without a request (#927)", async () => {
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"] }));
+            const list = await loadChecklist({ guildId: G2 });
+            expect(mockCreateClient).not.toHaveBeenCalled();
+            expect(list.disabled).toBe(true);
+            expect(item(list, "upcoming")).toMatchObject({ status: "ok", value: "nicht mehr abgefragt" });
+            expect(discord.botPermissionsIn).toHaveBeenCalledWith(G2);
         });
 
         it("reports an unreachable Raid-Helper as not checkable", async () => {
-            getConfig.mockReturnValue({ guildId: "g1", categoryIds: ["c1"], signupSourceDefault: "eventhelper" });
-            fetchEventsCached.mockRejectedValue(new Error("Unerwartete Antwort von Raid-Helper (HTTP 404)"));
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], signupSourceDefault: "eventhelper" }));
+            mockGetAllEvents.mockRejectedValue(new Error("Unerwartete Antwort von Raid-Helper (HTTP 404)"));
             const list = await loadChecklist();
             expect(item(list, "upcoming").status).toBe("unknown");
             expect(list.ready).toBe(true);
@@ -180,23 +201,39 @@ describe("web/events/raidhelperRetirement", () => {
     });
 
     describe("setRaidhelperDisabled", () => {
+        const G1 = "111111111111111111";
+        const on = { enabled: true, apiKey: "fake-key-for-tests", serverId: "333333333333333333" };
+        const config = (extra = {}, raidhelper = on) => ({
+            discordServers: { servers: [{ guildId: G1 }] },
+            serverSettings: { [G1]: { raidhelper } },
+            ...extra,
+        });
+
         it("refuses to switch off while a required item is open, and saves nothing", async () => {
-            getConfig.mockReturnValue({ guildId: "g1", categoryIds: ["c1"], categorySignupSource: { c1: "raidhelper" } });
-            const result = await setRaidhelperDisabled(true, { byName: "Orga" });
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], categorySignupSource: { c1: "raidhelper" } }));
+            const result = await setRaidhelperDisabled(true, { guildId: G1, byName: "Orga" });
             expect(result).toMatchObject({ code: "not_ready", blockers: ["categories"] });
             expect(saveConfig).not.toHaveBeenCalled();
         });
 
-        it("switches off when ready and back on at any time", async () => {
-            getConfig.mockReturnValue({ guildId: "g1", categoryIds: ["c1"], signupSourceDefault: "eventhelper" });
-            const off = await setRaidhelperDisabled(true, { byName: "Orga", now: 77 });
-            expect(saveConfig).toHaveBeenCalledWith({ raidhelperRetirement: { disabled: true, at: 77, byName: "Orga" } });
+        it("switches the server off when ready and back on at any time; key and server id stay", async () => {
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], signupSourceDefault: "eventhelper" }));
+            const off = await setRaidhelperDisabled(true, { guildId: G1, byName: "Orga", now: 77 });
+            expect(saveConfig).toHaveBeenCalledWith({ serverSettings: { [G1]: { raidhelper: { ...on, enabled: false, at: 77, byName: "Orga" } } } });
             expect(off.checklist).toBeDefined();
 
-            getConfig.mockReturnValue({ guildId: "g1", categoryIds: ["c1"], categorySignupSource: { c1: "raidhelper" } });
-            await setRaidhelperDisabled(false, { byName: "Orga", now: 78 });
-            expect(saveConfig).toHaveBeenLastCalledWith({ raidhelperRetirement: { disabled: false, at: 78, byName: "Orga" } });
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], categorySignupSource: { c1: "raidhelper" } }, { ...on, enabled: false }));
+            await setRaidhelperDisabled(false, { guildId: G1, byName: "Orga", now: 78 });
+            expect(saveConfig).toHaveBeenLastCalledWith({ serverSettings: { [G1]: { raidhelper: { ...on, enabled: true, at: 78, byName: "Orga" } } } });
             expect(specHistory.importStatus).toHaveBeenCalled();
+        });
+
+        it("takes the first server when none is named, and refuses without any", async () => {
+            getConfig.mockReturnValue(config({ categoryIds: ["c1"], signupSourceDefault: "eventhelper" }));
+            await setRaidhelperDisabled(true, { now: 5 });
+            expect(Object.keys(saveConfig.mock.calls[0][0].serverSettings)).toEqual([G1]);
+            getConfig.mockReturnValue({});
+            await expect(setRaidhelperDisabled(true)).resolves.toMatchObject({ code: "no_server" });
         });
     });
 });
