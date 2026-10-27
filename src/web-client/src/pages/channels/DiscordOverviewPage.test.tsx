@@ -2,6 +2,8 @@
 // or the points that need attention with their buttons, joins and leaves, the
 // fixed messages, the bot check of the picked server, the bot offline, no server
 // set, the server picker (#895) and the throttled "Neu prüfen" per server.
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
@@ -234,6 +236,14 @@ describe("Discord-Übersicht", () => {
         open();
         expect(await screen.findByText("1 Nachricht nicht geprüft")).toBeInTheDocument();
         expect(screen.getByText("Alles in Ordnung")).toBeInTheDocument();
+    });
+
+    it("gives the check before \"Alles in Ordnung\" a size, the icon has none of its own", async () => {
+        event = overview();
+        open();
+        expect((await screen.findByText("Alles in Ordnung")).querySelector("svg")).not.toBeNull();
+        const css = readFileSync(resolve(__dirname, "../../styles/discord-overview.css"), "utf8");
+        expect(css).toMatch(/\.dov-allgood svg \{[^}]*width: 18px;[^}]*height: 18px;/);
     });
 
     it("folds the fine functions into one line that opens", async () => {
