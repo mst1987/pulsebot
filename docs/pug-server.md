@@ -91,11 +91,11 @@ vorgesehen). Der Partner muss nicht in der Serverliste stehen: ein reines Ziel b
    Server … bei“ und den Knopf mit der Einladung der Verknüpfung.
 2. **Im Web** über den Titel in der Liste (`/e/<id>`, öffentliche Event-Seite mit Kategorie in der Brotkrume): nur
    für Mitglieder des PuG-Servers; Nicht-Mitglieder sehen „Nur für Mitglieder des PuG-Servers“ und „PuG-Server
-   beitreten“.
+   beitreten“ mit der allgemeinen Einladung (`pugMembership.pugInviteUrl` → `generalInviteUrl`; ohne erzeugte
+   Einladung kein Knopf).
 3. **Auf dem PuG-Server** an der Anmelde-Nachricht im Raid-Kanal, wie auf jedem Raid-Server.
 
 ## Offen
 
 - #930: PuG-Onboarding-Rollen dürfen nicht in rollenbasierte Felder (Raider-Rollen, Orga-Rollen, Rechte), sonst
   schaltet die Selbstvergabe frei, was die Rolle nicht soll.
-- Web-Weg zu Ende verdrahten: die allgemeine Einladung in der Web-Anmeldung und auf `/e/<id>` (`generalInviteUrl`).
