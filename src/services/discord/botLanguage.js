@@ -2,8 +2,9 @@
 //
 //   serverLang(config, guildId)  the language of one Discord server (#924:
 //                        serverSettings[guildId].botLanguage, Einstellungen ›
-//                        Discord-Server; no guildId = the first server), else
-//                        the global default (config.botLanguage), else German — every PUBLIC message uses it: the
+//                        Discord-Server), else the global default
+//                        (config.botLanguage), else German; no guildId = the
+//                        global default — every PUBLIC message uses it: the
 //                        event and setup message, the talk overview, panels,
 //                        announcements, the Discord event. A message in a channel
 //                        is one and the same for everybody, so it cannot follow a
@@ -17,7 +18,7 @@
 //                        /language or the DE/EN switch of the web menu), else
 //                        the Discord client language last seen (bot.js notes it
 //                        on every interaction), else the language of the server
-//                        the caller names (`guildId`), else of the first server.
+//                        the caller names (`guildId`), else the global default.
 //   langOfInteraction    the same for whoever clicked or typed, but the locale
 //                        of THIS interaction comes before the stored one, so
 //                        even the very first click is answered right; the server
@@ -26,7 +27,7 @@ const userPrefs = require("../../stores/userPrefsStore");
 const settingsStore = require("../../stores/settingsStore");
 const { normalizeLang } = require("../../utils/i18n/botText");
 const { serverSetting } = require("./serverSettings");
-const { firstServerId, guildOfEvent, storedCategoryGuilds } = require("./serverOf");
+const { guildOfEvent, storedCategoryGuilds } = require("./serverOf");
 
 /** The global default every server without its own language speaks (#924); German when none is set. */
 function defaultLang(config) {
@@ -35,12 +36,14 @@ function defaultLang(config) {
 }
 
 /**
- * The language of one server's public messages (no server given = the first
- * one): its own value, else the global default, else German.
+ * The language of one server's public messages: its own value, else the
+ * global default, else German. No server given = the global default (never
+ * the first server's own value).
  */
 function serverLang(config, guildId) {
     const cfg = config || settingsStore.getConfig();
-    const id = String(guildId || "").trim() || firstServerId(cfg);
+    const id = String(guildId || "").trim();
+    if (!id) return defaultLang(cfg);
     return normalizeLang(serverSetting(id, "botLanguage", { config: cfg, fallback: defaultLang(cfg) }));
 }
 
@@ -48,7 +51,7 @@ function serverLang(config, guildId) {
  * The language of one category's public messages: its own (Einstellungen ›
  * Kategorien, `config.categoryLanguage` — a PuG category in English beside
  * German guild raids), else the language of its server (`guildId`, else the
- * server the category belongs to by the category snapshot, else the first server).
+ * server the category belongs to by the category snapshot, else the global default).
  */
 function categoryLang(categoryId, config, guildId) {
     const cfg = config || settingsStore.getConfig();

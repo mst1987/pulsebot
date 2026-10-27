@@ -158,7 +158,7 @@ describe("Gildenbank aus dem Bestand", () => {
     });
 
     it("zu viel: über maxPerRequest abgelehnt, über Verfügbar auf die Warteliste — auf Englisch für einen englischen Server", async () => {
-        mocks.access.config = { ...CONFIG, serverSettings: { g1: { ...CONFIG.serverSettings.g1, botLanguage: "en" } } };
+        mocks.access.config = { ...CONFIG, botLanguage: "en", serverSettings: { g1: { ...CONFIG.serverSettings.g1, botLanguage: "en" } } };
         const tooMany = submit(`availability:mbi:cat1:${RUBY}`, { amount: "6" });
         await command.execute(tooMany);
         expect(answerOf(tooMany.editReply.mock.calls[0][0]).description).toBe("⚠️ At most 5 per request.");

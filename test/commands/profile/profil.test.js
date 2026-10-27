@@ -3,7 +3,7 @@
 const { MessageFlags } = require("discord.js");
 
 // The server language (Einstellungen): English for the old assertions, German by default.
-let mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+let mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
 jest.mock("../../../src/stores/settingsStore", () => ({ ...jest.requireActual("../../../src/stores/settingsStore"), getConfig: () => mockConfig }));
 const store = require("../../../src/stores/raiderProfileStore");
 const command = require("../../../src/commands/profile/profil");
@@ -14,7 +14,7 @@ const USER = "300000000000000001";
 
 beforeAll(() => store.useFile(tempStoreFile("eh-profiles-cmd.json")));
 beforeEach(() => {
-    mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
 });
 afterEach(() => store.reset());
 afterAll(() => store.useFile(null));

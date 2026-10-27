@@ -1,5 +1,5 @@
 // Das Panel der Ab-/Anwesenheiten je Raid-Kategorie: posten, ersetzen, entfernen.
-let mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+let mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockNext = null;
 jest.mock("../../../src/services/signups/organizer", () => ({ nextRaidSummary: jest.fn(() => mockNext) }));
@@ -21,7 +21,7 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 beforeAll(() => store.useFile(tempStoreFile("eh-availability-panel.json")));
 afterAll(() => store.useFile(null));
 beforeEach(() => {
-    mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     mockNext = null;
     jest.clearAllMocks();
     for (const p of store.listPanels()) store.removePanel(p.categoryId);
@@ -77,7 +77,7 @@ describe("availabilityPanel", () => {
         const de = discord.postPayload.mock.calls[0][1];
         expect(texts(de)[0]).toBe("## Raid-Zentrale · Raids TBC\n-# Alles für deine Raids TBC-Raids an einem Ort");
         expect(JSON.stringify(de.components[0])).toContain("Abwesend eintragen");
-        mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+        mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
         discord.editPayload.mockClear();
         expect(await panel.refreshPanels()).toEqual({ edited: 1, failed: 0, unchanged: 0 });
         const en = discord.editPayload.mock.calls[0][2];
@@ -142,11 +142,11 @@ describe("availabilityPanel", () => {
 
         it("zeichnet das Panel neu, sobald der Gildenbank-Kanal gesetzt oder geleert wird", async () => {
             await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
-            mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en", guildBankChannelId: "900000" } } };
+            mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en", guildBankChannelId: "900000" } } };
             expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 1 });
             expect(customIds(discord.editPayload.mock.calls[0][2])).toContain("availability:b:cat1");
             expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 0, unchanged: 1 });
-            mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en", guildBankChannelId: "" } } };
+            mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en", guildBankChannelId: "" } } };
             discord.editPayload.mockClear();
             expect(await panel.refreshPanels({ onlyStale: true })).toMatchObject({ edited: 1 });
             expect(customIds(discord.editPayload.mock.calls[0][2])).not.toContain("availability:b:cat1");

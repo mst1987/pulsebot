@@ -25,7 +25,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -47,7 +47,7 @@ describe("commands/signup/eventSignup", () => {
 
     it("refuses a member without the category's raider role instead of opening the dialog", async () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara", guildId: "g-event" }));
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-kara": ["role-kara"] } };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-kara": ["role-kara"] } };
         mocks.access.roleIds = ["role-other"];
         let interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
@@ -74,7 +74,7 @@ describe("commands/signup/eventSignup", () => {
                 description: "Only members of the roster (core, trial or bench) sign up for this raid. Ask the raid lead.", flags: MessageFlags.Ephemeral,
             });
             // German by default: the service's own sentence
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "de" } } };
+            mocks.access.config = { guildId: "g1", botLanguage: "de", serverSettings: { g1: { botLanguage: "de" } } };
             interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
             await command.execute(interaction);
             expect(answerOf(interaction.reply.mock.calls[0][0]).description).toContain("nur Mitglieder des Rosters");

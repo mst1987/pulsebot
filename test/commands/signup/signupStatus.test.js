@@ -28,7 +28,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.set("eh-kara", mocks.ownEvent());
     profiles.addCharacter(ANNA, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] });
     profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Protection", "Warrior-Fury"] });
@@ -116,7 +116,7 @@ describe("commands/signup/signupStatus", () => {
     describe("raider role of the category", () => {
         beforeEach(() => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-kara" }));
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-kara": ["role-kara"] } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-kara": ["role-kara"] } };
             mocks.access.roleIds = ["role-other"];
         });
 

@@ -7,10 +7,10 @@ const botLanguage = require("../../../src/services/discord/botLanguage");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const ANNA = "200000000000000001";
-// #924: the language is per server; without a server named the first one counts
+// #924: the language is per server; without a server named the global default counts
 const MAIN = "100000000000000001";
 const PUGS = "100000000000000002";
-const lang = (code) => ({ guildId: MAIN, serverSettings: { [MAIN]: { botLanguage: code } } });
+const lang = (code) => ({ botLanguage: code });
 
 beforeAll(() => userPrefs.useFile(tempStoreFile("eh-bot-language.json")));
 afterAll(() => userPrefs.useFile(null));
@@ -59,10 +59,17 @@ describe("services/discord/botLanguage — Sprache je Server (#924)", () => {
         serverSettings: { [MAIN]: { botLanguage: "de" }, [PUGS]: { botLanguage: "en" } },
     };
 
-    it("reads the language of the server named, else of the first server", () => {
+    it("reads the language of the server named, else the global default", () => {
         expect(botLanguage.serverLang(TWO, PUGS)).toBe("en");
         expect(botLanguage.serverLang(TWO, MAIN)).toBe("de");
         expect(botLanguage.serverLang(TWO)).toBe("de");
+        // no server named: the default, never the first server's own value
+        const ownFirst = { ...TWO, botLanguage: "en", serverSettings: { [MAIN]: { botLanguage: "de" } } };
+        expect(botLanguage.serverLang(ownFirst)).toBe("en");
+        expect(botLanguage.serverLang(ownFirst, "")).toBe("en");
+        mockConfig = ownFirst;
+        expect(botLanguage.langOf(ANNA)).toBe("en");
+        expect(botLanguage.categoryLang("unknown")).toBe("en");
         // a server without its own setting and no global default speaks German
         expect(botLanguage.serverLang(TWO, "100000000000000009")).toBe("de");
     });

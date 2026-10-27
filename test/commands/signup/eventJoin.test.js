@@ -37,7 +37,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     appEmojis.resetAppEmojis();
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
@@ -180,7 +180,7 @@ describe("commands/signup/eventJoin", () => {
     it("answers with the raider-role rule before showing anything", async () => {
         twoCharacters();
         mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat1" }));
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { cat1: ["role-raider"] } };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { cat1: ["role-raider"] } };
         mocks.access.roleIds = ["something-else"];
         const i = pick("signed");
         await command.execute(i);

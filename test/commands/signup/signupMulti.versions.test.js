@@ -29,7 +29,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.clear();
     profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
 });
@@ -50,7 +50,7 @@ describe("signableRaids / signableVersions", () => {
     it("leave out a hidden version", () => {
         raid("eh-t1", "tbc");
         raid("eh-f1", "forever", 2);
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, hideOtherVersions: true, mainVersion: "tbc" };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, hideOtherVersions: true, mainVersion: "tbc" };
         expect(multi.signableVersions()).toEqual(["tbc"]);
         expect(multi.signableRaids().map((e) => e.id)).toEqual(["eh-t1"]);
     });
@@ -113,6 +113,7 @@ describe("talk overview buttons with two versions", () => {
                     links: [{ from: PUG, to: PARTNER, channelId: "100000000000000009", versions: [] }],
                 },
                 // #924: the language is per server; the clicks come from every one of them
+                botLanguage: "en",
                 serverSettings: { [GUILD]: { botLanguage: "en" }, [PUG]: { botLanguage: "en" }, [PARTNER]: { botLanguage: "en" } },
             };
             onServer("eh-gilde", GUILD);

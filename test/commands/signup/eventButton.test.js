@@ -40,7 +40,7 @@ afterAll(() => {
 beforeEach(() => {
     profiles.reset();
     mocks.reset();
-    mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+    mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     mocks.events.set("eh-kara", mocks.ownEvent());
 });
 
@@ -207,12 +207,12 @@ describe("commands/signup/eventButton", () => {
             twoCharacters();
             profiles.addCharacter(ANNA, { name: "Zibbomage", className: "Mage", specs: [{ key: "Mage-Frost", gear: "ready" }] });
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupCharacters: { "cat-1": 2 } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupCharacters: { "cat-1": 2 } };
             const limited = click("join");
             await command.execute(limited);
             expect(selectOf(replyOf(limited))).toMatchObject({ max_values: 2 });
             expect(replyOf(limited).embeds[0].description).toContain("up to 2 characters");
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
             const open = click("join");
             await command.execute(open);
             // default 8, capped by the three options there are
@@ -297,7 +297,7 @@ describe("commands/signup/eventButton", () => {
 
         it("adds a further character to an existing signup, up to the category's limit", async () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupCharacters: { "cat-1": 3 } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupCharacters: { "cat-1": 3 } };
             twoCharacters();
             await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
             const classBtn = click("class");
@@ -407,13 +407,13 @@ describe("commands/signup/eventButton", () => {
         it("a category without messages asks nothing; one that requires them insists", async () => {
             twoCharacters();
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "none" } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "none" } };
             const plain = click("tentative");
             await command.execute(plain);
             expect(plain.showModal).not.toHaveBeenCalled();
             expect(selectOf(replyOf(plain)).custom_id).toBe("event-btn:eh-kara:pick:t");
 
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "required" } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "required" } };
             const strict = click("tentative");
             await command.execute(strict);
             expect(cardButtons(strict.showModal.mock.calls[0][0].toJSON())[0]).toMatchObject({ required: true, min_length: 2 });
@@ -524,7 +524,7 @@ describe("commands/signup/eventButton", () => {
 
         it("follows the category: required insists, none signs off at once", async () => {
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "required" } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "required" } };
             const btn = click("absence");
             await command.execute(btn);
             expect(cardButtons(btn.showModal.mock.calls[0][0].toJSON())[0]).toMatchObject({ required: true, min_length: 2 });
@@ -533,7 +533,7 @@ describe("commands/signup/eventButton", () => {
             expect(answerOf(replyOf(short))).toMatchObject({ title: "", description: "Please leave a short message." });
             expect(stored()).toBeUndefined();
 
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "none" } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categorySignupNotes: { "cat-1": "none" } };
             const direct = click("absence");
             await command.execute(direct);
             expect(direct.showModal).not.toHaveBeenCalled();
@@ -543,7 +543,7 @@ describe("commands/signup/eventButton", () => {
 
         it("posts the message to the orga's channel, pinging nobody", async () => {
             twoCharacters();
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en", signupNoteChannelId: "777777" } } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en", signupNoteChannelId: "777777" } } };
             await command.execute(withComponent(mockInteraction({ customId: "event-btn:eh-kara:pick:s", userId: ANNA, values: ["zibbo|Priest-Holy"] }), null));
             expect(mocks.postNotice).not.toHaveBeenCalled();
             await command.execute(mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } }));
@@ -596,7 +596,7 @@ describe("commands/signup/eventButton", () => {
 
         it("asks for the raider role before anything else", async () => {
             twoCharacters();
-            mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-1": ["role-raider"] } };
+            mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { "cat-1": ["role-raider"] } };
             mocks.events.set("eh-kara", mocks.ownEvent({ categoryId: "cat-1" }));
             mocks.access.roleIds = ["other"];
             const i = click("join");
@@ -621,10 +621,10 @@ describe("commands/signup/eventButton", () => {
 // A hidden game version (#563): the buttons under an old message only say the raid is archived.
 describe("event buttons of an archived raid (#563)", () => {
     beforeEach(() => {
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } }, mainVersion: "forever", hideOtherVersions: true };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, mainVersion: "forever", hideOtherVersions: true };
     });
     afterEach(() => {
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     });
 
     it("answers a click with an ephemeral English embed and saves nothing", async () => {
@@ -717,7 +717,7 @@ describe("Sprache der Antworten", () => {
     });
 
     it("folgt der englischen Server-Sprache", async () => {
-        mocks.access.config = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+        mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
         const gone = mockInteraction({ customId: "event-btn:eh-weg:join", userId: ANNA });
         await command.execute(gone);
         expect(answerOf(replyOf(gone)).description).toBe("This event no longer exists.");
