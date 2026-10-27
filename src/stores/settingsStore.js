@@ -64,6 +64,7 @@ module.exports = {
     normalizeDiscordServers,
     normalizeEventGuilds,
     normalizeRoleSync: schema.normalizeRoleSync,
+    roleSyncContext: schema.roleSyncContext,
     normalizeCategoryReminders: schema.normalizeCategoryReminders,
     ROLE_SYNC_DIRECTIONS: schema.ROLE_SYNC_DIRECTIONS,
     REMINDER_TARGETS: schema.REMINDER_TARGETS,

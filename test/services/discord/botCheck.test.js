@@ -171,9 +171,30 @@ describe("rolesAboveBot", () => {
                 { id: "200000000000000004", name: "Booster", position: 1, managed: true },
             ],
         });
-        expect(botCheck(EVENT, { ...SRV, roleSync: [{ eventRoleId: "200000000000000002" }] }).rolesAboveBot).toEqual([
+        const roleSync = [{ fromGuildId: EVENT, fromRoleId: "200000000000000002", toGuildId: TALK, toRoleId: "200000000000000009", direction: "both" }];
+        expect(botCheck(EVENT, { ...SRV, roleSync }).rolesAboveBot).toEqual([
             { id: "200000000000000004", name: "Booster", usedBy: ["Rollen-Nachricht"] },
             { id: "200000000000000001", name: "Raider", usedBy: ["Roster TBC"] },
+        ]);
+    });
+
+    it("counts only this server's role of a role-sync pair (#896)", () => {
+        mockGuild = guild({
+            rights: ALL,
+            top: 5,
+            roles: [
+                { id: "200000000000000006", name: "Gast", position: 8 },
+                { id: "200000000000000007", name: "Mitglied", position: 9 },
+            ],
+        });
+        const roleSync = [
+            // this server is the target: its toRoleId counts
+            { fromGuildId: TALK, fromRoleId: "200000000000000007", toGuildId: EVENT, toRoleId: "200000000000000006", direction: "toTarget" },
+            // another pair between two other servers names a role id that exists here: no hint
+            { fromGuildId: TALK, fromRoleId: "200000000000000007", toGuildId: "900000000000000003", toRoleId: "200000000000000008", direction: "both" },
+        ];
+        expect(botCheck(EVENT, { ...SRV, roleSync }).rolesAboveBot).toEqual([
+            { id: "200000000000000006", name: "Gast", usedBy: ["Rollen-Abgleich"] },
         ]);
     });
 

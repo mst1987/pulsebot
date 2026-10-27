@@ -267,3 +267,20 @@ describe("services/discord/guildRoles server pick (#895)", () => {
         expect(guildRoles.roleMessageGuild(null, cfg)).toBe(E1);
     });
 });
+
+// #896: the overlap of any two servers, per role-sync pair.
+describe("services/discord/guildRoles guildOverlap", () => {
+    it("is null without two different servers", async () => {
+        expect(await guildRoles.guildOverlap(E1, "")).toBeNull();
+        expect(await guildRoles.guildOverlap(E1, E1)).toBeNull();
+        expect(discord.fetchGuildMembersCached).not.toHaveBeenCalled();
+    });
+
+    it("counts the humans on both of the two servers it is given", async () => {
+        discord.getGuild.mockImplementation((id) => ({ id }));
+        discord.fetchGuildMembersCached.mockImplementation(async (id) => (id === T
+            ? [member("a"), member("b"), member("bot", true)]
+            : [member("b")]));
+        expect(await guildRoles.guildOverlap(T, "900077")).toEqual({ fromCount: 2, toCount: 1, both: 1, error: null });
+    });
+});

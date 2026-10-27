@@ -101,8 +101,8 @@ function isTalkGuild(guildId, config = getConfig()) {
 
 /**
  * "event" | "talk" | "" — the badge the server switcher shows at a server.
- * The talk server is named "talk" first: it is one of `servers` now, and the
- * role sync tells its sides apart by this badge.
+ * The talk server is named "talk" first: it is one of `servers` now. (The
+ * role sync no longer reads this badge — it pairs servers by id since #896.)
  */
 function guildRole(guildId, config = getConfig()) {
     if (isTalkGuild(guildId, config)) return "talk";
@@ -188,30 +188,41 @@ function talkGuild(config = getConfig()) {
  * @returns {Promise<null | { eventCount, talkCount, both, error }>} null without two different servers
  */
 async function memberOverlap(config = getConfig()) {
-    const eventId = eventGuildId(config);
-    const talkId = talkGuildId(config);
+    const overlap = await guildOverlap(eventGuildId(config), talkGuildId(config));
+    if (!overlap) return null;
+    return { eventCount: overlap.fromCount, talkCount: overlap.toCount, both: overlap.both, error: overlap.error };
+}
+
+/**
+ * How many members two servers share (#896: per role-sync pair) — same rules
+ * as memberOverlap: bots do not count, a failure comes back as `error`.
+ * @returns {Promise<null | { fromCount, toCount, both, error }>} null without two different servers
+ */
+async function guildOverlap(fromId, toId) {
+    const a = String(fromId || "");
+    const b = String(toId || "");
     // One server for both: everybody is "on both", nothing to fetch.
-    if (!eventId || !talkId || eventId === talkId) return null;
-    const eventG = discord.getGuild(eventId);
-    const talkG = discord.getGuild(talkId);
-    if (!eventG || !talkG) {
-        return { eventCount: null, talkCount: null, both: null, error: "Der Bot ist nicht auf beiden Servern." };
+    if (!a || !b || a === b) return null;
+    const fromG = discord.getGuild(a);
+    const toG = discord.getGuild(b);
+    if (!fromG || !toG) {
+        return { fromCount: null, toCount: null, both: null, error: "Der Bot ist nicht auf beiden Servern." };
     }
     try {
-        const [eventMembers, talkMembers] = await Promise.all([
-            discord.fetchGuildMembersCached(eventId, eventG),
-            discord.fetchGuildMembersCached(talkId, talkG),
+        const [fromMembers, toMembers] = await Promise.all([
+            discord.fetchGuildMembersCached(a, fromG),
+            discord.fetchGuildMembersCached(b, toG),
         ]);
         // Bots are no raiders; counting them would make the overlap look worse.
         const humans = (list) => new Set(list.filter((m) => !(m.user && m.user.bot)).map((m) => m.id));
-        const eventIds = humans(eventMembers);
-        const talkIds = humans(talkMembers);
+        const fromIds = humans(fromMembers);
+        const toIds = humans(toMembers);
         let both = 0;
-        for (const id of eventIds) if (talkIds.has(id)) both += 1;
-        return { eventCount: eventIds.size, talkCount: talkIds.size, both, error: null };
+        for (const id of fromIds) if (toIds.has(id)) both += 1;
+        return { fromCount: fromIds.size, toCount: toIds.size, both, error: null };
     } catch (e) {
         return {
-            eventCount: null, talkCount: null, both: null,
+            fromCount: null, toCount: null, both: null,
             error: (e && e.message) || "Mitglieder konnten nicht geladen werden (GuildMembers-Intent aktiv?).",
         };
     }
@@ -270,5 +281,5 @@ module.exports = {
     serverIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
     eventGuildId, eventGuildIds, talkGuildId, configuredGuildIds,
     isEventGuild, isTalkGuild, guildRole, legacyEventGuilds,
-    eventGuild, eventGuildCards, talkGuild, describeGuild, memberOverlap,
+    eventGuild, eventGuildCards, talkGuild, describeGuild, memberOverlap, guildOverlap,
 };

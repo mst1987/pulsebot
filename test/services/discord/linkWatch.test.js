@@ -81,7 +81,13 @@ describe("services/discord/linkWatch", () => {
         expect(eventStore.getEvent(event.id).setupPost.messageId).toBe("");
     });
 
+    it("knows a raid list message by its link's key (#892)", () => {
+        setOverviewState("g1:g1", { channelId: "ov", messageId: "m7" });
+        expect(linkWatch.onMessageDelete({ channelId: "ov", messageId: "m7" })).toMatchObject({ overview: true });
+    });
+
     it("redraws the overviews when their own message is deleted, and nothing for a stranger's", () => {
+        // stored before #892 under the source alone: still recognised (and moved to "g1:g1")
         setOverviewState("g1", { channelId: "ov", messageId: "m9" });
         expect(linkWatch.onMessageDelete({ channelId: "ov", messageId: "m9" })).toMatchObject({ overview: true });
         expect(scheduleOverviewSync).toHaveBeenCalledTimes(1);

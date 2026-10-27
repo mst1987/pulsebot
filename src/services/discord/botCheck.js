@@ -164,6 +164,7 @@ function checkChannel(purpose, guild, online) {
 
 /** The ids of the roles the bot hands out on this server, each with what uses it. */
 function rolesInUse(guildId, config) {
+    const gid = str(guildId);
     const uses = new Map();
     const add = (id, what) => {
         const rid = str(id);
@@ -180,10 +181,10 @@ function rolesInUse(guildId, config) {
         if (roleMessageGuild(m, config) !== guildId) continue;
         for (const r of m.roles || []) add(r.roleId, "Rollen-Nachricht");
     }
-    // Both roles of a pair: only the one that exists on this server counts (rolesAboveBot).
+    // A role-sync pair (#896) names its servers: only this server's role of it counts.
     for (const entry of config.roleSync || []) {
-        add(entry.eventRoleId, "Rollen-Abgleich");
-        add(entry.talkRoleId, "Rollen-Abgleich");
+        if (str(entry.fromGuildId) === gid) add(entry.fromRoleId, "Rollen-Abgleich");
+        if (str(entry.toGuildId) === gid) add(entry.toRoleId, "Rollen-Abgleich");
     }
     // The addon centre hands its ping role out per button; it counts where it exists.
     add(addonCenterStore.getSettings().roleId, "Addon-Zentrale");

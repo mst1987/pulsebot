@@ -22,7 +22,11 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCateg
 jest.mock("../../../src/stores/orgaHubStore", () => ({ listHubs: () => mockData.hubs || [] }));
 jest.mock("../../../src/stores/availabilityStore", () => ({ listPanels: () => mockData.panels || [] }));
 jest.mock("../../../src/stores/raidOverviewStore", () => ({ listOverviews: () => mockData.overviews || [] }));
-jest.mock("../../../src/stores/talkOverviewStore", () => ({ getOverviewState: (gid) => (mockData.talk || {})[gid] || { channelId: "", messageId: "" } }));
+// Keyed per link "from:to" (#892); a pre-#892 record still sits under the source alone (`legacyKey`).
+jest.mock("../../../src/stores/talkOverviewStore", () => ({
+    overviewKeys: jest.requireActual("../../../src/stores/talkOverviewStore").overviewKeys,
+    getOverviewState: (key, { legacyKey = "" } = {}) => (mockData.talk || {})[key] || (legacyKey && (mockData.talk || {})[legacyKey]) || { channelId: "", messageId: "" },
+}));
 jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => mockData.roleMessages || [] }));
 jest.mock("../../../src/stores/addonCenterStore", () => ({ getCenter: () => mockData.center || null }));
 jest.mock("../../../src/stores/recruitmentStore", () => ({ listRecruitmentPosts: () => mockData.recruitment || [] }));
@@ -94,10 +98,16 @@ describe("collect", () => {
     });
 
     it("finds the talk overview of an event server on the server it is posted to", () => {
-        mockData.talk = { [EVENT]: { channelId: CH, messageId: msg(9) } };
+        mockData.talk = { [`${EVENT}:${TALK}`]: { channelId: CH, messageId: msg(9) } };
         const config = { discordServers: { servers: [{ guildId: EVENT, label: "TBC" }, { guildId: TALK, label: "" }], links: [{ from: EVENT, to: TALK, channelId: CH }] } };
         expect(collect(TALK, config)).toEqual([expect.objectContaining({ kind: "talkOverview", guildId: TALK, title: "TBC", messageId: msg(9) })]);
         expect(collect(EVENT, config)).toEqual([]);
+    });
+
+    it("still finds a list stored before #892 under its source server", () => {
+        mockData.talk = { [EVENT]: { channelId: CH, messageId: msg(9) } };
+        const config = { discordServers: { servers: [{ guildId: EVENT, label: "TBC" }, { guildId: TALK, label: "" }], links: [{ from: EVENT, to: TALK, channelId: CH }] } };
+        expect(collect(TALK, config)).toEqual([expect.objectContaining({ kind: "talkOverview", messageId: msg(9) })]);
     });
 });
 
