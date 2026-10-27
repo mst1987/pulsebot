@@ -55,19 +55,22 @@ function pugVersionIdsOf(c, id) {
  * Every bot right the role carries from the config and the rosters, machine-readable and
  * in the order privilegedReason checks them (the first one is its reason):
  *   { code: "admin" } | { code: "orga" } | { code: "officer" }
- *   { code: "rolePermissions", areas: string[] }      the areas granted to the role
+ *   { code: "rolePermissions", areas: string[], levels: { [area]: "read"|"write" } }  the areas granted to the role
  *   { code: "botCommand", commands: string[] }       the bot commands the role may run
  *   { code: "categoryRaider", categoryIds: string[] } the categories it is a raider role of
- *   { code: "roleSync", guildIds: string[] }         the partner servers of its role-sync pairs
+ *   { code: "roleSync", guildIds: string[], pairs: { guildId, roleId, direction }[] }  the partner
+ *       servers of its role-sync pairs; `pairs` names the other side of each pair
  *   { code: "pugVersion", versionIds: string[] }      the PuG version role of these versions (#906)
  *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
  * Empty when the role carries none. The roles page (services/discord/serverRoles.js) shows
  * them as "Bedeutung für den Bot".
  * @param {object} cfg the bot config
  * @param {string} roleId
+ * @param {{ rosters?: object[] }} [opts] the rosters to read instead of the stored ones
+ *   (services/discord/pugRoleGuard.js checks a roster before it is saved)
  * @returns {object[]}
  */
-function roleUses(cfg, roleId) {
+function roleUses(cfg, roleId, { rosters } = {}) {
     const c = cfg || {};
     const id = str(roleId);
     const out = [];
@@ -76,7 +79,10 @@ function roleUses(cfg, roleId) {
     if (ids(c.orgaRoleIds).includes(id)) out.push({ code: "orga" });
     if (str(c.officerRoleId) === id) out.push({ code: "officer" });
     const grants = normalizeRolePermissions(c.rolePermissions || {})[id];
-    if (grants) out.push({ code: "rolePermissions", areas: Object.keys(grants).sort() });
+    if (grants) {
+        const areas = Object.keys(grants).sort();
+        out.push({ code: "rolePermissions", areas, levels: Object.fromEntries(areas.map((a) => [a, grants[a].write ? "write" : "read"])) });
+    }
     const commands = entries(c.botCommandAccess).filter(([, rule]) => rule && ids(rule.roleIds).includes(id)).map(([name]) => name).sort();
     if (commands.length) out.push({ code: "botCommand", commands });
     const categoryIds = entries(c.categoryRoles).filter(([, list]) => ids(list).includes(id)).map(([catId]) => catId);
@@ -84,16 +90,18 @@ function roleUses(cfg, roleId) {
     // A role-sync pair (#896) names two servers: the role is on one side, the
     // server on the other side is what the roles page names (#897).
     const partners = [];
-    let inSync = false;
+    const pairs = [];
     for (const s of Array.isArray(c.roleSync) ? c.roleSync : []) {
         if (!s) continue;
-        if (str(s.fromRoleId) === id) { inSync = true; partners.push(str(s.toGuildId)); }
-        if (str(s.toRoleId) === id) { inSync = true; partners.push(str(s.fromGuildId)); }
+        const direction = str(s.direction);
+        if (str(s.fromRoleId) === id) { partners.push(str(s.toGuildId)); pairs.push({ guildId: str(s.toGuildId), roleId: str(s.toRoleId), direction }); }
+        if (str(s.toRoleId) === id) { partners.push(str(s.fromGuildId)); pairs.push({ guildId: str(s.fromGuildId), roleId: str(s.fromRoleId), direction }); }
     }
-    if (inSync) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))] });
+    if (pairs.length) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))], pairs });
     const versionIds = pugVersionIdsOf(c, id);
     if (versionIds.length) out.push({ code: "pugVersion", versionIds });
-    for (const r of rostersOrEmpty()) {
+    for (const r of Array.isArray(rosters) ? rosters : rostersOrEmpty()) {
+        if (!r) continue;
         const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
         const kinds = [];
         if (ids(r.roleIds).includes(id)) kinds.push("member");

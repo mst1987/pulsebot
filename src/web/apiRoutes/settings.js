@@ -18,6 +18,7 @@ const {
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
 const roleSync = require("../../services/discord/roleSync");
+const pugRoleGuard = require("../../services/discord/pugRoleGuard");
 const languageChange = require("../../services/discord/languageChange");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
@@ -41,7 +42,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf } = require("../../stores/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../services/roster/categoryRoles");
-const { switchRosterPreview } = require("../../services/roster/rosterVersionSwitch");
+const { switchRosterPreview, rostersAfterSwitches } = require("../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
 
@@ -717,6 +718,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #738: every active category plays an explicit version; a changed one starts a new section.
     const versions = categoryVersionPatch(body, partial, before);
     if (versions.error) return error(res, 400, "category_version_missing", versions.error);
+    // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
+    const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
+    if (pugGrants.found.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants.found, { reopened: pugGrants.reopened }));
     const langBefore = before.botLanguage;
     // #744: what deactivating pauses (series, reminders), for the save's answer.
     const deactivated = deactivationOf(partial, before);
@@ -750,6 +754,25 @@ function deactivationOf(partial, before) {
         console.log(`[settings] Kategorie ${d.categoryId} deaktiviert (#744)${paused ? `, pausiert: ${paused}` : ""}`);
     }
     return list;
+}
+
+/**
+ * The rights the PATCH would give a PuG onboarding role (#930) - including what a version
+ * switch does after the save: the roster it creates with the dialog's roles and the raider
+ * roles mirrored from it (rosterVersionSwitch), checked before anything is written.
+ * `reopened`: the rosters a switch back opens again, for the refusal's way out.
+ */
+function pugGrantsOf(before, partial, switches, fixes) {
+    const after = { ...before, ...partial };
+    let rostersAfter;
+    let reopened = [];
+    if (switches.length) {
+        const sim = rostersAfterSwitches(switches, fixes);
+        rostersAfter = sim.rosters;
+        reopened = sim.reopened;
+        after.categoryRoles = { ...(after.categoryRoles || {}), ...sim.categoryRoles };
+    }
+    return { found: pugRoleGuard.newGrants({ before, after, rostersAfter }), reopened };
 }
 
 /** Whether a PATCH takes the last active category away although raids exist (#744). */

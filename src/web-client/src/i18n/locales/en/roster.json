@@ -457,6 +457,7 @@
         "invalid_date": "The date is invalid.",
         "category_taken": "This category already has a roster for this game version.",
         "roster_closed": "This roster is closed and read only.",
+        "pug_onboarding_role": "Everyone takes the roles of the PuG onboarding themselves – such a role cannot be a roster role.",
         "kader_not_found": "This squad does not exist (any more).",
         "invalid_name": "Please enter a name or pick a category.",
         "name_too_long": "The name is too long (40 characters at most).",

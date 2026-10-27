@@ -109,10 +109,10 @@ describe("selfRole roleUses", () => {
             { code: "admin" },
             { code: "orga" },
             { code: "officer" },
-            { code: "rolePermissions", areas: ["loot", "signup"] },
+            { code: "rolePermissions", areas: ["loot", "signup"], levels: { loot: "write", signup: "read" } },
             { code: "botCommand", commands: ["kader", "setup"] },
             { code: "categoryRaider", categoryIds: ["cat-1", "cat-3"] },
-            { code: "roleSync", guildIds: [TO_GUILD, FROM_GUILD] },
+            { code: "roleSync", guildIds: [TO_GUILD, FROM_GUILD], pairs: [{ guildId: TO_GUILD, roleId: OTHER, direction: "both" }, { guildId: FROM_GUILD, roleId: OTHER, direction: "both" }] },
             { code: "roster", rosterId: "r-main", name: "Main", kinds: ["member", "trial", "manager"] },
         ]);
         // the first use stays privilegedReason's reason
@@ -121,10 +121,20 @@ describe("selfRole roleUses", () => {
 
     it("names the server on the other side of each role-sync pair, once (#897)", () => {
         jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
-        expect(roleUses({ roleSync: [pair(OTHER, ROLE)] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [FROM_GUILD] }]);
-        expect(roleUses({ roleSync: [pair(ROLE, OTHER)] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
+        const guildsOf = (cfg) => roleUses(cfg, ROLE).map(({ code, guildIds }) => ({ code, guildIds }));
+        expect(guildsOf({ roleSync: [pair(OTHER, ROLE)] })).toEqual([{ code: "roleSync", guildIds: [FROM_GUILD] }]);
+        expect(guildsOf({ roleSync: [pair(ROLE, OTHER)] })).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
         const third = { fromGuildId: "500000", fromRoleId: ROLE, toGuildId: TO_GUILD, toRoleId: OTHER, direction: "both" };
-        expect(roleUses({ roleSync: [pair(ROLE, OTHER), third] }, ROLE)).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
+        expect(guildsOf({ roleSync: [pair(ROLE, OTHER), third] })).toEqual([{ code: "roleSync", guildIds: [TO_GUILD] }]);
+    });
+
+    it("names the other side of every role-sync pair, one entry per pair (#930)", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const second = { fromGuildId: FROM_GUILD, fromRoleId: ROLE, toGuildId: TO_GUILD, toRoleId: "900000", direction: "toTarget" };
+        expect(roleUses({ roleSync: [pair(ROLE, OTHER), second] }, ROLE)[0].pairs).toEqual([
+            { guildId: TO_GUILD, roleId: OTHER, direction: "both" },
+            { guildId: TO_GUILD, roleId: "900000", direction: "toTarget" },
+        ]);
     });
 
     it("names a PuG version role with its versions; a class role is no use (#906)", () => {
@@ -151,6 +161,14 @@ describe("selfRole roleUses", () => {
         jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "r-x", roleIds: [ROLE] }]);
         expect(roleUses({}, ROLE)).toEqual([{ code: "roster", rosterId: "r-x", name: "", kinds: ["member"] }]);
         expect(privilegedReason({}, ROLE)).toBe("the role belongs to the roster r-x");
+    });
+
+    it("reads the given rosters instead of the store (#930)", () => {
+        const stored = jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "r-x", roleIds: [ROLE] }]);
+        expect(roleUses({}, ROLE, { rosters: [{ id: "r-y", name: "Neu", trialRoleId: ROLE }, null] }))
+            .toEqual([{ code: "roster", rosterId: "r-y", name: "Neu", kinds: ["trial"] }]);
+        expect(roleUses({}, ROLE, { rosters: [] })).toEqual([]);
+        expect(stored).not.toHaveBeenCalled();
     });
 });
 

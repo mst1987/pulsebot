@@ -40,7 +40,7 @@ const { accessRule } = require("../signups/signupAccess");
 const { mainVersionFor } = require("../events/mainVersion");
 const { roleBelowBot } = require("./memberRoles");
 const { discordErrorText } = require("./discordChannels");
-const { roleUses } = require("./selfRole");
+const { grantsOf } = require("./pugRoleGuard");
 const { adminRoleIds: envAdminRoleIds } = require("../../config/variables");
 const rosterStore = require("../../stores/rosterStore");
 
@@ -190,8 +190,7 @@ const bitsOf = (perms) => {
  */
 function privilegeOf(guild, config, item, role, ownCatIds) {
     const id = str(role.id);
-    const uses = roleUses(config, id).filter((u) => !(item.kind === "version" && u.code === "pugVersion"
-        && (u.versionIds || []).every((v) => v === item.id)));
+    const uses = grantsOf(config, id, { item });
     if (uses.length) return { code: uses[0].code, detail: uses[0].code === "roster" ? str(uses[0].name || uses[0].rosterId) : "" };
     const bits = bitsOf(role.permissions);
     if (bits !== null) {

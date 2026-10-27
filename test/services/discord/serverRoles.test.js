@@ -188,6 +188,10 @@ describe("serverRoles listServerRoles", () => {
         expect(out.roles.find((r) => r.id === RAIDER).uses).toContainEqual({
             code: "roleSync",
             guildIds: [TALK, THIRD],
+            pairs: [
+                { guildId: TALK, roleId: "200000000000000099", direction: "both" },
+                { guildId: THIRD, roleId: "200000000000000098", direction: "toTarget" },
+            ],
             servers: [{ guildId: TALK, name: "Test-Server" }, { guildId: THIRD, name: "Gilde" }],
         });
     });

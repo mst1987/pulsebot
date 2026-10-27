@@ -541,6 +541,79 @@ describe("web/apiRoutes/settings", () => {
                     }
                 });
 
+                it("refuses a PuG onboarding role as the new roster's role before anything is written (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    rosterStore.useFile(tempStoreFile("switch-pug-rosters.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    const seen = [];
+                    const off = onCategoryVersionSwitch((sw) => { seen.push(sw.categoryId); });
+                    try {
+                        const old = rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: [] });
+                        const body = (roleIds) => ({ categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { roster: { create: true, roleIds } } } });
+                        const res = await patch("/api/settings", body([PUG]));
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "pug_onboarding_role", message: expect.stringContaining("Roster Montag (Mitglied)") });
+                        // nothing written: no save, no switch, the old roster open, no new one
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                        expect(seen).toEqual([]);
+                        expect(rosterStore.getRoster(old.id).closedAt).toBeFalsy();
+                        expect(rosterStore.rosterForCategory("cat1", "forever")).toBeNull();
+                        // a plain role passes
+                        const ok = await patch("/api/settings", body(["500000000000000001"]));
+                        expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(seen).toEqual(["cat1"]);
+                    } finally {
+                        off();
+                        rosterStore.useFile(null);
+                    }
+                });
+
+                it("counts the managers the new roster takes over only from a closed old roster (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    const body = { categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { roster: { create: true, roleIds: [] } } } };
+                    const managed = () => rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", managers: { userIds: [], roleIds: [PUG] } });
+                    try {
+                        // open old roster: the manager role is an old entry, the switch passes
+                        rosterStore.useFile(tempStoreFile("switch-managers-open.json"));
+                        managed();
+                        expect((await patch("/api/settings", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        // closed old roster: the new one would bring the manager role back to life
+                        rosterStore.useFile(tempStoreFile("switch-managers-closed.json"));
+                        rosterStore.closeRoster(managed().id, { reason: "manual" });
+                        settingsStore.saveConfig.mockClear();
+                        const res = await patch("/api/settings", body);
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "pug_onboarding_role", message: expect.stringContaining("Roster Montag (Manager)") });
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    } finally {
+                        rosterStore.useFile(null);
+                    }
+                });
+
+                it("names the way out when switching back would reopen a roster with a PuG role (#930)", async () => {
+                    const rosterStore = require("../../../src/stores/rosterStore");
+                    const PUG = "500000000000000009";
+                    rosterStore.useFile(tempStoreFile("switch-back-pug.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
+                    try {
+                        // the Forever roster a former switch closed, its role became an onboarding role since
+                        const back = rosterStore.createRoster({ guildId: "g1", name: "Forever Montag", categoryId: "cat1", versionId: "forever", roleIds: [PUG] });
+                        rosterStore.closeRoster(back.id, { reason: "version_switch" });
+                        const res = await patch("/api/settings", { categoryVersion: { cat1: "forever" } });
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        const { message } = json(res).error;
+                        expect(message).toContain("Roster Forever Montag (Mitglied)");
+                        expect(message).toContain("abgeschlossenen Roster „Forever Montag“");
+                        expect(message).toContain("das Roster löschen (Voll-Admin)");
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    } finally {
+                        rosterStore.useFile(null);
+                    }
+                });
+
                 it("previews a switch for the dialog", async () => {
                     settingsStore.listRaidTemplates.mockReturnValue([{ id: "t-fe", name: "Onyxia", versionId: "forever" }, { id: "t-tbc", name: "Kara", versionId: "tbc" }]);
                     const res = await get("/api/settings/category-switch", { categoryId: "cat1", versionId: "forever" });
@@ -843,6 +916,54 @@ describe("web/apiRoutes/settings", () => {
                 // a settings writer must not make their own raider role orga
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("refuses a role of the PuG onboarding as orga role, keeps an old entry (#930)", async () => {
+                const rosterStore = require("../../../src/stores/rosterStore");
+                jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const pugRoles = { g1: { versions: { tbc: "r-pug-tbc" }, classes: { Mage: "r-pug-mage" } } };
+                settingsStore.getConfig.mockReturnValue({ pugRoles, orgaRoleIds: ["r-pug-tbc"] });
+                try {
+                    const res = await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-pug-mage"] });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res)).toMatchObject({ error: { code: "pug_onboarding_role", message: expect.stringContaining("Orga-Rolle") } });
+                    expect(json(res).error.message).toContain("Magier");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    // the old orga entry does not block another save
+                    await patch("/api/settings", { orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ orgaRoleIds: ["r-pug-tbc", "r-lead"] });
+                } finally {
+                    settingsStore.getConfig.mockReturnValue({});
+                    rosterStore.listRosters.mockRestore();
+                }
+            });
+
+            it("refuses raising an onboarding role's area right and a new role-sync pair (#930)", async () => {
+                const rosterStore = require("../../../src/stores/rosterStore");
+                jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const R = "300000000000000001";
+                const sync = (toRoleId) => ({ fromGuildId: "100000000000000001", fromRoleId: R, toGuildId: "100000000000000002", toRoleId, direction: "both" });
+                settingsStore.getConfig.mockReturnValue({
+                    pugRoles: { "100000000000000001": { versions: { tbc: R }, classes: {} } },
+                    rolePermissions: { [R]: { raids: { read: true, write: false } } },
+                    roleSync: [sync("300000000000000002")],
+                });
+                try {
+                    const res = await patch("/api/settings", { rolePermissions: { [R]: { raids: { read: true, write: true } } } });
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res).error.message).toContain("Bereichsrecht raids (schreiben)");
+                    const res2 = await patch("/api/settings", { roleSync: [sync("300000000000000002"), sync("300000000000000003")] });
+                    expect(res2.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(json(res2).error.message).toContain("mit Rolle 300000000000000003");
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                } finally {
+                    settingsStore.getConfig.mockReturnValue({});
+                    rosterStore.listRosters.mockRestore();
+                }
             });
 
             // Otherwise a role with write access to "Einstellungen" could grant

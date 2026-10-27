@@ -156,6 +156,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
     (`services/discord/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
     Freigaben) muss auch in `selfRole.configReason` — sonst kann sich jemand die Rolle selbst holen.
+    Rollenfelder entstehen auch als **Nebenwirkung**: der Versionswechsel einer Kategorie legt mit
+    `categorySwitchFixes[*].roster.roleIds` ein Roster an (`rosterVersionSwitch`) und
+    `mirrorCategoryRoles` spiegelt Roster-Rollen nach `categoryRoles`. Ein Schutz auf Rollenfelder
+    (z. B. PuG-Onboarding-Rollen, #930) muss diese Wege vor dem Speichern mitsimulieren
+    (`rostersAfterSwitches`); Stufen (lesen/schreiben) und Abgleich-Paare zählen je einzeln.
 17. Login-Rücksprünge und interne Umleitungen: `server.js` dekodiert den pathname, daher kann jede
     Route, die aus dem Pfad weiterleitet (`legacyMount` `/admin`, `/admin2`), aus einem harmlosen
     Pfad `//host` machen. Jedes Umleitungsziel durch `safeReturnPath` schicken und Ketten

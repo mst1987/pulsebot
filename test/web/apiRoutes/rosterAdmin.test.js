@@ -241,6 +241,19 @@ describe("POST /api/rosters/update", () => {
         expect(rosterStore.getRoster(roster.id).publicRaids).toBe(false);
     });
 
+    it("answers 409 pug_onboarding_role for a role of the PuG onboarding (#930)", async () => {
+        configStore.saveConfig({ pugRoles: { g1: { versions: { tbc: ROLE2 }, classes: {} } } });
+        try {
+            const res = await post("/api/rosters/update", { rosterId: roster.id, managers: { roleIds: [ROLE2] } });
+            expect([status(res), code(res)]).toEqual([409, "pug_onboarding_role"]);
+            expect(json(res).error.message).toContain("PuG-Onboarding");
+            const created = await post("/api/rosters/create", { name: "Neu", roleIds: [ROLE2] });
+            expect([status(created), code(created)]).toEqual([409, "pug_onboarding_role"]);
+        } finally {
+            configStore.saveConfig({ pugRoles: {} });
+        }
+    });
+
     it("answers 409 category_taken when moving onto a category with a roster", async () => {
         rosterStore.createRoster({ name: "Other", categoryId: CAT });
         const res = await post("/api/rosters/update", { rosterId: roster.id, categoryId: CAT });

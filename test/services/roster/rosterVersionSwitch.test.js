@@ -7,7 +7,7 @@ const rosterStore = require("../../../src/stores/rosterStore");
 const configStore = require("../../../src/stores/configStore");
 const { notifyCategoryVersionSwitch } = require("../../../src/services/events/categorySwitch");
 const {
-    applyRosterSwitch, switchRosterPreview, registerRosterVersionSwitch, cleanChoice,
+    applyRosterSwitch, switchRosterPreview, rostersAfterSwitches, registerRosterVersionSwitch, cleanChoice,
 } = require("../../../src/services/roster/rosterVersionSwitch");
 
 const NOW = "2026-10-11T12:00:00.000Z";
@@ -136,6 +136,46 @@ describe("services/roster/rosterVersionSwitch switchRosterPreview", () => {
         });
         expect(switchRosterPreview("c1", { fromVersion: "tbc", toVersion: "tbc" })).toEqual({ closing: null, existing: null, canCreate: false });
         expect(switchRosterPreview("", { fromVersion: "tbc", toVersion: "forever" })).toEqual({ closing: null, existing: null, canCreate: false });
+    });
+});
+
+describe("services/roster/rosterVersionSwitch rostersAfterSwitches (#930)", () => {
+    it("shows the rosters and raider roles a switch would leave, without writing anything", () => {
+        const old = tbcRoster();
+        const before = JSON.stringify(rosterStore.listRosters());
+        const fixes = { c1: { roster: { create: true, roleIds: ["500000000000000002"] } } };
+        const sim = rostersAfterSwitches([SW], fixes);
+        expect(JSON.stringify(rosterStore.listRosters())).toBe(before);
+        expect(sim.rosters.find((r) => r.id === old.id).closedAt).toBeTruthy();
+        expect(sim.rosters.find((r) => r.id === "")).toMatchObject({ guildId: "g1", categoryId: "c1", versionId: "forever", roleIds: ["500000000000000002"] });
+        expect(sim.categoryRoles).toEqual({ c1: ["500000000000000002"] });
+        // without 'anlegen' the category is left without roles
+        expect(rostersAfterSwitches([SW], { c1: { roster: { create: false } } })).toMatchObject({ categoryRoles: { c1: [] } });
+    });
+
+    it("the manager roles carried into the new roster count only from a closed old roster", () => {
+        const M = "500000000000000007";
+        const old = tbcRoster();
+        rosterStore.updateRoster(old.id, { managers: { userIds: [U3], roleIds: [M] } });
+        // open old roster: its managers are no new right, the guard knows them under the old id
+        expect(rostersAfterSwitches([SW]).rosters.find((r) => r.id === "").managers).toEqual({ userIds: [U3], roleIds: [] });
+        // closed old roster (not by a switch): createFrom brings its manager role back to life
+        rosterStore.closeRoster(old.id, { reason: "manual", now: NOW });
+        expect(rostersAfterSwitches([SW]).rosters.find((r) => r.id === "").managers).toEqual({ userIds: [U3], roleIds: [M] });
+    });
+
+    it("switching back reopens the roster a switch closed; no roster, no switch: nothing", () => {
+        const old = tbcRoster();
+        applyRosterSwitch(SW, { now: NOW });
+        const sim = rostersAfterSwitches([{ ...SW, fromVersion: "forever", toVersion: "tbc" }]);
+        expect(sim.rosters.find((r) => r.id === old.id).closedAt).toBeNull();
+        expect(sim.categoryRoles).toEqual({ c1: ["500000000000000001"] });
+        expect(sim.reopened).toEqual([{ id: old.id, name: "Montag", categoryId: "c1" }]);
+        expect(rostersAfterSwitches([SW]).reopened).toEqual([]);
+        fs.__store.clear();
+        expect(rostersAfterSwitches([SW]).categoryRoles).toEqual({});
+        expect(rostersAfterSwitches(null)).toEqual({ rosters: [], categoryRoles: {}, reopened: [] });
+        expect(rostersAfterSwitches([{ ...SW, toVersion: "tbc" }]).categoryRoles).toEqual({});
     });
 });
 

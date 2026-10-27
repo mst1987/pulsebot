@@ -65,6 +65,25 @@ describe("attentionItems", () => {
         expect(items[4].action).toEqual({ label: "Kanalrechte prüfen", to: "/channels" });
     });
 
+    it("warns about a PuG onboarding role that still unlocks something (#930)", async () => {
+        const data = overview({
+            botCheck: {
+                guildId: "g1", known: true, functions: [], channels: [], rolesAboveBot: [],
+                pugRolesGranting: [{
+                    id: "r9", name: "TBC", kind: "version", itemId: "tbc", label: "TBC",
+                    uses: [{ code: "orga" }, { code: "botCommand", commands: ["event"] }],
+                }],
+            },
+        });
+        const [item] = attentionItems(data, adminUser());
+        expect(item).toMatchObject({ id: "pug-r9", tone: "bad", status: "Hinweis", what: "TBC" });
+        expect(item.why).toContain("PuG-Onboarding");
+        expect(item.why).toContain("/event");
+        expect(item.action).toEqual({ label: "Zur Rolle", to: "/channels/server-roles" });
+        await switchLang("en");
+        expect(attentionItems(data, adminUser())[0].why).toContain("PuG onboarding");
+    });
+
     it("hides a link the account may not open, keeps the in-page one", () => {
         const user = adminUser({ isAdmin: false, access: {} });
         const items = attentionItems(BAD, user);
