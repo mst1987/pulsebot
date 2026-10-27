@@ -423,6 +423,13 @@
         "notInProfile": "nicht im Profil",
         "notInProfileHint": "{spec} steht nicht im Profil von {character} – gilt nur für diesen Raid.",
         "absenceHint": "Abgemeldet: fliegt aus Gruppen und Bank und steht nicht mehr unter „Angemeldet“.",
+        "other": "Anderer Charakter …",
+        "otherName": "Name",
+        "otherNamePlaceholder": "Name im Spiel",
+        "otherClass": "Klasse",
+        "otherHint": "Gilt nur für diesen Raid – das Profil bleibt unverändert.",
+        "otherTaken": "Diesen Charakter gibt es schon – oben auswählen.",
+        "otherBadName": "Nur Buchstaben, 2–12 Zeichen.",
         "loading": "Lade Anmeldung …",
         "loadFailed": "Anmeldung nicht geladen: {message}",
         "failed": "Anmeldung nicht gespeichert."

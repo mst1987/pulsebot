@@ -6,7 +6,9 @@
 //     (deadline, closed signup, raider role and the waiting list do not bind
 //     the orga) and `offProfile` (a spec of the character's class the raider's
 //     profile lacks is taken, and a raider without a profile keeps the
-//     characters they signed up with) — so the signup message, the talk
+//     characters they signed up with; a new name with its class — a raider who
+//     offers another character — is taken too, the profile is never changed) —
+//     so the signup message, the talk
 //     overview and every other listener of signupStore follow as always;
 //   * the event log gets one entry ("Anmeldung geändert (Orga)": who, before → after);
 //   * a stored setup is saved again with the raider where they stood: a placed
@@ -89,6 +91,8 @@ function signupEditView(eventId, userId) {
             characters: signupCharacters(signup).map((c) => ({ character: str(c.character), spec: str(c.spec), status: str(c.status) })),
             statuses: SIGNUP_STATUSES.slice(),
             options,
+            // "Anderer Charakter ...": every class of the rule set with its specs
+            classes: rules.classes.map((c) => ({ id: c.id, label: c.label, color: c.color || "", icon: c.icon || "", specs: c.specs.map((sp) => ({ key: sp.key, label: sp.label, icon: sp.icon || "", role: sp.role })) })),
         },
     };
 }
@@ -142,9 +146,12 @@ function withoutGone(placement) {
 }
 
 /**
- * Change one raider's signup as the orga. Body: `{ status, character?, spec?, from? }` —
+ * Change one raider's signup as the orga. Body: `{ status, character?, spec?, className?, from? }` —
  * `from` is the character the setup shows (one of the signup's, #293), the one
- * `character`/`spec` replace; the signup's other characters stay.
+ * `character`/`spec` replace; the signup's other characters stay. With
+ * `className` ("Anderer Charakter …") `character` may be a name neither the
+ * profile nor the signup has: the class must be one of the event's rule set and
+ * the spec one of that class; the profile stays as it is.
  * @returns {Promise<{ status?: number, code?: string, error?: string, event?: object, signup?: object, message?: string, warning?: string }>}
  */
 async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, byName = "", now = Date.now() } = {}) {
@@ -160,6 +167,15 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     if (at < 0) at = 0;
     const from = entries[at] || { character: before.character || "", spec: before.spec || "" };
     const to = { character: str(body.character) || from.character, spec: str(body.spec) || from.spec };
+    const className = str(body.className);
+    if (className && status !== "absence") {
+        // "Anderer Charakter …": a name outside the profile with a class of the event's rule set
+        const cls = rulesOf(event).classes.find((c) => c.id === className);
+        if (!cls) return fail(400, "class", `Die Klasse „${className}“ gibt es in diesem Raid nicht.`);
+        if (!str(body.character)) return fail(400, "character", "Bitte einen Namen eingeben.");
+        if (!cls.specs.some((s) => s.key === to.spec)) return fail(400, "spec", `Bitte eine Spezialisierung der Klasse ${cls.label} wählen.`);
+        to.className = cls.id;
+    }
     const list = entries.slice();
     list[at] = to;
     // the same character twice would count once anyway — keep the changed one where it stands
@@ -173,6 +189,10 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
     }, { byOrga: true, offProfile: true, now });
     if (result.error) return fail(signupService.httpStatusFor(result.code), result.code, result.error);
     const after = result.signup;
+    // a typed name is saved as written by the check (capitalised): the log and the setup show that one
+    const savedAs = signupCharacters(after).find((c) => keyOf(c.character) === keyOf(to.character));
+    if (savedAs) to.character = str(savedAs.character);
+    delete to.className;
 
     eventStore.appendEventLog(event.id, {
         action: "signupEdit",

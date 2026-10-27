@@ -168,6 +168,48 @@ describe("changeSignupFromSetup", () => {
     });
 });
 
+describe("Anderer Charakter (#521)", () => {
+    it("puts a placed raider on a new character of another class — same place, new spec and role, the profile untouched", async () => {
+        const before = slotOf(SHAMAN);
+        const result = await changeSignupFromSetup(event.id, SHAMAN, { status: "signed", from: "Donnerfaust", character: "frostzwerg", className: "Mage", spec: "Mage-Frost" }, { user: ORGA, now: NOW });
+        expect(result.error).toBeUndefined();
+        // the name as the check writes it: capitalised
+        expect(signupStore.getSignup(event.id, SHAMAN)).toMatchObject({ character: "Frostzwerg", spec: "Mage-Frost", role: "ranged" });
+        expect(slotOf(SHAMAN)).toMatchObject({ group: before.group, place: before.place, character: "Frostzwerg", spec: "Mage-Frost", role: "ranged" });
+        expect(profiles.getProfile(SHAMAN).characters.map((c) => c.name)).toEqual(["Donnerfaust"]);
+        const log = eventStore.getEvent(event.id).log.at(-1);
+        expect(log).toMatchObject({ action: "signupEdit", by: ORGA.id });
+        expect(log.detail).toMatch(/Donnerfaust → Frostzwerg/);
+        // the dialog offers the new character next time, outside the profile
+        const { view } = signupEditView(event.id, SHAMAN);
+        expect(view.options.map((o) => [o.character, o.classId, o.inProfile])).toEqual([["Donnerfaust", "Shaman", true], ["Frostzwerg", "Mage", false]]);
+    });
+
+    it("lists every class of the rule set with its specs", () => {
+        const { view } = signupEditView(event.id, SHAMAN);
+        const mage = view.classes.find((c) => c.id === "Mage");
+        expect(mage).toMatchObject({ label: expect.any(String) });
+        expect(mage.specs.map((s) => s.key)).toEqual(expect.arrayContaining(["Mage-Frost", "Mage-Fire", "Mage-Arcane"]));
+    });
+
+    it("refuses a class the raid does not have, a spec of another class, an empty and a bad name", async () => {
+        const call = (body) => changeSignupFromSetup(event.id, SHAMAN, { status: "signed", from: "Donnerfaust", ...body }, { user: ORGA, now: NOW });
+        expect(await call({ character: "Frostzwerg", className: "Evoker", spec: "Mage-Frost" })).toMatchObject({ status: 400, code: "class" });
+        expect(await call({ character: "Frostzwerg", className: "Mage", spec: "Priest-Holy" })).toMatchObject({ status: 400, code: "spec" });
+        expect(await call({ character: "", className: "Mage", spec: "Mage-Frost" })).toMatchObject({ status: 400, code: "character" });
+        expect(await call({ character: "Frost2werg", className: "Mage", spec: "Mage-Frost" })).toMatchObject({ status: 400, code: "character" });
+        expect(await call({ character: "Abcdefghijklmnop", className: "Mage", spec: "Mage-Frost" })).toMatchObject({ status: 400, code: "character" });
+        expect(signupStore.getSignup(event.id, SHAMAN)).toMatchObject({ character: "Donnerfaust", spec: "Shaman-Enhancement" });
+        expect(eventStore.getEvent(event.id).log.filter((l) => l.action === "signupEdit")).toHaveLength(0);
+    });
+
+    it("keeps the rule of the version: a character of the raider's other version is no new name (#543)", async () => {
+        profiles.addCharacter(SHAMAN, { name: "Donner Res", className: "Shaman", specs: [{ key: "Shaman-Elemental" }], versionId: "forever" });
+        const result = await changeSignupFromSetup(event.id, SHAMAN, { status: "signed", from: "Donnerfaust", character: "Donner Res", className: "Shaman", spec: "Shaman-Elemental" }, { user: ORGA, now: NOW });
+        expect(result.code).toBe("character_version");
+    });
+});
+
 describe("signupEditView", () => {
     it("offers every spec of the character's class, the profile's first, the others marked", () => {
         const { view } = signupEditView(event.id, SHAMAN);
