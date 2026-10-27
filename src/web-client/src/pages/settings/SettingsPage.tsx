@@ -202,6 +202,9 @@ export default function SettingsPage() {
     const save = async () => {
         setDeactivating(false);
         setSaving(true);
+        const defaultsChanged = serverDefaultsChanges(saved, draft);
+        const serverDefaults = Object.keys(defaultsChanged).length
+            ? { ...defaultsChanged, serverSettingsGuildId: data.activeGuildId || "" } : {};
         try {
             const { config, switchedCategories = [], deactivatedCategories = [] } = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
@@ -213,8 +216,9 @@ export default function SettingsPage() {
                     userPermissions: draft.userPermissions,
                     orgaRoleIds: draft.orgaRoleIds,
                 } : {}),
-                // #924: the active server's own values, only the ones changed here.
-                ...serverDefaultsChanges(saved, draft),
+                // #924: the active server's own values, only the ones changed here, with the server this
+                // page loaded — a tab left on another server is refused (409) instead of writing there.
+                ...serverDefaults,
                 categoryIds: draft.categoryIds,
                 categoryRoles: draft.categoryRoles,
                 // #921: the log channels belong to the server this page loaded — sent only when changed,

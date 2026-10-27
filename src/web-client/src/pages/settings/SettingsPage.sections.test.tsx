@@ -184,7 +184,8 @@ describe("the log channels of the active server (#921)", () => {
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
         expect("logChannels" in body).toBe(false);
-        expect("serverSettingsGuildId" in body).toBe(false);
+        // #924: the raid channel is the active server's own value, so it carries the server the page loaded
+        expect(body).toMatchObject({ raidDefaults: { channelId: "ch1" }, serverSettingsGuildId: "g1" });
     });
 
     it("says the server was switched when the save is refused for it", async () => {
@@ -355,7 +356,7 @@ describe("the save bar", () => {
 
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de" });
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ botLanguage: "de", serverSettingsGuildId: "g1" });
     });
 
     it("defaults the bot language to German when the server sends none", async () => {
@@ -385,7 +386,7 @@ describe("the save bar", () => {
         });
         // #924: the per-server fields only go out when changed, so another server's values stay untouched
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
-        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId"]) {
+        for (const field of ["raidDefaults", "botLanguage", "officerRoleId", "applicationChannelId", "serverSettingsGuildId"]) {
             expect({ field, sent: field in body }).toEqual({ field, sent: false });
         }
     });

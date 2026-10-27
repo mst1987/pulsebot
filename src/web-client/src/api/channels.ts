@@ -188,14 +188,15 @@ export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guild
     const partial: Record<string, unknown> = purpose.key === "raidDefaults.channelId"
         ? { raidDefaults: { channelId: clean[0] || "" } }
         : { [purpose.key]: purpose.multiple ? clean : (clean[0] || "") };
-    if (SERVER_SCOPED_KEYS.includes(purpose.key)) partial.serverSettingsGuildId = guildId;
+    // checked on the body key: the raid-channel purpose ("raidDefaults.channelId") is sent as `raidDefaults`
+    if (Object.keys(partial).some((k) => SERVER_SCOPED_KEYS.includes(k))) partial.serverSettingsGuildId = guildId;
     return send<{ config: AdminConfig }>("PATCH", "/api/settings", partial).catch((err: ApiError) => {
         throw err && err.code === "server_switched" ? { ...err, message: t("settings.serverSwitched") } : err;
     });
 }
 
 /** Setting keys stored per Discord server — mirrors SERVER_SCOPED_KEYS in src/web/apiRoutes/settings.js. */
-export const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+export const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
 
 export function getChannels(): Promise<ChannelsData> {
     return get<ChannelsData>("/api/channels");

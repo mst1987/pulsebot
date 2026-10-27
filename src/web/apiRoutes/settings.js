@@ -284,7 +284,7 @@ function checkServerChannels(sent, known) {
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
-const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper", "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage"];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows); every other key then needs one.
 const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
@@ -779,10 +779,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         if (!Object.keys(partial.discordServers).length) delete partial.discordServers;
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
-    // #924: application channel, officer role, raid defaults and bot language belong to the active server.
+    // #924: application channel, officer role, raid defaults and bot language belong to the active
+    // server — the one checked by serverSettingsTarget() (no first-server fallback for these).
     const ownServer = serverDefaultsPatch(body);
     if (Object.keys(ownServer).length) {
-        const guildId = activeGuildFor(req);
+        const guildId = server ? server.guildId : "";
         if (!guildId || !settingGuildsOf(getConfig()).has(guildId)) {
             return error(res, 400, "unknown_server", "Der gewählte Server ist nicht eingetragen – erst unter Discord-Server hinzufügen.");
         }

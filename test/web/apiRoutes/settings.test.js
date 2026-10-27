@@ -1362,6 +1362,7 @@ describe("web/apiRoutes/settings", () => {
                 activeGuildFor.mockReturnValue(PUGS);
                 readJsonBody.mockResolvedValue({
                     applicationChannelId: " 1800000000000000031 ", officerRoleId: "", raidDefaults: { channelId: " 1800000000000000034 ", templateId: "x" }, botLanguage: "EN",
+                    serverSettingsGuildId: PUGS,
                 });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { [PUGS]: {
@@ -1370,13 +1371,33 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("refuses the four fields without an active server or for a server that is not entered", async () => {
-                for (const active of ["", "1800000000000000099"]) {
+                // no first-server fallback for these (unlike Raid-Helper)
+                for (const [active, code] of [["", "no_active_server"], ["1800000000000000099", "unknown_server"]]) {
                     activeGuildFor.mockReturnValue(active);
-                    readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000021" });
+                    readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000021", serverSettingsGuildId: active });
                     const res = mockRes();
                     await updateSettings({ headers: {} }, res);
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
-                    expect(json(res).error).toMatchObject({ code: "unknown_server" });
+                    expect(json(res).error).toMatchObject({ code });
+                }
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("refuses each of the four fields from a tab loaded on another server (409), saving nothing", async () => {
+                activeGuildFor.mockReturnValue(PUGS);
+                const fields = [
+                    { applicationChannelId: "1800000000000000031" }, { officerRoleId: "1800000000000000021" },
+                    { raidDefaults: { channelId: "1800000000000000034" } }, { botLanguage: "en" },
+                ];
+                for (const field of fields) {
+                    // stale tab (loaded on MAIN) and a client that sends no server at all
+                    for (const loaded of [{ serverSettingsGuildId: MAIN }, {}]) {
+                        readJsonBody.mockResolvedValue({ ...field, ...loaded, hideOtherVersions: true });
+                        const res = mockRes();
+                        await updateSettings({ headers: {} }, res);
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "server_switched" });
+                    }
                 }
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
@@ -1401,12 +1422,12 @@ describe("web/apiRoutes/settings", () => {
             it("redraws the posts when one server's language changes, not on other saves", async () => {
                 languageChange.afterServerLangChange.mockClear();
                 activeGuildFor.mockReturnValue(MAIN);
-                readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000022" });
+                readJsonBody.mockResolvedValue({ officerRoleId: "1800000000000000022", serverSettingsGuildId: MAIN });
                 settingsStore.saveConfig.mockImplementationOnce(() => ({ ...twoServers, serverSettings: { ...twoServers.serverSettings, [MAIN]: { ...twoServers.serverSettings[MAIN], officerRoleId: "1800000000000000022" } } }));
                 await updateSettings({ headers: {} }, mockRes());
                 expect(languageChange.afterServerLangChange).not.toHaveBeenCalled();
 
-                readJsonBody.mockResolvedValue({ botLanguage: "en" });
+                readJsonBody.mockResolvedValue({ botLanguage: "en", serverSettingsGuildId: MAIN });
                 const switched = { ...twoServers, serverSettings: { ...twoServers.serverSettings, [MAIN]: { ...twoServers.serverSettings[MAIN], botLanguage: "en" } } };
                 settingsStore.saveConfig.mockImplementationOnce(() => switched);
                 await updateSettings({ headers: {} }, mockRes());
