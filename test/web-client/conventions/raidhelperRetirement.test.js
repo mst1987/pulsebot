@@ -28,7 +28,7 @@ describe("the card on the page", () => {
 
     // #927: per server, in Server > Raid-Helper (full admins only), shown while Raid-Helper is on there
     it("sits in the per-server Raid-Helper section, for full admins only", () => {
-        expect(sections).toContain(`{ id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true }`);
+        expect(sections).toContain("{ id: \"raidhelper\", group: \"server\", icon: \"inv_misc_note_06\", adminOnly: true, standalone: true }");
         expect(section).toContain("{current.enabled && <RaidhelperRetirementCard key={`ret-${round}`} />}");
         expect(read("pages", "settings", "SettingsConnections.tsx")).not.toContain("<RaidhelperRetirementCard");
     });
