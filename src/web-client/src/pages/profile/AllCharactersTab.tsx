@@ -9,7 +9,7 @@ import DataTable, { type Column } from "../../components/ui/DataTable";
 import { useToast } from "../../components/shell/Jobs";
 import { classColorProps } from "../../components/character/ClassSpec";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";
-import { CheckMark, EditIcon, EyeOffIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, EditIcon, EyeOffIcon, SearchIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { characterRows, editToast, filterRows, replaceRaider, unverified, type CharacterFilter, type CharacterRow } from "../../lib/profile/allCharacters";
@@ -21,7 +21,8 @@ import { CharacterCard } from "./CharacterCard";
 // every raider profile in one sortable list. A click opens the character's
 // card as the raider sees it (specs, gear, the two switches, take it out); the
 // pencil opens "Charakter bearbeiten" — set a wrong name right, by hand or by
-// picking the logged character (src/web/apiRoutes/characters.js).
+// picking the logged character (src/web/apiRoutes/characters.js); the bin
+// takes a character out straight from the row (a mistyped second entry).
 // Without write access to the roster area the list only reads.
 
 type SortKey = "name" | "owner" | "cls" | "status" | "wish";
@@ -128,10 +129,19 @@ export default function AllCharactersTab({ data, canWrite }: { data: ProfileData
         },
         ...(canWrite ? [{
             id: "actions", actions: true,
-            cell: (r: CharacterRow) => (
-                <IconButton icon={<EditIcon />} size="sm" tip={t("profile.char.edit")} tipSub={t("profile.all.editSub", { name: r.character.name })}
-                    onClick={() => setEditing({ userId: r.userId, key: r.character.key })} />
-            ),
+            cell: (r: CharacterRow) => {
+                const owner = raiders.find((x) => x.userId === r.userId);
+                return (
+                    <span className="row-actions is-end pf-all-actions">
+                        <IconButton icon={<EditIcon />} size="sm" tip={t("profile.char.edit")} tipSub={t("profile.all.editSub", { name: r.character.name })}
+                            onClick={() => setEditing({ userId: r.userId, key: r.character.key })} />
+                        {owner && (
+                            <IconButton icon={<TrashIcon />} size="sm" tone="danger" tip={t("profile.char.remove")} tipSub={t("profile.all.removeSub")}
+                                aria-label={`${t("profile.char.remove")}: ${r.character.name}`} onClick={() => { void remove(owner, r.character); }} />
+                        )}
+                    </span>
+                );
+            },
         } as Column<CharacterRow, SortKey>] : []),
     ];
 

@@ -343,3 +343,4 @@
 .pf-all-spec .wi { border-radius: 6px; }
 .pf-all-spec.pf-gear-ready { outline-color: var(--good); }
 .pf-all-spec.pf-gear-none { opacity: .5; }
+.pf-all-actions { flex-wrap: nowrap; gap: 6px; }
