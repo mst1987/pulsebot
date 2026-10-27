@@ -61,14 +61,18 @@ function shapeKeyFor(sinceSeconds) {
 // last known-good result for this shape was served instead. Throws only when
 // there is nothing cached at all to fall back to (e.g. right after a restart
 // with Raid-Helper already down).
-async function fetchEventsCached(sinceSeconds) {
-    const key = cacheKeyFor(sinceSeconds);
-    const shape = shapeKeyFor(sinceSeconds);
+//
+// `guildId` (#927) reads that server's list only - a server without Raid-Helper
+// gets none and sends no request; without it every active server's list counts.
+async function fetchEventsCached(sinceSeconds, guildId) {
+    const server = guildId ? `${guildId}:` : "";
+    const key = server + cacheKeyFor(sinceSeconds);
+    const shape = server + shapeKeyFor(sinceSeconds);
     const now = Date.now();
     const cached = cacheBySince.get(key);
     if (cached && now - cached.at < EVENTS_CACHE_TTL_MS) return { events: cached.events, stale: false };
     try {
-        const rh = createRaidhelperClient();
+        const rh = createRaidhelperClient(guildId ? { guildId } : {});
         const events = sinceSeconds ? await rh.fetchEvents(sinceSeconds) : await rh.getAllEvents();
         const entry = { at: now, events };
         cacheBySince.set(key, entry);
@@ -111,7 +115,7 @@ async function loadEventGroups(guildId, { sinceSeconds } = {}) {
     let error = null;
     let stale = false;
     try {
-        const result = await fetchEventsCached(sinceSeconds);
+        const result = await fetchEventsCached(sinceSeconds, guildId);
         liveEvents = result.events;
         stale = result.stale;
     } catch (e) {

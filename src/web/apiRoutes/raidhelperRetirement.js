@@ -1,6 +1,6 @@
-// Einstellungen → Verbindungen → Raid-Helper (#291): the switch-over checklist,
+// Einstellungen → Server → Raid-Helper (#291, per server since #927): the switch-over checklist,
 // the spec-history import and the switch that stops asking Raid-Helper. Full
-// admins only — switching a foreign system off is a decision about the whole bot.
+// admins only — switching a foreign system off is a decision about a whole server.
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
@@ -9,20 +9,24 @@ const historyImport = require("../events/raidhelperHistoryImport");
 const guildRoles = require("../../services/discord/guildRoles");
 const raidhelperSync = require("../../services/events/raidhelperSync");
 const { getConfig } = require("../../stores/settingsStore");
+const { firstServerId } = require("../../services/discord/serverOf");
+
+/** The server the page is about (#927: Raid-Helper is set per server): the active one, else the first. */
+const serverOf = (req) => activeGuildFor(req) || firstServerId(getConfig());
 
 /** GET /api/settings/raidhelper-sync — last sync of the event list and the day's request budget (#608). */
-const getSync = withUser({ full: true }, async ({ res }) => {
-    ok(res, raidhelperSync.syncStatus());
+const getSync = withUser({ full: true }, async ({ req, res }) => {
+    ok(res, raidhelperSync.syncStatus(serverOf(req)));
 });
 
 /** POST /api/settings/raidhelper-sync — "Jetzt aktualisieren"; at most every 30 s (`throttled`). */
-const postSync = withUser({ full: true, csrf: true }, async ({ res }) => {
-    ok(res, await raidhelperSync.refreshNow());
+const postSync = withUser({ full: true, csrf: true }, async ({ req, res }) => {
+    ok(res, await raidhelperSync.refreshNow(serverOf(req)));
 });
 
 /** GET /api/settings/raidhelper-retirement — the checklist, computed now. */
-const getRetirement = withUser({ full: true }, async ({ res }) => {
-    ok(res, { checklist: await retirement.loadChecklist() });
+const getRetirement = withUser({ full: true }, async ({ req, res }) => {
+    ok(res, { checklist: await retirement.loadChecklist({ guildId: serverOf(req) }) });
 });
 
 /**
@@ -30,8 +34,8 @@ const getRetirement = withUser({ full: true }, async ({ res }) => {
  * Switching off is refused (409 `not_ready`) while a required item is open;
  * switching back on always works.
  */
-const postRetirement = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
-    const result = await retirement.setRaidhelperDisabled(body.disabled === true, { byName: user.name || user.id || "" });
+const postRetirement = withUser({ full: true, csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const result = await retirement.setRaidhelperDisabled(body.disabled === true, { guildId: serverOf(req), byName: user.name || user.id || "" });
     if (result.error) return error(res, 409, result.code, result.error);
     ok(res, result);
 });

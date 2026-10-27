@@ -115,16 +115,37 @@ describe("services/events/eventSources", () => {
         expect(sources.sourceOfEventId("111")).toBe("raidhelper");
     });
 
+    // one server with Raid-Helper switched on (#927)
+    const RH_A = "111111111111111111";
+    const RH_B = "222222222222222222";
+    const withRaidhelper = (extra = {}) => ({
+        discordServers: { servers: [{ guildId: RH_A }, { guildId: RH_B }] },
+        serverSettings: { [RH_A]: { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } } },
+        ...extra,
+    });
+
     it("reads the source per category, else the configured default (#291)", () => {
-        getConfig.mockReturnValue({ categorySignupSource: { cat1: "eventhelper", cat2: "bogus", cat4: "raidhelper" }, signupSourceDefault: "eventhelper" });
+        getConfig.mockReturnValue(withRaidhelper({ categorySignupSource: { cat1: "eventhelper", cat2: "bogus", cat4: "raidhelper" }, signupSourceDefault: "eventhelper" }));
         expect(sources.signupSourceFor("cat1")).toBe("eventhelper");
         expect(sources.signupSourceFor("cat2")).toBe("eventhelper");
         expect(sources.signupSourceFor("cat3")).toBe("eventhelper");
         expect(sources.signupSourceFor("cat4")).toBe("raidhelper");
         // an older config without a default keeps Raid-Helper
-        getConfig.mockReturnValue({ categorySignupSource: {} });
+        getConfig.mockReturnValue(withRaidhelper({ categorySignupSource: {} }));
         expect(sources.signupSourceFor("cat3")).toBe("raidhelper");
-        expect(sources.defaultSignupSource({ signupSourceDefault: "eventhelper" })).toBe("eventhelper");
+        expect(sources.defaultSignupSource(withRaidhelper({ signupSourceDefault: "eventhelper" }))).toBe("eventhelper");
+    });
+
+    it("offers only EventHelper on a server without Raid-Helper (#927)", () => {
+        const config = withRaidhelper({ categorySignupSource: { cat4: "raidhelper" }, signupSourceDefault: "raidhelper" });
+        expect(sources.signupSourceFor("cat4", config, { guildId: RH_A })).toBe("raidhelper");
+        expect(sources.signupSourceFor("cat4", config, { guildId: RH_B })).toBe("eventhelper");
+        expect(sources.defaultSignupSource(config, { guildId: RH_B })).toBe("eventhelper");
+        expect(sources.defaultSignupSource(config, { guildId: RH_A })).toBe("raidhelper");
+        // no server with Raid-Helper at all: EventHelper whatever is stored
+        const none = { categorySignupSource: { cat4: "raidhelper" }, signupSourceDefault: "raidhelper" };
+        expect(sources.signupSourceFor("cat4", none)).toBe("eventhelper");
+        expect(sources.defaultSignupSource(none)).toBe("eventhelper");
     });
 
     describe("ownSignedUpEvents (#563)", () => {

@@ -1,11 +1,17 @@
-// The one job that asks Raid-Helper for the event list (#608).
+// The one job that asks Raid-Helper for the event list (#608), per Discord server (#927).
+const A = "111111111111111111";
+const B = "222222222222222222";
+const C = "333333333333333333";
+const RH_ON = { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } };
+// A and B have Raid-Helper switched on, C has not
+const mockConfig = jest.fn();
+jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig() }));
 const mockFetchEvents = jest.fn();
-const mockDisabled = jest.fn(() => false);
 const mockSetAfterWrite = jest.fn();
-const mockCreateClient = jest.fn(() => ({ fetchEvents: mockFetchEvents }));
+const mockCreateClient = jest.fn(({ guildId }) => ({ fetchEvents: (since) => mockFetchEvents(since, guildId) }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({
+    ...jest.requireActual("../../../src/utils/raidhelper/client"),
     createRaidhelperClient: (...a) => mockCreateClient(...a),
-    raidhelperDisabled: () => mockDisabled(),
     setAfterWrite: (...a) => mockSetAfterWrite(...a),
 }));
 const mockScanAllGuilds = jest.fn(async () => 0);
@@ -25,7 +31,10 @@ beforeEach(() => {
     budgetStore.useFile(tempStoreFile("raidhelper-budget.json"));
     nowSpy = jest.spyOn(Date, "now").mockReturnValue(NOW);
     mockFetchEvents.mockReset().mockResolvedValue([{ id: "e1", startTime: 1 }]);
-    mockDisabled.mockReset().mockReturnValue(false);
+    mockConfig.mockReset().mockReturnValue({
+        discordServers: { servers: [{ guildId: A }, { guildId: B }, { guildId: C }] },
+        serverSettings: { [A]: RH_ON },
+    });
     mockScanAllGuilds.mockReset().mockResolvedValue(0);
     mockCreateClient.mockClear();
     mockSetAfterWrite.mockClear();
@@ -42,11 +51,13 @@ afterAll(() => {
 describe("services/events/raidhelperSync", () => {
     describe("syncRaidhelperEvents", () => {
         it("fetches the list once, live, from the lookback window on, and stores it", async () => {
-            expect(await sync.syncRaidhelperEvents()).toEqual({ ok: true });
-            expect(mockCreateClient).toHaveBeenCalledWith({ live: true });
+            expect(await sync.syncRaidhelperEvents()).toEqual({ ok: true, servers: { [A]: { ok: true } } });
+            expect(mockCreateClient).toHaveBeenCalledWith({ live: true, guildId: A });
             expect(mockFetchEvents).toHaveBeenCalledTimes(1);
-            expect(mockFetchEvents).toHaveBeenCalledWith(Math.floor(NOW / 1000) - 60 * 86400);
-            expect(eventsStore.readSnapshot()).toMatchObject({ syncedAt: NOW, events: [{ id: "e1", startTime: 1 }], error: "" });
+            expect(mockFetchEvents).toHaveBeenCalledWith(Math.floor(NOW / 1000) - 60 * 86400, A);
+            expect(eventsStore.readSnapshot(A)).toMatchObject({ syncedAt: NOW, events: [{ id: "e1", startTime: 1 }], error: "" });
+            // a server without Raid-Helper is never asked and keeps no list
+            expect(eventsStore.readSnapshot(C).syncedAt).toBe(0);
         });
 
         it("snapshots the past raids afterwards, raidplans included", async () => {
@@ -63,8 +74,8 @@ describe("services/events/raidhelperSync", () => {
             await sync.syncRaidhelperEvents();
             mockFetchEvents.mockRejectedValue(new Error("Raid-Helper: Rate limit encountered"));
             nowSpy.mockReturnValue(NOW + 1000);
-            expect(await sync.syncRaidhelperEvents()).toEqual({ ok: false, error: "Raid-Helper: Rate limit encountered" });
-            expect(eventsStore.readSnapshot()).toMatchObject({
+            expect(await sync.syncRaidhelperEvents()).toMatchObject({ ok: false, error: "Raid-Helper: Rate limit encountered" });
+            expect(eventsStore.readSnapshot(A)).toMatchObject({
                 syncedAt: NOW, events: [{ id: "e1", startTime: 1 }], error: "Raid-Helper: Rate limit encountered", errorAt: NOW + 1000,
             });
             expect(mockScanAllGuilds).toHaveBeenCalledTimes(1);
@@ -72,27 +83,57 @@ describe("services/events/raidhelperSync", () => {
 
         it("still counts the sync as done when the snapshot scan fails", async () => {
             mockScanAllGuilds.mockRejectedValue(new Error("discord down"));
-            expect(await sync.syncRaidhelperEvents()).toEqual({ ok: true });
+            expect(await sync.syncRaidhelperEvents()).toMatchObject({ ok: true });
         });
 
-        it("asks nothing while Raid-Helper is switched off", async () => {
-            mockDisabled.mockReturnValue(true);
+        it("asks nothing while no server has Raid-Helper switched on", async () => {
+            mockConfig.mockReturnValue({ discordServers: { servers: [{ guildId: A }] }, serverSettings: { [A]: { raidhelper: { enabled: false, apiKey: "fake-key-for-tests" } } } });
             expect(await sync.syncRaidhelperEvents()).toEqual({ ok: false, disabled: true });
             expect(mockFetchEvents).not.toHaveBeenCalled();
+        });
+
+        // #927: each server with its own key into its own list; a 429 on A leaves B alone
+        it("syncs every active server into its own list, and a 429 on one does not stop the other", async () => {
+            mockConfig.mockReturnValue({
+                discordServers: { servers: [{ guildId: A }, { guildId: B }, { guildId: C }] },
+                serverSettings: { [A]: RH_ON, [B]: { raidhelper: { enabled: true, apiKey: "other-fake-key" } } },
+            });
+            mockFetchEvents.mockImplementation(async (since, guildId) => {
+                if (guildId === A) throw new Error("Raid-Helper: Rate limit encountered");
+                return [{ id: `ev-${guildId}`, startTime: 1 }];
+            });
+            const result = await sync.syncRaidhelperEvents();
+            expect(result).toMatchObject({ ok: true, servers: { [A]: { ok: false }, [B]: { ok: true } } });
+            expect(mockCreateClient.mock.calls.map(([o]) => o.guildId)).toEqual([A, B]);
+            expect(eventsStore.readSnapshot(A)).toMatchObject({ events: [], error: "Raid-Helper: Rate limit encountered" });
+            expect(eventsStore.readSnapshot(B)).toMatchObject({ events: [{ id: `ev-${B}` }], error: "" });
+            expect(mockScanAllGuilds).toHaveBeenCalledTimes(1);
         });
     });
 
     describe("refreshNow / syncStatus", () => {
         it("syncs on a click and reports the result with the budget", async () => {
-            const result = await sync.refreshNow();
-            expect(result).toMatchObject({ syncedAt: NOW, events: 1, error: "", throttled: false, ok: true, intervalMs: sync.SYNC_INTERVAL_MS });
+            const result = await sync.refreshNow(A);
+            expect(result).toMatchObject({ syncedAt: NOW, events: 1, error: "", throttled: false, ok: true, disabled: false, intervalMs: sync.SYNC_INTERVAL_MS });
             expect(result.budget).toMatchObject({ limit: 1000 });
+            expect(mockCreateClient).toHaveBeenCalledWith({ live: true, guildId: A });
+        });
+
+        it("asks nothing on a click for a server without Raid-Helper", async () => {
+            expect(await sync.refreshNow(C)).toMatchObject({ disabled: true, ok: false, events: 0 });
+            expect(mockFetchEvents).not.toHaveBeenCalled();
+        });
+
+        it("reports each server's own budget", () => {
+            budgetStore.writeBudget(A, { hours: {}, blockedUntil: NOW + 3600000, blockedReason: "limit" });
+            expect(sync.syncStatus(A).budget.blockedUntil).toBe(NOW + 3600000);
+            expect(sync.syncStatus(B).budget.blockedUntil).toBe(0);
         });
 
         it("sends nothing when the last attempt is younger than 30 seconds", async () => {
-            await sync.refreshNow();
+            await sync.refreshNow(A);
             nowSpy.mockReturnValue(NOW + sync.MANUAL_MIN_GAP_MS - 1);
-            expect(await sync.refreshNow()).toMatchObject({ throttled: true });
+            expect(await sync.refreshNow(A)).toMatchObject({ throttled: true });
             expect(mockFetchEvents).toHaveBeenCalledTimes(1);
         });
     });

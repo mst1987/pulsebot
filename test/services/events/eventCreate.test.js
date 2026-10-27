@@ -2,8 +2,20 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const mockCreateEvent = jest.fn();
 const mockGetEvent = jest.fn();
 jest.mock("../../../src/utils/raidhelper/client", () => ({
+    ...jest.requireActual("../../../src/utils/raidhelper/client"),
     createRaidhelperClient: () => ({ createEvent: mockCreateEvent, getEvent: mockGetEvent }),
 }));
+// #927: Raid-Helper is switched on per Discord server - g1 has it unless a test turns it off
+let mockRaidhelperGuilds = ["g1"];
+jest.mock("../../../src/utils/raidhelper/servers", () => {
+    const actual = jest.requireActual("../../../src/utils/raidhelper/servers");
+    return {
+        ...actual,
+        raidhelperOf: (guildId) => ({ guildId, active: mockRaidhelperGuilds.includes(guildId) }),
+        raidhelperActive: (guildId) => mockRaidhelperGuilds.includes(guildId),
+        activeRaidhelperGuilds: () => mockRaidhelperGuilds.slice(),
+    };
+});
 jest.mock("../../../src/services/discord/discord", () => ({
     getChannelCategoryMap: jest.fn(() => ({})),
     duplicateChannel: jest.fn(),
@@ -59,6 +71,7 @@ describe("services/events/eventCreate", () => {
     beforeEach(() => {
         jest.clearAllMocks();
         fs.__store.clear();
+        mockRaidhelperGuilds = ["g1"];
         discord.getChannelCategoryMap.mockReturnValue({
             c1: { name: "kara-do", categoryId: "cat-rh", categoryName: "Raid-Helper-Raids" },
             c2: { name: "kara-fr", categoryId: "cat-eh", categoryName: "EventHelper-Raids" },
@@ -82,6 +95,14 @@ describe("services/events/eventCreate", () => {
         expect(scheduleOverviewSync).toHaveBeenCalledWith({ delayMs: 35000 });
         expect(eventStore.listEvents("g1")).toEqual([]);
         expect(postEventMessage).not.toHaveBeenCalled();
+    });
+
+    it("creates the event in the own store on a server without Raid-Helper, whatever the category says (#927)", async () => {
+        mockRaidhelperGuilds = [];
+        const result = await createEvent({ guildId: "g1", user, body: body({ signupSource: "raidhelper" }) });
+        expect(mockCreateEvent).not.toHaveBeenCalled();
+        expect(result.status).toBe(201);
+        expect(result.body).toMatchObject({ source: "eventhelper" });
     });
 
     it("creates the event in the own store in an EventHelper category and posts the message", async () => {

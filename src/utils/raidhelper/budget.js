@@ -21,8 +21,10 @@ const { isLiveInstance } = require("../../config/runMode");
 //     sign up) last. A refused request throws an Error with code
 //     "raidhelper_budget" and a German message; every reader already falls back
 //     to its cache or the stored snapshots, exactly as during an outage.
+//   - Everything is counted per Discord server (#927, forServer): each server
+//     asks with its own key, so a 429 on one server never pauses another.
 //   - A 429 that still comes back (another instance on the same key) pauses
-//     every request until the time Raid-Helper names, plus an hour.
+//     every request of that server until the time Raid-Helper names, plus an hour.
 //   - On a test instance (config/runMode.js; it shares the key with the live
 //     bot) all priorities share the small `dev` budget and background jobs ask
 //     nothing at all unless RAIDHELPER_BACKGROUND=1.
@@ -104,8 +106,8 @@ function refusal(message) {
  * Throws (code "raidhelper_budget") when a request of this priority may not go
  * out now; returns nothing otherwise.
  */
-function check(priority, { now = Date.now(), env = process.env } = {}) {
-    const state = readBudget();
+function check(priority, { now = Date.now(), env = process.env, guildId = "" } = {}) {
+    const state = readBudget(guildId);
     if (state.blockedUntil > now) {
         const why = state.blockedReason ? ` (${state.blockedReason})` : "";
         throw refusal(`Raid-Helper hat sein Tageslimit gemeldet${why} – keine Abfragen bis ca. ${clock(state.blockedUntil)} Uhr.`);
@@ -122,12 +124,12 @@ function check(priority, { now = Date.now(), env = process.env } = {}) {
 }
 
 /** Count one request that is about to leave. */
-function record({ now = Date.now() } = {}) {
-    const state = readBudget();
+function record({ now = Date.now(), guildId = "" } = {}) {
+    const state = readBudget(guildId);
     const hours = liveHours(state.hours, now);
     const hour = String(hourOf(now));
     hours[hour] = (hours[hour] || 0) + 1;
-    writeBudget({ ...state, hours });
+    writeBudget(guildId, { ...state, hours });
 }
 
 /**
@@ -135,7 +137,7 @@ function record({ now = Date.now() } = {}) {
  * N hour(s)") plus an hour, since it rounds down — "0 hour(s)" means "within
  * the hour", not "now".
  */
-function noteRateLimited(body, { now = Date.now() } = {}) {
+function noteRateLimited(body, { now = Date.now(), guildId = "" } = {}) {
     let reason;
     try {
         const parsed = typeof body === "string" ? JSON.parse(body) : body;
@@ -145,8 +147,8 @@ function noteRateLimited(body, { now = Date.now() } = {}) {
     }
     const match = /in\s+(\d+)\s*hour/i.exec(reason);
     const hours = match ? Number(match[1]) : 0;
-    const state = readBudget();
-    writeBudget({
+    const state = readBudget(guildId);
+    writeBudget(guildId, {
         ...state,
         hours: liveHours(state.hours, now),
         blockedUntil: Math.max(state.blockedUntil, now + (hours + 1) * HOUR_MS),
@@ -155,8 +157,8 @@ function noteRateLimited(body, { now = Date.now() } = {}) {
 }
 
 /** What the budget looks like right now (for /health and the settings page). */
-function status({ now = Date.now(), env = process.env } = {}) {
-    const state = readBudget();
+function status({ now = Date.now(), env = process.env, guildId = "" } = {}) {
+    const state = readBudget(guildId);
     const used = sum(liveHours(state.hours, now));
     return {
         used,
@@ -166,10 +168,28 @@ function status({ now = Date.now(), env = process.env } = {}) {
     };
 }
 
+/**
+ * The budget of one Discord server (#927): every server asks Raid-Helper with
+ * its own key, so it counts its own 1000 a day and a 429 pauses only it.
+ * classes/raidhelper.js takes this as its `budget`.
+ */
+function forServer(guildId) {
+    const id = String(guildId || "");
+    return {
+        guildId: id,
+        priorityFor,
+        isBudgetError: (error) => isBudgetError(error),
+        check: (priority, opts = {}) => check(priority, { ...opts, guildId: id }),
+        record: (opts = {}) => record({ ...opts, guildId: id }),
+        noteRateLimited: (body, opts = {}) => noteRateLimited(body, { ...opts, guildId: id }),
+        status: (opts = {}) => status({ ...opts, guildId: id }),
+    };
+}
+
 /** Whether `error` is one of this module's refusals. */
 const isBudgetError = (error) => !!(error && error.code === CODE);
 
 module.exports = {
-    runInBackground, isBackground, priorityFor, capFor, check, record, noteRateLimited, status, isBudgetError,
+    runInBackground, isBackground, priorityFor, capFor, check, record, noteRateLimited, status, isBudgetError, forServer,
     BUDGET_CODE: CODE,
 };
