@@ -83,7 +83,7 @@ const getDashboard = withUser({}, async ({ user, req, res, url }) => {
     const globalWrite = isGlobalRaidOrga(user);
     const actionRaids = (rows, idOf = (r) => r.id) => (globalWrite ? rows : onlyOrgaRaids(user, rows, idOf, req));
     const claWrite = userCanAny(user, ["cla"], "write");
-    const report = globalOrga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ versionId }) : null;
+    const report = globalOrga || userCanAny(user, ["cla"], "read") ? loadLatestReport({ guildId, versionId }) : null;
     const lastRaid = recentEvents.events[0];
     // Role-sync drift is a full admin's task: only they can open the section it
     // links to. Nothing configured means no member fetch at all.

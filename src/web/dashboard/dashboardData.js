@@ -18,6 +18,7 @@ const discord = require("../../services/discord/discord");
 const { getConfig, resolveEventSheetLink } = require("../../stores/settingsStore");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { listReports, getReport } = require("../../stores/reportStore");
+const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
 const { listPending } = require("../../stores/lootInboxStore");
 const { serverContext, sessionInGuild } = require("../../services/loot/lootServer");
 const { getChannelConfig, listArchived, archiveHint } = require("../../stores/channelArchiveStore");
@@ -222,11 +223,14 @@ async function loadNextRaidDetails(guildId, eventId) {
 /**
  * The newest evaluation as the "Letzte Auswertung" tile and the "Gear-Probleme"
  * task need it. Reads one report file; null when there is none or it cannot be read.
- * @param {{ versionId?: string }} [opts] the newest report of that game version (#741, "" = of any)
+ * @param {{ guildId?: string, versionId?: string }} [opts] the newest report of the active server (#920:
+ *   a report follows its log, else the server it was made on; no server - none) and of that game version
+ *   (#741, "" = of any)
  */
-function loadLatestReport({ versionId = "" } = {}) {
+function loadLatestReport({ guildId = "", versionId = "" } = {}) {
     try {
-        const summary = listReports().find((r) => !versionId || recordVersion(r) === versionId);
+        const summary = reportsOfGuild(listReports(), guildId, listLogs())
+            .find((r) => !versionId || recordVersion(r) === versionId);
         if (!summary) return null;
         return lastReportArea(summary, getReport(summary.id));
     } catch (e) {
@@ -314,7 +318,7 @@ async function loadRecentEvents(guildId, limit = 5, { versionId = "", categoryId
     const stored = listStoredEvents(guildId);
     // Only logs from this guild can belong to one of its raids.
     const logs = listLogs()
-        .filter((l) => !l.guildId || l.guildId === guildId)
+        .filter((l) => l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     // Filtered before buildRecentEvents cuts to `limit` (#545), so "the last 5
     // Forever raids" really is the last five, not five of a shorter list.
@@ -349,7 +353,7 @@ async function loadRecentEvents(guildId, limit = 5, { versionId = "", categoryId
 // raidEventStore — they come straight from the live Raid-Helper event list.
 function annotateUpcomingExtras(events, guildId) {
     const logs = listLogs()
-        .filter((l) => !l.guildId || l.guildId === guildId)
+        .filter((l) => l.guildId === guildId)
         .map((l) => ({ ...l, postedAt: logPostedAt(l) }));
     return (events || []).map((ev) => ({
         ...ev,

@@ -126,7 +126,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         await command.execute(submit("logcheck-force:id:RPT123:all", "JA"));
 
         // no host on the button and no tracked log: the id alone (buildReport takes TBC, #746)
-        expect(buildReport).toHaveBeenCalledWith("RPT123", { force: true });
+        expect(buildReport).toHaveBeenCalledWith("RPT123", { force: true, guildId: "" });
         expect(evaluateLog).not.toHaveBeenCalled();
     });
 
@@ -154,7 +154,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
 
         await command.execute(submit("logcheck-force:id:RPT123:all:fresh.warcraftlogs.com", "JA"));
 
-        expect(buildReport).toHaveBeenCalledWith("https://fresh.warcraftlogs.com/reports/RPT123", { force: true });
+        expect(buildReport).toHaveBeenCalledWith("https://fresh.warcraftlogs.com/reports/RPT123", { force: true, guildId: "" });
     });
 
     it("takes the stored link of a log tracked under the id when the button has no host", async () => {
@@ -164,7 +164,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         await command.execute(submit("logcheck-force:id:RPT123:all", "JA"));
 
         expect(logStore.getByReportId).toHaveBeenCalledWith("RPT123");
-        expect(buildReport).toHaveBeenCalledWith("https://vanilla.warcraftlogs.com/reports/RPT123", { force: true });
+        expect(buildReport).toHaveBeenCalledWith("https://vanilla.warcraftlogs.com/reports/RPT123", { force: true, guildId: "" });
     });
 
     it("passes a failed evaluation on instead of claiming success", async () => {
