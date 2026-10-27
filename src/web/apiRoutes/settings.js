@@ -220,25 +220,32 @@ const guildBankOf = (config) => String(((config && config.discordServers) || {})
 // Body keys stored per Discord server (config.serverSettings[guildId]). Each
 // part of the "data per server" epic (#926) that moves a setting there adds
 // its key here, so its PATCH is checked by serverSettingsTarget() below.
-const SERVER_SCOPED_KEYS = ["logChannels"];
+const SERVER_SCOPED_KEYS = ["logChannels", "raidhelper"];
+// Server-bound keys that, without an active server, edit the first server
+// (#927 Raid-Helper, as its section shows); every other key then needs one.
+const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
  * stale tab. The active server is per session, not per tab: a tab loaded on
  * server A whose session has since switched to B (another tab) would
  * otherwise write A's values into B. So the client sends the server it loaded
- * (`serverSettingsGuildId`, GET's `activeGuildId`) with every server-bound key,
- * and a mismatch is refused with 409 instead of overwriting.
+ * (`serverSettingsGuildId`, GET's `activeGuildId`, "" when none was active)
+ * with every server-bound key, and a mismatch is refused with 409 instead of
+ * overwriting.
  * @returns {{ guildId: string } | { status: number, code: string, message: string } | null}
  *   null when the body holds no server-bound key
  */
-function serverSettingsTarget(req, body) {
-    if (!SERVER_SCOPED_KEYS.some((k) => body[k] !== undefined)) return null;
-    const guildId = activeGuildFor(req);
-    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
-    if (String(body.serverSettingsGuildId || "") !== guildId) {
+function serverSettingsTarget(req, body, config) {
+    const keys = SERVER_SCOPED_KEYS.filter((k) => body[k] !== undefined);
+    if (!keys.length) return null;
+    const active = String(activeGuildFor(req) || "");
+    if (String(body.serverSettingsGuildId || "") !== active) {
         return { status: 409, code: "server_switched", message: "Der Discord-Server wurde gewechselt – bitte die Seite neu laden." };
     }
+    const fallback = keys.every((k) => FIRST_SERVER_FALLBACK_KEYS.includes(k)) ? String(firstServerId(config) || "") : "";
+    const guildId = active || fallback;
+    if (!guildId) return { status: 400, code: "no_active_server", message: "Kein aktiver Discord-Server." };
     return { guildId };
 }
 
@@ -664,7 +671,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
-    const server = serverSettingsTarget(req, body);
+    const server = serverSettingsTarget(req, body, getConfig());
     if (server && !server.guildId) return error(res, server.status, server.code, server.message);
     const partial = {};
     if (body.adminRoleIds !== undefined) partial.adminRoleIds = asStringArray(body.adminRoleIds);
@@ -699,7 +706,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #927: the active server's Raid-Helper block, merged here (the store replaces a server's key whole)
     let raidhelperGuild = "";
     if (body.raidhelper !== undefined) {
-        raidhelperGuild = raidhelperGuildOf(req, getConfig());
+        // the server checked by serverSettingsTarget() (active, else the first one)
+        raidhelperGuild = server.guildId;
         const patch = raidhelperPatch(body.raidhelper, raidhelperGuild, getConfig());
         if (patch.error) return error(res, 400, "invalid_raidhelper", patch.error);
         const servers = { ...(partial.serverSettings || {}) };

@@ -1525,7 +1525,7 @@ describe("web/apiRoutes/settings", () => {
 
             it("sets a key, switches on and answers masked", async () => {
                 settingsStore.getConfig.mockReturnValue(stored(null));
-                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true, apiKey: ` ${KEY} ` } });
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true, apiKey: ` ${KEY} ` }, serverSettingsGuildId: "200" });
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { 200: { raidhelper: expect.objectContaining({ enabled: true, apiKey: KEY, envKey: false }) } } });
@@ -1535,18 +1535,18 @@ describe("web/apiRoutes/settings", () => {
 
             it("keeps the key when none is sent and clears it on an empty one", async () => {
                 settingsStore.getConfig.mockReturnValue(stored({ enabled: true, apiKey: KEY, envKey: false }));
-                readJsonBody.mockResolvedValue({ raidhelper: { enabled: false } });
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: false }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ enabled: false, apiKey: KEY });
 
-                readJsonBody.mockResolvedValue({ raidhelper: { apiKey: "" } });
+                readJsonBody.mockResolvedValue({ raidhelper: { apiKey: "" }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[1][0].serverSettings[200].raidhelper).toMatchObject({ apiKey: "" });
             });
 
             it("keeps the .env key mark until a key is entered", async () => {
                 settingsStore.getConfig.mockReturnValue(stored({ enabled: true, envKey: true }));
-                readJsonBody.mockResolvedValue({ raidhelper: { serverId: "123456789012345678" } });
+                readJsonBody.mockResolvedValue({ raidhelper: { serverId: "123456789012345678" }, serverSettingsGuildId: "200" });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ envKey: true, serverId: "123456789012345678", apiKey: "" });
             });
@@ -1554,7 +1554,7 @@ describe("web/apiRoutes/settings", () => {
             it("refuses a bad server id or key and saves nothing", async () => {
                 settingsStore.getConfig.mockReturnValue(stored(null));
                 for (const raidhelper of [{ serverId: "abc" }, { apiKey: "two words" }, { apiKey: "x".repeat(201) }]) {
-                    readJsonBody.mockResolvedValue({ raidhelper });
+                    readJsonBody.mockResolvedValue({ raidhelper, serverSettingsGuildId: "200" });
                     const res = mockRes();
                     await updateSettings({ headers: {} }, res);
                     expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
@@ -1570,6 +1570,57 @@ describe("web/apiRoutes/settings", () => {
                 const res = mockRes();
                 await updateSettings({ headers: {} }, res);
                 expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            });
+
+            // #921: the active server is per session, not per tab — a tab loaded
+            // on 200 whose session switched to 300 must not write 300's block
+            it("refuses a PATCH for another server than the active one (409) and leaves its block alone", async () => {
+                const before = { enabled: true, serverId: "", apiKey: KEY, envKey: false };
+                settingsStore.getConfig.mockReturnValue({
+                    discordServers: { servers: [{ guildId: "200" }, { guildId: "300" }] },
+                    serverSettings: { 300: { raidhelper: before } },
+                });
+                activeGuildFor.mockReturnValue("300");
+                for (const sent of [{ serverSettingsGuildId: "200" }, {}]) {
+                    readJsonBody.mockResolvedValue({ raidhelper: { enabled: false }, ...sent });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(body(res).error.code).toBe("server_switched");
+                    expect(leaks(body(res))).toBe(false);
+                }
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                expect(settingsStore.getConfig().serverSettings[300].raidhelper).toEqual(before);
+            });
+
+            it("saves for the server the page loaded when it is still the active one", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("300");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, serverSettingsGuildId: "300" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { 300: { raidhelper: expect.objectContaining({ enabled: true }) } } });
+            });
+
+            it("without an active server edits the first server, as the page shows it (#927)", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, serverSettingsGuildId: "" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(settingsStore.saveConfig.mock.calls[0][0].serverSettings[200].raidhelper).toMatchObject({ enabled: true });
+            });
+
+            it("still needs an active server when log channels go along (no first-server fallback)", async () => {
+                settingsStore.getConfig.mockReturnValue(stored(null));
+                activeGuildFor.mockReturnValue("");
+                readJsonBody.mockResolvedValue({ raidhelper: { enabled: true }, logChannels: [], serverSettingsGuildId: "" });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
         });
 
