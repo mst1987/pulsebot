@@ -6,7 +6,7 @@
 // and paged). Both therefore show identical rows — the tab is the card's full
 // version, not a second implementation of it.
 const { listAll: listAllLoot, charLootPreview } = require("../../stores/lootStore");
-const { lootOfGuild } = require("../../services/loot/lootServer");
+const { serverContext, lootOfGuild, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { characterMap } = require("../../stores/characterStore");
 const { getConfig } = require("../../stores/settingsStore");
 const { classLook } = require("./lootClassLook");
@@ -32,13 +32,15 @@ function topItemIds() {
  * their class/spec look (see lootClassLook.js — the same join the loot tables
  * use, so a raider looks identical wherever their name shows up).
  */
-function awardRow(it, known) {
+function awardRow(it, known, serverCtx) {
     return {
         ...charLootPreview(it),
         character: it.character,
         realm: it.realm || "",
         boss: it.boss || "",
         ...classLook(known, it.characterKey),
+        // The Discord server of the raid (#919): the client's second filter.
+        guildId: guildOfLootEvent(serverCtx, it.eventId, it.categoryId, it.guildId),
     };
 }
 
@@ -96,14 +98,15 @@ function sortAwards(rows, sort, dir) {
  *              — derived from the item's event like the roster does (#543):
  *              the raid's stored version (#737), else TBC.
  *   guildId    the active Discord server (#919): only the loot of its raids
- *              ("" = every server).
+ *              (undefined = every server, "" = none).
  */
 function listAwards({
-    topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "", guildId = "",
+    topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "", guildId,
     page = 1, pageSize = PAGE_SIZE, sort = "date", dir = "desc",
 } = {}) {
     const ids = topItemIds();
-    const all = lootOfGuild(listAllLoot(), guildId);
+    const serverCtx = serverContext();
+    const all = lootOfGuild(listAllLoot(), guildId, serverCtx);
     const scoped = topOnly ? all.filter((it) => ids.has(Number(it.itemId))) : all;
 
     // Built only when actually filtering — every other call pays nothing for this.
@@ -129,7 +132,7 @@ function listAwards({
     const usedContents = new Set(scoped.map((it) => it.contentId).filter(Boolean));
     const usedReasons = new Set(scoped.map((it) => it.reason).filter(Boolean));
     return {
-        items: rows.map((it) => awardRow(it, known)),
+        items: rows.map((it) => awardRow(it, known, serverCtx)),
         page: current,
         pageSize: size,
         total,

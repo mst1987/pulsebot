@@ -106,6 +106,14 @@ describe("the one tab row", () => {
         await user.click(screen.getByRole("radio", { name: /Kommende/ }));
         expect(await screen.findByText("Raid-Tabelle")).toBeInTheDocument();
     });
+
+    // #919: the second filter - a loot bucket of another Discord server is never counted or shown.
+    it("counts only the loot per raid of the active server", async () => {
+        const bucket = (eventId: string, guildId?: string) => ({ eventId, label: eventId, categoryId: "", count: 1, sources: [], guildId });
+        vi.mocked(api.getHistoryData).mockResolvedValue({ ...history(), lootEvents: [bucket("a", "g1"), bucket("b", "g2"), bucket("old")] });
+        renderPage(<HistoryPage />, { route: "/history?tab=raids", path: "/history" });
+        expect(await screen.findByRole("radio", { name: /Loot nach Raid \(2\)/ })).toBeInTheDocument();
+    });
 });
 
 describe("old ?tab= links", () => {

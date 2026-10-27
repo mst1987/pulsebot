@@ -144,7 +144,7 @@ function eventsWithLoot() {
     const byEvent = new Map();
     for (const it of readAll()) {
         if (!byEvent.has(it.eventId)) {
-            byEvent.set(it.eventId, { eventId: it.eventId, label: "", categoryId: "", count: 0, importedAt: 0, awardedAt: 0, sources: new Set() });
+            byEvent.set(it.eventId, { eventId: it.eventId, label: "", categoryId: "", guildId: "", count: 0, importedAt: 0, awardedAt: 0, sources: new Set() });
         }
         const e = byEvent.get(it.eventId);
         e.count += 1;
@@ -152,6 +152,8 @@ function eventsWithLoot() {
         e.awardedAt = Math.max(e.awardedAt, it.awardedAt || 0);
         if (it.eventLabel && !e.label) e.label = it.eventLabel;
         if (it.categoryId && !e.categoryId) e.categoryId = it.categoryId;
+        // the server a raidless bucket was imported on (#919)
+        if (it.guildId && !e.guildId) e.guildId = it.guildId;
         if (it.source) e.sources.add(it.source);
     }
     return [...byEvent.values()]

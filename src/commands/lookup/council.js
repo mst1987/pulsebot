@@ -5,6 +5,8 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/tbcLootNames");
 const { itemCatalog } = require("../../services/loot/lootStats");
+const { listAll } = require("../../stores/lootStore");
+const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");
 const { versionOfEvent } = require("../../services/events/mainVersion");
 const { versionLinks } = require("../../services/events/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
@@ -16,11 +18,18 @@ function versionOfInteraction(interaction) {
     return versionOfCommand(interaction).versionId;
 }
 
+/** The loot of the server the command was used on - how often an item went out counts there only (#919). */
+function serverRows(interaction) {
+    const ctx = serverContext();
+    return lootOfGuild(listAll(), serverOfInteraction(interaction, ctx), ctx);
+}
+
 /**
  * Every item the council can be asked about: all raid drops (the TBC catalogue -
- * only for a version that has an item table, #748) plus whatever was ever looted.
+ * only for a version that has an item table, #748) plus whatever was ever looted
+ * (`rows`: the loot of the command's server, #919).
  */
-function councilItems(versionId = "tbc") {
+function councilItems(versionId = "tbc", rows = []) {
     const byId = new Map();
     if (councilContentFor(versionId).itemTable) {
         for (const [id, entry] of Object.entries(RAID_ITEMS)) {
@@ -28,7 +37,7 @@ function councilItems(versionId = "tbc") {
             if (name) byId.set(Number(id), name);
         }
     }
-    for (const item of itemCatalog()) {
+    for (const item of itemCatalog(rows)) {
         if (item.itemId && item.itemName && !byId.has(item.itemId)) byId.set(item.itemId, item.itemName);
     }
     return [...byId.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
@@ -47,10 +56,10 @@ function itemLinkFor(itemId, channel, versionId = "") {
 }
 
 /** The item an option value names: an id (autocomplete, or typed) or a name. */
-function findCouncilItem(value, versionId = "tbc") {
+function findCouncilItem(value, versionId = "tbc", rows = []) {
     const raw = String(value || "").trim();
     if (!raw) return null;
-    const items = councilItems(versionId);
+    const items = councilItems(versionId, rows);
     const id = Number(raw);
     if (Number.isInteger(id) && id > 0) return items.find((i) => i.id === id) || { id, name: `Item ${id}` };
     const lower = raw.toLowerCase();
@@ -72,7 +81,8 @@ module.exports = {
         const value = interaction.options.getString("item");
         const versionId = versionOfInteraction(interaction);
         const footer = { text: versionNote(versionId) };
-        const item = findCouncilItem(value, versionId);
+        const rows = serverRows(interaction);
+        const item = findCouncilItem(value, versionId, rows);
         if (!item) {
             return lookupReply(interaction, {
                 footer,
@@ -80,7 +90,7 @@ module.exports = {
                 description: `Kein Raid-Item zu „${clip(value, 100)}“.`,
             }, [{ label: "Im Web öffnen", url: webUrl("/lootcouncil/drop") }]);
         }
-        const looted = itemCatalog().find((i) => i.itemId === item.id);
+        const looted = itemCatalog(rows).find((i) => i.itemId === item.id);
         const history = looted
             ? `Schon **${looted.count}×** vergeben, zuletzt an ${looted.awards[0] ? `**${looted.awards[0].character}**` : "—"}.`
             : "Noch nie vergeben.";
@@ -92,6 +102,6 @@ module.exports = {
         }, [{ label: "Drop prüfen", url: webUrl(`/lootcouncil/drop/${item.id}`) }]);
     },
     async autocomplete(interaction) {
-        return respondChoices(interaction, councilItems(versionOfInteraction(interaction)).map((i) => ({ name: i.name, value: String(i.id) })));
+        return respondChoices(interaction, councilItems(versionOfInteraction(interaction), serverRows(interaction)).map((i) => ({ name: i.name, value: String(i.id) })));
     },
 };

@@ -34,7 +34,7 @@ const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion }
 const { versionLinks, blizzardFor } = require("../../services/events/versionSettings");
 const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../services/events/mainVersion");
 const { storedVersionOf } = require("../../services/events/storedVersion");
-const { serverContext, lootOfGuild, lootInGuild, eventInGuild } = require("../../services/loot/lootServer");
+const { serverContext, lootOfGuild, lootInGuild, eventInGuild, sessionInGuild, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { firstServerId } = require("../../services/discord/serverOf");
 const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
 const { inVersionList } = require("../../services/logcheck/logVersion");
@@ -80,19 +80,24 @@ function lootOnlyHistoryData(guildId, versionId) {
  * follows the content switch), without those of a hidden version and (#919)
  * only those of the active Discord server.
  */
-function lootEventRows(cfg, versionCtx = buildVersionContext({ config: cfg }), guildId = "") {
-    const buckets = lootOfGuild(eventsWithLoot(), guildId, serverContext({ config: cfg }));
-    return visibleRows(buckets.map((e) => ({ ...e, versionId: eventVersion(versionCtx, e.eventId) })), (e) => e.versionId, cfg);
+function lootEventRows(cfg, versionCtx = buildVersionContext({ config: cfg }), guildId, serverCtx = serverContext({ config: cfg })) {
+    const buckets = lootOfGuild(eventsWithLoot(), guildId, serverCtx);
+    return visibleRows(buckets.map((e) => ({
+        ...e,
+        versionId: eventVersion(versionCtx, e.eventId),
+        // the bucket's Discord server (#919): the client's second filter
+        guildId: guildOfLootEvent(serverCtx, e.eventId, e.categoryId, e.guildId),
+    })), (e) => e.versionId, cfg);
 }
 
-/** Every loot row of the active Discord server (#919). */
-function guildLoot(guildId) {
-    return lootOfGuild(listAllLoot(), guildId);
+/** Every loot row of the active Discord server (#919); `serverCtx`: the request's one server context. */
+function guildLoot(guildId, serverCtx) {
+    return lootOfGuild(listAllLoot(), guildId, serverCtx);
 }
 
 /** The loot characters of the active Discord server only (#919): their items too. */
-function guildCharacters(guildId) {
-    return annotatedCharacters({ rows: guildLoot(guildId) });
+function guildCharacters(guildId, serverCtx) {
+    return annotatedCharacters({ rows: guildLoot(guildId, serverCtx) });
 }
 
 /**
@@ -101,7 +106,9 @@ function guildCharacters(guildId) {
  */
 function outsideActiveGuild(req, eventId) {
     const guildId = activeGuildFor(req);
-    if (!guildId || !eventId) return false;
+    if (!eventId) return false;
+    // No active server: no raid is the request's (fail closed).
+    if (!guildId) return true;
     const ctx = serverContext();
     const rows = listLootByEvent(eventId);
     if (rows.length) return !rows.some((row) => lootInGuild(ctx, row, guildId));
@@ -120,7 +127,7 @@ function manualBucketId(base, guildId) {
     return `${base}-s${guildId}`;
 }
 
-const OTHER_SERVER ="Dieser Raid gehört zu einem anderen Discord-Server – oben den passenden Server wählen.";
+const OTHER_SERVER = "Dieser Raid gehört zu einem anderen Discord-Server – oben den passenden Server wählen.";
 
 /**
  * GET /api/history[?version=<id>] — everything the "Alle Raids/Import/Loot/Logs/Loot-Tools"
@@ -150,8 +157,10 @@ const getHistoryData = withUser({}, async ({ user, req, res, url }) => {
     // Per game version (#543): each character says which versions it has loot in,
     // the "Charaktere" tab filters by it (the main version first).
     const versionCtx = buildVersionContext({ config: cfg });
+    // One server context per request (#919): the characters and the loot buckets share it.
+    const serverCtx = serverContext({ config: cfg });
     const visible = new Set(visibleVersions(cfg));
-    const allChars = guildCharacters(guildId)
+    const allChars = guildCharacters(guildId, serverCtx)
         .map((c) => ({
             ...withClassLook(c),
             versionIds: versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }).filter((v) => visible.has(v)),
@@ -160,7 +169,7 @@ const getHistoryData = withUser({}, async ({ user, req, res, url }) => {
     const chars = allChars.filter((c) => c.versionIds.includes(versionId));
     const mainVersion = mainVersionFor({ config: cfg });
     // Each loot bucket carries the version of its raid (#563): the "Loot" tab follows the content switch.
-    const lootEvents = lootEventRows(cfg, versionCtx, guildId).filter((e) => e.versionId === versionId);
+    const lootEvents = lootEventRows(cfg, versionCtx, guildId, serverCtx).filter((e) => e.versionId === versionId);
 
     ok(res, {
         events,
@@ -443,7 +452,10 @@ const getLootPicker = withUser({}, async ({ req, res, url }) => {
     const versionId = storedVersionOf(eventId) || resolveVersionQuery(url.searchParams.get("version"), { config: cfg }).versionId;
     const versionCtx = buildVersionContext({ config: cfg });
     const title = (url.searchParams.get("title") || "").trim();
-    const items = eventId ? lootOfGuild(listLootByEvent(eventId), activeGuildFor(req)) : [];
+    // One server context per request (#919): the raid's loot and the raiders share it.
+    const guildId = activeGuildFor(req);
+    const serverCtx = serverContext({ config: cfg });
+    const items = eventId ? lootOfGuild(listLootByEvent(eventId), guildId, serverCtx) : [];
     ok(res, {
         contents: lootCatalog(),
         // Which raid to open the picker on. The event's own loot decides where
@@ -455,7 +467,7 @@ const getLootPicker = withUser({}, async ({ req, res, url }) => {
         // reads like the loot table it writes into. A name that is not in the
         // list can still be typed — a trial's first item is exactly that case.
         // Only the active Discord server's raiders (#919).
-        characters: guildCharacters(activeGuildFor(req))
+        characters: guildCharacters(guildId, serverCtx)
             .filter((c) => versionsOfCharacter(versionCtx, { name: c.character, items: c.items, categoryIds: c.categoryIds }).includes(versionId))
             .map(withClassLook).map((c) => ({
                 character: c.character,
@@ -560,8 +572,9 @@ const deleteLootItems = withUser({ csrf: true, body: true }, async ({ body, req,
     if (!asked.length) return error(res, 400, "no_id", "Kein Loot-Eintrag angegeben.");
     // Only rows of the active Discord server (#919); another server's row counts as not found.
     const guildId = activeGuildFor(req);
-    const own = guildId ? new Set(guildLoot(guildId).map((row) => row.id)) : null;
-    const wanted = own ? asked.filter((id) => own.has(id)) : asked;
+    // No active server: nothing is the user's to delete (fail closed).
+    const own = new Set(guildId ? guildLoot(guildId).map((row) => row.id) : []);
+    const wanted = asked.filter((id) => own.has(id));
     const removed = wanted.length ? removeLootItems(wanted) : 0;
     // An id that matched nothing is a stale view (someone else deleted it, or
     // the import was cleared) — say so instead of reporting a silent success.
@@ -596,16 +609,17 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
     const { versionId } = resolveVersionQuery(url && url.searchParams.get("version"), { config: cfg });
     const versionCtx = buildVersionContext({ config: cfg });
     const inVersion = (eventId) => !eventId || eventVersion(versionCtx, eventId) === versionId;
-    // Only the active Discord server's raids (#919): a session matched to a raid
+    // Only the active Discord server's cards (#919): a session matched to a raid
     // under that raid's server, one without a match on every server (the addon
     // does not know the server; accepting files it under one of the active server).
+    // No active server: nothing (fail closed).
     const guildId = activeGuildFor(req);
     const serverCtx = serverContext({ config: cfg });
-    const inGuild = (eventId, categoryId = "") => !eventId || !guildId || eventInGuild(serverCtx, eventId, guildId, categoryId);
+    const linkedInGuild = (s) => lootInGuild(serverCtx, { eventId: s.eventId, categoryId: s.categoryId, guildId: s.guildId }, guildId);
     const suggestedOf = (s) => (s && s.match && s.match.suggested ? s.match.suggested.eventId : "");
     // Decorated like stored loot (reason badge, raid, tier) even though it isn't
     // stored yet — the preview should look like the history it is about to be.
-    const sessions = listPendingSessions().filter((s) => inVersion(suggestedOf(s)) && inGuild(suggestedOf(s))).map((s) => {
+    const sessions = listPendingSessions().filter((s) => inVersion(suggestedOf(s)) && sessionInGuild(serverCtx, s, guildId)).map((s) => {
         // Welcher Raid das war, notfalls aus den Item-IDs — das Addon kann es
         // nicht immer wissen (siehe lootSessionContent.js).
         const content = sessionContentLabel(s);
@@ -619,7 +633,7 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
     });
     // Accepted sessions that keep appending by themselves — the quiet list under
     // the cards, so nobody wonders where last night's second half went.
-    ok(res, { sessions, linked: listLinkedSessions().filter((s) => inVersion(s && s.eventId) && inGuild(s && s.eventId, s && s.categoryId)) });
+    ok(res, { sessions, linked: listLinkedSessions().filter((s) => s && inVersion(s.eventId) && linkedInGuild(s)) });
 });
 
 /**
@@ -631,6 +645,8 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
 const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const entry = getPendingSession(String(body.id || "").trim());
     if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+    // A card the active server does not show is not this server's to file (#919).
+    if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
 
     const picked = pickedCategory(req, body.categoryId);
     if (picked.error) return error(res, 400, "bad_category", picked.error);
@@ -672,8 +688,13 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
  * importing it. The decision sticks: the sync tool re-uploads the same session
  * as long as it is in the addon's SavedVariables, and it must not come back.
  */
-const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ body, res }) => {
-    const removed = resolvePendingSession(String(body.id || "").trim(), "dismissed");
+const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const id = String(body.id || "").trim();
+    const entry = getPendingSession(id);
+    if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+    // Same rule as the list (#919): only a card the active server shows.
+    if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
+    const removed = resolvePendingSession(id, "dismissed");
     if (!removed) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
     ok(res, { id: removed.id, sessionId: removed.sessionId });
 });

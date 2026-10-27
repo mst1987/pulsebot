@@ -47,6 +47,11 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
     EVENT_LOOKBACK_DAYS: 30,
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+// Two configured servers: the upload has no session, so the match searches both (#919).
+jest.mock("../../../src/services/discord/guildRoles", () => ({
+    ...jest.requireActual("../../../src/services/discord/guildRoles"),
+    serverIds: jest.fn(() => ["gA", "gB"]),
+}));
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
@@ -232,7 +237,19 @@ describe("POST /api/ingest/loot", () => {
             });
             await upload(payload());
             const [, meta] = upsertPending.mock.calls[0];
-            expect(meta.match.suggested).toEqual({ eventId: "eh-abc", eventLabel: "SSC + TK", startTime: 1784574000, categoryId: "cat2", categoryName: "Mittwoch" });
+            expect(meta.match.suggested).toEqual({ eventId: "eh-abc", eventLabel: "SSC + TK", startTime: 1784574000, categoryId: "cat2", categoryName: "Mittwoch", guildId: "gA" });
+        });
+
+        // #919: the addon does not know the server - the raids of every server
+        // are searched and the suggestion carries the server it was found on.
+        it("finds the raid on any configured server and stores its server", async () => {
+            loadEventGroups.mockImplementation(async (guildId) => (guildId === "gB" ? {
+                groups: [{ categoryId: "catB", categoryName: "Donnerstag", events: [{ id: "eh-b", source: "eventhelper", title: "BT", startTime: 1784574000 }] }],
+            } : { groups: [] }));
+            await upload(payload());
+            expect(loadEventGroups.mock.calls.map((c) => c[0])).toEqual(["gA", "gB"]);
+            const [, meta] = upsertPending.mock.calls[0];
+            expect(meta.match.suggested).toMatchObject({ eventId: "eh-b", categoryId: "catB", guildId: "gB" });
         });
 
         it("flags two raids on the same day as ambiguous instead of guessing", async () => {

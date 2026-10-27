@@ -58,21 +58,28 @@ function guildOfLootEvent(ctx, eventId, categoryId = "", importGuildId = "") {
 }
 
 /**
- * True when a loot row (or a row of eventsWithLoot) belongs to `guildId`. No
- * active server: everything. A row no rule can place (no server configured at
- * all - a single-server install) counts for whichever server is active.
+ * True when a loot row (or a row of eventsWithLoot) belongs to `guildId`.
+ * `undefined` means "no server filter" (internal callers, admin export, tests);
+ * any other empty value means "no active server" and matches nothing (fail
+ * closed, same as the logs of #920). A row no rule can place (no server
+ * configured at all - a single-server install) counts for the active server.
  */
 function lootInGuild(ctx, row, guildId) {
+    if (guildId === undefined) return true;
     const active = str(guildId);
-    if (!active) return true;
+    if (!active) return false;
     const owner = guildOfLootEvent(ctx, row && row.eventId, row && row.categoryId, row && row.guildId);
     return !owner || owner === active;
 }
 
-/** The rows of the active server; `ctx` is created when not given. */
+/**
+ * The rows of the active server; `ctx` is created when not given.
+ * `guildId === undefined`: every row; "" (no active server): none.
+ */
 function lootOfGuild(rows, guildId, ctx) {
     const list = Array.isArray(rows) ? rows : [];
-    if (!str(guildId)) return list;
+    if (guildId === undefined) return list;
+    if (!str(guildId)) return [];
     const c = ctx || serverContext();
     return list.filter((row) => lootInGuild(c, row, guildId));
 }
@@ -82,4 +89,37 @@ function eventInGuild(ctx, eventId, guildId, categoryId = "") {
     return lootInGuild(ctx, { eventId, categoryId }, guildId);
 }
 
-module.exports = { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild };
+/**
+ * An addon inbox card (a pending session) shows on the server of its suggested
+ * raid - the server the upload's match stored, else the raid's own rule - and
+ * one without a suggestion on every server: the addon does not know the server
+ * (#919). Same `undefined`/"" meaning as lootInGuild.
+ */
+function sessionInGuild(ctx, session, guildId) {
+    if (guildId === undefined) return true;
+    if (!str(guildId)) return false;
+    const suggested = session && session.match && session.match.suggested;
+    if (!suggested || !str(suggested.eventId)) return true;
+    if (str(suggested.guildId)) return str(suggested.guildId) === str(guildId);
+    return eventInGuild(ctx, suggested.eventId, guildId, suggested.categoryId || "");
+}
+
+/**
+ * The server a request without a session works on (the sync tool's token
+ * routes): the server of the named category, else the first server - the same
+ * rule 4 as above, never a guess from the bot's guild list.
+ */
+function serverWithoutSession(categoryId = "", ctx) {
+    return guildOfLootEvent(ctx || serverContext(), "", categoryId);
+}
+
+/**
+ * The server a bot command answers for: the Discord server it was used on; in
+ * a DM (no server) the first server - the same rule 4 (#919).
+ */
+function serverOfInteraction(interaction, ctx) {
+    const own = str(interaction && (interaction.guildId || (interaction.guild && interaction.guild.id)));
+    return own || serverWithoutSession("", ctx);
+}
+
+module.exports = { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, serverWithoutSession, serverOfInteraction };

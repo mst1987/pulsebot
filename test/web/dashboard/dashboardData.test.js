@@ -530,6 +530,18 @@ describe("web/dashboard/dashboardData area loaders", () => {
         expect(loadInbox()).toEqual([{ id: "s1", items: [1, 2] }, { id: "s2", items: [] }]);
     });
 
+    // #919: the task count matches the cards the inbox shows on that server.
+    it("counts only the inbox cards of the active server", () => {
+        lootInboxStore.listPending.mockReturnValue([
+            { id: "on-a", match: { suggested: { eventId: "rh-a", guildId: "gA" } } },
+            { id: "on-b", match: { suggested: { eventId: "rh-b", guildId: "gB" } } },
+            { id: "open", match: null },
+        ]);
+        expect(loadInbox("gA").map((s) => s.id)).toEqual(["on-a", "open"]);
+        expect(loadInbox("gB").map((s) => s.id)).toEqual(["on-b", "open"]);
+        expect(loadInbox("")).toEqual([]);
+    });
+
     it("counts top-item awards since the last raid", () => {
         settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
         const start = 1_800_000_000;

@@ -884,7 +884,7 @@ function rosterContent(opts) {
  *               known, else the stored version of a raid it won loot in, else
  *               its category's, else TBC.
  *   manualIndex the hand lists' index (#760) instead of the store's (tests)
- *   guildId     only the loot of this Discord server counts (#919, "" = all)
+ *   guildId     only the loot of this Discord server counts (#919; undefined = all, "" = none)
  */
 function councilRoster(opts = {}) {
     const { role = "", categoryId = "", charVersion = "" } = opts;

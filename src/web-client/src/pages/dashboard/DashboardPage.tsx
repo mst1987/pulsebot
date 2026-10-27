@@ -34,6 +34,7 @@ import WowIcon from "../../components/ui/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { CheckIcon, ChevronRightIcon } from "../../components/ui/icons";
 import TopLootList from "../../components/loot/TopLootList";
+import { ofServer } from "../../lib/discord/ofServer";
 import RaidDetailsModal from "./RaidDetailsModal";
 import { RoleBar, IconLink } from "./OverviewParts";
 import { usesSheet } from "./raidPlanning";
@@ -327,16 +328,18 @@ function AreaTiles({ areas }: { areas: NonNullable<DashboardData["areas"]> }) {
     );
 }
 
-function LootCard({ topLoot }: { topLoot: DashboardData["topLoot"] }) {
+function LootCard({ topLoot, guildId }: { topLoot: DashboardData["topLoot"]; guildId: string }) {
     const t = useT();
+    // second filter (#919): never an award of another Discord server
+    const items = ofServer(topLoot.items, guildId);
     return (
         <section className="dash-card ov-card ov-loot">
             <PartHead
                 icon="inv_misc_bag_10" tone="history" title={t("dashboard.loot.title")} crumb={t("dashboard.loot.crumb")}
                 action={<Link className={buttonClass("ghost", "sm")} to="/history?tab=awards">{t("dashboard.loot.historyLink")}</Link>}
             />
-            {topLoot.items.length
-                ? <TopLootList items={topLoot.items} />
+            {items.length
+                ? <TopLootList items={items} />
                 : (
                     <div className="ov-empty-text">
                         {topLoot.configured
@@ -487,7 +490,7 @@ export default function DashboardPage() {
                         {!data.orga && data.tasks.length > 0 && <TaskList tasks={data.tasks} onChanged={() => void dashboard.reload()} />}
 
                         <div className="ov-grid ov-grid-bottom">
-                            <LootCard topLoot={data.topLoot} />
+                            <LootCard topLoot={data.topLoot} guildId={data.activeGuildId} />
                             {data.orga
                                 ? <RecentRaidList recent={data.recentEvents} />
                                 : me && <MyRecentRaids recent={me.recent} />}

@@ -8,7 +8,7 @@ jest.mock("../../../src/services/discord/serverOf", () => ({
     storedCategoryGuilds: () => new Map([["cat-b", "gB"]]),
 }));
 
-const { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild } = require("../../../src/services/loot/lootServer");
+const { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, serverWithoutSession, serverOfInteraction } = require("../../../src/services/loot/lootServer");
 
 const EVENTS = {
     evA: { id: "evA", guildId: "gA" },
@@ -61,10 +61,16 @@ describe("lootInGuild / lootOfGuild / eventInGuild", () => {
         expect(lootOfGuild(rows, "gB", ctx).map((r) => r.id)).toEqual([2, 3, 4]);
     });
 
-    it("filters nothing without an active server and copes with no list", () => {
-        expect(lootOfGuild(rows, "")).toBe(rows);
+    it("filters nothing without a server argument and copes with no list", () => {
+        expect(lootOfGuild(rows, undefined)).toBe(rows);
         expect(lootOfGuild(null, "gA")).toEqual([]);
-        expect(lootInGuild(ctxOf(), null, "")).toBe(true);
+        expect(lootInGuild(ctxOf(), null, undefined)).toBe(true);
+    });
+
+    it("shows nothing when there is no active server (fail closed)", () => {
+        expect(lootOfGuild(rows, "")).toEqual([]);
+        expect(lootOfGuild(rows, null)).toEqual([]);
+        expect(lootInGuild(ctxOf(), { eventId: "manual-old" }, "")).toBe(false);
     });
 
     it("counts unplaceable rows for the active server when no server is configured", () => {
@@ -81,5 +87,46 @@ describe("lootInGuild / lootOfGuild / eventInGuild", () => {
         expect(eventInGuild(ctx, "evB", "gA")).toBe(false);
         expect(eventInGuild(ctx, "evB", "gB")).toBe(true);
         expect(eventInGuild(ctx, "manual-z", "gB", "cat-b")).toBe(true);
+    });
+});
+
+describe("sessionInGuild (addon inbox cards, #919)", () => {
+    const card = (suggested) => ({ id: "s", match: suggested ? { suggested } : null });
+
+    it("shows a card on the server its match stored, else on its raid's server", () => {
+        const ctx = ctxOf();
+        expect(sessionInGuild(ctx, card({ eventId: "evA", guildId: "gB" }), "gB")).toBe(true);
+        expect(sessionInGuild(ctx, card({ eventId: "evA", guildId: "gB" }), "gA")).toBe(false);
+        expect(sessionInGuild(ctx, card({ eventId: "evCatB" }), "gB")).toBe(true);
+        expect(sessionInGuild(ctx, card({ eventId: "evCatB" }), "gA")).toBe(false);
+    });
+
+    it("shows a card without a suggestion on every server", () => {
+        const ctx = ctxOf();
+        expect(sessionInGuild(ctx, card(null), "gA")).toBe(true);
+        expect(sessionInGuild(ctx, card({ eventId: "" }), "gB")).toBe(true);
+    });
+
+    it("shows nothing without an active server, everything without a filter", () => {
+        const ctx = ctxOf();
+        expect(sessionInGuild(ctx, card(null), "")).toBe(false);
+        expect(sessionInGuild(ctx, card({ eventId: "evB", guildId: "gB" }), undefined)).toBe(true);
+    });
+});
+
+describe("serverWithoutSession (token routes, #919)", () => {
+    it("takes the category's server, else the first server", () => {
+        expect(serverWithoutSession("cat-b", ctxOf())).toBe("gB");
+        expect(serverWithoutSession("", ctxOf())).toBe("gA");
+        expect(serverWithoutSession("cat-unknown")).toBe("gA");
+    });
+});
+
+describe("serverOfInteraction (bot commands, #919)", () => {
+    it("takes the server the command was used on, in a DM the first server", () => {
+        expect(serverOfInteraction({ guildId: "gB" }, ctxOf())).toBe("gB");
+        expect(serverOfInteraction({ guild: { id: "gB" } }, ctxOf())).toBe("gB");
+        expect(serverOfInteraction({ guildId: null }, ctxOf())).toBe("gA");
+        expect(serverOfInteraction(null, ctxOf())).toBe("gA");
     });
 });

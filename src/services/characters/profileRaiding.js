@@ -65,8 +65,8 @@ function rosterMemberships(userId, versionId) {
 }
 
 /** The loot of one character in raids of `versionId`, newest first. */
-function lootOf(character, versionId, ctx, guildId = "") {
-    // Only the loot of the active Discord server (#919, "" = every server).
+function lootOf(character, versionId, ctx, guildId) {
+    // Only the loot of the active Discord server (#919; undefined = every server, "" = none).
     const rows = lootOfGuild(lootStore.listByCharacter(character.name), guildId, ctx.server).filter((it) => eventVersion(ctx, it.eventId) === versionId);
     return {
         count: rows.length,
@@ -154,11 +154,11 @@ function dungeonsOf(character, { runs, stored, ranked, places }) {
  * @param {string} versionId  a known version (the route resolves it)
  * @param {{ config?: object }} [opts]  the settings the feature "dungeonTimes" is read from
  */
-function profileRaiding(userId, versionId, { config, guildId = "" } = {}) {
+function profileRaiding(userId, versionId, { config, guildId } = {}) {
     const profile = profiles.getProfile(String(userId || ""));
     const chars = (profile.characters || []).filter((c) => versionOf(c) === versionId);
     // the raid of a loot row decides its version (the stored one, #737), read once per raid - as /loot does
-    const ctx = { eventCache: new Map(), server: guildId ? serverContext({ config }) : null };
+    const ctx = { eventCache: new Map(), server: guildId === undefined ? null : serverContext({ config }) };
     // dungeon best times only where the version has them (feature "dungeonTimes": the rule set, not switched off)
     const dungeonTimes = featureOn(versionId, "dungeonTimes", { config });
     const runs = dungeonTimes ? dungeonRuns.listRuns(versionId) : [];
