@@ -13,6 +13,9 @@
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const guildRoles = require("../discord/guildRoles");
+// The invite of one link ("from:to"), sync, URL or "" (#905: made on a click in
+// the settings; without one the note comes without a button).
+const { inviteUrlForLink } = require("../discord/pugInvites");
 const { tr } = require("../../utils/i18n/botText");
 const logger = require("../../logger").child("partner-join-hint");
 
@@ -93,16 +96,6 @@ function buildJoinHint({ lang = "de", inviteUrl = "", serverName = "PuG" } = {})
     const line = `ℹ️ ${tr(lang, "Join the server **{server}**, otherwise you will not get pings and info.", { server })}`;
     const url = /^https:\/\//.test(String(inviteUrl || "")) ? String(inviteUrl) : "";
     return { line, button: url ? { type: 2, style: 5, label: tr(lang, "Join {server}", { server }), url } : null };
-}
-
-/**
- * The invite of one link ("from:to"). #905 brings the invites per link
- * (services/discord/pugInvites.js `inviteUrlForLink(linkKey)`, sync, URL or "");
- * until then there is none and the note comes without a button.
- */
-function inviteUrlForLink(linkKey) {
-    void linkKey;
-    return "";
 }
 
 /**

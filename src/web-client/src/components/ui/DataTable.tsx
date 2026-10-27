@@ -65,7 +65,7 @@ export default function DataTable<T, K extends string>({ rows, columns, rowKey, 
                 {shown.rows.map((row) => (
                     <tr key={rowKey(row)} className={rowClassName} onClick={onRowClick ? () => onRowClick(row) : undefined}>
                         {columns.map((c) => (
-                            <td key={c.id} className={c.className} onClick={c.actions ? (e) => e.stopPropagation() : undefined}>{c.cell(row)}</td>
+                            <td key={c.id} className={c.className} data-label={c.label || undefined} onClick={c.actions ? (e) => e.stopPropagation() : undefined}>{c.cell(row)}</td>
                         ))}
                     </tr>
                 ))}

@@ -364,7 +364,8 @@
             "members": "Member and role sync, joined and left",
             "events": "Raids as Discord server events",
             "applications": "Applications as threads",
-            "logLinks": "Spot Warcraft Logs links in log channels"
+            "logLinks": "Spot Warcraft Logs links in log channels",
+            "invites": "Invites per link, where new members came from"
         },
         "purpose": {
             "applications": "Applications",

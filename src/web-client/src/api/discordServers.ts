@@ -85,3 +85,51 @@ export function repostTalkOverview(
 ): Promise<{ result: { key: string; from: string; to: string; guildId: string; label: string; status: string; error?: string; messageId?: string }; status: TalkOverviewStatus | null }> {
     return send("POST", "/api/settings/talk-overview", { repost: true, key });
 }
+
+/** One link's invite (#905, src/services/discord/pugInvites.js): `url` "" = none yet, `error` a missing bot right first. */
+export type PugLinkInvite = {
+    key: string;
+    from: string;
+    to: string;
+    code: string;
+    url: string;
+    channelId: string;
+    createdAt: number;
+    error: string;
+    /** The check found the invite gone on Discord (someone deleted it); `url` is "" then. */
+    deleted: boolean;
+    /** Members who joined through this invite. */
+    joined: number;
+    /** Of them, signed up for a raid of the source server (absence does not count). */
+    signedUp: number;
+};
+
+/** One server's general invite and the channel its invites point at ("" = the bot picks one). */
+export type PugServerInvite = {
+    guildId: string;
+    /** Whether the server is the source of a link; only then it gets invites. */
+    source: boolean;
+    code: string;
+    url: string;
+    channelId: string;
+    inviteChannelId: string;
+    error: string;
+    /** The general invite was deleted on Discord. */
+    deleted: boolean;
+};
+
+export type PugInvites = { links: PugLinkInvite[]; servers: PugServerInvite[] };
+
+export function getPugInvites(): Promise<PugInvites> {
+    return get<PugInvites>("/api/settings/pug-invites");
+}
+
+/** Creates the invite of a link (`key`) or a server's general invite (`guildId`); `regenerate` replaces it. */
+export function postPugInvite(target: { key: string } | { guildId: string }, regenerate = false): Promise<PugInvites> {
+    return send("POST", "/api/settings/pug-invites", { ...target, regenerate });
+}
+
+/** The channel new invites of a server point at; "" = the bot picks one. */
+export function postInviteChannel(guildId: string, channelId: string): Promise<PugInvites> {
+    return send("POST", "/api/settings/pug-invites/channel", { guildId, channelId });
+}
