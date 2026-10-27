@@ -9,6 +9,7 @@ import { useTableSort } from "../../lib/ui/tableSort";
 import { useToast } from "../../components/shell/Jobs";
 import { CheckMark, CopyIcon, PenIcon, PlusIcon, RefreshIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
+import PugOnboardingPart from "./PugOnboardingPart";
 import RemindersPart from "./SettingsReminders";
 import { Modal, useConfirm } from "../../components/ui/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
@@ -441,6 +442,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
             {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
             <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
+            {/* #906: roles + onboarding of a PuG server, applied only by its own button. */}
+            <PugOnboardingPart servers={data.servers} />
             <RemindersPart onConfig={onConfig} />
 
             {dialog === "link" && (

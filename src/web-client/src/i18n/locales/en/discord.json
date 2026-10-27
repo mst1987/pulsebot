@@ -156,6 +156,7 @@
             "categoryRaiderAny": "Raider role of a category",
             "roleSync": "Role sync ({servers})",
             "roleSyncAny": "Role sync",
+            "pugVersion": "PuG version role",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "member",

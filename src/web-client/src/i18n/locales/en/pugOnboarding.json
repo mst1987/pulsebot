@@ -1,0 +1,93 @@
+{
+    "title": "Roles & onboarding",
+    "tipSub": "For PuG servers: version and class roles, PuG categories visible only to the matching version role, two onboarding questions. Only the button writes to Discord. Full admins only.",
+    "loading": "Reading Discord …",
+    "server": "Server",
+    "apply": "Apply in Discord",
+    "applyTip": "Shows what changes first",
+    "offline": "The bot is not connected to Discord right now. The overview comes back once it is online again.",
+    "noPug": "This server has no PuG category: a raid category everyone may sign up for (no raider role, no roster).",
+    "otherCategories": "Not affected (with raider role or roster): {names}",
+    "open": { "one": "{count} change pending", "other": "{count} changes pending" },
+    "allSet": "Everything applied",
+    "lastApplied": "Last applied on {when} by {by}",
+    "neverApplied": "Never applied",
+    "blocked": "Blocked",
+    "prereq": {
+        "community": "The server is not a community. Onboarding only exists after that (Server Settings › Enable Community).",
+        "manageRoles": "The bot lacks the “Manage Roles” permission.",
+        "manageGuild": "The bot lacks the “Manage Server” permission.",
+        "roleOrder": "These roles are above the bot role: {roles}. Drag the bot role above them in Discord.",
+        "categoryAccess": "The bot may not change the permissions in these categories (View Channel and Manage Roles missing): {categories}.",
+        "selfAssign": "These roles unlock more than their purpose and must not be handed out by the onboarding: {roles}. Rename them in Discord or take their permissions away.",
+        "defaultChannels": "These default channels of the onboarding would be hidden from @everyone afterwards, which Discord refuses: {channels}. Remove them from the default channels in Discord or switch their category off here."
+    },
+    "categories": "PuG categories",
+    "categoryOn": "Will be applied",
+    "categoryOff": "Stays as it is",
+    "fallback": "no version set, counts as {version}",
+    "fallbackNote": "No game version is set for {names}; they get the default version and its role. If that is wrong, set the version in the category settings.",
+    "noneSelected": "No category is switched on. Switch on at least one to apply.",
+    "visibleChannels": "These channels have their own permissions and stay visible to everyone: {names}. Use “Sync with category” in Discord if they should be hidden too.",
+    "changed": "Changed in the meantime – please reload.",
+    "privileged": {
+        "admin": "is the bot's admin role",
+        "orga": "is the bot's orga role",
+        "officer": "is the bot's officer role",
+        "rolePermissions": "has web permissions",
+        "botCommand": "may run bot commands",
+        "categoryRaider": "is a category's raider role",
+        "roleSync": "is in the role sync",
+        "pugVersion": "is the version role of another version",
+        "roster": "belongs to roster {detail}",
+        "permissions": "has Discord permissions",
+        "channel": "unlocks channel {detail}"
+    },
+    "onboardingError": "The onboarding could not be read ({error}). Applying is blocked so nothing gets overwritten.",
+    "onboardingOff": "Onboarding is still off in Discord. Turn it on in Discord after applying (Server Settings › Onboarding); Discord needs at least 7 default channels for that.",
+    "col": {
+        "what": "What",
+        "want": "Wanted",
+        "have": "In Discord",
+        "status": "Status"
+    },
+    "kind": {
+        "version": "Version role",
+        "class": "Class role",
+        "prompt": "Question",
+        "category": "Category"
+    },
+    "missing": "missing",
+    "foreign": "not from the bot",
+    "required": "required",
+    "answers": { "one": "{count} answer", "other": "{count} answers" },
+    "categoryWant": "only @{role}, the orga and the bot see it",
+    "gap": {
+        "everyone": "visible to everyone",
+        "version": "@{role} cannot see it",
+        "orga": "orga cannot see it ({roles})",
+        "bot": "bot cannot see it"
+    },
+    "rightsOk": "permissions fit",
+    "status": {
+        "same": "fits",
+        "new": "new",
+        "changed": "changes",
+        "lost": "goes away"
+    },
+    "preview": {
+        "title": "What changes in Discord",
+        "newRoles": "Create roles",
+        "changedRoles": "Adjust roles",
+        "categories": "Set category permissions",
+        "synced": "synced: {names}",
+        "privileged": "Blocked roles",
+        "prompts": "Set onboarding questions",
+        "lostPrompts": "These questions go away",
+        "lostOptions": "These answers go away",
+        "lostWarn": "Discord replaces the onboarding as a whole: questions and answers that do not come from the bot are lost.",
+        "noColor": "no colour",
+        "onboardingStays": "Turning onboarding on or off and its default channels stay as they are in Discord."
+    },
+    "done": { "zero": "Nothing to apply", "one": "{count} change applied in Discord", "other": "{count} changes applied in Discord" }
+}

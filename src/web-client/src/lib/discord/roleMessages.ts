@@ -27,6 +27,7 @@ const REASONS: Record<string, string> = {
     "the role may run bot commands (botCommandAccess)": "botCommands",
     "the role is a raider role of a category": "raider",
     "the role is part of the role sync between the servers": "roleSync",
+    "the role is a PuG version role (Rollen & Onboarding)": "pugVersion",
     "the role carries Discord permissions beyond @everyone": "discordPermissions",
     "missing Manage Roles": "manageRoles",
     "the role belongs to an integration": "integration",
