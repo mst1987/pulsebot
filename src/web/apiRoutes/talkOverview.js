@@ -27,11 +27,13 @@ const getTalkOverview = withUser({ full: true }, async ({ res, url }) => {
         return;
     }
     const status = findStatus(key, guildId);
+    // A key names exactly one link: an unknown one previews nothing (never another link of its source).
+    if (key && !status) return error(res, 400, "unconfigured", "Für diese Verknüpfung ist keine Raid-Liste eingestellt.");
     let preview = null;
     let previewError = null;
     if (!url || url.searchParams.get("preview") !== "0") {
         try {
-            const built = await talkOverview.currentPayload(key ? { key, guildId: key.split(":")[0] } : { guildId });
+            const built = await talkOverview.currentPayload(key ? { key } : { guildId });
             preview = built.payload;
             previewError = built.error || null;
         } catch (e) {

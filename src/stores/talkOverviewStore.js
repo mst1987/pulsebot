@@ -8,7 +8,9 @@
 // the message already in the channel keeps being edited instead of reposted.
 // Kept out of the settings config on purpose: it changes on every sync, and a
 // PATCH of the settings page must never race it (or bring an old message id
-// back).
+// back). A record whose link is gone (removed, or its source/target changed)
+// is dropped by the full sync once its message is deleted (talkOverview.js
+// pruneOrphans).
 
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
@@ -89,4 +91,25 @@ function setOverviewState(key, patch) {
     return next[key];
 }
 
-module.exports = { getOverviewState, setOverviewState, overviewKeys, useFile };
+/**
+ * Every stored link key ("from:to"), for the clean-up of lists whose link is
+ * gone. Leaves out what may still migrate onto a link: the oldest flat shape
+ * (then nothing is listed) and a record keyed by the source guild alone.
+ */
+function listOverviewKeys() {
+    const data = readFile();
+    if (isLegacyShape(data)) return [];
+    return Object.keys(data).filter((key) => /^[^:]+:[^:]+$/.test(key));
+}
+
+/** Drop one link's record (its message is gone or was deleted). */
+function removeOverviewState(key) {
+    const data = readFile();
+    if (isLegacyShape(data) || !Object.prototype.hasOwnProperty.call(data, key)) return false;
+    const next = { ...data };
+    delete next[key];
+    writeFile(next);
+    return true;
+}
+
+module.exports = { getOverviewState, setOverviewState, overviewKeys, listOverviewKeys, removeOverviewState, useFile };

@@ -14,7 +14,9 @@
 // when its content changed and posts it anew when somebody deleted it. Where
 // each one sits lives in talkOverviewStore.js, keyed `from:to` since #892 (two
 // links of one source = two messages); the first link of a source takes over
-// the record that was keyed by the source alone before.
+// the record that was keyed by the source alone before. The full sync also
+// deletes the message of a link that is gone (removed, or its source or
+// target changed) and drops its record (pruneOrphans).
 //
 // Discord shapes the message: at most 25 embed fields, 1024 characters per
 // field, 6000 per embed, 25 select options (the next 25 raids). When the raids
@@ -47,7 +49,10 @@ const { versionShort } = require("../events/versionTag");
 const { VERSIONS, instanceById } = require("../../config/gameVersions");
 const { entryForSpec } = require("../../config/classlist");
 const { onSignupsChanged } = require("../../stores/signupStore");
-const { getOverviewState, setOverviewState, overviewKeys } = require("../../stores/talkOverviewStore");
+const {
+    getOverviewState, setOverviewState, overviewKeys, listOverviewKeys, removeOverviewState,
+} = require("../../stores/talkOverviewStore");
+const { readStored } = require("../../stores/configStore");
 const { signupStatus } = require("../../utils/attendance");
 const { accountCount, ATTENDING_STATUSES } = require("../../utils/signup/capacity");
 
@@ -159,12 +164,23 @@ function attendingCount(event) {
     return accountCount(event.signUps || [], signupStatus);
 }
 
-/** "tank" | "healer" | "dps" of one signup: its stored role (own events), else its spec's (Raid-Helper). */
+const ROLE_ALIASES = {
+    tank: "tank", tanks: "tank",
+    healer: "healer", healers: "healer", heal: "healer", healing: "healer",
+    melee: "dps", ranged: "dps", caster: "dps", dps: "dps", damage: "dps",
+};
+
+/**
+ * "tank" | "healer" | "dps" of one signup — its stored role (own events), else
+ * its spec's, else Raid-Helper's role name; "" when none says (a "Late" or
+ * unknown spec without a role): such a signup counts as a signup, not as DPS.
+ */
 function roleOf(signUp) {
-    const raw = String(signUp.role || ((entryForSpec(signUp.specName) || {}).role) || "").toLowerCase();
-    if (raw === "tank") return "tank";
-    if (raw === "healer" || raw === "heal" || raw === "healing") return "healer";
-    return "dps";
+    for (const raw of [signUp.role, (entryForSpec(signUp.specName) || {}).role, signUp.roleName]) {
+        const role = ROLE_ALIASES[String(raw || "").trim().toLowerCase()];
+        if (role) return role;
+    }
+    return "";
 }
 
 /** The attending accounts per role — each account once, by its first attending signup. */
@@ -178,7 +194,8 @@ function roleCounts(event) {
             if (seen.has(uid)) continue;
             seen.add(uid);
         }
-        counts[roleOf(s)] += 1;
+        const role = roleOf(s);
+        if (role) counts[role] += 1;
     }
     return counts;
 }
@@ -445,8 +462,9 @@ function cachedLeaderName(guild) {
 
 /**
  * The payload as it would be posted now, for one link — for the sync and the
- * dry run. Without `link` it is the link named by `key` ("from:to"), else
- * the first link of `guildId` (default: the first server), or none: then the
+ * dry run. Without `link` it is the link named by `key` ("from:to") — an
+ * unknown key means none, never another link of its source — else the first
+ * link of `guildId` (default: the first server), or none: then the
  * list speaks the server language, shows every version and links channels
  * without a server name.
  */
@@ -454,11 +472,12 @@ async function currentPayload({
     config = getConfig(), now = Date.now(), guildId = guildRoles.eventGuildId(config), link = null, key = "",
 } = {}) {
     const entries = link ? [] : overviewEntries(config);
+    // A key names exactly one link: an unknown key means no link (its source
+    // alone), never another link of the same source.
     const entry = link
-        || (key ? entries.find((e) => e.key === String(key)) : null)
-        || entries.find((e) => e.from === String(guildId))
+        || (key ? entries.find((e) => e.key === String(key)) : entries.find((e) => e.from === String(guildId)))
         || null;
-    const from = entry ? entry.from : String(guildId || "");
+    const from = entry ? entry.from : (key ? String(key).split(":")[0] : String(guildId || ""));
     const { groups, error } = await loadEventGroups(from);
     // Confirm every listed channel before a line links it (#537).
     await linkCheck.checkChannels((groups || []).flatMap((g) => (g.events || []).map((e) => ({ guildId: from, channelId: e.channelId }))));
@@ -553,7 +572,59 @@ async function runSync({
     }
     const results = [];
     for (const entry of entries) results.push(await runSyncOne(entry, { repost, now, config }));
-    return { results };
+    const pruned = await pruneOrphans(entries);
+    return pruned.length ? { results, pruned } : { results };
+}
+
+/**
+ * Whether the settings file itself was read: a missing or broken config.json
+ * reads as the defaults, and an empty link list from that must never look
+ * like "every link was removed".
+ */
+function configReadCleanly() {
+    try {
+        const stored = readStored();
+        return !!(stored && stored.discordServers && typeof stored.discordServers === "object");
+    } catch {
+        return false;
+    }
+}
+
+function isMissingChannel(e) {
+    return !!(e && (e.code === "channel_not_found" || e.code === 10003 || /unknown channel/i.test(e.message || "")));
+}
+
+/**
+ * The lists whose link is gone (removed, or its source or target changed —
+ * a new key): delete their message and drop the record. Only after a clean
+ * config read with at least one link; a message that is already gone (or its
+ * channel) counts as deleted, any other failure keeps the record for the next
+ * sweep. Records that may still migrate onto a link are never listed
+ * (talkOverviewStore.listOverviewKeys). Returns the keys dropped.
+ */
+async function pruneOrphans(entries) {
+    if (!entries.length || !configReadCleanly() || !discord.isOnline()) return [];
+    const live = new Set(entries.map((e) => e.key));
+    const pruned = [];
+    for (const key of listOverviewKeys()) {
+        if (live.has(key)) continue;
+        const state = getOverviewState(key);
+        try {
+            if (state.messageId && state.channelId) {
+                const channel = await discord.fetchTextChannel(state.channelId, OVERVIEW_CHANNEL_MISSING);
+                const message = await channel.messages.fetch(state.messageId);
+                await message.delete();
+            }
+        } catch (e) {
+            if (!isUnknownMessage(e) && !isMissingChannel(e)) {
+                console.warn("[talkOverview] verwaiste Raid-Liste nicht gelöscht:", key, e.message);
+                continue;
+            }
+        }
+        removeOverviewState(key);
+        pruned.push(key);
+    }
+    return pruned;
 }
 
 let queue = Promise.resolve();
@@ -648,6 +719,6 @@ module.exports = {
     attendingCount,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        overviewLinks, formatStart, dayHeading, buildOverviewMessage, payloadHash, overviewEntries, roleCounts, instancePart,
+        overviewLinks, formatStart, dayHeading, buildOverviewMessage, payloadHash, overviewEntries, roleCounts, roleOf, instancePart,
     },
 };

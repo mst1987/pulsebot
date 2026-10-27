@@ -54,7 +54,14 @@ describe("apiRoutes/talkOverview", () => {
         const res = mockRes();
         await getTalkOverview({}, res, new URL("http://x/api/settings/talk-overview?key=111:111"));
         expect(body(res).status).toEqual({ key: "111:111", guildId: "111", messageId: "m3" });
-        expect(talkOverview.currentPayload).toHaveBeenCalledWith({ key: "111:111", guildId: "111" });
+        expect(talkOverview.currentPayload).toHaveBeenCalledWith({ key: "111:111" });
+    });
+
+    it("GET refuses an unknown link key instead of previewing another link of its source", async () => {
+        const res = mockRes();
+        await getTalkOverview({}, res, new URL("http://x/api/settings/talk-overview?key=111:999"));
+        expect(status(res)).toBe(400);
+        expect(talkOverview.currentPayload).not.toHaveBeenCalled();
     });
 
     it("POST syncs the list of one link by its key (#892)", async () => {

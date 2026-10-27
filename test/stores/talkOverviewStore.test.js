@@ -89,4 +89,24 @@ describe("stores/talkOverviewStore", () => {
             channelId: "", messageId: "", hash: "", postedAt: 0, editedAt: 0, checkedAt: 0, error: "",
         });
     });
+
+    it("lists only link keys for the clean-up and drops one record on request", () => {
+        const ab = `${EVENT_A}:${EVENT_B}`;
+        const ba = `${EVENT_B}:${EVENT_A}`;
+        store.setOverviewState(ab, { messageId: "1" });
+        store.setOverviewState(ba, { messageId: "2" });
+        store.setOverviewState(EVENT_A, { messageId: "3" }); // pre-#892, may still migrate
+        expect(store.listOverviewKeys()).toEqual([ab, ba]);
+        expect(store.removeOverviewState(ba)).toBe(true);
+        expect(store.removeOverviewState(ba)).toBe(false);
+        expect(Object.keys(stored())).toEqual([ab, EVENT_A]);
+    });
+
+    it("lists and drops nothing while the file still has the old flat shape", () => {
+        fs.mkdirSync(require("path").dirname(FILE), { recursive: true });
+        fs.writeFileSync(FILE, JSON.stringify({ channelId: "9", messageId: "90" }));
+        expect(store.listOverviewKeys()).toEqual([]);
+        expect(store.removeOverviewState("channelId")).toBe(false);
+        expect(stored()).toEqual({ channelId: "9", messageId: "90" });
+    });
 });

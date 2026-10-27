@@ -31,13 +31,22 @@ jest.mock("../../../src/stores/talkOverviewStore", () => ({
         mockStates[key] = { ...mockStates[key], ...patch };
         return mockStates[key];
     }),
+    listOverviewKeys: jest.fn(() => Object.keys(mockStates).filter((key) => /^[^:]+:[^:]+$/.test(key))),
+    removeOverviewState: jest.fn((key) => {
+        if (!mockStates[key]) return false;
+        delete mockStates[key];
+        return true;
+    }),
 }));
+// The raw config read: a clean read has a `discordServers` block (the orphan clean-up checks it).
+jest.mock("../../../src/stores/configStore", () => ({ readStored: jest.fn(() => ({ discordServers: {} })) }));
 // Most tests configure exactly one link, from "111" to "222" (see `config` below).
 const stateOf = (key = "111:222") => mockStates[key] || {};
 
 const discord = require("../../../src/services/discord/discord");
 const { eventLang } = require("../../../src/services/discord/botLanguage");
 const { getConfig } = require("../../../src/stores/settingsStore");
+const { readStored } = require("../../../src/stores/configStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const {
     CHANNEL_MISSING, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
@@ -155,6 +164,18 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
     it("counts each attending account once per role", () => {
         expect(roleCounts({ signUps: [own("a", "tank"), own("a", "healer"), own("b", "healer", "late"), own("c", "tank", "tentative")] }))
             .toEqual({ tank: 1, healer: 1, dps: 0 });
+    });
+
+    it("counts a Raid-Helper signup without a role (Late, unknown spec) in no role — only in the signups", () => {
+        const signUps = [
+            { userId: "a", specName: "Late", status: "late" },
+            { userId: "b", specName: "Whatever", status: "signed" },
+            { userId: "c", specName: "Whatever", roleName: "Tanks", status: "signed" },
+            { userId: "d", specName: "Arcane", status: "signed" },
+        ];
+        expect(roleCounts({ signUps })).toEqual({ tank: 1, healer: 0, dps: 1 });
+        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ signUps })] }], opts);
+        expect(metaLines(payload.embeds[0].fields[0])[0]).toContain("4 signups");
     });
 
     it("links into the event channel only while it exists — a deleted one reads \"channel missing\" (#537)", () => {
@@ -594,6 +615,108 @@ describe("services/talk/talkOverview — syncOverview", () => {
         const bySource = await currentPayload({ config, guildId: "111" });
         expect(bySource.payload).toEqual(byKey.payload);
         expect(bySource.lang).toBe("en");
+    });
+
+    it("never falls back to another link of the source for an unknown key", async () => {
+        const home = await currentPayload({ config, key: "111:111" });
+        const known = await currentPayload({ config, key: "111:222" });
+        // no link: the at-home frame of the source, not the cross-server frame of 111:222
+        expect(home.payload.embeds[0].title).not.toBe(known.payload.embeds[0].title);
+    });
+});
+
+describe("services/talk/talkOverview — orphaned lists (#892)", () => {
+    const linkTo = (links) => ({ guildId: "111", discordServers: federation(
+        [{ guildId: "111", label: "" }, { guildId: "112", label: "" }, { guildId: "222", label: "" }, { guildId: "333", label: "" }], links) });
+
+    // the list of the current link "111:222" lives in "ov"; the orphan's in "old"
+    function withOrphan(key, { fetchError, channelGone = false } = {}) {
+        const orphanMsg = { id: "m-old", edit: jest.fn(), delete: jest.fn() };
+        const old = makeChannel({ id: "old", messages: [orphanMsg] });
+        if (fetchError) old.messages.fetch.mockRejectedValue(fetchError);
+        fakeDiscord({ extraChannels: channelGone ? [] : [old] });
+        mockStates[key] = { channelId: "old", messageId: "m-old", hash: "h" };
+        return orphanMsg;
+    }
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        eventLang.mockImplementation(() => "en");
+        mockStates = {};
+        readStored.mockReturnValue({ discordServers: {} });
+        getConfig.mockReturnValue(linkTo([{ from: "111", to: "222", channelId: "ov" }]));
+        loadEventGroups.mockResolvedValue({ groups: [], error: null });
+    });
+
+    it("deletes the old list when a link's target changed (A:T1 -> A:T2)", async () => {
+        const orphan = withOrphan("111:333");
+        expect(await syncOverview({})).toMatchObject({ pruned: ["111:333"] });
+        expect(orphan.delete).toHaveBeenCalledTimes(1);
+        expect(mockStates["111:333"]).toBeUndefined();
+        expect(stateOf("111:222").messageId).toBe("m-new");
+    });
+
+    it("deletes the old list when a link's source changed (A:T -> B:T)", async () => {
+        const orphan = withOrphan("112:222");
+        expect(await syncOverview({})).toMatchObject({ pruned: ["112:222"] });
+        expect(orphan.delete).toHaveBeenCalledTimes(1);
+        expect(mockStates["112:222"]).toBeUndefined();
+    });
+
+    it("deletes the list of a removed link while others remain", async () => {
+        getConfig.mockReturnValue(linkTo([{ from: "111", to: "222", channelId: "ov" }]));
+        const orphan = withOrphan("111:111");
+        await syncOverview({});
+        expect(orphan.delete).toHaveBeenCalledTimes(1);
+        expect(Object.keys(mockStates)).toEqual(["111:222"]);
+    });
+
+    it("drops the record when the message or its channel is already gone", async () => {
+        withOrphan("111:333", { fetchError: Object.assign(new Error("Unknown Message"), { code: 10008 }) });
+        expect(await syncOverview({})).toMatchObject({ pruned: ["111:333"] });
+        expect(mockStates["111:333"]).toBeUndefined();
+
+        withOrphan("111:333", { channelGone: true });
+        expect(await syncOverview({})).toMatchObject({ pruned: ["111:333"] });
+        expect(mockStates["111:333"]).toBeUndefined();
+    });
+
+    it("keeps the record on any other failure, for the next sweep", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        withOrphan("111:333", { fetchError: Object.assign(new Error("Missing Access"), { code: 50001 }) });
+        expect(await syncOverview({})).not.toHaveProperty("pruned");
+        expect(mockStates["111:333"]).toMatchObject({ messageId: "m-old" });
+        expect(warn).toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it("deletes nothing after an unclean config read or without links", async () => {
+        const orphan = withOrphan("111:333");
+        readStored.mockReturnValue({}); // config.json missing or broken: defaults
+        expect(await syncOverview({})).not.toHaveProperty("pruned");
+        readStored.mockImplementation(() => { throw new Error("EACCES"); });
+        await syncOverview({});
+        readStored.mockReturnValue({ discordServers: {} });
+        getConfig.mockReturnValue(linkTo([])); // no link at all: never read as "all removed"
+        await syncOverview({});
+        expect(orphan.delete).not.toHaveBeenCalled();
+        expect(mockStates["111:333"]).toMatchObject({ messageId: "m-old" });
+    });
+
+    it("never touches records that may still migrate, nor runs offline", async () => {
+        mockStates["999"] = { channelId: "old", messageId: "m-old" }; // keyed by a source alone
+        const orphan = withOrphan("111:333");
+        discord.getClient.mockReturnValue(null);
+        await syncOverview({});
+        expect(orphan.delete).not.toHaveBeenCalled();
+        expect(mockStates["111:333"]).toBeDefined();
+        expect(mockStates["999"]).toBeDefined();
+    });
+
+    it("prunes only on a full sync, never on a single link's", async () => {
+        const orphan = withOrphan("111:333");
+        await syncOverview({ key: "111:222" });
+        expect(orphan.delete).not.toHaveBeenCalled();
     });
 });
 
