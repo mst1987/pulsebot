@@ -1,4 +1,4 @@
-// What happens when the server language (config.botLanguage, Einstellungen)
+// What happens when the server language (botLanguage per server, #924)
 // changes: every public message the bot keeps up to date is drawn again in the
 // new language. Called by PATCH /api/settings after a change, not awaited —
 // Discord edits are slow and never hold up the save. Never throws.

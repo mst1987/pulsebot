@@ -15,16 +15,25 @@ describe("channelPurposes", () => {
 
     it("reads the ids from the config, trimmed and de-duplicated", () => {
         const cfg = {
-            raidDefaults: { channelId: " 1 " },
-            serverSettings: { g1: { logChannels: [" 2 ", "2", ""] }, g2: { logChannels: ["3"] } },
-            applicationChannelId: "",
+            serverSettings: {
+                g1: { raidDefaults: { channelId: " 1 " }, applicationChannelId: "", logChannels: [" 2 ", "2", ""] },
+                g2: { logChannels: ["3"] },
+            },
         };
-        expect(idsFor(PURPOSES[0], cfg)).toEqual(["1"]);
+        expect(idsFor(PURPOSES[0], cfg, "g1")).toEqual(["1"]);
         expect(idsFor(PURPOSES[1], cfg, "g1")).toEqual(["2"]);
         // log channels belong to one server (#921): none without one
         expect(idsFor(PURPOSES[1], cfg)).toEqual([]);
-        expect(idsFor(PURPOSES[2], cfg)).toEqual([]);
+        expect(idsFor(PURPOSES[2], cfg, "g1")).toEqual([]);
         expect(idsFor(PURPOSES[0], undefined)).toEqual([]);
+    });
+
+    it("reads the raid preset and the application channel of the page's server only (#924)", () => {
+        const cfg = { raidDefaults: { channelId: "old" }, applicationChannelId: "old", serverSettings: { g1: { applicationChannelId: "a1" }, g2: { raidDefaults: { channelId: "r2" } } } };
+        expect(idsFor(PURPOSES[0], cfg, "g1")).toEqual([]);
+        expect(idsFor(PURPOSES[2], cfg, "g1")).toEqual(["a1"]);
+        expect(idsFor(PURPOSES[0], cfg, "g2")).toEqual(["r2"]);
+        expect(idsFor(PURPOSES[2], cfg, "")).toEqual([]);
     });
 
     describe("channelStatus", () => {
@@ -49,9 +58,12 @@ describe("channelPurposes", () => {
         const channels = [ch("mo", "mo-logs"), ch("do", "do-logs"), ch("bw", "bewerbungen"), ch("an", "anmeldung", { botCanSend: false })];
         const categories = [{ id: "k1", name: "Raid Montag" }, { id: "k2", name: "Raid Donnerstag" }];
         const config = {
-            raidDefaults: { templateId: "x", channelId: "an" },
-            serverSettings: { g1: { logChannels: [{ channelId: "mo", versionId: "tbc" }, { channelId: "do", versionId: "forever" }] } },
-            applicationChannelId: "bw",
+            serverSettings: {
+                g1: {
+                    raidDefaults: { channelId: "an" }, applicationChannelId: "bw",
+                    logChannels: [{ channelId: "mo", versionId: "tbc" }, { channelId: "do", versionId: "forever" }],
+                },
+            },
             categoryIds: ["k1", "k2"],
         };
 
@@ -69,7 +81,7 @@ describe("channelPurposes", () => {
         });
 
         it("flags a stored channel or category that no longer exists", () => {
-            const byId = Object.fromEntries(resolvePurposes({ applicationChannelId: "gone", categoryIds: ["k9"] }, channels, categories).map((p) => [p.id, p]));
+            const byId = Object.fromEntries(resolvePurposes({ serverSettings: { g1: { applicationChannelId: "gone" } }, categoryIds: ["k9"] }, channels, categories, true, "g1").map((p) => [p.id, p]));
             expect(byId.application.items[0]).toMatchObject({ id: "gone", found: false });
             expect(byId.application.status.label).toBe("Kanal nicht gefunden");
             expect(byId.eventCategories.status).toMatchObject({ tone: "mid", label: "1 nicht gefunden" });
@@ -82,7 +94,7 @@ describe("channelPurposes", () => {
         });
 
         it("keeps quiet about rights while the bot is not connected", () => {
-            const list = resolvePurposes(config, [], [], false);
+            const list = resolvePurposes(config, [], [], false, "g1");
             expect(list.find((p) => p.id === "application").status).toMatchObject({ tone: "", label: "gesetzt" });
             expect(list.find((p) => p.id === "eventCategories").status).toMatchObject({ tone: "", label: "2 Kategorien" });
         });

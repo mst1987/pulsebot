@@ -199,6 +199,31 @@ describe("classes/WarcraftLogs", () => {
         });
     });
 
+    describe("getGuildReports (#922)", () => {
+        it("asks the guild's reports on the client's site, url-encoded, with the window in ms", async () => {
+            const client = new WarcraftLogs(undefined, { site: "https://fresh.warcraftlogs.com" });
+            respond(reply(200, [{ id: "AbC123", title: "Kara", start: 5 }]));
+            const result = await client.getGuildReports("Die Gilde", "Thunderstrike", "EU", { start: 1000, end: 2000 });
+            const req = sent();
+            expect(axios.getUri(req).split("?")[0]).toBe("https://fresh.warcraftlogs.com/v1/reports/guild/Die%20Gilde/Thunderstrike/EU");
+            expect(req.params).toEqual({ start: 1000, end: 2000, api_key: "test-wcl-key", translate: true });
+            expect(result).toEqual([{ id: "AbC123", title: "Kara", start: 5 }]);
+        });
+
+        it("leaves out a missing window", async () => {
+            const client = new WarcraftLogs();
+            respond(reply(200, []));
+            await client.getGuildReports("G", "R", "US");
+            expect(sent().params).toEqual({ api_key: "test-wcl-key", translate: true });
+        });
+
+        it("re-throws WCL's 400 for an unknown guild with its status", async () => {
+            const client = new WarcraftLogs();
+            respond(reply(400, { error: "Invalid guild name/server/region specified." }));
+            await expect(client.getGuildReports("x", "y", "EU")).rejects.toMatchObject({ status: 400 });
+        });
+    });
+
     describe("getParses", () => {
         it("targets the fresh host and url-encodes name/realm/region", async () => {
             const client = new WarcraftLogs();

@@ -53,7 +53,7 @@ describe("apiRoutes/addonCenter rolesOf", () => {
             },
             channels: { cache: new Map([["c1", { id: "c1", name: "offiziere", permissionOverwrites: { cache: new Map([["r5", { allow: { bitfield: 0x400n } }]]) } }]]) },
         }));
-        mockRights = { rolePermissions: { r1: { signup: { read: true } } }, orgaRoleIds: ["r2"], officerRoleId: "r6" };
+        mockRights = { rolePermissions: { r1: { signup: { read: true } } }, orgaRoleIds: ["r2"], serverSettings: { "900000000000000009": { officerRoleId: "r6" } } };
         const roles = body(await get("/api/addon-center")).roles.g1;
         // r6 is the officer role pinged on applications: whoever took it would read every application
         expect(roles.map((r) => [r.id, r.privileged])).toEqual([

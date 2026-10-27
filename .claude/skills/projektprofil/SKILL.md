@@ -191,13 +191,22 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     (`discord.isGuildAvailable()` prüfen). „In Discord gelöscht" gilt nur bei verfügbarem Server, der
     überhaupt Kategorien liefert, und belastbarem Besitzer (live oder Namens-Snapshot) — nie aus
     Roster-, Raid- oder Migrations-`guildId`s (die sind oft geraten und dienen nur der Anzeige).
-21. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
+21. Zeitfenster bei externen Listen-APIs (#922): WCL v1 `reports/guild` filtert `start`/`end` nach der
+    **Startzeit** eines Reports, nicht nach dem Upload — ein Raid von 20 Uhr, um 23:30 hochgeladen,
+    liegt vor dem letzten Abruf. Nie „ab dem letzten Lauf" abfragen: großzügiges Rückblickfenster
+    (`wclGuildSync`: 48 h vor dem letzten **erfolgreichen** Abruf, erster Abruf 14 Tage) plus Dedup
+    (`logStore.getByReportId`); den Fensterbeginn (`lastSuccessAt`) nur bei Erfolg vorrücken, ein
+    Fehlerlauf rückt nur die Fälligkeit (`lastRunAt`). Gilt für jede Listenabfrage mit Zeitfilter.
+22. `client.channels.fetch` und `discord.channelVisible` arbeiten über Servergrenzen hinweg. Ein Post
+    in einen Kanal aus den Einstellungen eines Servers geht über `postNotice`/`postPayload` mit
+    `{ guildId }` (`assertChannelGuild`, Code `wrong_guild`) oder prüft `channel.guildId` selbst.
+23. Rechte je Server (#925): Jede Route, die eine Datensatz-ID oder `?guildId=`/`body.guildId`
     annimmt, prüft, ob der Datensatz zum aktiven Server gehört (Voll-Admins ausgenommen). Muster:
     `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
     fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
     Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
     Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
-    Kanal-IDs aus dem Body: Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
+24. Kanal-IDs aus dem Body (#925): Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
     Quell-Event aus dem Request nimmt und darüber postet, klont oder anlegt, prüft jede davon per
     `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der
     Kanal-Cache des Bots und `linkCheck` sind keine Server-Prüfung. Ein unbekannter Server zählt auf

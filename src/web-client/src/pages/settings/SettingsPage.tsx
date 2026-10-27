@@ -16,6 +16,7 @@ import ConnectionsSection from "./SettingsConnections";
 import AddonsSection from "./AddonsSection";
 import DiscordServersSection from "./SettingsDiscordServers";
 import RaidhelperServerSection from "./SettingsRaidhelperServer";
+import WclGuildsSection from "./SettingsWclGuilds";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
@@ -29,7 +30,7 @@ import IconTile from "../../components/ui/IconTile";
 import PartHead from "../../components/ui/PartHead";
 import "../../styles/settings.css";
 import RaidLoader from "../../components/ui/RaidLoader";
-import { type Draft, toDraft } from "./settingsDraft";
+import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { LogChannelsField, TopItemsField } from "./SettingsFields";
 import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
@@ -37,7 +38,7 @@ import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitc
 import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
 import CategoryCloseDialog from "./CategoryCloseDialog";
 import { deactivatedIds } from "../../lib/settings/categoryLifecycle";
-import type { CategoryCloseResult, MissingCategory } from "../../api";
+import type { CategoryCloseResult, MissingCategory, WclGuild } from "../../api";
 import { categoryVersionsToSave, isVersionSwitch, savedCategoryVersion, switchFixesToSend } from "../../lib/settings/categoryVersions";
 import HideOtherVersionsCard from "./HideOtherVersionsCard";
 import BotLanguageCard from "./BotLanguageCard";
@@ -58,6 +59,8 @@ function ModuleCard({ children }: { children: ReactNode }) {
 type PermView = "areas" | "bot";
 
 const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
+// one stable empty list, so a server without WCL guilds hands the section the same array every render
+const NO_WCL_GUILDS: WclGuild[] = [];
 
 export default function SettingsPage() {
     const t = useT();
@@ -205,6 +208,9 @@ export default function SettingsPage() {
     const save = async () => {
         setDeactivating(false);
         setSaving(true);
+        const defaultsChanged = serverDefaultsChanges(saved, draft);
+        const serverDefaults = Object.keys(defaultsChanged).length
+            ? { ...defaultsChanged, serverSettingsGuildId: data.activeGuildId || "" } : {};
         try {
             const answer = await updateSettings({
                 // Access config is full-admin-only; sending it as anyone else
@@ -213,18 +219,18 @@ export default function SettingsPage() {
                 // an untouched field from an old tab would overwrite the rights
                 // of the server another tab switched to.
                 // A server's rights go with the server this page loaded: a switched session answers 409.
-                ...(data.canManageAccess ? accessPatch(draft, toDraft(data.config), data.activeGuildId || "") : {}),
-                officerRoleId: draft.officerRoleId.trim(),
-                applicationChannelId: draft.applicationChannelId.trim(),
-                // #926: the categories (only this server's part changes) and #921 the log channels belong to
-                // the server this page loaded — sent with it, so a tab left on another server is refused (409)
-                // instead of writing there. "" = none was active (the categories then edit the first server).
+                ...(data.canManageAccess ? accessPatch(draft, saved, data.activeGuildId || "") : {}),
+                // #924: the active server's own values, only the ones changed here.
+                ...serverDefaults,
+                // #926: the categories (only this server's part changes), #921 the log channels and #924 the
+                // values above belong to the server this page loaded — sent with it, so a tab left on another
+                // server is refused (409) instead of writing there. "" = none was active (the categories then
+                // edit the first server, the bot language its default).
                 categoryIds: draft.categoryIds,
                 serverSettingsGuildId: data.activeGuildId || "",
                 categoryRoles: draft.categoryRoles,
                 // the log channels only when changed (they need an active server)
                 ...(data.activeGuildId && logChannelsChanged(saved, draft) ? { logChannels: draft.logChannels } : {}),
-                raidDefaults: { channelId: draft.raidChannelId.trim() },
                 categoryLootTool: draft.categoryLootTool,
                 // Merged on the server: "automatisch" is sent as "" and drops the entry.
                 categoryLootSystem: draft.categoryLootSystem,
@@ -257,7 +263,6 @@ export default function SettingsPage() {
                 categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
                 // #563: only the main version everywhere while it is on.
                 hideOtherVersions: draft.hideOtherVersions,
-                botLanguage: draft.botLanguage,
                 // the drawn pictures (a test): every switch, merged on the server
                 discordVisuals: draft.discordVisuals,
                 // the dungeon record post: both fields, merged on the server
@@ -302,7 +307,9 @@ export default function SettingsPage() {
         } catch (err) {
             const e = err as ApiError;
             // #921: another tab switched the session's server since this page loaded
-            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
+            // #924: channels and roles always belong to one server — none is picked
+            const known: Record<string, string> = { server_switched: "settings.serverSwitched", no_active_server: "settings.noActiveServer" };
+            toast(e.code && known[e.code] ? t(known[e.code]) : e.message, "err");
         } finally {
             setSaving(false);
         }
@@ -511,7 +518,14 @@ export default function SettingsPage() {
             case "raids": return (
                 <>
                     {head(activeSection)}
-                    <BotLanguageCard value={draft.botLanguage} onChange={(botLanguage) => patch({ botLanguage })} />
+                    <BotLanguageCard
+                        value={draft.botLanguage}
+                        own={draft.botLanguageOwn}
+                        defaultValue={draft.botLanguageDefault}
+                        server={data.activeGuildId ? (data.bot?.guildName || data.activeGuildId) : ""}
+                        canEditDefault={data.canManageAccess}
+                        onChange={(next) => patch(next)}
+                    />
                     <DiscordVisualsCard value={draft.discordVisuals} onChange={(discordVisuals) => patch({ discordVisuals })} />
                     <ModuleCard>
                         <div className="set-field">
@@ -569,6 +583,19 @@ export default function SettingsPage() {
                                 />
                             ) : <p className="muted">{t("settings.fields.logNoServer")}</p>}
                         </div>
+                        {/* #922 the WCL guild per version of the active server, saved on its own */}
+                        {data.activeGuildId && (
+                            <WclGuildsSection
+                                value={data.config.serverSettings?.[data.activeGuildId]?.wclGuilds || NO_WCL_GUILDS}
+                                activeGuildId={data.activeGuildId}
+                                versions={(data.gameVersions || []).map((v) => ({ id: v.id, label: v.label }))}
+                                onSaved={(wclGuilds) => setData((cur) => {
+                                    if (!cur || !cur.activeGuildId) return cur;
+                                    const all = cur.config.serverSettings || {};
+                                    return { ...cur, config: { ...cur.config, serverSettings: { ...all, [cur.activeGuildId]: { ...(all[cur.activeGuildId] || {}), wclGuilds } } } };
+                                })}
+                            />
+                        )}
                     </ModuleCard>
                 </>
             );

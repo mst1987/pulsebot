@@ -282,9 +282,12 @@ describe("web/apiRoutes/channels", () => {
                     { id: "c2", name: "bewerbungen", type: 0, typeLabel: "Text", category: "", parentId: "", botCanView: true, botCanSend: false },
                 ]);
                 settingsStore.getConfig.mockReturnValue({
-                    serverSettings: { "guild-1": { logChannels: [{ channelId: "c1", versionId: "tbc" }] } },
-                    applicationChannelId: "c2", categoryIds: ["cat1"],
-                    raidDefaults: { templateId: "t", channelId: "" },
+                    categoryIds: ["cat1"],
+                    // per server (#924): the active server's application channel, no preset channel; its own log channels (#921)
+                    serverSettings: {
+                        "guild-1": { applicationChannelId: "c2", raidDefaults: { channelId: "" }, logChannels: [{ channelId: "c1", versionId: "tbc" }] },
+                        other: { raidDefaults: { channelId: "c1" } },
+                    },
                 });
                 settingsStore.listRecruitmentPosts.mockReturnValue([
                     { guildId: "guild-1", channelId: "c2" }, { guildId: "guild-1", channelId: "c2" }, { guildId: "other", channelId: "x" },

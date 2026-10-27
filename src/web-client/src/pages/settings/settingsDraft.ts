@@ -59,8 +59,12 @@ export type Draft = {
     categorySwitchFixes: Record<string, SwitchFix>;
     /** "Andere Versionen ausblenden" (#563). */
     hideOtherVersions: boolean;
-    /** Language of the bot's public messages (default for every raider). */
+    /** Language of the bot's public messages (default for every raider): what the active server gets. */
     botLanguage: "de" | "en";
+    /** The global default (#924); not edited through this field — without a server `botLanguage` is the default. */
+    botLanguageDefault: "de" | "en";
+    /** Whether the active server keeps its own bot language; off = it follows the default. */
+    botLanguageOwn: boolean;
     /** The drawn pictures in bot messages (a test), every switch as a boolean. */
     discordVisuals: Record<DiscordVisualKey, boolean>;
     /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten): off by default. */
@@ -71,6 +75,31 @@ export type Draft = {
     versionDisabled: Record<string, string[]>;
     topItems: TopItem[];
 };
+
+/** The fields of the active server (#924) as the PATCH body names them. */
+export type ServerDefaultsBody = Partial<Pick<AdminConfig, "officerRoleId" | "applicationChannelId" | "raidDefaults">> & {
+    /** A language; `null` drops the active server's own value ("Standard verwenden"). Without a server: the default. */
+    botLanguage?: "de" | "en" | null;
+};
+
+/**
+ * The active server's own values (#924) the draft changed, nothing else: the
+ * server saves them into the server active for the session, so a tab opened
+ * before another server was picked must not send values it never touched — it
+ * would overwrite that other server's values.
+ */
+export function serverDefaultsChanges(saved: Draft, draft: Draft): ServerDefaultsBody {
+    const out: ServerDefaultsBody = {};
+    if (draft.officerRoleId.trim() !== saved.officerRoleId.trim()) out.officerRoleId = draft.officerRoleId.trim();
+    if (draft.applicationChannelId.trim() !== saved.applicationChannelId.trim()) out.applicationChannelId = draft.applicationChannelId.trim();
+    if (draft.raidChannelId.trim() !== saved.raidChannelId.trim()) out.raidDefaults = { channelId: draft.raidChannelId.trim() };
+    if (saved.botLanguageOwn && !draft.botLanguageOwn) out.botLanguage = null;
+    else if (draft.botLanguageOwn ? (!saved.botLanguageOwn || draft.botLanguage !== saved.botLanguage) : draft.botLanguage !== saved.botLanguage) {
+        // An own value on the active server, or — without a server, where nothing is own — the default.
+        out.botLanguage = draft.botLanguage;
+    }
+    return out;
+}
 
 /** `guildId`: the active server, whose log channels the draft holds (#921). */
 export function toDraft(config: AdminConfig, guildId = ""): Draft {
@@ -114,6 +143,8 @@ export function toDraft(config: AdminConfig, guildId = ""): Draft {
         categorySwitchFixes: {},
         hideOtherVersions: config.hideOtherVersions === true,
         botLanguage: config.botLanguage === "en" ? "en" : "de",
+        botLanguageDefault: (config.botLanguageDefault || config.botLanguage) === "en" ? "en" : "de",
+        botLanguageOwn: config.botLanguageOwn === true,
         discordVisuals: discordVisualsOf(config.discordVisuals),
         dungeonRecords: { post: config.dungeonRecords?.post === true, channelId: config.dungeonRecords?.channelId || "" },
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),

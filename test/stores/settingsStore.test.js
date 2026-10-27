@@ -22,16 +22,18 @@ describe("stores/settingsStore", () => {
         it("returns the defaults when nothing is stored", () => {
             const cfg = getConfig();
             expect(cfg.adminRoleIds).toEqual([]);
-            expect(cfg.raidDefaults).toEqual({ channelId: "" });
+            // #924: the raid defaults are per server, there is no global field any more
+            expect(cfg).not.toHaveProperty("raidDefaults");
+            expect(cfg.serverSettings).toEqual({});
             expect(cfg.categoryRaidTemplate).toEqual({});
         });
 
         it("merges stored values over the defaults", () => {
-            saveConfig({ adminRoleIds: ["111", "222"], raidDefaults: { channelId: "ch" } });
+            saveConfig({ guildId: "111111", adminRoleIds: ["111", "222"], serverSettings: { 111111: { raidDefaults: { channelId: "ch" } } } });
             const cfg = getConfig();
             expect(cfg.adminRoleIds).toEqual(["111", "222"]);
-            // the default template is per category now, raidDefaults keeps only the channel
-            expect(cfg.raidDefaults).toEqual({ channelId: "ch" });
+            // the default template is per category, the preset channel per server (#924)
+            expect(cfg.serverSettings["111111"].raidDefaults).toEqual({ channelId: "ch" });
         });
 
         // The base access lives per server since #925 (serverSettings[guildId]):
@@ -92,9 +94,7 @@ describe("stores/settingsStore", () => {
             const { guildId: defaultGuildId } = require("../../src/config/variables");
 
             it("defaults to no servers (= nothing configured yet)", () => {
-                expect(getConfig().discordServers).toEqual({
-                    servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "",
-                });
+                expect(getConfig().discordServers).toEqual({ servers: [], links: [] });
                 expect(getConfig().guildId).toBe(defaultGuildId);
             });
 
@@ -106,19 +106,14 @@ describe("stores/settingsStore", () => {
                         talkPingChannelId: 333333, signupNoteChannelId: "444444", guildBankChannelId: " 666666 ",
                     },
                 });
-                expect(saved.discordServers).toEqual({
-                    servers: [{ guildId: "111111", label: "PvE" }], links: [],
-                    signupNoteChannelId: "444444", guildBankChannelId: "666666",
-                });
+                // #924: the two signup channels are per server now, the block drops them
+                expect(saved.discordServers).toEqual({ servers: [{ guildId: "111111", label: "PvE" }], links: [] });
             });
 
-            it("keeps the note channel without any event server", () => {
-                expect(saveConfig({ discordServers: { signupNoteChannelId: "555555" } }).discordServers.signupNoteChannelId).toBe("555555");
-            });
-
-            it("keeps the guild bank channel without any event server and drops one that is no id", () => {
-                expect(saveConfig({ discordServers: { guildBankChannelId: "777777" } }).discordServers.guildBankChannelId).toBe("777777");
-                expect(normalizeDiscordServers({ guildBankChannelId: "#gildenbank" }).guildBankChannelId).toBe("");
+            it("keeps the signup channels per server, not in the server block (#924)", () => {
+                const saved = saveConfig({ guildId: "111111", serverSettings: { 111111: { signupNoteChannelId: "555555", guildBankChannelId: "777777" } } });
+                expect(saved.serverSettings["111111"]).toEqual({ signupNoteChannelId: "555555", guildBankChannelId: "777777" });
+                expect(normalizeDiscordServers({ guildBankChannelId: "777777" })).not.toHaveProperty("guildBankChannelId");
             });
 
             // #897: an old talk server is read as an ordinary server, the field is gone
@@ -128,9 +123,7 @@ describe("stores/settingsStore", () => {
                 expect(out.servers).toEqual([{ guildId: "111111", label: "" }]);
                 expect(normalizeDiscordServers({ servers: [{ guildId: "111111" }], talkGuildId: "222222" }).servers.map((x) => x.guildId))
                     .toEqual(["111111", "222222"]);
-                expect(normalizeDiscordServers(null)).toEqual({
-                    servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "",
-                });
+                expect(normalizeDiscordServers(null)).toEqual({ servers: [], links: [] });
                 expect(normalizeDiscordServers(["x"]).servers).toEqual([]);
             });
 
@@ -141,9 +134,9 @@ describe("stores/settingsStore", () => {
 
             it("merges a partial update instead of replacing the block", () => {
                 saveConfig({ guildId: "111111", discordServers: { servers: [{ guildId: "111111" }, { guildId: "222222" }] } });
-                const saved = saveConfig({ discordServers: { signupNoteChannelId: "444444" } });
+                const saved = saveConfig({ discordServers: { links: [] } });
                 expect(saved.discordServers).toMatchObject({
-                    servers: [{ guildId: "111111" }, { guildId: "222222" }], signupNoteChannelId: "444444",
+                    servers: [{ guildId: "111111" }, { guildId: "222222" }], links: [],
                 });
                 expect(saved.discordServers).not.toHaveProperty("talkGuildId");
                 // #894: an old talk ping channel is dropped on save
@@ -165,21 +158,23 @@ describe("stores/settingsStore", () => {
 
         it("exposes the channel/role ids and persists overrides", () => {
             const def = getConfig();
-            expect(def).toHaveProperty("applicationChannelId");
-            expect(def).toHaveProperty("officerRoleId");
+            // #924: applications are per server, the global fields are gone
+            expect(def).not.toHaveProperty("applicationChannelId");
+            expect(def).not.toHaveProperty("officerRoleId");
             expect(Array.isArray(def.categoryIds)).toBe(true);
             // #921: the log channels live per server, no global list any more
             expect(def).not.toHaveProperty("logChannelIds");
             expect(def.serverSettings).toEqual({});
 
             saveConfig({
-                applicationChannelId: "app-1",
-                officerRoleId: "role-1",
+                guildId: "111111",
+                serverSettings: { 111111: { applicationChannelId: "app-1", officerRoleId: "role-1" } },
+                applicationChannelId: "ignored",
                 categoryIds: ["c1", "c2"],
             });
             const cfg = getConfig();
-            expect(cfg.applicationChannelId).toBe("app-1");
-            expect(cfg.officerRoleId).toBe("role-1");
+            expect(cfg.serverSettings["111111"]).toEqual({ applicationChannelId: "app-1", officerRoleId: "role-1" });
+            expect(cfg).not.toHaveProperty("applicationChannelId");
             expect(cfg.categoryIds).toEqual(["c1", "c2"]);
         });
 
@@ -378,12 +373,12 @@ describe("stores/settingsStore", () => {
     });
 
     describe("saveConfig", () => {
-        it("persists a partial update and deep-merges raidDefaults", () => {
-            saveConfig({ raidDefaults: { channelId: "c1" }, adminRoleIds: ["1"] });
-            saveConfig({ raidDefaults: { channelId: "c2" } });
+        it("persists a partial update and merges the server blocks per key", () => {
+            saveConfig({ guildId: "111111", serverSettings: { 111111: { raidDefaults: { channelId: "c1" }, botLanguage: "en" } }, adminRoleIds: ["1"] });
+            saveConfig({ serverSettings: { 111111: { raidDefaults: { channelId: "c2" } } } });
             const cfg = getConfig();
             expect(cfg.adminRoleIds).toEqual(["1"]);
-            expect(cfg.raidDefaults.channelId).toBe("c2");
+            expect(cfg.serverSettings["111111"]).toEqual({ raidDefaults: { channelId: "c2" }, botLanguage: "en" });
         });
 
         it("keeps the WCL v2 client empty by default and deep-merges it like the other credentials", () => {
@@ -592,11 +587,12 @@ describe("stores/settingsStore", () => {
 
         it("hands the old global default template to every raid category", () => {
             fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "3", name: "GDKP Kara" }] }));
-            fs.__store.set(CONFIG_FILE, JSON.stringify({ categoryIds: ["c1", "c2"], raidDefaults: { templateId: "3", channelId: "ch" } }));
+            fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: "111111", categoryIds: ["c1", "c2"], raidDefaults: { templateId: "3", channelId: "1800000000000000090" } }));
             migrateSettings({ log: () => {} });
             const cfg = getConfig();
             expect(cfg.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
-            expect(cfg.raidDefaults).toEqual({ channelId: "ch" });
+            // the channel moved to the server (#924), the template id stayed behind
+            expect(cfg.serverSettings["111111"].raidDefaults).toEqual({ channelId: "1800000000000000090" });
             // a saved map ends the migration, even an emptied one
             saveConfig({ categoryRaidTemplate: { c1: "rh-3", c2: "" } });
             expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3" });
@@ -741,9 +737,9 @@ describe("stores/settingsStore", () => {
 
         it("does not clobber raidsheets when saving general config", () => {
             const saved = saveRaidsheet({ name: "Tier 6", spreadsheetId: "s6" });
-            saveConfig({ officerRoleId: "role-1" });
+            saveConfig({ categoryIds: ["c1"] });
             expect(getRaidsheet(saved.id)).not.toBeNull();
-            expect(getConfig().officerRoleId).toBe("role-1");
+            expect(getConfig().categoryIds).toEqual(["c1"]);
         });
     });
 

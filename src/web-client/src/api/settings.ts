@@ -8,6 +8,7 @@ import type { BotAccessRule } from "./botCommands";
 import type { VersionOverrides, VersionSettingsBlock } from "../lib/settings/versionLinks";
 import type { CapabilityMatrix } from "../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
+import type { WclGuild, WclGuildInput } from "./wclGuilds";
 
 /**
  * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
@@ -56,15 +57,17 @@ export type AdminConfig = {
     // The servers and their links (#890); full admins only, like the access keys.
     discordServers?: DiscordServers;
     raidhelperServerId: string;
+    // #924: these four are the active server's values (serverSettings); a PATCH writes them there.
     officerRoleId: string;
     applicationChannelId: string;
     categoryIds: string[];
     categoryRoles: Record<string, string[]>;
     /**
      * Settings per Discord server (#917): the log channels with their version
-     * (#921), its own armory/log templates and realm per version (#923).
+     * (#921), its own armory/log templates and realm per version (#923), the
+     * Warcraft Logs guilds per version (#922).
      */
-    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides }>;
+    serverSettings?: Record<string, { logChannels?: LogChannel[]; versionOverrides?: VersionOverrides; wclGuilds?: WclGuild[] }>;
     raidDefaults: { channelId: string };
     // The default raid template per category (category id → template id).
     categoryRaidTemplate: Record<string, string>;
@@ -86,8 +89,15 @@ export type AdminConfig = {
     categorySwitchFixes?: Record<string, { series: string; roster?: RosterSwitchChoice }>;
     /** "Andere Versionen ausblenden" (#563): only the main version everywhere. */
     hideOtherVersions?: boolean;
-    /** Language of the bot's public messages and default for every raider; missing = "de". */
+    /**
+     * Language of the bot's public messages on the active server (#924), default for its raiders:
+     * the server's own value, else the global default; without an active server the default itself.
+     */
     botLanguage?: "de" | "en";
+    /** The global default every server without an own value gets (#924, new servers too). */
+    botLanguageDefault?: "de" | "en";
+    /** Whether the active server has its own bot language. */
+    botLanguageOwn?: boolean;
     /** The drawn pictures in bot messages (a test); missing switch = on. */
     discordVisuals?: Partial<DiscordVisuals>;
     /** "Neue Gildenrekorde posten" (Einstellungen → Dungeon-Bestzeiten); missing = off. */
@@ -158,7 +168,7 @@ export type AdminConfig = {
     // The message with "Vielleicht" / "Absagen" per category: "required" |
     // "none"; a category without an entry is "optional".
     categorySignupNotes?: Record<string, string>;
-    // Where a category's messages go instead of discordServers.signupNoteChannelId (#335).
+    // Where a category's messages go instead of its server's signup note channel (#335, #924).
     categorySignupNoteChannel?: Record<string, string>;
     // How many own characters one signup may name per category (1..8); a
     // category without an entry allows 8 (signupCharacters.maxCharactersFor).
@@ -385,6 +395,7 @@ export type SwitchedCategory = {
 export type SettingsUpdate = {
     config: AdminConfig;
     raidhelper?: RaidhelperServer;
+    wclGuilds?: WclGuild[];
     switchedCategories?: SwitchedCategory[];
     deactivatedCategories?: DeactivatedCategory[];
     missingCategories?: MissingCategory[];
@@ -396,7 +407,7 @@ export type SettingsUpdate = {
  * switched to another server since answers 409 `server_switched`. The answer's
  * categories are narrowed to the active server (#926).
  */
-export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
+export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; wclGuilds?: WclGuildInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
     return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer);
 }
 

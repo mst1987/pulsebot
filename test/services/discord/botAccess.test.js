@@ -37,7 +37,7 @@ const member = (roleIds = [], id = "555") => ({ id, roleIds });
 beforeEach(() => {
     jest.clearAllMocks();
     resetAdminCache();
-    settingsStore.getConfig.mockReturnValue({ guildId: GUILD, botLanguage: "en" });
+    settingsStore.getConfig.mockReturnValue({ guildId: GUILD, botLanguage: "en", serverSettings: { [GUILD]: { botLanguage: "en" } } });
     discord.getGuild.mockReturnValue(null);
     discord.fetchGuildMembersCached.mockResolvedValue([]);
 });

@@ -447,7 +447,7 @@ describe("the ping text (#354's follow-up)", () => {
     });
 
     it("reads the default once none was set — in the server language", async () => {
-        mockConfig = { botLanguage: "en" };
+        mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
         const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
         expect(body(view).pingText).toMatch(/setup is up/i);
         mockConfig = {};

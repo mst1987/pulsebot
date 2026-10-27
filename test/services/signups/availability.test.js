@@ -72,7 +72,7 @@ beforeEach(() => {
     for (const e of store.listEntries()) store.removeEntry(e.id);
     mockEvents.clear();
     mockSignups.clear();
-    mockConfig = { botLanguage: "en" };
+    mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
     discord.sendDirectMessage.mockClear();
     discord.sendDirectMessage.mockImplementation(async () => ({ ok: true, messageId: "m1" }));
     for (const e of [raid("eh-a", 2), raid("eh-b", 4), raid("eh-c", 9)]) mockEvents.set(e.id, e);
@@ -103,7 +103,7 @@ describe("checkInput", () => {
     // A TBC character never stands for a Forever category (#741), nor for a hidden version (#563).
     it("lehnt einen Charakter ab, dessen Version die Kategorie nicht spielt oder ausgeblendet ist", () => {
         profiles.addCharacter(ANNA, { name: "Devi Res", className: "Priest", specs: ["Priest-Shadow"], versionId: "forever" }, { name: "Anna" });
-        mockConfig = { botLanguage: "en", mainVersion: "tbc", categoryVersion: { cat1: "forever", cat2: "tbc" } };
+        mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, mainVersion: "tbc", categoryVersion: { cat1: "forever", cat2: "tbc" } };
         expect(availability.checkInput(ANNA, { kind: "presence", from: today, categoryId: "cat1", character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW }).error)
             .toBe("Nerathil gehört zu TBC Anniversary – lege einen WoW Forever-Charakter im Profil an.");
         expect(availability.checkInput(ANNA, { kind: "presence", from: today, categoryId: "cat1", character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).value)
@@ -111,7 +111,7 @@ describe("checkInput", () => {
         // every category: the character's own version, while it is shown
         expect(availability.checkInput(ANNA, { kind: "presence", from: today, character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).value)
             .toMatchObject({ versionId: "forever" });
-        mockConfig = { botLanguage: "en", mainVersion: "tbc", hideOtherVersions: true };
+        mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, mainVersion: "tbc", hideOtherVersions: true };
         expect(availability.checkInput(ANNA, { kind: "presence", from: today, character: "Devi Res", spec: "Priest-Shadow" }, { now: NOW }).error)
             .toBe("Devi Res gehört zu WoW Forever – lege einen TBC Anniversary-Charakter im Profil an.");
         // an absence names no character: untouched
@@ -186,7 +186,7 @@ describe("Abwesenheit und Raider-Rolle", () => {
     const WITHOUT_ROLE = ["r-other"];
 
     beforeEach(() => {
-        mockConfig = { botLanguage: "en", categoryRoles: { cat1: ["r-raider"] } };
+        mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } }, categoryRoles: { cat1: ["r-raider"] } };
         discord.memberRoleIds.mockImplementation(async () => WITHOUT_ROLE);
     });
     afterEach(() => discord.memberRoleIds.mockImplementation(async () => null));
@@ -304,7 +304,7 @@ describe("createEntry – Anwesenheit", () => {
             await jest.advanceTimersByTimeAsync(5000);
             expect(res).not.toBeNull();
             expect(discord.guildMembership).toHaveBeenCalledTimes(2);
-            expect(discord.guildMembership.mock.calls.map((c) => c[0]).sort()).toEqual(["", "g-other"]);
+            expect(discord.guildMembership.mock.calls.map((c) => c[0]).sort()).toEqual(["g-other", "g1"]);
             expect(res.results.map((r) => [r.eventId, r.ok])).toEqual([["eh-a", true], ["eh-b", false], ["eh-c", true]]);
         } finally {
             jest.useRealTimers();

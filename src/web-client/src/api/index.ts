@@ -7,6 +7,7 @@ export * from "./session";
 export * from "./dashboard";
 export * from "./channels";
 export * from "./settings";
+export * from "./wclGuilds";
 export * from "./discordServers";
 export * from "./raidhelperRetirement";
 export * from "./versionLaunch";

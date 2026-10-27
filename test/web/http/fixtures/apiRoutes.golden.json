@@ -316,6 +316,7 @@
   "POST /api/settings/raidsheets/delete",
   "POST /api/settings/talk-overview",
   "POST /api/settings/version-launch",
+  "POST /api/settings/wcl-guilds/fetch",
   "POST /api/signups/bulk",
   "POST /api/system/backup/snapshot",
   "PUT /api/addon-center",

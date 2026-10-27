@@ -105,13 +105,14 @@ describe("the Einstellungen panels in English", () => {
 
     it("words the Discord servers", async () => {
         const data: DiscordServersData = {
-            discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
-            servers: [], guilds: [], versions: [],
+            discordServers: { servers: [], links: [] },
+            channels: {}, servers: [], guilds: [], versions: [],
         };
         vi.mocked(api.getDiscordServers).mockResolvedValue(data);
         renderPage(<DiscordServersSection onConfig={noop} icon="inv_letter_15" crumb="Connections" />);
         expect(await screen.findByText("No link yet — without a link the bot posts no raid list.")).toBeInTheDocument();
         expect(screen.getByText("No server yet — add the Discord your raids run on.")).toBeInTheDocument();
+        expect(screen.getByText("Add a server first, then its channels can be picked.")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Add server" })).toBeInTheDocument();
         expect(await screen.findByText("Reminders")).toBeInTheDocument();
     });

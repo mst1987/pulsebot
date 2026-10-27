@@ -524,6 +524,9 @@ nav.menu::-webkit-scrollbar { display: none; }
 .srv-head { position: relative; padding: 10px 10px; border-bottom: 1px solid var(--line-soft); min-width: 0; }
 .srv-head.is-single, .srv-head.is-none { display: flex; align-items: center; gap: 10px; padding: 12px 18px; }
 .srv-head .wi { width: 24px; height: 24px; border-radius: 6px; border: 1px solid var(--line); flex: 0 0 auto; }
+/* A server's Discord icon: round, as in Discord's own server list. */
+.srv-icon { width: 24px; height: 24px; border-radius: 50%; object-fit: cover; flex: 0 0 auto; }
+.srv-opt .srv-icon, .srv-opt .wi { width: 20px; height: 20px; }
 .srv-head-text { display: flex; flex-direction: column; min-width: 0; flex: 1; text-align: left; }
 .srv-head-name { font-size: 17px; font-weight: 700; line-height: 1.25; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .srv-head-sub { font-size: var(--fs-label); color: var(--muted); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }

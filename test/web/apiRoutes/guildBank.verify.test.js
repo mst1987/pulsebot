@@ -19,7 +19,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true })),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }], guildBankChannelId: "900000" } })),
+    getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
 jest.mock("../../../src/web/characters/profileView", () => ({
     ...jest.requireActual("../../../src/web/characters/profileView"),

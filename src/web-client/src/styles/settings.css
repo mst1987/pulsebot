@@ -170,6 +170,16 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     .logchan-version { flex: 1 1 0; }
 }
 .topitem-name img { width: 22px; height: 22px; border-radius: 4px; border: 1px solid var(--line); }
+/* #922 Warcraft-Logs-Gilde je Version (Log-Auswertung) */
+.wclg { margin-top: 18px; }
+.wclg-table { min-width: 860px; }
+.wclg-table input { width: 100%; min-width: 120px; }
+.wclg-table select { min-width: 90px; }
+.wclg-table .cell-act { white-space: nowrap; text-align: right; }
+.wclg-table .cell-act > * + * { margin-left: 6px; }
+.wclg-last { white-space: nowrap; color: var(--muted); }
+.wclg-last.is-bad { color: var(--high); white-space: normal; min-width: 180px; }
+.wclg-foot { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin-top: 10px; }
 
 /* ---- Verbindungen ---- */
 .conn-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
@@ -222,6 +232,10 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-servers th:nth-child(2) { width: 22%; }
 .srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
 .srv-servers th:last-child { width: 84px; }
+/* the signup channels per server (#924): server | note | bank | edit */
+.srv-signup-ch { max-width: 900px; }
+.srv-signup-ch th:last-child { width: 56px; }
+.srv-signup-ch td { overflow-wrap: break-word; }
 .srv-link, .srv-server { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .srv-link { flex-wrap: wrap; gap: 0 4px; }
 .srv-server-text { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0 8px; min-width: 0; }

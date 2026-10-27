@@ -64,7 +64,7 @@ function channelsOf(config) {
  * each with `privileged`: it grants bot rights, Discord permissions beyond @everyone or
  * unlocks channels, so the centre hides "Updates abonnieren" for it and the card warns
  * (services/discord/selfRole.js). The officer role pinged on applications
- * (config.officerRoleId) counts as privileged too: a subscriber would read every application.
+ * (officerRoleId of each server's block, #924) counts as privileged too: a subscriber would read every application.
  */
 function rolesOf(config) {
     const out = {};
