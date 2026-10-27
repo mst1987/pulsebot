@@ -7,7 +7,8 @@ jest.mock("../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
-    getActiveGuild: jest.fn(() => ""),
+    // the active server: loot shows only on its own server (#919)
+    getActiveGuild: jest.fn(() => "g1"),
 }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settingsStore"),
@@ -43,8 +44,8 @@ beforeAll(() => {
     const roster = rosterStore.createRoster({ name: "Forever Donnerstag", categoryId: "cat1", versionId: "forever" });
     rosterStore.upsertMember(roster.id, ME.id, { status: "core", chars: ["Devi Res"] });
     rosterStore.upsertMember(roster.id, OTHER.id, { status: "trial", chars: ["Bobby Tank"] });
-    lootStore.addImport("ev_forever", [{ source: "manual", rawId: "r1", character: "Devi Res", characterKey: "devi res", itemId: 1, itemName: "Staff", awardedAt: 1790000000000 }], { eventLabel: "Forever Do" });
-    lootStore.addImport("ev_tbc", [{ source: "manual", rawId: "r2", character: "Borka", characterKey: "borka", itemId: 2, itemName: "Helm", awardedAt: 1790000000000 }], { eventLabel: "SSC" });
+    lootStore.addImport("ev_forever", [{ source: "manual", rawId: "r1", character: "Devi Res", characterKey: "devi res", itemId: 1, itemName: "Staff", awardedAt: 1790000000000 }], { eventLabel: "Forever Do", guildId: "g1" });
+    lootStore.addImport("ev_tbc", [{ source: "manual", rawId: "r2", character: "Borka", characterKey: "borka", itemId: 2, itemName: "Helm", awardedAt: 1790000000000 }], { eventLabel: "SSC", guildId: "g1" });
     dungeonRuns.update(() => ({
         runs: [{ id: "dr_1", versionId: "forever", dungeon: "The Deadmines", seconds: 1800, start: 1, at: 2, medal: "gold", members: [{ guid: "", name: "Devi Res", class: "MAGE" }], addonIds: ["a"] }],
         characters: [],
