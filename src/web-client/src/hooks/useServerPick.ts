@@ -37,11 +37,12 @@ export function useServerPick(): ServerPick {
     const [params, setParams] = useSearchParams();
     const list = useApi(() => getServerChoices().then((l) => (cached = l)), [], { initial: cached });
     const servers = list.data;
-    const guildId = servers ? pickedGuild(servers, params.get("guild"), params.get("side")) : "";
+    const guildId = servers ? pickedGuild(servers, params.get("guild")) : "";
     const ready = !!servers || !!list.error;
     const choose = useCallback((next: string, drop: string[] = []) => {
         setParams((prev) => {
             const out = new URLSearchParams(prev);
+            // "side" is the parameter of an old link (before #895): gone on the first switch
             for (const key of ["guild", "side", ...drop]) out.delete(key);
             for (const [k, v] of Object.entries(guildParam(servers, next))) out.set(k, v);
             return out;

@@ -22,7 +22,7 @@
 // docs/role-messages.md the overview.
 const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDisplayBuilder } = require("discord.js");
 const discord = require("./discord");
-const { eventGuildId, resolveServer, roleMessageGuild } = require("./guildRoles");
+const { serverIds, resolveServer, roleMessageGuild } = require("./guildRoles");
 const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("./botAccess");
 const { langOfInteraction } = require("./botLanguage");
@@ -44,7 +44,7 @@ function fail(code, message, details = {}, status = 400) {
     return Object.assign(new Error(message), { code, status, details });
 }
 
-/** The server a stored entry belongs to (its guildId, or its legacy guildSide read as a server). */
+/** The server a stored entry belongs to (its guildId, else the first server). */
 function guildIdOf(entry, config = getConfig()) {
     return roleMessageGuild(entry, config);
 }
@@ -123,7 +123,7 @@ async function checkRole(r, { guild, config, serverEmojis, seenRoles, seenEmojis
  * privileged_role (details: roleId, reason), role_unusable (details: roleId, reason), bad_image.
  */
 async function validate(input = {}, { config = getConfig() } = {}) {
-    const guildId = resolveServer({ guildId: input.guildId, side: input.guildSide }, config);
+    const guildId = resolveServer({ guildId: input.guildId }, config);
     if (guildId === null) throw fail("unknown_guild", "Diesen Server gibt es in der Serverliste nicht.");
     if (!guildId) throw fail("no_guild", "Es ist kein Discord-Server eingestellt.");
     const guild = discord.getGuild(guildId);
@@ -415,13 +415,13 @@ function resetCooldowns() {
 /**
  * Whether the user may use the role messages: the Bot-Befehle rule of `rolemsg`, the
  * same one bot.js checks before the button (botAccess.guardInteraction). "everyone"
- * needs no lookup; otherwise the roles on the event server count.
+ * needs no lookup; otherwise the roles on the first server count (as in botAccess).
  */
 async function mayUse(user, guild, { commands, config }) {
     const rule = ruleFor(BUTTON_PREFIX, { commands, config });
     if (rule.mode === "everyone") return true;
     const member = guild.members && guild.members.cache ? guild.members.cache.get(str(user.id)) : null;
-    const roleIds = await eventMemberRoles({ user, guild, member }, eventGuildId(config));
+    const roleIds = await eventMemberRoles({ user, guild, member }, serverIds(config)[0] || "");
     return resolveBotAccess(BUTTON_PREFIX, { id: str(user.id), roleIds }, { commands, config }).allowed;
 }
 

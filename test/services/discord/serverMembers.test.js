@@ -6,11 +6,10 @@ const { PermissionsBitField } = require("discord.js");
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../../src/services/discord/guildRoles", () => {
     const actual = jest.requireActual("../../../src/services/discord/guildRoles");
-    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } };
     return {
         ...actual,
-        eventGuildId: () => "900000000000000001",
-        talkGuildId: () => "900000000000000002",
+        serverIds: () => actual.serverIds(cfg),
         roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
     };
 });

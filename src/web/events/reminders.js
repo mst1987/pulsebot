@@ -140,7 +140,7 @@ async function runReminders({ now = Date.now(), config = getConfig() } = {}) {
     running = true;
     try {
         const guildIds = guildRoles.eventGuildIds(config);
-        if (!guildIds.length) return { ...summary, error: "Kein Event-Discord eingestellt." };
+        if (!guildIds.length) return { ...summary, error: "Kein Server eingestellt." };
         const loadErrors = [];
         for (const guildId of guildIds) {
             const { groups, error } = await loadEventGroups(guildId);

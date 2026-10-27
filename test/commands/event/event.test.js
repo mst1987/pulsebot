@@ -3,7 +3,7 @@ jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: 
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
@@ -13,7 +13,7 @@ const archiveStore = require("../../../src/stores/channelArchiveStore");
 const settings = require("../../../src/stores/settingsStore");
 const { signupSourceFor } = require("../../../src/services/events/eventSources");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const { eventGuildId } = require("../../../src/services/discord/guildRoles");
+const { serverIds } = require("../../../src/services/discord/guildRoles");
 const { createEvent } = require("../../../src/services/events/eventCreate");
 const { guardInteraction } = require("../../../src/services/discord/botAccess");
 const draft = require("../../../src/services/events/eventDraft");
@@ -53,7 +53,7 @@ beforeEach(() => {
     settings.getRaidTemplate.mockImplementation((id) => [T5, RH].find((t) => t.id === id) || null);
     signupSourceFor.mockImplementation((cat) => (cat === CAT_EH ? "eventhelper" : "raidhelper"));
     loadEventGroups.mockResolvedValue({ groups: [] });
-    eventGuildId.mockReturnValue("");
+    serverIds.mockReturnValue([]);
 });
 
 describe("/event anlegen — access", () => {
@@ -79,7 +79,7 @@ describe("/event anlegen — access", () => {
         }
 
         settings.getConfig.mockReturnValue({ botLanguage: "en", categoryIds: [CAT_EH], botCommandAccess: { event: { mode: "roles", roleIds: [ORGA] } } });
-        eventGuildId.mockReturnValue("guild-1");
+        serverIds.mockReturnValue(["guild-1"]);
         const orga = mockInteraction({ customId: draft._internal.formId(state) });
         orga.member = { roles: [ORGA] };
         expect(await guardInteraction(orga, formCommand, commands)).toBe(true);
@@ -98,12 +98,12 @@ describe("/event anlegen — step 1", () => {
     });
 
     it("refuses outside the event server", async () => {
-        eventGuildId.mockReturnValue("other-guild");
+        serverIds.mockReturnValue(["other-guild"]);
         const i = mockInteraction({ commandName: "event", options: { __subcommand: "anlegen" } });
         await eventCommand.execute(i);
         // acknowledged first (ephemeral), the refusal then replaces the "thinking" message
         expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Events legst du auf dem Event-Server an.");
+        expect(cardText(i.editReply.mock.calls[0][0])).toContain("Events legst du auf einem Raid-Server an.");
         expect(i.reply).not.toHaveBeenCalled();
     });
 

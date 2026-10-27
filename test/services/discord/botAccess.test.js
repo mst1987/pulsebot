@@ -11,7 +11,7 @@ const settingsStore = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { logcheckAdminIds } = require("../../../src/config/variables");
 const {
-    resolveBotAccess, ruleFor, accessOwner, eventGuildId, eventMemberRoles, denyMessage, guardInteraction,
+    resolveBotAccess, ruleFor, accessOwner, eventMemberRoles, denyMessage, guardInteraction,
 } = require("../../../src/services/discord/botAccess");
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction");
 
@@ -111,12 +111,6 @@ describe("the discord helpers used here", () => {
     });
 });
 
-describe("eventGuildId", () => {
-    it("is the first configured event server, then the configured guild", () => {
-        expect(eventGuildId({ discordServers: { servers: [{ guildId: "1" }], links: [] }, guildId: "2" })).toBe("1");
-        expect(eventGuildId({ guildId: "2" })).toBe("2");
-    });
-});
 
 describe("eventMemberRoles", () => {
     it("uses the interaction's member when it happened on the event guild", async () => {
@@ -196,6 +190,15 @@ describe("guardInteraction", () => {
         interaction.member = { roles: { cache: makeCollection([[ORGA, {}]]) } };
         expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(true);
         expect(interaction.reply).not.toHaveBeenCalled();
+    });
+
+    it("reads the roles on the first server of the list, not on the server of the click (#897)", async () => {
+        const OTHER = "900000000000000002";
+        settingsStore.getConfig.mockReturnValue({ guildId: GUILD, discordServers: { servers: [{ guildId: OTHER }, { guildId: GUILD }], links: [] } });
+        const interaction = mockInteraction({ userId: "555", customId: "event-next", guild: { id: GUILD } });
+        interaction.member = { roles: { cache: makeCollection([[ORGA, {}]]) } };
+        expect(await guardInteraction(interaction, COMMANDS.get("event-next"), COMMANDS)).toBe(false);
+        expect(discord.getGuild).toHaveBeenCalledWith(OTHER);
     });
 
     it("answers a refused autocomplete with no choices instead of a reply", async () => {

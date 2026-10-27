@@ -59,13 +59,11 @@ const CONFIG_DEFAULTS = {
     // Discord-Server), the server federation of #893: `servers` lists every
     // server as an equal ({ guildId, label }), `links` are directed
     // ({ from, to, channelId }: the raid list of `from` is posted to channelId
-    // on `to`; from = to is allowed). The talk server (pings, sign-up-per-bot)
-    // stays a scalar for now and is always one of `servers`. All empty = no
-    // server configured yet. `signupNoteChannelId` is where the messages of
+    // on `to`; from = to is allowed). All empty = no server configured yet. `signupNoteChannelId` is where the messages of
     // "Vielleicht" / "Absagen" land (src/services/signups/signupNotes.js) — a channel on
     // any server. `guildBankChannelId` is where the guild bank requests of every
     // raider organizer land (src/services/signups/guildBank.js); empty = no guild bank.
-    discordServers: { servers: [], links: [], talkGuildId: "", signupNoteChannelId: "", guildBankChannelId: "" },
+    discordServers: { servers: [], links: [], signupNoteChannelId: "", guildBankChannelId: "" },
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
     raidhelperServerId: raidhelperServerId || "",
@@ -317,16 +315,18 @@ function normalizeRoleSync(raw, ctx = {}) {
 
 /**
  * The context normalizeRoleSync() checks pairs against, from a normalised
- * discordServers block. Until #897 drops `talkGuildId`, the talk server counts
- * as a valid server even when it is not in `servers` (with the full ten event
- * servers normalizeDiscordServers() has no room left for it) - otherwise its
- * migrated pairs would be dropped on the next save. It goes last, so the first
- * server stays the old event server of the migration.
+ * discordServers block. `legacyTalkGuildId` is the old talk server of a store
+ * the start migration (settingsMigration.js, #897) has not rewritten yet: an
+ * old `{ eventRoleId, talkRoleId }` entry needs it as the pair's target, and it
+ * counts as a valid server even when it is not in `servers` (with the full ten
+ * servers there is no room left for it). It goes last, so the first server
+ * stays the old event server.
  */
-function roleSyncContext(discordServers) {
+function roleSyncContext(discordServers, legacyTalkGuildId = "") {
     const block = discordServers || {};
     const serverIds = (Array.isArray(block.servers) ? block.servers : []).map((s) => String((s && s.guildId) || "")).filter(Boolean);
-    const talkGuildId = String(block.talkGuildId || "").trim();
+    const talk = String(legacyTalkGuildId || "").trim();
+    const talkGuildId = isSnowflake(talk) ? talk : "";
     if (talkGuildId && serverIds.length && !serverIds.includes(talkGuildId)) serverIds.push(talkGuildId);
     return { serverIds, talkGuildId };
 }
@@ -434,9 +434,10 @@ function normalizeCategoryReminders(raw) {
     return out;
 }
 
-// talkPingChannelId is gone (#894: pings stay on the raid's server) — an old
-// value is dropped here.
-const DISCORD_SERVER_KEYS = ["talkGuildId", "signupNoteChannelId", "guildBankChannelId"];
+// talkPingChannelId is gone (#894: pings stay on the raid's server), talkGuildId
+// too (#897: the old talk server is an ordinary server now) — an old value is
+// dropped here; normalizeDiscordServers() still reads talkGuildId as input.
+const DISCORD_SERVER_KEYS = ["signupNoteChannelId", "guildBankChannelId"];
 // A sanity bound, not a real product constraint.
 const MAX_EVENT_GUILDS = 10;
 const EVENT_GUILD_LABEL_MAX = 60;
@@ -578,14 +579,16 @@ function legacyServersAndLinks(eventGuilds) {
 }
 
 /**
- * Normalise the servers block to `{ servers, links, talkGuildId,
- * signupNoteChannelId, guildBankChannelId }` (#890). The
- * scalars stay single snowflakes or "". A block with a `servers` array is
- * the current shape; one without it is an old `eventGuilds` block, migrated
- * here on every read (idempotent: the result has `servers`, so a second run
- * takes the first path and changes nothing). The talk server is always one of
- * `servers` (added at the end when missing and there is room) — a server may
- * hold raids and be the talk server at once. Nothing configured stays
+ * Normalise the servers block to `{ servers, links, signupNoteChannelId,
+ * guildBankChannelId }` (#890). The scalars stay single snowflakes or "". A
+ * block with a `servers` array is the current shape; one without it is an old
+ * `eventGuilds` block, migrated here (idempotent: the result has `servers`, so
+ * a second run takes the first path and changes nothing).
+ *
+ * An old `talkGuildId` is input only (#897): the old talk server becomes an
+ * ordinary server at the end of the list when missing and there is room, and
+ * the field itself is not kept. The start migration (settingsMigration.js)
+ * writes that result into the store once. Nothing configured stays
  * `servers: []` (guildRoles.serverIds() then falls back to config.guildId).
  * `fallbackGuildId` (config.guildId) only matters for an old block with a
  * talk server but no event server: it worked on that home guild, which stays
@@ -598,15 +601,17 @@ function normalizeDiscordServers(raw, { fallbackGuildId = "" } = {}) {
         const value = String(src[key] === undefined || src[key] === null ? "" : src[key]).trim();
         out[key] = isSnowflake(value) ? value : "";
     }
+    const talkInput = String(src.talkGuildId === undefined || src.talkGuildId === null ? "" : src.talkGuildId).trim();
+    const legacyTalk = isSnowflake(talkInput) ? talkInput : "";
     const current = Array.isArray(src.servers);
     const legacy = current ? null : legacyServersAndLinks(src.eventGuilds);
     const fallback = String(fallbackGuildId || "").trim();
-    if (legacy && !legacy.servers.length && out.talkGuildId && isSnowflake(fallback) && fallback !== out.talkGuildId) {
+    if (legacy && !legacy.servers.length && legacyTalk && isSnowflake(fallback) && fallback !== legacyTalk) {
         legacy.servers.push({ guildId: fallback, label: "" });
     }
     const servers = current ? normalizeServers(src.servers) : normalizeServers(legacy.servers);
-    if (out.talkGuildId && !servers.some((s) => s.guildId === out.talkGuildId) && servers.length < MAX_EVENT_GUILDS) {
-        servers.push({ guildId: out.talkGuildId, label: "" });
+    if (legacyTalk && !servers.some((s) => s.guildId === legacyTalk) && servers.length < MAX_EVENT_GUILDS) {
+        servers.push({ guildId: legacyTalk, label: "" });
     }
     out.servers = servers;
     out.links = normalizeLinks(current ? src.links : legacy.links, servers.map((s) => s.guildId));
@@ -966,7 +971,7 @@ function normalizeConfig(raw) {
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
         topItems: normalizeTopItems(stored.topItems),
-        roleSync: normalizeRoleSync(stored.roleSync, roleSyncContext(discordServers)),
+        roleSync: normalizeRoleSync(stored.roleSync, roleSyncContext(discordServers, (stored.discordServers || {}).talkGuildId)),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
         backup: normalizeBackupSettings(stored.backup),
     };

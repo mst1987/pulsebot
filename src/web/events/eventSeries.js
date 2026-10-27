@@ -270,8 +270,8 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
             if (signupSourceFor(categoryId) !== "eventhelper") { summary.ignored += 1; continue; }
             // A deactivated category (#744): its series rests until the category is active again.
             if (!isCategoryActive(categoryId, config)) { summary.inactive += 1; continue; }
-            const guildId = series.guildId || guildRoles.eventGuildId(config);
-            if (!guildId) { summary.error = "Kein Event-Discord eingestellt."; continue; }
+            const guildId = series.guildId || guildRoles.serverIds(config)[0] || "";
+            if (!guildId) { summary.error = "Kein Server eingestellt."; continue; }
             const due = dueDates(series, store.getRuns(categoryId), now);
             if (!due.length) continue;
             const events = await categoryEvents(guildId, categoryId, now);
@@ -471,7 +471,7 @@ function saveSeriesFor({ guildId, input = {}, user = null, config = getConfig(),
     if (checked.error) return { error: { status: 400, code: "invalid", message: checked.error } };
     const series = store.saveSeries({
         ...checked.value,
-        guildId: (current && current.guildId) || guildId || guildRoles.eventGuildId(config),
+        guildId: (current && current.guildId) || guildId || guildRoles.serverIds(config)[0] || "",
         leaderId: (current && current.leaderId) || (user && user.id) || "",
         updatedAt: now,
         updatedBy: (user && user.id) || "",

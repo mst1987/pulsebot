@@ -106,7 +106,7 @@ const plain = (text) => String(text || "").replace(/[*_`~|[\]\\]/g, "").replace(
  * categories, without the raids of a hidden game version; soonest first.
  */
 function signableAll({ config, now }) {
-    const guildId = guildRoles.eventGuildId(config);
+    const guildId = guildRoles.serverIds(config)[0] || "";
     const cats = Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : [];
     return eventStore.listEvents(guildId, { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => !signupWindow(e, now).started)

@@ -3,7 +3,7 @@ jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: 
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildId: jest.fn(() => "") }));
+jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1 }));
 
@@ -12,7 +12,7 @@ const archiveStore = require("../../../src/stores/channelArchiveStore");
 const settings = require("../../../src/stores/settingsStore");
 const { signupSourceFor } = require("../../../src/services/events/eventSources");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const { eventGuildId } = require("../../../src/services/discord/guildRoles");
+const { serverIds } = require("../../../src/services/discord/guildRoles");
 const { createEvent } = require("../../../src/services/events/eventCreate");
 const draft = require("../../../src/services/events/eventDraft");
 const { knownChannels } = require("../../helpers/linkCheck");
@@ -42,7 +42,7 @@ beforeEach(() => {
     settings.getRaidTemplate.mockImplementation((id) => [T5, RH].find((t) => t.id === id) || null);
     signupSourceFor.mockImplementation((cat) => (cat === CAT_EH ? "eventhelper" : "raidhelper"));
     loadEventGroups.mockResolvedValue({ groups: [] });
-    eventGuildId.mockReturnValue("");
+    serverIds.mockReturnValue([]);
 });
 
 describe("services/events/eventDraft — the state in the customId", () => {
@@ -165,11 +165,20 @@ describe("services/events/eventDraft — step 1", () => {
         expect(payload.embeds[0].description).toContain("Keine Event-Kategorie");
     });
 
-    it("refuses another server than the event server", () => {
-        eventGuildId.mockReturnValue("g-event");
-        expect(draft.guildFor({ guild: { id: "g-talk" } }).error).toContain("Event-Server");
+    it("refuses another server than the listed servers", () => {
+        serverIds.mockReturnValue(["g-event"]);
+        expect(draft.guildFor({ guild: { id: "g-talk" } }).error).toContain("Raid-Server");
         expect(draft.guildFor({ guild: { id: "g-event" } })).toEqual({ guildId: "g-event" });
         expect(draft.guildFor({}).error).toBeTruthy();
+    });
+
+    // #897: no more single event server, every server of the list may hold raids
+    it("accepts every server of the list", () => {
+        serverIds.mockReturnValue(["g-one", "g-two"]);
+        expect(draft.guildFor({ guild: { id: "g-two" } })).toEqual({ guildId: "g-two" });
+        expect(draft.guildFor({ guild: { id: "g-one" } })).toEqual({ guildId: "g-one" });
+        expect(draft.guildFor({ guild: { id: "g-three" } }).error).toContain("Raid-Server");
+        serverIds.mockReturnValue([]);
     });
 });
 

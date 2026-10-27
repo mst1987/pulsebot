@@ -19,7 +19,9 @@ describe("roleUseLabel / roleUseLines", () => {
         expect(roleUseLabel({ code: "botCommand", commands: ["event", "setup"] })).toBe("Bot-Befehle: /event, /setup");
         expect(roleUseLabel({ code: "categoryRaider", categoryIds: ["c1"], categories: [{ id: "c1", name: "Naxx" }] })).toBe("Raider-Rolle Naxx");
         expect(roleUseLabel({ code: "categoryRaider", categoryIds: ["c1"] })).toBe("Raider-Rolle einer Kategorie");
-        expect(roleUseLabel({ code: "roleSync", sides: ["event", "talk"] })).toBe("Rollen-Abgleich (Event-Server, Talk-Server)");
+        expect(roleUseLabel({ code: "roleSync", guildIds: ["g2", "g3"], servers: [{ guildId: "g2", name: "Talkgilde" }, { guildId: "g3", name: "" }] }))
+            .toBe("Rollen-Abgleich (Talkgilde, g3)");
+        expect(roleUseLabel({ code: "roleSync", guildIds: [] })).toBe("Rollen-Abgleich");
         expect(roleUseLabel({ code: "roster", rosterId: "x", name: "Main", kinds: ["member", "trial"] })).toBe("Roster Main: Mitglied, Probe");
         expect(roleUseLabel({ code: "roleMessage", messageId: "m", title: "Berufe" })).toBe("Rollen-Nachricht „Berufe“");
         expect(roleUseLabel({ code: "rolePermissions", areas: ["raids"] })).toMatch(/^Web-Rechte: /);

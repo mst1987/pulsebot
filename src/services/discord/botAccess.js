@@ -8,13 +8,13 @@
 // Buttons, selects and modals name their command with `accessOf` and are judged
 // by that command's rule.
 //
-// Roles are always resolved against the *event* guild, whichever server the
-// interaction came from — members are on both.
+// Roles are always resolved against the first server of the list (where the
+// access roles are set up), whichever server the interaction came from.
 const { card } = require("../../utils/discord/card");
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
-const { eventGuildId } = require("./guildRoles");
+const { serverIds } = require("./guildRoles");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
@@ -157,7 +157,7 @@ async function guardInteraction(interaction, command, commands) {
     const rule = ruleFor(name, { commands, config });
     const userId = String(interaction.user && interaction.user.id);
     if (rule.mode === "everyone") return true;
-    const guildId = eventGuildId(config);
+    const guildId = serverIds(config)[0] || "";
     const roleIds = await eventMemberRoles(interaction, guildId);
     const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config });
     if (result.allowed) return true;
@@ -176,6 +176,6 @@ async function guardInteraction(interaction, command, commands) {
 }
 
 module.exports = {
-    eventGuildId, accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
+    accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
     eventMemberRoles, denyMessage, guardInteraction,
 };

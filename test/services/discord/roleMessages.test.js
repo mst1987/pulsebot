@@ -12,11 +12,10 @@ jest.mock("../../../src/services/discord/botLanguage", () => ({ langOfInteractio
 // The real server helpers over a fixed server list: the first server and the talk server (#895).
 jest.mock("../../../src/services/discord/guildRoles", () => {
     const actual = jest.requireActual("../../../src/services/discord/guildRoles");
-    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], talkGuildId: "900000000000000002", links: [] } };
+    const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } };
     return {
         ...actual,
-        eventGuildId: () => "900000000000000001",
-        talkGuildId: () => "900000000000000002",
+        serverIds: () => actual.serverIds(cfg),
         resolveServer: (wanted) => actual.resolveServer(wanted, cfg),
         roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
     };
@@ -167,14 +166,14 @@ describe("validate", () => {
         expect(await codeOf(svc.validate({ ...INPUT, guildId: TALK_GUILD }))).toBe("bot_offline");
     });
 
-    it("takes the server by guildId, an old guildSide input still works (#895)", async () => {
+    it("takes the server by guildId, without one the first server; a guildSide means nothing any more (#897)", async () => {
         const { entry } = await svc.validate(INPUT);
         expect(entry.guildId).toBe(EVENT_GUILD);
         expect(entry.guildSide).toBeUndefined();
         const legacy = { ...INPUT, guildSide: "event" };
         delete legacy.guildId;
         expect((await svc.validate(legacy)).entry.guildId).toBe(EVENT_GUILD);
-        expect(await codeOf(svc.validate({ ...legacy, guildSide: "talk" }))).toBe("bot_offline");
+        expect((await svc.validate({ ...legacy, guildSide: "talk" })).entry.guildId).toBe(EVENT_GUILD);
     });
 
     it("allows a role without emoji (a button only)", async () => {
@@ -263,8 +262,8 @@ describe("create, update, delete", () => {
         expect(store.getMessage(entry.id).guildSide).toBeUndefined();
     });
 
-    it("reads an old talk entry as the talk server", () => {
-        expect(svc.guildIdOf({ guildSide: "talk" })).toBe(TALK_GUILD);
+    it("reads an entry without guildId as the first server; the start placed every old one (#897)", () => {
+        expect(svc.guildIdOf({ guildSide: "talk" })).toBe(EVENT_GUILD);
         expect(svc.guildIdOf({ guildSide: "event" })).toBe(EVENT_GUILD);
         expect(svc.guildIdOf({ guildId: TALK_GUILD, guildSide: "event" })).toBe(TALK_GUILD);
     });
