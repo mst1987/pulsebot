@@ -300,9 +300,11 @@ function migrateVersions() {
  * `serverId`) is copied onto each server in `serverIds` (an old one made for one listed server - its `guildId` -
  * onto that one only). The first copy keeps the id (its room maps stay where they are), the others get a new id, the
  * old one as `originId` and a copy of the room maps; from then on the copies are independent.
- * Idempotent: a server that already has a template of that id or origin gets no second copy. The file is backed up once
- * (`<file>.pre-945`) before the first write; the global entries go only after the copies were read back from disk,
- * else they stay (never listed) and the next start tries again.
+ * Idempotent: a server that already has a template of that id or origin gets no second copy. The room maps are derived
+ * from the stored copies on every run (a copy with an `originId` whose map is missing while the origin has one), so a
+ * run that stopped after writing the copies is completed by the next. The file is backed up once (`<file>.pre-945`)
+ * before the first write; the global entries go only after the copies and their maps were read back from disk, else
+ * they stay (never listed) and the next start tries again.
  * @param {string[]} serverIds the servers, the main one first
  * @returns {string[]} log lines
  */
@@ -319,7 +321,6 @@ function migrateToServers(serverIds) {
     const next = all.slice();
     const targetsOf = (t) => (servers.includes(str(t.guildId)) ? [str(t.guildId)] : servers);
     const has = (list, server, id) => list.some((x) => x && str(x.serverId) === server && (x.id === id || x.originId === id));
-    const maps = [];
     let copies = 0;
     for (const t of legacy) {
         const id = str(t.id);
@@ -327,18 +328,27 @@ function migrateToServers(serverIds) {
             if (has(next, server, id)) continue;
             // the id stays with one server only: a map key (t/<id>/<boss>) belongs to one template
             const keep = !next.some((x) => x && x !== t && x.id === id);
-            const copy = { ...t, serverId: server, originId: keep ? "" : id, id: keep ? id : newId() };
-            next.push(copy);
+            next.push({ ...t, serverId: server, originId: keep ? "" : id, id: keep ? id : newId() });
             copies += 1;
-            if (!keep) maps.push({ from: id, to: copy.id, instanceIds: normalize(t).instanceIds });
         }
     }
     if (copies) writeAll(next);
+    // the room maps follow from what is stored, not from this run: every copy with an origin among the global ids
+    // gets the maps it still lacks - so a run that stopped after writing the copies is finished by the next one
+    const legacyIds = new Set(legacy.map((t) => str(t.id)));
+    const maps = readAll()
+        .filter((x) => x && isSnowflake(str(x.serverId)) && legacyIds.has(str(x.originId)) && ID_RE.test(str(x.id)))
+        .map((x) => ({ from: str(x.originId), to: str(x.id), instanceIds: normalize(x).instanceIds }));
     const bossMaps = (m) => planStore.bossesForInstances(m.instanceIds).map((b) => [planStore.templateMapKey(m.from, b.key), planStore.templateMapKey(m.to, b.key)]);
     for (const m of maps) {
         for (const [from, to] of bossMaps(m)) {
-            const map = planStore.readMap(from);
-            if (map) planStore.saveMap(to, map.buffer);
+            if (planStore.mapVersion(to) || !planStore.mapVersion(from)) continue;
+            try {
+                const map = planStore.readMap(from);
+                if (map) planStore.saveMap(to, map.buffer);
+            } catch {
+                // checked below: a missing map keeps the global entries for the next start
+            }
         }
     }
     // read back: every global template on every target server, every room map copied

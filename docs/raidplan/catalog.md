@@ -245,8 +245,11 @@ catalog and the default maps stay global.
   (and its maps), every further one gets a new id with `originId` = the old id and copies of the maps; a template
   that already had a `guildId` (the old filter) goes onto that server only. Profiles keep their id. Animations
   (#719) and everything else of a board are copied as they are. Before the first change the old file is saved once as
-  `<file>.pre-945` (never overwritten); the global entries are removed only after the copies were read back. A second
-  run finds no global entry and writes nothing; a run that stopped after the copies makes no second copy. Without
+  `<file>.pre-945` (never overwritten); the global entries are removed only after the copies and their maps were read
+  back. The map copy is derived on every run from the stored copies (a copy with `originId` whose map is missing), so
+  a run that stopped after the copies, or a map that failed to save, is caught up on the next start; until then the
+  global entries stay. A second run finds no global entry and writes nothing; a run that stopped after the copies
+  makes no second copy. Without
   any server it changes nothing and logs a WARNUNG.
 
 ## Tactic ("Taktik", feature/raidplan-8)

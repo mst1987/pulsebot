@@ -343,11 +343,17 @@ const getTemplates = withUser({}, async ({ user, req, res, url }) => {
 
 const LIBRARY_WRITE = { write: "raidplan", csrf: true, body: true };
 
+/** A template body whose raid-server filter (`guildId`) names a server of the list, else none ("" = every server). */
+function withKnownFilter(body) {
+    if (body.guildId === undefined || body.guildId === "" || knownServer(body.guildId)) return body;
+    return { ...body, guildId: "" };
+}
+
 /** POST /api/raidplan/templates — body `{ libraryGuildId, name, category?, description?, guildId?, instanceIds }` */
 const postTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
     const server = libraryWriteServer(res, user, req, body.libraryGuildId);
     if (server === null) return;
-    const result = templateStore.createTemplate(server, body);
+    const result = templateStore.createTemplate(server, withKnownFilter(body));
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(server), template: raidplan.templateView(result.template) });
 });
@@ -356,7 +362,7 @@ const postTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) =>
 const patchTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
     const server = libraryWriteServer(res, user, req, body.libraryGuildId);
     if (server === null) return;
-    const result = templateStore.updateTemplate(server, body.id, body);
+    const result = templateStore.updateTemplate(server, body.id, withKnownFilter(body));
     if (result.error) return sendFailure(res, result);
     ok(res, { ...templateList(server), template: raidplan.templateView(result.template), dropped: result.dropped });
 });

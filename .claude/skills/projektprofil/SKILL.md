@@ -216,6 +216,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     wenn der Zielblock ihn noch nicht hat (Ziel gewinnt), sonst nur aus dem falschen Block entfernen
     (Muster `foreignRoleCleanup.cleanForeignRoles`). Ohne Nachweis (Server offline, nirgends gefunden)
     bleibt alles, wie es ist.
+26. Einmal-Migrationen mit Dateien (#945): Kopiert eine Migration neben JSON auch Dateien (Raumkarten,
+    Bilder), leitet sie die Dateikopie bei **jedem** Lauf aus dem gespeicherten Zustand ab (Kopie mit
+    `originId` da, Datei fehlt → nachkopieren), nicht aus dem, was der aktuelle Lauf angelegt hat. Die
+    Altdaten gehen erst, wenn JSON und Dateien zurückgelesen vollständig sind; ein Dateifehler hält sie
+    für den nächsten Start (Muster `raidplanTemplateStore.migrateToServers`).
 
 ## Fach-Agenten
 

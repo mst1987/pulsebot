@@ -137,6 +137,41 @@ describe("migrateToServers (templates)", () => {
         expect(stored(templateFile).templates).toHaveLength(3);
     });
 
+    it("copies the missing room maps of copies already stored, and only then removes the globals", () => {
+        seed();
+        // a run stopped after writing both copies, before the map copy
+        const file = stored(templateFile);
+        file.templates.push({ ...OLD[0], serverId: A, originId: "" });
+        file.templates.push({ ...OLD[0], id: "zzz999", serverId: B, originId: "abc123" });
+        file.templates.push({ ...OLD[1], serverId: B, originId: "" });
+        fs.writeFileSync(templateFile, JSON.stringify(file));
+        expect(plans.mapVersion(plans.templateMapKey("zzz999", BOSS))).toBe(0);
+
+        const lines = templates.migrateToServers([A, B]);
+        expect(lines).toEqual([expect.stringContaining("0 Kopie(n)")]);
+        expect(plans.mapVersion(plans.templateMapKey("zzz999", BOSS))).toBeTruthy();
+        expect(stored(templateFile).templates.every((t) => t.serverId)).toBe(true);
+    });
+
+    it("keeps the globals when a room map cannot be copied, and the next start copies it", () => {
+        seed();
+        const spy = jest.spyOn(plans, "saveMap").mockImplementationOnce(() => { throw new Error("disk full"); });
+        expect(templates.migrateToServers([A, B])).toEqual([expect.stringContaining("WARNUNG")]);
+        const copy = templates.listTemplates(B).find((t) => t.originId === "abc123");
+        expect(plans.mapVersion(plans.templateMapKey(copy.id, BOSS))).toBe(0);
+        expect(stored(templateFile).templates.filter((t) => !t.serverId)).toHaveLength(2);
+
+        spy.mockImplementationOnce(() => ({ code: "invalid", error: "kaputt" }));
+        expect(templates.migrateToServers([A, B])).toEqual([expect.stringContaining("WARNUNG")]);
+        expect(stored(templateFile).templates.filter((t) => !t.serverId)).toHaveLength(2);
+
+        spy.mockRestore();
+        expect(templates.migrateToServers([A, B])).toEqual([expect.stringContaining("0 Kopie(n)")]);
+        expect(plans.mapVersion(plans.templateMapKey(copy.id, BOSS))).toBeTruthy();
+        expect(templates.listTemplates(B).filter((t) => t.originId === "abc123")).toHaveLength(1);
+        expect(stored(templateFile).templates.every((t) => t.serverId)).toBe(true);
+    });
+
     it("keeps the global templates without a server and warns", () => {
         seed();
         const lines = templates.migrateToServers([]);

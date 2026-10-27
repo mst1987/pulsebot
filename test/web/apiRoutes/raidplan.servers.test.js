@@ -133,6 +133,16 @@ describe("an orga reaches only its active server", () => {
         expect(status(await call(route.getTemplates, ORGA))).toBe(400);
     });
 
+    it("keeps the raid-server filter of a template only for a server of the list", async () => {
+        const known = body(await call(route.postTemplate, ORGA, { libraryGuildId: A, name: "Für A", guildId: A, instanceIds: ["bt"] })).template;
+        expect(templates.getTemplate(A, known.id).guildId).toBe(A);
+        const unknown = body(await call(route.postTemplate, ORGA, { libraryGuildId: A, name: "Fremd", guildId: "700000", instanceIds: ["bt"] })).template;
+        expect(templates.getTemplate(A, unknown.id).guildId).toBe("");
+        const t = templates.getTemplate(A, known.id);
+        expect(status(await call(route.patchTemplate, ORGA, { libraryGuildId: A, id: t.id, version: t.version, guildId: "700000" }))).toBe(200);
+        expect(templates.getTemplate(A, known.id).guildId).toBe("");
+    });
+
     it("refuses a template map of another server's tab", async () => {
         const onA = templates.createTemplate(A, { name: "Nur A", instanceIds: ["bt"] }).template;
         mockActive = B;
