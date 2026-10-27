@@ -1,6 +1,6 @@
 import { useState } from "react";
 import Segment from "../../components/ui/Segment";
-import Field from "../../components/ui/Field";
+import { FieldLabel } from "../../components/ui/Field";
 import OwnValue from "../../components/ui/OwnValue";
 import { Button } from "../../components/ui/Button";
 import { SaveIcon } from "../../components/ui/icons";
@@ -121,22 +121,31 @@ export default function ServerVersionLinksSection({ versions, mainVersion, stand
             <p className="gv-hint">{t("settings.serverVersionLinks.hint", { server: serverName, version: version.label })}</p>
 
             <div className="gv-group">
-                {VERSION_OVERRIDE_FIELDS.map((field) => (
-                    <OwnValue
-                        key={`${version.id}-${field}`}
-                        server={serverName}
-                        own={override[field] !== undefined}
-                        onOwnChange={(on) => setField(field, on ? (std[field] || "") : undefined)}
-                        fallback={fallback(field)}
-                    >
-                        <Field
-                            className="set-field" label={t(LABEL_KEY[field])} htmlFor={id(field)}
-                            error={problems.has(field) ? t(`settings.versionLinks.invalid.${field}`) : undefined}
-                        >
-                            {control(field)}
-                        </Field>
-                    </OwnValue>
-                ))}
+                {VERSION_OVERRIDE_FIELDS.map((field) => {
+                    const isOwn = override[field] !== undefined;
+                    // The field's name stays above its switch, so four switches with the
+                    // same text are told apart; it labels the input once that is shown.
+                    return (
+                        <div key={`${version.id}-${field}`} className="svl-item" role="group" aria-labelledby={id(field) + "-name"}>
+                            <div id={id(field) + "-name"}>
+                                <FieldLabel htmlFor={isOwn ? id(field) : undefined}>{t(LABEL_KEY[field])}</FieldLabel>
+                            </div>
+                            <OwnValue
+                                server={serverName}
+                                own={isOwn}
+                                onOwnChange={(on) => setField(field, on ? (std[field] || "") : undefined)}
+                                fallback={fallback(field)}
+                            >
+                                <div className="set-field">
+                                    {control(field)}
+                                    {problems.has(field) && (
+                                        <div className="field-error" role="alert">{t(`settings.versionLinks.invalid.${field}`)}</div>
+                                    )}
+                                </div>
+                            </OwnValue>
+                        </div>
+                    );
+                })}
             </div>
 
             <div className="gv-preview" aria-label={t("settings.versionLinks.preview")}>

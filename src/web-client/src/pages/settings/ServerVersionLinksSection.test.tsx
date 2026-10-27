@@ -2,7 +2,7 @@
 // switch "Eigener Wert auf <Server>" for each of the four fields, the standard
 // of all servers always under it, a wrong value said at the field, and a save
 // that sends only this server's overrides.
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -54,6 +54,10 @@ describe("ServerVersionLinksSection (#923)", () => {
         show();
         expect(screen.getAllByRole("switch", { name: /Eigener Wert auf Pulse Raids/ })).toHaveLength(4);
         for (const s of screen.getAllByRole("switch")) expect(s).not.toBeChecked();
+        // each switch sits under its field's name, also while off
+        for (const name of ["Armory-Link", "Warcraft-Logs-Link", "Region", "Realm"]) {
+            expect(within(screen.getByRole("group", { name })).getByRole("switch")).toBeInTheDocument();
+        }
         expect(screen.getByText("https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}")).toBeInTheDocument();
         expect(screen.getByText("EU")).toBeInTheDocument();
         expect(screen.getByText("thunderstrike")).toBeInTheDocument();
@@ -65,7 +69,7 @@ describe("ServerVersionLinksSection (#923)", () => {
         const user = userEvent.setup();
         const onSaved = show();
         await user.click(switchOf(/wcl/));
-        const input = screen.getByLabelText("Warcraft-Logs-Link");
+        const input = screen.getByRole("textbox", { name: "Warcraft-Logs-Link" });
         // switched on, the field starts with the standard to edit from
         expect(input).toHaveValue("https://fresh.warcraftlogs.com/character/eu/thunderstrike/{char}");
         await user.clear(input);
@@ -80,7 +84,7 @@ describe("ServerVersionLinksSection (#923)", () => {
         const user = userEvent.setup();
         show();
         await user.click(switchOf(/armory/));
-        const input = screen.getByLabelText("Armory-Link");
+        const input = screen.getByRole("textbox", { name: "Armory-Link" });
         await user.clear(input);
         await user.type(input, "https://armory.test/kein-platzhalter");
         expect(screen.getByText("Eine http(s)-Adresse mit {char}.")).toBeInTheDocument();
@@ -91,7 +95,7 @@ describe("ServerVersionLinksSection (#923)", () => {
         const user = userEvent.setup();
         show({ tbc: { blizzardRealmSlug: "spineshatter" } });
         expect(switchOf(/realm/)).toBeChecked();
-        expect(screen.getByLabelText("Realm")).toHaveValue("spineshatter");
+        expect(screen.getByRole("textbox", { name: "Realm" })).toHaveValue("spineshatter");
         expect(screen.getByRole("link", { name: "Armory" })).toHaveAttribute("href", "https://armory.test/eu/spineshatter/Devihra");
         await user.click(switchOf(/realm/));
         await user.click(saveButton());
