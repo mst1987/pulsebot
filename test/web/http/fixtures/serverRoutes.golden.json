@@ -364,7 +364,7 @@
     "status": 200,
     "headers": {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-cache"
+      "Cache-Control": "private, no-store"
     },
     "body": "EVENT:eh-1"
   },
@@ -373,7 +373,7 @@
     "status": 200,
     "headers": {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-cache"
+      "Cache-Control": "private, no-store"
     },
     "body": "EVENT:eh-1"
   },
@@ -382,7 +382,7 @@
     "status": 404,
     "headers": {
       "Content-Type": "text/html; charset=utf-8",
-      "Cache-Control": "no-cache"
+      "Cache-Control": "private, no-store"
     },
     "body": "NOT_FOUND"
   },
