@@ -11,8 +11,10 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGrou
 let mockConfig = {};
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
+let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => mockRoleIds),
+    guildMembership: jest.fn(async () => mockMembership),
     resolveUserNames: jest.fn(async () => ({ "200000000000000001": "anna_discord" })),
 }));
 jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: () => null }));
@@ -94,6 +96,7 @@ beforeEach(() => {
     mockEvents.set("eh-kara", ownEvent);
     mockConfig = {};
     mockRoleIds = null;
+    mockMembership = null;
     memberRoleMemory._resetForTests();
     profiles.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: ["Mage-Arcane"] }, { name: "Anna" });
     mockGroups = groups();
@@ -119,9 +122,14 @@ describe("GET /api/signups", () => {
     it("liefert die Klassen je Spielversion, `classes` aus der Hauptversion (#541)", async () => {
         const { rulesFor } = require("../../../src/config/gameVersions");
         const shape = (v) => rulesFor(v).classes.map((c) => ({ id: c.id, label: c.label, color: c.color, icon: c.icon }));
+        // the dialog's class -> spec -> name (#907) gets each class's specs
+        const withSpecs = (v) => rulesFor(v).classes.map((c) => ({
+            id: c.id, label: c.label, color: c.color, icon: c.icon,
+            specs: c.specs.map((sp) => ({ key: sp.key, label: sp.label, icon: sp.icon, role: sp.role })),
+        }));
         let data = json(await call(route.getSignups, ANNA)).data;
         expect(data.classes).toEqual(shape("tbc"));
-        expect(data.classesByVersion).toEqual({ tbc: shape("tbc"), classic: shape("classic"), forever: shape("forever") });
+        expect(data.classesByVersion).toEqual({ tbc: withSpecs("tbc"), classic: withSpecs("classic"), forever: withSpecs("forever") });
         // the own event keeps its version, whatever the main version says: it is listed under TBC
         mockConfig = { mainVersion: "forever" };
         data = json(await call(route.getSignups, ANNA, { query: "version=tbc" })).data;
@@ -295,6 +303,34 @@ describe("GET /api/signups", () => {
     });
 });
 
+describe("GET /api/signups: PuG-Raids nur für Mitglieder (#907)", () => {
+    const kara = (data) => data.events.find((e) => e.id === "eh-kara");
+
+    it("markiert offene PuG-Raids eines Nicht-Mitglieds vorab mit membersOnly und Einladungslink", async () => {
+        mockMembership = false;
+        const own = kara(json(await call(route.getSignups, ANNA)).data);
+        expect(own).toMatchObject({ membersOnly: true, inviteUrl: "" });
+        // the Raid-Helper raid stays as it was, one lookup for the server
+        expect(json(await call(route.getSignups, ANNA)).data.events[1].membersOnly).toBeUndefined();
+    });
+
+    it("Mitglieder, eine eigene Anmeldung und die Orga ohne Markierung; unlesbar = membershipUnknown", async () => {
+        mockMembership = true;
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBeUndefined();
+        mockMembership = null;
+        expect(kara(json(await call(route.getSignups, ANNA)).data)).toMatchObject({ membershipUnknown: true });
+        mockMembership = false;
+        expect(kara(json(await call(route.getSignups, ORGA)).data).membersOnly).toBeUndefined();
+        mockSignups.set(`eh-kara/${ANNA.id}`, { userId: ANNA.id, character: "Nerathil", spec: "Mage-Arcane", role: "ranged", status: "signed", canAlso: [], comment: "", at: 1 });
+        mockGroups = groups();
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBeUndefined();
+        // an absence ("Abgemeldet") is no exemption
+        mockSignups.set(`eh-kara/${ANNA.id}`, { userId: ANNA.id, status: "absence", characters: [], comment: "", at: 1 });
+        mockGroups = groups();
+        expect(kara(json(await call(route.getSignups, ANNA)).data).membersOnly).toBe(true);
+    });
+});
+
 describe("PUT /api/signups", () => {
     it("weist ein Event einer ausgeblendeten Spielversion mit 409 ab (#563)", async () => {
         mockConfig = { mainVersion: "forever", hideOtherVersions: true };
@@ -427,6 +463,56 @@ describe("PUT /api/signups", () => {
         expect(json(mixed).data.signup.status).toBe("late");
         expect(json(mixed).data.signup.characters.map((c) => c.status)).toEqual(["late", "signed"]);
     });
+
+    // #907: a PuG raid on the web only for members of its server
+    it("weist Nicht-Mitglieder eines PuG-Raids mit 403 pug_members_only und Einladungslink ab", async () => {
+        mockMembership = false;
+        const res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" } });
+        expect(status(res)).toBe(403);
+        expect(json(res).error).toEqual({ code: "pug_members_only", message: "Nur für Mitglieder des PuG-Servers.", inviteUrl: "" });
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
+    });
+
+    it("lässt Mitglieder, unlesbare Mitgliedschaft, die Orga und Gilden-Raids durch (#907)", async () => {
+        const body = { eventId: "eh-kara", character: "Nerathil", spec: "Mage-Arcane", status: "signed" };
+        mockMembership = true;
+        expect(status(await call(route.putSignup, ANNA, { json: body }))).toBe(200);
+        mockSignups.clear();
+        mockMembership = null;
+        expect(status(await call(route.putSignup, ANNA, { json: body }))).toBe(200);
+        // a guild raid (raider roles) keeps its own rule, the membership is not asked
+        mockSignups.clear();
+        mockMembership = false;
+        mockConfig = { categoryRoles: { "cat-kara": ["role-raider"] } };
+        mockRoleIds = ["role-raider"];
+        expect(status(await call(route.putSignup, ANNA, { json: body }))).toBe(200);
+        // the orga signs a non-member up
+        mockSignups.clear();
+        mockConfig = {};
+        profiles.addCharacter(ORGA.id, { name: "Orgalina", className: "Priest", specs: ["Priest-Holy"] }, { name: "Orga" });
+        const orga = await call(route.putSignup, ORGA, { json: { eventId: "eh-kara", character: "Orgalina", spec: "Priest-Holy", status: "signed" } });
+        expect(status(orga)).toBe(200);
+    });
+
+    it("legt einen neuen Charakter im Profil der Raid-Version an und meldet ihn an (#907)", async () => {
+        mockEvents.set("eh-kara", { ...ownEvent, versionId: "forever" });
+        const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", newCharacter: { name: "Bertholt", spec: "Warrior-Protection" }, status: "signed" } });
+        expect(status(res)).toBe(200);
+        expect(json(res).data.signup).toMatchObject({ character: "Bertholt", status: "signed" });
+        const chars = profiles.getProfile(BERT.id).characters;
+        expect(chars).toHaveLength(1);
+        expect(chars[0]).toMatchObject({ name: "Bertholt", className: "Warrior", versionId: "forever", source: "manual" });
+    });
+
+    it("weist beim neuen Charakter eine fremde Spec und einen Namen mit anderer Klasse ab (#907)", async () => {
+        let res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", newCharacter: { name: "Neu", spec: "Nope-Spec" }, status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("spec");
+        res = await call(route.putSignup, ANNA, { json: { eventId: "eh-kara", newCharacter: { name: "Nerathil", spec: "Warrior-Arms" }, status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.message).toMatch(/Nerathil steht schon mit einer anderen Klasse/);
+        expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(false);
+    });
 });
 
 describe("POST /api/signups/bulk (#293)", () => {
@@ -447,6 +533,20 @@ describe("POST /api/signups/bulk (#293)", () => {
         expect(results[2]).toMatchObject({ signup: null, counts: null, error: expect.stringContaining("Anmeldeschluss") });
         expect(mockSignups.has(`eh-kara/${ANNA.id}`)).toBe(true);
         expect([...mockSignups.keys()].some((k) => k.endsWith(BERT.id))).toBe(false);
+    });
+
+    it("weist Nicht-Mitglieder je PuG-Raid ab und fragt den Server nur einmal (#907)", async () => {
+        const discord = require("../../../src/services/discord/discord");
+        discord.guildMembership.mockClear();
+        mockMembership = false;
+        const res = await call(route.postSignupsBulk, ANNA, { json: {
+            eventIds: ["eh-kara", "eh-ssc"], characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed",
+        } });
+        const { results } = json(res).data;
+        expect(results.map((r) => [r.eventId, r.ok, r.code, r.inviteUrl])).toEqual([
+            ["eh-kara", false, "pug_members_only", ""], ["eh-ssc", false, "pug_members_only", ""],
+        ]);
+        expect(discord.guildMembership).toHaveBeenCalledTimes(1);
     });
 
     it("verlangt mindestens einen Raid", async () => {

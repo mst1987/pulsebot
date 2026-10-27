@@ -1178,6 +1178,41 @@ async function memberRoleIds(guildId, userId, { absentAs = null } = {}) {
 }
 
 /**
+ * Whether a user is a member of a server (#907: the web signup of a PuG raid):
+ * true / false, or null when it cannot be known — bot offline, the server not
+ * reachable, Discord answering with anything but "Unknown Member/User". Only a
+ * definite "not a member" is false, so a Discord hiccup never refuses anybody.
+ * It runs on page requests, so it waits at most `waitMs` (NAME_FETCH_MS) and
+ * answers null after that - the fetch is not awaited any further.
+ * @param {{ waitMs?: number }} [opts]
+ * @returns {Promise<boolean|null>}
+ */
+async function guildMembership(guildId, userId, { waitMs = NAME_FETCH_MS } = {}) {
+    const guild = getGuild(guildId);
+    if (!guild || !userId) return null;
+    const uid = String(userId);
+    if (guild.members.cache.get(uid)) return true;
+    const lookup = Promise.resolve()
+        .then(() => guild.members.fetch(uid))
+        .then((member) => (member ? true : null), (e) => {
+            const code = e && (e.code || (e.rawError && e.rawError.code));
+            if (code === 10007 || code === 10013) return false;
+            logger.warn(`membership lookup of ${uid} on ${guildId} failed:`, (e && e.message) || e);
+            return null;
+        });
+    let timer = null;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), Math.max(0, waitMs));
+        if (timer.unref) timer.unref();
+    });
+    try {
+        return await Promise.race([lookup, timeout]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/**
  * Send a direct message to one Discord user. A single-user fetch needs no
  * privileged intent (see resolveUserNames). Fails when the user closed their
  * DMs or blocked the bot — that is reported, never retried.
@@ -1207,7 +1242,7 @@ module.exports = {
     setClient, getClient, isOnline, fetchTextChannel, textChannelOf, listGuilds, getGuild, listTextChannels, listEmojis,
     sendDirectMessage, embed,
     resolveUserNames, avatarUrlFor, avatarUrlOf, NAME_FETCH_MS, ABSENT_MS, _resetAbsentNamesForTests,
-    memberRoleIds,
+    memberRoleIds, guildMembership,
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,

@@ -109,7 +109,12 @@
         "required": "(required)",
         "notePlaceholderAbsent": "e.g. work, holiday, ill",
         "notePlaceholderTentative": "e.g. not sure yet, maybe later",
-        "roleMissing": "You need a raider role for this raid."
+        "roleMissing": "You need a raider role for this raid.",
+        "pugMembersOnly": "Only for members of the PuG server. Join the server, then you can sign up.",
+        "pugMembersOnlyNoLink": "Signing up on the web is only for members of the PuG server.",
+        "pugUnknown": "Whether you are on the PuG server is checked when you save.",
+        "pugJoin": "Join the PuG server",
+        "saveFailed": "Saving did not work. Please try again."
     },
     "bulk": {
         "toast": "{saved} of {total} raids saved.",
@@ -245,5 +250,13 @@
         "label": "PuG",
         "tip": "Open to everyone – no raider role needed"
     },
-    "rolesUnknown": "Your Discord roles could not be read just now – some raids may be missing."
+    "rolesUnknown": "Your Discord roles could not be read just now – some raids may be missing.",
+    "newChar": {
+        "intro": "No character in your profile yet – pick class, spec and name. It is added to your profile.",
+        "introVersion": "No {version} character in your profile yet – pick class, spec and name. It is added to your profile.",
+        "class": "Class",
+        "spec": "Spec",
+        "name": "In-game name",
+        "nameHint": "Prefilled with your Discord name – change it if your character is named differently."
+    }
 }

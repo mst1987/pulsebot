@@ -38,8 +38,10 @@ async function parseJson(res: Response): Promise<Record<string, unknown> | null>
 }
 
 function errorFrom(body: Record<string, unknown> | null, res: Response): ApiError {
-    const err = body && (body.error as ApiError | undefined);
-    return err || { code: "unknown", message: `HTTP ${res.status}` };
+    const err = body && (body.error as ApiError | string | undefined);
+    // a bare string (an older route's shape) still becomes a message, never an empty toast
+    if (typeof err === "string") return { code: "unknown", message: err || `HTTP ${res.status}` };
+    return err && typeof err === "object" ? err : { code: "unknown", message: `HTTP ${res.status}` };
 }
 
 export async function get<T>(path: string): Promise<T> {
