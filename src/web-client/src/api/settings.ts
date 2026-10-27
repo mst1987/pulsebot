@@ -471,7 +471,9 @@ export function deleteIngestToken(id: string): Promise<{ id: string }> {
  * Saves the active server's own armory/log templates and realm per version
  * (#923). The map is sent whole for that server: a version left out falls back
  * to the standard. A wrong template comes back as 400 invalid_version_settings.
+ * `guildId` is the server the page loaded (`serverSettingsGuildId`): a session
+ * switched to another server since answers 409 `server_switched` (#921).
  */
 export function saveVersionOverrides(guildId: string, versionOverrides: VersionOverrides): Promise<{ config: AdminConfig }> {
-    return send("PATCH", "/api/settings", { serverSettings: { [guildId]: { versionOverrides } } });
+    return send("PATCH", "/api/settings", { versionOverrides, serverSettingsGuildId: guildId });
 }

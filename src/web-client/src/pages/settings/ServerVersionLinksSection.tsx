@@ -6,7 +6,7 @@ import { Button } from "../../components/ui/Button";
 import { SaveIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
-import { saveVersionOverrides, type AdminConfig } from "../../api";
+import { saveVersionOverrides, type AdminConfig, type ApiError } from "../../api";
 import {
     BLIZZARD_REGIONS, VERSION_OVERRIDE_FIELDS, blockOf, effectiveBlock, emptyOwnFields, overrideProblems, overridesToSave,
     placeInLinks, versionLinks,
@@ -37,8 +37,9 @@ function copyOverrides(raw: VersionOverrides | undefined): VersionOverrides {
  * Each field is an OwnValue — off, the server takes the standard of
  * "Alle Server → Spielversion" (shown under it); on, only this server gets the
  * value typed in. Wowhead, Softres, raidsheet and colour stay shared. The
- * section saves itself (only serverSettings.<server>.versionOverrides), so it
- * never mixes with the page's draft.
+ * section saves itself (only the loaded server's versionOverrides, refused
+ * with 409 after a server switch in another tab), so it never mixes with the
+ * page's draft.
  */
 export default function ServerVersionLinksSection({ versions, mainVersion, standard, saved, serverName, guildId, onSaved }: {
     versions: GameVersionOption[];
@@ -89,7 +90,9 @@ export default function ServerVersionLinksSection({ versions, mainVersion, stand
             onSaved(res.config);
             toast(t("settings.serverVersionLinks.saved", { server: serverName }));
         } catch (err) {
-            toast((err as Error).message, "err");
+            // a tab left open after a server switch elsewhere gets 409, not the other server (#921)
+            const e = err as ApiError;
+            toast(e.code === "server_switched" ? t("settings.serverSwitched") : e.message, "err");
         } finally {
             setBusy(false);
         }

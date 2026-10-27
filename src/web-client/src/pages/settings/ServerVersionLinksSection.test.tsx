@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import { renderPage } from "../../test/render";
 import { inLang, switchLang } from "../../test/i18n";
+import { t } from "../../i18n";
 import ServerVersionLinksSection from "./ServerVersionLinksSection";
 
 vi.mock("../../api", async (orig) => ({
@@ -78,6 +79,20 @@ describe("ServerVersionLinksSection (#923)", () => {
         await user.click(saveButton());
         await waitFor(() => expect(onSaved).toHaveBeenCalled());
         expect(api.saveVersionOverrides).toHaveBeenCalledWith(G1, { tbc: { wclUrlTemplate: "https://www.warcraftlogs.com/character/eu/x/{char}" } });
+    });
+
+    // #921: a tab loaded on this server whose session switched to another one
+    // is refused with 409; the page says so and keeps what was typed
+    it("names a server switch in another tab instead of the raw error", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.saveVersionOverrides).mockRejectedValueOnce({ code: "server_switched", message: "raw" });
+        const onSaved = show();
+        await user.click(switchOf(/realm/));
+        await user.type(screen.getByRole("textbox", { name: "Realm" }), "x");
+        await user.click(saveButton());
+        expect(await screen.findByText(t("settings.serverSwitched"))).toBeInTheDocument();
+        expect(screen.queryByText("raw")).not.toBeInTheDocument();
+        expect(onSaved).not.toHaveBeenCalled();
     });
 
     it("says a wrong template at the field and does not save it", async () => {
