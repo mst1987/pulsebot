@@ -30,6 +30,10 @@
 .btn .wi { width: 22px; height: 22px; border-radius: 5px; box-shadow: 0 0 0 1px var(--shade-35); }
 .btn-sm.has-icon { padding-left: 7px; gap: 7px; }
 .btn-sm .wi { width: 18px; height: 18px; border-radius: 4px; }
+/* a glyph of the own set takes the button's ink, not its area tone: a red
+   silhouette on the blue primary fill (or any toned glyph on go/danger) is
+   not readable; brand marks keep their colours */
+.btn .wi.uic:not(.uic-brand) { color: currentColor; }
 
 /* ---- icon button: square, 38 / 32 px, always with a tooltip ---- */
 .ibtn {
