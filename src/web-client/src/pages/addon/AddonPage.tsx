@@ -33,7 +33,7 @@ import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
 const ICON = "inv_gizmo_01";
-const ADDON_SETTINGS_LINK = "/settings?section=addons";
+const ADDON_SETTINGS_LINK = "/settings/all?section=addons";
 const OLD_ANCHOR = /^#addon-(.+)$/;
 
 /** A percent-encoded part of the address, or the text as it is when it does not decode. */

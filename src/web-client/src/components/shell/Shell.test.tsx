@@ -37,6 +37,8 @@ function showShell(user: SessionUser, route = "/") {
 const nav = () => screen.getByRole("navigation");
 const hrefs = () => within(nav()).getAllByRole("link").map((a) => a.getAttribute("href"));
 const entry = (name: string) => within(nav()).getByRole("link", { name });
+// "Einstellungen" stands twice (System and Alle Server, #957): those lines are found by their href
+const entryAt = (href: string) => within(nav()).getAllByRole("link").find((a) => a.getAttribute("href") === href)!;
 
 describe("the sidebar", () => {
     it("is rendered from the shared menu file, every top-level entry with its WoW icon", () => {
@@ -47,8 +49,8 @@ describe("the sidebar", () => {
         const ordered = [...top.filter((e) => !isAllServers(e)), ...top.filter((e) => isAllServers(e))];
         expect(hrefs()).toEqual(ordered.map((e) => e.landing ?? e.href));
         for (const e of MENU.filter((m) => !m.sub)) {
-            const link = entry(tOr(`shell.menu.${e.id}`, e.label));
-            expect(link).toHaveAttribute("href", e.landing ?? e.href);
+            const link = entryAt(e.landing ?? e.href);
+            expect(link).toHaveAccessibleName(tOr(`shell.menu.${e.id}`, e.label));
             expect(link.querySelector("img")?.getAttribute("src")).toContain(e.wowIcon);
         }
     });
@@ -63,16 +65,22 @@ describe("the sidebar", () => {
         showShell(adminUser());
         const heading = within(nav()).getByText(t("shell.group.allServers"));
         expect(heading).toHaveClass("menu-label", "menu-all");
-        const below = (name: string) => Boolean(heading.compareDocumentPosition(entry(name)) & Node.DOCUMENT_POSITION_FOLLOWING);
-        // pages without a server: below the heading
-        for (const id of ["profile", "addon", "system"]) expect(below(t(`shell.menu.${id}`))).toBe(true);
-        // the server's pages, the settings included: above it
-        for (const id of ["home", "raids", "roster", "channels", "settings"]) expect(below(t(`shell.menu.${id}`))).toBe(false);
+        const below = (href: string) => Boolean(heading.compareDocumentPosition(entryAt(href)) & Node.DOCUMENT_POSITION_FOLLOWING);
+        // pages without a server: below the heading - the shared settings too (#957)
+        for (const href of ["/profile", "/addon", "/settings/all", "/system"]) expect(below(href)).toBe(true);
+        // the server's pages, its own settings included: above it
+        for (const href of ["/", "/raids", "/roster", "/settings"]) expect(below(href)).toBe(false);
     });
 
     it("prints no \"Alle Server\" heading for an account that opens none of those pages", () => {
         showShell({ id: "u5", name: "Rai", isAdmin: false, access: { raids: { read: true, write: false } } });
         expect(within(nav()).queryByText(t("shell.group.allServers"))).not.toBeInTheDocument();
+    });
+
+    it("gives Alle Server › Einstellungen to full admins only; a settings writer keeps System › Einstellungen (#957)", () => {
+        showShell({ id: "u6", name: "Orga", isAdmin: false, access: { settings: { read: true, write: true } } });
+        expect(hrefs()).toContain("/settings");
+        expect(hrefs()).not.toContain("/settings/all");
     });
 
     it("shows only the entries the account's areas open", () => {
@@ -139,12 +147,16 @@ describe("the active entry", () => {
         ["/raids/new", "Raid-Events"],
         ["/raids/plan-templates", "Raid-Events"],
         ["/raids/plan-catalog", "Raid-Events"],
-        ["/settings", "Einstellungen"],
-        ["/settings?section=kategorien", "Einstellungen"],
-    ])("%s keeps %s active", (route, name) => {
+        ["/settings", "/settings"],
+        ["/settings?section=kategorien", "/settings"],
+        // #957: the shared settings light their own line, not System › Einstellungen as well
+        ["/settings/all", "/settings/all"],
+        ["/settings/all?section=discordserver", "/settings/all"],
+    ])("%s keeps %s active", (route, line) => {
         showShell(adminUser(), route);
-        expect(entry(name)).toHaveClass("nav-item", "active");
-        expect(entry(name)).toHaveAttribute("aria-current", "page");
+        const active = line.startsWith("/") ? entryAt(line) : entry(line);
+        expect(active).toHaveClass("nav-item", "active");
+        expect(active).toHaveAttribute("aria-current", "page");
         expect(within(nav()).getAllByRole("link", { current: "page" })).toHaveLength(1);
     });
 

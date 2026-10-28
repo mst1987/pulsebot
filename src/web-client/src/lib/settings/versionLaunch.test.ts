@@ -68,6 +68,6 @@ describe("versionLaunch wording (#745)", () => {
         expect(itemLink({ ...base, id: "export", kind: "manual", status: "open" })).toBeNull();
         expect(itemLink({ ...base, id: "export", kind: "manual", status: "open" }, { canExport: true })).toMatchObject({ kind: "download", href: "/api/settings/archive-export?format=csv" });
         expect(itemLink({ ...base, id: "backup", kind: "manual", status: "open" })).toBeNull();
-        expect(itemLink({ ...base, id: "talk", kind: "manual", status: "open" })).toMatchObject({ to: "/settings?section=discordserver" });
+        expect(itemLink({ ...base, id: "talk", kind: "manual", status: "open" })).toMatchObject({ to: "/settings/all?section=discordserver" });
     });
 });

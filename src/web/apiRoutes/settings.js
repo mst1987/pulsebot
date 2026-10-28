@@ -219,8 +219,14 @@ const ROLE_SYNC_KEYS = ["roleSync"];
 // `raidhelper` is no config key, only the body's block for the active server.
 const RAIDHELPER_KEYS = ["raidhelper"];
 
+// The reminder rules of every server's categories (#957): edited under
+// Alle Server › Einstellungen, which is full admins only — and the rules ping
+// members on every server, so a settings writer of one server must not change
+// those of another.
+const REMINDER_KEYS = ["categoryReminders"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS, ...REMINDER_KEYS];
 
 // #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
 const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
@@ -635,8 +641,9 @@ const getRoleSync = withUser({ full: true }, async ({ res }) => {
 /**
  * GET /api/settings/reminders — the reminder block: the stored rules, every
  * configured server's raid categories with names and the last sweep.
+ * Full admins only (#957): it lists the categories of every server.
  */
-const getReminders = withUser({}, async ({ res }) => {
+const getReminders = withUser({ full: true }, async ({ res }) => {
     const config = getConfig();
     // Names from the live list backed by earlier snapshots, so a category the
     // bot cannot see right now still reads as a name rather than an id — and a
@@ -1499,6 +1506,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
+    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, REMINDER_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
     routes,
 };

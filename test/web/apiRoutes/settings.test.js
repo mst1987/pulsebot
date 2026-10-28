@@ -2457,9 +2457,10 @@ describe("web/apiRoutes/settings", () => {
 
         // Role sync and reminders (#264).
         describe("role sync and reminder settings", () => {
-            it("keeps the role mapping full-admin-only, the reminders not", async () => {
+            // #957: the reminders moved under Alle Server › Einstellungen - full admins only, too
+            it("keeps the role mapping and the reminders full-admin-only", async () => {
                 expect(FULL_ADMIN_KEYS).toContain("roleSync");
-                expect(FULL_ADMIN_KEYS).not.toContain("categoryReminders");
+                expect(FULL_ADMIN_KEYS).toContain("categoryReminders");
 
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
                 requireFullAdmin.mockReturnValue(null);
@@ -2470,8 +2471,16 @@ describe("web/apiRoutes/settings", () => {
                 categoriesOnActiveServer("123456");
                 readJsonBody.mockResolvedValue({ categoryReminders: { 123456: { missingHours: 24 } } });
                 await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryReminders: { 123456: { missingHours: 24 } } });
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                 noActiveServer();
+            });
+
+            it("serves the reminder view to full admins only (#957)", async () => {
+                requireFullAdmin.mockReturnValue(null);
+                const res = mockRes();
+                await getReminders({}, res);
+                expect(res.end).not.toHaveBeenCalled();
+                expect(discord.listCategories).not.toHaveBeenCalled();
             });
 
             it("passes a full admin's mapping on and reads a non-list as empty", async () => {
@@ -2587,5 +2596,38 @@ describe("web/apiRoutes/settings: content switch (#563)", () => {
         });
         const res = await get("/api/settings/archive-export");
         expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+    });
+
+    // #957: the sections of Alle Server › Einstellungen answer full admins only
+    describe("Alle Server › Einstellungen (#957)", () => {
+        const settingsWriter = () => ({
+            id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } },
+        });
+
+        it.each(["/api/settings/reminders", "/api/settings/discord-servers", "/api/settings/role-sync"])(
+            "refuses %s to a settings writer who is no full admin", async (path) => {
+                auth.getUser.mockReturnValue(settingsWriter());
+                const res = await get(path);
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            });
+
+        it("serves the reminders to a full admin", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const res = await get("/api/settings/reminders");
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(json(res).data).toHaveProperty("categories");
+        });
+
+        it("refuses a settings writer's reminder rules, takes a full admin's", async () => {
+            auth.checkCsrf.mockReturnValue(true);
+            auth.getUser.mockReturnValue(settingsWriter());
+            const refused = await patch("/api/settings", { categoryReminders: {} });
+            expect(refused.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await patch("/api/settings", { categoryReminders: {} });
+            expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryReminders: {} });
+        });
     });
 });

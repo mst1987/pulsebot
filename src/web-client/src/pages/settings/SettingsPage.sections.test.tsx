@@ -10,13 +10,16 @@
 //
 // The big panels (permission matrix, category matrix, Discord servers) have
 // their own tests; here they are stand-ins that show which panel is open.
-import { screen, waitFor, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
+import { JobsProvider } from "../../components/shell/Jobs";
+import { ConfirmProvider } from "../../components/ui/Modal";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { AdminConfig, SettingsData } from "../../api";
-import { SETTINGS_SECTIONS, sectionLabel, visibleSections } from "../../lib/settings/settingsSections";
-import { renderPage } from "../../test/render";
+import { SETTINGS_SECTIONS, sectionLabel, sectionsFor } from "../../lib/settings/settingsSections";
+import { adminUser, renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import SettingsPage from "./SettingsPage";
 
@@ -107,7 +110,7 @@ beforeEach(() => {
 
 describe("the section rail", () => {
     it("sits left of the page head and the open section, which keeps its width rule", async () => {
-        const { container } = renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+        const { container } = renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=verbindungen" });
         const rail = await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
         expect(rail).toHaveClass("srail");
         const layout = rail.closest(".srail-layout")!;
@@ -229,25 +232,31 @@ describe("the log channels of the active server (#921)", () => {
 });
 
 describe("the sections", () => {
-    it("lists every section under its group heading, each once", async () => {
-        renderPage(<SettingsPage />, { route: "/settings" });
+    it("lists the active server's sections under System › Einstellungen and the shared ones under Alle Server (#957)", async () => {
+        const first = renderPage(<SettingsPage />, { route: "/settings" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        const labels = () => within(nav()).getAllByRole("button").map((b) => b.querySelector(".srail-text")?.textContent);
+        expect(labels()).toEqual(sectionsFor("server", true).map(sectionLabel));
+        expect(labels()[0]).toBe("Berechtigungen");
+        expect(within(nav()).getAllByText("Server")).toHaveLength(1);
+        expect(within(nav()).queryByText("Alle Server")).not.toBeInTheDocument();
+        first.unmount();
 
-        const labels = within(nav()).getAllByRole("button").map((b) => b.querySelector(".srail-text")?.textContent);
-        expect(labels).toEqual(SETTINGS_SECTIONS.map(sectionLabel));
-        expect(labels[0]).toBe("Berechtigungen");
-        // the menu's two blocks (#918): the active server, then "Alle Server"
-        for (const group of ["Server", "Alle Server"]) {
-            expect({ group, count: within(nav()).getAllByText(group).length }).toEqual({ group, count: 1 });
-        }
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all" });
+        await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        expect(labels()).toEqual(sectionsFor("all", true).map(sectionLabel));
+        expect(labels()[0]).toBe("Discord-Server");
+        expect(within(nav()).getAllByText("Alle Server")).toHaveLength(1);
+        // every section stands on exactly one of the two pages
+        expect([...sectionsFor("server", true), ...sectionsFor("all", true)].map((s) => s.id).sort()).toEqual(SETTINGS_SECTIONS.map((s) => s.id).sort());
     });
 
-    it("opens a panel for every section", async () => {
+    it.each([["server" as const, "/settings"], ["all" as const, "/settings/all"]])("opens a panel for every section of the %s page", async (scope, route) => {
         const user = userEvent.setup();
-        const { container } = renderPage(<SettingsPage />, { route: "/settings" });
+        const { container } = renderPage(<SettingsPage scope={scope} />, { route });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
 
-        for (const s of visibleSections(true)) {
+        for (const s of sectionsFor(scope, true)) {
             await user.click(entry(sectionLabel(s)));
             await waitFor(() => expect(entry(sectionLabel(s))).toHaveAttribute("aria-current", "true"));
             const panel = container.querySelector(".settings-panel")!;
@@ -256,17 +265,23 @@ describe("the sections", () => {
     });
 
     it("carries a WoW icon per entry and counts what is missing", async () => {
-        renderPage(<SettingsPage />, { route: "/settings" });
+        const first = renderPage(<SettingsPage scope="all" />, { route: "/settings/all" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
-
-        for (const s of SETTINGS_SECTIONS) {
+        for (const s of sectionsFor("all", true)) {
             expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818) and a loot-sync token missing.
         await waitFor(() => expect(within(entry("Verbindungen")).getByText("5")).toBeInTheDocument());
         expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "5 Verbindungen nicht eingerichtet");
         expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 5 Verbindungen nicht eingerichtet");
-        expect(within(entry("Kategorien")).getByText("1")).toBeInTheDocument();
+        first.unmount();
+
+        renderPage(<SettingsPage />, { route: "/settings" });
+        await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        for (const s of sectionsFor("server", true)) {
+            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
+        }
+        await waitFor(() => expect(within(entry("Kategorien")).getByText("1")).toBeInTheDocument());
         expect(entry("Kategorien")).toHaveAttribute("data-tip-sub", "1 aktive Raid-Kategorien");
         expect(entry("Raid-Standardwerte").querySelector(".badge")).toBeNull();
     });
@@ -287,12 +302,20 @@ describe("a limited settings user", () => {
         expect(within(nav()).queryByRole("button", { name: /^Berechtigungen/ })).not.toBeInTheDocument();
         expect(within(nav()).queryByRole("button", { name: /^Discord-Server/ })).not.toBeInTheDocument();
         expect(screen.queryByText("Panel Berechtigungen")).not.toBeInTheDocument();
-        expect(entry(sectionLabel(visibleSections(false)[0]))).toHaveAttribute("aria-current", "true");
+        expect(entry(sectionLabel(sectionsFor("server", false)[0]))).toHaveAttribute("aria-current", "true");
+    });
+
+    it("stays on System › Einstellungen with an old link to a shared section: no redirect to a page it may not open (#957)", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue(limited());
+        renderPage(<SettingsPage />, { route: "/settings?section=discordserver" });
+        await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        expect(screen.queryByText("Panel Discord-Server")).not.toBeInTheDocument();
+        expect(entry(sectionLabel(sectionsFor("server", false)[0]))).toHaveAttribute("aria-current", "true");
     });
 
     it("sees only the Battle.net card among the connections", async () => {
         vi.mocked(api.getSettings).mockResolvedValue(limited());
-        renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=verbindungen" });
 
         expect(await screen.findByText("Battle.net / Armory")).toBeInTheDocument();
         for (const hidden of ["Discord & Raid-Helper", "Warcraft Logs", "KI-Formulierung", "Loot-Sync"]) {
@@ -303,7 +326,7 @@ describe("a limited settings user", () => {
     });
 
     it("sees every connection card as a full admin", async () => {
-        renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=verbindungen" });
         for (const shown of ["Battle.net / Armory", "Discord & Raid-Helper", "Warcraft Logs", "KI-Formulierung", "Loot-Sync"]) {
             expect(await screen.findByText(shown)).toBeInTheDocument();
         }
@@ -478,7 +501,7 @@ describe("the save bar", () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({
             adminRoles: [{ id: "r1", name: "Offizier", guildId: "g1", guildName: "Pulse" }, { id: "r9", name: "Leitung", guildId: "g2", guildName: "PuGs" }],
         }));
-        renderPage(<SettingsPage />, { route: "/settings?section=vollAdmins" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=vollAdmins" });
 
         const table = await screen.findByRole("table");
         expect(within(table).getByText("@Offizier")).toBeInTheDocument();
@@ -623,20 +646,80 @@ describe("the save bar", () => {
     });
 });
 
+describe("two pages: System › Einstellungen and Alle Server › Einstellungen (#957)", () => {
+    function Where() {
+        const loc = useLocation();
+        return <output data-testid="where">{loc.pathname + loc.search}</output>;
+    }
+
+    /** Both routes like App.tsx, so a redirect lands on the other page. */
+    function renderBoth(route: string) {
+        return render(
+            <JobsProvider>
+                <ConfirmProvider>
+                    <MemoryRouter initialEntries={[route]}>
+                        <Where />
+                        <Routes>
+                            <Route element={<Outlet context={{ user: adminUser() }} />}>
+                                <Route path="settings" element={<SettingsPage />} />
+                                <Route path="settings/all" element={<SettingsPage scope="all" />} />
+                            </Route>
+                        </Routes>
+                    </MemoryRouter>
+                </ConfirmProvider>
+            </JobsProvider>,
+        );
+    }
+
+    it("names the active server in the head of System › Einstellungen", async () => {
+        renderPage(<SettingsPage />, { route: "/settings" });
+        expect(await screen.findByText("System · Pulse")).toBeInTheDocument();
+    });
+
+    it("says when no server is chosen", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ bot: { online: true, readySince: 0, guildName: "" }, activeGuildId: "" }));
+        renderPage(<SettingsPage />, { route: "/settings" });
+        expect(await screen.findByText("System · kein Server gewählt")).toBeInTheDocument();
+    });
+
+    it("heads the shared page with Alle Server instead of a server", async () => {
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all" });
+        await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
+        expect(document.querySelector(".settings-head .kicker")).toHaveTextContent("Alle Server");
+        expect(screen.queryByText("System · Pulse")).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ["/settings?section=discordserver", "/settings/all?section=discordserver", "Panel Discord-Server"],
+        // an old id of a connection card lands in Verbindungen on the shared page
+        ["/settings?section=battlenet", "/settings/all?section=battlenet", "Battle.net / Armory"],
+        // and a server section opened on the shared page goes back to System
+        ["/settings/all?section=kategorien", "/settings?section=kategorien", "Panel Kategorien"],
+    ])("sends the old link %s to %s", async (from, to, shown) => {
+        renderBoth(from);
+        expect(await screen.findByText(shown)).toBeInTheDocument();
+        expect(screen.getByTestId("where")).toHaveTextContent(to);
+    });
+});
+
 describe("in English", () => {
     afterEach(() => switchLang("de"));
 
     it("names the page, the sections, the connection cards and the save bar in English", async () => {
         await switchLang("en");
         const user = userEvent.setup();
-        renderPage(<SettingsPage />, { route: "/settings?section=verbindungen" });
-
-        const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+        const shared = renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=verbindungen" });
+        const allNav = await screen.findByRole("navigation", { name: "Settings sections" });
         expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent("Settings");
-        expect(within(nav).getByRole("button", { name: /^Permissions/ })).toBeInTheDocument();
-        expect(within(nav).getByText("All servers")).toBeInTheDocument();
+        expect(within(allNav).getByText("All servers")).toBeInTheDocument();
         expect(await screen.findByText("AI wording")).toBeInTheDocument();
         expect(screen.getAllByText("Full admins only").length).toBeGreaterThan(0);
+        shared.unmount();
+
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        const nav = await screen.findByRole("navigation", { name: "Settings sections" });
+        expect(within(nav).getByRole("button", { name: /^Permissions/ })).toBeInTheDocument();
+        expect(screen.getByText("System · Pulse")).toBeInTheDocument();
 
         await user.click(within(nav).getByRole("button", { name: /^Raid defaults/ }));
         await user.selectOptions(await screen.findByRole("combobox", { name: "Default channel" }), "ch1");
@@ -667,7 +750,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         // stored before the migration: the active category has no entry, it plays the saved main version
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
-        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
 
         const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
         expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
@@ -695,7 +778,7 @@ describe("Spielversion (#541)", () => {
             config: { ...config(), ...partial } as AdminConfig,
             switchedCategories: [{ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", at: 1, name: "Montag", series: "template" }],
         }));
-        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -727,7 +810,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryVersion: { cat1: "tbc" }, categoryRaidTemplate: { cat1: "t-tbc" } }) }));
         vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
-        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -755,14 +838,14 @@ describe("Spielversion (#541)", () => {
 
     it("says where to switch a category on when none is active", async () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryIds: [] }) }));
-        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
         expect(await screen.findByText(/Noch keine aktive Kategorie/)).toBeInTheDocument();
     });
 
     it("names the section in English", async () => {
         await switchLang("en");
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
-        renderPage(<SettingsPage />, { route: "/settings?section=spielversion" });
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
         expect(await screen.findByRole("radiogroup", { name: "Main version" })).toBeInTheDocument();
         expect(screen.getByText("Version per category")).toBeInTheDocument();
         expect(screen.getByRole("option", { name: "WoW Forever" })).toBeInTheDocument();

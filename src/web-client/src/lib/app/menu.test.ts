@@ -1,7 +1,7 @@
 // The adminOnly menu entry (Systemstatus, docs/system-status.md): only a full
 // admin gets its line, whatever areas a role holds.
 import { describe, expect, it } from "vitest";
-import { MENU, entryHref, firstAllowedTab, isNeutralPage, mayOpen, menuLines } from "./menu";
+import { MENU, entryHref, firstAllowedTab, isNeutralPage, mayOpen, menuLines, ownsPath } from "./menu";
 import type { SessionUser } from "../../api";
 
 const system = MENU.find((e) => e.id === "system")!;
@@ -43,9 +43,30 @@ describe("adminOnly menu entries", () => {
     });
 });
 
+describe("Alle Server › Einstellungen (#957)", () => {
+    const settingsAll = MENU.find((e) => e.id === "settingsAll")!;
+
+    it("is a full-admin-only line of the block Alle Server, with its own WoW icon", () => {
+        expect(settingsAll).toMatchObject({ href: "/settings/all", scope: "all", adminOnly: true, areas: [], wowIcon: "inv_misc_wrench_01" });
+        expect(menuLines({ id: "1", name: "A", isAdmin: true, access: {} }).map((l) => l.top.id)).toEqual(expect.arrayContaining(["settings", "settingsAll"]));
+        // a settings writer keeps System › Einstellungen but never gets the shared page
+        expect(menuLines(everyArea).map((l) => l.top.id)).toContain("settings");
+        expect(menuLines(everyArea).map((l) => l.top.id)).not.toContain("settingsAll");
+    });
+
+    it("leaves /settings/all to its own line, so System › Einstellungen is not lit there too", () => {
+        expect(ownsPath("/settings", "/settings")).toBe(true);
+        expect(ownsPath("/settings", "/settings/all")).toBe(false);
+        expect(ownsPath("/settings/all", "/settings/all")).toBe(true);
+        expect(ownsPath("/settings/all", "/settings")).toBe(false);
+        // sub routes of other entries are still owned by their parent
+        expect(ownsPath("/raids", "/raids/new")).toBe(true);
+    });
+});
+
 describe("version-neutral pages (#742)", () => {
-    it("are Kanaele, Rollen, Rollen-Nachrichten, Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "system"]);
+    it("are Kanaele, Rollen, Rollen-Nachrichten, both Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "settingsAll", "system"]);
     });
 
     it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {

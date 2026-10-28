@@ -272,7 +272,9 @@ function MenuApp() {
                                 <Route path="channels/server-roles" element={<Guard user={user} areas={["channels"]}><ServerRolesPage /></Guard>} />
                                 <Route path="channels/overview" element={<Guard user={user} areas={["channels"]}><DiscordOverviewPage /></Guard>} />
                                 <Route path="channels/members" element={<Guard user={user} areas={["channels"]}><MembersPage /></Guard>} />
-                                <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage /></Guard>} />
+                                <Route path="settings" element={<Guard user={user} areas={["settings"]}><SettingsPage key="server" scope="server" /></Guard>} />
+                                {/* #957: what every server shares - full admins only, like its API routes */}
+                                <Route path="settings/all" element={<AdminGuard user={user}><SettingsPage key="all" scope="all" /></AdminGuard>} />
                                 <Route path="raids" element={<Guard user={user} areas={["raids"]}><RaidsPage /></Guard>} />
                                 {/* the list with the create dialog over it: the dialog opens by the server's `canCreate` (#729 - the orga of a category creates without `raids` write) */}
                                 <Route path="raids/new" element={<Guard user={user} areas={["raids"]}><RaidCreatePage /></Guard>} />

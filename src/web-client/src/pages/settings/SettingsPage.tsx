@@ -20,8 +20,9 @@ import WclGuildsSection from "./SettingsWclGuilds";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import {
-    SECTION_PARAM_IDS, visibleSections, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
-    type SettingsSection } from "../../lib/settings/settingsSections";
+    sectionParamIds, sectionsFor, sectionElsewhere, SCOPE_PATH, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
+    type SettingsSection, type SettingsScope } from "../../lib/settings/settingsSections";
+import { Navigate, useSearchParams } from "react-router-dom";
 import { areaLabel, draftChanges, logChannelsChanged } from "../../lib/settings/settingsLogic";
 import { sectionBadge, settingsNavCounts } from "../../lib/settings/settingsNav";
 import { tParts, useT } from "../../i18n";
@@ -62,8 +63,14 @@ const PERM_VIEWS: readonly PermView[] = ["areas", "bot"];
 // one stable empty list, so a server without WCL guilds hands the section the same array every render
 const NO_WCL_GUILDS: WclGuild[] = [];
 
-export default function SettingsPage() {
+/**
+ * #957: one page, two scopes — System › Einstellungen holds the active server's
+ * sections (/settings), Alle Server › Einstellungen what every server shares
+ * (/settings/all, full admins only, like its API routes).
+ */
+export default function SettingsPage({ scope = "server" }: { scope?: SettingsScope }) {
     const t = useT();
+    const [params] = useSearchParams();
     // The draft is cut from the answer as it lands — not from `data`: the parts
     // that save themselves update `data` without touching an unsaved draft.
     const [draft, setDraft] = useState<Draft | null>(null);
@@ -78,8 +85,11 @@ export default function SettingsPage() {
     // Old ids stay allowed and are redirected by resolveSection(). A section
     // opened through such a link is remembered too, like one picked in the
     // rail: the plain "Einstellungen" entry lands on the section opened last.
+    // Each page remembers its own section; ids of the other page are not taken
+    // (they redirect there, below).
     const [section, setSection] = usePersistedSearchParam(
-        "settings-section", "section", "berechtigungen", SECTION_PARAM_IDS, true,
+        scope === "all" ? "settings-all-section" : "settings-section", "section",
+        scope === "all" ? "discordserver" : "berechtigungen", sectionParamIds(scope), true,
     );
     // Berechtigungen has two views: the menu's areas and the bot commands.
     const [permView, setPermView] = usePersistedSearchParam<PermView>("settings-perm-view", "perm", "areas", PERM_VIEWS);
@@ -127,10 +137,19 @@ export default function SettingsPage() {
     if (settingsData.error) return <div className="empty">{tParts("settings.page.loadError", { message: settingsData.error.message })}</div>;
     if (!data || !draft) return <RaidLoader text={t("settings.page.loading")} />;
 
+    // #957: an old link /settings?section=discordserver lands on the page that
+    // holds the section now. The shared page is full admins only, so anyone else
+    // stays here on the first section they may open (no redirect loop).
+    const elsewhere = sectionElsewhere(params.get("section"), scope);
+    if (elsewhere && (elsewhere === "server" || data.canManageAccess)) {
+        return <Navigate to={`${SCOPE_PATH[elsewhere]}?${params.toString()}`} replace />;
+    }
+
     // A user who only holds write on "Einstellungen" never sees the access
     // section; a remembered id that is gone resolves to the first section they
     // may open instead of hiding everything.
-    const sections = visibleSections(data.canManageAccess);
+    const sections = sectionsFor(scope, data.canManageAccess);
+    if (!sections.length) return <div className="empty">{t("shell.app.adminOnly")}</div>;
     const active = resolveSection(section, sections);
     const activeSection = sections.find((s) => s.id === active)!;
     const channels = data.channels || [];
@@ -677,12 +696,16 @@ export default function SettingsPage() {
     return (
         <RailLayout rail={rail} className="settings-layout">
             <div className="page-head settings-head">
-                <IconTile icon="trade_engineering" tone="settings" size="lg" />
+                <IconTile icon={scope === "all" ? "inv_misc_wrench_01" : "trade_engineering"} tone="settings" size="lg" />
                 <div className="ph-text">
-                    <div className="kicker">{t("settings.page.kicker")}</div>
+                    {/* #957: the server page names the server its values belong to */}
+                    <div className="kicker">
+                        {scope === "all" ? t("settings.page.kickerAll")
+                            : serverName ? t("settings.page.kickerServer", { name: serverName }) : t("settings.page.kickerNoServer")}
+                    </div>
                     <h1>
                         {t("shell.menu.settings")}
-                        <InfoTip head={t("shell.menu.settings")} sub={t("settings.page.infoSub")} />
+                        <InfoTip head={t("shell.menu.settings")} sub={t(scope === "all" ? "settings.page.infoSubAll" : "settings.page.infoSub")} />
                     </h1>
                 </div>
             </div>

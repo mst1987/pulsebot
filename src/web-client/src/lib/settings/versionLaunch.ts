@@ -151,7 +151,7 @@ export function itemLink(item: LaunchItem, { canExport = false }: { canExport?: 
         case "series": return route("/raids/series");
         case "rosters": return route("/roster");
         case "guildBank": return route("/settings?section=verbindungen");
-        case "talk": return route("/settings?section=discordserver");
+        case "talk": return route("/settings/all?section=discordserver");
         default: return null;
     }
 }

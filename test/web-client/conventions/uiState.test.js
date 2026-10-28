@@ -93,6 +93,7 @@ describe("client state persistence", () => {
         ["pages/raids/RaidsPage.tsx", "raids-category"],
         ["pages/raids/RaidsPage.tsx", "raids-view"],
         ["pages/settings/SettingsPage.tsx", "settings-section"],
+        ["pages/settings/SettingsPage.tsx", "settings-all-section"],
     ];
 
     it.each(TAB_PAGES)("%s remembers its open tab as %s", (file, key) => {

@@ -12,7 +12,7 @@ import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
 import { TipLayer } from "../ui/Tip";
-import { MENU, firstAllowedTab, isNeutralPage, matchesHref, menuBlocks, menuLabel, type MenuLine } from "../../lib/app/menu";
+import { MENU, firstAllowedTab, isNeutralPage, menuBlocks, menuLabel, ownsPath, type MenuLine } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
@@ -29,7 +29,7 @@ export type ShellContext = { user: SessionUser };
 // user's rights cover *one* of them (the API enforces it for real, see
 // src/web/apiAccess.js).
 function crumbTab(pathname: string) {
-    return MENU.find((t) => matchesHref(t.href, pathname));
+    return MENU.find((t) => ownsPath(t.href, pathname));
 }
 
 // Optional third breadcrumb segment for a page nested one level under its tab
@@ -71,7 +71,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
     const { server, all } = menuBlocks(user);
     let lastGroup: string | null = null;
     const line = ({ top, entry, href, hrefs }: MenuLine, label: string | null, labelClass = "menu-label") => {
-        const active = hrefs.some((h) => matchesHref(h, pathname));
+        const active = hrefs.some((h) => ownsPath(h, pathname));
         return (
             <div key={top.id}>
                 {label && <div className={labelClass}>{label}</div>}

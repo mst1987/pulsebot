@@ -231,7 +231,7 @@ describe("page Addons", () => {
         renderPage(<AddonPage />, { route: "/addon" });
         expect(await screen.findByText(/gibt es hier keine Addons/)).toBeInTheDocument();
         expect(screen.queryByText(/Addons gibt es für/)).toBeNull();
-        expect(screen.getByRole("link", { name: "Addons einrichten" })).toHaveAttribute("href", "/settings?section=addons");
+        expect(screen.getByRole("link", { name: "Addons einrichten" })).toHaveAttribute("href", "/settings/all?section=addons");
     });
 
     it("never leaves the page blank: the cards carry no class an ad blocker hides", async () => {

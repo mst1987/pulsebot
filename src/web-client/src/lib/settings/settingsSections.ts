@@ -97,6 +97,41 @@ export function visibleSections(canManageAccess: boolean): SettingsSection[] {
 }
 
 /**
+ * Which page a section lives on (#957): the active server's sections under
+ * System › Einstellungen (/settings), the shared ones under Alle Server ›
+ * Einstellungen (/settings/all, full admins only).
+ */
+export type SettingsScope = "server" | "all";
+
+export const SCOPE_GROUP: Record<SettingsScope, SettingsGroup> = { server: "server", all: "global" };
+
+export const SCOPE_PATH: Record<SettingsScope, string> = { server: "/settings", all: "/settings/all" };
+
+/** The sections of one page that this user may open. */
+export function sectionsFor(scope: SettingsScope, canManageAccess: boolean): SettingsSection[] {
+    return visibleSections(canManageAccess).filter((s) => s.group === SCOPE_GROUP[scope]);
+}
+
+/** The ids one page's url may carry: its own sections plus the old ids that lead to one of them. */
+export function sectionParamIds(scope: SettingsScope): string[] {
+    const own = new Set(SETTINGS_SECTIONS.filter((s) => s.group === SCOPE_GROUP[scope]).map((s) => s.id));
+    return [...own, ...Object.keys(LEGACY_SECTIONS).filter((old) => own.has(LEGACY_SECTIONS[old]))];
+}
+
+/**
+ * The other page a `?section=` belongs to, when it is not this one's: an old
+ * link /settings?section=discordserver leads to /settings/all?section=discordserver
+ * (legacy ids followed first). Null when the id is this page's or unknown.
+ */
+export function sectionElsewhere(param: string | null, scope: SettingsScope): SettingsScope | null {
+    if (!param) return null;
+    const id = LEGACY_SECTIONS[param] || param;
+    const section = SETTINGS_SECTIONS.find((s) => s.id === id);
+    if (!section || section.group === SCOPE_GROUP[scope]) return null;
+    return scope === "server" ? "all" : "server";
+}
+
+/**
  * The section to open: the remembered one (after following a legacy id) as long
  * as this user may see it, otherwise the first one available.
  */

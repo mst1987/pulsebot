@@ -25,8 +25,10 @@ function parentOf(entry) {
 describe("one menu for both front ends", () => {
     it("has an entry for every top-level route and a route for every entry", () => {
         // sub entries (the raid plan's templates and catalog under Raid-Events) are routes below a top-level route
-        const hrefs = MENU.filter((e) => !e.sub).map((e) => e.href).sort();
+        // Alle Server › Einstellungen (#957) is the route settings/all, beside System › Einstellungen
+        const hrefs = [...new Set(MENU.filter((e) => !e.sub).map((e) => `/${e.href.split("/")[1]}`))].sort();
         expect(hrefs).toEqual(topLevelRoutes().sort());
+        expect(appSrc).toContain("<Route path=\"settings/all\"");
     });
 
     it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
@@ -37,6 +39,8 @@ describe("one menu for both front ends", () => {
                 ...(entry.sub ? { area: parentOf(entry).id, sub: true } : {}),
                 // the download page (Addons, #818, where the sync tool page was) wears the System colour
                 ...(entry.id === "addon" ? { area: "system" } : {}),
+                // Alle Server › Einstellungen (#957) wears the colour of System › Einstellungen
+                ...(entry.id === "settingsAll" ? { area: "settings" } : {}),
                 // an adminOnly entry (Systemstatus) belongs to no area: full admins only
                 ...(entry.adminOnly ? { adminOnly: true } : {}),
                 // a version-neutral page keeps the brand colour whichever version is shown (#742)
@@ -58,20 +62,20 @@ describe("one menu for both front ends", () => {
 
     it("groups the menu by what the entries are about, never more than three under one heading (Start four)", () => {
         // one heading with eight entries under it ("Verwaltung") was the raid lead's complaint
+        // the entries of the block "Alle Server" stand under that heading, not under their group's
         const groups = [];
-        for (const entry of MENU.filter((e) => !e.sub)) {
+        for (const entry of MENU.filter((e) => !e.sub && e.scope !== "all")) {
             const last = groups[groups.length - 1];
             if (last && last.name === entry.group) last.ids.push(entry.id);
             else groups.push({ name: entry.group, ids: [entry.id] });
         }
         expect(groups).toEqual([
             // Abwesenheiten sits in Start on purpose (Oct 2026): raiders follow their own attendance there
-            { name: "Start", ids: ["home", "signups", "absences", "profile"] },
+            { name: "Start", ids: ["home", "signups", "absences"] },
             // Oct 2026: loot pages moved under Raids (no own Loot group), Roster + Gildenbank under Gilde, Kanäle under System
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
             { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
-            // Systemstatus (Oct 2026): full admins only
-            { name: "System", ids: ["channels", "addon", "settings", "system"] },
+            { name: "System", ids: ["channels", "settings"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
@@ -80,7 +84,9 @@ describe("one menu for both front ends", () => {
 
     it("marks exactly the pages without a server as \"Alle Server\" (#918)", () => {
         // the own profile, the addon downloads and the bot's system status belong to no Discord server
-        expect(MENU.filter((e) => e.scope === "all").map((e) => e.id)).toEqual(["profile", "addon", "system"]);
+        // Einstellungen (#957): what the whole bot shares - full admins only, like Systemstatus
+        expect(MENU.filter((e) => e.scope === "all").map((e) => e.id)).toEqual(["profile", "addon", "settingsAll", "system"]);
+        expect(MENU.filter((e) => e.scope === "all" && e.adminOnly).map((e) => e.id)).toEqual(["settingsAll", "system"]);
     });
 
     it("uses the icons of the approved design", () => {
@@ -108,6 +114,7 @@ describe("one menu for both front ends", () => {
             channels: "inv_letter_15",
             addon: "inv_gizmo_01",
             settings: "trade_engineering",
+            settingsAll: "inv_misc_wrench_01",
             system: "inv_gizmo_02",
         });
     });

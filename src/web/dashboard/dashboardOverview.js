@@ -367,7 +367,7 @@ function roleDriftTask(roleDrift) {
         id: "rolesync", tone: "mid", tile: "settings", icon: "inv_misc_groupneedmore", title: "Rollen prüfen",
         ref: { text: `${plural(first.members.length, "Mitglied hat", "Mitglieder haben")} @${first.roleName} nur noch auf ${first.guildName || "dem anderen Server"}${more}` },
         count: total,
-        href: "/settings?section=discordserver",
+        href: "/settings/all?section=discordserver",
         tip: `${plural(total, "Mitglied trägt", "Mitglieder tragen")} eine abgeglichene Rolle ohne ihre Ursprungsrolle`,
         tipSub: "Der Rollen-Abgleich vergibt nur und entfernt nie. Wer die Rolle auf einem Server verloren hat, behält sie auf dem anderen, bis jemand sie in Discord entfernt. Öffnet Einstellungen → Discord-Server.",
         texts: {
