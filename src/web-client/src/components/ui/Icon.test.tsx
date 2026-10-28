@@ -42,6 +42,12 @@ describe("Icon", () => {
         expect(screen.getByRole("img", { name: "Discord" })).toHaveClass("uic-discord");
     });
 
+    it("renders nothing for a name outside the set instead of throwing", () => {
+        // menu.json is cast, so a typo there must not take the shell down
+        const { container } = render(<Icon name={"noSuchIcon" as never} />);
+        expect(container).toBeEmptyDOMElement();
+    });
+
     it("lets WowIcon draw keys of the set and keep zamimg names for game content", () => {
         const { container } = render(<><WowIcon name="loot" size={18} /><WowIcon name="inv_misc_bag_10" size={18} /></>);
         expect(container.querySelector("[data-icon=loot]")).not.toBeNull();

@@ -8,8 +8,9 @@
 // Both JSON files hold the paths of the accepted design canvas (#951, board
 // "Runde 6"), shared with the server-rendered chrome (src/config/uiIconSvg.js);
 // a new or changed icon is drawn in the canvas first, then copied over. Game content (bosses,
-// items, classes, specs, roles, raid markers, game versions) stays a zamimg
-// WowIcon — this set is only for the app itself.
+// items, classes, specs, roles, raid markers) stays a zamimg WowIcon; game
+// versions show their Battle.net launcher icon from public/versions/ through
+// WowIcon's local branch — this set is only for the app itself.
 import UI_ICONS_JSON from "../../../../config/uiIcons.json";
 import UI_LINE_ICONS_JSON from "../../../../config/uiLineIcons.json";
 

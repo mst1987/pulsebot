@@ -1,4 +1,4 @@
-import { BRAND_ICONS, DISCORD_PATH, UI_GLYPHS, UI_LINE_ICONS, isBrandIcon, isUiLineIcon, type UiIconName } from "../../lib/ui/iconSet";
+import { BRAND_ICONS, DISCORD_PATH, UI_GLYPHS, UI_LINE_ICONS, isBrandIcon, isUiLineIcon, type UiGlyph, type UiIconName } from "../../lib/ui/iconSet";
 
 // An icon of the app's own set (#951, src/web-client/src/lib/ui/iconSet.ts):
 // an own glyph as inline SVG in its tone colour, or a brand mark as the brand
@@ -63,7 +63,10 @@ export default function Icon({ name, size = 18, title, className = "" }: {
         );
     }
 
-    const glyph = UI_GLYPHS[name];
+    // menu.json is cast, not checked by tsc: an unknown name renders nothing
+    // (like the server-rendered chrome) instead of taking the whole shell down.
+    const glyph = UI_GLYPHS[name] as UiGlyph | undefined;
+    if (!glyph) return null;
     return (
         <svg
             className={cls(`uic-${glyph.tone}`)}
