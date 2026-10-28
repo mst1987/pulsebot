@@ -91,7 +91,7 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
         expect(cardText(reply)).toContain("noch nicht abgeschlossen");
     });
 
-    it("refreshes the log's button message afterwards", async () => {
+    it("leaves the button message to evaluateLog (it redraws it itself)", async () => {
         evaluateLog.mockResolvedValue({
             ok: true,
             url: "https://host/r/abc",
@@ -102,10 +102,8 @@ describe("commands/logcheck/logevalForce — the submitted modal", () => {
 
         await command.execute(submit("logcheck-force:log:log1:rpb", "JA"));
 
-        expect(discord.finishLogButton).toHaveBeenCalledWith("ch", "msg", expect.objectContaining({
-            reportUrl: "https://host/r/abc",
-            logId: "log1",
-        }));
+        expect(evaluateLog).toHaveBeenCalledWith("log1", "rpb", { force: true });
+        expect(discord.finishLogButton).not.toHaveBeenCalled();
     });
 
     it("evaluates nothing when the confirmation is missing", async () => {
