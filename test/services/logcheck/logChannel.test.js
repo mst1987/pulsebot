@@ -15,7 +15,7 @@ const logStore = require("../../../src/stores/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 require("../../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report.js");
-const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText, enrichLogButton } = require("../../../src/services/logcheck/logChannel.js");
+const { handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, messageText, enrichLogButton, refreshLogButton } = require("../../../src/services/logcheck/logChannel.js");
 
 const { makeClient, makeChannel } = require("../../helpers/discordClient");
 
@@ -110,7 +110,8 @@ describe("services/logcheck/logChannel — handleLogMessage", () => {
         await handleLogMessage(msg({ content: "log https://classic.warcraftlogs.com/reports/RPT1" }));
         expect(logStore.saveLog).toHaveBeenCalledWith(expect.objectContaining({ reportId: "RPT1", channelId: "logch", source: "listener", postedAt: 111000, channelVersionId: "forever" }));
         expect(discord.postLogButton).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ logId: "log1", doneSections: [] }));
-        expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { channelId: "logch", messageId: "btn1" });
+        // postLogButton answers { channelId, messageId }, the store keeps them as button* (they were lost before)
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { buttonChannelId: "logch", buttonMessageId: "btn1" });
     });
 
     it("ignores messages outside the configured log channels", async () => {
@@ -150,10 +151,28 @@ describe("services/logcheck/logChannel — handleLogMessage", () => {
     });
 
     it("does not re-post when a live button already exists", async () => {
-        logStore.getByReportId.mockReturnValue({ id: "log1", status: "open", buttonMessageId: "btn0" });
+        logStore.getByReportId.mockReturnValue({ id: "log1", status: "open", buttonChannelId: "logch", buttonMessageId: "btn0" });
+        discord.logButtonExists.mockResolvedValue(true);
         await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(discord.logButtonExists).toHaveBeenCalledWith("logch", "btn0");
         expect(logStore.saveLog).not.toHaveBeenCalled();
         expect(discord.postLogButton).not.toHaveBeenCalled();
+    });
+
+    it("posts the buttons again when the stored message was deleted", async () => {
+        logStore.getByReportId.mockReturnValue({ id: "log1", status: "open", buttonChannelId: "logch", buttonMessageId: "btn0" });
+        discord.logButtonExists.mockResolvedValue(false);
+        await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(discord.postLogButton).toHaveBeenCalled();
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("log1", { buttonChannelId: "logch", buttonMessageId: "btn1" });
+    });
+
+    it("posts the buttons when the stored message sits in another channel", async () => {
+        logStore.getByReportId.mockReturnValue({ id: "log1", status: "open", buttonChannelId: "otherch", buttonMessageId: "btn0" });
+        discord.logButtonExists.mockResolvedValue(true);
+        await handleLogMessage(msg({ content: "https://classic.warcraftlogs.com/reports/RPT1" }));
+        expect(discord.logButtonExists).not.toHaveBeenCalled();
+        expect(discord.postLogButton).toHaveBeenCalled();
     });
 
     it("does nothing when there is no message link", async () => {
@@ -254,6 +273,119 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
         const res = await evaluateLog("l1");
         expect(res).toMatchObject({ ok: false, error: "Report ist privat." });
         expect(logStore.markEvaluated).not.toHaveBeenCalled();
+    });
+});
+
+describe("services/logcheck/logChannel — the message under the log follows every evaluation", () => {
+    const LOG = { id: "l1", status: "open", link: "x", channelId: "logch", messageId: "src1", title: "Hyjal + BT", reportStart: 5 };
+    // like the store: what markEvaluated saved is what getLog reads afterwards
+    const evaluatedAs = (saved) => logStore.markEvaluated.mockImplementation(() => {
+        logStore.getLog.mockReturnValue(saved);
+        return saved;
+    });
+
+    beforeEach(() => {
+        logStore.getLog.mockReturnValue(null);
+        logStore.markEvaluated.mockReset();
+        discord.finishLogButton.mockResolvedValue(true);
+        discord.findLogButtonMessage.mockResolvedValue(null);
+    });
+
+    it("redraws the stored message after an evaluation, whoever started it (the web too)", async () => {
+        logStore.getLog.mockReturnValue(LOG);
+        evaluatedAs({ ...LOG, status: "done", sections: ["cla", "rpb"], reportUrl: "/r/a",
+            buttonChannelId: "logch", buttonMessageId: "btn1" });
+        buildReport.mockResolvedValue({ id: "a", url: "/r/a", report: { title: "Hyjal + BT" } });
+        await evaluateLog("l1", "rpb");
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", {
+            logId: "l1", title: "Hyjal + BT", link: "x", startMs: 5, doneSections: ["cla", "rpb"], reportUrl: "/r/a",
+        });
+        expect(discord.findLogButtonMessage).not.toHaveBeenCalled();
+    });
+
+    it("takes the clicked message as hint for a log without stored ids and remembers it", async () => {
+        logStore.getLog.mockReturnValue(LOG);
+        evaluatedAs({ ...LOG, status: "done", sections: ["cla"], reportUrl: "/r/a" });
+        buildReport.mockResolvedValue({ id: "a", url: "/r/a", report: { title: "T" } });
+        await evaluateLog("l1", "cla", { button: { channelId: "logch", messageId: "btnX" } });
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("l1", { buttonChannelId: "logch", buttonMessageId: "btnX" });
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btnX", expect.objectContaining({ doneSections: ["cla"] }));
+        expect(discord.findLogButtonMessage).not.toHaveBeenCalled();
+    });
+
+    it("finds the bot's reply under the log post when neither ids nor a hint are there", async () => {
+        discord.findLogButtonMessage.mockResolvedValue({ channelId: "logch", messageId: "btnF" });
+        discord.finishLogButton.mockResolvedValue(true);
+        await expect(refreshLogButton({ ...LOG, sections: ["cla"], status: "done", reportUrl: "/r/a" })).resolves.toBe(true);
+        // only a reply of this log counts — a post with two links has two replies
+        expect(discord.findLogButtonMessage).toHaveBeenCalledWith("logch", "src1", { logId: "l1", link: "x" });
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("l1", { buttonChannelId: "logch", buttonMessageId: "btnF" });
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btnF", expect.objectContaining({ reportUrl: "/r/a" }));
+    });
+
+    it("brings a lagging message up to date when its button is clicked for a half that already ran", async () => {
+        logStore.getLog.mockReturnValue({ ...LOG, status: "done", sections: ["cla", "rpb"], reportUrl: "/r/a" });
+        const res = await evaluateLog("l1", "rpb", { button: { channelId: "logch", messageId: "btnX" } });
+        expect(res).toMatchObject({ ok: false, already: true });
+        expect(buildReport).not.toHaveBeenCalled();
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btnX", expect.objectContaining({ doneSections: ["cla", "rpb"] }));
+    });
+
+    it("shows an open log without the evaluation's link (a discarded last half) and accepts an id", async () => {
+        logStore.getLog.mockReturnValue({ ...LOG, buttonChannelId: "logch", buttonMessageId: "btn1", reportUrl: "" });
+        await refreshLogButton("l1");
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", expect.objectContaining({ doneSections: [], reportUrl: "" }));
+    });
+
+    it("does nothing without a message to redraw and never throws", async () => {
+        discord.findLogButtonMessage.mockResolvedValue(null);
+        await expect(refreshLogButton(LOG)).resolves.toBe(false);
+        expect(discord.finishLogButton).not.toHaveBeenCalled();
+        logStore.getLog.mockReturnValue(null);
+        await expect(refreshLogButton("nope")).resolves.toBe(false);
+        discord.findLogButtonMessage.mockRejectedValue(new Error("down"));
+        await expect(refreshLogButton(LOG)).resolves.toBe(false);
+    });
+
+    it("moves to the bot's reply when the stored message is gone", async () => {
+        logStore.getLog.mockReturnValue({ ...LOG, buttonChannelId: "logch", buttonMessageId: "old" });
+        discord.finishLogButton.mockImplementation(async (ch, id) => id !== "old");
+        discord.findLogButtonMessage.mockResolvedValue({ channelId: "logch", messageId: "btnF" });
+        await expect(refreshLogButton("l1")).resolves.toBe(true);
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btnF", expect.any(Object));
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("l1", { buttonChannelId: "logch", buttonMessageId: "btnF" });
+    });
+
+    it("forgets a stored message that is gone and found nowhere else", async () => {
+        logStore.getLog.mockReturnValue({ ...LOG, buttonChannelId: "logch", buttonMessageId: "old" });
+        discord.finishLogButton.mockResolvedValue(false);
+        await expect(refreshLogButton("l1")).resolves.toBe(false);
+        expect(logStore.setButtonMessage).toHaveBeenCalledWith("l1", {});
+    });
+
+    it("redraws an older clicked message of the same log as well", async () => {
+        logStore.getLog.mockReturnValue({ ...LOG, buttonChannelId: "logch", buttonMessageId: "btn1" });
+        await refreshLogButton("l1", { hint: { channelId: "logch", messageId: "btnOld" } });
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", expect.any(Object));
+        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btnOld", expect.any(Object));
+        expect(logStore.setButtonMessage).not.toHaveBeenCalled();
+    });
+
+    it("runs one redraw per log at a time, each with the state of its turn", async () => {
+        const stored = { ...LOG, buttonChannelId: "logch", buttonMessageId: "btn1" };
+        logStore.getLog.mockReturnValue({ ...stored, sections: ["cla"], status: "done" });
+        let release;
+        discord.finishLogButton.mockImplementationOnce(() => new Promise((r) => { release = r; }));
+        const first = refreshLogButton("l1");
+        const second = refreshLogButton("l1");
+        while (!release) await Promise.resolve();
+        // the RPB half lands while the first redraw still waits on Discord
+        logStore.getLog.mockReturnValue({ ...stored, sections: ["cla", "rpb"], status: "done" });
+        expect(discord.finishLogButton).toHaveBeenCalledTimes(1);
+        release(true);
+        await Promise.all([first, second]);
+        expect(discord.finishLogButton).toHaveBeenCalledTimes(2);
+        expect(discord.finishLogButton.mock.calls[1][2]).toMatchObject({ doneSections: ["cla", "rpb"] });
     });
 });
 

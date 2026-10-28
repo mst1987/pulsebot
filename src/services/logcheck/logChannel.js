@@ -69,6 +69,69 @@ async function enrichLogButton(log, btn, { client } = {}) {
 }
 
 /**
+ * Redraw the message under a detected log from the log's stored state: the halves
+ * that ran lose their button and gain the evaluation's link, an open half keeps
+ * its button. Every way an evaluation runs or is discarded goes through here —
+ * the Discord buttons, the web's log list, "evaluate anyway" — so the message
+ * never lags behind (before, only the Discord buttons redrew it).
+ *
+ * The message is the one stored on the log; without one (logs from before the ids
+ * were stored) or when it is gone, `hint` (the clicked message) or the bot's reply
+ * of this log under the log post is used and remembered; nothing found forgets the
+ * stored one. Best-effort, never throws.
+ *
+ * @param {object|string} logOrId the log or its id
+ * @param {{ hint?: { channelId?: string, messageId?: string } }} [opts]
+ * @returns {Promise<boolean>} whether the message was redrawn
+ */
+function refreshLogButton(logOrId, opts = {}) {
+    const id = typeof logOrId === "string" ? logOrId : String((logOrId && logOrId.id) || "");
+    if (!id) return Promise.resolve(false);
+    // One redraw per log at a time, each reading the stored state when its turn
+    // comes: a CLA and an RPB run finishing together never leave "1 von 2" behind.
+    const next = (redrawChains.get(id) || Promise.resolve()).then(() => redrawLogButton(id, logOrId, opts));
+    redrawChains.set(id, next);
+    void next.then(() => { if (redrawChains.get(id) === next) redrawChains.delete(id); });
+    return next;
+}
+
+const redrawChains = new Map();
+
+async function redrawLogButton(id, given, { hint } = {}) {
+    try {
+        const log = logStore.getLog(id) || (given && typeof given === "object" ? given : null);
+        if (!log) return false;
+        const doneSections = logStore.evaluatedSections(log);
+        const draw = async (at) => !!(await discord.finishLogButton(at.channelId, at.messageId, {
+            logId: log.id, title: log.title, link: log.link, startMs: log.reportStart, doneSections,
+            reportUrl: doneSections.length ? log.reportUrl || "" : "",
+        }));
+        const usable = (at) => !!(at && at.channelId && at.messageId);
+        const stored = log.buttonMessageId ? { channelId: log.buttonChannelId, messageId: log.buttonMessageId } : null;
+        if (usable(stored) && await draw(stored)) {
+            // an older message of the same log that was clicked follows too
+            if (usable(hint) && hint.messageId !== stored.messageId) await draw(hint);
+            return true;
+        }
+        // nothing stored, or the stored message is gone: the clicked one, else the bot's reply of this log
+        const found = usable(hint) && (!stored || hint.messageId !== stored.messageId)
+            ? hint
+            : await discord.findLogButtonMessage(log.channelId, log.messageId, { logId: log.id, link: log.link });
+        if (!usable(found) || (stored && found.messageId === stored.messageId)) {
+            // gone and nowhere else: forget it, so a new post of the link gets its buttons again
+            if (stored && !usable(found)) logStore.setButtonMessage(log.id, {});
+            return false;
+        }
+        if (!(await draw(found))) return false;
+        logStore.setButtonMessage(log.id, { buttonChannelId: found.channelId, buttonMessageId: found.messageId });
+        return true;
+    } catch (e) {
+        console.error(`refreshLogButton ${id}: ${e.message}`);
+        return false;
+    }
+}
+
+/**
  * The log-channel entry of `channelId` on `guildId` ({ channelId, versionId }),
  * null when that server does not watch it (#921: the channels are per server).
  * While the old global list still waits for its migration (logChannelMigration.js:
@@ -118,7 +181,10 @@ async function handleLogMessage(message) {
         // Only skip once *both* analyses are done — a log whose CLA already ran
         // should still offer its RPB button.
         if (existing && logStore.evaluatedSections(existing).length >= 2) continue;
-        if (existing && existing.buttonMessageId) continue;        // already has a live button
+        // already has a live button in this channel — one that was deleted, or sits on
+        // another server's log channel, does not stop a new post from getting its own
+        if (existing && existing.buttonMessageId && existing.buttonChannelId === message.channelId
+            && await discord.logButtonExists(existing.buttonChannelId, existing.buttonMessageId)) continue;
 
         const log = logStore.saveLog({
             guildId: message.guildId,
@@ -140,7 +206,7 @@ async function handleLogMessage(message) {
                 startMs: log.reportStart,
                 doneSections: logStore.evaluatedSections(log),
             });
-            logStore.setButtonMessage(log.id, btn);
+            logStore.setButtonMessage(log.id, { buttonChannelId: btn.channelId, buttonMessageId: btn.messageId });
             // name and date of the report follow as soon as Warcraft Logs answers
             if (!log.title || !log.reportStart) void enrichLogButton(log, btn);
         } catch (e) {
@@ -187,6 +253,8 @@ function plannedInstances(log) {
  * @param {string} logId
  * @param {string} [section]  "cla" or "rpb" (default: "cla")
  * @param {object} [opts]
+ * @param {{ channelId?: string, messageId?: string }} [opts.button]  the clicked
+ *   message under the log, a hint for logs that never stored theirs
  * @param {boolean} [opts.force]  evaluate even though the raid's final boss is
  *   not down yet; without it such a log comes back as `{ incomplete: true }`
  *   with the progress, so the caller can ask before spending the analysis
@@ -200,6 +268,8 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
 
     const done = logStore.evaluatedSections(log);
     if (done.includes(kind)) {
+        // a click on a message that lags behind (evaluated elsewhere) brings it up to date
+        await refreshLogButton(log, { hint: opts.button });
         return {
             ok: false,
             already: true,
@@ -249,6 +319,7 @@ async function evaluateLog(logId, section = SECTION_CLA, opts = {}) {
             zone: result.report.zone,
             sections: [kind],
         });
+        await refreshLogButton(saved || log, { hint: opts.button });
         return { ok: true, id: result.id, url: result.url, report: result.report, log: saved || log, section: kind };
     } finally {
         running.delete(guardKey);
@@ -307,6 +378,6 @@ async function scanLogChannels(guildId, { perChannel = 50 } = {}) {
 }
 
 module.exports = {
-    handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, enrichLogButton,
+    handleLogMessage, evaluateLog, scanLogChannels, backfillLogTitles, enrichLogButton, refreshLogButton,
     messageText, isLogChannel, SECTION_LABEL, SECTION_CLA, SECTION_RPB,
 };
