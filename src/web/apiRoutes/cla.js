@@ -19,7 +19,7 @@ const {
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../stores/logStore");
 const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
-const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../../services/logcheck/logChannel");
+const { evaluateLog, scanLogChannels, backfillLogTitles, refreshLogButton } = require("../../services/logcheck/logChannel");
 const { startJob, getJob } = require("../logcheck/evalJobs");
 const { getConfig } = require("../../stores/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
@@ -210,7 +210,11 @@ const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ user, 
     if (!onActiveServer(user, req, log ? log.guildId : guildOfReport(reportId))) return reportNotHere(res);
     const removed = deleteReport(reportId);
     if (!removed && !log) return error(res, 400, "not_found", "Auswertung nicht gefunden.");
-    if (log) clearEvaluation(log.id);
+    if (log) {
+        clearEvaluation(log.id);
+        // the message under the log offers its buttons again (best-effort, not awaited)
+        void refreshLogButton(log.id);
+    }
     ok(res, {
         reportId,
         logId: log ? log.id : "",
@@ -299,6 +303,8 @@ const resetEval = withUser({ csrf: true, body: true }, async ({ user, req, body,
             if (report) saveReport(stripSection(report, section).report, reportRefId);
         }
     }
+    // the discarded half gets its button back in Discord (best-effort, not awaited)
+    void refreshLogButton(logId);
 
     ok(res, {
         logId,

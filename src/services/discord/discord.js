@@ -1073,6 +1073,51 @@ async function finishLogButton(channelId, messageId, opts = {}) {
 }
 
 /**
+ * Whether a message of the bot under a log belongs to that log: one of its
+ * buttons carries the log id, or its embed (or an old plain text) links the
+ * report — a post with two links has two replies pointing at the same post.
+ */
+function isLogButtonOf(message, { logId = "", link = "" } = {}) {
+    const ids = (message.components || []).flatMap((row) => (row.components || []).map((c) => String(c.customId || "")));
+    if (logId && ids.some((id) => id.startsWith(`${LOG_EVAL_PREFIX}:${logId}:`) || id === `${LOG_EVAL_PREFIX}:${logId}`)) return true;
+    if (!link) return false;
+    return (message.embeds || []).some((e) => e && e.url === link) || String(message.content || "").includes(link);
+}
+
+/**
+ * The bot's own reply under a detected log message that belongs to the log
+ * (`isLogButtonOf`): `{ channelId, messageId }`, or null. For logs whose button
+ * message was never recorded (before the ids were stored correctly) or is gone —
+ * looks at the messages right after the log post. Best-effort, never throws.
+ *
+ * @param {{ logId?: string, link?: string }} [of] the log the reply must belong to
+ */
+async function findLogButtonMessage(channelId, sourceMessageId, of = {}) {
+    if (!client || !client.user || !channelId || !sourceMessageId) return null;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        const after = await channel.messages.fetch({ after: sourceMessageId, limit: 50 });
+        const hit = [...after.values()].find((m) => m.author && m.author.id === client.user.id
+            && m.reference && m.reference.messageId === sourceMessageId && isLogButtonOf(m, of));
+        return hit ? { channelId: hit.channelId || channelId, messageId: hit.id } : null;
+    } catch (e) {
+        console.error("findLogButtonMessage failed:", e.message);
+        return null;
+    }
+}
+
+/** Whether a message still exists (false on any error — a gone one or no answer). */
+async function logButtonExists(channelId, messageId) {
+    if (!client || !channelId || !messageId) return false;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        return !!(await channel.messages.fetch(messageId));
+    } catch {
+        return false;
+    }
+}
+
+/**
  * A raid plan / raidsheet / softres link message: ONE raid card (utils/discord/card.js, Oct 2026) — the raid's name small over
  * the heading, the orga's optional message, the facts (the start, short), the link button inside the card, in the event's
  * colour. Before it was plain `content` with an emoji heading, because text plus embed showed as two stacked blocks; a card
@@ -1312,7 +1357,7 @@ module.exports = {
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
-    postLogButton, finishLogButton, LOG_EVAL_PREFIX,
+    postLogButton, finishLogButton, findLogButtonMessage, logButtonExists, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
     postLink, editLink, postPayload, postRolePing, editPayload,
 };

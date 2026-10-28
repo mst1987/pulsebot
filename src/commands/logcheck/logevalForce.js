@@ -5,7 +5,6 @@ const { card } = require("../../utils/discord/card");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
 const logStore = require("../../stores/logStore");
-const discord = require("../../services/discord/discord");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { versionLabel } = require("../../services/events/versionSettings");
@@ -144,25 +143,11 @@ function refusalStatus(message) {
     return texts.join("\n").split("\n").filter((l) => l.trim() && !/^(##|-#)\s/.test(l)).join("\n").trim();
 }
 
-/** Run the forced evaluation of a tracked log and refresh its button message. */
+/** Run the forced evaluation of a tracked log (evaluateLog redraws its message under the log). */
 async function runForcedLog(interaction, logId, section) {
     const res = await evaluateLog(logId, section, { force: true });
     if (!res.ok && res.unsupported) return interaction.editReply(unsupportedCard(interaction, res.versionId));
     if (!res.ok) return interaction.editReply(refusalCard(res));
-
-    const log = res.log || {};
-    try {
-        await discord.finishLogButton(log.buttonChannelId, log.buttonMessageId, {
-            reportUrl: res.url,
-            title: res.report.title,
-            link: log.link,
-            startMs: log.reportStart,
-            logId: log.id || logId,
-            doneSections: logStore.evaluatedSections(log),
-        });
-    } catch (e) {
-        console.error("finishLogButton (force) failed:", e.message);
-    }
 
     const label = SECTION_LABEL[res.section] || res.section.toUpperCase();
     const summary = reportSummaryLines(res.report, res.section).join("\n");

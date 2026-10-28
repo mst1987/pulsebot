@@ -96,6 +96,43 @@ describe("services/discord/discord — the embed under a detected log (checklist
 describe("services/discord/discord — posting and updating the message under a log", () => {
     afterAll(() => discord.setClient(null));
 
+    it("finds the bot's own reply under a log post (logs that never stored it)", async () => {
+        const of = { logId: "log1", link: "https://classic.warcraftlogs.com/reports/A" };
+        const buttons = (logId) => [{ components: [{ customId: `${LOG_EVAL_PREFIX}:${logId}:cla` }] }];
+        const other = { id: "m2", author: { id: "someone" }, reference: { messageId: "src1" }, components: buttons("log1") };
+        // a post with two report links: the bot answered it twice, one reply per log
+        const second = { id: "m3", channelId: "logch", author: { id: "bot" }, reference: { messageId: "src1" }, components: buttons("log2") };
+        const mine = { id: "m4", channelId: "logch", author: { id: "bot" }, reference: { messageId: "src1" }, components: buttons("log1") };
+        const unrelated = { id: "m5", author: { id: "bot" }, reference: { messageId: "zzz" }, components: buttons("log1") };
+        const channel = dc.makeChannel({ id: "logch", messages: [other, second, unrelated, mine] });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: "bot" } }));
+        expect(await discord.findLogButtonMessage("logch", "src1", of)).toEqual({ channelId: "logch", messageId: "m4" });
+        expect(channel.messages.fetch).toHaveBeenCalledWith({ after: "src1", limit: 50 });
+        expect(await discord.findLogButtonMessage("logch", "src1", { logId: "log9" })).toBeNull();
+        expect(await discord.findLogButtonMessage("logch", "nothing", of)).toBeNull();
+        expect(await discord.findLogButtonMessage("gone", "src1", of)).toBeNull();
+        expect(await discord.findLogButtonMessage("", "src1", of)).toBeNull();
+    });
+
+    it("recognises a finished reply without buttons by its report link", async () => {
+        const link = "https://classic.warcraftlogs.com/reports/A";
+        const done = { id: "m6", channelId: "logch", author: { id: "bot" }, reference: { messageId: "src2" }, components: [], embeds: [{ url: link }] };
+        const plain = { id: "m7", channelId: "logch", author: { id: "bot" }, reference: { messageId: "src3" }, content: `Report ${link}` };
+        discord.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "logch", messages: [done, plain] })], user: { id: "bot" } }));
+        expect(await discord.findLogButtonMessage("logch", "src2", { logId: "log1", link })).toEqual({ channelId: "logch", messageId: "m6" });
+        expect(await discord.findLogButtonMessage("logch", "src3", { logId: "log1", link })).toEqual({ channelId: "logch", messageId: "m7" });
+        expect(await discord.findLogButtonMessage("logch", "src2", { logId: "log1" })).toBeNull();
+    });
+
+    it("tells whether a stored message still exists", async () => {
+        const channel = dc.makeChannel({ id: "logch", messages: [{ id: "m1" }] });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: "bot" } }));
+        expect(await discord.logButtonExists("logch", "m1")).toBe(true);
+        expect(await discord.logButtonExists("logch", "gone")).toBe(false);
+        expect(await discord.logButtonExists("nochan", "m1")).toBe(false);
+        expect(await discord.logButtonExists("", "m1")).toBe(false);
+    });
+
     it("replies with the embed, pinging nobody, and edits a message (also an old plain-text one) into the embed", async () => {
         const old = { id: "m1", content: "📊 **Warcraft-Logs-Report erkannt**", edit: jest.fn(async () => {}) };
         const channel = dc.makeChannel({ id: "logch", messages: [old] });

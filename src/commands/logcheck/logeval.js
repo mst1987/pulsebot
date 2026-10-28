@@ -2,8 +2,6 @@ const { MessageFlags } = require("discord.js");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { reportSummaryLines } = require("../../utils/logcheck/report");
 const { forceButtonRow, refusalCard, resultCard, unsupportedCard } = require("./logevalForce");
-const logStore = require("../../stores/logStore");
-const discord = require("../../services/discord/discord");
 
 // Button handler for the "CLA auswerten" / "RPB auswerten" buttons posted under a
 // detected log. The customId carries the tracked log id and which half to run:
@@ -23,7 +21,9 @@ module.exports = {
 
         await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
-        const res = await evaluateLog(logId, section);
+        // the clicked message is the one under the log: a hint for logs that never stored theirs
+        const button = { channelId: interaction.channelId, messageId: interaction.message && interaction.message.id };
+        const res = await evaluateLog(logId, section, { button });
         if (!res.ok) {
             // The raid is still running: offer the deliberate way past instead of
             // a dead end. The button opens a confirmation modal (logevalForce.js).
@@ -38,26 +38,7 @@ module.exports = {
             return interaction.editReply(refusalCard(res));
         }
 
-        // Refresh the button message: the finished half loses its button, the other
-        // one stays clickable, and the report link is added.
-        const log = res.log || {};
-        try {
-            await discord.finishLogButton(
-                log.buttonChannelId || interaction.channelId,
-                log.buttonMessageId || (interaction.message && interaction.message.id),
-                {
-                    reportUrl: res.url,
-                    title: res.report.title,
-                    link: log.link,
-                    startMs: log.reportStart,
-                    logId: log.id || logId,
-                    doneSections: logStore.evaluatedSections(log),
-                },
-            );
-        } catch (e) {
-            console.error("finishLogButton (button) failed:", e.message);
-        }
-
+        // evaluateLog already redrew the message under the log (refreshLogButton)
         const summary = reportSummaryLines(res.report, section).join("\n");
         return interaction.editReply(resultCard({ label, reportTitle: res.report.title, summary, url: res.url }));
     },
