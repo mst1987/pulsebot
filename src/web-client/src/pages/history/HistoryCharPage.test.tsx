@@ -139,7 +139,7 @@ describe("HistoryCharPage — sections", () => {
         const msg = "Armory für WoW Forever nicht eingerichtet (Einstellungen → Spielversion).";
         await openPage("/roster/char?name=Alpha", adminUser(), charData({ gear: null, gearConfigured: false, gearError: msg, versionId: "forever", wowheadPath: "" }));
         expect(screen.getByText(msg)).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Armory einrichten" })).toHaveAttribute("href", "/settings?section=spielversion");
+        expect(screen.getByRole("link", { name: "Armory einrichten" })).toHaveAttribute("href", "/settings?section=versionlinks");
         expect(screen.queryByRole("link", { name: "Armory" })).toBeNull();
     });
 

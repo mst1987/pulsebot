@@ -1,6 +1,7 @@
 {
     "crumb": "Settings › {crumb}",
     "crumbAll": "All servers › {crumb}",
+    "fullAdminSetup": "A full admin sets this up under All servers › Settings.",
     "saving": "Saving…",
     "savedToast": "Saved.",
     "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
@@ -33,9 +34,13 @@
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
         },
+        "kategorieversion": {
+            "label": "Game version per category",
+            "crumb": "Raid categories · which WoW version each category plays"
+        },
         "spielversion": {
             "label": "Game version",
-            "crumb": "Raid categories · which WoW version the guild plays"
+            "crumb": "Game versions · main version and what each version offers"
         },
         "raids": {
             "label": "Raid defaults",
@@ -1461,6 +1466,7 @@
         "links": {
             "backup": "System status",
             "export": "Download CSV",
+            "categories": "Game version per category",
             "templates": "Raid templates",
             "series": "Series",
             "rosters": "Rosters",

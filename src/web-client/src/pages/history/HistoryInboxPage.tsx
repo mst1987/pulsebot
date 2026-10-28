@@ -3,7 +3,7 @@
 // A page rather than a dialog from the head button: a raid week with four raids
 // brings four cards, each with its own event choice, and that does not fit into
 // a modal. The head button on the history page leads here with the open count.
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -13,6 +13,7 @@ import { IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/WowIcon";
 import { ChevronLeftIcon } from "../../components/ui/icons";
+import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/history-loot.css";
@@ -57,9 +58,9 @@ export default function HistoryInboxPage() {
                     sub={t("history.inbox.infoSub")}
                 />
                 <div className="ph-act">
-                    <Link className={buttonClass("ghost", "md", true)} to="/settings?section=lootsync">
+                    <AllSettingsLink hide className={buttonClass("ghost", "md", true)} section="verbindungen">
                         <WowIcon name="inv_misc_enggizmos_27" size={22} />{t("history.inbox.manageToken")}
-                    </Link>
+                    </AllSettingsLink>
                 </div>
             </div>
 
@@ -70,7 +71,7 @@ export default function HistoryInboxPage() {
                     <div className="empty">
                         {t("history.inbox.empty")}<br />
                         {t("history.inbox.emptyHint")}{" "}
-                        <Link className="mlink" to="/settings?section=lootsync">{t("history.inbox.emptyLink")}</Link>.
+                        <AllSettingsLink inline className="mlink" section="verbindungen">{t("history.inbox.emptyLink")}</AllSettingsLink>.
                     </div>
                 </div>
             )}

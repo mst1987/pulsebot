@@ -34,7 +34,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { LogChannelsField, TopItemsField } from "./SettingsFields";
-import GameVersionSection, { VersionSettingsCard } from "./SettingsGameVersion";
+import GameVersionSection, { CategoryVersionSection, VersionSettingsCard } from "./SettingsGameVersion";
 import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
 import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
 import CategoryCloseDialog from "./CategoryCloseDialog";
@@ -230,78 +230,85 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
         const defaultsChanged = serverDefaultsChanges(saved, draft);
         const serverDefaults = Object.keys(defaultsChanged).length
             ? { ...defaultsChanged, serverSettingsGuildId: data.activeGuildId || "" } : {};
+        // Access config is full-admin-only; sending it as anyone else would
+        // (rightly) be rejected with a 403. Only the fields the draft changed
+        // (#925): the active server is per session, and an untouched field from
+        // an old tab would overwrite the rights of the server another tab switched to.
+        // A server's rights go with the server this page loaded: a switched session answers 409.
+        const access: Record<string, unknown> = data.canManageAccess ? accessPatch(draft, saved, data.activeGuildId || "") : {};
+        const serverAccess = Object.fromEntries(Object.entries(access).filter(([key]) => key !== "adminRoleIds"));
+        // #957 review: each page sends only its own keys. /settings/all carries what every
+        // server shares (full admins) - no server key and no serverSettingsGuildId, so a
+        // tab left on another server never writes (or is refused for) that server's values.
+        const payload: Parameters<typeof updateSettings>[0] = scope === "all" ? {
+            // #925: the full admins' roles are the one global access setting (vollAdmins)
+            ...("adminRoleIds" in access ? { adminRoleIds: draft.adminRoleIds } : {}),
+            // #541 the main version, #563 only the main version everywhere while it is on
+            mainVersion: draft.mainVersion,
+            hideOtherVersions: draft.hideOtherVersions,
+            // the dungeon record post: both fields, merged on the server
+            dungeonRecords: draft.dungeonRecords,
+            // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
+            // #761: with each version's features switched off, sent whole.
+            versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
+        } : {
+            // the server's rights (adminRoleIds is edited and sent only under Alle Server)
+            ...serverAccess,
+            // #924: the active server's own values, only the ones changed here.
+            ...serverDefaults,
+            // #926: the categories (only this server's part changes), #921 the log channels and #924 the
+            // values above belong to the server this page loaded — sent with it, so a tab left on another
+            // server is refused (409) instead of writing there. "" = none was active (the categories then
+            // edit the first server, the bot language its default).
+            categoryIds: draft.categoryIds,
+            serverSettingsGuildId: data.activeGuildId || "",
+            categoryRoles: draft.categoryRoles,
+            // the log channels only when changed (they need an active server)
+            ...(data.activeGuildId && logChannelsChanged(saved, draft) ? { logChannels: draft.logChannels } : {}),
+            categoryLootTool: draft.categoryLootTool,
+            // Merged on the server: "automatisch" is sent as "" and drops the entry.
+            categoryLootSystem: draft.categoryLootSystem,
+            categorySignupSource: draft.categorySignupSource,
+            // Merged on the server: a category switched off is sent as false.
+            categorySetupDms: draft.categorySetupDms,
+            categoryLanguage: draft.categoryLanguage,
+            // Each category sent whole ({ show, window, absences }); the store drops one back at the defaults.
+            categoryAttendance: draft.categoryAttendance,
+            // #305: both merged on the server — a category switched off is
+            // sent as false, a cleared voice channel as "".
+            categoryDiscordEvent: draft.categoryDiscordEvent,
+            categoryVoiceChannel: draft.categoryVoiceChannel,
+            // Merged per category on the server; one back at the defaults drops out.
+            categoryMessageLook: draft.categoryMessageLook,
+            categoryAnnounce: draft.categoryAnnounce,
+            // Merged on the server: "optional" drops the entry again.
+            categorySignupNotes: draft.categorySignupNotes,
+            // Merged on the server like the voice channel: "" = back to the default (#335).
+            categorySignupNoteChannel: draft.categorySignupNoteChannel,
+            // Merged on the server: 8 (the default) drops the entry again.
+            categorySignupCharacters: draft.categorySignupCharacters,
+            // Sent whole: a category set back to "keine" is left out.
+            categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
+            // #541/#738: sent whole as well; every active category with its version
+            // (one switched on just now with the main version — the server refuses none).
+            categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
+            // #738: what the switch dialog chose for a switched category's series.
+            categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
+            // the drawn pictures (a test): every switch, merged on the server
+            discordVisuals: draft.discordVisuals,
+            // The shared keys (main version, versions, dungeons) are not sent here: the API
+            // wants a full admin for them, so a settings writer of one server saves without them.
+            // Sent whole: the store replaces the map, so clearing a url is
+            // what removes that category's sheet.
+            categorySheets: Object.fromEntries(
+                Object.entries(draft.categorySheets).map(([id, s]) => [id, { url: s.url.trim(), name: s.name.trim() }]),
+            ),
+            // Raid plan or sheet per category: merged on the server, only picked modes are sent.
+            categoryPlanning: draft.categoryPlanning,
+            topItems: draft.topItems,
+        };
         try {
-            const answer = await updateSettings({
-                // Access config is full-admin-only; sending it as anyone else
-                // would (rightly) be rejected with a 403. Only the fields the
-                // draft changed (#925): the active server is per session, and
-                // an untouched field from an old tab would overwrite the rights
-                // of the server another tab switched to.
-                // A server's rights go with the server this page loaded: a switched session answers 409.
-                ...(data.canManageAccess ? accessPatch(draft, saved, data.activeGuildId || "") : {}),
-                // #924: the active server's own values, only the ones changed here.
-                ...serverDefaults,
-                // #926: the categories (only this server's part changes), #921 the log channels and #924 the
-                // values above belong to the server this page loaded — sent with it, so a tab left on another
-                // server is refused (409) instead of writing there. "" = none was active (the categories then
-                // edit the first server, the bot language its default).
-                categoryIds: draft.categoryIds,
-                serverSettingsGuildId: data.activeGuildId || "",
-                categoryRoles: draft.categoryRoles,
-                // the log channels only when changed (they need an active server)
-                ...(data.activeGuildId && logChannelsChanged(saved, draft) ? { logChannels: draft.logChannels } : {}),
-                categoryLootTool: draft.categoryLootTool,
-                // Merged on the server: "automatisch" is sent as "" and drops the entry.
-                categoryLootSystem: draft.categoryLootSystem,
-                categorySignupSource: draft.categorySignupSource,
-                // Merged on the server: a category switched off is sent as false.
-                categorySetupDms: draft.categorySetupDms,
-                categoryLanguage: draft.categoryLanguage,
-                // Each category sent whole ({ show, window, absences }); the store drops one back at the defaults.
-                categoryAttendance: draft.categoryAttendance,
-                // #305: both merged on the server — a category switched off is
-                // sent as false, a cleared voice channel as "".
-                categoryDiscordEvent: draft.categoryDiscordEvent,
-                categoryVoiceChannel: draft.categoryVoiceChannel,
-                // Merged per category on the server; one back at the defaults drops out.
-                categoryMessageLook: draft.categoryMessageLook,
-                categoryAnnounce: draft.categoryAnnounce,
-                // Merged on the server: "optional" drops the entry again.
-                categorySignupNotes: draft.categorySignupNotes,
-                // Merged on the server like the voice channel: "" = back to the default (#335).
-                categorySignupNoteChannel: draft.categorySignupNoteChannel,
-                // Merged on the server: 8 (the default) drops the entry again.
-                categorySignupCharacters: draft.categorySignupCharacters,
-                // Sent whole: a category set back to "keine" is left out.
-                categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
-                // #541/#738: sent whole as well; every active category with its version
-                // (one switched on just now with the main version — the server refuses none).
-                categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
-                // #738: what the switch dialog chose for a switched category's series.
-                categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
-                // the drawn pictures (a test): every switch, merged on the server
-                discordVisuals: draft.discordVisuals,
-                // #957: what every server shares is edited (and sent) only under Alle Server - the API
-                // wants a full admin for it, so a settings writer of one server saves without it.
-                ...(scope === "all" ? {
-                    // #541 the main version, #563 only the main version everywhere while it is on
-                    mainVersion: draft.mainVersion,
-                    hideOtherVersions: draft.hideOtherVersions,
-                    // the dungeon record post: both fields, merged on the server
-                    dungeonRecords: draft.dungeonRecords,
-                    // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
-                    // #761: with each version's features switched off, sent whole.
-                    versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
-                } : {}),
-                // Sent whole: the store replaces the map, so clearing a url is
-                // what removes that category's sheet.
-                categorySheets: Object.fromEntries(
-                    Object.entries(draft.categorySheets).map(([id, s]) => [id, { url: s.url.trim(), name: s.name.trim() }]),
-                ),
-                // Raid plan or sheet per category: merged on the server, only picked modes are sent.
-                categoryPlanning: draft.categoryPlanning,
-                topItems: draft.topItems,
-            });
+            const answer = await updateSettings(payload);
             const { config, switchedCategories = [], deactivatedCategories = [] } = answer;
             // #926: the active server's part of the categories, and what is proven gone there
             setData({ ...data, ...serverCategoriesOf(answer), ...(answer.missingCategories ? { missingCategories: answer.missingCategories } : {}), config });
@@ -489,10 +496,11 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                 </>
             );
 
-            case "spielversion": return (
+            // #957 review: the server's categories and their version - settings writers switch it here
+            case "kategorieversion": return (
                 <>
                     {head(activeSection)}
-                    <GameVersionSection
+                    <CategoryVersionSection
                         versions={data.gameVersions || []}
                         categories={data.categories}
                         activeIds={draft.categoryIds}
@@ -500,7 +508,6 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         categoryVersion={draft.categoryVersion}
                         savedIds={data.config.categoryIds || []}
                         categoryEras={data.config.categoryEras}
-                        onMainVersion={(mainVersion) => patch({ mainVersion })}
                         onCategoryVersion={setCategoryVersion}
                     />
                     {switching && (
@@ -513,6 +520,17 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                             onConfirm={confirmSwitch}
                         />
                     )}
+                </>
+            );
+
+            case "spielversion": return (
+                <>
+                    {head(activeSection)}
+                    <GameVersionSection
+                        versions={data.gameVersions || []}
+                        mainVersion={draft.mainVersion}
+                        onMainVersion={(mainVersion) => patch({ mainVersion })}
+                    />
                     <HideOtherVersionsCard
                         versions={data.gameVersions || []}
                         mainVersion={draft.mainVersion}

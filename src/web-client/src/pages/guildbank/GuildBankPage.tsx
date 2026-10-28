@@ -21,12 +21,13 @@
 // the waiting list and "Anfragen" mark the others "nicht verknüpft" and link
 // them (CharacterPicker.tsx).
 import { useEffect, useMemo, useState } from "react";
-import { Link, useOutletContext } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import {
     addGuildBankItem, canAccess, getGuildBank, getGuildBankRequests, setGuildBankItem, setGuildBankTabHidden,
     type ApiError, type GuildBankItem, type GuildBankItemPatch, type GuildBankPageData, type GuildBankTab,
 } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
+import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
 import { PlusIcon, RowsIcon, SheetIcon } from "../../components/ui/icons";
 import { useToast } from "../../components/shell/Jobs";
@@ -70,7 +71,7 @@ function EmptyBank({ canSettings, version, others }: { canSettings: boolean; ver
                 <p>{t("guildbank.empty.text")}</p>
                 <p>{t("guildbank.empty.assign")}</p>
                 {canSettings && (
-                    <Link className={buttonClass("ghost")} to="/settings?section=verbindungen">{t("guildbank.empty.toSettings")}</Link>
+                    <AllSettingsLink className={buttonClass("ghost")} section="verbindungen">{t("guildbank.empty.toSettings")}</AllSettingsLink>
                 )}
             </div>
         </>

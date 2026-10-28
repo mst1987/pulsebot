@@ -137,7 +137,7 @@
 .vl-link svg { width: 14px; height: 14px; }
 .vl-jump { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
 .vl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-#gv-main, #gv-links { scroll-margin-top: 80px; }
+#gv-main, #gv-cats, #gv-links { scroll-margin-top: 80px; }
 /* a phone: badge and label in the first row, value and action below */
 @media (max-width: 640px) {
     .vl-item { grid-template-columns: 96px minmax(0, 1fr); gap: 4px 10px; }

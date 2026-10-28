@@ -35,6 +35,9 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // the active server's block
     { id: "berechtigungen", group: "server", icon: "inv_scroll_11", adminOnly: true },
     { id: "kategorien", group: "server", icon: "inv_banner_03" },
+    // #957 review: which version each of this server's categories plays (and the switch
+    // dialog, #738) - settings writers change it, so it never moved to "Alle Server"
+    { id: "kategorieversion", group: "server", icon: "inv_misc_book_11" },
     { id: "raids", group: "server", icon: "inv_misc_note_02" },
     { id: "logs", group: "server", icon: "inv_misc_pocketwatch_01" },
     { id: "recruitment", group: "server", icon: "inv_misc_grouplooking" },
@@ -51,7 +54,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // #925: the one access setting every server shares - the rest is per server (berechtigungen)
     { id: "vollAdmins", group: "global", icon: "spell_holy_sealofwisdom", adminOnly: true },
     { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
-    // #541: the main game version and the categories that play another one
+    // #541: the main game version, hiding the others, version links, features and the launch -
+    // the categories that play another one are the server's (kategorieversion)
     { id: "spielversion", group: "global", icon: "inv_misc_book_09" },
     { id: "dungeons", group: "global", icon: "spell_holy_borrowedtime" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)

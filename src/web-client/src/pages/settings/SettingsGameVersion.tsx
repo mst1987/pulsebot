@@ -188,25 +188,53 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
 export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string };
 
 /**
- * Einstellungen → Spielversion (#541, #738): the guild's main version — only
- * the default for something new — and the fixed version of every active
- * category. A category switched on just now starts with the main version
- * (badge "neu"); the save writes it down. Picking another version for a
- * category that was active already is a switch: the page opens the
- * confirmation dialog (CategorySwitchDialog) before the draft changes.
+ * Alle Server › Einstellungen › Spielversion (#541, #957): the bot's main
+ * version — only the default for something new. Full admins only (mainVersion
+ * is a shared key); which version each category plays is the server's
+ * (CategoryVersionSection below).
  */
-export default function GameVersionSection({ versions, categories, activeIds, mainVersion, categoryVersion, savedIds = activeIds, categoryEras = {}, onMainVersion, onCategoryVersion }: {
+export default function GameVersionSection({ versions, mainVersion, onMainVersion }: {
+    versions: GameVersionOption[];
+    mainVersion: string;
+    onMainVersion: (versionId: string) => void;
+}) {
+    const t = useT();
+    return (
+        <div className="set-card set-form" id="gv-main">
+            <div className="set-field">
+                <FieldLabel tip={t("settings.gameVersion.main")} tipSub={t("settings.gameVersion.mainSub")}>{t("settings.gameVersion.main")}</FieldLabel>
+                <Segment
+                    ariaLabel={t("settings.gameVersion.main")}
+                    value={mainVersion}
+                    onChange={onMainVersion}
+                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label }))}
+                />
+            </div>
+        </div>
+    );
+}
+
+/**
+ * Einstellungen › Spielversion je Kategorie (#738, moved to the server page in
+ * the #957 review): the fixed version of every active category of this server.
+ * Settings writers change it, so it must not sit behind the full-admin page. A
+ * category switched on just now starts with the main version (badge "neu");
+ * the save writes it down. Picking another version for a category that was
+ * active already is a switch: the page opens the confirmation dialog
+ * (CategorySwitchDialog) before the draft changes.
+ */
+export function CategoryVersionSection({ versions, categories, activeIds, mainVersion, categoryVersion, savedIds = activeIds, categoryEras = {}, onCategoryVersion }: {
     versions: GameVersionOption[];
     categories: { id: string; name: string }[];
     /** The raid categories switched on under Kategorien — only they get a row. */
     activeIds: string[];
+    /** The default of a category without its own version (read only here). */
     mainVersion: string;
     categoryVersion: Record<string, string>;
     /** The categories active when the page was loaded; another one is new (no section starts). */
     savedIds?: string[];
     /** The sections per category (#738): the row says since when the current one runs. */
     categoryEras?: Record<string, CategoryEra[]>;
-    onMainVersion: (versionId: string) => void;
     onCategoryVersion: (categoryId: string, versionId: string) => void;
 }) {
     const t = useT();
@@ -221,16 +249,7 @@ export default function GameVersionSection({ versions, categories, activeIds, ma
         return eras.length > 1 && last && last.from ? formatDayDate(last.from) : "";
     };
     return (
-        <div className="set-card set-form" id="gv-main">
-            <div className="set-field">
-                <FieldLabel tip={t("settings.gameVersion.main")} tipSub={t("settings.gameVersion.mainSub")}>{t("settings.gameVersion.main")}</FieldLabel>
-                <Segment
-                    ariaLabel={t("settings.gameVersion.main")}
-                    value={mainVersion}
-                    onChange={onMainVersion}
-                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label }))}
-                />
-            </div>
+        <div className="set-card set-form" id="gv-cats">
             <div className="set-field">
                 <FieldLabel tip={t("settings.gameVersion.categories")} tipSub={t("settings.gameVersion.categoriesSub")}>{t("settings.gameVersion.categories")}</FieldLabel>
                 {rows.length === 0 ? (

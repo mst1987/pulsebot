@@ -749,6 +749,8 @@ describe("in English", () => {
 });
 
 describe("Spielversion (#541)", () => {
+    afterEach(() => switchLang("de"));
+
     const gameVersions = [
         { id: "tbc", label: "TBC Anniversary", short: "TBC" },
         { id: "classic", label: "Classic Era", short: "Classic" },
@@ -770,23 +772,27 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         // stored before the migration: the active category has no entry, it plays the saved main version
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
-        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
-
-        const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
-        expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
+        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
         // only the active category gets a row, with its own version and no "Hauptversion" choice
-        const montag = screen.getByRole("combobox", { name: "Spielversion von Montag" });
+        const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         expect(montag).toHaveValue("tbc");
         expect(within(montag).queryByRole("option", { name: /Hauptversion/ })).not.toBeInTheDocument();
         expect(screen.queryByRole("combobox", { name: "Spielversion von Mittwoch" })).not.toBeInTheDocument();
+        first.unmount();
 
+        // the main version is shared: Alle Server, and that save leaves the categories alone
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
+        expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
+        expect(screen.queryByRole("combobox", { name: "Spielversion von Montag" })).not.toBeInTheDocument();
         await user.click(within(main).getByRole("radio", { name: "Forever" }));
-        expect(montag).toHaveValue("tbc");
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
-        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ mainVersion: "forever", categoryVersion: { cat1: "tbc" }, categorySwitchFixes: {} });
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        expect(body).toMatchObject({ mainVersion: "forever" });
+        expect("categoryVersion" in body).toBe(false);
         expect(api.getCategorySwitch).not.toHaveBeenCalled();
     });
 
@@ -798,7 +804,7 @@ describe("Spielversion (#541)", () => {
             config: { ...config(), ...partial } as AdminConfig,
             switchedCategories: [{ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", at: 1, name: "Montag", series: "template" }],
         }));
-        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -830,7 +836,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryVersion: { cat1: "tbc" }, categoryRaidTemplate: { cat1: "t-tbc" } }) }));
         vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
-        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -858,16 +864,55 @@ describe("Spielversion (#541)", () => {
 
     it("says where to switch a category on when none is active", async () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryIds: [] }) }));
-        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
         expect(await screen.findByText(/Noch keine aktive Kategorie/)).toBeInTheDocument();
     });
 
     it("names the section in English", async () => {
         await switchLang("en");
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
-        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        const first = renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
         expect(await screen.findByRole("radiogroup", { name: "Main version" })).toBeInTheDocument();
-        expect(screen.getByText("Version per category")).toBeInTheDocument();
+        first.unmount();
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        expect(await screen.findByRole("combobox", { name: /Montag/ })).toBeInTheDocument();
         expect(screen.getByRole("option", { name: "WoW Forever" })).toBeInTheDocument();
+        const rail = screen.getByRole("navigation", { name: "Settings sections" });
+        expect(within(rail).getByRole("button", { name: /^Game version per category/ })).toHaveAttribute("aria-current", "true");
+    });
+
+    // #957 review: the category versions are the server's - a settings writer who is no
+    // full admin switches them on System › Einstellungen, the main version stays shared
+    it("lets a settings writer who is no full admin switch a category's version on the server page", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue({ ...limited(), gameVersions } as Awaited<ReturnType<typeof api.getSettings>>);
+        vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion", user: adminUser({ isAdmin: false, access: { settings: { read: true, write: true } } }) });
+
+        const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
+        expect(screen.queryByRole("radiogroup", { name: "Hauptversion" })).not.toBeInTheDocument();
+        await user.selectOptions(montag, "forever");
+        await user.click(await screen.findByRole("button", { name: "Auf Forever umstellen" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        expect(body).toMatchObject({ categoryVersion: { cat1: "forever" }, serverSettingsGuildId: expect.any(String) });
+        for (const field of ["mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords", "adminRoleIds"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
+    });
+
+    it("sends only the shared keys from Alle Server: no server keys, no server id (#957 review)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        await user.click(within(await screen.findByRole("radiogroup", { name: "Hauptversion" })).getByRole("radio", { name: "Forever" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        expect(body.mainVersion).toBe("forever");
+        for (const field of ["serverSettingsGuildId", "categoryIds", "categoryVersion", "categorySwitchFixes", "raidDefaults", "logChannels", "topItems", "rolePermissions", "botLanguage"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: false });
+        }
     });
 });

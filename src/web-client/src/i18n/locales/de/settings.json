@@ -1,6 +1,7 @@
 {
     "crumb": "Einstellungen › {crumb}",
     "crumbAll": "Alle Server › {crumb}",
+    "fullAdminSetup": "Das richtet ein Voll-Admin unter Alle Server › Einstellungen ein.",
     "saving": "Speichert…",
     "savedToast": "Gespeichert.",
     "serverSwitched": "Der Discord-Server wurde in einem anderen Tab gewechselt – bitte die Seite neu laden. Nichts wurde gespeichert.",
@@ -33,9 +34,13 @@
             "label": "Kategorien",
             "crumb": "Raid-Kategorien · alles, was pro Raidtag gilt"
         },
+        "kategorieversion": {
+            "label": "Spielversion je Kategorie",
+            "crumb": "Raid-Kategorien · welche WoW-Version jede Kategorie spielt"
+        },
         "spielversion": {
             "label": "Spielversion",
-            "crumb": "Raid-Kategorien · welche WoW-Version die Gilde spielt"
+            "crumb": "Spielversionen · Hauptversion und was jede Version kann"
         },
         "raids": {
             "label": "Raid-Standardwerte",
@@ -1461,6 +1466,7 @@
         "links": {
             "backup": "Systemstatus",
             "export": "CSV laden",
+            "categories": "Spielversion je Kategorie",
             "templates": "Raid-Vorlagen",
             "series": "Serien",
             "rosters": "Roster",

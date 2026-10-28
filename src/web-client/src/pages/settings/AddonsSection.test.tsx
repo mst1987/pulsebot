@@ -58,7 +58,7 @@ describe("AddonsSection", () => {
     it("says that the private addons need the token, and links to the connections", () => {
         renderPage(<AddonsSection data={data()} onConfig={vi.fn()} />, { route: "/settings?section=addons" });
         expect(screen.getByText("Private Addons brauchen den GitHub-Token.")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Zu den Verbindungen" })).toHaveAttribute("href", "/settings?section=verbindungen");
+        expect(screen.getByRole("link", { name: "Zu den Verbindungen" })).toHaveAttribute("href", "/settings/all?section=verbindungen");
     });
 
     it("has no token hint once the token is set", () => {
