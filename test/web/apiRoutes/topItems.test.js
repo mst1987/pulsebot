@@ -65,6 +65,7 @@ describe("GET /api/settings/top-items (#952)", () => {
         expect(data.guildId).toBe(G1);
         expect(data.versionId).toBe("tbc");
         expect(data.items).toEqual([]);
+        expect(data.wowheadPath).toBe("tbc");
         expect(data.versions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
         const bt = data.raids.find((r) => r.bosses.some((b) => b.name === "Illidan Stormrage"));
         expect(bt).toBeTruthy();

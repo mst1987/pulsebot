@@ -19,6 +19,7 @@ const { VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
 const { MAX_TOP_ITEMS, topItemListsOf, topItemsOf, withTopItem } = require("../../services/loot/topItems");
 const { lootCatalog } = require("../loot/lootCatalog");
+const { settingsForVersion } = require("../../services/events/versionSettings");
 
 /**
  * The loot table of a version, raid by raid and boss by boss in the order the
@@ -81,6 +82,8 @@ const getTopItems = withUser({}, async ({ req, res, url }) => {
         raids: raidsOf(versionId),
         items: lists[versionId] || [],
         max: MAX_TOP_ITEMS,
+        // the version's Wowhead section for the item links and tooltips ("" = none)
+        wowheadPath: settingsForVersion(versionId, { config, guildId }).wowheadPath || "",
     });
 });
 

@@ -82,6 +82,26 @@ A version without BiS data of its own (today WoW Forever: WoWSims knows no Forev
 - **Addon** — `GET /api/ingest/council` carries the hand list unchanged in format (`bis: { tier: "", source: "manual", owned, total, missing }`, the addon reads `owned/total/missing` only); v3's `bisWeapons` stays empty for a hand list (no item table to tell a weapon, like the server's `noTable` weighting). ⚠️ **The format knows no alternatives:** `missing` names only the BiS piece of each open slot. The numbers at sync time are the server's (an alternative worn already counts in `owned`), but an award made **in game after the sync** only closes a slot when it is that BiS piece — an awarded alternative does not, until the next sync. So with hand lists the game does **not** always show the same numbers as the page (follow-up issue for the format).
 - **Tests:** `test/stores/manualBisStore.test.js`, `test/web/loot/manualBisCouncil.test.js`, `test/web/apiRoutes/lootCouncilBis.test.js` (real router), the hand-list cases in `lootCouncil.test.js` (route), `lootCouncil.profiles.test.js`, `councilSync.v3.test.js`, Vitest `ManualBisTab.test.tsx`, `LootCouncilPage.content.test.tsx`.
 
+## Top-Items je Server und Version (#952)
+
+The "big" drops a server cares about. They feed the dashboard ("Neuer Loot" / "Top-Items") and Historie ("Neuester Loot"); the council itself does not read them.
+
+- **Store** — `config.serverSettings[guildId].topItems = { tbc, classic, forever }`, one list of `{ id, name, iconUrl, quality }` per version, at most 500 per version (`services/loot/topItems.js`, `MAX_TOP_ITEMS`). No icon cache: the icon URL is stored with the item.
+- **Readers match each loot row against its own raid**: `web/loot/lootAwards.js` checks an award against the list of the raid's server **and** version, never a global or the main version's list. A raid of server A never lights up because server B picked the item.
+- **Page** — System › Einstellungen › <Server> › Top-Items (`pages/settings/TopItemsSection.tsx`, design canvas variant B "Boss-Schalter"):
+  - a version segment, each with "n gewählt", starting on the server's main version;
+  - left, the raids and bosses of the version's loot table with "n gewählt";
+  - right, the whole loot of one boss, each item with a switch that saves at once (no save bar, `standalone` in `settingsSections.ts`), its icon in quality colour and the Wowhead tooltip;
+  - the item search adds items no boss drops. They gather under "Sonstige › Ohne Zuordnung", and a switched-off one stays listed for the visit so a slip can be undone.
+  - **Classic Era and Forever have no loot table yet** (#760/#765), so they show the search and "Ohne Zuordnung" only.
+  - On a phone the boss list becomes one select above the list.
+- **API** (`web/apiRoutes/topItems.js`, area `settings`):
+  - `GET /api/settings/top-items?version=` returns `{ guildId, versionId, mainVersion, versions[{ id, label, short, count }], raids[{ id, label, short, tierLabel, bosses[{ name, items }] }], items, max, wowheadPath }`.
+  - `PUT /api/settings/top-items { versionId, item, on, serverSettingsGuildId }` switches one item for the **active** server.
+  - Errors: 400 `no_active_server` / `bad_version` / `bad_item` / `too_many`; 403 without `settings` write; 409 `server_switched` when the session moved to another server in another tab. The page then locks its switches and says so.
+- **Migration** (`settingsMigration.js`, once): the old global `config.topItems` becomes the TBC list of every server whose categories play TBC, else of the first server. The old list stays as `topItemsLegacy` for one release, then goes. Log line "… (#952)".
+- **Tests:** `test/services/loot/topItems.test.js`, `test/web/apiRoutes/topItems.test.js` (real router), the migration cases in `test/stores/settingsMigration*.test.js`, client `lib/settings/topItems.test.ts` and `pages/settings/TopItemsSection.test.tsx`.
+
 ## Profile je Roster (#676)
 
 The council works **per roster**, not only per category. A **Loot-Council profile** is a named set of council settings — the weighting of #668 and the view (role, tiers/raids, BiS list, version) — and every roster with loot system Loot-Council uses one.

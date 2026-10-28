@@ -162,7 +162,6 @@ export type DraftShape = {
     versionSettings?: Record<string, Record<string, string>>;
     /** The features switched off per version (#761). */
     versionDisabled?: Record<string, string[]>;
-    topItems: { id: number }[];
 };
 
 export type ChangeNames = { role: NameOf; user: NameOf; area: NameOf; category: NameOf; version?: NameOf };
@@ -475,9 +474,6 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
     }
     // #921: a channel and its version; "*" = not picked yet (the category decides on save).
     if (logChannelsChanged(saved, draft)) out.push(t("settings.page.logChannels"));
-    const itemsWas = (saved.topItems || []).map((i) => String(i.id));
-    const itemsIs = (draft.topItems || []).map((i) => String(i.id));
-    if (itemsWas.join(",") !== itemsIs.join(",")) out.push(t("settings.changes.topItems"));
     return out;
 }
 
