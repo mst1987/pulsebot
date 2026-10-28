@@ -1043,7 +1043,7 @@
         "panelShort": "For raiders: next raid, absence and attendance, your links.",
         "orgaHubShort": "For the orga: raids of the next 4 weeks and \"Create raid\".",
         "hubFeatures": "Parts in Discord",
-        "hubFeaturesAllOff": "Every part is off – the message only shows its heading.",
+        "hubFeaturesAllOff": "Every part is off – the message only shows its heading and a note that nothing is switched on.",
         "hubFeatureSaved": "Saved – the message is redrawn",
         "hubFeature": {
             "raid": {
@@ -1070,7 +1070,7 @@
             "orga": {
                 "newRaid": "\"Create raid\" button for this category.",
                 "links": "\"Links …\" button and the link line.",
-                "summary": "The count line above the raid list. The raid list itself always stays."
+                "summary": "The status line above the raid list. The raid list itself always stays."
             }
         },
         "planningShort": "Raid plan or Google Sheet, never both.",

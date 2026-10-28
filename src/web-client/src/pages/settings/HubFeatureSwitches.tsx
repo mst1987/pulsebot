@@ -7,8 +7,9 @@ import { useT } from "../../i18n";
 // The parts of one Discord hub (Raid-Zentrale or Orga-Zentrale) of a raid category,
 // each with its own switch (#969). A click saves at once through the hub's own API —
 // never through the page's draft and save bar — and the server redraws the posted
-// message. A missing key counts as on; with everything off only the heading stays,
-// which the note under the switches says.
+// message. A missing key counts as on; with everything off the Raid-Zentrale keeps only
+// its heading and a short line, which the note under the switches says (the Orga-Zentrale
+// always keeps its raid list, so it gets no note).
 
 export type HubFeatureKind = "raid" | "orga";
 
@@ -26,7 +27,7 @@ export default function HubFeatureSwitches({ kind, categoryId, keys, features, s
     const toast = useToast();
     const [busy, setBusy] = useState("");
     const isOn = (key: string) => features[key] !== false;
-    const allOff = keys.length > 0 && keys.every((k) => !isOn(k));
+    const allOff = kind === "raid" && keys.length > 0 && keys.every((k) => !isOn(k));
 
     const flip = async (key: string, on: boolean) => {
         setBusy(key);

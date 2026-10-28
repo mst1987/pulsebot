@@ -10,7 +10,7 @@
 //           the hub so posting anew keeps them
 //   features = { [categoryId]: { newRaid?, links?, summary? } } — the parts of the
 //           hub that are switched off (#969): "Raid anlegen", the links ("Links …"
-//           plus their row) and the status count line; only `false` is stored, a
+//           plus their row) and the status line; only `false` is stored, a
 //           missing key means "on". The raid list always stays.
 //
 // `hash` is the fingerprint of what the message shows (orgaHub.payloadHash),

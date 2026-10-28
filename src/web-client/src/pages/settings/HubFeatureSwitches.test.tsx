@@ -1,5 +1,5 @@
 // The parts of a category's Discord hub, one switch each (#969): a missing key is on,
-// a click saves at once through the hub's own API, all off shows a note.
+// a click saves at once through the hub's own API, all off shows a note (Raid-Zentrale only).
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
@@ -36,10 +36,16 @@ describe("HubFeatureSwitches", () => {
         expect(await screen.findByText(t("settings.categories.hubFeatureSaved"))).toBeInTheDocument();
     });
 
-    it("says that only the heading stays when every part is off", () => {
+    it("says that only the heading stays when every part of the raid hub is off", () => {
+        show(Object.fromEntries(RAID_KEYS.map((k) => [k, false])));
+        expect(screen.getByRole("switch", { name: label("raid", "links") })).not.toBeChecked();
+        expect(screen.getByText(t("settings.categories.hubFeaturesAllOff"))).toBeInTheDocument();
+    });
+
+    it("gives the orga hub no note when every part is off, its raid list always stays", () => {
         show({ newRaid: false, links: false, summary: false }, ["newRaid", "links", "summary"], "orga");
         expect(screen.getByRole("switch", { name: label("orga", "summary") })).not.toBeChecked();
-        expect(screen.getByText(t("settings.categories.hubFeaturesAllOff"))).toBeInTheDocument();
+        expect(screen.queryByText(t("settings.categories.hubFeaturesAllOff"))).not.toBeInTheDocument();
     });
 
     it("shows the error of a refused save", async () => {

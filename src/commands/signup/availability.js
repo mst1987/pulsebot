@@ -44,12 +44,25 @@ const {
 const { asEphemeral } = require("../../utils/discord/card");
 const availabilityStore = require("../../stores/availabilityStore");
 
-/** The section of the raider organizer each panel button belongs to (availabilityStore.FEATURE_KEYS). */
-const PANEL_FEATURES = { a: "attendance", p: "attendance", l: "attendance", r: "nextRaid", o: "evaluation", b: "guildBank" };
+/**
+ * The section of the raider organizer each step belongs to (availabilityStore.FEATURE_KEYS): the panel
+ * buttons and every follow-up step of an open modal or pick card, so a section switched off meanwhile
+ * refuses those too. "My entries" (l, del) from an own answer stays usable — it only shows and deletes
+ * what the raider entered.
+ */
+const PANEL_FEATURES = {
+    a: "attendance", p: "attendance", l: "attendance", ma: "attendance", mp: "attendance",
+    r: "nextRaid", o: "evaluation",
+    b: "guildBank", bp: "guildBank", mb: "guildBank", mbi: "guildBank",
+};
 
 const ephemeral = (interaction, payload) => interaction.reply(asEphemeral(payload));
 const fromEphemeral = (interaction) => !!(interaction.message && interaction.message.flags
     && typeof interaction.message.flags.has === "function" && interaction.message.flags.has(MessageFlags.Ephemeral));
+
+/** Whether the orga switched this section of the category's raid hub off (#969). */
+const switchedOff = (categoryId, feature) => !!(feature && categoryId && availabilityStore.getFeatures(categoryId)[feature] === false);
+const switchedOffText = (lang) => tr(lang, "This feature is switched off in this raid hub.");
 
 /** The game versions an attendance may pick characters of: the category's, else every shown one. */
 function versionsFor(categoryId, config) {
@@ -254,6 +267,11 @@ async function onPicker(interaction, token, action, lang) {
         endSession(token);
         return interaction.update(answerUpdate(tr(lang, "Cancelled – nothing was saved."), { lang }));
     }
+    // the attendance section was switched off while the picker was open (#969): nothing more is saved
+    if (switchedOff(session.categoryId, "attendance")) {
+        endSession(token);
+        return interaction.update(answerUpdate(switchedOffText(lang), { lang }));
+    }
     if (action === "c") {
         const [key, spec] = String((interaction.values || [])[0] || "").split("|");
         const option = characterOptions(profiles.getProfile(uid), versionsFor(session.categoryId, config))
@@ -305,9 +323,8 @@ module.exports = {
         if (token) return onPicker(interaction, token, action, lang);
         const config = settingsStore.getConfig();
         // A button of a section the orga switched off (#969) — an older panel message still shows it.
-        const feature = PANEL_FEATURES[action];
-        if (feature && categoryId && !(action === "l" && fromEphemeral(interaction)) && availabilityStore.getFeatures(categoryId)[feature] === false) {
-            return ephemeral(interaction, answerPayload(tr(lang, "This feature is switched off in this raid hub."), { lang }));
+        if (!(action === "l" && fromEphemeral(interaction)) && switchedOff(categoryId, PANEL_FEATURES[action])) {
+            return ephemeral(interaction, answerPayload(switchedOffText(lang), { lang }));
         }
         if (action === "a") return interaction.showModal(periodModal("absence", categoryId, lang));
         if (action === "p") {

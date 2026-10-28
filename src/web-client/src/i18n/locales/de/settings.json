@@ -1043,7 +1043,7 @@
         "panelShort": "Für Raider: nächster Raid, Ab- und Anwesenheit, eure Links.",
         "orgaHubShort": "Für die Orga: Raids der nächsten 4 Wochen und „Raid anlegen“.",
         "hubFeatures": "Bereiche in Discord",
-        "hubFeaturesAllOff": "Alle Bereiche sind aus – die Nachricht zeigt nur noch die Überschrift.",
+        "hubFeaturesAllOff": "Alle Bereiche sind aus – die Nachricht zeigt nur noch die Überschrift und den Hinweis, dass nichts eingeschaltet ist.",
         "hubFeatureSaved": "Gespeichert – die Nachricht wird neu gezeichnet",
         "hubFeature": {
             "raid": {
@@ -1070,7 +1070,7 @@
             "orga": {
                 "newRaid": "Knopf „Raid anlegen“ für diese Kategorie.",
                 "links": "Knopf „Links …“ und die Link-Zeile.",
-                "summary": "Die Zählzeile über der Raid-Liste. Die Raid-Liste selbst bleibt immer."
+                "summary": "Die Status-Zeile über der Raid-Liste. Die Raid-Liste selbst bleibt immer."
             }
         },
         "planningShort": "Raidplan oder Google-Sheet, nie beides.",

@@ -162,12 +162,39 @@ describe("organizerPayload", () => {
             expect(customIds(organizerPayload({ ...base, guildBank: false, features: { guildBank: true } }))).not.toContain("availability:b:cat1");
         });
 
-        it("behält bei allem aus nur die Überschrift", () => {
+        const HEAD = "## Raid-Zentrale · TBC Montag\n-# Alles für deine TBC Montag-Raids an einem Ort";
+        const NOTHING = "-# In dieser Zentrale ist gerade nichts eingeschaltet.";
+        const FOOTER = "-# Persönliche Antworten siehst nur du";
+
+        it("sagt bei allem aus knapp, dass nichts eingeschaltet ist", () => {
             const off = { nextRaid: false, attendance: false, evaluation: false, guildBank: false, links: false };
             const payload = organizerPayload({ ...full, features: off });
-            expect(texts(payload)).toEqual(["## Raid-Zentrale · TBC Montag\n-# Alles für deine TBC Montag-Raids an einem Ort"]);
+            expect(texts(payload)).toEqual([HEAD, NOTHING]);
             expect(buttons(payload)).toEqual([]);
-            expect(dividers(payload)).toBe(0);
+            expect(dividers(payload)).toBe(1);
+        });
+
+        it("sagt es auch, wenn nur die Gildenbank an ist, aber ihr Kanal fehlt", () => {
+            const onlyBank = { nextRaid: false, attendance: false, evaluation: false, guildBank: true, links: false };
+            const payload = organizerPayload({ ...full, guildBank: false, features: onlyBank });
+            expect(texts(payload)).toEqual([HEAD, NOTHING]);
+            expect(texts(organizerPayload({ ...full, features: onlyBank })).join("\n")).not.toContain(NOTHING);
+        });
+
+        it("zeigt die Fußzeile nur mit einem Bereich mit persönlicher Antwort", () => {
+            expect(texts(organizerPayload(full))).toContain(FOOTER);
+            const onlyLinks = { nextRaid: false, attendance: false, evaluation: false, guildBank: false };
+            const links = texts(organizerPayload({ ...full, features: onlyLinks }));
+            expect(links.join("\n")).toContain("**Links**");
+            expect(links).not.toContain(FOOTER);
+            expect(links).not.toContain(NOTHING);
+            // the next raid without a raid has no "My raid" button, so nothing personal either
+            const noRaid = texts(organizerPayload({ ...full, nextRaid: null, features: { ...onlyLinks, nextRaid: true, links: false } }));
+            expect(noRaid).not.toContain(FOOTER);
+            for (const key of ["attendance", "evaluation", "guildBank"]) {
+                expect(texts(organizerPayload({ ...full, features: { ...onlyLinks, [key]: true } }))).toContain(FOOTER);
+            }
+            expect(texts(organizerPayload({ ...full, features: { ...onlyLinks, nextRaid: true } }))).toContain(FOOTER);
         });
     });
 });

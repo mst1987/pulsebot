@@ -105,7 +105,7 @@ function raidLines(raid, emojis) {
  * @param {number} [o.weeks] how far ahead it looks
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
  * @param {object} [o.features] the parts switched on/off (orgaHubStore.getFeatures, #969): `newRaid` = the
- *   "Raid anlegen" button, `links` = "Links …" plus the links row, `summary` = the status count line.
+ *   "Raid anlegen" button, `links` = "Links …" plus the links row, `summary` = the status line.
  *   A missing key = on; the raid list always stays, an empty buttons row is left out.
  * @returns {{ flags: number, components: object[], embeds: [], content: "" }} API JSON
  */

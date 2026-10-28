@@ -23,6 +23,7 @@ module.exports = {
     "Evaluation": "Auswertung",
     "Links": "Links",
     "Personal answers are only visible to you": "Persönliche Antworten siehst nur du",
+    "Nothing is switched on in this hub right now.": "In dieser Zentrale ist gerade nichts eingeschaltet.",
     "You are not signed up yet.": "Du bist noch nicht angemeldet.",
     "You signed off from this raid.": "Du hast dich für diesen Raid abgemeldet.",
     "You are signed up as **{character}** · {spec}.": "Du bist als **{character}** · {spec} angemeldet.",
