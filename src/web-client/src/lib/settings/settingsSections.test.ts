@@ -39,8 +39,8 @@ describe("the sections", () => {
 
     it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
         const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
-        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper"]);
-        expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "topitems", "dungeons", "addons"]);
+        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems"]);
+        expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
     });
 
     it("keeps the sections of a group together, so every heading prints once", () => {
@@ -101,17 +101,18 @@ describe("two pages: System › Einstellungen and Alle Server › Einstellungen 
 
     it("shows only the active server's sections under System and the shared ones under Alle Server", () => {
         expect(SCOPE_PATH).toEqual({ server: "/settings", all: "/settings/all" });
-        expect(idsOf(sectionsFor("server", true))).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper"]);
-        expect(idsOf(sectionsFor("all", true))).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "topitems", "dungeons", "addons"]);
+        expect(idsOf(sectionsFor("server", true))).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems"]);
+        expect(idsOf(sectionsFor("all", true))).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
         // a settings writer without full admin: no admin-only section on either page
-        expect(idsOf(sectionsFor("server", false))).toEqual(["kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets"]);
+        expect(idsOf(sectionsFor("server", false))).toEqual(["kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "topitems"]);
         expect(idsOf(sectionsFor("all", false))).not.toContain("discordserver");
     });
 
     it("lets each page's url carry its own ids and the old ones that lead there", () => {
-        expect(sectionParamIds("server").sort()).toEqual(["berechtigungen", "kategorien", "logs", "raidchars", "raidhelper", "raids", "raidsheets", "recruitment", "versionlinks", "zugang"].sort());
-        expect(sectionParamIds("all")).toEqual(expect.arrayContaining(["discordserver", "verbindungen", "discord", "warcraftlogs", "loot", "topitems"]));
+        expect(sectionParamIds("server").sort()).toEqual(["berechtigungen", "kategorien", "logs", "loot", "raidchars", "raidhelper", "raids", "raidsheets", "recruitment", "topitems", "versionlinks", "zugang"].sort());
+        expect(sectionParamIds("all")).toEqual(expect.arrayContaining(["discordserver", "verbindungen", "discord", "warcraftlogs", "spielversion", "dungeons"]));
         expect(sectionParamIds("all")).not.toContain("kategorien");
+        expect(sectionParamIds("all")).not.toContain("topitems");
     });
 
     it("sends an old /settings?section= link to the page that holds the section now", () => {
@@ -119,6 +120,10 @@ describe("two pages: System › Einstellungen and Alle Server › Einstellungen 
         expect(sectionElsewhere("battlenet", "server")).toBe("all"); // old id -> verbindungen
         expect(sectionElsewhere("kategorien", "all")).toBe("server");
         expect(sectionElsewhere("raidchars", "all")).toBe("server");
+        // top items stay with the server (#952 makes them per server and version)
+        expect(sectionElsewhere("topitems", "all")).toBe("server");
+        expect(sectionElsewhere("loot", "all")).toBe("server");
+        expect(sectionElsewhere("topitems", "server")).toBeNull();
         expect(sectionElsewhere("kategorien", "server")).toBeNull();
         expect(sectionElsewhere("discordserver", "all")).toBeNull();
         expect(sectionElsewhere("gibtsnicht", "server")).toBeNull();

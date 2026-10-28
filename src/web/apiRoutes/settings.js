@@ -228,6 +228,13 @@ const REMINDER_KEYS = ["categoryReminders"];
 // Everything a non-admin settings user may neither read nor write.
 const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS, ...REMINDER_KEYS];
 
+// #957: what every server shares and only Alle Server › Einstellungen edits - the
+// Battle.net connection, the main version (and hiding the others), the settings
+// per version, the dungeon record post. Every settings user reads them (the pages
+// need the versions), but only a full admin writes them: one server's orga must
+// not change what all servers use. The client leaves them out on System › Einstellungen.
+const SHARED_WRITE_KEYS = ["blizzard", "mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords"];
+
 // #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
 const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
@@ -887,7 +894,7 @@ function addonListPatch(body) {
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
-    const touchesGuarded = FULL_ADMIN_KEYS.some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
+    const touchesGuarded = [...FULL_ADMIN_KEYS, ...SHARED_WRITE_KEYS].some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
     const server = serverSettingsTarget(req, body, getConfig());
@@ -1506,6 +1513,6 @@ module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
     getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
-    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, REMINDER_KEYS, FULL_ADMIN_KEYS, SERVER_SCOPED_KEYS,
+    publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, REMINDER_KEYS, FULL_ADMIN_KEYS, SHARED_WRITE_KEYS, SERVER_SCOPED_KEYS,
     routes,
 };

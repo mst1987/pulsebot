@@ -91,9 +91,14 @@ const CHROME_SCRIPT = `
   btn.addEventListener("click",function(){ side.classList.toggle("open"); });
 })();`;
 
-function navHtml(activeTab) {
+// An adminOnly entry (Systemstatus, Alle Server › Einstellungen) only for a full
+// admin, as the React shell's menu.ts does (#957). layout.shellPage hands the
+// chrome to full admins only today; this keeps the entries closed should another
+// caller ever render it for someone else.
+function navHtml(activeTab, user) {
+    const full = !!(user && user.isAdmin);
     let lastGroup = null;
-    return TABS.map((tab) => {
+    return TABS.filter((tab) => full || !tab.adminOnly).map((tab) => {
         // the block "Alle Server" carries one heading of its own instead of the group's
         const group = isAllServers(tab) ? "Alle Server" : tab.group;
         const cls = isAllServers(tab) ? "menu-label menu-all" : "menu-label";
@@ -107,7 +112,7 @@ function navHtml(activeTab) {
 /**
  * Renders the admin sidebar + topbar around a page body.
  * @param {object} opts
- *   user     — the logged-in admin ({ name })
+ *   user     — the logged-in admin ({ name, avatarUrl?, isAdmin }); adminOnly entries need isAdmin
  *   activeTab— TABS id to highlight (e.g. "cla")
  *   crumbs   — [{ label, href? }]; the last entry renders bold
  *   body     — page HTML placed inside .content
@@ -135,7 +140,7 @@ function renderAdminChrome({ user, activeTab, crumbs = [], body = "", actions = 
         <div class="brand-sub">Gildenmenü</div>
       </div>
     </a>
-    <nav class="menu">${navHtml(activeTab)}</nav>
+    <nav class="menu">${navHtml(activeTab, user)}</nav>
     <div class="side-foot">
       <div class="avatar">${face}</div>
       <div class="ub-meta">

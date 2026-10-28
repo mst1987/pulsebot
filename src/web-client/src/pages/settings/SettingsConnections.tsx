@@ -151,7 +151,7 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
     return (
         <>
             <PartHead icon={icon} tone="settings" title={t("settings.sections.verbindungen.label")}
-                crumb={t("settings.crumb", { crumb: t("settings.connections.crumb", { crumb, ready, total: list.length }) })} />
+                crumb={t("settings.crumbAll", { crumb: t("settings.connections.crumb", { crumb, ready, total: list.length }) })} />
             <div className="conn-grid">
                 {list.map((card) => {
                     const state = connectionState(card.id, inputs);

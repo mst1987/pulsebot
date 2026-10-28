@@ -2,10 +2,10 @@
 // blocks as the menu (#918, Epic #926 "Daten je Server"):
 //
 //   Server       — what belongs to the active Discord server: who gets in, its
-//                  raid categories, raid defaults, logs, recruitment, raid sheets
+//                  raid categories, raid defaults, logs, recruitment, raid
+//                  sheets, top items
 //   Alle Server  — what the whole bot shares: the server list and its links,
-//                  the external connections, game versions, top items,
-//                  dungeons, addons
+//                  the external connections, game versions, dungeons, addons
 //
 // Each section carries a WoW icon, and the two that can be incomplete a count.
 
@@ -43,6 +43,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "raidsheets", group: "server", icon: "inv_scroll_03", standalone: true },
     // #927: Raid-Helper per server - switch, id, key, the sync and the retirement; full admins only
     { id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true },
+    // #957: stays with the server - #952 turns it into a setting per server and version
+    { id: "topitems", group: "server", icon: "inv_misc_bag_10" },
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },
@@ -51,7 +53,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
     // #541: the main game version and the categories that play another one
     { id: "spielversion", group: "global", icon: "inv_misc_book_09" },
-    { id: "topitems", group: "global", icon: "inv_misc_bag_10" },
     { id: "dungeons", group: "global", icon: "spell_holy_borrowedtime" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
     { id: "addons", group: "global", icon: "inv_gizmo_01", adminOnly: true, standalone: true },

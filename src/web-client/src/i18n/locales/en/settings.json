@@ -1,5 +1,6 @@
 {
     "crumb": "Settings › {crumb}",
+    "crumbAll": "All servers › {crumb}",
     "saving": "Saving…",
     "savedToast": "Saved.",
     "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
@@ -80,7 +81,7 @@
         "kickerNoServer": "System · no server chosen",
         "kickerAll": "All servers",
         "infoSub": "All values are stored in the database and apply without a bot restart.\nYou get IDs in Discord with a right-click → \"Copy ID\" (developer mode).",
-        "infoSubAll": "What every server shares: the servers and their links, connections, game versions, top items, dungeons and addons. Full admins only.\nAll values are stored in the database and apply without a bot restart.",
+        "infoSubAll": "What every server shares: the servers and their links, connections, game versions, dungeons and addons. Full admins only.\nAll values are stored in the database and apply without a bot restart.",
         "navAria": "Settings sections",
         "permView": {
             "areas": "Areas",

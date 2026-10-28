@@ -276,19 +276,23 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                 categoryRaidTemplate: Object.fromEntries(Object.entries(draft.categoryRaidTemplate).filter(([, id]) => id)),
                 // #541/#738: sent whole as well; every active category with its version
                 // (one switched on just now with the main version — the server refuses none).
-                mainVersion: draft.mainVersion,
                 categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
                 // #738: what the switch dialog chose for a switched category's series.
                 categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
-                // #563: only the main version everywhere while it is on.
-                hideOtherVersions: draft.hideOtherVersions,
                 // the drawn pictures (a test): every switch, merged on the server
                 discordVisuals: draft.discordVisuals,
-                // the dungeon record post: both fields, merged on the server
-                dungeonRecords: draft.dungeonRecords,
-                // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
-                // #761: with each version's features switched off, sent whole.
-                versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
+                // #957: what every server shares is edited (and sent) only under Alle Server - the API
+                // wants a full admin for it, so a settings writer of one server saves without it.
+                ...(scope === "all" ? {
+                    // #541 the main version, #563 only the main version everywhere while it is on
+                    mainVersion: draft.mainVersion,
+                    hideOtherVersions: draft.hideOtherVersions,
+                    // the dungeon record post: both fields, merged on the server
+                    dungeonRecords: draft.dungeonRecords,
+                    // #542: every version's block, merged per field on the server; a wrong value comes back as 400 with its field.
+                    // #761: with each version's features switched off, sent whole.
+                    versionSettings: withDisabled(draft.versionSettings, draft.versionDisabled),
+                } : {}),
                 // Sent whole: the store replaces the map, so clearing a url is
                 // what removes that category's sheet.
                 categorySheets: Object.fromEntries(
@@ -335,7 +339,8 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
     };
 
     const head = (s: SettingsSection, action?: ReactNode, tip?: string, tipSub?: string) => (
-        <PartHead icon={s.icon} tone="settings" title={sectionLabel(s)} crumb={t("settings.crumb", { crumb: sectionCrumb(s) })} action={action} tip={tip} tipSub={tipSub} />
+        // #957: the page's own name leads the crumb - "Alle Server ›" on /settings/all
+        <PartHead icon={s.icon} tone="settings" title={sectionLabel(s)} crumb={t(scope === "all" ? "settings.crumbAll" : "settings.crumb", { crumb: sectionCrumb(s) })} action={action} tip={tip} tipSub={tipSub} />
     );
     const activeCrumb = sectionCrumb(activeSection);
 

@@ -535,10 +535,30 @@ describe("the save bar", () => {
 
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         const body = vi.mocked(api.updateSettings).mock.calls[0][0];
-        for (const field of ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions"]) {
+        // #957: neither what every server shares - the API wants a full admin for those
+        for (const field of ["adminRoleIds", "rolePermissions", "baseAccess", "userPermissions", "blizzard", "mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords"]) {
             expect({ field, sent: field in body }).toEqual({ field, sent: false });
         }
         expect(body.raidDefaults).toEqual({ channelId: "ch1" });
+        // the server's own values still go along
+        expect(body).toHaveProperty("categoryVersion");
+        expect(body).toHaveProperty("topItems");
+    });
+
+    it("sends what every server shares only from Alle Server › Einstellungen (#957)", async () => {
+        const user = userEvent.setup();
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=dungeons" });
+        await user.click(await screen.findByRole("switch", { name: /Gildenrekorde/ }));
+        // the head names the page it is on, not System › Einstellungen
+        expect(screen.getByText(/^Alle Server › Module/)).toBeInTheDocument();
+        expect(screen.queryByText(/^Einstellungen › /)).toBeNull();
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        const body = vi.mocked(api.updateSettings).mock.calls[0][0];
+        for (const field of ["mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords"]) {
+            expect({ field, sent: field in body }).toEqual({ field, sent: true });
+        }
+        expect(body.dungeonRecords).toMatchObject({ post: true });
     });
 
     it("sends the whole sheet map, so clearing a url removes the assignment", async () => {
