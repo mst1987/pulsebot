@@ -19,7 +19,7 @@ const {
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../stores/logStore");
 const { annotateMatches, autoMatches } = require("../../services/logcheck/logEventMatch");
-const { evaluateLog, scanLogChannels, backfillLogTitles } = require("../../services/logcheck/logChannel");
+const { evaluateLog, scanLogChannels, backfillLogTitles, refreshLogButton } = require("../../services/logcheck/logChannel");
 const { startJob, getJob } = require("../logcheck/evalJobs");
 const { getConfig } = require("../../stores/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../utils/logcheck/report");
@@ -299,6 +299,8 @@ const resetEval = withUser({ csrf: true, body: true }, async ({ user, req, body,
             if (report) saveReport(stripSection(report, section).report, reportRefId);
         }
     }
+    // the discarded half gets its button back in Discord (best-effort, not awaited)
+    void refreshLogButton(logId);
 
     ok(res, {
         logId,

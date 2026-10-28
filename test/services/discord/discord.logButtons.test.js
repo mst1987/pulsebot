@@ -96,6 +96,19 @@ describe("services/discord/discord — the embed under a detected log (checklist
 describe("services/discord/discord — posting and updating the message under a log", () => {
     afterAll(() => discord.setClient(null));
 
+    it("finds the bot's own reply under a log post (logs that never stored it)", async () => {
+        const other = { id: "m2", author: { id: "someone" }, reference: { messageId: "src1" } };
+        const mine = { id: "m3", channelId: "logch", author: { id: "bot" }, reference: { messageId: "src1" } };
+        const unrelated = { id: "m4", author: { id: "bot" }, reference: { messageId: "zzz" } };
+        const channel = dc.makeChannel({ id: "logch", messages: [other, unrelated, mine] });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: "bot" } }));
+        expect(await discord.findLogButtonMessage("logch", "src1")).toEqual({ channelId: "logch", messageId: "m3" });
+        expect(channel.messages.fetch).toHaveBeenCalledWith({ after: "src1", limit: 50 });
+        expect(await discord.findLogButtonMessage("logch", "nothing")).toBeNull();
+        expect(await discord.findLogButtonMessage("gone", "src1")).toBeNull();
+        expect(await discord.findLogButtonMessage("", "src1")).toBeNull();
+    });
+
     it("replies with the embed, pinging nobody, and edits a message (also an old plain-text one) into the embed", async () => {
         const old = { id: "m1", content: "📊 **Warcraft-Logs-Report erkannt**", edit: jest.fn(async () => {}) };
         const channel = dc.makeChannel({ id: "logch", messages: [old] });

@@ -1073,6 +1073,26 @@ async function finishLogButton(channelId, messageId, opts = {}) {
 }
 
 /**
+ * The bot's own reply under a detected log message: `{ channelId, messageId }`, or
+ * null. For logs whose button message was never recorded (before the ids were
+ * stored correctly) — looks at the messages right after the log post for a reply
+ * of the bot that points at it. Best-effort, never throws.
+ */
+async function findLogButtonMessage(channelId, sourceMessageId) {
+    if (!client || !client.user || !channelId || !sourceMessageId) return null;
+    try {
+        const channel = await client.channels.fetch(channelId);
+        const after = await channel.messages.fetch({ after: sourceMessageId, limit: 50 });
+        const hit = [...after.values()].find((m) => m.author && m.author.id === client.user.id
+            && m.reference && m.reference.messageId === sourceMessageId);
+        return hit ? { channelId: hit.channelId || channelId, messageId: hit.id } : null;
+    } catch (e) {
+        console.error("findLogButtonMessage failed:", e.message);
+        return null;
+    }
+}
+
+/**
  * A raid plan / raidsheet / softres link message: ONE raid card (utils/discord/card.js, Oct 2026) — the raid's name small over
  * the heading, the orga's optional message, the facts (the start, short), the link button inside the card, in the event's
  * colour. Before it was plain `content` with an emoji heading, because text plus embed showed as two stacked blocks; a card
@@ -1312,7 +1332,7 @@ module.exports = {
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
-    postLogButton, finishLogButton, LOG_EVAL_PREFIX,
+    postLogButton, finishLogButton, findLogButtonMessage, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
     postLink, editLink, postPayload, postRolePing, editPayload,
 };
