@@ -13,6 +13,7 @@ const { classLook } = require("./lootClassLook");
 const { CONTENTS } = require("../../config/tbcContent");
 const { reasonCatalog } = require("../../utils/loot/lootReasons");
 const { eventVersion } = require("../../services/characters/characterVersions");
+const { topItemIds, topItemListsOf } = require("../../services/loot/topItems");
 
 // How many awards one page of the Historie tab holds.
 const PAGE_SIZE = 25;
@@ -22,9 +23,46 @@ const PAGE_SIZE = 25;
 // "Items" tab, see LootItemsTab.tsx).
 const UNKNOWN_CONTENT = "__unknown__";
 
-/** The item ids configured as top items (Einstellungen → Loot). */
-function topItemIds() {
-    return new Set((getConfig().topItems || []).map((it) => Number(it.id)).filter(Boolean));
+/**
+ * Whether a loot row is a top item (#952): checked against the list of the
+ * raid's own Discord server and game version (Einstellungen → <Server> →
+ * Top-Items), not one list for every server. One Set per server and version,
+ * built once per call. A row no rule can place (no server configured at all)
+ * counts for the active server, like the server filter itself.
+ * @returns {(it: object) => boolean}
+ */
+function topItemMatcher(serverCtx, config, activeGuildId = "") {
+    const sets = new Map();
+    const versionCtx = { eventCache: new Map() };
+    return (it) => {
+        const guildId = guildOfLootEvent(serverCtx, it.eventId, it.categoryId, it.guildId) || String(activeGuildId || "");
+        if (!guildId) return false;
+        const versionId = eventVersion(versionCtx, it.eventId);
+        const key = `${guildId}|${versionId}`;
+        if (!sets.has(key)) sets.set(key, topItemIds(guildId, versionId, { config }));
+        return sets.get(key).has(Number(it.itemId));
+    };
+}
+
+/**
+ * How many top items are defined for what the list shows: one server's list
+ * of one version, else every version of that server, else every server's
+ * (distinct item ids). Lets the dashboard tell "nothing configured" from
+ * "nothing dropped yet".
+ */
+function topItemCount(config, { guildId, versionId = "" } = {}) {
+    const servers = guildId === undefined
+        ? Object.keys((config && config.serverSettings) || {})
+        : (guildId ? [guildId] : []);
+    const ids = new Set();
+    for (const g of servers) {
+        const lists = topItemListsOf(g, { config });
+        for (const [v, items] of Object.entries(lists)) {
+            if (versionId && v !== versionId) continue;
+            for (const it of items) ids.add(it.id);
+        }
+    }
+    return ids.size;
 }
 
 /**
@@ -104,10 +142,10 @@ function listAwards({
     topOnly = true, search = "", categoryId = "", contentId = "", reason = "", versionId = "", guildId,
     page = 1, pageSize = PAGE_SIZE, sort = "date", dir = "desc",
 } = {}) {
-    const ids = topItemIds();
+    const config = getConfig();
     const serverCtx = serverContext();
     const all = lootOfGuild(listAllLoot(), guildId, serverCtx);
-    const scoped = topOnly ? all.filter((it) => ids.has(Number(it.itemId))) : all;
+    const scoped = topOnly ? all.filter(topItemMatcher(serverCtx, config, guildId)) : all;
 
     // Built only when actually filtering — every other call pays nothing for this.
     const versionCtx = versionId ? { eventCache: new Map() } : null;
@@ -137,11 +175,11 @@ function listAwards({
         pageSize: size,
         total,
         totalPages,
-        topItemCount: ids.size,
+        topItemCount: topItemCount(config, { guildId, versionId }),
         contents: CONTENTS.filter((c) => usedContents.has(c.id)),
         reasons: reasonCatalog().filter((r) => usedReasons.has(r.id)),
         unknownContentCount: scoped.filter((it) => !it.contentId).length,
     };
 }
 
-module.exports = { listAwards, awardRow, topItemIds, PAGE_SIZE, UNKNOWN_CONTENT };
+module.exports = { listAwards, awardRow, topItemMatcher, topItemCount, PAGE_SIZE, UNKNOWN_CONTENT };

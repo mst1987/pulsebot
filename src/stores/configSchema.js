@@ -190,11 +190,9 @@ const CONFIG_DEFAULTS = {
     // run of the LevelHelper addon that is now the fastest of its dungeon goes
     // into `channelId` as a card (services/dungeons/dungeonRecords.js). Off by default.
     dungeonRecords: { post: false, channelId: "" },
-    // The items the guild considers a "big" drop: [{ id, name, iconUrl, quality }],
-    // picked from the Wowhead search in Einstellungen → Loot. Imported loot is
-    // matched against these ids for the dashboard's "Latest Loot" card
-    // (see dashboardData.js's loadTopLoot()).
-    topItems: [],
+    // The top items are per server and game version since #952:
+    // serverSettings[guildId].topItems (services/loot/topItems.js). The global
+    // list of before stays as `topItemsLegacy` for one release (legacyTopItems).
     // Claude phrases the log recommendations for the raiders (Einstellungen →
     // Verbindungen → KI-Formulierung). Empty key = the rules' own text is shown.
     anthropic: { apiKey: "", model: "" },
@@ -911,6 +909,27 @@ function legacyLogChannelIds(stored) {
 }
 
 /**
+ * The global top-item list of before #952, kept for one release after the start
+ * migration copied it onto the TBC servers (settingsMigration.migrateTopItems):
+ * { topItemsLegacy: [...] } when the file holds one, else nothing.
+ */
+function legacyTopItems(stored) {
+    if (!Object.prototype.hasOwnProperty.call(stored, "topItemsLegacy")) return {};
+    return { topItemsLegacy: normalizeTopItems(stored.topItemsLegacy) };
+}
+
+/**
+ * The stored file without the global `topItems` of before #952: only the start
+ * migration reads it (from the file), no reader sees the unchecked raw list.
+ */
+function withoutGlobalTopItems(stored) {
+    if (!Object.prototype.hasOwnProperty.call(stored, "topItems")) return stored;
+    const rest = { ...stored };
+    delete rest.topItems;
+    return rest;
+}
+
+/**
  * The keys a server block may hold, with the default each part reads when a
  * server has none (#917). The parts 4-8 of epic #926 add theirs, one block each.
  */
@@ -940,6 +959,10 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // [{ versionId, guildName, realm, region, interval, lastRunAt, lastSuccessAt, lastResult }];
     // the central job (wclGuildSync.js) fetches the guild's new reports as logs.
     wclGuilds: Object.freeze([]),
+    // #952 Top-Items je Server und Version (services/loot/topItems.js):
+    // { [versionId]: [{ id, name, iconUrl, quality }] }; the loot views count an
+    // award as a top item by the server and version of its raid.
+    topItems: Object.freeze({}),
 });
 
 /**
@@ -1011,7 +1034,7 @@ function withoutGlobalFields924(stored) {
 
 /** A stored config.json merged over the defaults, every field in its final shape. */
 function normalizeConfig(raw) {
-    const stored = withoutGlobalFields924(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {});
+    const stored = withoutGlobalTopItems(withoutGlobalFields924(raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {}));
     const discordServers = normalizeDiscordServers(stored.discordServers, { fallbackGuildId: String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId });
     const homeGuildId = (discordServers.servers[0] && discordServers.servers[0].guildId)
         || String(stored.guildId || "").trim() || CONFIG_DEFAULTS.guildId;
@@ -1067,7 +1090,7 @@ function normalizeConfig(raw) {
         versionLaunch: normalizeVersionLaunch(stored.versionLaunch),
         discordVisuals: normalizeDiscordVisuals(stored.discordVisuals),
         dungeonRecords: normalizeDungeonRecords(stored.dungeonRecords),
-        topItems: normalizeTopItems(stored.topItems),
+        ...legacyTopItems(stored),
         roleSync: normalizeRoleSync(stored.roleSync, roleSyncContext(discordServers, (stored.discordServers || {}).talkGuildId)),
         categoryReminders: normalizeCategoryReminders(stored.categoryReminders),
         backup: normalizeBackupSettings(stored.backup),

@@ -37,6 +37,7 @@
     "/api/settings/category-close": "settings",
     "/api/settings/discord-servers": "settings",
     "/api/settings/talk-overview": "settings",
+    "/api/settings/top-items": "settings",
     "/api/settings/role-sync": "settings",
     "/api/settings/reminders": "settings",
     "/api/settings/raidhelper-retirement": "settings",
