@@ -134,10 +134,10 @@ describe("two pages: System › Einstellungen and Alle Server › Einstellungen 
 
 describe("the save bar", () => {
     it("leaves out the sections that save themselves", () => {
-        for (const id of ["verbindungen", "discordserver", "raidsheets", "versionlinks"]) {
+        for (const id of ["verbindungen", "discordserver", "raidsheets", "versionlinks", "topitems"]) {
             expect({ id, standalone: byId(id)?.standalone, inForm: savesWithForm(id) }).toEqual({ id, standalone: true, inForm: false });
         }
-        for (const id of ["berechtigungen", "kategorien", "raids", "topitems", "logs", "recruitment"]) {
+        for (const id of ["berechtigungen", "kategorien", "raids", "logs", "recruitment"]) {
             expect({ id, inForm: savesWithForm(id) }).toEqual({ id, inForm: true });
         }
         expect(savesWithForm("gibtsnicht")).toBe(false);

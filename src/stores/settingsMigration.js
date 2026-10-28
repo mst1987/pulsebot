@@ -140,13 +140,21 @@
 //     (raidhelper-events.json) and the budget (raidhelper-budget.json) of
 //     before #927 go to that server (moveLegacy, idempotent on every start).
 //
+//   - config.json, topItems (#952): the top items are per server and game
+//     version (serverSettings[guildId].topItems.<version>). The global list of
+//     before (all TBC items) goes to every server whose categories play TBC
+//     (config.categoryVersion over the category-name snapshot), else to the
+//     first server; a server that already has a TBC list keeps it. The old list
+//     stays as `topItemsLegacy` for one release, `topItems` is gone, so the
+//     second start finds nothing to do.
+//
 // migrateSettings() is idempotent: it writes only when something changed, so
 // the second start finds nothing to do and writes nothing.
 const path = require("path");
 const { isSnowflake } = require("../utils/ids");
 const {
     CONFIG_DEFAULTS, normalizeCategoryVersion, normalizeDiscordServers, normalizeRoleSync, roleSyncContext, MAX_SERVERS: MAX_EVENT_GUILDS,
-    normalizeConfig, serverSettingGuildIds,
+    normalizeConfig, serverSettingGuildIds, normalizeTopItems,
 } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
@@ -874,6 +882,60 @@ function migrateRaidhelperServers({ env = process.env } = {}) {
 }
 
 /**
+ * The servers whose categories play TBC (#952), else the first server; only
+ * servers of the list. `fallback` says the first server stands in for none found.
+ * @returns {{ ids: string[], fallback: boolean }}
+ */
+function tbcServers(stored, config) {
+    const known = serverSettingGuildIds(config.discordServers, config.guildId);
+    const categoryGuilds = categoryGuildIndex(categoryNameSnapshot());
+    const out = new Set();
+    for (const [categoryId, versionId] of Object.entries(normalizeCategoryVersion(stored.categoryVersion))) {
+        const guildId = categoryGuilds.get(categoryId);
+        if (versionId === LEGACY_VERSION && guildId && known.has(guildId)) out.add(guildId);
+    }
+    if (out.size) return { ids: [...out], fallback: false };
+    const first = firstServerId(config);
+    return { ids: first ? [first] : [], fallback: true };
+}
+
+/**
+ * config.json (#952): the global top items of before become the TBC list of
+ * every TBC server (tbcServers); the old list stays as `topItemsLegacy`. A server
+ * with its own TBC list keeps it. An empty old list is only moved to
+ * `topItemsLegacy` (no server block written, no line). One line, or none.
+ */
+function migrateTopItems() {
+    const stored = configStore.readStored();
+    if (!Array.isArray(stored.topItems)) return [];
+    const legacy = normalizeTopItems(stored.topItems);
+    const rest = { ...stored };
+    delete rest.topItems;
+    if (!legacy.length) {
+        configStore.writeStored({ ...rest, topItemsLegacy: stored.topItems });
+        return [];
+    }
+    const config = configStore.getConfig();
+    const { ids: targets, fallback } = tbcServers(stored, config);
+    const blocks = stored.serverSettings && typeof stored.serverSettings === "object" && !Array.isArray(stored.serverSettings)
+        ? stored.serverSettings : {};
+    const next = { ...blocks };
+    const copied = [];
+    for (const guildId of targets) {
+        const own = next[guildId] && typeof next[guildId] === "object" ? next[guildId] : {};
+        const lists = own.topItems && typeof own.topItems === "object" && !Array.isArray(own.topItems) ? own.topItems : {};
+        if (Array.isArray(lists[LEGACY_VERSION]) && lists[LEGACY_VERSION].length) continue;
+        next[guildId] = { ...own, topItems: { ...lists, [LEGACY_VERSION]: legacy } };
+        copied.push(guildId);
+    }
+    configStore.writeStored({ ...rest, serverSettings: next, topItemsLegacy: stored.topItems });
+    const firstNote = fallback ? " (kein TBC-Server gefunden, erster Server)" : "";
+    const none = targets.length ? " - kein Server ohne eigene Liste" : " - kein Server bekannt";
+    const where = copied.length ? ` -> ${copied.join(", ")}${firstNote}` : none;
+    return [`config.json: ${legacy.length} Top-Item(s) als TBC-Liste je Server gespeichert${where}, alte Liste als topItemsLegacy behalten (#952)`];
+}
+
+/**
  * reports (#920): every evaluation from before #920 gets a server of its own, once -
  * the server of its log (logs are stamped just before), or the first server for one
  * without a log (a link evaluated by hand). From then on a deleted log cannot take
@@ -930,6 +992,9 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCategoryRosters());
         changes.push(...migrateStoredVersions());
         changes.push(...migrateCategoryVersions());
+        // #952: as early as it can - it needs the server list (federation step) and the
+        // category versions of migrateCategoryVersions to find the TBC servers.
+        changes.push(...migrateTopItems());
         changes.push(...migrateCouncilProfiles());
         changes.push(...migrateLogGuilds());
         changes.push(...migrateReportGuilds());
@@ -945,6 +1010,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers,
+    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

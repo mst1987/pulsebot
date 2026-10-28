@@ -47,7 +47,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // #927: Raid-Helper per server - switch, id, key, the sync and the retirement; full admins only
     { id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true },
     // #957: stays with the server - #952 turns it into a setting per server and version
-    { id: "topitems", group: "server", icon: "inv_misc_bag_10" },
+    { id: "topitems", group: "server", icon: "inv_misc_bag_10", standalone: true },
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },

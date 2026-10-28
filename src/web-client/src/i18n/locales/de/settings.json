@@ -242,7 +242,6 @@
         "noteChannelDefault": "{name} · Kanal für Vielleicht/Absage → Standard",
         "raidsheet": "{name} · Raidsheet",
         "template": "{name} · Standard-Vorlage",
-        "topItems": "Top-Items",
         "mainVersion": "Hauptversion → {value}",
         "categoryVersion": "{name} · Spielversion → {value}",
         "hideOtherOn": "Andere Versionen ausblenden an",
@@ -419,11 +418,6 @@
         "unknown": "unbekannt ({id})"
     },
     "fields": {
-        "topItemsSub": "Wird eines dieser Items importiert, taucht es auf dem Dashboard unter „Neuester Loot“ auf — mit Charakter, Raid und Datum. Ohne Eintrag bleibt die Karte leer.",
-        "addItem": "Item hinzufügen",
-        "item": "Item {id}",
-        "itemId": "Item-ID {id}",
-        "noTopItem": "Noch kein Top-Item.",
         "unknownChannel": "Unbekannter Kanal",
         "removeChannel": "Kanal entfernen",
         "addChannel": "+ Kanal hinzufügen",
@@ -1596,6 +1590,22 @@
         "incomplete": "Jede Zeile braucht Version, Gilde und Realm.",
         "saved": "Warcraft-Logs-Gilden gespeichert.",
         "save": "Gilden speichern"
+    },
+    "topItems": {
+        "version": "Spielversion",
+        "mainVersion": "Hauptversion dieses Servers",
+        "loading": "Lade Top-Items …",
+        "search": "Item suchen, auch ohne Boss …",
+        "bosses": "Raid und Boss",
+        "other": "Sonstige",
+        "unassigned": "Ohne Zuordnung",
+        "unassignedHint": "Items, die kein Boss dieser Version droppt – über die Suche hinzugefügt.",
+        "noTable": "Für {version} gibt es noch keine Beute-Tabelle. Top-Items kommen über die Suche hierher.",
+        "noneUnassigned": "Noch keine Items ohne Zuordnung.",
+        "picked": "{count} gewählt",
+        "itemId": "Item {id}",
+        "tooMany": "Höchstens {max} Top-Items je Spielversion.",
+        "readOnly": "Nur lesen – Ändern braucht Schreibrecht für Einstellungen."
     },
     "serverVersionLinks": {
         "sub": "Eigene Armory- und Warcraft-Logs-Links und ein eigener Realm je Spielversion, nur für diesen Server. Ohne eigenen Wert gilt der Standard aus Alle Server › Spielversion. Wowhead, Softres, Raidsheet und Farbe bleiben für alle Server gleich.",

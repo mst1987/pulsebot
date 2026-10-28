@@ -224,7 +224,7 @@ function after921(config, stored = {}) {
     delete rest.logChannelIds;
     return rest;
 }
-const schemaOnly = frozen.map((g, i) => ({ ...g, config: after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))), cases[i].config), cases[i].config) }));
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))), cases[i].config), cases[i].config)) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.
@@ -242,7 +242,25 @@ function after927(config, stored) {
     // the #924 start ran before and may have given this server a block already
     return { ...config, serverSettings: { ...config.serverSettings, [owner]: { ...(config.serverSettings || {})[owner], raidhelper } } };
 }
-const golden = schemaOnly.map((g, i) => ({ ...g, config: migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config) }));
+// #952: the top items are per server and version - the global list is no default any more. The start copies
+// a stored one onto the TBC servers (the fixtures map no category, so onto the first server) and keeps it as
+// `topItemsLegacy` for one release.
+function after952(config) {
+    const out = { ...config };
+    delete out.topItems;
+    return out;
+}
+function migrated952(config, stored) {
+    if (!stored || !Array.isArray(stored.topItems)) return config;
+    const legacy = schema.normalizeTopItems(stored.topItems);
+    const out = { ...config, topItemsLegacy: legacy };
+    const servers = (config.discordServers && config.discordServers.servers) || [];
+    const first = (servers[0] || {}).guildId || config.guildId || "";
+    if (!legacy.length || !first) return out;
+    const own = (config.serverSettings || {})[first] || {};
+    return { ...out, serverSettings: { ...config.serverSettings, [first]: { ...own, topItems: { tbc: legacy } } } };
+}
+const golden = schemaOnly.map((g, i) => ({ ...g, config: migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config) }));
 // Read without the start migration: a global #924 field no server block carries yet stays visible (a save
 // in between must not lose it, the next start moves it).
 function unmoved924(config, stored) {
@@ -254,7 +272,7 @@ function unmoved924(config, stored) {
     }
     return out;
 }
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -309,6 +327,12 @@ describe("stores/configSchema golden master (#420)", () => {
 });
 
 describe("stores/configSchema normalisers", () => {
+    it("normalizeTopItems cuts a long name to TOP_ITEM_NAME_MAX characters (#952)", () => {
+        const [item] = schema.normalizeTopItems([{ id: 1, name: ` ${"y".repeat(300)} ` }]);
+        expect(schema.TOP_ITEM_NAME_MAX).toBe(200);
+        expect(item.name).toBe("y".repeat(200));
+    });
+
     it("normalizeConfig treats anything but an object as an empty file", () => {
         const empty = schema.normalizeConfig({});
         expect(schema.normalizeConfig(null)).toEqual(empty);

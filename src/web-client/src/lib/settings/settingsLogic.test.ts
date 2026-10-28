@@ -70,7 +70,7 @@ describe("save bar change list", () => {
         officerRoleId: "", applicationChannelId: "",
         categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2", versionId: "" }],
         raidChannelId: "",
-        categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" }, topItems: [{ id: 1 }],
+        categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" },
     });
 
     it("tells a changed log channel list from an unchanged one, version included (#921)", () => {
@@ -281,20 +281,18 @@ describe("save bar change list", () => {
         expect(logic.noteChannelPick([], "1", "9")).toEqual({ defaultLabel: "Standard", unreachable: false });
     });
 
-    it("counts admin roles, the base access, accounts, categories and top items", () => {
+    it("counts admin roles, the base access, accounts and categories", () => {
         const draft = base();
         draft.adminRoleIds = ["a2"];
         draft.baseAccess = { loot: { read: true, write: false } };
         draft.userPermissions = { u1: {} };
         draft.categoryIds = [];
-        draft.topItems = [];
         expect(logic.draftChanges(base(), draft, names)).toEqual([
             "Admin-Rolle @a1 entfernt",
             "Admin-Rolle @a2 hinzugefügt",
             "Basiszugang · loot → Lesen",
             "Konto u1 hinzugefügt",
             "Hyjal & BT deaktiviert",
-            "Top-Items",
         ]);
     });
 });
@@ -529,7 +527,7 @@ describe("the labels in English", () => {
     const NOW = 10_000_000;
     const names = { role: (id: string) => `@${id}`, user: (id: string) => id, area: (id: string) => id, category: () => "Hyjal & BT" };
     const draft = () => ({ adminRoleIds: [], rolePermissions: {}, baseAccess: {}, userPermissions: {}, officerRoleId: "", applicationChannelId: "",
-        categoryIds: [], categoryRoles: {}, logChannels: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {}, topItems: [] });
+        categoryIds: [], categoryRoles: {}, logChannels: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {} });
 
     it("words the save bar, the badges and the times in English once the page is switched", async () => {
         await inLang("en", () => {

@@ -423,41 +423,22 @@ describe("stores/settingsStore", () => {
             expect(getConfig().categorySheets).toEqual({});
         });
 
-        it("defaults topItems to an empty list", () => {
-            expect(getConfig().topItems).toEqual([]);
+        // #952: the top items live per server and version (serverSettings[guildId].topItems) - the global
+        // list of before is no setting any more, only the start migration reads it from the file.
+        it("has no global topItems any more and drops one a save sends", () => {
+            expect(getConfig().topItems).toBeUndefined();
+            saveConfig({ topItems: [{ id: 30883, name: "A" }] });
+            expect(getConfig().topItems).toBeUndefined();
         });
 
-        it("normalises stored top items and drops the unusable ones", () => {
-            saveConfig({
-                topItems: [
-                    { id: "30883", name: " Kalter Fels ", iconUrl: " https://x/i.jpg ", quality: 4 },
-                    { id: 30883, name: "Duplikat" },            // same id: first wins
-                    { id: 0, name: "kein Item" },               // no usable id
-                    { id: 32235, name: "Ohne Icon", iconUrl: "javascript:alert(1)" },
-                    "nonsense",
-                ],
-            });
-            expect(getConfig().topItems).toEqual([
-                { id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 },
-                { id: 32235, name: "Ohne Icon", iconUrl: "", quality: null },
-            ]);
-        });
-
-        // Unlike the category maps, the list is replaced wholesale — that is how
-        // the admin menu removes an item again.
-        it("replaces the top-item list instead of merging it", () => {
-            saveConfig({ topItems: [{ id: 30883, name: "A" }, { id: 32235, name: "B" }] });
-            saveConfig({ topItems: [{ id: 32235, name: "B" }] });
-            expect(getConfig().topItems.map((it) => it.id)).toEqual([32235]);
-            saveConfig({ topItems: [] });
-            expect(getConfig().topItems).toEqual([]);
-        });
-
-        it("guards a malformed stored topItems value", () => {
+        it("hides a stored global list from the readers and normalises the kept topItemsLegacy", () => {
             saveConfig({});
-            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")),
-                JSON.stringify({ topItems: { id: 1 } }));
-            expect(getConfig().topItems).toEqual([]);
+            fs.__store.set([...fs.__store.keys()].find((k) => k.endsWith("config.json")), JSON.stringify({
+                topItems: [{ id: "30883", iconUrl: "javascript:alert(1)" }],
+                topItemsLegacy: [{ id: "30883", name: " Kalter Fels ", iconUrl: "javascript:alert(1)", quality: 4 }, "nonsense"],
+            }));
+            expect(getConfig().topItems).toBeUndefined();
+            expect(getConfig().topItemsLegacy).toEqual([{ id: 30883, name: "Kalter Fels", iconUrl: "", quality: 4 }]);
         });
     });
 

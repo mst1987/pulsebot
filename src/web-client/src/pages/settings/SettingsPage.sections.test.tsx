@@ -77,7 +77,6 @@ function config(over: Partial<AdminConfig> = {}): AdminConfig {
         categoryRaidTemplate: {}, blizzard: { clientId: "", region: "eu", realmSlug: "thunderstrike", namespace: "" },
         categoryLootTool: {},
         categorySheets: { cat1: { url: "https://docs.google.com/a", name: "Montag-Sheet" }, cat2: { url: " https://docs.google.com/b ", name: "Mittwoch" } },
-        topItems: [],
         ...over,
     };
 }
@@ -542,7 +541,8 @@ describe("the save bar", () => {
         expect(body.raidDefaults).toEqual({ channelId: "ch1" });
         // the server's own values still go along
         expect(body).toHaveProperty("categoryVersion");
-        expect(body).toHaveProperty("topItems");
+        // #952: the top items save themselves, per item and version
+        expect("topItems" in body).toBe(false);
     });
 
     it("sends what every server shares only from Alle Server › Einstellungen (#957)", async () => {

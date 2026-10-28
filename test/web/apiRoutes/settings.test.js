@@ -926,26 +926,29 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
-            // The top-item list is sent whole (that is how an item is removed); the
-            // router only guards the type, settingsStore does the cleaning.
-            it("forwards the top-item list as sent", async () => {
+            // #952: the top items are saved per server and version over /api/settings/top-items -
+            // the settings PATCH no longer takes a global list.
+            it("refuses a global top-item list with 400 moved and saves nothing", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-
-                await patch("/api/settings", {
-                    topItems: [{ id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 }],
-                });
-
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({
-                    topItems: [{ id: 30883, name: "Kalter Fels", iconUrl: "https://x/i.jpg", quality: 4 }],
-                });
+                const res = await patch("/api/settings", { topItems: [{ id: 30883, name: "Kalter Fels" }], categorySheets: {} });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("moved");
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
-            it("turns a malformed topItems value into an empty list", async () => {
+            it("never hands the old global list (topItemsLegacy) to the browser", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-                await patch("/api/settings", { topItems: "nope" });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ topItems: [] });
+                const legacyConfig = { guildId: "g1", topItemsLegacy: [{ id: 32837, name: "Warglaive of Azzinoth" }], categorySheets: {} };
+                settingsStore.getConfig.mockReturnValue(legacyConfig);
+                settingsStore.saveConfig.mockReturnValue(legacyConfig);
+                const res = mockRes();
+                await handle("/api/settings", { method: "GET" }, res);
+                expect(json(res).data.config).not.toHaveProperty("topItemsLegacy");
+                const saved = await patch("/api/settings", { categorySheets: {} });
+                expect(JSON.stringify(json(saved))).not.toContain("topItemsLegacy");
+                expect(publicConfig({ topItemsLegacy: [] })).toEqual({});
             });
 
             it("ignores a malformed categoryLootTool instead of storing it", async () => {
@@ -1173,9 +1176,9 @@ describe("web/apiRoutes/settings", () => {
                 });
                 auth.checkCsrf.mockReturnValue(true);
 
-                await patch("/api/settings", { topItems: [] });
+                await patch("/api/settings", { categorySheets: {} });
 
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith(expect.objectContaining({ topItems: [] }));
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith(expect.objectContaining({ categorySheets: {} }));
             });
         });
 
@@ -2653,10 +2656,10 @@ describe("web/apiRoutes/settings: content switch (#563)", () => {
             expect(settingsStore.saveConfig).not.toHaveBeenCalled();
         });
 
-        it("still takes a settings writer's server settings such as the top items", async () => {
+        it("still takes a settings writer's server settings such as the category sheets", async () => {
             auth.checkCsrf.mockReturnValue(true);
             auth.getUser.mockReturnValue(settingsWriter());
-            const res = await patch("/api/settings", { topItems: [] });
+            const res = await patch("/api/settings", { categorySheets: {} });
             expect(res.writeHead).not.toHaveBeenCalledWith(403, expect.any(Object));
             expect(settingsStore.saveConfig).toHaveBeenCalled();
         });

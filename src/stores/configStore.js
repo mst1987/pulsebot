@@ -15,7 +15,7 @@ const { normalizeCategoryMessageLook } = require("../services/events/embedLook")
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
-    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning, normalizeTopItems,
+    normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning,
     normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings,
     normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings,
 } = require("./configSchema");
@@ -49,6 +49,27 @@ function readStored() {
 /** Replace config.json with `value` as it is; the kept config is dropped. */
 function writeStored(value) {
     store.write(value);
+}
+
+/**
+ * The global top-item list of before #952 as the file holds it, while the start
+ * migration has not moved it yet (no `topItemsLegacy`), else undefined. getConfig()
+ * hides it, so a save writes it back from here - a migration that failed or has
+ * not run yet still finds it on the next start.
+ */
+function pendingTopItems() {
+    const stored = readStored();
+    if (Object.prototype.hasOwnProperty.call(stored, "topItemsLegacy")) return undefined;
+    return Array.isArray(stored.topItems) ? stored.topItems : undefined;
+}
+
+/** `next` with the stored top items of before kept (pendingTopItems) and no other global list. */
+function withPendingTopItems(next) {
+    const out = { ...next };
+    delete out.topItems;
+    const pending = pendingTopItems();
+    if (pending) out.topItems = pending;
+    return out;
 }
 
 /** Tests: read and write another file; null = config.json again. */
@@ -198,10 +219,11 @@ function saveConfig(partial) {
     if (partial.serverSettings) {
         next.serverSettings = mergeServerSettings(current.serverSettings, partial.serverSettings);
     }
-    // A list, not a map: what is sent replaces the stored one (that is how an
-    // item gets removed again), it is only cleaned up on the way in.
-    if (partial.topItems !== undefined) next.topItems = normalizeTopItems(partial.topItems);
-    // Both replace the stored value as a whole, like topItems.
+    // The top items are per server since #952 (serverSettings[guildId].topItems):
+    // a global list sent by an old client is never written (the start migration
+    // would take it for the list of before); the stored one of before stays
+    // until the migration moved it (withPendingTopItems, at the write below).
+    // Both replace the stored value as a whole.
     // Role-sync pairs are checked against the servers after this save (#896): a
     // pair whose server was just removed is dropped with it.
     if (partial.roleSync !== undefined || partial.discordServers) {
@@ -216,7 +238,7 @@ function saveConfig(partial) {
             ...cur, ...partial.backup, retention: part("retention"), restoreTest: part("restoreTest"),
         });
     }
-    store.write(next);
+    store.write(withPendingTopItems(next));
     return getConfig();
 }
 
@@ -247,7 +269,7 @@ function dropCategoryEntries(categoryId, keys = []) {
         next[key] = rest;
         removed.push(key);
     }
-    if (removed.length) store.write(next);
+    if (removed.length) store.write(withPendingTopItems(next));
     return { config: getConfig(), removed };
 }
 

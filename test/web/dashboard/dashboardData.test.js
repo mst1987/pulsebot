@@ -65,6 +65,11 @@ const {
     dashboardVersions, loadTrialEndings,
 } = require("../../../src/web/dashboard/dashboardData");
 
+// Top items live per server and version (#952): the first server
+// (config.guildId) picked the same list for every version here.
+const HOME = "1400000000000000001";
+const topConfig = (list) => ({ guildId: HOME, serverSettings: { [HOME]: { topItems: { tbc: list, classic: list, forever: list } } } });
+
 // A loot row as lootStore.listAll() hands it out (already decorated).
 const lootRow = (over = {}) => ({
     itemId: 30883, itemName: "Kalter Fels", itemIconUrl: "https://x/i.jpg", itemQuality: 4,
@@ -89,7 +94,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     });
 
     it("keeps only the awards of configured top items", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }, { id: 32235 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }, { id: 32235 }]));
         lootStore.listAll.mockReturnValue([
             lootRow({ itemId: 12345, itemName: "Irgendwas" }),
             lootRow(),
@@ -105,13 +110,13 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     // The item id is the only field every export carries; a Gargul row may have
     // no name at all until the Wowhead backfill runs.
     it("matches by item id even when the id arrives as a string", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         lootStore.listAll.mockReturnValue([lootRow({ itemId: "30883", itemName: "" })]);
         expect(loadTopLoot().items).toHaveLength(1);
     });
 
     it("carries the fields the dashboard row renders", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         lootStore.listAll.mockReturnValue([lootRow()]);
 
         expect(loadTopLoot().items[0]).toMatchObject({
@@ -125,7 +130,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
 
     // listAll() is already sorted newest-award-first, so the cap keeps the newest.
     it("caps the list at the requested limit", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         lootStore.listAll.mockReturnValue([
             lootRow({ character: "A", awardedAt: 3000 }),
             lootRow({ character: "B", awardedAt: 2000 }),
@@ -135,7 +140,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     });
 
     it("filters by game version (#545): an own event's version, else TBC", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         const eventStore = require("../../../src/stores/eventStore");
         eventStore.getEvent.mockImplementation((id) => (id === "eh-9" ? { versionId: "forever" } : null));
         lootStore.listAll.mockReturnValue([
@@ -148,7 +153,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     });
 
     it("shows at most five awards by default", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         lootStore.listAll.mockReturnValue(
             ["A", "B", "C", "D", "E", "F"].map((c, i) => lootRow({ character: c, awardedAt: 6000 - i })),
         );
@@ -156,7 +161,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     });
 
     it("ignores top-item entries without a usable id", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 0 }, { name: "kaputt" }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 0 }, { name: "kaputt" }]));
         lootStore.listAll.mockReturnValue([lootRow()]);
         expect(loadTopLoot()).toEqual({ items: [], configured: 0 });
     });
@@ -165,7 +170,7 @@ describe("web/dashboard/dashboardData loadTopLoot", () => {
     // server-side like everywhere else in the app.
     describe("class/spec of the winner", () => {
         beforeEach(() => {
-            settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+            settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
             lootStore.listAll.mockReturnValue([lootRow()]);
         });
 
@@ -516,7 +521,7 @@ describe("web/dashboard/dashboardData area loaders", () => {
 
         const eventStore = require("../../../src/stores/eventStore");
         eventStore.getEvent.mockImplementation((id) => (id === "eh-forever" ? { id, versionId: "forever" } : null));
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         const start = 1_800_000_000;
         lootStore.listAll.mockReturnValue([
             lootRow({ awardedAt: start * 1000 + 60_000, eventId: "eh-forever", character: "Forever" }),
@@ -566,7 +571,7 @@ describe("web/dashboard/dashboardData area loaders", () => {
     });
 
     it("counts top-item awards since the last raid", () => {
-        settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }] });
+        settingsStore.getConfig.mockReturnValue(topConfig([{ id: 30883 }]));
         const start = 1_800_000_000;
         lootStore.listAll.mockReturnValue([
             lootRow({ awardedAt: start * 1000 + 60_000 }),

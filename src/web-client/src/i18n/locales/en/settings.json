@@ -242,7 +242,6 @@
         "noteChannelDefault": "{name} · channel for tentative/decline → default",
         "raidsheet": "{name} · raidsheet",
         "template": "{name} · default template",
-        "topItems": "Top items",
         "mainVersion": "Main version → {value}",
         "categoryVersion": "{name} · Game version → {value}",
         "hideOtherOn": "Hide other versions on",
@@ -419,11 +418,6 @@
         "unknown": "unknown ({id})"
     },
     "fields": {
-        "topItemsSub": "When one of these items is imported, it shows up on the dashboard under \"Latest Loot\" — with character, raid and date. Without an entry the card stays empty.",
-        "addItem": "Add item",
-        "item": "Item {id}",
-        "itemId": "Item ID {id}",
-        "noTopItem": "No top item yet.",
         "unknownChannel": "Unknown channel",
         "removeChannel": "Remove channel",
         "addChannel": "+ Add channel",
@@ -1596,6 +1590,22 @@
         "incomplete": "Every row needs a version, a guild and a realm.",
         "saved": "Warcraft Logs guilds saved.",
         "save": "Save guilds"
+    },
+    "topItems": {
+        "version": "Game version",
+        "mainVersion": "Main version of this server",
+        "loading": "Loading top items …",
+        "search": "Search an item, also without a boss …",
+        "bosses": "Raid and boss",
+        "other": "Other",
+        "unassigned": "Not assigned",
+        "unassignedHint": "Items no boss of this version drops – added through the search.",
+        "noTable": "There is no loot table for {version} yet. Top items land here through the search.",
+        "noneUnassigned": "No unassigned items yet.",
+        "picked": "{count} picked",
+        "itemId": "Item {id}",
+        "tooMany": "At most {max} top items per game version.",
+        "readOnly": "Read only – changing needs write access to settings."
     },
     "serverVersionLinks": {
         "sub": "Own armory and Warcraft Logs links and an own realm per game version, for this server only. Without an own value the standard from All servers › Game version applies. Wowhead, Softres, raid sheet and colour stay the same for every server.",

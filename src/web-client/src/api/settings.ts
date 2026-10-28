@@ -180,9 +180,6 @@ export type AdminConfig = {
     // Only picked modes are listed; without one a category with a fixed sheet is
     // "sheet", every other "raidplan" (src/services/events/planning.js).
     categoryPlanning?: Record<string, PlanningMode>;
-    // The drops the guild counts as "big", picked from the Wowhead search in
-    // Einstellungen → Loot. The dashboard highlights their awards.
-    topItems: TopItem[];
     // Role sync between pairs of servers (#264, pairs since #896); full admins only.
     roleSync?: RoleSyncRule[];
     // Automatic reminders per raid category (#264).
@@ -253,9 +250,38 @@ export type ItemSearchResult = { id: number; name: string; iconUrl?: string; qua
 
 export type TopItem = { id: number; name: string; iconUrl: string; quality: number | null };
 
-/** Wowhead item search for the top-item picker (settings area, see api docs). */
-export function searchSettingsItems(q: string): Promise<{ items: ItemSearchResult[] }> {
-    return get<{ items: ItemSearchResult[] }>(`/api/settings/item-search?q=${encodeURIComponent(q)}`);
+/** Wowhead item search for the top-item page (settings area), in a version's Wowhead section. */
+export function searchSettingsItems(q: string, version = ""): Promise<{ items: ItemSearchResult[] }> {
+    const v = version ? `&version=${encodeURIComponent(version)}` : "";
+    return get<{ items: ItemSearchResult[] }>(`/api/settings/item-search?q=${encodeURIComponent(q)}${v}`);
+}
+
+/** One boss of a version's loot table with everything it drops (#952). */
+export type TopItemBoss = { name: string; items: TopItem[] };
+export type TopItemRaid = { id: string; label: string; short: string; tierLabel: string; bosses: TopItemBoss[] };
+/**
+ * Einstellungen → Server → Top-Items (#952): the active server's picked items
+ * of one version, with the version's loot table raid by raid (empty for a
+ * version without one - Classic Era, Forever) and how many each version has.
+ */
+export type TopItemsPage = {
+    guildId: string;
+    versionId: string;
+    mainVersion: string;
+    versions: { id: string; label: string; short: string; count: number }[];
+    raids: TopItemRaid[];
+    items: TopItem[];
+    max: number;
+    wowheadPath: string;
+};
+
+export function getTopItems(version = ""): Promise<TopItemsPage> {
+    return get<TopItemsPage>(`/api/settings/top-items${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+/** Switch one item on or off for the loaded server; 409 `server_switched` after a switch in another tab. */
+export function putTopItem(input: { versionId: string; item: TopItem; on: boolean; serverSettingsGuildId: string }): Promise<{ guildId: string; versionId: string; items: TopItem[] }> {
+    return send("PUT", "/api/settings/top-items", input);
 }
 
 export type Raidsheet = {

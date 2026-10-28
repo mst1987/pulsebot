@@ -23,7 +23,13 @@ const lootStore = require("../../../src/stores/lootStore");
 const settingsStore = require("../../../src/stores/settingsStore");
 const charStore = require("../../../src/stores/characterStore");
 const eventStore = require("../../../src/stores/eventStore");
-const { listAwards, PAGE_SIZE, UNKNOWN_CONTENT } = require("../../../src/web/loot/lootAwards");
+const { listAwards, topItemCount, PAGE_SIZE, UNKNOWN_CONTENT } = require("../../../src/web/loot/lootAwards");
+
+// Top items live per server and version (#952): a config whose first server
+// (config.guildId) picked these TBC items.
+const HOME = "1400000000000000001";
+const OTHER = "1400000000000000002";
+const topConfig = (tbc, more = {}) => ({ guildId: HOME, serverSettings: { [HOME]: { topItems: { tbc: tbc.map((id) => ({ id })) } }, ...more } });
 
 // A decorated loot row as lootStore.listAll() hands it out, newest first.
 const lootRow = (over = {}) => ({
@@ -36,7 +42,7 @@ const lootRow = (over = {}) => ({
 
 beforeEach(() => {
     jest.clearAllMocks();
-    settingsStore.getConfig.mockReturnValue({ topItems: [{ id: 30883 }, { id: 32235 }] });
+    settingsStore.getConfig.mockReturnValue(topConfig([30883, 32235]));
     lootStore.listAll.mockReturnValue([]);
     charStore.characterMap.mockReturnValue({});
 });
@@ -69,6 +75,55 @@ describe("web/loot/lootAwards listAwards", () => {
             const res = listAwards();
             expect(res.items).toEqual([]);
             expect(res.topItemCount).toBe(0);
+        });
+    });
+
+    // #952: a row counts as top item by the list of its raid's server and version.
+    describe("top items per server and version (#952)", () => {
+        it("matches a row against the list of its own server, not another one's", () => {
+            settingsStore.getConfig.mockReturnValue({
+                guildId: HOME,
+                serverSettings: {
+                    [HOME]: { topItems: { tbc: [{ id: 30883 }] } },
+                    [OTHER]: { topItems: { tbc: [{ id: 32235 }] } },
+                },
+            });
+            lootStore.listAll.mockReturnValue([
+                lootRow({ character: "Heim" }),
+                lootRow({ itemId: 32235, character: "Fremd-Item" }),
+                lootRow({ itemId: 32235, character: "Partner", eventId: "", categoryId: "", guildId: OTHER }),
+                lootRow({ character: "Partner-Kein-Top", eventId: "", categoryId: "", guildId: OTHER }),
+            ]);
+            expect(listAwards().items.map((it) => it.character)).toEqual(["Heim", "Partner"]);
+        });
+
+        it("matches by the raid's version: a Forever raid needs the Forever list", () => {
+            settingsStore.getConfig.mockReturnValue({
+                guildId: HOME,
+                serverSettings: { [HOME]: { topItems: { tbc: [{ id: 30883 }], forever: [{ id: 32235 }] } } },
+            });
+            eventStore.getEvent.mockImplementation((id) => (id === "eh-9" ? { versionId: "forever", guildId: HOME } : null));
+            lootStore.listAll.mockReturnValue([
+                lootRow({ character: "Tbc" }),
+                lootRow({ character: "Forever-Tbc-Item", eventId: "eh-9" }),
+                lootRow({ itemId: 32235, character: "Forever", eventId: "eh-9" }),
+            ]);
+            expect(listAwards().items.map((it) => it.character)).toEqual(["Tbc", "Forever"]);
+        });
+
+        it("counts the active server's list of the shown version, else all of its versions", () => {
+            const config = {
+                guildId: HOME,
+                serverSettings: {
+                    [HOME]: { topItems: { tbc: [{ id: 1 }, { id: 2 }], forever: [{ id: 2 }, { id: 3 }] } },
+                    [OTHER]: { topItems: { tbc: [{ id: 9 }] } },
+                },
+            };
+            expect(topItemCount(config, { guildId: HOME, versionId: "tbc" })).toBe(2);
+            expect(topItemCount(config, { guildId: HOME, versionId: "forever" })).toBe(2);
+            expect(topItemCount(config, { guildId: HOME })).toBe(3);
+            expect(topItemCount(config, { guildId: "" })).toBe(0);
+            expect(topItemCount(config)).toBe(4);
         });
     });
 
@@ -237,6 +292,9 @@ describe("web/loot/lootAwards listAwards", () => {
 // Only the loot of the active Discord server (#919).
 describe("listAwards per server", () => {
     it("keeps another server's awards off the active one", () => {
+        // gA is the first server; each server picked both items for TBC (#952).
+        const both = { topItems: { tbc: [{ id: 30883 }, { id: 32235 }] } };
+        settingsStore.getConfig.mockReturnValue({ guildId: "gA", serverSettings: { gA: both, gB: both } });
         lootStore.listAll.mockReturnValue([
             lootRow({ eventId: "manual-b", guildId: "gB" }),
             lootRow({ eventId: "manual-a", itemId: 32235 }),

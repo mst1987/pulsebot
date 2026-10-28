@@ -33,7 +33,7 @@ import "../../styles/settings.css";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
-import { LogChannelsField, TopItemsField } from "./SettingsFields";
+import { LogChannelsField } from "./SettingsFields";
 import GameVersionSection, { CategoryVersionSection, VersionSettingsCard } from "./SettingsGameVersion";
 import CategorySwitchDialog, { type CategorySwitchChoice } from "./CategorySwitchDialog";
 import CategoryDeactivateDialog from "./CategoryDeactivateDialog";
@@ -48,6 +48,7 @@ import DungeonRecordsCard from "./DungeonRecordsCard";
 import VersionFeaturesCard from "./VersionFeaturesCard";
 import VersionLaunchCard from "./VersionLaunchCard";
 import ServerVersionLinksSection from "./ServerVersionLinksSection";
+import TopItemsSection from "./TopItemsSection";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { XIcon, SaveIcon } from "../../components/ui/icons";
@@ -305,7 +306,6 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             ),
             // Raid plan or sheet per category: merged on the server, only picked modes are sent.
             categoryPlanning: draft.categoryPlanning,
-            topItems: draft.topItems,
         };
         try {
             const answer = await updateSettings(payload);
@@ -606,9 +606,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             case "topitems": return (
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("settings.page.topItemsSub"))}
-                    <ModuleCard>
-                        <TopItemsField items={draft.topItems} onChange={(topItems) => patch({ topItems })} />
-                    </ModuleCard>
+                    <TopItemsSection key={data.activeGuildId} guildId={data.activeGuildId || ""} />
                 </>
             );
 

@@ -42,7 +42,7 @@ const { VERSIONS } = require("../../config/gameVersions");
 const versionSettings = require("../../services/events/versionSettings");
 const { capabilityMatrix } = require("../../services/events/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../config/versionFeatures");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../services/logcheck/logChannelSettings");
 const { wclGuildsOf, wclGuildsFromBody } = require("../../services/logcheck/wclGuildSettings");
 const { normalizeCategoryPlanning } = require("../../services/events/planning");
@@ -753,6 +753,8 @@ function publicConfig(config) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
+    // #952: the old global list is kept for the server only, the browser reads the lists per server
+    delete out.topItemsLegacy;
     return out;
 }
 
@@ -894,6 +896,8 @@ function addonListPatch(body) {
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
+    // #952: the top items live per server and version now (PUT /api/top-items) - a stale tab is told so
+    if (body.topItems !== undefined) return error(res, 400, "moved", "Die Top-Items stehen jetzt je Server und Version – bitte die Seite neu laden.");
     const touchesGuarded = [...FULL_ADMIN_KEYS, ...SHARED_WRITE_KEYS].some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
@@ -1092,9 +1096,6 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.serverSettings = { ...(partial.serverSettings || {}) };
         partial.serverSettings[server.guildId] = { ...(partial.serverSettings[server.guildId] || {}), versionOverrides: overrides.block };
     }
-    // Sent as the complete list; settingsStore normalises it and replaces the
-    // stored one, so removing an item is just leaving it out.
-    if (body.topItems !== undefined) partial.topItems = Array.isArray(body.topItems) ? body.topItems : [];
     // Complete values as well; settingsStore validates them (snowflakes, known
     // directions and targets, hours 1–168) and replaces the stored ones.
     if (body.roleSync !== undefined) partial.roleSync = Array.isArray(body.roleSync) ? body.roleSync : [];
@@ -1410,17 +1411,20 @@ const getCategorySwitch = withUser({}, async ({ user, req, res, url }) => {
 });
 
 /**
- * GET /api/settings/item-search?q=&edition= — Wowhead item search for the
- * top-item picker in Einstellungen → Loot. The same lookup the softres
- * hard-reserve picker uses, but under the settings area, so defining top items
- * doesn't require raid rights.
+ * GET /api/settings/item-search?q=&edition=&version= — Wowhead item search for
+ * the top-item page (Einstellungen → <Server> → Top-Items). The same lookup the
+ * softres hard-reserve picker uses, but under the settings area, so defining
+ * top items doesn't require raid rights.
  */
-const getItemSearch = withUser({}, async ({ res, url }) => {
+const getItemSearch = withUser({}, async ({ req, res, url }) => {
     const q = url.searchParams.get("q") || "";
-    // An edition asked for wins; else the Wowhead path of the main version (#542) - none set, no search.
+    // An edition asked for wins; else the Wowhead path of the version asked for
+    // (#952), else of the main version (#542), with the active server's own
+    // template (#923) - none set, no search.
     const edition = url.searchParams.get("edition") || "";
     const config = getConfig();
-    const path = edition ? "" : versionSettings.settingsForVersion(mainVersionFor({ config }), { config }).wowheadPath;
+    const versionId = knownVersion(url.searchParams.get("version")) || mainVersionFor({ config });
+    const path = edition ? "" : versionSettings.settingsForVersion(versionId, { config, guildId: activeGuildFor(req) }).wowheadPath;
     const items = edition || path ? await wowhead.searchItems(q, { edition, path }) : [];
     ok(res, { items });
 });

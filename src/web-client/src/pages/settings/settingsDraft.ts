@@ -1,4 +1,4 @@
-import type { AdminConfig, LogChannelInput, RolePermissions, Access, TopItem, EventSource, PlanningMode } from "../../api";
+import type { AdminConfig, LogChannelInput, RolePermissions, Access, EventSource, PlanningMode } from "../../api";
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
@@ -73,7 +73,6 @@ export type Draft = {
     versionSettings: Record<string, VersionSettingsBlock>;
     /** The features switched off per version (#761, "Funktionen je Version"), sent inside versionSettings. */
     versionDisabled: Record<string, string[]>;
-    topItems: TopItem[];
 };
 
 /** The fields of the active server (#924) as the PATCH body names them. */
@@ -149,6 +148,5 @@ export function toDraft(config: AdminConfig, guildId = ""): Draft {
         dungeonRecords: { post: config.dungeonRecords?.post === true, channelId: config.dungeonRecords?.channelId || "" },
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         versionDisabled: disabledFromConfig(config.versionSettings),
-        topItems: config.topItems || [],
     };
 }

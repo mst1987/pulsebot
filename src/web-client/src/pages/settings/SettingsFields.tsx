@@ -1,47 +1,10 @@
 import { useState } from "react";
-import { searchSettingsItems, type LogChannelInput, type TopItem, type TextChannel } from "../../api";
-import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
-import { itemQualityProps } from "../../lib/wow/itemQuality";
+import { type LogChannelInput, type TextChannel } from "../../api";
 import { XIcon, PlusIcon } from "../../components/ui/icons";
 import { ChannelPicker } from "../../components/settings/settingsUi";
-import { FieldLabel } from "../../components/ui/Field";
 import { Button, IconButton } from "../../components/ui/Button";
 import { splitList } from "./settingsDraft";
 import { useT } from "../../i18n";
-
-// The drops the guild counts as "big". Picked from the live Wowhead search and
-// stored with icon + quality, so the dashboard can render an award without
-// looking the item up again — and matched against imported loot by item id.
-export function TopItemsField({ items, onChange }: {
-    items: TopItem[];
-    onChange: (items: TopItem[]) => void;
-}) {
-    const t = useT();
-    const add = (it: { id: number; name: string; iconUrl?: string; quality?: number | null }) => {
-        if (items.some((x) => x.id === it.id)) return;
-        onChange([...items, { id: it.id, name: it.name, iconUrl: it.iconUrl || "", quality: it.quality ?? null }]);
-    };
-
-    return (
-        <div className="set-field">
-            <FieldLabel tip={t("settings.sections.topitems.label")} tipSub={t("settings.fields.topItemsSub")}>{t("settings.fields.addItem")}</FieldLabel>
-            <ItemSearchPicker search={searchSettingsItems} onPick={add} />
-            {items.length > 0 ? (
-                <ul className="topitem-list">
-                    {items.map((it) => (
-                        <li key={it.id} className="topitem">
-                            <span className="topitem-name" data-tip={it.name || t("settings.fields.item", { id: it.id })} data-tip-sub={t("settings.fields.itemId", { id: it.id })}>
-                                {it.iconUrl && <img src={it.iconUrl} alt="" loading="lazy" />}
-                                <span {...itemQualityProps(it.quality)}>{it.name || t("settings.fields.item", { id: it.id })}</span>
-                            </span>
-                            <IconButton icon={<XIcon />} tip={t("common.remove")} size="sm" onClick={() => onChange(items.filter((x) => x.id !== it.id))} />
-                        </li>
-                    ))}
-                </ul>
-            ) : <div className="empty">{t("settings.fields.noTopItem")}</div>}
-        </div>
-    );
-}
 
 // The log channels of the active server (#921): one row per channel with the
 // game version its logs count for. A channel added here has no version yet —
