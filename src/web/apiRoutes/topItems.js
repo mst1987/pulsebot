@@ -15,6 +15,7 @@ const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
+const { TOP_ITEM_NAME_MAX } = require("../../stores/configSchema");
 const { VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, mainVersionFor } = require("../../services/events/mainVersion");
 const { MAX_TOP_ITEMS, topItemListsOf, topItemsOf, withTopItem } = require("../../services/loot/topItems");
@@ -113,7 +114,7 @@ const putTopItem = withUser({ csrf: true, body: true }, async ({ body, req, res 
     }
     const item = catalogItem(versionId, id) || {
         id,
-        name: typeof raw.name === "string" ? raw.name : "",
+        name: typeof raw.name === "string" ? raw.name.trim().slice(0, TOP_ITEM_NAME_MAX) : "",
         iconUrl: typeof raw.iconUrl === "string" ? raw.iconUrl : "",
         quality: Number.isInteger(raw.quality) ? raw.quality : null,
     };

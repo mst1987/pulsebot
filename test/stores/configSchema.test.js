@@ -327,6 +327,12 @@ describe("stores/configSchema golden master (#420)", () => {
 });
 
 describe("stores/configSchema normalisers", () => {
+    it("normalizeTopItems cuts a long name to TOP_ITEM_NAME_MAX characters (#952)", () => {
+        const [item] = schema.normalizeTopItems([{ id: 1, name: ` ${"y".repeat(300)} ` }]);
+        expect(schema.TOP_ITEM_NAME_MAX).toBe(200);
+        expect(item.name).toBe("y".repeat(200));
+    });
+
     it("normalizeConfig treats anything but an object as an empty file", () => {
         const empty = schema.normalizeConfig({});
         expect(schema.normalizeConfig(null)).toEqual(empty);

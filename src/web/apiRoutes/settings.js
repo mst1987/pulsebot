@@ -753,6 +753,8 @@ function publicConfig(config) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
+    // #952: the old global list is kept for the server only, the browser reads the lists per server
+    delete out.topItemsLegacy;
     return out;
 }
 
@@ -894,6 +896,8 @@ function addonListPatch(body) {
  * credentials (CREDENTIAL_KEYS) are full-admin-only.
  */
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
+    // #952: the top items live per server and version now (PUT /api/top-items) - a stale tab is told so
+    if (body.topItems !== undefined) return error(res, 400, "moved", "Die Top-Items stehen jetzt je Server und Version – bitte die Seite neu laden.");
     const touchesGuarded = [...FULL_ADMIN_KEYS, ...SHARED_WRITE_KEYS].some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
     if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all

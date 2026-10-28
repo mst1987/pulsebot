@@ -588,8 +588,10 @@ function normalizeDiscordServers(raw, { fallbackGuildId = "" } = {}) {
  * entries with a positive numeric item id, dedupe by id (first wins) and drop an
  * icon that isn't an http(s) url, so a stored entry is always safe to render as
  * an <img src>. `quality` stays null when Wowhead never reported one — 0 is a
- * real quality ("poor"), same rule as the loot store's itemQuality.
+ * real quality ("poor"), same rule as the loot store's itemQuality. A name is
+ * cut to TOP_ITEM_NAME_MAX characters (#952: a searched item brings its own).
  */
+const TOP_ITEM_NAME_MAX = 200;
 function normalizeTopItems(raw) {
     if (!Array.isArray(raw)) return [];
     const out = [];
@@ -602,7 +604,7 @@ function normalizeTopItems(raw) {
         const iconUrl = String(entry.iconUrl || "").trim();
         out.push({
             id,
-            name: String(entry.name || "").trim(),
+            name: String(entry.name || "").trim().slice(0, TOP_ITEM_NAME_MAX),
             iconUrl: /^https?:\/\//i.test(iconUrl) ? iconUrl : "",
             quality: typeof entry.quality === "number" ? entry.quality : null,
         });
@@ -921,6 +923,8 @@ function legacyTopItems(stored) {
 /**
  * The stored file without the global `topItems` of before #952: only the start
  * migration reads it (from the file), no reader sees the unchecked raw list.
+ * Only hidden: the file keeps it until the migration moved it, a save in between
+ * writes it back (configStore.pendingTopItems).
  */
 function withoutGlobalTopItems(stored) {
     if (!Object.prototype.hasOwnProperty.call(stored, "topItems")) return stored;
@@ -1101,7 +1105,7 @@ module.exports = {
     CONFIG_DEFAULTS, ROLE_SYNC_DIRECTIONS,
     normalizeConfig, normalizeDiscordServers, normalizeServerSettings, mergeServerSettings, serverSettingGuildIds, SERVER_SETTING_DEFAULTS, GLOBAL_FIELDS_924, normalizeEventGuilds, normalizeEventGuildEntry,
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS, EVENT_GUILD_LABEL_MAX,
-    normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems,
+    normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems, TOP_ITEM_NAME_MAX,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
     normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,

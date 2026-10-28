@@ -881,7 +881,11 @@ function migrateRaidhelperServers({ env = process.env } = {}) {
     return lines;
 }
 
-/** The servers whose categories play TBC (#952), else the first server; only servers of the list. */
+/**
+ * The servers whose categories play TBC (#952), else the first server; only
+ * servers of the list. `fallback` says the first server stands in for none found.
+ * @returns {{ ids: string[], fallback: boolean }}
+ */
 function tbcServers(stored, config) {
     const known = serverSettingGuildIds(config.discordServers, config.guildId);
     const categoryGuilds = categoryGuildIndex(categoryNameSnapshot());
@@ -890,24 +894,29 @@ function tbcServers(stored, config) {
         const guildId = categoryGuilds.get(categoryId);
         if (versionId === LEGACY_VERSION && guildId && known.has(guildId)) out.add(guildId);
     }
-    if (!out.size) {
-        const first = firstServerId(config);
-        if (first) out.add(first);
-    }
-    return [...out];
+    if (out.size) return { ids: [...out], fallback: false };
+    const first = firstServerId(config);
+    return { ids: first ? [first] : [], fallback: true };
 }
 
 /**
  * config.json (#952): the global top items of before become the TBC list of
  * every TBC server (tbcServers); the old list stays as `topItemsLegacy`. A server
- * with its own TBC list keeps it. One line, or none.
+ * with its own TBC list keeps it. An empty old list is only moved to
+ * `topItemsLegacy` (no server block written, no line). One line, or none.
  */
 function migrateTopItems() {
     const stored = configStore.readStored();
     if (!Array.isArray(stored.topItems)) return [];
     const legacy = normalizeTopItems(stored.topItems);
+    const rest = { ...stored };
+    delete rest.topItems;
+    if (!legacy.length) {
+        configStore.writeStored({ ...rest, topItemsLegacy: stored.topItems });
+        return [];
+    }
     const config = configStore.getConfig();
-    const targets = legacy.length ? tbcServers(stored, config) : [];
+    const { ids: targets, fallback } = tbcServers(stored, config);
     const blocks = stored.serverSettings && typeof stored.serverSettings === "object" && !Array.isArray(stored.serverSettings)
         ? stored.serverSettings : {};
     const next = { ...blocks };
@@ -919,10 +928,10 @@ function migrateTopItems() {
         next[guildId] = { ...own, topItems: { ...lists, [LEGACY_VERSION]: legacy } };
         copied.push(guildId);
     }
-    const rest = { ...stored };
-    delete rest.topItems;
     configStore.writeStored({ ...rest, serverSettings: next, topItemsLegacy: stored.topItems });
-    const where = copied.length ? ` -> ${copied.join(", ")}` : " - kein Server ohne eigene Liste";
+    const firstNote = fallback ? " (kein TBC-Server gefunden, erster Server)" : "";
+    const none = targets.length ? " - kein Server ohne eigene Liste" : " - kein Server bekannt";
+    const where = copied.length ? ` -> ${copied.join(", ")}${firstNote}` : none;
     return [`config.json: ${legacy.length} Top-Item(s) als TBC-Liste je Server gespeichert${where}, alte Liste als topItemsLegacy behalten (#952)`];
 }
 
@@ -983,11 +992,13 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateCategoryRosters());
         changes.push(...migrateStoredVersions());
         changes.push(...migrateCategoryVersions());
+        // #952: as early as it can - it needs the server list (federation step) and the
+        // category versions of migrateCategoryVersions to find the TBC servers.
+        changes.push(...migrateTopItems());
         changes.push(...migrateCouncilProfiles());
         changes.push(...migrateLogGuilds());
         changes.push(...migrateReportGuilds());
         changes.push(...migrateRaidhelperServers());
-        changes.push(...migrateTopItems());
     } catch (error) {
         warn(`[settings] Migration fehlgeschlagen: ${error.message}`);
         return { changes, error };

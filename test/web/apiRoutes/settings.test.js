@@ -928,11 +928,27 @@ describe("web/apiRoutes/settings", () => {
 
             // #952: the top items are saved per server and version over /api/settings/top-items -
             // the settings PATCH no longer takes a global list.
-            it("ignores a global top-item list", async () => {
+            it("refuses a global top-item list with 400 moved and saves nothing", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-                await patch("/api/settings", { topItems: [{ id: 30883, name: "Kalter Fels" }], categorySheets: {} });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySheets: {} });
+                const res = await patch("/api/settings", { topItems: [{ id: 30883, name: "Kalter Fels" }], categorySheets: {} });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("moved");
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("never hands the old global list (topItemsLegacy) to the browser", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const legacyConfig = { guildId: "g1", topItemsLegacy: [{ id: 32837, name: "Warglaive of Azzinoth" }], categorySheets: {} };
+                settingsStore.getConfig.mockReturnValue(legacyConfig);
+                settingsStore.saveConfig.mockReturnValue(legacyConfig);
+                const res = mockRes();
+                await handle("/api/settings", { method: "GET" }, res);
+                expect(json(res).data.config).not.toHaveProperty("topItemsLegacy");
+                const saved = await patch("/api/settings", { categorySheets: {} });
+                expect(JSON.stringify(json(saved))).not.toContain("topItemsLegacy");
+                expect(publicConfig({ topItemsLegacy: [] })).toEqual({});
             });
 
             it("ignores a malformed categoryLootTool instead of storing it", async () => {

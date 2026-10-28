@@ -51,6 +51,27 @@ function writeStored(value) {
     store.write(value);
 }
 
+/**
+ * The global top-item list of before #952 as the file holds it, while the start
+ * migration has not moved it yet (no `topItemsLegacy`), else undefined. getConfig()
+ * hides it, so a save writes it back from here - a migration that failed or has
+ * not run yet still finds it on the next start.
+ */
+function pendingTopItems() {
+    const stored = readStored();
+    if (Object.prototype.hasOwnProperty.call(stored, "topItemsLegacy")) return undefined;
+    return Array.isArray(stored.topItems) ? stored.topItems : undefined;
+}
+
+/** `next` with the stored top items of before kept (pendingTopItems) and no other global list. */
+function withPendingTopItems(next) {
+    const out = { ...next };
+    delete out.topItems;
+    const pending = pendingTopItems();
+    if (pending) out.topItems = pending;
+    return out;
+}
+
 /** Tests: read and write another file; null = config.json again. */
 function useFile(file) {
     store.useFile(file);
@@ -199,9 +220,9 @@ function saveConfig(partial) {
         next.serverSettings = mergeServerSettings(current.serverSettings, partial.serverSettings);
     }
     // The top items are per server since #952 (serverSettings[guildId].topItems):
-    // a global list sent by an old client is never written, the start migration
-    // would otherwise take it for the list of before.
-    delete next.topItems;
+    // a global list sent by an old client is never written (the start migration
+    // would take it for the list of before); the stored one of before stays
+    // until the migration moved it (withPendingTopItems, at the write below).
     // Both replace the stored value as a whole.
     // Role-sync pairs are checked against the servers after this save (#896): a
     // pair whose server was just removed is dropped with it.
@@ -217,7 +238,7 @@ function saveConfig(partial) {
             ...cur, ...partial.backup, retention: part("retention"), restoreTest: part("restoreTest"),
         });
     }
-    store.write(next);
+    store.write(withPendingTopItems(next));
     return getConfig();
 }
 
@@ -248,7 +269,7 @@ function dropCategoryEntries(categoryId, keys = []) {
         next[key] = rest;
         removed.push(key);
     }
-    if (removed.length) store.write(next);
+    if (removed.length) store.write(withPendingTopItems(next));
     return { config: getConfig(), removed };
 }
 

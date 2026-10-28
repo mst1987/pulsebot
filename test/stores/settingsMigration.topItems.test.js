@@ -52,9 +52,9 @@ describe("stores/settingsMigration migrateTopItems (#952)", () => {
         expect(config.topItems).toBeUndefined();
     });
 
-    it("falls back to the first server without a TBC category", () => {
+    it("falls back to the first server without a TBC category and says so", () => {
         fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: HOME, discordServers: servers, topItems: legacy }));
-        migrateTopItems();
+        expect(migrateTopItems()).toEqual([`config.json: 2 Top-Item(s) als TBC-Liste je Server gespeichert -> ${HOME} (kein TBC-Server gefunden, erster Server), alte Liste als topItemsLegacy behalten (#952)`]);
         expect(stored().serverSettings[HOME].topItems).toEqual({ tbc: legacy });
         expect(stored().serverSettings[OTHER]).toBeUndefined();
     });
@@ -78,12 +78,34 @@ describe("stores/settingsMigration migrateTopItems (#952)", () => {
         expect(stored().topItemsLegacy).toEqual(legacy);
     });
 
-    it("moves an empty list out of the way without copying it", () => {
+    it("moves an empty list out of the way silently, without touching serverSettings", () => {
         fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: HOME, discordServers: servers, topItems: [] }));
-        expect(migrateTopItems()).toEqual(["config.json: 0 Top-Item(s) als TBC-Liste je Server gespeichert - kein Server ohne eigene Liste, alte Liste als topItemsLegacy behalten (#952)"]);
+        expect(migrateTopItems()).toEqual([]);
         expect(stored().topItems).toBeUndefined();
         expect(stored().topItemsLegacy).toEqual([]);
-        expect(stored().serverSettings).toEqual({});
+        expect(stored().serverSettings).toBeUndefined();
+        expect(migrateTopItems()).toEqual([]);
+    });
+
+    it("saveConfig vor migrateTopItems verliert die alte Liste nicht", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: HOME, discordServers: servers, topItems: legacy }));
+        // a save from an old client carrying a list of its own: the stored one wins
+        configStore.saveConfig({ botLanguage: "en", topItems: [{ id: 1, name: "Fremd" }] });
+        expect(stored().topItems).toEqual(legacy);
+        expect(configStore.getConfig().topItems).toBeUndefined();
+        // the migration then still runs as before
+        expect(migrateTopItems()[0]).toContain("2 Top-Item(s)");
+        expect(stored().serverSettings[HOME].topItems.tbc).toEqual(legacy);
+        expect(stored().topItemsLegacy).toEqual(legacy);
+        expect(stored().topItems).toBeUndefined();
+        expect(stored().botLanguage).toBe("en");
+    });
+
+    it("keeps the old list when a category is dropped before the migration", () => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ guildId: HOME, discordServers: servers, topItems: legacy, categoryVersion: { [CAT_TBC]: "tbc", [CAT_FOREVER]: "forever" } }));
+        expect(configStore.dropCategoryEntries(CAT_FOREVER, ["categoryVersion"]).removed).toEqual(["categoryVersion"]);
+        expect(stored().categoryVersion).toEqual({ [CAT_TBC]: "tbc" });
+        expect(stored().topItems).toEqual(legacy);
     });
 
     it("does nothing a second time, nor without an old list", () => {
@@ -103,6 +125,9 @@ describe("stores/settingsMigration migrateTopItems (#952)", () => {
         expect(stored().topItemsLegacy).toEqual(legacy);
         expect(stored().topItems).toBeUndefined();
         expect(stored().serverSettings[HOME].topItems.tbc).toEqual(legacy);
+        // after the migration a stale list from an old client is never written back
+        configStore.saveConfig({ topItems: [{ id: 1, name: "Fremd" }] });
+        expect(stored().topItems).toBeUndefined();
     });
 
     it("runs as part of migrateSettings with its log line", () => {

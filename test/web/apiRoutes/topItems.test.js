@@ -131,6 +131,13 @@ describe("PUT /api/settings/top-items (#952)", () => {
         expect(topItemIds(G1, "tbc", { config }).size).toBe(0);
     });
 
+    it("cuts the name of a searched item to 200 characters", async () => {
+        const res = await put({ versionId: "forever", item: { id: 29434, name: "x".repeat(300), iconUrl: "", quality: 4 }, on: true, serverSettingsGuildId: G1 });
+        expect(status(res)).toBe(200);
+        expect(body(res).items[0].name).toHaveLength(200);
+        expect(configStore.getConfig().serverSettings[G1].topItems.forever[0].name).toBe("x".repeat(200));
+    });
+
     it("refuses a reader of the settings", async () => {
         mockUser = orga("read");
         const res = await put({ versionId: "tbc", item: { id: WARGLAIVE }, on: true, serverSettingsGuildId: G1 });
