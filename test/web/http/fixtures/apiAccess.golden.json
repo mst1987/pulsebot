@@ -270,6 +270,8 @@
     "/api/orga-hub": "settings",
     "/api/orga-hub/links": "settings",
     "/api/availability/links": "settings",
+    "/api/orga-hub/features": "settings",
+    "/api/availability/features": "settings",
     "/api/settings/guild-banks": "settings",
     "/api/settings/guild-banks/assign": "settings",
     "/api/settings/guild-banks/delete": "settings",

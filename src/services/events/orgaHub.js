@@ -85,6 +85,7 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
         raids,
         counts: statusCounts(raids.map((r) => r.status)),
         links: store.getLinks(categoryId),
+        features: store.getFeatures(categoryId),
         total: active.length,
         webUrl: webLink("/raids"),
         weeks: WEEKS,
@@ -133,6 +134,17 @@ async function removeHub(categoryId) {
  */
 async function saveLinks(categoryId, list, { config } = {}) {
     const result = store.setLinks(categoryId, list);
+    if (result.error) return result;
+    await refreshHubs({ categoryId: str(categoryId), config });
+    return result;
+}
+
+/**
+ * Switch parts of a category's hub on or off (#969) and redraw it at once, like saveLinks.
+ * @returns {Promise<{ features?: object, error?: string }>}
+ */
+async function saveFeatures(categoryId, features, { config } = {}) {
+    const result = store.setFeatures(categoryId, features);
     if (result.error) return result;
     await refreshHubs({ categoryId: str(categoryId), config });
     return result;
@@ -272,5 +284,5 @@ function stopOrgaHubs() {
 }
 
 module.exports = {
-    hubRaids, currentPayload, payloadHash, postHub, removeHub, saveLinks, refreshHubs, scheduleRefresh, onHubMessageDeleted, startOrgaHubs, stopOrgaHubs, WEEKS,
+    hubRaids, currentPayload, payloadHash, postHub, removeHub, saveLinks, saveFeatures, refreshHubs, scheduleRefresh, onHubMessageDeleted, startOrgaHubs, stopOrgaHubs, WEEKS,
 };

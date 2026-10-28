@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { postAvailabilityPanel, removeAvailabilityPanel, saveAvailabilityLinks, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
+import { postAvailabilityPanel, removeAvailabilityPanel, saveAvailabilityFeatures, saveAvailabilityLinks, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../api";
 import { useToast } from "../../components/shell/Jobs";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
 import CategoryField from "./CategoryField";
 import LinkRow from "./LinkRow";
+import HubFeatureSwitches from "./HubFeatureSwitches";
 import { cleanLinks } from "../../lib/discord/buttonEmoji";
 import { ExternalIcon, PlusIcon, SendIcon, TrashIcon, SaveIcon } from "../../components/ui/icons";
 import { formatDate } from "../../lib/format";
@@ -29,6 +30,12 @@ export type AvailabilityPanels = {
     onChange: (categoryId: string, panel: AvailabilityPanel | null) => void;
     /** The category's links were saved (as the server kept them). */
     onLinks: (categoryId: string, links: AvailabilityLink[]) => void;
+    /** Categories with a part of the hub switched off (#969); missing = all on. */
+    features?: Record<string, Record<string, boolean>>;
+    /** The hub's parts in their order; none = no switches shown. */
+    featureKeys?: string[];
+    /** A category's switches were saved (as the server kept them). */
+    onFeatures?: (categoryId: string, features: Record<string, boolean>) => void;
 };
 
 export default function AvailabilityPanelRow({ categoryId, categoryName, panels }: {
@@ -113,6 +120,9 @@ export default function AvailabilityPanelRow({ categoryId, categoryName, panels 
                     <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
+            <HubFeatureSwitches kind="raid" categoryId={categoryId} keys={panels.featureKeys || []}
+                features={(panels.features || {})[categoryId] || {}} save={saveAvailabilityFeatures}
+                onSaved={(id, f) => panels.onFeatures && panels.onFeatures(id, f)} />
             <div className="cat-links">
                 <strong id={`catlinks-${categoryId}`}>{t("settings.categories.links")}</strong>
                 <span className="note">{t("settings.categories.linksSub")}</span>

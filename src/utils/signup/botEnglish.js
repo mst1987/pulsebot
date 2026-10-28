@@ -91,6 +91,10 @@ const RULES = [
     [/^Der Link „(.+)“ braucht einen Text\.$/, "The link “$1” needs a label."],
     [/^„(.+)“ ist zu lang \(höchstens (\d+) Zeichen\)\.$/, "“$1” is too long (at most $2 characters)."],
     [/^„(.+)“ braucht eine Adresse mit https:\/\/\.$/, "“$1” needs an address starting with https://."],
+    // the hub switches (availabilityStore.checkFeatures, #969)
+    [/^Die Schalter fehlen\.$/, "The switches are missing."],
+    [/^Den Bereich „(.+)“ gibt es nicht\.$/, "There is no section “$1”."],
+    [/^Der Schalter „(.+)“ muss an oder aus sein\.$/, "The switch “$1” must be on or off."],
     [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
     [/^Eintrag nicht gefunden\.$/, "Entry not found."],
     // services/signups/guildBank.js + stores/guildBankStore.js (guild bank requests)

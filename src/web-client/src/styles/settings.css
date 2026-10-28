@@ -591,6 +591,8 @@ tr.perm-foreign .perm-who-label { color: var(--muted); }
 .cat-panel-state > .note { margin: 0; }
 .cat-links { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); align-self: stretch; }
 .cat-links > .note { margin: 0; }
+.cat-features { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); align-self: stretch; }
+.cat-features > .note { margin: 0; }
 .cat-link-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .cat-link-row > input[type="text"] { flex: 1 1 140px; min-width: 0; font-size: 13px; }
 .cat-link-row > input[type="url"] { flex: 2 1 220px; min-width: 0; font-size: 13px; }

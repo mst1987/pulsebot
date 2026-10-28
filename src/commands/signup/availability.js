@@ -42,6 +42,10 @@ const {
     pickerPayload, listPayload, savedPayload,
 } = require("../../utils/signup/availabilityDialog");
 const { asEphemeral } = require("../../utils/discord/card");
+const availabilityStore = require("../../stores/availabilityStore");
+
+/** The section of the raider organizer each panel button belongs to (availabilityStore.FEATURE_KEYS). */
+const PANEL_FEATURES = { a: "attendance", p: "attendance", l: "attendance", r: "nextRaid", o: "evaluation", b: "guildBank" };
 
 const ephemeral = (interaction, payload) => interaction.reply(asEphemeral(payload));
 const fromEphemeral = (interaction) => !!(interaction.message && interaction.message.flags
@@ -300,6 +304,11 @@ module.exports = {
         const { token, action, categoryId } = parseId(interaction.customId);
         if (token) return onPicker(interaction, token, action, lang);
         const config = settingsStore.getConfig();
+        // A button of a section the orga switched off (#969) — an older panel message still shows it.
+        const feature = PANEL_FEATURES[action];
+        if (feature && categoryId && !(action === "l" && fromEphemeral(interaction)) && availabilityStore.getFeatures(categoryId)[feature] === false) {
+            return ephemeral(interaction, answerPayload(tr(lang, "This feature is switched off in this raid hub."), { lang }));
+        }
         if (action === "a") return interaction.showModal(periodModal("absence", categoryId, lang));
         if (action === "p") {
             const versions = versionsFor(categoryId, config);

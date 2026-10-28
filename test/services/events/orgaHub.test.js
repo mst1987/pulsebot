@@ -167,6 +167,28 @@ describe("services/events/orgaHub saveLinks", () => {
     });
 });
 
+describe("services/events/orgaHub saveFeatures (#969)", () => {
+    afterEach(() => store.setFeatures("cat1", { newRaid: true, links: true, summary: true }));
+
+    it("saves and redraws the posted hub at once without the switched-off button", async () => {
+        discord.postPayload.mockResolvedValue(posted("m1", "c1"));
+        await hub.postHub({ categoryId: "cat1", channelId: "c1", now: NOW });
+        discord.editPayload.mockResolvedValue(posted());
+        const res = await hub.saveFeatures("cat1", { newRaid: false });
+        expect(res.features).toMatchObject({ newRaid: false, links: true, summary: true });
+        expect(discord.editPayload).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).not.toContain("orga:new:cat1");
+        expect(store.getFeatures("cat1").newRaid).toBe(false);
+    });
+
+    it("refuses an unknown part without saving or redrawing", async () => {
+        const res = await hub.saveFeatures("cat1", { bogus: false });
+        expect(res.error).toBeTruthy();
+        expect(discord.editPayload).not.toHaveBeenCalled();
+        expect(store.getFeatures("cat1")).toMatchObject({ newRaid: true, links: true, summary: true });
+    });
+});
+
 describe("services/events/orgaHub refreshHubs", () => {
     beforeEach(() => {
         discord.postPayload.mockResolvedValue(posted("m1", "c1"));

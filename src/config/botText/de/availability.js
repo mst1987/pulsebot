@@ -16,6 +16,7 @@ module.exports = {
     "Everything for your {category} raids in one place": "Alles für deine {category}-Raids an einem Ort",
     "Next raid": "Nächster Raid",
     "No raid planned yet.": "Noch kein Raid geplant.",
+    "This feature is switched off in this raid hub.": "Diese Funktion ist in dieser Raid-Zentrale ausgeschaltet.",
     "My raid": "Mein Raid",
     "Your evaluation": "Deine Auswertung",
     "Your latest raid, your points, your characters": "Dein letzter Raid, deine Punkte, deine Charaktere",

@@ -1042,6 +1042,37 @@
         "notesShort": "Kurze Nachricht an die Raidleitung.",
         "panelShort": "Für Raider: nächster Raid, Ab- und Anwesenheit, eure Links.",
         "orgaHubShort": "Für die Orga: Raids der nächsten 4 Wochen und „Raid anlegen“.",
+        "hubFeatures": "Bereiche in Discord",
+        "hubFeaturesAllOff": "Alle Bereiche sind aus – die Nachricht zeigt nur noch die Überschrift.",
+        "hubFeatureSaved": "Gespeichert – die Nachricht wird neu gezeichnet",
+        "hubFeature": {
+            "raid": {
+                "nextRaid": "Nächster Raid",
+                "attendance": "Ab- & Anwesenheit",
+                "evaluation": "Auswertung",
+                "guildBank": "Gildenbank",
+                "links": "Links"
+            },
+            "orga": {
+                "newRaid": "Raid anlegen",
+                "links": "Links",
+                "summary": "Status-Zeile"
+            }
+        },
+        "hubFeatureTip": {
+            "raid": {
+                "nextRaid": "Der nächste Raid der Kategorie mit Knopf „Mein Raid“.",
+                "attendance": "Abwesend und Dabei eintragen, Meine Einträge.",
+                "evaluation": "Knopf „Auswertung“ mit dem letzten Raid des Raiders.",
+                "guildBank": "Gildenbank-Knopf – erscheint nur mit Gildenbank-Kanal.",
+                "links": "Die Link-Knöpfe unten in der Nachricht."
+            },
+            "orga": {
+                "newRaid": "Knopf „Raid anlegen“ für diese Kategorie.",
+                "links": "Knopf „Links …“ und die Link-Zeile.",
+                "summary": "Die Zählzeile über der Raid-Liste. Die Raid-Liste selbst bleibt immer."
+            }
+        },
         "planningShort": "Raidplan oder Google-Sheet, nie beides.",
         "fixedSheetShort": "Jeder Raid dieser Kategorie verlinkt dieses Sheet.",
         "setupDmsShort": "Jeder Raider erfährt seinen Platz per DM.",

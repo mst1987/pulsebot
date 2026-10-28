@@ -130,7 +130,16 @@ export type AvailabilityPanelsData = {
     links: Record<string, AvailabilityLink[]>;
     /** How many links one category may have. */
     maxLinks: number;
+    /** Categories with a part of their raid hub switched off (#969): `{ [categoryId]: { nextRaid: false, … } }`; missing = all on. */
+    features?: Record<string, Record<string, boolean>>;
+    /** The raid hub's parts in their order. */
+    featureKeys?: string[];
 };
+
+/** Switch parts of a category's raid hub on or off (only the keys given change); the posted hub is redrawn at once. */
+export function saveAvailabilityFeatures(categoryId: string, features: Record<string, boolean>): Promise<{ categoryId: string; features: Record<string, boolean> }> {
+    return send("PUT", "/api/availability/features", { categoryId, features });
+}
 
 export function getAvailabilityPanels(): Promise<AvailabilityPanelsData> {
     return get("/api/availability/panels");

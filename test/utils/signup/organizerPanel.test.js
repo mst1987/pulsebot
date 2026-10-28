@@ -130,6 +130,46 @@ describe("organizerPayload", () => {
         expect(buttons(en).map((b) => b.label).pop()).toBe("Make a request");
         expect(all(en).filter((c) => c.type === 9).pop().components[0].content).toContain("**Guild bank**");
     });
+
+    describe("ausgeschaltete Bereiche (#969)", () => {
+        const links = [{ label: "WCL", url: "https://www.warcraftlogs.com/guild/1" }];
+        const full = { ...base, links, guildBank: true };
+        const dividers = (payload) => all(payload).filter((c) => c.type === 14 && c.divider).length;
+
+        it("zeigt mit fehlenden Schaltern alles wie bisher", () => {
+            expect(JSON.stringify(organizerPayload({ ...full, features: {} }))).toBe(JSON.stringify(organizerPayload(full)));
+            expect(dividers(organizerPayload(full))).toBe(5);
+        });
+
+        it("lässt einen ausgeschalteten Bereich samt Trenner weg", () => {
+            const payload = organizerPayload({ ...full, features: { evaluation: false } });
+            expect(customIds(payload)).not.toContain("availability:o:cat1");
+            expect(texts(payload).join("\n")).not.toContain("Deine Auswertung");
+            expect(dividers(payload)).toBe(4);
+            expect(JSON.stringify(payload)).not.toBe(JSON.stringify(organizerPayload(full)));
+        });
+
+        it("nimmt jeden Bereich einzeln heraus", () => {
+            expect(customIds(organizerPayload({ ...full, features: { nextRaid: false } }))[0]).toBe("availability:a:cat1");
+            expect(customIds(organizerPayload({ ...full, features: { attendance: false } }))).toEqual(["availability:r:cat1", "availability:o:cat1", "availability:b:cat1"]);
+            expect(customIds(organizerPayload({ ...full, features: { guildBank: false } }))).not.toContain("availability:b:cat1");
+            const noLinks = organizerPayload({ ...full, features: { links: false } });
+            expect(linkButtons(noLinks)).toEqual([]);
+            expect(texts(noLinks).join("\n")).not.toContain("**Links**");
+        });
+
+        it("lässt die Gildenbank ohne Kanal weg, auch wenn ihr Schalter an ist", () => {
+            expect(customIds(organizerPayload({ ...base, guildBank: false, features: { guildBank: true } }))).not.toContain("availability:b:cat1");
+        });
+
+        it("behält bei allem aus nur die Überschrift", () => {
+            const off = { nextRaid: false, attendance: false, evaluation: false, guildBank: false, links: false };
+            const payload = organizerPayload({ ...full, features: off });
+            expect(texts(payload)).toEqual(["## Raid-Zentrale · TBC Montag\n-# Alles für deine TBC Montag-Raids an einem Ort"]);
+            expect(buttons(payload)).toEqual([]);
+            expect(dividers(payload)).toBe(0);
+        });
+    });
 });
 
 describe("myRaidPayload", () => {

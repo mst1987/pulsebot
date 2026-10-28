@@ -19,6 +19,8 @@
 // POST   /api/availability/panel          area settings — post a category's panel; body { categoryId, channelId }
 // DELETE /api/availability/panel          area settings — take it down; body { categoryId }
 // PUT    /api/availability/links          area settings — a category's organizer links; body { categoryId, links: [{ label, url }] }
+// PUT    /api/availability/features       area settings — switch parts of a category's raid hub on/off (#969);
+//                                                         body { categoryId, features: { nextRaid?, attendance?, evaluation?, guildBank?, links? } }
 //
 // Everything works on the session's own account. A `userId` of somebody else
 // counts only for the orga (`raids` write), who enters for a raider who told
@@ -39,7 +41,7 @@ const absenceOverview = require("../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../availability/raiderAttendance");
 const { entryCategories, entryCategoryIds } = require("../availability/entryCategories");
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
-const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -196,7 +198,8 @@ function panelView(panel) {
 const getPanels = withUser({}, async ({ user, req, res }) => {
     const panels = availabilityStore.listPanels().filter((panel) => mayUseServer(user, req, panel.guildId));
     const links = Object.fromEntries(Object.entries(availabilityStore.listLinks()).filter(([categoryId]) => categoryOnActiveServer(user, req, categoryId)));
-    ok(res, { panels: panels.map(panelView), links, maxLinks: availabilityStore.MAX_LINKS });
+    const features = Object.fromEntries(Object.entries(availabilityStore.listFeatures()).filter(([categoryId]) => categoryOnActiveServer(user, req, categoryId)));
+    ok(res, { panels: panels.map(panelView), links, maxLinks: availabilityStore.MAX_LINKS, features, featureKeys: availabilityStore.FEATURE_KEYS });
 });
 
 /** PUT /api/availability/links — replace a category's link buttons; its posted panel is redrawn at once. */
@@ -207,6 +210,29 @@ const putLinks = withUser({ csrf: true, body: true }, async ({ user, req, body, 
     // not awaited: a Discord edit is slow and never holds up the save
     availabilityPanel.refreshPanels({ categoryId: str(body.categoryId) }).catch(() => {});
     ok(res, { categoryId: str(body.categoryId), links: result.links });
+});
+
+/**
+ * Whether a raid category is one the bot knows (#969): an active category, one an entry may
+ * name, or a category channel in the bot's cache. A switch for any other id is refused.
+ */
+function knownHubCategory(categoryId, config) {
+    const id = str(categoryId);
+    if (!id) return false;
+    const active = (Array.isArray(config.categoryIds) ? config.categoryIds : []).map(str);
+    return active.includes(id) || entryCategoryIds({ config }).includes(id) || !!guildOfChannel(id);
+}
+
+/** PUT /api/availability/features — switch parts of a category's raid hub on or off; its posted panel is redrawn at once. */
+const putFeatures = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const categoryId = str(body.categoryId);
+    if (!knownHubCategory(categoryId, getConfig())) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
+    if (!categoryOnActiveServer(user, req, categoryId)) return otherServer(res);
+    const result = availabilityStore.setFeatures(categoryId, body.features);
+    if (result.error) return apiError(res, 400, "bad_request", result.error);
+    // not awaited, like the links: the Discord edit never holds up the save
+    availabilityPanel.refreshPanels({ categoryId }).catch(() => {});
+    ok(res, { categoryId, features: result.features });
 });
 
 /** POST /api/availability/panel — post (or move) a category's panel. */
@@ -316,6 +342,7 @@ const routes = [
     { method: "POST", path: "/api/availability/panel", handler: postPanel, area: "settings" },
     { method: "DELETE", path: "/api/availability/panel", handler: deletePanel, area: "settings" },
     { method: "PUT", path: "/api/availability/links", handler: putLinks, area: "settings" },
+    { method: "PUT", path: "/api/availability/features", handler: putFeatures, area: "settings" },
 ];
 
-module.exports = { routes, _internal: { entryView, characterChoices, targetOf } };
+module.exports = { routes, _internal: { entryView, characterChoices, targetOf, knownHubCategory } };

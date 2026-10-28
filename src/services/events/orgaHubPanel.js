@@ -52,10 +52,19 @@ const line = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorS
 const newRaidId = (categoryId) => `${NEW_RAID_PREFIX}:new:${categoryId}`;
 const linksId = (categoryId) => `${NEW_RAID_PREFIX}:links:${categoryId}`;
 
-/** How many raids fit next to `linkCount` link buttons (never more than MAX_RAIDS). */
-function raidCapacity(linkCount = 0) {
-    const links = Math.max(0, Number(linkCount) || 0);
-    const used = FIXED_COMPONENTS + (links ? 1 + links : 0);
+/** Whether a part of the hub is on (orgaHubStore.getFeatures; a missing key = on). */
+const isOn = (features, key) => !(features && typeof features === "object" && features[key] === false);
+
+/**
+ * How many raids fit next to `linkCount` link buttons (never more than MAX_RAIDS). `features`
+ * switched off (#969) free room: no "Raid anlegen" button, no "Links …" button and no links row.
+ * "Alle Raids im Web" is always counted, whether a public address is set or not.
+ */
+function raidCapacity(linkCount = 0, features = {}) {
+    const linksOn = isOn(features, "links");
+    const links = linksOn ? Math.max(0, Number(linkCount) || 0) : 0;
+    const missingButtons = (isOn(features, "newRaid") ? 0 : 1) + (linksOn ? 0 : 1);
+    const used = FIXED_COMPONENTS - missingButtons + (links ? 1 + links : 0);
     return Math.max(0, Math.min(MAX_RAIDS, Math.floor((COMPONENT_LIMIT - used) / COMPONENTS_PER_RAID)));
 }
 
@@ -95,28 +104,34 @@ function raidLines(raid, emojis) {
  * @param {string} [o.webUrl] "Alle Raids im Web", "" when no public address is set
  * @param {number} [o.weeks] how far ahead it looks
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
+ * @param {object} [o.features] the parts switched on/off (orgaHubStore.getFeatures, #969): `newRaid` = the
+ *   "Raid anlegen" button, `links` = "Links …" plus the links row, `summary` = the status count line.
+ *   A missing key = on; the raid list always stays, an empty buttons row is left out.
  * @returns {{ flags: number, components: object[], embeds: [], content: "" }} API JSON
  */
-function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts = [], links = [], total = 0, webUrl = "", weeks = 4, emojis = {} } = {}) {
+function orgaHubPayload({ categoryId = "", categoryName = "", raids = [], counts = [], links = [], total = 0, webUrl = "", weeks = 4, emojis = {}, features = {} } = {}) {
     const category = plainCategoryName(categoryName);
     const c = new ContainerBuilder().setAccentColor(COLOR_ORGA);
     const n = Math.max(0, Number(total) || 0);
     const when = `in den nächsten ${weeks} Wochen`;
     const sub = n ? `${n} ${n === 1 ? "Raid" : "Raids"} ${when}` : `Keine Raids ${when}`;
-    const summary = (counts || []).map((s) => `${statusIcon(emojis, s.status)} ${s.label}`).join(" · ");
+    const summary = isOn(features, "summary") ? (counts || []).map((s) => `${statusIcon(emojis, s.status)} ${s.label}`).join(" · ") : "";
     c.addTextDisplayComponents(text([`## Orga-Zentrale${category ? ` · ${category}` : ""}`, `-# ${sub}`, summary].filter(Boolean).join("\n")));
 
-    const buttons = [new ButtonBuilder().setCustomId(newRaidId(categoryId)).setLabel("Raid anlegen").setStyle(ButtonStyle.Primary)];
+    const newRaidOn = isOn(features, "newRaid");
+    const linksOn = isOn(features, "links");
+    const buttons = [];
+    if (newRaidOn) buttons.push(new ButtonBuilder().setCustomId(newRaidId(categoryId)).setLabel("Raid anlegen").setStyle(ButtonStyle.Primary));
     if (webUrl) buttons.push(linkButton("Alle Raids im Web", webUrl));
-    buttons.push(new ButtonBuilder().setCustomId(linksId(categoryId)).setLabel("Links …").setStyle(ButtonStyle.Secondary));
-    c.addActionRowComponents(new ActionRowBuilder().addComponents(buttons));
-    const shownLinks = (links || []).filter((l) => l && l.label && l.url).slice(0, 5);
+    if (linksOn) buttons.push(new ButtonBuilder().setCustomId(linksId(categoryId)).setLabel("Links …").setStyle(ButtonStyle.Secondary));
+    if (buttons.length) c.addActionRowComponents(new ActionRowBuilder().addComponents(buttons));
+    const shownLinks = linksOn ? (links || []).filter((l) => l && l.label && l.url).slice(0, 5) : [];
     if (shownLinks.length) c.addActionRowComponents(new ActionRowBuilder().addComponents(shownLinks.map((l) => linkButton(l.label, l.url, l.emoji))));
 
-    const cap = raidCapacity(shownLinks.length);
+    const cap = raidCapacity(shownLinks.length, features);
     const shown = (raids || []).slice(0, cap);
     c.addSeparatorComponents(line());
-    if (!shown.length) c.addTextDisplayComponents(text("Noch kein Raid geplant. „Raid anlegen“ legt den nächsten an."));
+    if (!shown.length) c.addTextDisplayComponents(text(newRaidOn ? "Noch kein Raid geplant. „Raid anlegen“ legt den nächsten an." : "Noch kein Raid geplant."));
     for (const raid of shown) {
         const content = raidLines(raid, emojis);
         if (raid.url && raid.linkLabel) {

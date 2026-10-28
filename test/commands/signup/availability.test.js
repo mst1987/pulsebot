@@ -344,3 +344,38 @@ describe("Gildenbank", () => {
         expect(answerOf(stale.editReply.mock.calls[0][0]).description).toBe("⚠️ Die Gildenbank ist gerade nicht eingerichtet.");
     });
 });
+
+describe("switched-off sections (#969)", () => {
+    afterEach(() => store.setFeatures("cat1", Object.fromEntries(store.FEATURE_KEYS.map((k) => [k, true]))));
+    const OFF = "This feature is switched off in this raid hub.";
+
+    it("answers every button of a switched-off section ephemerally and opens nothing", async () => {
+        store.setFeatures("cat1", { attendance: false, nextRaid: false, evaluation: false, guildBank: false });
+        for (const id of ["availability:a:cat1", "availability:p:cat1", "availability:l:cat1", "availability:r:cat1", "availability:o:cat1", "availability:b:cat1"]) {
+            const i = click(id);
+            await command.execute(i);
+            expect(i.showModal).not.toHaveBeenCalled();
+            const payload = replyPayload(i);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(answerOf(payload).text).toContain(OFF);
+        }
+    });
+
+    it("leaves the other sections working", async () => {
+        store.setFeatures("cat1", { evaluation: false });
+        const i = click("availability:a:cat1");
+        await command.execute(i);
+        expect(i.showModal).toHaveBeenCalled();
+        const other = click("availability:a:cat2");
+        await command.execute(other);
+        expect(other.showModal).toHaveBeenCalled();
+    });
+
+    it("keeps \"My entries\" working inside an ephemeral answer", async () => {
+        store.setFeatures("cat1", { attendance: false });
+        const i = click("availability:l:cat1", { message: { flags: { has: (f) => f === MessageFlags.Ephemeral } } });
+        await command.execute(i);
+        const calls = [...i.reply.mock.calls, ...i.update.mock.calls].map((c) => answerOf(c[0]).text).join("\n");
+        expect(calls).not.toContain(OFF);
+    });
+});
