@@ -1,4 +1,5 @@
 import type { ReactNode, CSSProperties } from "react";
+import { Link } from "react-router-dom";
 import type { CharGearReport, GearIssue, GearItem, HistoryCharData } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { itemQualityColor, itemQualityProps } from "../../lib/wow/itemQuality";
@@ -183,7 +184,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
             />
             {wrongLevel && (
                 <div className="flash flash-err ros-flash">
-                    {t("history.gear.wrongLevel")} <strong>{tParts("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <AllSettingsLink inline section="spielversion">{t("history.shared.settings")}</AllSettingsLink>.
+                    {t("history.gear.wrongLevel")} <strong>{tParts("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <Link to="/settings?section=versionlinks">{t("history.shared.settings")}</Link>.
                 </div>
             )}
             {body}
