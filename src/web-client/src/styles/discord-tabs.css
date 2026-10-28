@@ -16,6 +16,12 @@
     padding: 8px 0 9px; margin-bottom: -1px; border-bottom: 2px solid transparent;
     color: var(--muted); font-weight: 600; font-size: 14px; text-decoration: none;
 }
+/* the same look as a button (Einstellungen › Discord-Server switches tabs in place, no link) */
+button.dtab-tab {
+    background: none; border: 0; border-bottom: 2px solid transparent; border-radius: 0;
+    font-family: inherit; cursor: pointer;
+}
+button.dtab-on { border-bottom-color: var(--area-channels); }
 .dtab-tab:hover { color: var(--text); }
 .dtab-tab:focus-visible { outline: 2px solid var(--area-channels); outline-offset: 2px; border-radius: 2px; }
 .dtab-on { color: var(--text); border-bottom-color: var(--area-channels); }

@@ -377,7 +377,7 @@ export default function DiscordServersSection({ onConfig, crumb }: {
     // A server without the tentative/decline channel loses those messages: the cell itself warns and says why.
     const noteUnsetCell = (guildId: string) => (
         <span className="srv-warn" tabIndex={0} data-tip={t("settings.discordServers.noteUnsetTip", { name: guildName(data, guildId) })}>
-            <WarnIcon />{t("settings.discordServers.channelUnset")}
+            <WarnIcon /><span className="srv-warn-text">{t("settings.discordServers.channelUnset")}</span>
         </span>
     );
     const channelText = (r: ChannelRow, id: string) => (id ? channelName(guildChannels(data, r.guildId), id).toLowerCase() : "~");

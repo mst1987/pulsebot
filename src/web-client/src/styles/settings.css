@@ -406,6 +406,9 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     dialog.dlg.srv-dlg .dlg-foot > span:first-child { flex-basis: 100%; }
     .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
     .srv-sub { display: flex; flex-wrap: wrap; }
+    /* the channel table: the warning keeps only its icon (text for screen readers, the reason in the tooltip), so the server name keeps whole words */
+    .srv-warn-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .srv-signup-ch td { overflow-wrap: normal; }
     /* a role pair with long names wraps; the edit and delete buttons stay in view */
     .sync-row { flex-wrap: wrap; }
     .srv-server-text > .srv-muted { font-size: 13px; }
