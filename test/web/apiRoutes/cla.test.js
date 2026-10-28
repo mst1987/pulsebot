@@ -89,6 +89,7 @@ jest.mock("../../../src/services/logcheck/logChannel", () => ({
     evaluateLog: jest.fn(),
     scanLogChannels: jest.fn(),
     backfillLogTitles: jest.fn(() => Promise.resolve(0)),
+    refreshLogButton: jest.fn(() => Promise.resolve(true)),
 }));
 jest.mock("../../../src/web/logcheck/manualLog", () => ({ linkLogByUrl: jest.fn() }));
 jest.mock("../../../src/utils/logcheck/report", () => {
@@ -561,6 +562,8 @@ describe("web/apiRoutes/cla", () => {
             expect(logStore.getByReportRefId).toHaveBeenCalledWith("abc");
             expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
             expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
+            // the message under the log offers its buttons again
+            expect(logChannel.refreshLogButton).toHaveBeenCalledWith("l1");
             expect(json(res).data).toMatchObject({ reportId: "abc", logId: "l1" });
             expect(json(res).data.message).toMatch(/offen/);
         });
@@ -733,6 +736,8 @@ describe("web/apiRoutes/cla", () => {
             );
             expect(reportStore.deleteReport).not.toHaveBeenCalled();
             expect(json(res).data).toMatchObject({ logId: "l1", section: "rpb", remaining: ["cla"] });
+            // the discarded half gets its button back in Discord
+            expect(logChannel.refreshLogButton).toHaveBeenCalledWith("l1");
         });
 
         it("deletes the whole report when the last half is dropped", async () => {

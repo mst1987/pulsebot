@@ -52,13 +52,9 @@ describe("commands/logcheck/logeval", () => {
         await command.execute(interaction);
 
         expect(interaction.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
-        expect(evaluateLog).toHaveBeenCalledWith("log1", "cla");
-        expect(discord.finishLogButton).toHaveBeenCalledWith("logch", "btn1", {
-            reportUrl: "https://host/r/abc123",
-            title: "SSC + TK",
-            logId: "log1",
-            doneSections: ["cla"],
-        });
+        // the message under the log is redrawn by evaluateLog itself (refreshLogButton)
+        expect(evaluateLog).toHaveBeenCalledWith("log1", "cla", { button: expect.any(Object) });
+        expect(discord.finishLogButton).not.toHaveBeenCalled();
         const arg = interaction.editReply.mock.calls[0][0];
         expect(cardText(arg)).toContain("CLA");
         expect(cardControls(arg)[0]).toMatchObject({ style: 5, url: "https://host/r/abc123" });
@@ -74,7 +70,7 @@ describe("commands/logcheck/logeval", () => {
 
         await command.execute(interaction);
 
-        expect(evaluateLog).toHaveBeenCalledWith("log1", "rpb");
+        expect(evaluateLog).toHaveBeenCalledWith("log1", "rpb", expect.any(Object));
         expect(reportSummaryLines).toHaveBeenCalledWith({ title: "T" }, "rpb");
         expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("RPB");
     });
@@ -87,7 +83,7 @@ describe("commands/logcheck/logeval", () => {
 
         await command.execute(interaction);
 
-        expect(evaluateLog).toHaveBeenCalledWith("log1", "cla");
+        expect(evaluateLog).toHaveBeenCalledWith("log1", "cla", expect.any(Object));
     });
 
     it("includes the summary lines of the evaluated half in the reply", async () => {
@@ -104,7 +100,7 @@ describe("commands/logcheck/logeval", () => {
         expect(cardText(arg)).toContain("🛑 Unterbrechungen: 9 Spieler");
     });
 
-    it("does not fail evaluation on a missing tracked button (uses interaction fallback)", async () => {
+    it("hands the clicked message to evaluateLog as the hint for a log that never stored its own", async () => {
         evaluateLog.mockResolvedValue({
             ok: true, id: "abc", url: "/r/abc", report: { title: "Kara" }, log: {}, section: "cla",
         });
@@ -114,7 +110,7 @@ describe("commands/logcheck/logeval", () => {
 
         await command.execute(interaction);
 
-        expect(discord.finishLogButton).toHaveBeenCalledWith("chan9", "btnX", expect.any(Object));
+        expect(evaluateLog).toHaveBeenCalledWith("log1", "cla", { button: { channelId: "chan9", messageId: "btnX" } });
         expect(interaction.editReply).toHaveBeenCalled();
     });
 
