@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
     applyPugOnboarding, getPugOnboarding,
     type ApiError, type PugCategory, type PugItemStatus, type PugOnboardingOverview, type PugPrerequisite, type PugPrompt, type PugRole,
@@ -61,12 +61,23 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
         if (guildId && !servers.some((s) => s.id === guildId)) { setGuildId(""); setCategoryIds(undefined); }
     }, [servers, guildId]);
 
+    // Each load gets a number; only the answer of the latest one sets the state, so a slow
+    // answer for a server chosen before cannot overwrite the one chosen after.
+    const loadSeq = useRef(0);
     const load = () => {
         if (!servers.length) return;
+        const seq = ++loadSeq.current;
         setData(null);
         getPugOnboarding(guildId || undefined, categoryIds)
-            .then((d) => { setData(d); setError(""); if (!guildId && d.guildId) setGuildId(d.guildId); })
-            .catch((err: ApiError) => { if (err.code === "forbidden") setHidden(true); else setError(err.message); });
+            .then((d) => {
+                if (seq !== loadSeq.current) return;
+                setData(d); setError("");
+                if (!guildId && d.guildId) setGuildId(d.guildId);
+            })
+            .catch((err: ApiError) => {
+                if (seq !== loadSeq.current) return;
+                if (err.code === "forbidden") setHidden(true); else setError(err.message);
+            });
     };
     useEffect(load, [guildId, categoryIds, servers.length]);
 

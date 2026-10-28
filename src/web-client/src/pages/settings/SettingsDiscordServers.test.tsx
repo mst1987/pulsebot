@@ -6,6 +6,7 @@ import * as api from "../../api";
 import type { AdminConfig, DiscordServersData, ServerLink, ServerRow } from "../../api";
 import { renderPage } from "../../test/render";
 import DiscordServersSection from "./SettingsDiscordServers";
+import PugOnboardingPart from "./PugOnboardingPart";
 
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
@@ -90,6 +91,32 @@ describe("Discord-Server: Schalter PuG-Server (#906)", () => {
         } as unknown as api.PugOnboardingOverview);
         render();
         expect(await screen.findByText(HINT)).toBeInTheDocument();
+    });
+
+    it("drops a slow answer that arrives after the answer for a server chosen later", async () => {
+        const overview = (guildId: string, other: string) => ({
+            guildId, guildName: other, online: true, applied: null, pugCategories: [], otherCategories: [{ id: `c${guildId}`, name: other }],
+        } as unknown as api.PugOnboardingOverview);
+        let first: (v: api.PugOnboardingOverview) => void = () => undefined;
+        let second: (v: api.PugOnboardingOverview) => void = () => undefined;
+        vi.mocked(api.getPugOnboarding)
+            .mockReturnValueOnce(new Promise((r) => { first = r; }))
+            .mockReturnValueOnce(new Promise((r) => { second = r; }));
+        renderPage(<PugOnboardingPart servers={[
+            { id: "10001", name: "Pulse", label: "" },
+            { id: "20002", name: "Eventserver", label: "" },
+        ]} />);
+        // the default load (no guildId) is still open when the admin picks the second server
+        fireEvent.change(await screen.findByRole("combobox", { name: "Server" }), { target: { value: "20002" } });
+        await waitFor(() => expect(api.getPugOnboarding).toHaveBeenCalledTimes(2));
+        await act(async () => { second(overview("20002", "Neue Kategorie")); });
+        expect(await screen.findByText(/Neue Kategorie/)).toBeInTheDocument();
+        // now the old answer for the default server comes in late: it must change nothing
+        await act(async () => { first(overview("10001", "Alte Kategorie")); });
+        expect(screen.getByText(/Neue Kategorie/)).toBeInTheDocument();
+        expect(screen.queryByText(/Alte Kategorie/)).toBeNull();
+        expect((screen.getByRole("combobox", { name: "Server" }) as HTMLSelectElement).value).toBe("20002");
+        expect(api.getPugOnboarding).toHaveBeenCalledTimes(2);
     });
 
     it("switches a server to PuG-Server in its dialog and saves the switch", async () => {

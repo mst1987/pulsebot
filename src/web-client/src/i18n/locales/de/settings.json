@@ -624,7 +624,7 @@
         "pugServer": "PuG-Server",
         "pugServerSub": "Nur auf PuG-Servern richtet der Bot Versions- und Klassenrollen und das Onboarding ein (Teil „Rollen & Onboarding“). Offene Kategorien für Anmeldungen gehen auch ohne.",
         "editServer": "Server bearbeiten",
-        "editServerSub": "Label, Schalter „PuG-Server“ und Einladungen",
+        "editServerSub": "Label und Schalter „PuG-Server“",
         "source": "Quelle",
         "sourceSub": "Der Server, dessen Raid-Liste gepostet wird.",
         "target": "Ziel",
