@@ -562,6 +562,8 @@ describe("web/apiRoutes/cla", () => {
             expect(logStore.getByReportRefId).toHaveBeenCalledWith("abc");
             expect(reportStore.deleteReport).toHaveBeenCalledWith("abc");
             expect(logStore.clearEvaluation).toHaveBeenCalledWith("l1");
+            // the message under the log offers its buttons again
+            expect(logChannel.refreshLogButton).toHaveBeenCalledWith("l1");
             expect(json(res).data).toMatchObject({ reportId: "abc", logId: "l1" });
             expect(json(res).data.message).toMatch(/offen/);
         });

@@ -210,7 +210,11 @@ const deleteReportHandler = withUser({ csrf: true, body: true }, async ({ user, 
     if (!onActiveServer(user, req, log ? log.guildId : guildOfReport(reportId))) return reportNotHere(res);
     const removed = deleteReport(reportId);
     if (!removed && !log) return error(res, 400, "not_found", "Auswertung nicht gefunden.");
-    if (log) clearEvaluation(log.id);
+    if (log) {
+        clearEvaluation(log.id);
+        // the message under the log offers its buttons again (best-effort, not awaited)
+        void refreshLogButton(log.id);
+    }
     ok(res, {
         reportId,
         logId: log ? log.id : "",

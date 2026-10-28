@@ -76,34 +76,57 @@ async function enrichLogButton(log, btn, { client } = {}) {
  * never lags behind (before, only the Discord buttons redrew it).
  *
  * The message is the one stored on the log; without one (logs from before the ids
- * were stored) `hint` (the clicked message) or the bot's reply under the log post
- * is used and remembered. Best-effort, never throws.
+ * were stored) or when it is gone, `hint` (the clicked message) or the bot's reply
+ * of this log under the log post is used and remembered; nothing found forgets the
+ * stored one. Best-effort, never throws.
  *
  * @param {object|string} logOrId the log or its id
  * @param {{ hint?: { channelId?: string, messageId?: string } }} [opts]
  * @returns {Promise<boolean>} whether the message was redrawn
  */
-async function refreshLogButton(logOrId, { hint } = {}) {
+function refreshLogButton(logOrId, opts = {}) {
+    const id = typeof logOrId === "string" ? logOrId : String((logOrId && logOrId.id) || "");
+    if (!id) return Promise.resolve(false);
+    // One redraw per log at a time, each reading the stored state when its turn
+    // comes: a CLA and an RPB run finishing together never leave "1 von 2" behind.
+    const next = (redrawChains.get(id) || Promise.resolve()).then(() => redrawLogButton(id, logOrId, opts));
+    redrawChains.set(id, next);
+    void next.then(() => { if (redrawChains.get(id) === next) redrawChains.delete(id); });
+    return next;
+}
+
+const redrawChains = new Map();
+
+async function redrawLogButton(id, given, { hint } = {}) {
     try {
-        const log = typeof logOrId === "string" ? logStore.getLog(logOrId) : logOrId;
+        const log = logStore.getLog(id) || (given && typeof given === "object" ? given : null);
         if (!log) return false;
-        let channelId = log.buttonChannelId;
-        let messageId = log.buttonMessageId;
-        if (!messageId) {
-            const found = hint && hint.channelId && hint.messageId
-                ? hint
-                : await discord.findLogButtonMessage(log.channelId, log.messageId);
-            if (!found || !found.messageId) return false;
-            ({ channelId, messageId } = found);
-            logStore.setButtonMessage(log.id, { buttonChannelId: channelId, buttonMessageId: messageId });
-        }
         const doneSections = logStore.evaluatedSections(log);
-        return !!(await discord.finishLogButton(channelId, messageId, {
+        const draw = async (at) => !!(await discord.finishLogButton(at.channelId, at.messageId, {
             logId: log.id, title: log.title, link: log.link, startMs: log.reportStart, doneSections,
             reportUrl: doneSections.length ? log.reportUrl || "" : "",
         }));
+        const usable = (at) => !!(at && at.channelId && at.messageId);
+        const stored = log.buttonMessageId ? { channelId: log.buttonChannelId, messageId: log.buttonMessageId } : null;
+        if (usable(stored) && await draw(stored)) {
+            // an older message of the same log that was clicked follows too
+            if (usable(hint) && hint.messageId !== stored.messageId) await draw(hint);
+            return true;
+        }
+        // nothing stored, or the stored message is gone: the clicked one, else the bot's reply of this log
+        const found = usable(hint) && (!stored || hint.messageId !== stored.messageId)
+            ? hint
+            : await discord.findLogButtonMessage(log.channelId, log.messageId, { logId: log.id, link: log.link });
+        if (!usable(found) || (stored && found.messageId === stored.messageId)) {
+            // gone and nowhere else: forget it, so a new post of the link gets its buttons again
+            if (stored && !usable(found)) logStore.setButtonMessage(log.id, {});
+            return false;
+        }
+        if (!(await draw(found))) return false;
+        logStore.setButtonMessage(log.id, { buttonChannelId: found.channelId, buttonMessageId: found.messageId });
+        return true;
     } catch (e) {
-        console.error(`refreshLogButton ${logOrId && (logOrId.id || logOrId)}: ${e.message}`);
+        console.error(`refreshLogButton ${id}: ${e.message}`);
         return false;
     }
 }
@@ -158,7 +181,10 @@ async function handleLogMessage(message) {
         // Only skip once *both* analyses are done — a log whose CLA already ran
         // should still offer its RPB button.
         if (existing && logStore.evaluatedSections(existing).length >= 2) continue;
-        if (existing && existing.buttonMessageId) continue;        // already has a live button
+        // already has a live button in this channel — one that was deleted, or sits on
+        // another server's log channel, does not stop a new post from getting its own
+        if (existing && existing.buttonMessageId && existing.buttonChannelId === message.channelId
+            && await discord.logButtonExists(existing.buttonChannelId, existing.buttonMessageId)) continue;
 
         const log = logStore.saveLog({
             guildId: message.guildId,
