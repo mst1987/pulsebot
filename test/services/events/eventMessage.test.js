@@ -91,7 +91,7 @@ describe("services/events/eventMessage", () => {
         const text = JSON.stringify(payload);
         for (const word of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät (1)", "Vielleicht (1)", "Abgemeldet (1)", "Raidleitung: <@7>",
             "Anmeldeschluss: <t:1999990000:f>", "Sprachkanal: <#v9>", "Uhrzeit: <t:2000000000:t>", "**5** angemeldet",
-            "Anderer Charakter oder Klasse …", "Meine Charaktere …", "Krieger", "Druide", "[Anmelden](", "[Kalender](", "· Schutz"]) {
+            "Anderer Charakter oder Klasse …", "Meine Charaktere …", "Krieger", "Druide", "[Kalender](", "· Schutz"]) {
             expect(text).toContain(word);
         }
         const buttons = payload.components[0].components.map((b) => b.label);
@@ -166,9 +166,9 @@ describe("services/events/eventMessage", () => {
         // no end time: a duration nobody set would only show the default
         expect(JSON.stringify(embed)).not.toMatch(/eh_ui_end|Ende/);
         const links = embed.fields[embed.fields.length - 1].value;
-        // #308: the public event page first, the menu beside it, and the event's
-        // own calendar file (no icsUrl was passed).
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
+        // #308: the public event page first, then Comp and the event's own
+        // calendar file (no icsUrl was passed) — no menu signup link beside the buttons.
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Calendar](https://eh.example/r/cal/eh-1.ics)");
         expect(links).not.toContain("Setup");
     });
 
@@ -602,24 +602,24 @@ describe("services/events/eventMessage", () => {
         expect(embed.fields.length).toBeLessThanOrEqual(LIMITS.fields);
         expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
         const names = embed.fields.map((f) => emojiless(f.name));
-        // every class block, the status lines and the links (incl. the Setup link) are all there
+        // every class block, the status lines and the links are all there
         for (const cls of ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman", "Mage", "Warlock", "Druid"]) {
             expect(names.some((n) => n.includes(`__${cls}__`))).toBe(true);
         }
         expect(names.some((n) => n.includes("__Tanks__"))).toBe(true);
         expect(embed.fields.some((f) => f.value.includes("Absence ("))).toBe(true);
-        expect(embed.fields[embed.fields.length - 1].value).toContain("[Setup]");
+        expect(embed.fields[embed.fields.length - 1].value).toContain("[Comp]");
         expect(embed.fields[embed.fields.length - 1].value).toContain("[Calendar]");
         expect(embed.fields.every((f) => Object.keys(f).sort().join() === "inline,name,value")).toBe(true);
     });
 
-    it("links the approved setup instead of repeating its groups — that's the setup message's own job (#352)", () => {
+    it("neither repeats the approved setup's groups nor links it twice — that's the setup message's and Comp's job (#352)", () => {
         const approved = { groups: [{ index: 1, slots: [{ character: "Brokk" }] }], bench: [{ character: "Kael" }] };
         const payload = buildEventMessage(event({ setup: { status: "approved", approved } }), signups, { now: NOW, icsUrl: "https://eh.example/ics/eh-1.ics" });
         const fields = payload.embeds[0].fields;
         expect(fields.some((f) => emojiless(f.name) === "Setup")).toBe(false);
         const links = fields[fields.length - 1].value;
-        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Setup](https://eh.example/raids/detail?event=eh-1&tab=setup)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
+        expect(links).toBe("[Event](https://eh.example/e/eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)  ·  [Calendar](https://eh.example/ics/eh-1.ics)");
 
         const draft = buildEventMessage(event({ setup: { status: "draft", groups: approved.groups } }), signups, { now: NOW });
         expect(JSON.stringify(draft)).not.toContain("Setup");
@@ -631,7 +631,7 @@ describe("services/events/eventMessage", () => {
             return fields[fields.length - 1].value;
         };
         // "Comp" is the setup link of #520 (always there); the sheet of #357 is "Sheet" since
-        const head = "[Event](https://eh.example/e/eh-1)  ·  [Sign up](https://eh.example/signups?event=eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)";
+        const head = "[Event](https://eh.example/e/eh-1)  ·  [Comp](https://eh.example/e/eh-1/comp)";
         expect(links({})).toBe(`${head}  ·  [Calendar](https://eh.example/ics/eh-1.ics)`);
         expect(links({ compUrl: "https://docs.google.com/spreadsheets/d/abc" })).toBe(
             `${head}  ·  [Sheet](https://docs.google.com/spreadsheets/d/abc)  ·  [Calendar](https://eh.example/ics/eh-1.ics)`,
@@ -656,7 +656,7 @@ describe("services/events/eventMessage", () => {
         try {
             const fields = buildEventMessage(event(), signups, { now: NOW, compUrl: "https://docs.google.com/spreadsheets/d/abc" }).embeds[0].fields;
             const text = JSON.stringify(fields);
-            expect(text).not.toMatch(/\[Event\]|\[Sign up\]|\[Comp\]|\[Calendar\]/);
+            expect(text).not.toMatch(/\[Event\]|\[Comp\]|\[Calendar\]/);
             expect(fields[fields.length - 1].value).toBe("[Sheet](https://docs.google.com/spreadsheets/d/abc)");
         } finally {
             variables.publicBaseUrl = before;

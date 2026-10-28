@@ -85,7 +85,6 @@ const { migrateSignup, maxCharactersFor } = require("../signups/signupCharacters
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../../utils/text");
-const { approvedSetupOf } = require("../setup/setupCore");
 const { getConfig, resolveEventSheetLink } = require("../../stores/configStore");
 const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
@@ -127,7 +126,6 @@ const WORDS = {
     deadline: { de: "Anmeldeschluss", en: "Deadline" },
     start: { de: "Start", en: "Start" },
     event: { de: "Event", en: "Event" },
-    signUp: { de: "Anmelden", en: "Sign up" },
     calendar: { de: "Kalender", en: "Calendar" },
 };
 
@@ -307,22 +305,6 @@ function blockValue(lines, maxLines, max = LIMITS.fieldValue, lang = "de") {
         length = next;
     }
     return out.join("\n") || ZWS;
-}
-
-/**
- * The approved setup as one embed field — "**Grp 1** Anna, Bert, …" per line,
- * the bench last. Only the approved snapshot (#263): a draft never reaches the
- * channel. "" without an approval.
- */
-function approvedSetupText(event) {
-    const approved = approvedSetupOf(event);
-    if (!approved) return "";
-    const names = (list) => list.map((s) => escapeMd(s.character) || "?").join(", ");
-    const lines = approved.groups
-        .filter((g) => (g.slots || []).length)
-        .map((g) => `**Grp ${g.index}** ${names(g.slots)}`);
-    if ((approved.bench || []).length) lines.push(`**Bench** ${names(approved.bench)}`);
-    return clip(lines.join("\n"), LIMITS.fieldValue);
 }
 
 /** Characters Discord counts against the 6000 of an embed. */
@@ -639,25 +621,23 @@ function buildEventMessage(event, signups, {
     const tail = [];
     // The approved setup already has its own message in the channel
     // (setupMessage.js) — repeating every group's names here just duplicated
-    // it and added height on top of an already tall embed (#352). The Setup
-    // link below still points at it.
-    const setupText = approvedSetupText(event);
+    // it and added height on top of an already tall embed (#352).
     // Every link goes through linkCheck (#537): a web link only with a real
     // PUBLIC_BASE_URL (not the localhost fallback), sheet and softres only
     // when well formed — a link that would not open is left out.
     const base = linkCheck.webBase();
     const id = encodeURIComponent(event.id);
     const links = [];
+    // One link per target, nothing twice: signing up has the buttons of the
+    // message and the event page's own signup link, the setup editor is behind
+    // "Comp" — so no "Sign up" and no "Setup" link beside them any more.
     // The public event page first (#308): it is the link everyone in the channel
-    // can open, with or without a menu account. The menu link stays beside it —
-    // that is where one signs up and where the orga works.
+    // can open, with or without a menu account.
     if (base) links.push(`[${word(lang, "event")}](${base}/e/${id})`);
-    if (base) links.push(`[${word(lang, "signUp")}](${base}/signups?event=${id})`);
     // "Comp" (#520): one link for everybody, the server sends each reader on —
     // the orga with raid write access into the setup editor, everyone else to
-    // the public event page (pageRoutes.js, `/e/<id>/comp`).
+    // the public event page, to its setup once approved (pageRoutes.js, `/e/<id>/comp`).
     if (base) links.push(`[Comp](${base}/e/${id}/comp)`);
-    if (base && setupText) links.push(`[Setup](${base}/raids/detail?event=${id}&tab=setup)`);
     // The raid's comp sheet (an own copy, else the category's fixed one — see
     // configStore.resolveEventSheetLink) and its softres.it reservation list
     // (eventSoftresStore), when either is on record (#357). The sheet was
