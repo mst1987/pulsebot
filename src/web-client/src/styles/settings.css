@@ -244,13 +244,24 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .dlg-field .note { margin-top: 6px; }
 .fresh-token { display: flex; flex-direction: column; gap: 8px; flex: 1; min-width: 0; }
 
-/* Discord-Server (#891): the links table (main element) and the servers table */
-.srv-table { max-width: 1100px; }
+/* Discord-Server (#891), design B: one page width, the page head above the
+   tabs, then at most two parts per tab with a wide gap and a plain hairline head */
+.srv-page { max-width: 1040px; min-width: 0; }
+.srv-head { display: flex; flex-direction: column; gap: 4px; margin-bottom: 18px; }
+.srv-head .kicker { font-family: inherit; font-size: 12.5px; text-transform: none; letter-spacing: 0; font-weight: 500; }
+.srv-title { margin: 0; font-size: 26px; font-weight: 700; line-height: 1.2; letter-spacing: -.01em; }
+.srv-tabs { margin: 0 0 30px; }
+.srv-secs { display: flex; flex-direction: column; gap: 50px; min-width: 0; }
+/* table heads without fill: the hairline under the head row is enough */
+.srv-page table.idx th { background: none; }
+/* an unset signup channel: a warning in the cell, the tooltip says what is missing */
+.srv-warn { display: inline-flex; align-items: center; gap: 6px; color: var(--medium); font-weight: 600; cursor: help; }
+.srv-warn svg { flex: 0 0 auto; width: 16px; height: 16px; }
+.srv-table { min-width: 0; }
 .srv-table table { table-layout: fixed; }
 .srv-table td { vertical-align: middle; }
 .srv-table .row-actions { justify-content: flex-end; flex-wrap: nowrap; }
 /* link | channel | status | language | invite with its counts (#905) | actions; the link takes the rest */
-.srv-links { max-width: 1280px; }
 .srv-links th:nth-child(2) { width: 12%; }
 .srv-links th:nth-child(3) { width: 13%; }
 .srv-links th:nth-child(4) { width: 16%; }
@@ -272,7 +283,6 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-servers th:nth-child(3), .srv-servers th:nth-child(4) { width: 16%; }
 .srv-servers th:last-child { width: 84px; }
 /* the signup channels per server (#924): server | note | bank | edit */
-.srv-signup-ch { max-width: 900px; }
 .srv-signup-ch th:last-child { width: 56px; }
 .srv-signup-ch td { overflow-wrap: break-word; }
 .srv-link, .srv-server { display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
@@ -294,7 +304,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-hint svg { flex: 0 0 auto; width: 16px; height: 16px; color: var(--medium); }
 
 /* Rollen-Abgleich and Erinnerungen (#264): compact lists under the two cards */
-.sync-part { margin-top: 22px; display: flex; flex-direction: column; gap: 10px; }
+.sync-part { display: flex; flex-direction: column; gap: 12px; min-width: 0; }
 .sync-actions { display: inline-flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 8px; min-width: 0; max-width: 100%; }
 .sync-actions select { min-width: 0; max-width: 100%; }
 /* one panel with divided rows rather than a stack of separate boxes */
@@ -308,7 +318,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .sync-role.is-unknown { color: var(--muted); font-weight: 600; cursor: help; }
 .sync-row.is-off .sync-muted { opacity: .75; }
 /* an empty list is one quiet line, not the page-sized .empty block */
-.sync-empty { padding: 10px 14px; border: 1px dashed var(--line); border-radius: 8px; color: var(--muted); font-size: 13.5px; }
+.sync-empty { padding: 4px 0; color: var(--muted); font-size: 14px; }
 .sync-drift { border: 1px solid color-mix(in srgb, var(--medium) 35%, transparent); background: var(--medium-bg); border-radius: 10px; padding: 8px 10px 8px 14px; }
 .sync-drift-head { display: flex; align-items: center; gap: 10px; }
 .sync-drift-line { display: block; font-size: 13.5px; }
@@ -376,6 +386,9 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 
 @media (max-width: 760px) {
     .conn-grid { grid-template-columns: 1fr; }
+    .srv-title { font-size: 22px; }
+    .srv-tabs { margin-bottom: 22px; }
+    .srv-secs { gap: 38px; }
     .srv-channels, .srv-pair { grid-template-columns: 1fr; }
     /* the links stack: one block per link, every value under its column name */
     .srv-links table { table-layout: auto; }
@@ -393,6 +406,9 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     dialog.dlg.srv-dlg .dlg-foot > span:first-child { flex-basis: 100%; }
     .srv-servers th:nth-child(3), .srv-servers td:nth-child(3), .srv-servers th:nth-child(4), .srv-servers td:nth-child(4) { display: none; }
     .srv-sub { display: flex; flex-wrap: wrap; }
+    /* the channel table: the warning keeps only its icon (text for screen readers, the reason in the tooltip), so the server name keeps whole words */
+    .srv-warn-text { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    .srv-signup-ch td { overflow-wrap: normal; }
     /* a role pair with long names wraps; the edit and delete buttons stay in view */
     .sync-row { flex-wrap: wrap; }
     .srv-server-text > .srv-muted { font-size: 13px; }

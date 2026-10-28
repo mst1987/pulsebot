@@ -36,8 +36,7 @@ export default function RemindersPart({ onConfig }: {
 
     const head = (
         <PartHead
-            icon="notify"
-            tone="settings"
+            variant="plain"
             title={t("settings.reminders.title")}
             tip={t("settings.reminders.tip")}
             tipSub={t("settings.reminders.tipSub")}

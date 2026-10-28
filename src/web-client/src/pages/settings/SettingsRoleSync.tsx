@@ -89,8 +89,7 @@ export default function RoleSyncPart({ onConfig, reloadKey }: {
     const drift = data ? driftBadge(data.driftTotal, data.driftError, data.driftErrors) : null;
     const head = (
         <PartHead
-            icon="roles"
-            tone="settings"
+            variant="plain"
             title={t("settings.roleSync.title")}
             tip={t("settings.roleSync.title")}
             tipSub={t("settings.roleSync.tipSub")}

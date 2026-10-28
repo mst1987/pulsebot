@@ -33,8 +33,8 @@ const MESSAGE_HOME: Record<string, string> = {
     recruitment: "/recruitment",
     orgaHub: "/settings?section=kategorien",
     availability: "/settings?section=kategorien",
-    raidOverview: "/settings/all?section=discordserver",
-    talkOverview: "/settings/all?section=discordserver",
+    raidOverview: "/settings/all?section=discordserver&tab=links",
+    talkOverview: "/settings/all?section=discordserver&tab=links",
 };
 
 const TONE_ORDER: Record<AttentionTone, number> = { bad: 0, mid: 1, calm: 2 };

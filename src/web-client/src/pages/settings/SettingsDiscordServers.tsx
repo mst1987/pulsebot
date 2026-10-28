@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type KeyboardEvent } from "react";
 import {
     getDiscordServers, getPugInvites, getTalkOverview, postInviteChannel, postPugInvite, repostTalkOverview, updateSettings,
     type AdminConfig, type ApiError, type DiscordServers, type DiscordServersData, type PugInvites, type PugServerInvite,
@@ -6,6 +6,7 @@ import {
 } from "../../api";
 import { linkKey, linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText, serverCardState } from "../../lib/settings/settingsLogic";
 import { useTableSort } from "../../lib/ui/tableSort";
+import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import { useToast } from "../../components/shell/Jobs";
 import { CheckMark, CopyIcon, PenIcon, PlusIcon, RefreshIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
 import RoleSyncPart from "./SettingsRoleSync";
@@ -22,6 +23,7 @@ import { AdminOnlyBadge, ChannelPicker } from "../../components/settings/setting
 import { FieldLabel, InfoTip } from "../../components/ui/Field";
 import Switch from "../../components/ui/Switch";
 import { t as translate, useT } from "../../i18n";
+import "../../styles/discord-tabs.css";
 
 // Einstellungen → Verbindungen → Discord-Server (#891, Epic #893, design SB).
 // Every server is equal; a link posts one server's raid list to a channel on
@@ -32,8 +34,16 @@ import { t as translate, useT } from "../../i18n";
 // and each server's own two signup channels (#924: no shared default, a server
 // without one posts nothing there). Each change saves at once,
 // only the fields it touches. Every server can be removed (#897).
+//
+// Design B (Oct 2026): four tabs under the head — Server (servers + their
+// channels), Verknüpfungen, Rollen (role sync + PuG onboarding), Erinnerungen —
+// at most two parts each, every part a plain heading on a hairline. The tab is
+// in the URL (?tab=) and remembered; the servers tab is the clean default URL.
 
 const MAX_SERVERS = 10;
+
+const SERVER_TABS = ["servers", "links", "roles", "reminders"] as const;
+type ServerTab = (typeof SERVER_TABS)[number];
 
 type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite";
 
@@ -70,12 +80,12 @@ function guildChannels(data: DiscordServersData, id: string): TextChannel[] {
 // The server allows one link per source and target ("from:to"), so the client compares the same way.
 const sameLink = (a: ServerLink, b: ServerLink) => a.from === b.from && a.to === b.to;
 
-export default function DiscordServersSection({ onConfig, icon, crumb }: {
+export default function DiscordServersSection({ onConfig, crumb }: {
     onConfig: (config: AdminConfig) => void;
-    icon: string;
     crumb: string;
 }) {
     const t = useT();
+    const [tab, setTab] = usePersistedSearchParam<ServerTab>("settings-discordserver-tab", "tab", "servers", SERVER_TABS, true);
     const toast = useToast();
     const ask = useConfirm();
     const [data, setData] = useState<DiscordServersData | null>(null);
@@ -116,19 +126,20 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         }
     };
 
+    // The page's own head: bigger and heavier than the part heads below it (design B).
     const head = (
-        <PartHead
-            icon={icon}
-            tone="settings"
-            title={t("settings.sections.discordserver.label")}
-            crumb={t("settings.crumbAll", { crumb })}
-            tip={t("settings.sections.discordserver.label")}
-            tipSub={t("settings.discordServers.tipSub")}
-        />
+        <div className="srv-head">
+            <span className="kicker">{t("settings.crumbAll", { crumb })}</span>
+            <h2 className="srv-title">
+                <span className="tipped" tabIndex={0} data-tip={t("settings.sections.discordserver.label")} data-tip-sub={t("settings.discordServers.tipSub")}>
+                    {t("settings.sections.discordserver.label")}
+                </span>
+            </h2>
+        </div>
     );
 
-    if (error) return <>{head}<div className="empty">{error}</div></>;
-    if (!data) return <>{head}<RaidLoader compact text={t("settings.discordServers.loading")} /></>;
+    if (error) return <div className="srv-page">{head}<div className="empty">{error}</div></div>;
+    if (!data) return <div className="srv-page">{head}<RaidLoader compact text={t("settings.discordServers.loading")} /></div>;
 
     const config = data.discordServers;
     const now = Date.now();
@@ -362,8 +373,13 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
     // #924: the two signup channels per server; a server without one posts nothing there, no other server stands in.
     const channelRows: ChannelRow[] = Object.entries(data.channels || {}).map(([guildId, ch]) => ({ guildId, ...ch }));
-    const missingNote = channelRows.filter((r) => !r.signupNoteChannelId);
     const unsetCell = (tip: string) => <span className="srv-muted" data-tip={tip}>{t("settings.discordServers.channelUnset")}</span>;
+    // A server without the tentative/decline channel loses those messages: the cell itself warns and says why.
+    const noteUnsetCell = (guildId: string) => (
+        <span className="srv-warn" tabIndex={0} data-tip={t("settings.discordServers.noteUnsetTip", { name: guildName(data, guildId) })}>
+            <WarnIcon /><span className="srv-warn-text">{t("settings.discordServers.channelUnset")}</span>
+        </span>
+    );
     const channelText = (r: ChannelRow, id: string) => (id ? channelName(guildChannels(data, r.guildId), id).toLowerCase() : "~");
     const channelSortValue = (r: ChannelRow, key: ChannelSortKey) => {
         if (key === "note") return channelText(r, r.signupNoteChannelId);
@@ -374,7 +390,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         { id: "server", label: t("settings.discordServers.colServer"), sortKey: "server", cell: (r) => <b>{guildName(data, r.guildId)}</b> },
         {
             id: "note", sortKey: "note", label: t("settings.discordServers.noteRow"), tip: t("settings.discordServers.noteTip"), tipSub: t("settings.discordServers.noteTipSub"),
-            cell: (r) => (r.signupNoteChannelId ? channelName(guildChannels(data, r.guildId), r.signupNoteChannelId) : unsetCell(t("settings.discordServers.noteUnsetTip"))),
+            cell: (r) => (r.signupNoteChannelId ? channelName(guildChannels(data, r.guildId), r.signupNoteChannelId) : noteUnsetCell(r.guildId)),
         },
         {
             id: "bank", sortKey: "bank", label: t("settings.discordServers.bankRow"), tip: t("settings.discordServers.bankTip"), tipSub: t("settings.discordServers.bankTipSub"),
@@ -391,87 +407,104 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
         },
     ];
 
+    const tabs: { id: ServerTab; count?: number }[] = [
+        { id: "servers", count: data.servers.length },
+        { id: "links", count: config.links.length },
+        { id: "roles" },
+        { id: "reminders" },
+    ];
+
     return (
-        <>
+        <div className="srv-page">
             {head}
+            <ServerTabs tabs={tabs} active={tab} onTab={setTab} />
 
-            <section className="sync-part">
-                <PartHead
-                    icon="discordServer"
-                    tone="settings"
-                    title={t("settings.discordServers.linksTitle")}
-                    tip={t("settings.discordServers.linksTitle")}
-                    tipSub={t("settings.discordServers.linksSub")}
-                    action={config.servers.length
-                        ? <Button size="sm" icon={<PlusIcon />} onClick={() => setDialog("link")}>{t("settings.discordServers.addLink")}</Button>
-                        : undefined}
-                />
-                <div className="srv-table srv-links">
-                    <DataTable
-                        rows={config.links}
-                        columns={linkColumns}
-                        rowKey={(l) => `${l.from}:${l.to}:${l.channelId}`}
-                        sort={linkSort}
-                        sortValue={linkSortValue}
-                        empty={<div className="sync-empty">{t("settings.discordServers.emptyLinks")}</div>}
-                    />
-                </div>
-            </section>
+            <div className="srv-secs" role="tabpanel" id={`srv-panel-${tab}`} aria-labelledby={`srv-tab-${tab}`}>
+                {tab === "servers" && (
+                    <>
+                        <section className="sync-part">
+                            <PartHead
+                                variant="plain"
+                                title={t("settings.discordServers.serversTitle")}
+                                count={t("settings.discordServers.serverCount", { count: data.servers.length })}
+                                tip={t("settings.discordServers.serversTitle")}
+                                tipSub={t("settings.discordServers.serversSub")}
+                                action={(
+                                    <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={config.servers.length >= MAX_SERVERS}
+                                        onClick={() => { setEditServer(null); setDialog("server"); }}>
+                                        {t("settings.discordServers.addServer")}
+                                    </Button>
+                                )}
+                            />
+                            <div className="srv-table srv-servers">
+                                <DataTable
+                                    rows={data.servers}
+                                    columns={serverColumns}
+                                    rowKey={(s) => s.id}
+                                    sort={serverSort}
+                                    sortValue={serverSortValue}
+                                    empty={<div className="sync-empty">{t("settings.discordServers.emptyServers")}</div>}
+                                />
+                            </div>
+                        </section>
 
-            <section className="sync-part">
-                <PartHead
-                    icon="discordServer"
-                    tone="settings"
-                    title={t("settings.discordServers.serversTitle")}
-                    tip={t("settings.discordServers.serversTitle")}
-                    tipSub={t("settings.discordServers.serversSub")}
-                    action={(
-                        <Button variant="ghost" size="sm" icon={<PlusIcon />} disabled={config.servers.length >= MAX_SERVERS}
-                            onClick={() => { setEditServer(null); setDialog("server"); }}>
-                            {t("settings.discordServers.addServer")}
-                        </Button>
-                    )}
-                />
-                <div className="srv-table srv-servers">
-                    <DataTable
-                        rows={data.servers}
-                        columns={serverColumns}
-                        rowKey={(s) => s.id}
-                        sort={serverSort}
-                        sortValue={serverSortValue}
-                        empty={<div className="sync-empty">{t("settings.discordServers.emptyServers")}</div>}
-                    />
-                </div>
-            </section>
-
-            <section className="sync-part">
-                <PartHead
-                    icon="channels"
-                    tone="settings"
-                    title={t("settings.discordServers.channelsTitle")}
-                    tip={t("settings.discordServers.channelsTitle")}
-                    tipSub={t("settings.discordServers.channelsSub")}
-                />
-                {missingNote.length > 0 && (
-                    <p className="note">{t("settings.discordServers.channelsMissing", { list: missingNote.map((r) => guildName(data, r.guildId)).join(", ") })}</p>
+                        <section className="sync-part">
+                            <PartHead
+                                variant="plain"
+                                title={t("settings.discordServers.channelsTitle")}
+                                tip={t("settings.discordServers.channelsTitle")}
+                                tipSub={t("settings.discordServers.channelsSub")}
+                            />
+                            <div className="srv-table srv-signup-ch">
+                                <DataTable
+                                    rows={channelRows}
+                                    columns={channelColumns}
+                                    rowKey={(r) => r.guildId}
+                                    sort={channelSort}
+                                    sortValue={channelSortValue}
+                                    empty={<div className="sync-empty">{t("settings.discordServers.channelsEmpty")}</div>}
+                                />
+                            </div>
+                        </section>
+                    </>
                 )}
-                <div className="srv-table srv-signup-ch">
-                    <DataTable
-                        rows={channelRows}
-                        columns={channelColumns}
-                        rowKey={(r) => r.guildId}
-                        sort={channelSort}
-                        sortValue={channelSortValue}
-                        empty={<div className="sync-empty">{t("settings.discordServers.channelsEmpty")}</div>}
-                    />
-                </div>
-            </section>
 
-            {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
-            <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
-            {/* #906: roles + onboarding of a PuG server, applied only by its own button. */}
-            <PugOnboardingPart servers={data.servers.filter((s) => isPug(s.id))} />
-            <RemindersPart onConfig={onConfig} />
+                {tab === "links" && (
+                    <section className="sync-part">
+                        <PartHead
+                            variant="plain"
+                            title={t("settings.discordServers.linksTitle")}
+                            count={t("settings.discordServers.linkCount", { count: config.links.length })}
+                            tip={t("settings.discordServers.linksTitle")}
+                            tipSub={t("settings.discordServers.linksSub")}
+                            action={config.servers.length
+                                ? <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setDialog("link")}>{t("settings.discordServers.addLink")}</Button>
+                                : undefined}
+                        />
+                        <div className="srv-table srv-links">
+                            <DataTable
+                                rows={config.links}
+                                columns={linkColumns}
+                                rowKey={(l) => `${l.from}:${l.to}:${l.channelId}`}
+                                sort={linkSort}
+                                sortValue={linkSortValue}
+                                empty={<div className="sync-empty">{t("settings.discordServers.emptyLinks")}</div>}
+                            />
+                        </div>
+                    </section>
+                )}
+
+                {tab === "roles" && (
+                    <>
+                        {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
+                        <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
+                        {/* #906: roles + onboarding of a PuG server, applied only by its own button. */}
+                        <PugOnboardingPart servers={data.servers.filter((s) => isPug(s.id))} />
+                    </>
+                )}
+
+                {tab === "reminders" && <RemindersPart onConfig={onConfig} />}
+            </div>
 
             {dialog === "link" && (
                 <LinkModal data={data} onClose={() => setDialog(null)}
@@ -498,7 +531,42 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                         if (await save({ channels: { [editChannels]: fields } }, t("settings.discordServers.saved"))) setDialog(null);
                     }} />
             )}
-        </>
+        </div>
+    );
+}
+
+/** The four tabs under the page head, in the client's existing tab look (dtab-*, as on System / Discord). */
+function ServerTabs({ tabs, active, onTab }: {
+    tabs: { id: ServerTab; count?: number }[];
+    active: ServerTab;
+    onTab: (tab: ServerTab) => void;
+}) {
+    const t = useT();
+    const onKey = (e: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        const last = tabs.length - 1;
+        const next = e.key === "ArrowRight" ? (index === last ? 0 : index + 1)
+            : e.key === "ArrowLeft" ? (index === 0 ? last : index - 1)
+                : e.key === "Home" ? 0 : e.key === "End" ? last : -1;
+        if (next < 0) return;
+        e.preventDefault();
+        onTab(tabs[next].id);
+        document.getElementById(`srv-tab-${tabs[next].id}`)?.focus();
+    };
+    return (
+        <div className="dtab-wrap srv-tabs">
+            <div className="dtab-bar" role="tablist" aria-label={t("settings.discordServers.tabsAria")}>
+                {tabs.map((tab, i) => (
+                    <button key={tab.id} type="button" role="tab" id={`srv-tab-${tab.id}`}
+                        aria-selected={tab.id === active} aria-controls={`srv-panel-${tab.id}`}
+                        tabIndex={tab.id === active ? 0 : -1}
+                        className={`dtab-tab${tab.id === active ? " dtab-on" : ""}`}
+                        onClick={() => onTab(tab.id)} onKeyDown={(e) => onKey(e, i)}>
+                        {t(`settings.discordServers.tabs.${tab.id}`)}
+                        {tab.count !== undefined && <span className="dtab-n">{tab.count}</span>}
+                    </button>
+                ))}
+            </div>
+        </div>
     );
 }
 

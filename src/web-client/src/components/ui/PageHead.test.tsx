@@ -35,4 +35,18 @@ describe("PartHead", () => {
         render(<PartHead title="Loot-Historie" />);
         expect(screen.getByText("Loot-Historie")).not.toHaveAttribute("tabindex");
     });
+
+    it("plain: no icon tile, the count beside the title", () => {
+        const { container } = render(<PartHead variant="plain" icon="inv_misc_map_01" title="Server" count="2 Server" action={<button type="button">Neu</button>} />);
+        expect(container.querySelector(".part-head.is-plain")).not.toBeNull();
+        expect(container.querySelector(".itile")).toBeNull();
+        expect(container.querySelector(".ph-count")).toHaveTextContent("2 Server");
+        expect(screen.getByRole("button", { name: "Neu" })).toBeInTheDocument();
+    });
+
+    it("shows a count only on the plain variant", () => {
+        const { container } = render(<PartHead icon="inv_misc_map_01" title="Server" count="2 Server" />);
+        expect(container.querySelector(".ph-count")).toBeNull();
+        expect(container.querySelector(".itile")).not.toBeNull();
+    });
 });
