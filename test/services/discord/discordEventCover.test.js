@@ -86,6 +86,15 @@ describe("services/discord/discordEventCover", () => {
         expect(cover.coverEnabled({ discordVisuals: { eventCover: false } })).toBe(false);
     });
 
+    it("reads the cover switch of the event's server, else the global default (#961)", async () => {
+        const config = { discordVisuals: { eventCover: false }, serverSettings: { g1: { discordVisuals: { eventCover: true } } } };
+        expect(cover.coverEnabled(config, "g1")).toBe(true);
+        expect(cover.coverEnabled(config, "g2")).toBe(false);
+        expect(cover.coverEnabled({ serverSettings: { g1: { discordVisuals: { eventCover: false } } } }, "g1")).toBe(false);
+        // switched off on the event's server: nothing is fetched or sent
+        expect(await cover.coverToSend({ guildId: "g2", coverUrl: "https://example.org/c.png" }, config)).toBeNull();
+    });
+
     it("fetches a URL once (cached) and does not resend an unchanged cover on sync", async () => {
         const { edit } = fakeGuild();
         const id = put(event({ discordEvent: { id: "d1", guildId: "g1", coverKey: ART } }));

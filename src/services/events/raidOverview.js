@@ -86,7 +86,7 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
     // a further raid of a raid group (#811) is no raid of its own for the raiders — its first raid stands for the evening
     const events = visibleRows(((group && group.events) || []).filter((e) => !isRaidSibling(e)), (e) => versionOfEvent(e, { config: cfg }), cfg);
     const lang = categoryLang(cat, cfg);
-    const weekStrip = visualOn(cfg, "overviewWeekStrip");
+    const weekStrip = visualOn(cfg, "overviewWeekStrip", guildId);
     const build = (lastChange, { pictures = weekStrip } = {}) => raidOverviewPayload({
         categoryName: (group && group.categoryName) || categoryNameFor(cat, { config: cfg }) || "",
         events,

@@ -295,8 +295,6 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             categoryVersion: categoryVersionsToSave(draft.categoryVersion, draft.categoryIds, draft.mainVersion),
             // #738: what the switch dialog chose for a switched category's series.
             categorySwitchFixes: switchFixesToSend(draft.categorySwitchFixes, data.config, draft.categoryVersion),
-            // the drawn pictures (a test): every switch, merged on the server
-            discordVisuals: draft.discordVisuals,
             // The shared keys (main version, versions, dungeons) are not sent here: the API
             // wants a full admin for them, so a settings writer of one server saves without them.
             // Sent whole: the store replaces the map, so clearing a url is
@@ -568,7 +566,14 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         canEditDefault={data.canManageAccess}
                         onChange={(next) => patch(next)}
                     />
-                    <DiscordVisualsCard value={draft.discordVisuals} onChange={(discordVisuals) => patch({ discordVisuals })} />
+                    <DiscordVisualsCard
+                        value={draft.discordVisuals}
+                        own={draft.discordVisualsOwn}
+                        defaultValue={draft.discordVisualsDefault}
+                        server={data.activeGuildId ? (data.bot?.guildName || data.activeGuildId) : ""}
+                        canEditDefault={data.canManageAccess}
+                        onChange={(next) => patch(next)}
+                    />
                     <ModuleCard>
                         <div className="set-field">
                             <FieldLabel htmlFor="set-raid-channel" tip={t("settings.page.raidChannel")} tipSub={t("settings.page.raidChannelSub")}>{t("settings.page.raidChannel")}</FieldLabel>

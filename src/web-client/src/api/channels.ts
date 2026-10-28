@@ -199,7 +199,7 @@ export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guild
 export const SERVER_SCOPED_KEYS = [
     "logChannels", "raidhelper", "versionOverrides", "categoryIds",
     "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",
-    "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess",
+    "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess", "discordVisuals",
 ];
 
 export function getChannels(): Promise<ChannelsData> {

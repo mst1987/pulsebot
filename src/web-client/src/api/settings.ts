@@ -98,8 +98,15 @@ export type AdminConfig = {
     botLanguageDefault?: "de" | "en";
     /** Whether the active server has its own bot language. */
     botLanguageOwn?: boolean;
-    /** The drawn pictures in bot messages (a test); missing switch = on. */
+    /**
+     * The drawn pictures in bot messages (a test); missing switch = on. #961: what the active
+     * server draws (its own switches, else the global default); without a server the default itself.
+     */
     discordVisuals?: Partial<DiscordVisuals>;
+    /** The global default every server without own switches gets (#961). */
+    discordVisualsDefault?: Partial<DiscordVisuals>;
+    /** Whether the active server has its own picture switches (#961). */
+    discordVisualsOwn?: boolean;
     /** "Neue Gildenrekorde posten" (Einstellungen → Dungeon-Bestzeiten); missing = off. */
     dungeonRecords?: { post: boolean; channelId: string };
     /**

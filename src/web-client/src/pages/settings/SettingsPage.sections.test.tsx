@@ -94,6 +94,17 @@ function settings(over: Partial<SettingsData> = {}): SettingsData {
     };
 }
 
+/** The bot language card; the picture card has an own-value switch of its own (#961). */
+const langCard = async () => {
+    await waitFor(() => expect(document.querySelector(".bot-lang")).not.toBeNull());
+    return within(document.querySelector(".bot-lang") as HTMLElement);
+};
+/** The card with the picture switches of the bot messages (#961). */
+const visualsCard = async () => {
+    await waitFor(() => expect(document.querySelector(".bot-visuals")).not.toBeNull());
+    return within(document.querySelector(".bot-visuals") as HTMLElement);
+};
+
 const limited = () => settings({ canManageAccess: false, config: config({ adminRoleIds: undefined as unknown as string[], rolePermissions: undefined }) });
 
 const nav = () => screen.getByRole("navigation", { name: "Einstellungs-Bereiche" });
@@ -374,7 +385,7 @@ describe("the save bar", () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en", botLanguageOwn: true, botLanguageDefault: "de" }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
-        expect(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" })).toBeChecked();
+        expect(await (await langCard()).findByRole("switch", { name: "Eigener Wert auf Pulse" })).toBeChecked();
 
         const group = await screen.findByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
         expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
@@ -391,9 +402,9 @@ describe("the save bar", () => {
 
     it("shows a server without an own bot language on the default (German when none is sent)", async () => {
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
-        expect(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
+        expect(await (await langCard()).findByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
         expect(screen.queryByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).not.toBeInTheDocument();
-        expect(screen.getByText("Standard (alle Server)").parentElement).toHaveTextContent("Deutsch");
+        expect((await langCard()).getByText("Standard (alle Server)").parentElement).toHaveTextContent("Deutsch");
     });
 
     it("gives the active server an own bot language through the switch", async () => {
@@ -401,7 +412,7 @@ describe("the save bar", () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ botLanguage: "en", botLanguageDefault: "en", botLanguageOwn: false }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
 
-        await user.click(await screen.findByRole("switch", { name: "Eigener Wert auf Pulse" }));
+        await user.click(await (await langCard()).findByRole("switch", { name: "Eigener Wert auf Pulse" }));
         const group = screen.getByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" });
         expect(within(group).getByRole("radio", { name: "English" })).toHaveAttribute("aria-checked", "true");
         await user.click(within(group).getByRole("radio", { name: "Deutsch" }));
@@ -418,7 +429,7 @@ describe("the save bar", () => {
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
 
         await user.click(await screen.findByRole("button", { name: "Standard verwenden" }));
-        expect(screen.getByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
+        expect((await langCard()).getByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
         expect(screen.getByText("Bot-Sprache: Standard verwenden (Deutsch)")).toBeInTheDocument();
 
         await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -431,7 +442,7 @@ describe("the save bar", () => {
         vi.mocked(api.getSettings).mockResolvedValue(settings({ activeGuildId: "", config: config({ botLanguage: "de", botLanguageDefault: "de" }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
 
-        expect(await screen.findByText(/Standard für alle Server/)).toBeInTheDocument();
+        expect(await (await langCard()).findByText(/Standard für alle Server/)).toBeInTheDocument();
         expect(screen.queryByRole("switch", { name: /Eigener Wert/ })).not.toBeInTheDocument();
         await user.click(within(screen.getByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).getByRole("radio", { name: "English" }));
         await user.click(screen.getByRole("button", { name: "Speichern" }));
@@ -442,7 +453,7 @@ describe("the save bar", () => {
     it("shows the default read-only to a limited account without an active server", async () => {
         vi.mocked(api.getSettings).mockResolvedValue({ ...limited(), activeGuildId: "" });
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
-        expect(await screen.findByText("Den Standard ändern nur Voll-Admins.")).toBeInTheDocument();
+        expect(await (await langCard()).findByText("Den Standard ändern nur Voll-Admins.")).toBeInTheDocument();
         expect(screen.queryByRole("radiogroup", { name: "Sprache der Bot-Nachrichten" })).not.toBeInTheDocument();
     });
 
@@ -457,15 +468,19 @@ describe("the save bar", () => {
         expect(await screen.findByText(/Bitte erst oben einen Server wählen/)).toBeInTheDocument();
     });
 
-    it("shows the picture switches of the bot messages (on unless saved off) and sends them on save", async () => {
+    it("shows the server's own picture switches (on unless saved off) and sends them on save (#961)", async () => {
         const user = userEvent.setup();
-        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ discordVisuals: { setupImage: false } }) }));
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({
+            discordVisuals: { setupImage: false }, discordVisualsOwn: true, discordVisualsDefault: {},
+        }) }));
         renderPage(<SettingsPage />, { route: "/settings?section=raids" });
 
-        const strip = await screen.findByRole("switch", { name: "Raid-Übersicht mit Wochenleiste" });
+        const card = await visualsCard();
+        expect(card.getByRole("switch", { name: "Eigener Wert auf Pulse" })).toBeChecked();
+        const strip = card.getByRole("switch", { name: "Raid-Übersicht mit Wochenleiste" });
         expect(strip).toBeChecked();
-        expect(screen.getByRole("switch", { name: "Setup als Grafik" })).not.toBeChecked();
-        expect(screen.getByRole("switch", { name: "Titelbild des Discord-Events" })).toBeChecked();
+        expect(card.getByRole("switch", { name: "Setup als Grafik" })).not.toBeChecked();
+        expect(card.getByRole("switch", { name: "Titelbild des Discord-Events" })).toBeChecked();
 
         await user.click(strip);
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
@@ -474,6 +489,7 @@ describe("the save bar", () => {
         await user.click(screen.getByRole("button", { name: "Speichern" }));
         await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            serverSettingsGuildId: "g1",
             discordVisuals: { overviewWeekStrip: false, setupImage: false, eventCover: true },
         });
         // #924: the per-server fields only go out when changed, so another server's values stay untouched
@@ -484,11 +500,88 @@ describe("the save bar", () => {
         }
     });
 
+    it("shows a server without own picture switches on the default and sends nothing for it (#961)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({
+            discordVisuals: { setupImage: false }, discordVisualsOwn: false, discordVisualsDefault: { setupImage: false },
+        }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        const card = await visualsCard();
+        expect(card.getByRole("switch", { name: "Eigener Wert auf Pulse" })).not.toBeChecked();
+        expect(card.queryByRole("switch", { name: "Setup als Grafik" })).not.toBeInTheDocument();
+        expect(card.getByText("Standard (alle Server)").parentElement)
+            .toHaveTextContent("Raid-Übersicht mit Wochenleiste, Titelbild des Discord-Events");
+
+        // a change elsewhere does not send the pictures along
+        await user.selectOptions(await screen.findByRole("combobox", { name: "Standard-Kanal" }), "ch1");
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect("discordVisuals" in vi.mocked(api.updateSettings).mock.calls[0][0]).toBe(false);
+    });
+
+    it("gives the active server own picture switches, starting from the default (#961)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({
+            discordVisuals: { eventCover: false }, discordVisualsOwn: false, discordVisualsDefault: { eventCover: false },
+        }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        const card = await visualsCard();
+        await user.click(card.getByRole("switch", { name: "Eigener Wert auf Pulse" }));
+        expect(card.getByRole("switch", { name: "Titelbild des Discord-Events" })).not.toBeChecked();
+        await user.click(card.getByRole("switch", { name: "Setup als Grafik" }));
+
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            serverSettingsGuildId: "g1",
+            discordVisuals: { overviewWeekStrip: true, setupImage: false, eventCover: false },
+        });
+    });
+
+    it("drops the server's own picture switches with the own-value switch (sends null, #961)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({
+            discordVisuals: { setupImage: false }, discordVisualsOwn: true, discordVisualsDefault: {},
+        }) }));
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        await user.click((await visualsCard()).getByRole("switch", { name: "Eigener Wert auf Pulse" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({ discordVisuals: null, serverSettingsGuildId: "g1" });
+    });
+
+    it("edits the picture default without a server; a limited account only reads it (#961)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ activeGuildId: "", config: config({ discordVisuals: {}, discordVisualsDefault: {} }) }));
+        const { unmount } = renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+
+        const card = await visualsCard();
+        expect(card.getByText(/Standard für alle Server/)).toBeInTheDocument();
+        expect(card.queryByRole("switch", { name: /Eigener Wert/ })).not.toBeInTheDocument();
+        await user.click(card.getByRole("switch", { name: "Titelbild des Discord-Events" }));
+        await user.click(screen.getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledTimes(1));
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toMatchObject({
+            serverSettingsGuildId: "", discordVisuals: { overviewWeekStrip: true, setupImage: true, eventCover: false },
+        });
+        unmount();
+
+        vi.mocked(api.getSettings).mockResolvedValue({ ...limited(), activeGuildId: "" });
+        renderPage(<SettingsPage />, { route: "/settings?section=raids" });
+        const readOnly = await visualsCard();
+        expect(readOnly.getByRole("switch", { name: "Setup als Grafik" })).toBeDisabled();
+        expect(readOnly.getByText("Den Standard ändern nur Voll-Admins.")).toBeInTheDocument();
+    });
+
     it("names the picture switches in English", async () => {
         await switchLang("en");
         try {
+            vi.mocked(api.getSettings).mockResolvedValue(settings({ config: config({ discordVisuals: {}, discordVisualsOwn: true }) }));
             renderPage(<SettingsPage />, { route: "/settings?section=raids" });
-            expect(await screen.findByRole("switch", { name: "Setup as a graphic" })).toBeChecked();
+            expect((await visualsCard()).getByRole("switch", { name: "Setup as a graphic" })).toBeChecked();
             expect(screen.getByText("Pictures in bot messages")).toBeInTheDocument();
         } finally {
             await switchLang("de");

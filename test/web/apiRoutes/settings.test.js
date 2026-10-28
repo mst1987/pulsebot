@@ -192,6 +192,10 @@ const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 // #924: the per-server values every config answer carries - here for no or an unknown active server.
 const NO_SERVER_VALUES = {
     applicationChannelId: "", officerRoleId: "", raidDefaults: { channelId: "" }, botLanguage: "de", botLanguageDefault: "de", botLanguageOwn: false,
+    // #961 the picture switches: the default (all on), no own ones
+    discordVisuals: { overviewWeekStrip: true, setupImage: true, eventCover: true },
+    discordVisualsDefault: { overviewWeekStrip: true, setupImage: true, eventCover: true },
+    discordVisualsOwn: false,
 };
 const discord = require("../../../src/services/discord/discord");
 const wowhead = require("../../../src/utils/loot/wowhead");
@@ -435,13 +439,16 @@ describe("web/apiRoutes/settings", () => {
                 rosterStore.deleteRoster(roster.id);
             });
 
-            it("forwards the picture switches as booleans, known keys only", async () => {
+            it("forwards the picture switches as booleans, known keys only (without a server: the default, #961)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
                 await patch("/api/settings", { discordVisuals: { overviewWeekStrip: false, setupImage: "yes", eventCover: true, other: false } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ discordVisuals: { overviewWeekStrip: false, eventCover: true } });
-                await patch("/api/settings", { discordVisuals: null, hideOtherVersions: true });
-                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ hideOtherVersions: true });
+                // null drops a server's own switches - without a server there is nothing to drop
+                settingsStore.saveConfig.mockClear();
+                const res = await patch("/api/settings", { discordVisuals: null, hideOtherVersions: true });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
             it("forwards the dungeon record setting, its two fields only", async () => {
@@ -1686,6 +1693,88 @@ describe("web/apiRoutes/settings", () => {
                     const res = mockRes();
                     await updateSettings({ headers: {} }, res);
                     expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+            });
+
+            // #961: the drawn pictures like the language - a global default, own switches per server.
+            describe("the picture switches: global default plus own switches per server (#961)", () => {
+                const ON = { overviewWeekStrip: true, setupImage: true, eventCover: true };
+                const withVisuals = () => ({
+                    ...twoServers, discordVisuals: { eventCover: false },
+                    serverSettings: { [MAIN]: { officerRoleId: "1800000000000000021" }, [PUGS]: { discordVisuals: { setupImage: false } } },
+                });
+                beforeEach(() => settingsStore.getConfig.mockReturnValue(withVisuals()));
+
+                it("shows the server's own switches over the default, and says whether it has own ones", async () => {
+                    for (const [active, shown] of [
+                        [MAIN, { discordVisuals: { ...ON, eventCover: false }, discordVisualsOwn: false }],
+                        [PUGS, { discordVisuals: { ...ON, eventCover: false, setupImage: false }, discordVisualsOwn: true }],
+                        ["", { discordVisuals: { ...ON, eventCover: false }, discordVisualsOwn: false }],
+                    ]) {
+                        activeGuildFor.mockReturnValue(active);
+                        const res = mockRes();
+                        await getSettings({}, res);
+                        expect(body(res).config).toMatchObject({ ...shown, discordVisualsDefault: { ...ON, eventCover: false } });
+                    }
+                });
+
+                it("writes the active server's switches over its earlier own ones, never the default or another server", async () => {
+                    activeGuildFor.mockReturnValue(PUGS);
+                    requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                    requireFullAdmin.mockReturnValue(null);
+                    readJsonBody.mockResolvedValue({ discordVisuals: { eventCover: true, other: true, overviewWeekStrip: "no" }, serverSettingsGuildId: PUGS });
+                    await updateSettings({ headers: {} }, mockRes());
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { [PUGS]: { discordVisuals: { setupImage: false, eventCover: true } } } });
+                });
+
+                it("drops the server's own switches with null, so it follows the default again", async () => {
+                    activeGuildFor.mockReturnValue(PUGS);
+                    readJsonBody.mockResolvedValue({ discordVisuals: null, serverSettingsGuildId: PUGS });
+                    await updateSettings({ headers: {} }, mockRes());
+                    const saved = settingsStore.saveConfig.mock.calls[0][0];
+                    expect(Object.keys(saved)).toEqual(["serverSettings"]);
+                    expect(saved.serverSettings[PUGS]).toHaveProperty("discordVisuals", undefined);
+                    const { mergeServerSettings } = jest.requireActual("../../../src/stores/configSchema");
+                    const merged = JSON.parse(JSON.stringify(mergeServerSettings(withVisuals().serverSettings, saved.serverSettings)));
+                    expect(merged[PUGS]).toEqual({});
+                    const { serverVisuals } = jest.requireActual("../../../src/services/discord/serverSettings");
+                    expect(serverVisuals(PUGS, { config: { ...withVisuals(), serverSettings: merged } })).toEqual({ ...ON, eventCover: false });
+                });
+
+                it("writes the default without an active server, for full admins only", async () => {
+                    activeGuildFor.mockReturnValue("");
+                    readJsonBody.mockResolvedValue({ discordVisuals: { setupImage: false }, serverSettingsGuildId: "" });
+                    await updateSettings({ headers: {} }, mockRes());
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordVisuals: { setupImage: false } });
+
+                    settingsStore.saveConfig.mockClear();
+                    requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                    requireFullAdmin.mockReset().mockImplementation((_req, res) => {
+                        res.writeHead(403, {}); res.end("{}"); return null;
+                    });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                    expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                });
+
+                it("refuses the switches from a tab loaded on another server (409) and for a server not entered (400)", async () => {
+                    activeGuildFor.mockReturnValue(PUGS);
+                    for (const loaded of [{ serverSettingsGuildId: MAIN }, {}]) {
+                        readJsonBody.mockResolvedValue({ discordVisuals: { setupImage: true }, ...loaded });
+                        const res = mockRes();
+                        await updateSettings({ headers: {} }, res);
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "server_switched" });
+                    }
+                    const stranger = "1800000000000000099";
+                    activeGuildFor.mockReturnValue(stranger);
+                    readJsonBody.mockResolvedValue({ discordVisuals: { setupImage: true }, serverSettingsGuildId: stranger });
+                    const res = mockRes();
+                    await updateSettings({ headers: {} }, res);
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error).toMatchObject({ code: "unknown_server" });
                     expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                 });
             });

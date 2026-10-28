@@ -1559,7 +1559,11 @@
         "setupImage": "Setup als Grafik",
         "setupImageTip": "Test: die Gruppen des geposteten Setups als Bild statt als Liste; Bestätigen-Haken im Bild, Knöpfe bleiben.",
         "eventCover": "Titelbild des Discord-Events",
-        "eventCoverTip": "Test: das Discord-Server-Event eines Raids bekommt das Bild des Raids als Titelbild (eigenes Event-Bild, sonst die Zonengrafik)."
+        "eventCoverTip": "Test: das Discord-Server-Event eines Raids bekommt das Bild des Raids als Titelbild (eigenes Event-Bild, sonst die Zonengrafik).",
+        "defaultLabel": "Standard für alle Server",
+        "defaultText": "Kein Server gewählt: Das gilt für jeden Server ohne eigene Schalter, auch für neue Server.",
+        "defaultOnlyAdmins": "Den Standard ändern nur Voll-Admins.",
+        "noneOn": "alle aus"
     },
     "dungeonRecords": {
         "post": "Neue Gildenrekorde posten",

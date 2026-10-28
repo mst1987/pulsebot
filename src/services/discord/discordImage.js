@@ -14,9 +14,11 @@
 //     picture instead of stacking a second one. A payload without images gets
 //     `attachments: []` as well, so switching a picture off removes it.
 //
-// Which pictures are drawn at all is `config.discordVisuals` (configSchema.js):
-// `visualOn(config, key)`.
+// Which pictures are drawn at all is per server (#961): the server's own switch
+// (serverSettings[guildId].discordVisuals), else the global default
+// `config.discordVisuals` (configSchema.js) - `visualOn(config, key, guildId)`.
 const crypto = require("crypto");
+const { serverVisuals } = require("./serverSettings");
 const { FONT_FILES, FONT_FAMILY } = require("../../utils/image/fontMetrics");
 const logger = require("../../logger").child("discordImage");
 
@@ -24,10 +26,12 @@ const logger = require("../../logger").child("discordImage");
 const CACHE_MAX = 60;
 const cache = new Map();
 
-/** Whether a drawn picture is switched on (`config.discordVisuals[key]`, on unless set to false). */
-function visualOn(config, key) {
-    const block = (config && config.discordVisuals) || {};
-    return block[key] !== false;
+/**
+ * Whether a drawn picture is switched on for the server a message is on (#961):
+ * its own switch, else the global default (on unless set to false).
+ */
+function visualOn(config, key, guildId = "") {
+    return serverVisuals(guildId, { config: config || {} })[key] !== false;
 }
 
 const hashOf = (svg) => crypto.createHash("sha1").update(String(svg)).digest("hex");

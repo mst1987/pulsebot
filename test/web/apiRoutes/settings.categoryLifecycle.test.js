@@ -111,6 +111,26 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
         expect(settingsStore.saveConfig).toHaveBeenCalledTimes(1);
     });
 
+    it("writes a category's game version for categories of the active server only (#961)", async () => {
+        settingsStore.getConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        // another server's category: 403 other_server, nothing saved
+        const foreign = await patch("/api/settings", { categoryVersion: { ...FOREIGN.categoryVersion, far: "forever" } });
+        expect([foreign.writeHead.mock.calls[0][0], json(foreign).error.code]).toEqual([403, "other_server"]);
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        // its own server's category goes through
+        settingsStore.saveConfig.mockReturnValue(FOREIGN);
+        const own = await patch("/api/settings", { categoryVersion: { ...FOREIGN.categoryVersion, mon: "forever" } });
+        expect(own.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig.mock.calls[0][0].categoryVersion).toMatchObject({ mon: "forever", far: "tbc" });
+        // a full admin may change every server's category
+        settingsStore.saveConfig.mockClear();
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        const admin = await patch("/api/settings", { categoryVersion: { ...FOREIGN.categoryVersion, far: "forever" } });
+        expect(admin.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig.mock.calls[0][0].categoryVersion).toMatchObject({ far: "forever" });
+    });
+
     it("closes and previews the active server's categories only, a full admin all of them", async () => {
         settingsStore.getConfig.mockReturnValue(FOREIGN);
         auth.getUser.mockReturnValue(LIMITED);

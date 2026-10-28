@@ -30,6 +30,15 @@ describe("services/discord/discordImage", () => {
         expect(visualOn({ discordVisuals: { setupImage: false } }, "overviewWeekStrip")).toBe(true);
     });
 
+    it("reads the switch of the message's server, else the global default (#961)", () => {
+        const config = { discordVisuals: { setupImage: false }, serverSettings: { g1: { discordVisuals: { setupImage: true, eventCover: false } } } };
+        expect(visualOn(config, "setupImage", "g1")).toBe(true);
+        expect(visualOn(config, "eventCover", "g1")).toBe(false);
+        expect(visualOn(config, "setupImage", "g2")).toBe(false);
+        expect(visualOn(config, "setupImage")).toBe(false);
+        expect(visualOn(config, "overviewWeekStrip", "g1")).toBe(true);
+    });
+
     it("renders a PNG with the bundled font only - no system fonts", () => {
         const png = renderPng(svg());
         expect(png.subarray(0, 8).equals(PNG_SIGNATURE)).toBe(true);
