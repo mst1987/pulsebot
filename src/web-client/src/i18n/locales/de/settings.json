@@ -6,6 +6,7 @@
     "savedToast": "Gespeichert.",
     "serverSwitched": "Der Discord-Server wurde in einem anderen Tab gewechselt – bitte die Seite neu laden. Nichts wurde gespeichert.",
     "noActiveServer": "Bitte erst oben einen Server wählen. Kanäle und Rollen gehören immer zu einem Server.",
+    "unknownServer": "Dieser Discord-Server ist noch nicht eingetragen – erst unter Alle Server › Einstellungen › Discord-Server aufnehmen. Nichts wurde gespeichert.",
     "account": "Konto {id}",
     "noName": "(ohne Name)",
     "editKicker": "Verbindung bearbeiten",

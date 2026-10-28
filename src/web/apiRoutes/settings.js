@@ -244,6 +244,26 @@ const guildBankOf = (config) => JSON.stringify(serverDefaults.everyServer("guild
 /** The servers that may hold their own settings (#924): the servers, the link targets, the home guild. */
 const settingGuildsOf = (config) => serverSettingGuildIds((config && config.discordServers) || {}, (config && config.guildId) || "");
 
+const UNKNOWN_SERVER = "Dieser Discord-Server ist nicht eingetragen – erst unter Alle Server › Einstellungen › Discord-Server aufnehmen.";
+
+/**
+ * #962: the servers a save would write a block for that may hold none - neither a
+ * server nor a link target nor the home guild, after this save. normalizeServerSettings
+ * would drop their block on the next read, so the save is refused instead of
+ * answering "saved" for values that are gone.
+ */
+function unknownServerBlocks(partial, before) {
+    const blocks = partial.serverSettings && typeof partial.serverSettings === "object" ? Object.keys(partial.serverSettings) : [];
+    if (!blocks.length) return [];
+    const stored = (before && before.discordServers) || {};
+    const sent = partial.discordServers || {};
+    const known = serverSettingGuildIds(
+        { servers: sent.servers || stored.servers || [], links: sent.links || stored.links || [] },
+        partial.guildId !== undefined ? partial.guildId : (before && before.guildId) || "",
+    );
+    return blocks.filter((guildId) => !known.has(guildId));
+}
+
 /** The bot language of every server, as one comparable string. */
 const serverLangsOf = (config) => [...settingGuildsOf(config)].sort().map((id) => `${id}:${serverLang(config, id)}`).join(",");
 
@@ -968,7 +988,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (Object.keys(ownServer).length) {
         const guildId = server ? server.guildId : "";
         if (!guildId || !settingGuildsOf(getConfig()).has(guildId)) {
-            return error(res, 400, "unknown_server", "Der gewählte Server ist nicht eingetragen – erst unter Discord-Server hinzufügen.");
+            return error(res, 400, "unknown_server", UNKNOWN_SERVER);
         }
         const merged = { ...((partial.serverSettings || {})[guildId] || {}), ...ownServer };
         partial.serverSettings = { ...(partial.serverSettings || {}), [guildId]: merged };
@@ -1121,6 +1141,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
     const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
     if (pugGrants.found.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants.found, { reopened: pugGrants.reopened }));
+    // #962: a block for a server that is not entered would be dropped silently - refused instead
+    if (unknownServerBlocks(partial, before).length) return error(res, 400, "unknown_server", UNKNOWN_SERVER);
     const langBefore = serverLangsOf(before);
     // #744: what deactivating pauses (series, reminders), for the save's answer.
     const deactivated = deactivationOf(partial, before);
