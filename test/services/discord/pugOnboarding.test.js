@@ -122,6 +122,8 @@ const baseConfig = (over = {}) => ({
     categoryIds: [TBC_CAT, FOREVER_CAT, GUILD_CAT],
     categoryVersion: { [TBC_CAT]: "tbc", [FOREVER_CAT]: "forever", [GUILD_CAT]: "tbc" },
     categoryRoles: { [GUILD_CAT]: [RAIDER_ROLE] },
+    // The server has the switch "PuG-Server"; only such a server gets the comparison and the apply.
+    discordServers: { servers: [{ guildId: GID, label: "", pug: true }], links: [] },
     ...over,
 });
 
@@ -329,17 +331,59 @@ describe("overview / diff", () => {
 });
 
 describe("firstPugServer", () => {
-    const servers = (...ids) => ({ discordServers: { servers: ids.map((guildId) => ({ guildId })) } });
+    const servers = (...ids) => ({ discordServers: { servers: ids.map((guildId) => ({ guildId, pug: true })) } });
+    const OTHER = "111111111111111111";
 
-    test("the first listed server whose guild has a PuG category", () => {
-        expect(svc.firstPugServer(baseConfig(servers("111", GID)))).toBe(GID);
+    test("the first marked server whose guild has a PuG category", () => {
+        expect(svc.firstPugServer(baseConfig(servers(OTHER, GID)))).toBe(GID);
     });
 
-    test("no server with a PuG category, or the bot offline: empty", () => {
-        expect(svc.firstPugServer(baseConfig({ ...servers(GID), categoryRoles: { [TBC_CAT]: [RAIDER_ROLE], [FOREVER_CAT]: [RAIDER_ROLE], [GUILD_CAT]: [RAIDER_ROLE] } }))).toBe("");
-        expect(svc.firstPugServer(baseConfig())).toBe("");
+    test("a server without the switch is never picked, even with PuG categories", () => {
+        const cfg = baseConfig({ discordServers: { servers: [{ guildId: GID }, { guildId: OTHER, pug: true }] } });
+        expect(svc.firstPugServer(cfg)).toBe(OTHER);
+        expect(svc.firstPugServer(baseConfig({ discordServers: { servers: [{ guildId: GID, pug: false }] } }))).toBe("");
+    });
+
+    test("marked but no PuG category, or the bot offline: the first marked server", () => {
+        const allClosed = { categoryRoles: { [TBC_CAT]: [RAIDER_ROLE], [FOREVER_CAT]: [RAIDER_ROLE], [GUILD_CAT]: [RAIDER_ROLE] } };
+        expect(svc.firstPugServer(baseConfig({ ...servers(GID), ...allClosed }))).toBe(GID);
         mockOnline = false;
-        expect(svc.firstPugServer(baseConfig(servers(GID)))).toBe("");
+        expect(svc.firstPugServer(baseConfig(servers(OTHER, GID)))).toBe(OTHER);
+    });
+
+    test("no server marked: empty", () => {
+        expect(svc.firstPugServer(baseConfig({ discordServers: { servers: [] } }))).toBe("");
+        expect(svc.firstPugServer({})).toBe("");
+    });
+});
+
+describe("the switch PuG-Server", () => {
+    const unmarked = () => baseConfig({ discordServers: { servers: [{ guildId: GID, label: "" }] } });
+
+    test("isPugServer: only an entry with pug true", () => {
+        expect(svc.isPugServer(GID, baseConfig())).toBe(true);
+        expect(svc.isPugServer(GID, unmarked())).toBe(false);
+        expect(svc.isPugServer("999", baseConfig())).toBe(false);
+    });
+
+    test("overview of an unmarked server: no comparison, only the state", async () => {
+        mockConfig = unmarked();
+        const o = await svc.overview(GID);
+        expect(o).toEqual({ guildId: GID, guildName: mockGuild.name, online: true, applied: null, notPugServer: true });
+    });
+
+    test("overview of an unmarked server with the bot offline still says notPugServer", async () => {
+        mockConfig = unmarked();
+        mockOnline = false;
+        expect(await svc.overview(GID)).toMatchObject({ online: false, notPugServer: true });
+    });
+
+    test("apply on an unmarked server: 409 not_pug_server, nothing written", async () => {
+        const { fingerprint } = await svc.overview(GID);
+        mockConfig = unmarked();
+        await expect(svc.apply(GID, { actor: "a", fingerprint })).rejects.toMatchObject({ status: 409, code: "not_pug_server" });
+        expect(writes()).toBe(0);
+        expect(mockSaved).toHaveLength(0);
     });
 });
 

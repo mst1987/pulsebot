@@ -26,7 +26,8 @@ import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 // without the version role, and the two onboarding questions. The page shows wanted
 // next to actual; only "In Discord übernehmen" (after a preview) writes. A switch per
 // PuG category decides which of them the apply covers. Full admins only: the API
-// answers everyone else with 403 forbidden, and the part then hides itself.
+// answers everyone else with 403 forbidden, and the part then hides itself. Only the
+// servers with the switch "PuG-Server" come in (`servers`); none = one line of hint.
 
 type ServerChoice = { id: string; name: string; label: string; raidCategories?: number };
 
@@ -98,7 +99,7 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
             title={t("pugOnboarding.title")}
             tip={t("pugOnboarding.title")}
             tipSub={t("pugOnboarding.tipSub")}
-            action={(
+            action={servers.length === 0 ? undefined : (
                 <span className="sync-actions">
                     {servers.length > 1 && (
                         <select aria-label={t("pugOnboarding.server")} value={guildId} onChange={(e) => chooseServer(e.target.value)}>
@@ -115,7 +116,9 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
         />
     );
 
-    if (!servers.length || hidden) return null;
+    if (hidden) return null;
+    // #906: only servers with the switch "PuG-Server" are offered; without one the part is a single line.
+    if (!servers.length || data?.notPugServer) return <section className="sync-part">{head}<div className="sync-empty">{t("pugOnboarding.notPugServer")}</div></section>;
     if (error) return <section className="sync-part">{head}<div className="sync-empty">{error}</div></section>;
     if (!data) return <section className="sync-part">{head}<RaidLoader compact text={t("pugOnboarding.loading")} /></section>;
     if (!data.online) return <section className="sync-part">{head}<div className="sync-empty">{t("pugOnboarding.offline")}</div></section>;

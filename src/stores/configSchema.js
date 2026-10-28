@@ -458,12 +458,20 @@ function normalizeEventGuilds(list) {
     return out;
 }
 
-/** One server of the federation (#890): `{ guildId, label }`, null when the id is no snowflake. */
+/**
+ * One server of the federation (#890): `{ guildId, label }` plus `pug: true` when switched on,
+ * null when the id is no snowflake. `pug` (#906): only a server with the switch "PuG-Server" gets
+ * the roles & onboarding of a PuG server (services/discord/pugOnboarding.js); missing or anything
+ * but `true` = off. Off is stored as no field at all, so existing configs read unchanged and the
+ * start migration has nothing to write.
+ */
 function normalizeServerEntry(raw) {
     if (!raw || typeof raw !== "object") return null;
     const guildId = String(raw.guildId || "").trim();
     if (!isSnowflake(guildId)) return null;
-    return { guildId, label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) };
+    const entry = { guildId, label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) };
+    if (raw.pug === true) entry.pug = true;
+    return entry;
 }
 
 /** The server list: deduped by guildId (first wins), capped at MAX_EVENT_GUILDS. */

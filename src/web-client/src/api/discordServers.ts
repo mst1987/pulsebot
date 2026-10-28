@@ -3,7 +3,12 @@ import type { SessionGuild } from "./session";
 import type { TextChannel } from "./recruitment";
 
 /** One configured server (src/config/configSchema.js, #890): the Discord name is shown, `label` is an optional extra title. */
-export type ServerEntry = { guildId: string; label: string };
+export type ServerEntry = {
+    guildId: string;
+    label: string;
+    /** The switch "PuG-Server" (#906): only then "Rollen & Onboarding" works there; missing = off. */
+    pug?: boolean;
+};
 
 /** One link (#890): the raid list of `from` is posted to `channelId` on `to`; lang "" = the target's server language, versions [] = all. */
 export type ServerLink = { from: string; to: string; channelId: string; lang: "de" | "en" | ""; versions: string[] };

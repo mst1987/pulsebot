@@ -600,7 +600,10 @@ function checkServersAndLinks(sent, stored) {
             if (!isSnowflake(guildId)) return { error: "Unbekannter Server." };
             if (seen.has(guildId)) return { error: "Server doppelt eingetragen." };
             seen.add(guildId);
-            out.servers.push({ guildId, label: String((raw && raw.label) || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) });
+            const entry = { guildId, label: String((raw && raw.label) || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) };
+            // "PuG-Server" switch (#906): stored only when on, like normalizeServerEntry().
+            if (raw.pug === true) entry.pug = true;
+            out.servers.push(entry);
         }
         // Only servers sent: a stored link whose source goes away would be
         // dropped silently on save — say so instead.

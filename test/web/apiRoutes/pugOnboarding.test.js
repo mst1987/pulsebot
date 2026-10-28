@@ -84,6 +84,14 @@ describe("GET /api/discord/pug-onboarding", () => {
         expect(svc.overview).toHaveBeenLastCalledWith(PUG, undefined, { categoryIds: [] });
     });
 
+    it("passes the answer for a server without the switch PuG-Server on", async () => {
+        svc.overview.mockResolvedValueOnce({ guildId: FIRST, guildName: "Main", online: true, applied: null, notPugServer: true });
+        const res = await get("/api/discord/pug-onboarding");
+        expect(status(res)).toBe(200);
+        expect(body(res).notPugServer).toBe(true);
+        expect(svc.overview).toHaveBeenLastCalledWith(FIRST, undefined, { categoryIds: undefined });
+    });
+
     it("refuses a server outside the list", async () => {
         const res = await get("/api/discord/pug-onboarding", { guildId: "900000000000000099" });
         expect(status(res)).toBe(400);
@@ -105,7 +113,7 @@ describe("POST /api/discord/pug-onboarding", () => {
         expect(svc.apply).toHaveBeenCalledWith(PUG, { actor: "Admin", categoryIds: [], fingerprint: "" });
     });
 
-    it.each([[409, "busy"], [409, "changed"], [409, "role_privileged"], [409, "default_channel_hidden"], [400, "fingerprint_required"]])("passes %i %s on", async (code, name) => {
+    it.each([[409, "not_pug_server"], [409, "busy"], [409, "changed"], [409, "role_privileged"], [409, "default_channel_hidden"], [400, "fingerprint_required"]])("passes %i %s on", async (code, name) => {
         svc.apply.mockRejectedValueOnce(new svc.PugOnboardingError(code, name, "x"));
         const res = await post("/api/discord/pug-onboarding", { guildId: PUG, fingerprint: "abc" });
         expect(status(res)).toBe(code);

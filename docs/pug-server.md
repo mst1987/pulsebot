@@ -74,14 +74,15 @@ ersetzt nur die Fragen – fremde Fragen gehen dabei verloren, die Vorschau nenn
 | 2 | Community einschalten (Regel- und Update-Kanal) | Discord › Server-Einstellungen › Community | Discord-Admin |
 | 3 | Bot einladen mit den Rechten oben; Bot-Rolle ganz nach oben über alle späteren Klassen-/Versionsrollen ziehen | Discord (Einladungslink des Bots) | Discord-Admin |
 | 4 | Server in die Serverliste eintragen (Name, Label „PuG“); die Server-Karte muss „verbunden“ und alle Rechte zeigen | Web › Einstellungen › Discord-Server | Voll-Admin |
-| 5 | Slash-Befehle auf dem neuen Server registrieren: der nächste Deploy tut es von selbst (neue Ziel-Server ändern den Hash), sofort mit `gh workflow run ci.yml --ref main -f force=register --repo mst1987/pulsebot` | GitHub Actions | Voll-Admin |
-| 6 | Je PuG-Kategorie: aktivieren, Version, Standard-Vorlage, Sprache *English*, **keine** Raider-Rolle, kein Roster-Zwang | Web › Einstellungen › Kategorien | Voll-Admin |
-| 7 | Orga-Rollen bzw. Roster-Manager der Kategorien festlegen (wer PuGs anlegt) | Web › Einstellungen › Berechtigungen, Roster | Voll-Admin |
-| 8 | Rollen & Onboarding: Vorschau prüfen, „In Discord übernehmen“; danach Onboarding in Discord einschalten (7 sichtbare Standard-Kanäle) | Web › Einstellungen › Discord-Server › Rollen & Onboarding, dann Discord › Onboarding | Voll-Admin, dann Discord-Admin |
-| 9 | Raid-Zentrale und Orga-Zentrale je Kategorie posten | Web › Einstellungen › Kategorien › Discord-Zentralen | Orga |
-| 10 | Je Partner: Partnerserver hat EventHelper; Verknüpfung `PuG → Partner` anlegen (Kanal, Sprache, Versionen), Einladung erzeugen und die allgemeine Einladung des PuG-Servers erzeugen; Test mit einem Partner: aus der Liste anmelden (als Mitglied und als Nicht-Mitglied), Herkunft „beigetreten“ prüfen | Web › Einstellungen › Discord-Server, dann Discord des Partners | Voll-Admin, ein Raider zum Testen |
+| 5 | Schalter „PuG-Server“ setzen (Stift am Server); ohne ihn gibt es für diesen Server kein „Rollen & Onboarding“ | Web › Einstellungen › Discord-Server › Server bearbeiten | Voll-Admin |
+| 6 | Slash-Befehle auf dem neuen Server registrieren: der nächste Deploy tut es von selbst (neue Ziel-Server ändern den Hash), sofort mit `gh workflow run ci.yml --ref main -f force=register --repo mst1987/pulsebot` | GitHub Actions | Voll-Admin |
+| 7 | Je PuG-Kategorie: aktivieren, Version, Standard-Vorlage, Sprache *English*, **keine** Raider-Rolle, kein Roster-Zwang | Web › Einstellungen › Kategorien | Voll-Admin |
+| 8 | Orga-Rollen bzw. Roster-Manager der Kategorien festlegen (wer PuGs anlegt) | Web › Einstellungen › Berechtigungen, Roster | Voll-Admin |
+| 9 | Rollen & Onboarding: Vorschau prüfen, „In Discord übernehmen“; danach Onboarding in Discord einschalten (7 sichtbare Standard-Kanäle) | Web › Einstellungen › Discord-Server › Rollen & Onboarding, dann Discord › Onboarding | Voll-Admin, dann Discord-Admin |
+| 10 | Raid-Zentrale und Orga-Zentrale je Kategorie posten | Web › Einstellungen › Kategorien › Discord-Zentralen | Orga |
+| 11 | Je Partner: Partnerserver hat EventHelper; Verknüpfung `PuG → Partner` anlegen (Kanal, Sprache, Versionen), Einladung erzeugen und die allgemeine Einladung des PuG-Servers erzeugen; Test mit einem Partner: aus der Liste anmelden (als Mitglied und als Nicht-Mitglied), Herkunft „beigetreten“ prüfen | Web › Einstellungen › Discord-Server, dann Discord des Partners | Voll-Admin, ein Raider zum Testen |
 
-Schritt 10 setzt voraus, dass der Bot auch auf dem Partnerserver ist (ein Partner ohne EventHelper ist nicht
+Schritt 11 setzt voraus, dass der Bot auch auf dem Partnerserver ist (ein Partner ohne EventHelper ist nicht
 vorgesehen). Der Partner muss nicht in der Serverliste stehen: ein reines Ziel bekommt keine Raid-Server-Rechte.
 
 ## Wege zur Anmeldung

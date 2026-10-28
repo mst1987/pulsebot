@@ -16,6 +16,7 @@ vi.mock("../../api", async (orig) => ({
     repostTalkOverview: vi.fn(),
     getRoleSync: vi.fn(),
     getReminders: vi.fn(),
+    getPugOnboarding: vi.fn(),
     updateSettings: vi.fn(),
 }));
 
@@ -26,12 +27,12 @@ function row(id: string, name: string, raidCategories: number): ServerRow {
     } as ServerRow;
 }
 
-function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "" }: {
-    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string;
+function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "", pug = false }: {
+    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string; pug?: boolean;
 } = {}): DiscordServersData {
     return {
         discordServers: {
-            servers: [{ guildId: "10001", label: "" }],
+            servers: [{ guildId: "10001", label: "", ...(pug ? { pug: true } : {}) }],
             links,
         },
         // #924: the two signup channels belong to each server
@@ -58,6 +59,69 @@ beforeEach(() => {
     vi.mocked(api.updateSettings).mockResolvedValue({ config: {} as AdminConfig });
     vi.mocked(api.getPugInvites).mockResolvedValue({ links: [], servers: [] });
     vi.mocked(api.postPugInvite).mockReset();
+    vi.mocked(api.getPugOnboarding).mockReset();
+    vi.mocked(api.getPugOnboarding).mockReturnValue(new Promise(() => undefined));
+});
+
+describe("Discord-Server: Schalter PuG-Server (#906)", () => {
+    const HINT = /Kein PuG-Server – Rollen & Onboarding gibt es nur auf Servern mit dem Schalter/;
+
+    it("shows only the hint in Rollen & Onboarding while no server is a PuG server", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        expect(await screen.findByText(HINT)).toBeInTheDocument();
+        expect(api.getPugOnboarding).not.toHaveBeenCalled();
+        // nothing to apply without a PuG server
+        expect(screen.queryByRole("button", { name: "In Discord übernehmen" })).toBeNull();
+    });
+
+    it("loads Rollen & Onboarding for a PuG server and names it in the server row", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ pug: true }));
+        render();
+        await waitFor(() => expect(api.getPugOnboarding).toHaveBeenCalled());
+        expect(document.querySelector(".srv-sub")?.textContent).toContain("PuG-Server");
+        expect(screen.queryByText(HINT)).toBeNull();
+    });
+
+    it("shows the hint when the API says the server is no PuG server", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ pug: true }));
+        vi.mocked(api.getPugOnboarding).mockResolvedValue({
+            guildId: "10001", guildName: "Pulse", online: true, applied: null, notPugServer: true,
+        } as unknown as api.PugOnboardingOverview);
+        render();
+        expect(await screen.findByText(HINT)).toBeInTheDocument();
+    });
+
+    it("switches a server to PuG-Server in its dialog and saves the switch", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server bearbeiten" }));
+        const dialog = await screen.findByRole("dialog");
+        const toggle = within(dialog).getByRole("switch", { name: "PuG-Server" });
+        expect(toggle).not.toBeChecked();
+        fireEvent.click(toggle);
+        expect(toggle).toBeChecked();
+        fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { servers: [{ guildId: "10001", label: "", pug: true }] },
+        });
+    });
+
+    it("switches a PuG server off again and leaves the field out", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ pug: true }));
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server bearbeiten" }));
+        const dialog = await screen.findByRole("dialog");
+        const toggle = within(dialog).getByRole("switch", { name: "PuG-Server" });
+        expect(toggle).toBeChecked();
+        fireEvent.click(toggle);
+        fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { servers: [{ guildId: "10001", label: "" }] },
+        });
+    });
 });
 
 describe("Discord-Server: Verknüpfungen", () => {
