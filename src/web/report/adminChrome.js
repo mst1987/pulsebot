@@ -51,6 +51,7 @@ const CHROME_STYLE = `
   .nav-item .wi { width:24px; height:24px; flex:0 0 auto; object-fit:contain; }
   .uic-blood { color:var(--icon-blood); } .uic-bronze { color:var(--icon-bronze); } .uic-arcane { color:var(--icon-arcane); } .uic-fel { color:var(--icon-fel); }
   .uic-discord { color:var(--discord-blurple); }
+  .wi.uic-brand:is(img) { transform:scale(.86); }
   .wi.uic-raidHelper { border-radius:50%; }
   .nav-item:hover { background:var(--panel2); color:var(--text); }
   .nav-item.active { background:var(--area-soft); color:var(--text); border-color:var(--area-soft); }
