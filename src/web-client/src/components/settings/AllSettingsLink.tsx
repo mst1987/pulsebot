@@ -10,7 +10,7 @@ import { useT } from "../../i18n";
 // the hint as tooltip.
 
 /** Whether the signed-in user may open /settings/all (false while viewing as a role). */
-export function useIsFullAdmin(): boolean {
+function useIsFullAdmin(): boolean {
     const ctx = useOutletContext<ShellContext | undefined>();
     return !!ctx?.user?.isAdmin;
 }
