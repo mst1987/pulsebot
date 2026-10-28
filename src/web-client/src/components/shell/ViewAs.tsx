@@ -63,7 +63,7 @@ function ViewAsDialog({ open, onClose, current }: {
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_spyglass_03"
+            open={open} onClose={onClose} icon="search"
             kicker={t("shell.viewAs.kicker")} title={t("shell.viewAs.title")} width={560}
             hint={picked.length ? t("shell.viewAs.selected", { count: picked.length }) : t("shell.viewAs.baseOnly")}
             footer={(

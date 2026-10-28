@@ -44,7 +44,7 @@ export default function RoutesSection({ requests }: { requests: SystemStatus["re
     return (
         <section className="sy-section">
             <PartHead
-                icon="inv_misc_pocketwatch_01"
+                icon="system"
                 tone="system"
                 title={t("system.routes.title")}
                 crumb={t("system.routes.since", { time: formatTime(requests.since) })}

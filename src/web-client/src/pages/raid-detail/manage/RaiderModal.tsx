@@ -98,14 +98,14 @@ export default function RaiderModal({ ctx, open, onClose }: { ctx: RaidCtx; open
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_groupneedmore" tone="raids"
+            open={open} onClose={onClose} icon="roster" tone="raids"
             kicker={data.event.title} title={t("raidManage.raider.title")} width={600}
             hint={raider && charKey === NEW ? t("raidManage.raider.hintNewChar") : t("raidManage.raider.hintDefault")}
             footer={(
                 <>
                     {raider?.signup && <Button variant="danger" icon={<TrashIcon />} onClick={remove} className="em-remove">{t("raidManage.raider.remove")}</Button>}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" variant="go" form="em-raider-form" icon="inv_misc_groupneedmore" running={busy} disabled={!raiderInputOk(userId, characterName, spec)}>
+                    <Button type="submit" variant="go" form="em-raider-form" icon="roster" running={busy} disabled={!raiderInputOk(userId, characterName, spec)}>
                         {raider?.signup ? t("raidManage.raider.change") : t("raidManage.raider.add")}
                     </Button>
                 </>

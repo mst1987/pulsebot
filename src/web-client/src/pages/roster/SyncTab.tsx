@@ -187,7 +187,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
 
             <div className="rn-sync">
                 <SyncCard
-                    icon="achievement_guildperk_everybodysfriend"
+                    icon="roster"
                     tone="mid"
                     title={t("roster.sync.withoutRole")}
                     count={sync.inRosterWithoutRole.length}
@@ -209,7 +209,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
                     })}
                 </SyncCard>
 
-                <SyncCard icon="inv_misc_groupneedmore" tone="mid" title={t("roster.sync.roleOnly")} count={sync.roleWithoutRoster.length} unit="persons"
+                <SyncCard icon="roles" tone="mid" title={t("roster.sync.roleOnly")} count={sync.roleWithoutRoster.length} unit="persons"
                     foot={manage && <span className="rn-sub">{t("roster.sync.roleOnlyFoot")}</span>}>
                     {sync.roleWithoutRoster.map((p) => (
                         <div key={p.userId} className="rn-sync-row">
@@ -220,7 +220,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
                     ))}
                 </SyncCard>
 
-                <SyncCard icon="inv_misc_note_02" tone="mid" title={t("roster.sync.withoutChar")} count={sync.withoutChar.length} unit="persons">
+                <SyncCard icon="profile" tone="mid" title={t("roster.sync.withoutChar")} count={sync.withoutChar.length} unit="persons">
                     {sync.withoutChar.map((p) => (
                         <div key={p.userId} className="rn-sync-row">
                             <Person userId={p.userId} name={p.displayName} line={p.suggestion ? t("roster.sync.suggestion") : t("roster.sync.noSuggestion")} data={data} />
@@ -233,7 +233,7 @@ export default function SyncTab({ data, sync, onChanged, onAdd, onOpen }: {
                     ))}
                 </SyncCard>
 
-                <SyncCard icon="inv_misc_book_09" tone="none" title={t("roster.sync.logChars")} count={sync.logCharsWithoutPerson.length} unit="chars">
+                <SyncCard icon="logs" tone="none" title={t("roster.sync.logChars")} count={sync.logCharsWithoutPerson.length} unit="chars">
                     {sync.logCharsWithoutPerson.map((c) => (
                         <div key={c.key} className="rn-sync-row">
                             <span className="rn-log-char">

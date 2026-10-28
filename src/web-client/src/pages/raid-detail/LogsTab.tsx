@@ -51,11 +51,11 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
     return (
         <section className="panel rd-panel">
             <PartHead
-                icon="inv_misc_pocketwatch_01"
+                icon="logs"
                 tone="cla"
                 title={t("raidDetail.logs.title")}
                 crumb={`${data.event.title || "Raid"} · ${logs.length ? t("raidDetail.logs.assigned", { count: logs.length }) : t("raidDetail.logs.noneAssigned")}`}
-                action={canLogs ? <Button variant="ghost" size="sm" icon="inv_misc_pocketwatch_01" onClick={() => openModal("log")}>{t("raidDetail.logs.assign")}</Button> : undefined}
+                action={canLogs ? <Button variant="ghost" size="sm" icon="logs" onClick={() => openModal("log")}>{t("raidDetail.logs.assign")}</Button> : undefined}
             />
 
             {!logs.length ? (
@@ -71,7 +71,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                         return (
                             <div key={l.id} className="rd-log-row">
                                 <span className="rd-log-title">
-                                    <IconTile icon="inv_misc_pocketwatch_01" tone="cla" />
+                                    <IconTile icon="logs" tone="cla" />
                                     <span>
                                         <b>{l.title || l.reportId || t("raidDetail.logs.unknown")}</b>
                                         <span className="rd-mono">{l.reportId || t("raidDetail.logs.noReportId")}</span>
@@ -85,7 +85,7 @@ export default function LogsTab({ ctx, evaluator }: { ctx: RaidCtx; evaluator: E
                                 <span className="rd-log-actions">
                                     {open.map((a) => (
                                         <Button
-                                            key={a.key} variant="run" size="sm" icon="inv_misc_pocketwatch_01"
+                                            key={a.key} variant="run" size="sm" icon="logs"
                                             running={evaluator.isRunning(l.id, a.key)}
                                             data-tip={t("raidDetail.logs.evaluate", { label: a.label })} data-tip-sub={a.tip}
                                             onClick={() => evaluator.evaluate(l, a.key)}

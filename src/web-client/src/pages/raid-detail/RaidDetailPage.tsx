@@ -87,11 +87,11 @@ const LEGACY_TABS: Record<string, { tab: Tab; modal?: RaidDetailModal }> = {
 
 // Labels are looked up at render time: raidDetail.page.tab.<tab>.
 const TAB_ICONS: Record<Tab, string> = {
-    roster: "achievement_guildperk_everybodysfriend",
-    setup: "inv_misc_map_01",
-    loot: "inv_misc_bag_10",
-    logs: "inv_misc_pocketwatch_01",
-    plan: "inv_misc_map02",
+    roster: "roster",
+    setup: "home",
+    loot: "loot",
+    logs: "logs",
+    plan: "raidplan",
 };
 
 export default function RaidDetailPage() {
@@ -240,7 +240,7 @@ export default function RaidDetailPage() {
         if (action === "lootsystem") setModal("lootsystem");
         else if (action === "raidplanOn") setLinkOpen(true);
         else if (action === "raidplanOff") {
-            const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "inv_misc_map02" });
+            const ok = await ask({ title: t("raidDetail.raidplanLink.offTitle"), text: t("raidDetail.raidplanLink.offText"), action: t("raidDetail.raidplanLink.offAction"), tone: "danger", icon: "raidplan" });
             if (!ok) return;
             try {
                 await setRaidplanLink({ event: ev.id, enabled: false });
@@ -265,8 +265,8 @@ export default function RaidDetailPage() {
         else if (action === "signups") {
             const open = !!ev.signupsClosed;
             const ok = await ask(open
-                ? { title: t("raidDetail.page.signups.openTitle"), text: t("raidDetail.page.signups.openText"), action: t("raidDetail.page.signups.openAction"), tone: "primary", icon: "inv_misc_note_02" }
-                : { title: t("raidDetail.page.signups.closeTitle"), text: t("raidDetail.page.signups.closeText"), action: t("raidDetail.page.signups.closeAction"), tone: "primary", icon: "inv_misc_note_02" });
+                ? { title: t("raidDetail.page.signups.openTitle"), text: t("raidDetail.page.signups.openText"), action: t("raidDetail.page.signups.openAction"), tone: "primary", icon: "signups" }
+                : { title: t("raidDetail.page.signups.closeTitle"), text: t("raidDetail.page.signups.closeText"), action: t("raidDetail.page.signups.closeAction"), tone: "primary", icon: "signups" });
             if (!ok) return;
             try {
                 const r = await setRaidSignupsOpen({ event: ev.id, open });

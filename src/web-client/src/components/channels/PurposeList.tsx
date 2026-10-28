@@ -91,7 +91,7 @@ export function PurposesDialog({ data, canEdit, onEdit, onClose }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_note_02"
+            icon="channels"
             tone="channels"
             kicker={t("channels.purposeList.dialogKicker")}
             title={t("channels.purposeList.dialogTitle")}

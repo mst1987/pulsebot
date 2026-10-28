@@ -225,13 +225,13 @@ export default function LootAddModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_bag_10" tone="history"
+            open={open} onClose={onClose} icon="loot" tone="history"
             kicker={ctx.data.event.title} title={t("raidModals.lootAdd.title")} width={660}
             hint={mode === "manual" ? hint : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{mode === "manual" ? t("common.close") : t("common.cancel")}</Button>
-                    <Button type="submit" form="rd-loot-form" icon="inv_misc_bag_10" running={busy}>{mode === "import" ? t("raidModals.lootAdd.import") : t("raidModals.lootAdd.addItem")}</Button>
+                    <Button type="submit" form="rd-loot-form" icon="loot" running={busy}>{mode === "import" ? t("raidModals.lootAdd.import") : t("raidModals.lootAdd.addItem")}</Button>
                 </>
             )}
         >

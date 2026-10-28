@@ -27,12 +27,12 @@ export function WeightsModal({ open, onClose, data, setup, onApply }: {
     const changed = Object.fromEntries(Object.entries(values).filter(([k, v]) => defaults[k] !== v));
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_gear_01" tone="raids" kicker={t("setup.weightsModal.kicker")} title={t("setup.weightsModal.title")} width={520}
+            open={open} onClose={onClose} icon="settings" tone="raids" kicker={t("setup.weightsModal.kicker")} title={t("setup.weightsModal.title")} width={520}
             hint={t("setup.weightsModal.hint")}
             footer={(
                 <>
                     <Button variant="ghost" onClick={() => setValues({ ...defaults })}>{t("setup.weightsModal.defaults")}</Button>
-                    <Button icon="spell_holy_borrowedtime" onClick={() => onApply(changed)}>{t("setup.weightsModal.repropose")}</Button>
+                    <Button icon="simulate" onClick={() => onApply(changed)}>{t("setup.weightsModal.repropose")}</Button>
                 </>
             )}
         >
@@ -72,11 +72,11 @@ export function FillModal({ open, onClose, placed, free, onFill }: {
     }, [open]);
     return (
         <Modal
-            open={open} onClose={onClose} icon="spell_holy_borrowedtime" tone="raids" kicker={t("setup.fill.kicker")} title={t("setup.fill.free")} width={500}
+            open={open} onClose={onClose} icon="simulate" tone="raids" kicker={t("setup.fill.kicker")} title={t("setup.fill.free")} width={500}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="spell_holy_borrowedtime" onClick={() => onFill(keep)}>{t("setup.fill.go")}</Button>
+                    <Button icon="simulate" onClick={() => onFill(keep)}>{t("setup.fill.go")}</Button>
                 </>
             )}
         >
@@ -110,7 +110,7 @@ export function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     const outdated = !!explanation && explanation.version !== setup.version;
     const start = async () => {
         setRunning(true);
-        await jobs.run({ label: t("setup.explain.title"), detail: data.event.title, icon: "inv_scroll_03", expectedSeconds: 30 }, async () => {
+        await jobs.run({ label: t("setup.explain.title"), detail: data.event.title, icon: "help", expectedSeconds: 30 }, async () => {
             await explainRaidSetup(ctx.eventId);
             for (;;) {
                 await new Promise((r) => setTimeout(r, 2000));
@@ -124,10 +124,10 @@ export function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
     };
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_scroll_03" tone="raids" kicker={t("setup.explain.kicker")} title={t("setup.explain.title")} width={640}
+            open={open} onClose={onClose} icon="help" tone="raids" kicker={t("setup.explain.kicker")} title={t("setup.explain.title")} width={640}
             hint={t("setup.explain.hint")}
             footer={data.hasApiKey
-                ? <Button variant="run" icon="spell_holy_borrowedtime" running={running} onClick={start}>{explanation ? t("setup.explain.recreate") : t("setup.explain.create")}</Button>
+                ? <Button variant="run" icon="simulate" running={running} onClick={start}>{explanation ? t("setup.explain.recreate") : t("setup.explain.create")}</Button>
                 : <AllSettingsLink className="btn btn-ghost" section="verbindungen">{t("setup.explain.addKey")}</AllSettingsLink>}
         >
             {!data.hasApiKey && <p className="se-note">{t("setup.explain.noKey")}</p>}

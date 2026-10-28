@@ -7,7 +7,7 @@ import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
 import { BrandIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
-import WowIcon from "../ui/WowIcon";
+import Icon from "../ui/Icon";
 import RaidLoader from "../ui/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
@@ -81,7 +81,7 @@ function AdminNav({ user, onNavigate }: { user: SessionUser; onNavigate: () => v
                     aria-current={active ? "page" : undefined}
                     className={`nav-item area-${entry.area || entry.id}${active ? " active" : ""}`}
                 >
-                    <WowIcon name={entry.wowIcon} size={24} />
+                    <Icon name={entry.icon} size={24} />
                     <span>{menuLabel(entry)}</span>
                 </Link>
             </div>

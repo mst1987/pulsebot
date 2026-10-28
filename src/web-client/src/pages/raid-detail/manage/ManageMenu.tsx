@@ -26,7 +26,7 @@ export default function ManageMenu({ state, entries: given, tipSub, onAction }: 
         <div className="em-menu" ref={anchor}>
             {/* the label is its own span: on a phone the head shows the icon only (raid-detail.css), the name stays */}
             <Button
-                variant="ghost" icon="inv_misc_note_05" aria-haspopup="menu" aria-expanded={open}
+                variant="ghost" icon="edit" aria-haspopup="menu" aria-expanded={open}
                 aria-label={t("raidDetail.manage.button")}
                 className={open ? "em-open" : undefined}
                 data-tip={open ? undefined : t("raidDetail.manage.tip")}

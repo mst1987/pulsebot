@@ -24,7 +24,7 @@ function Tile({ tile }: { tile: CouncilOverviewTile }) {
         <li>
             <Link className="lc-ov-card" to={councilHref(roster ? { roster: tile.id } : { category: tile.id })}>
                 <div className="lc-ov-top">
-                    <IconTile icon={roster ? "inv_misc_coin_02" : "inv_misc_note_02"} tone={roster ? "lootcouncil" : "none"} size="lg" />
+                    <IconTile icon={roster ? "lootcouncil" : "raids"} tone={roster ? "lootcouncil" : "none"} size="lg" />
                     <div className="lc-ov-title">
                         <b>{tile.name}</b>
                         {/* the version dot and line, as the roster cards draw them */}
@@ -81,7 +81,7 @@ export default function CouncilOverview() {
     return (
         <>
             <PageHead
-                icon="inv_misc_coin_02"
+                icon="lootcouncil"
                 tone="lootcouncil"
                 kicker={t("lootcouncil.overview.kicker", { count: data.tiles.length })}
                 title={t("lootcouncil.title")}

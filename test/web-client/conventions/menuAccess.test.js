@@ -7,6 +7,7 @@ const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");
 const { MENU } = require("../../../src/config/menu");
+const { isUiIcon } = require("../../../src/config/uiIconSvg");
 
 const appSrc = read("App.tsx");
 
@@ -31,7 +32,7 @@ describe("one menu for both front ends", () => {
         expect(appSrc).toContain("<Route path=\"settings/all\"");
     });
 
-    it("gives every entry an id, a label, a group, its areas and a WoW icon", () => {
+    it("gives every entry an id, a label, a group, its areas and an icon of the set", () => {
         for (const entry of MENU) {
             expect(entry).toEqual({
                 // a sub entry keeps its parent's colour (the raid plan pages under Raid-Events,
@@ -54,8 +55,10 @@ describe("one menu for both front ends", () => {
                 href: expect.stringMatching(/^\//),
                 group: expect.stringMatching(/^(Start|Raids|Loot|Gilde|System)$/),
                 areas: entry.adminOnly ? [] : expect.arrayContaining([expect.any(String)]),
-                wowIcon: expect.stringMatching(/^[a-z0-9_'-]+$/),
+                // a key of the app's own icon set (#951), never a zamimg name
+                icon: expect.any(String),
             });
+            expect({ id: entry.id, icon: entry.icon, known: isUiIcon(entry.icon) }).toEqual({ id: entry.id, icon: entry.icon, known: true });
         }
         expect(new Set(MENU.map((e) => e.id)).size).toBe(MENU.length);
     });
@@ -89,33 +92,35 @@ describe("one menu for both front ends", () => {
         expect(MENU.filter((e) => e.scope === "all" && e.adminOnly).map((e) => e.id)).toEqual(["settingsAll", "system"]);
     });
 
-    it("uses the icons of the approved design", () => {
-        const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.wowIcon]));
-        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.wowIcon]))).toEqual({
-            planTemplates: "inv_misc_map02", planCatalog: "inv_misc_book_11", dungeons: "spell_holy_borrowedtime",
-            roleMessages: "inv_shirt_guildtabard_01",
-            members: "achievement_reputation_01",
-            serverRoles: "achievement_guildperk_everybodysfriend",
-            discordOverview: "inv_misc_spyglass_02",
+    it("uses the icons of the approved set (#951)", () => {
+        const icons = Object.fromEntries(MENU.filter((e) => !e.sub).map((e) => [e.id, e.icon]));
+        // Discord's own pages wear plain line icons, as in Discord's own interface
+        expect(Object.fromEntries(MENU.filter((e) => e.sub).map((e) => [e.id, e.icon]))).toEqual({
+            planTemplates: "raidplan", planCatalog: "catalog", dungeons: "bestTimes",
+            roleMessages: "message",
+            members: "members",
+            serverRoles: "roles",
+            discordOverview: "overview",
         });
         expect(icons).toEqual({
-            home: "inv_misc_map_01",
-            profile: "achievement_character_human_male",
-            signups: "inv_misc_book_09",
-            absences: "spell_nature_timestop",
-            recruitment: "inv_misc_grouplooking",
-            cla: "inv_misc_pocketwatch_01",
-            raids: "inv_misc_note_02",
-            roster: "achievement_guildperk_everybodysfriend",
-            history: "inv_misc_bag_10",
-            lootcouncil: "inv_misc_coin_02",
-            bank: "achievement_guildperk_mobilebanking",
-            kader: "inv_misc_groupneedmore",
-            channels: "inv_letter_15",
-            addon: "inv_gizmo_01",
-            settings: "trade_engineering",
-            settingsAll: "inv_misc_wrench_01",
-            system: "inv_gizmo_02",
+            home: "home",
+            profile: "profile",
+            signups: "signups",
+            absences: "absences",
+            recruitment: "recruitment",
+            cla: "logs",
+            raids: "raids",
+            roster: "roster",
+            history: "loot",
+            lootcouncil: "lootcouncil",
+            bank: "guildbank",
+            kader: "kader",
+            // the Discord line itself: Discord's mark in its Blurple
+            channels: "discord",
+            addon: "addons",
+            settings: "settings",
+            settingsAll: "settings",
+            system: "system",
         });
     });
 

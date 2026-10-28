@@ -181,7 +181,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                 {reachesGame ? (
                     <Badge
                         tone="accent"
-                        icon="inv_misc_gear_01"
+                        icon="settings"
                         tip={t("lootcouncil.filter.gameTip", { category: data.council?.roster?.name || o.categories.find((c) => c.id === view.category)?.name || view.category })}
                         tipSub={canWrite ? t("lootcouncil.filter.gameTipSub") : t("lootcouncil.filter.gameTipReadOnly")}
                     >
@@ -189,14 +189,14 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                     </Badge>
                 ) : null}
                 {fromRoster ? (
-                    <Badge icon="achievement_guildperk_everybodysfriend" tip={fromRoster.head} tipSub={fromRoster.sub}>
+                    <Badge icon="roster" tip={fromRoster.head} tipSub={fromRoster.sub}>
                         {fromRoster.label}
                     </Badge>
                 ) : null}
                 {noSpec.length ? (
                     <Badge
                         tone="mid"
-                        icon="inv_misc_questionmark"
+                        icon="help"
                         tip={t("lootcouncil.rosterSource.noSpecTip", { count: noSpec.length })}
                         tipSub={t("lootcouncil.rosterSource.noSpecTipSub", { names: noSpec.map((m) => m.character).join(", ") })}
                     >
@@ -204,7 +204,7 @@ export default function FilterBar({ data, view, patch, armoryCount, simulated, s
                     </Badge>
                 ) : null}
                 {note ? (
-                    <Badge tone={note.empty ? "bad" : undefined} icon="achievement_guildperk_everybodysfriend" tip={note.head} tipSub={note.sub}>
+                    <Badge tone={note.empty ? "bad" : undefined} icon="roster" tip={note.head} tipSub={note.sub}>
                         {note.empty ? t("lootcouncil.filter.categoryEmpty") : t("lootcouncil.filter.hidden", { count: data.filter.skipped.category + data.filter.skipped.excluded })}
                     </Badge>
                 ) : null}

@@ -155,7 +155,7 @@ export function MyNextRaid({ raid, compact = false }: { raid: PersonalRaid | nul
     const t = useT();
     const head = (
         <PartHead
-            icon={raid ? raid.icon : "inv_misc_note_02"} tone="signups" title={t("dashboard.personal.next.title")}
+            icon={raid ? raid.icon : "raids"} tone="signups" title={t("dashboard.personal.next.title")}
             crumb={raid ? relativeDayLabel(raid.startTime) : undefined}
             action={raid && <Link className={buttonClass("ghost", "sm")} to={signupHref(raid.id)}>{t("dashboard.personal.next.toSignup")}</Link>}
         />
@@ -230,7 +230,7 @@ export function MyRaids({ raids }: { raids: PersonalRaid[] }) {
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon="inv_misc_book_09" tone="signups" title={t("dashboard.personal.list.title")}
+                icon="signups" tone="signups" title={t("dashboard.personal.list.title")}
                 action={<Link className={buttonClass("ghost", "sm")} to="/signups">{t("dashboard.personal.list.all")}</Link>}
             />
             {raids.length === 0
@@ -292,7 +292,7 @@ export function MyRecentRaids({ recent }: { recent: PersonalNight[] }) {
     return (
         <section className="dash-card ov-card">
             <PartHead
-                icon="inv_misc_pocketwatch_01" tone="absences" title={t("dashboard.personal.recent.title")}
+                icon="logs" tone="absences" title={t("dashboard.personal.recent.title")}
                 action={<Link className={buttonClass("ghost", "sm")} to="/absences">{t("dashboard.personal.recent.attendance")}</Link>}
             />
             {recent.length === 0

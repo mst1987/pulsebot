@@ -249,12 +249,12 @@ export default function ManualLootForm({ eventId, eventTitle = "", defaultAwarde
     // form is about out of sight. The explanations sit in the labels' tooltips.
     return (
         <>
-            <Button variant="ghost" icon="inv_misc_note_05" onClick={() => setOpen(true)}>{t("history.manual.open")}</Button>
+            <Button variant="ghost" icon="edit" onClick={() => setOpen(true)}>{t("history.manual.open")}</Button>
             <Modal
                 open={open}
                 onClose={() => setOpen(false)}
                 width={640}
-                icon="inv_misc_note_05"
+                icon="edit"
                 tone="history"
                 kicker={eventTitle || t("history.manual.kickerFallback")}
                 title={t("history.manual.open")}

@@ -54,7 +54,7 @@ export default function SystemPage() {
     return (
         <div className="sy-page">
             <PageHead
-                icon="inv_gizmo_02"
+                icon="system"
                 tone="system"
                 kicker={t("system.kicker")}
                 title={t("system.title")}

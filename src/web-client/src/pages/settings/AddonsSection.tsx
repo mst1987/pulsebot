@@ -85,7 +85,7 @@ function AddonForm({ addon, versions, onSave, onCancel }: {
                 <Field className="set-field" htmlFor="dlp-icon" label={t("addon.settings.icon")} tip={t("addon.settings.icon")} tipSub={t("addon.settings.iconSub")}>
                     <span className="dlp-icon-field">
                         <WowIcon name={value.icon || "inv_misc_questionmark"} size={28} />
-                        <input id="dlp-icon" type="text" className="mono" value={value.icon} onChange={(e) => set({ icon: e.target.value })} placeholder="inv_gizmo_01" />
+                        <input id="dlp-icon" type="text" className="mono" value={value.icon} onChange={(e) => set({ icon: e.target.value })} placeholder="addons" />
                     </span>
                 </Field>
             </div>

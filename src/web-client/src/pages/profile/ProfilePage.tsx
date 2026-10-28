@@ -216,7 +216,7 @@ export default function ProfilePage() {
     return (
         <div className="pf-page">
             <PageHead
-                icon={headClass ? headClass.icon : "achievement_character_human_male"}
+                icon={headClass ? headClass.icon : "profile"}
                 tone="profile"
                 kicker={`Discord · ${user.name} · ${t("profile.characters", { count: shownChars.length })}`}
                 title={t("profile.title")}

@@ -58,7 +58,7 @@ export default function DeleteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_bone_humanskull_01" tone="bad"
+            open={open} onClose={onClose} icon="delete" tone="bad"
             kicker={data.event.title} title={t("raidManage.delete.title")} width={520}
             hint={d ? deleteSummary(d, notify, archive) : undefined}
             footer={(

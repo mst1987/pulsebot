@@ -301,23 +301,23 @@ describe("Raid-Events list", () => {
         show();
         await screen.findByRole("table", { name: t("raids.list.upcomingAria") });
         const row = rowOf("Hyjal + BT");
-        const icon = (el: HTMLElement) => el.querySelector("img")?.getAttribute("src") || "";
+        const icon = (el: HTMLElement) => el.querySelector("[data-icon]")?.getAttribute("data-icon") || "";
 
         const post = within(row).getByRole("link", { name: t("raids.list.discordPost") });
         expect(post).toHaveAttribute("href", "https://discord.com/channels/g1/ch2/1002");
         expect(post).toHaveAttribute("data-tip-sub", t("raids.list.discordPostSubIn", { channel: "t6-do-24-09" }));
-        expect(icon(post)).toContain("inv_letter_15");
+        expect(icon(post)).toBe("discord");
 
         const setup = within(row).getByRole("link", { name: t("raids.list.setup") });
         expect(setup).toHaveAttribute("href", "https://raid-helper.xyz/raidplan/1002");
-        expect(icon(setup)).toContain("inv_misc_groupneedmore");
+        expect(icon(setup)).toBe("raidplan");
 
         const softres = within(row).getByRole("link", { name: "Softres" });
         expect(softres).toHaveAttribute("href", "https://softres.it/raid/abc");
-        expect(icon(softres)).toContain("inv_scroll_11");
+        expect(icon(softres)).toBe("softres");
 
         const repeat = within(row).getByRole("button", { name: t("raids.list.repeat") });
-        expect(icon(repeat)).toContain("spell_holy_borrowedtime");
+        expect(icon(repeat)).toBe("raids");
         // no Softres link where the event has none
         expect(within(rowOf("Kara Donnerstag")).queryByRole("link", { name: "Softres" })).not.toBeInTheDocument();
     });

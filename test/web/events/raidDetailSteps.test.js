@@ -215,7 +215,7 @@ describe("raidSteps", () => {
         it("is next after the sheet while the filled plan is not posted", () => {
             const res = raidSteps(ready(rp()));
             expect(res.next).toBe("raidplan");
-            expect(res.primary).toEqual({ label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" });
+            expect(res.primary).toEqual({ label: "Einteilungen posten", icon: "raidplan", modal: "raidplan" });
             expect(step(res, "raidplan")).toMatchObject({ value: "Offen", done: false, badge: { label: "nicht gepostet", tone: "mid" }, open: { modal: "raidplan" } });
         });
 

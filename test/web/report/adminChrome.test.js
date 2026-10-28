@@ -104,7 +104,8 @@ describe("web/report/adminChrome", () => {
     });
 
     it("renders exactly the top-level entries of config/menu.js, Roster and Loot-Council included", () => {
-        const { MENU: ALL, wowIconUrl, isAllServers } = require("../../../src/config/menu.js");
+        const { MENU: ALL, isAllServers } = require("../../../src/config/menu.js");
+        const { uiIconSvg } = require("../../../src/config/uiIconSvg.js");
         // the sub entries (the raid plan's pages) live in their parent's icon rail, as in the React shell;
         // the pages without a server come last, in their own block (#918)
         const TOP = ALL.filter((e) => !e.sub);
@@ -112,13 +113,15 @@ describe("web/report/adminChrome", () => {
         expect(TABS.map((t) => t.id)).toEqual(MENU.map((e) => e.id));
         expect(render()).not.toContain("/raids/plan-templates");
         const html = render();
-        const links = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)"><img class="wi" src="([^"]+)" alt=""><span>([^<]+)<\/span><\/a>/g)]
+        const links = [...html.matchAll(/<a class="nav-item[^"]*" href="([^"]+)">(<svg .*?<\/svg>)<span>([^<]+)<\/span><\/a>/g)]
             .map((m) => ({ href: m[1], icon: m[2], label: m[3] }));
-        // a line with a landing page (Discord → its overview) leads there
-        expect(links).toEqual(MENU.map((e) => ({ href: e.landing || e.href, icon: wowIconUrl(e.wowIcon, 24), label: e.label })));
+        // a line with a landing page (Discord → its overview) leads there; the icon is
+        // the app's own set drawn inline (#951), no image from zamimg
+        expect(links).toEqual(MENU.map((e) => ({ href: e.landing || e.href, icon: uiIconSvg(e.icon, 24), label: e.label })));
         expect(html).toContain("<span>Roster</span>");
         expect(html).toContain("<span>Loot-Council</span>");
-        expect(html).toContain("inv_misc_coin_02.jpg");
+        expect(html).toContain("uic-discord");
+        expect(html).not.toContain("zamimg");
     });
 
     it("puts the pages without a server under one heading \"Alle Server\" below the server's block", () => {

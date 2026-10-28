@@ -57,7 +57,7 @@ export default function RaidhelperSyncCard() {
     return (
         <section className="conn-card rhr-card" data-conn="raidhelper-sync">
             <div className="conn-head">
-                <IconTile icon="spell_nature_timestop" tone={tone === "bad" ? "mid" : "settings"} />
+                <IconTile icon="raidHelper" tone={tone === "bad" ? "mid" : "settings"} />
                 <div className="conn-title">
                     <span>{t("settings.rhSync.title")}</span>
                     <InfoTip head={t("settings.rhSync.title")} sub={t("settings.rhSync.infoSub", { minutes: sync ? Math.round(sync.intervalMs / 60000) : 5 })} />
@@ -96,7 +96,7 @@ export default function RaidhelperSyncCard() {
             )}
             {sync && (
                 <div className="conn-foot rhr-foot">
-                    <Button variant="run" size="sm" icon="spell_nature_timestop" onClick={refresh} disabled={busy || sync.disabled}>
+                    <Button variant="run" size="sm" icon="raidHelper" onClick={refresh} disabled={busy || sync.disabled}>
                         {busy ? t("settings.rhSync.running") : t("settings.rhSync.refresh")}
                     </Button>
                     <span className="grow" />

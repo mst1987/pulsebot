@@ -63,7 +63,7 @@ function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             title={t("kader.roster.createTitle")}
             width={520}
@@ -143,7 +143,7 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
             text: t("kader.roster.unlinkText"),
             action: t("kader.roster.unlink"),
             tone: "primary",
-            icon: "inv_misc_groupneedmore",
+            icon: "kader",
         });
         if (ok) await send("");
     };
@@ -151,7 +151,7 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             title={t("kader.roster.linkTitle")}
             width={520}
@@ -211,7 +211,7 @@ export default function RosterLink() {
             action: t("kader.roster.sync"),
             // nothing is lost: an ordinary confirmation, no trash icon
             tone: "primary",
-            icon: "inv_misc_groupneedmore",
+            icon: "kader",
         });
         if (!ok) return;
         setBusy(true);

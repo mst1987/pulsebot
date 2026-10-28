@@ -370,7 +370,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
         <Modal
             open
             onClose={onClose}
-            icon="achievement_guildperk_everybodysfriend"
+            icon="roster"
             tone="roster"
             kicker={create ? t("roster.form.kickerNew") : t("roster.form.kickerSettings")}
             title={create ? (category ? t("roster.form.titleFor", { name: category.name }) : t("roster.form.title")) : t("roster.form.settingsTitle", { name: data?.roster.name || "" })}
@@ -403,7 +403,7 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                             <div className="rn-field-line" data-tip={lockTip}>
                                 <span className="rn-lbl">{t("roster.form.version")}</span>
                                 {locked
-                                    ? <b className="rn-version">{shownVersion?.icon && <WowIcon name={shownVersion.icon} size={18} />}{shownVersion?.label || form.versionId}</b>
+                                    ? <b className="rn-version">{shownVersion?.icon && <WowIcon name={shownVersion.icon} size={18} alt={shownVersion.label} />}{shownVersion?.label || form.versionId}</b>
                                     : <Segment ariaLabel={t("roster.form.version")} value={form.versionId} onChange={(v) => set({ versionId: v })} options={options.versions.map((v) => ({ value: v.id, label: v.label, icon: v.icon || undefined }))} />}
                             </div>
                         )}
@@ -432,10 +432,10 @@ function RosterForm({ options, mode, data, presetCategory, onClose, onSaved }: {
                     {stepId === "slots" && <section className="rn-dlg-sec">
                         <h3 className="rn-lbl">{t("roster.form.slots")}</h3>
                         <div className="rn-targets">
-                            <Stepper label={t("roster.form.slotTotal")} icon={<WowIcon name="achievement_guildperk_everybodysfriend" size={20} />} value={form.slots.total} onChange={(total) => set({ slots: { ...form.slots, total } })} />
+                            <Stepper label={t("roster.form.slotTotal")} icon={<WowIcon name="members" size={20} />} value={form.slots.total} onChange={(total) => set({ slots: { ...form.slots, total } })} />
                             <Stepper label={t("roster.form.slotTank")} icon={<WowIcon name={ROLE_ICONS.tank} size={20} />} value={form.slots.tank} onChange={(tank) => set({ slots: { ...form.slots, tank } })} />
                             <Stepper label={t("roster.form.slotHealer")} icon={<WowIcon name={ROLE_ICONS.healer} size={20} />} value={form.slots.healer} onChange={(healer) => set({ slots: { ...form.slots, healer } })} />
-                            <Stepper label={t("roster.form.slotBench")} icon={<WowIcon name="inv_misc_groupneedmore" size={20} />} value={form.slots.bench} onChange={(bench) => set({ slots: { ...form.slots, bench } })} />
+                            <Stepper label={t("roster.form.slotBench")} icon={<WowIcon name="members" size={20} />} value={form.slots.bench} onChange={(bench) => set({ slots: { ...form.slots, bench } })} />
                         </div>
                         <p className={slotsBad ? "rn-bad" : "rn-sub"}>
                             {slotsBad ? t("roster.err.invalid_slots") : form.slots.total > 0 ? t("roster.form.dps", { count: dps }) : t("roster.form.noSlots")}

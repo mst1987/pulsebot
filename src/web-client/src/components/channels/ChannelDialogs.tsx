@@ -5,7 +5,7 @@ import {
     type ApiError, type Channel, type ChannelPurpose, type ChannelsData,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
-import { CopyIcon, SearchIcon } from "../ui/icons";
+import { CopyIcon, SaveIcon, SearchIcon } from "../ui/icons";
 import { useToast } from "../shell/Jobs";
 import { ChannelTypeIcon, PurposeBadge, PurposeChip, StatusBadge } from "./channelBits";
 import {
@@ -190,7 +190,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_note_02"
+            icon="edit"
             tone="channels"
             kicker={t("channels.kickerPath", { name: channel.name })}
             title={t("channels.assignDialog.title")}
@@ -199,7 +199,7 @@ export function AssignChannelDialog({ channel, data, onClose, onSaved }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button variant="go" icon="inv_misc_note_02" running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} running={busy} onClick={save}>{t("channels.purposeDialog.save")}</Button>
                 </>
             )}
         >
@@ -311,7 +311,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="channels"
             tone="channels"
             kicker={t("channels.createDialog.kicker")}
             title={t("channels.createDialog.title")}
@@ -320,7 +320,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="kn-create" icon="inv_letter_15" running={busy}>{t("channels.createDialog.submit")}</Button>
+                    <Button type="submit" form="kn-create" icon="channels" running={busy}>{t("channels.createDialog.submit")}</Button>
                 </>
             )}
         >
@@ -406,7 +406,7 @@ export function DuplicateChannelDialog({ source, data, onClose, onDone }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="channels"
             tone="channels"
             kicker={t("channels.kickerPath", { name: source.name })}
             title={t("channels.duplicateDialog.title")}

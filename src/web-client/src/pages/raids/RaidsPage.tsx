@@ -163,7 +163,7 @@ function RaidsList({ user }: ShellContext) {
     return (
         <div className="re-page">
             <div className="page-head">
-                <IconTile icon="inv_misc_note_02" size="lg" />
+                <IconTile icon="raids" size="lg" />
                 <div className="ph-text">
                     <div className="kicker">Raid-Helper{upcoming.guildName ? ` · ${upcoming.guildName}` : ""}</div>
                     <h1 className="re-h1">
@@ -177,11 +177,11 @@ function RaidsList({ user }: ShellContext) {
                 </div>
                 {(orga || canCreate) && (
                     <div className="ph-act">
-                        {orga && <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="spell_holy_borrowedtime" size={22} />{t("raids.page.series")}</Link>}
+                        {orga && <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="raids" size={22} />{t("raids.page.series")}</Link>}
                         {/* raid and notify templates are global (#728): the global orga's */}
-                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="inv_misc_note_01" size={22} />{t("raids.page.raidTemplates")}</Link>}
-                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="inv_misc_horn_01" size={22} />{t("raids.page.notifyTemplates")}</Link>}
-                        {canCreate && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="inv_misc_note_05" size={22} />{t("raids.page.newEvent")}</Link>}
+                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="tasks" size={22} />{t("raids.page.raidTemplates")}</Link>}
+                        {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="notify" size={22} />{t("raids.page.notifyTemplates")}</Link>}
+                        {canCreate && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="edit" size={22} />{t("raids.page.newEvent")}</Link>}
                     </div>
                 )}
             </div>

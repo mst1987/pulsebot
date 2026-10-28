@@ -78,7 +78,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="channels"
             tone="channels"
             kicker={categoryName}
             title={t("channels.namingSchema")}

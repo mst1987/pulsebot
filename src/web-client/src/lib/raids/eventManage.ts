@@ -21,7 +21,7 @@ export type ManageState = { cancelled: boolean; signupsClosed: boolean; isPast: 
 
 /** "Lootsystem": opens the dialog that changes it for this raid (or switches Softres on beside it). */
 export function lootSystemEntry(label: string): ManageMenuEntry {
-    return entry("lootsystem", t("raidDetail.manage.lootSystem"), "inv_misc_coin_02", t("raidDetail.manage.lootSystemSub", { label }), false);
+    return entry("lootsystem", t("raidDetail.manage.lootSystem"), "lootcouncil", t("raidDetail.manage.lootSystemSub", { label }), false);
 }
 /**
  * A Raid-Helper event's menu (docs/raidplan.md, "Raid-Helper-Events"): only the raid plan switch. `disabled` = Raid-Helper is
@@ -32,8 +32,8 @@ export type RaidhelperManageState = { planEnabled: boolean; disabled: boolean };
 /** The slim menu of a Raid-Helper event: switch its raid plan on, or (with a confirmation) off. */
 export function raidhelperMenu(state: RaidhelperManageState): ManageMenuEntry[] {
     const note = state.disabled ? t("raidDetail.manage.raidplanDisabled") : "";
-    if (state.planEnabled) return [entry("raidplanOff", t("raidDetail.manage.raidplanOff"), "inv_misc_map02", note || t("raidDetail.manage.raidplanOffSub"), false)];
-    return [entry("raidplanOn", t("raidDetail.manage.raidplanOn"), "inv_misc_map02", note || t("raidDetail.manage.raidplanOnSub"), false)];
+    if (state.planEnabled) return [entry("raidplanOff", t("raidDetail.manage.raidplanOff"), "raidplan", note || t("raidDetail.manage.raidplanOffSub"), false)];
+    return [entry("raidplanOn", t("raidDetail.manage.raidplanOn"), "raidplan", note || t("raidDetail.manage.raidplanOnSub"), false)];
 }
 
 /** The instance chips and size a Raid-Helper event's activation dialog starts with: what the plan has, else what the title says. */
@@ -69,8 +69,8 @@ function sep(): ManageMenuEntry {
  * directions, while the step only offers closing in the moment it is due.
  */
 export function manageMenu(state: ManageState): ManageMenuEntry[] {
-    const history = entry("history", t("raidDetail.manage.history"), "inv_misc_book_09", state.logCount ? t("raidDetail.manage.historySub", { count: state.logCount }) : t("raidDetail.manage.historyEmpty"), false);
-    const remove = entry("delete", t("raidDetail.manage.delete"), "inv_misc_bone_humanskull_01", state.isPast ? t("raidDetail.manage.deleteSubPast") : t("raidDetail.manage.deleteSub"), true);
+    const history = entry("history", t("raidDetail.manage.history"), "logs", state.logCount ? t("raidDetail.manage.historySub", { count: state.logCount }) : t("raidDetail.manage.historyEmpty"), false);
+    const remove = entry("delete", t("raidDetail.manage.delete"), "delete", state.isPast ? t("raidDetail.manage.deleteSubPast") : t("raidDetail.manage.deleteSub"), true);
     if (state.cancelled) {
         return [
             entry("reopen", t("raidDetail.manage.reopen"), "spell_holy_divineintervention", t("raidDetail.manage.reopenSub"), false),
@@ -80,27 +80,27 @@ export function manageMenu(state: ManageState): ManageMenuEntry[] {
             remove,
         ];
     }
-    const out = [entry("raider", t("raidDetail.manage.raider"), "inv_misc_groupneedmore", t("raidDetail.manage.raiderSub"), false)];
+    const out = [entry("raider", t("raidDetail.manage.raider"), "roster", t("raidDetail.manage.raiderSub"), false)];
     if (!state.isPast) {
         out.unshift(
-            entry("move", t("raidDetail.manage.move"), "inv_misc_pocketwatch_02", t("raidDetail.manage.moveSub"), false),
+            entry("move", t("raidDetail.manage.move"), "move", t("raidDetail.manage.moveSub"), false),
             state.signupsClosed
-                ? entry("signups", t("raidDetail.manage.signupsOpen"), "inv_misc_note_02", t("raidDetail.manage.signupsOpenSub"), false)
-                : entry("signups", t("raidDetail.manage.signupsClose"), "inv_misc_note_02", t("raidDetail.manage.signupsCloseSub"), false),
+                ? entry("signups", t("raidDetail.manage.signupsOpen"), "signups", t("raidDetail.manage.signupsOpenSub"), false)
+                : entry("signups", t("raidDetail.manage.signupsClose"), "signups", t("raidDetail.manage.signupsCloseSub"), false),
         );
     }
     out.push(sep());
     // Raid night: also after the start — the invite goes out right then.
-    if (state.invite) out.push(entry("invite", t("raidDetail.manage.invite"), "spell_holy_prayerofspirit", t("raidDetail.manage.inviteSub"), false));
-    if (!state.isPast) out.push(entry("notify", t("raidDetail.manage.notify"), "inv_letter_15", t("raidDetail.manage.notifySub"), false));
+    if (state.invite) out.push(entry("invite", t("raidDetail.manage.invite"), "message", t("raidDetail.manage.inviteSub"), false));
+    if (!state.isPast) out.push(entry("notify", t("raidDetail.manage.notify"), "notify", t("raidDetail.manage.notifySub"), false));
     // Raid plan or sheet, never both: a category that plans with the raid plan gets no sheet here.
-    if (state.sheet !== false) out.push(entry("sheet", t("raidDetail.manage.sheet"), "inv_scroll_03", t("raidDetail.manage.sheetSub"), false));
+    if (state.sheet !== false) out.push(entry("sheet", t("raidDetail.manage.sheet"), "googleSheets", t("raidDetail.manage.sheetSub"), false));
     // Only where the loot system uses one; the chip in the head switches it on for this raid.
     if (state.lootSystem) out.push(lootSystemEntry(state.lootSystem));
-    if (state.softres !== false) out.push(entry("softres", t("raidDetail.manage.softres"), "inv_misc_ticket_tarot_madness", t("raidDetail.manage.softresSub"), false));
+    if (state.softres !== false) out.push(entry("softres", t("raidDetail.manage.softres"), "softres", t("raidDetail.manage.softresSub"), false));
     out.push(sep(), history);
     out.push(sep());
-    if (!state.isPast) out.push(entry("cancel", t("raidDetail.manage.cancel"), "ability_creature_cursed_02", t("raidDetail.manage.cancelSub"), true));
+    if (!state.isPast) out.push(entry("cancel", t("raidDetail.manage.cancel"), "cancel", t("raidDetail.manage.cancelSub"), true));
     out.push(remove);
     return out;
 }

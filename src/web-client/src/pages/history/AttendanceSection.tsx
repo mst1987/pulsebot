@@ -17,7 +17,7 @@ export function AttendanceSection({ roster }: { roster: RosterCharData | null })
                 return (
                     <div key={c.id} className="dash-card ros-part">
                         <PartHead
-                            icon={c.icon || "ability_warrior_rallyingcry"}
+                            icon={c.icon || "absences"}
                             tone="roster"
                             title={c.name}
                             crumb={[...c.contents, raids.length ? t("history.attendance.lastRaids", { count: raids.length }) : t("history.attendance.noneCounted")].join(" · ")}
@@ -30,7 +30,7 @@ export function AttendanceSection({ roster }: { roster: RosterCharData | null })
                                         <div key={r.eventId} className="ros-night">
                                             <span className="ros-night-date">{nightLabel(r.startTime * 1000)}</span>
                                             <span className="ros-night-title">{r.title || t("history.attendance.raidFallback")}</span>
-                                            <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "ability_warrior_rallyingcry" : undefined}>
+                                            <Badge tone={r.attended ? "ok" : "bad"} icon={r.attended ? "absences" : undefined}>
                                                 {statusLabel(statusOf(r))}
                                             </Badge>
                                             <span className="sub">{r.override ? verdictText(r) : detailText(r.detail)}</span>

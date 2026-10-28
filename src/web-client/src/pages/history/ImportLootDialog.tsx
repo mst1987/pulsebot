@@ -39,7 +39,7 @@ function toolOptions(t: TFunction): { value: Tool; label: string; icon?: string;
         { value: "auto", label: t("history.import.toolAuto"), tip: t("history.import.toolAutoTip") },
         { value: "gargul", label: "Gargul" },
         { value: "rclc", label: "RCLootcouncil" },
-        { value: "eventhelper", label: t("history.import.toolAddon"), icon: "inv_misc_enggizmos_27" },
+        { value: "eventhelper", label: t("history.import.toolAddon"), icon: "addons" },
     ];
 }
 
@@ -127,7 +127,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
             onClose={onClose}
             initialFocus="#import-text"
             width={740}
-            icon="inv_scroll_03"
+            icon="import"
             tone="history"
             kicker={t("history.import.kicker")}
             title={t("history.page.import")}
@@ -152,7 +152,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                     <div className="hl-drop-foot">
                         {preview && (
                             <>
-                                <Badge tone="ok" icon="inv_misc_bag_10">{tParts("history.import.recognized", { count: preview.count })}</Badge>
+                                <Badge tone="ok" icon="loot">{tParts("history.import.recognized", { count: preview.count })}</Badge>
                                 <Badge>{preview.formatLabel}</Badge>
                                 {preview.content.label && (
                                     <Badge tone="accent" icon={contentIcon(preview.content.contentIds[0])} tip={t("history.import.raidTip")} tipSub={t("history.import.raidSub", { matched: preview.content.matched, count: preview.count })}>
@@ -197,7 +197,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                             return (
                                 <button key={c.id} type="button" role="radio" aria-checked={on} className={`hl-radio${on ? " on" : ""}`} onClick={() => selectEvent(c.id)}>
                                     <span className="dot" aria-hidden="true" />
-                                    <IconTile icon="inv_misc_note_02" tone={on ? undefined : "none"} />
+                                    <IconTile icon="raids" tone={on ? undefined : "none"} />
                                     <span className="txt">
                                         <b>{c.title || c.id}</b>
                                         <small>{c.startTime ? formatEventTime(Math.round(c.startTime / 1000)) : ""}</small>

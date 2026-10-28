@@ -98,8 +98,8 @@ module.exports = {
     id: "forever",
     label: "WoW Forever",
     short: "Forever",
-    // The version's WoW icon; see tbc.js. A clock, for "Forever".
-    icon: "spell_holy_borrowedtime",
+    // The version's launcher icon (WoW Forever); see tbc.js.
+    icon: "/versions/forever.png",
     // The version's colour in the web admin (#742, dark theme); see tbc.js.
     color: "#4da3ff",
     characterNames: { lastName: true },

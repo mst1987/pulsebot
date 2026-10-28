@@ -42,7 +42,7 @@ export function ItemDetailModal({ slot, data, roster, onClose }: { slot: string;
             <div className={`ros-item-body${q ? ` q-${q}` : ""}`}>
                 {issues.map((i, n) => (
                     <div key={n} className={`ros-find${i.severity === "high" ? " is-high" : ""}`}>
-                        <IconTile icon={i.iconUrl ? <img src={i.iconUrl} alt="" /> : "inv_misc_gem_variety_02"} tone={i.severity === "high" ? "bad" : "mid"} />
+                        <IconTile icon={i.iconUrl ? <img src={i.iconUrl} alt="" /> : "wishlist"} tone={i.severity === "high" ? "bad" : "mid"} />
                         <div>
                             <div className="ros-find-title">{findingLabel(i)} <Badge tone={i.severity === "high" ? "bad" : "mid"}>{i.severity === "high" ? t("history.shared.severityHigh") : t("history.shared.severityLow")}</Badge></div>
                             <div className="sub">

@@ -36,7 +36,7 @@ export default function RemindersPart({ onConfig }: {
 
     const head = (
         <PartHead
-            icon="spell_holy_borrowedtime"
+            icon="notify"
             tone="settings"
             title={t("settings.reminders.title")}
             tip={t("settings.reminders.tip")}
@@ -126,7 +126,7 @@ function ReminderModal({ name, rule, onClose, onSave }: {
         <Modal
             open
             onClose={onClose}
-            icon="spell_holy_borrowedtime"
+            icon="notify"
             tone="settings"
             kicker={t("settings.reminders.title")}
             title={name}

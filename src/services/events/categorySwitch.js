@@ -22,10 +22,10 @@ const eventStore = require("../../stores/eventStore");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const seriesStore = require("../../stores/eventSeriesStore");
 
-/** `{ id, label, short }` of a version, for the dialog. */
+/** `{ id, label, short, icon }` of a version, for the dialog (the icon: #951). */
 function versionInfo(id) {
     const rules = rulesFor(id) || {};
-    return { id, label: rules.label || id, short: rules.short || rules.label || id };
+    return { id, label: rules.label || id, short: rules.short || rules.label || id, icon: rules.icon || "" };
 }
 
 /**

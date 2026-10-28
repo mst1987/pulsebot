@@ -95,12 +95,12 @@ export function AddRaidModal({ open, onClose, suggested, running, onCreate }: {
     }, [open, suggested]);
     return (
         <Modal
-            open={open} onClose={onClose} icon="achievement_guildperk_everybodysfriend" tone="raids" kicker={t("setup.raidGroup.add")} title={t("setup.raidGroup.addTitle")} width={520}
+            open={open} onClose={onClose} icon="members" tone="raids" kicker={t("setup.raidGroup.add")} title={t("setup.raidGroup.addTitle")} width={520}
             hint={t("setup.raidGroup.addText")}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="achievement_guildperk_everybodysfriend" running={running} disabled={!title.trim()} onClick={() => onCreate(title.trim())}>{t("setup.raidGroup.create")}</Button>
+                    <Button icon="members" running={running} disabled={!title.trim()} onClick={() => onCreate(title.trim())}>{t("setup.raidGroup.create")}</Button>
                 </>
             )}
         >

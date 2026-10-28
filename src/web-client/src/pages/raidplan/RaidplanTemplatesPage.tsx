@@ -219,7 +219,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
     return (
         <div className="rp-templates">
             <PageHead
-                icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
+                icon="raidplan" tone="raids" kicker={t("planTemplates.kicker")} title={t("planTemplates.title")}
                 meta={<Badge count>{templates.length}</Badge>}
                 action={canWrite ? <Button icon={<PlusIcon />} onClick={onNew}>{t("planTemplates.new")}</Button> : undefined}
             />
@@ -227,7 +227,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
 
             {templates.length === 0 ? (
                 <div className="rp-empty">
-                    <WowIcon name="inv_misc_map02" size={40} />
+                    <WowIcon name="raidplan" size={40} />
                     <strong>{version ? t("planTemplates.noneOfVersion", { version: version.short }) : t("planTemplates.emptyTitle")}</strong>
                     <p className="rp-muted">{t("planTemplates.empty")}</p>
                     {canWrite && <Button icon={<PlusIcon />} onClick={onNew}>{t("planTemplates.new")}</Button>}
@@ -266,7 +266,7 @@ function TemplateList({ templates, version, versionOf, guilds, canWrite, isNew, 
                                         <TemplateThumb tpl={tpl} />
                                         <div className="rp-tcard-info">
                                             <div className="rp-tcard-title">
-                                                {tpl.instanceIds.slice(0, 1).map((id) => <WowIcon key={id} name={instanceIcon(version, id) || "inv_misc_map02"} size={34} />)}
+                                                {tpl.instanceIds.slice(0, 1).map((id) => <WowIcon key={id} name={instanceIcon(version, id) || "raidplan"} size={34} />)}
                                                 <strong className="rp-tcard-name">{tpl.name}</strong>
                                             </div>
                                             <div className="rp-tchips">
@@ -390,7 +390,7 @@ export function FieldsModal({ title, initial, version, guilds, onClose, onSave }
     const ok = !!f.name.trim() && f.instanceIds.length > 0;
     return (
         <Modal
-            open onClose={onClose} icon="inv_misc_map02" title={title} width={560}
+            open onClose={onClose} icon="raidplan" title={title} width={560}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("raidBoard.profile.cancel")}</Button>
@@ -587,7 +587,7 @@ function TemplateEditor({ template, canWrite, version, guilds, profiles, onProfi
         <div className="rp-editor" data-rp-editor>
             <p className="note"><button type="button" className="mlink rp-linkbtn" onClick={onBack}>{t("planTemplates.backToList")}</button></p>
             <PageHead
-                icon="inv_misc_map02" tone="raids" kicker={t("planTemplates.kicker")} title={tpl.name}
+                icon="raidplan" tone="raids" kicker={t("planTemplates.kicker")} title={tpl.name}
                 meta={<>{tpl.category && <Badge>{tpl.category}</Badge>}{!canWrite && <Badge>{t("raidBoard.bar.readOnly")}</Badge>}</>}
             />
             {conflict && (

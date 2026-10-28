@@ -143,7 +143,7 @@ function Catalog({ user }: ShellContext) {
     return (
         <div className="rp-catalog">
             <PageHead
-                icon="inv_misc_book_09" tone="raids" kicker={t("planTemplates.kicker")} title={t("catalog.title")}
+                icon="catalog" tone="raids" kicker={t("planTemplates.kicker")} title={t("catalog.title")}
                 action={canWrite ? <Button onClick={() => setDraft(which === "mobs" ? { kind: "add", instanceId: "", bossKey: "", versions: [version] } : { type: "curse", classes: [], versions: [version] })}><Plus size={16} /> {t(which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}</Button> : undefined}
             />
             <p className="rp-muted">{t("catalog.intro")}</p>
@@ -224,7 +224,7 @@ function EntryModal({ which, data, known, initial, onClose, onSave }: {
     const toggleClass = (c: string) => setF((cur) => ({ ...cur, classes: (cur.classes || []).includes(c) ? (cur.classes || []).filter((x) => x !== c) : [...(cur.classes || []), c] }));
     return (
         <Modal
-            open onClose={onClose} icon="inv_misc_book_09" width={520}
+            open onClose={onClose} icon="catalog" width={520}
             title={t(initial.id ? "catalog.editTitle" : which === "mobs" ? "catalog.newMob" : "catalog.newSpell")}
             footer={(
                 <>

@@ -46,7 +46,7 @@ export default function CategoryDeactivateDialog({ next, guildId = "", names, on
         <Modal
             open
             onClose={onCancel}
-            icon="inv_misc_book_09"
+            icon="categories"
             tone="settings"
             kicker={t("settings.categoryDeactivate.kicker")}
             title={t("settings.categoryDeactivate.title", { count: preview ? preview.categories.length : 1 })}

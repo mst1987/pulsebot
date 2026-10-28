@@ -12,13 +12,13 @@ const LOG_TONE: Record<ProfileSpec["logs"]["status"], "ok" | "mid" | undefined> 
 export function FirstCharacter({ onPick }: { onPick: (way: AddWay) => void }) {
     const t = useT();
     const ways: { way: AddWay; icon: string; title: string; text: string }[] = [
-        { way: "log", icon: "inv_misc_pocketwatch_01", title: t("profile.first.logTitle"), text: t("profile.first.logText") },
-        { way: "armory", icon: "inv_misc_book_09", title: t("profile.first.armoryTitle"), text: t("profile.first.armoryText") },
-        { way: "manual", icon: "inv_scroll_03", title: t("profile.first.manualTitle"), text: t("profile.first.manualText") },
+        { way: "log", icon: "logs", title: t("profile.first.logTitle"), text: t("profile.first.logText") },
+        { way: "armory", icon: "armory", title: t("profile.first.armoryTitle"), text: t("profile.first.armoryText") },
+        { way: "manual", icon: "edit", title: t("profile.first.manualTitle"), text: t("profile.first.manualText") },
     ];
     return (
         <div className="pf-first">
-            <PartHead icon="achievement_character_human_male" tone="profile" title={t("profile.first.title")} crumb={t("profile.first.crumb")} />
+            <PartHead icon="profile" tone="profile" title={t("profile.first.title")} crumb={t("profile.first.crumb")} />
             <div className="pf-ways">
                 {ways.map((w) => (
                     <button key={w.way} type="button" className="pf-way" onClick={() => onPick(w.way)}>

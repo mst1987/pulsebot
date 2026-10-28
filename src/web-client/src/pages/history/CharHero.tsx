@@ -67,21 +67,21 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                         {!!realm && <><span aria-hidden="true">·</span><span>{realm}</span></>}
                         {!!roster?.role && <RoleBadge role={roster.role} />}
                         {roster?.categories.map((c) => (
-                            <Badge key={c.id} icon={c.icon || "achievement_guildperk_everybodysfriend"} tip={c.name} tipSub={c.contents.join(" · ") || undefined}>
+                            <Badge key={c.id} icon={c.icon || "profile"} tip={c.name} tipSub={c.contents.join(" · ") || undefined}>
                                 {c.name}
                             </Badge>
                         ))}
                     </div>
                 </div>
                 <div className="ros-hero-actions">
-                    <IconLink href={data.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" size="md" />
-                    <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
+                    <IconLink href={data.wclUrl} icon="warcraftLogs" tip="Warcraft Logs" size="md" />
+                    <IconLink href={data.armoryUrl} icon="armory" tip="Armory" size="md" />
                     {data.gearConfigured
-                        ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>{t("history.hero.reloadGear")}</Button>
+                        ? <Button variant="run" icon="armory" running={loading} onClick={onReload}>{t("history.hero.reloadGear")}</Button>
                         // no realm for the character's version (#542): the fix is this server's realm per version (#923), not Battle.net
                         : data.gearError
-                            ? <Link className={buttonClass("ghost", "md", true)} to="/settings?section=versionlinks"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupVersion")}</Link>
-                            : <AllSettingsLink className={buttonClass("ghost", "md", true)} section="verbindungen"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</AllSettingsLink>}
+                            ? <Link className={buttonClass("ghost", "md", true)} to="/settings?section=versionlinks"><WowIcon name="settings" size={22} />{t("history.hero.setupVersion")}</Link>
+                            : <AllSettingsLink className={buttonClass("ghost", "md", true)} section="verbindungen"><WowIcon name="settings" size={22} />{t("history.hero.setupBnet")}</AllSettingsLink>}
                 </div>
             </div>
             <div className="ros-hero-foot">

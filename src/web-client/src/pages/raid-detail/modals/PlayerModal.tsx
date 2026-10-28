@@ -37,7 +37,7 @@ export default function PlayerModal({ ctx, player, onClose }: { ctx: RaidCtx; pl
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
                     <Link className={buttonClass("primary", "md", true)} to={`/history/char?name=${encodeURIComponent(player.name)}`} onClick={onClose}>
-                        <WowIcon name="achievement_guildperk_everybodysfriend" size={22} />{t("raidModals.player.charPage")}
+                        <WowIcon name="members" size={22} />{t("raidModals.player.charPage")}
                     </Link>
                 </>
             )}

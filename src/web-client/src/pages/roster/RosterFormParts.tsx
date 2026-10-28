@@ -144,9 +144,9 @@ export function ManagerAccounts({ users, onChange, versionId, disabled, disabled
 }
 
 const SOURCES: { id: RosterSource; icon: string }[] = [
-    { id: "role", icon: "inv_misc_groupneedmore" },
-    { id: "kader", icon: "inv_misc_note_02" },
-    { id: "raids", icon: "inv_misc_book_09" },
+    { id: "role", icon: "roles" },
+    { id: "kader", icon: "kader" },
+    { id: "raids", icon: "raids" },
     { id: "none", icon: "inv_misc_questionmark" },
 ];
 

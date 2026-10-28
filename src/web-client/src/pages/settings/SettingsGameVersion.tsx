@@ -3,6 +3,7 @@ import Segment from "../../components/ui/Segment";
 import Field, { FieldLabel } from "../../components/ui/Field";
 import Badge from "../../components/ui/Badge";
 import { Button } from "../../components/ui/Button";
+import { VersionDot } from "../../components/shell/ContentSwitch";
 import { useT } from "../../i18n";
 import type { CategoryEra } from "../../api";
 import { formatDayDate } from "../../lib/format";
@@ -72,7 +73,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
                     size="sm"
                     value={version.id}
                     onChange={setPicked}
-                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label }))}
+                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label, icon: <VersionDot id={v.id} icon={v.icon} label={v.label} /> }))}
                 />
                 {version.id === mainVersion && <Badge tone="accent">{t("settings.gameVersion.main")}</Badge>}
                 <Button
@@ -185,7 +186,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     );
 }
 
-export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string };
+export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string; /** the version's launcher icon (#951) */ icon?: string };
 
 /**
  * Alle Server › Einstellungen › Spielversion (#541, #957): the bot's main
@@ -207,7 +208,7 @@ export default function GameVersionSection({ versions, mainVersion, onMainVersio
                     ariaLabel={t("settings.gameVersion.main")}
                     value={mainVersion}
                     onChange={onMainVersion}
-                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label }))}
+                    options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label, icon: <VersionDot id={v.id} icon={v.icon} label={v.label} size={20} /> }))}
                 />
             </div>
         </div>
@@ -260,6 +261,7 @@ export function CategoryVersionSection({ versions, categories, activeIds, mainVe
                             const name = names.get(id) || id;
                             const isNew = !savedIds.includes(id);
                             const since = sinceOf(id);
+                            const current = categoryVersionOf(categoryVersion, id, mainVersion);
                             return (
                                 <div className="gv-cat" key={id}>
                                     <span className="gv-cat-name">
@@ -267,14 +269,20 @@ export function CategoryVersionSection({ versions, categories, activeIds, mainVe
                                         {isNew && <Badge tone="accent">{t("settings.gameVersion.newCategory", { version: mainShort })}</Badge>}
                                         {!isNew && since && <span className="gv-cat-since">{t("settings.gameVersion.since", { date: since })}</span>}
                                     </span>
+                                    <span className="gv-cat-pick">
+                                    {(() => {
+                                        const v = versions.find((o) => o.id === current);
+                                        return <VersionDot id={current} icon={v?.icon} label={v?.label} size={20} />;
+                                    })()}
                                     <select
                                         id={`catversion-${id}`}
                                         aria-label={t("settings.gameVersion.categoryAria", { name })}
-                                        value={categoryVersionOf(categoryVersion, id, mainVersion)}
+                                        value={current}
                                         onChange={(e) => onCategoryVersion(id, e.target.value)}
                                     >
                                         {versions.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
                                     </select>
+                                    </span>
                                 </div>
                             );
                         })}

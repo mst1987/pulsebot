@@ -118,7 +118,7 @@ export default function AddMemberDialog({ data, prefill, onClose, onDone }: {
         <Modal
             open
             onClose={onClose}
-            icon="achievement_guildperk_everybodysfriend"
+            icon="roster"
             tone="roster"
             kicker={data.roster.name}
             title={t("roster.add.title")}

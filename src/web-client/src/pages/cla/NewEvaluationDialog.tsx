@@ -50,7 +50,7 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
         <Modal
             open={open}
             onClose={onClose}
-            icon="inv_misc_spyglass_02"
+            icon="search"
             tone="cla"
             kicker={t("cla.newEval.kicker")}
             title={t("cla.page.newEvaluation")}
@@ -60,7 +60,7 @@ export function NewEvaluationDialog({ open, onClose, onChanged }: {
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="la-new-eval" icon="inv_misc_pocketwatch_01" disabled={!link.trim()}>{t("cla.newEval.submit")}</Button>
+                    <Button type="submit" form="la-new-eval" icon="logs" disabled={!link.trim()}>{t("cla.newEval.submit")}</Button>
                 </>
             )}
         >

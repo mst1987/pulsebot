@@ -32,7 +32,7 @@ import { CurseforgeLink, DownloadButtons, ErrorState, InstallGuide, StateNote } 
 import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
-const ICON = "inv_gizmo_01";
+const ICON = "addons";
 const ADDON_SETTINGS_LINK = "/settings/all?section=addons";
 const OLD_ANCHOR = /^#addon-(.+)$/;
 

@@ -27,7 +27,7 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
     return (
         <>
             <PartHead
-                icon="inv_misc_gem_variety_02"
+                icon="wishlist"
                 crumb={t("lootcouncil.gaps.crumb")}
                 title={t("lootcouncil.gaps.title")}
                 tip={t("lootcouncil.tabs.gaps")}
@@ -36,7 +36,7 @@ export function GapsTab({ data, gaps, sim, simRunning, runSim, simulatable, expa
                     <Button
                         variant="run"
                         size="sm"
-                        icon="inv_gizmo_02"
+                        icon="simulate"
                         running={simRunning}
                         disabled={!simulatable.length || !gaps.length}
                         data-tip={t("lootcouncil.gaps.runAllTip")}

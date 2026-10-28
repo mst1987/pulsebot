@@ -47,7 +47,7 @@ describe("Alle Server › Einstellungen (#957)", () => {
     const settingsAll = MENU.find((e) => e.id === "settingsAll")!;
 
     it("is a full-admin-only line of the block Alle Server, with its own WoW icon", () => {
-        expect(settingsAll).toMatchObject({ href: "/settings/all", scope: "all", adminOnly: true, areas: [], wowIcon: "inv_misc_wrench_01" });
+        expect(settingsAll).toMatchObject({ href: "/settings/all", scope: "all", adminOnly: true, areas: [], icon: "settings" });
         expect(menuLines({ id: "1", name: "A", isAdmin: true, access: {} }).map((l) => l.top.id)).toEqual(expect.arrayContaining(["settings", "settingsAll"]));
         // a settings writer keeps System › Einstellungen but never gets the shared page
         expect(menuLines(everyArea).map((l) => l.top.id)).toContain("settings");

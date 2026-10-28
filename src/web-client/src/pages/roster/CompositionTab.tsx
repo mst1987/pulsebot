@@ -104,7 +104,7 @@ function BenchCard({ bench, names }: { bench: RosterComposition["bench"]; names:
     return (
         <section className="rn-panel rn-pad rn-target" aria-label={t("roster.status.bench")}>
             <div className="rn-target-top">
-                <IconTile icon="inv_misc_groupneedmore" tone="none" />
+                <IconTile icon="setup" tone="none" />
                 <div>
                     <div className="rn-kick">{t("roster.status.bench")}</div>
                     <div className="rn-big">{bench.actual}<small>{bench.target > 0 ? t("roster.comp.ofPlanned", { target: bench.target }) : t("roster.comp.noTarget")}</small></div>

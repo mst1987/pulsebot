@@ -46,7 +46,7 @@ function KaderCard({ kader, view, last }: { kader: KaderSummary; view: KaderView
         <li>
             <Link className="kp-ov-card" to={`/kader/${encodeURIComponent(kader.id)}/pool`}>
                 <div className="kp-ov-top">
-                    <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
+                    <IconTile icon="kader" tone="kader" size="lg" />
                     <div className="kp-ov-title">
                         <b>{kader.name}</b>
                         {versionId && (
@@ -81,7 +81,7 @@ export default function KaderOverview({ view, last, canWrite, onCreate }: { view
     return (
         <div className="kp-page kp-ov-page">
             <PageHead
-                icon="inv_misc_groupneedmore"
+                icon="kader"
                 tone="kader"
                 kicker={t("kader.kaders.kicker", { count: view.kaders.length })}
                 title={t("kader.kaders.title")}

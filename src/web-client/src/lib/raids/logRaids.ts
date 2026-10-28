@@ -8,7 +8,7 @@ import { RAID_CONTENTS } from "../wow/raidIcons";
 import { t } from "../../i18n";
 
 /** The page's own icon, for a log whose raid is not known (yet). */
-export const LOG_FALLBACK_ICON = "inv_misc_pocketwatch_01";
+export const LOG_FALLBACK_ICON = "logs";
 
 export function raidIcon(contentId: string | undefined): string {
     return (contentId && RAID_CONTENTS[contentId]?.icon) || LOG_FALLBACK_ICON;

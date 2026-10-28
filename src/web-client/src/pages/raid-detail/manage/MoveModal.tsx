@@ -68,13 +68,13 @@ export default function MoveModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
     const channel = plan ? moveChannelText(plan, rename) : null;
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_pocketwatch_02" tone="raids"
+            open={open} onClose={onClose} icon="move" tone="raids"
             kicker={data.event.title} title={t("raidManage.move.title")} width={560}
             hint={plan ? moveNotifyText(plan.recipients, notify) : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" variant="go" form="em-move-form" icon="inv_misc_pocketwatch_02" running={busy} disabled={!plan || loading}>{t("raidManage.move.confirm")}</Button>
+                    <Button type="submit" variant="go" form="em-move-form" icon="move" running={busy} disabled={!plan || loading}>{t("raidManage.move.confirm")}</Button>
                 </>
             )}
         >

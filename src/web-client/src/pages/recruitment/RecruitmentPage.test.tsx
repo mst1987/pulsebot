@@ -70,8 +70,9 @@ function data(over: Partial<RecruitmentData> = {}): RecruitmentData {
 }
 
 /** A WoW icon on the page, found by its name in the zamimg url. */
-function wowIcon(root: ParentNode, name: string): HTMLImageElement | null {
-    return root.querySelector<HTMLImageElement>(`img[src*="/${name}.jpg"]`);
+/** The icon of the app's set (#951) with that key. */
+function wowIcon(root: ParentNode, name: string): Element | null {
+    return root.querySelector(`[data-icon="${name}"]`);
 }
 
 beforeEach(() => {
@@ -88,9 +89,9 @@ describe("Recruitment page head", () => {
         expect(await screen.findByRole("heading", { level: 1, name: "Recruitment" })).toBeInTheDocument();
         expect(screen.getByText("Pulse")).toBeInTheDocument();
         const head = container.querySelector(".page-head")!;
-        expect(wowIcon(head, "inv_misc_grouplooking")).not.toBeNull();
+        expect(wowIcon(head, "recruitment")).not.toBeNull();
         const action = within(head as HTMLElement).getByRole("button", { name: "Nachricht posten" });
-        expect(wowIcon(action, "ability_warrior_battleshout")).not.toBeNull();
+        expect(wowIcon(action, "notify")).not.toBeNull();
         expect(within(head as HTMLElement).getAllByRole("button")).toHaveLength(1);
 
         await user.click(action);
@@ -121,9 +122,9 @@ describe("the three tabs", () => {
         renderPage(<RecruitmentPage />, { route: "/recruitment" });
 
         const tabs = [
-            { name: /Nachrichten/, icon: "inv_letter_15", head: "Gepostete Nachrichten" },
-            { name: /Vorlagen/, icon: "inv_scroll_03", head: "Recruitment-Vorlagen" },
-            { name: /Bewerbungen/, icon: "inv_misc_note_01", head: "Bewerbungen" },
+            { name: /Nachrichten/, icon: "message", head: "Gepostete Nachrichten" },
+            { name: /Vorlagen/, icon: "edit", head: "Recruitment-Vorlagen" },
+            { name: /Bewerbungen/, icon: "tasks", head: "Bewerbungen" },
         ];
         await screen.findByRole("tablist");
         for (const t of tabs) {
@@ -156,10 +157,10 @@ describe("posted messages", () => {
         const found = screen.getByText("#gesucht").closest("tr")!;
         const postedBadge = within(posted).getByText("Gepostet");
         expect(postedBadge).toHaveClass("badge", "accent");
-        expect(wowIcon(postedBadge, "ability_warrior_battleshout")).not.toBeNull();
+        expect(wowIcon(postedBadge, "notify")).not.toBeNull();
         const foundBadge = within(found).getByText("Gefunden");
         expect(foundBadge).toHaveClass("badge");
-        expect(wowIcon(foundBadge, "inv_misc_spyglass_02")).not.toBeNull();
+        expect(wowIcon(foundBadge, "search")).not.toBeNull();
         expect(within(posted).queryByText(/^(web|scan)$/)).not.toBeInTheDocument();
     });
 

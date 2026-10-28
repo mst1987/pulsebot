@@ -97,9 +97,9 @@ export default function HistoryCharPage() {
                 // somebody else's attendance is the orga's: for a raider the server sends none and the tab stays away (epic #723)
                 const showAttendance = !roster || roster.attendanceVisible !== false;
                 const sections: { id: CharTab; label: string; icon: string; count: ReactNode; tone?: string }[] = [
-                    { id: "gear", label: t("history.char.gear"), icon: "inv_helmet_98", count: issueCount || null, tone: issueCount ? issueTone : "" },
-                    { id: "loot", label: t("history.shared.lootHistory"), icon: "inv_misc_bag_10", count: data.items.length || null },
-                    ...(showAttendance ? [{ id: "attendance" as CharTab, label: t("history.char.attendance"), icon: "ability_warrior_rallyingcry", count: att?.total ? `${att.attended}/${att.total}` : null }] : []),
+                    { id: "gear", label: t("history.char.gear"), icon: "armory", count: issueCount || null, tone: issueCount ? issueTone : "" },
+                    { id: "loot", label: t("history.shared.lootHistory"), icon: "loot", count: data.items.length || null },
+                    ...(showAttendance ? [{ id: "attendance" as CharTab, label: t("history.char.attendance"), icon: "absences", count: att?.total ? `${att.attended}/${att.total}` : null }] : []),
                 ];
 
                 return (
@@ -127,7 +127,7 @@ export default function HistoryCharPage() {
                         {tab === "loot" && (
                             <div className="dash-card ros-part">
                                 <PartHead
-                                    icon="inv_misc_bag_10"
+                                    icon="loot"
                                     tone="roster"
                                     title={t("history.shared.lootHistory")}
                                     crumb={t("history.char.lootCrumb", { count: data.items.length })}

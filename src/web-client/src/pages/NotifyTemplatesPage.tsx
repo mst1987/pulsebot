@@ -152,7 +152,7 @@ function NotifyTemplateForm({ editing, onSaved, onDirty }: {
                 <div className="re-label">{t("notifyTemplates.form.preview")}</div>
                 <DiscordPreview title={title} body={body} />
                 <div className="nt-ping-note">
-                    <Badge tone="accent" icon="ability_warrior_battleshout">{t("notifyTemplates.form.ping")}</Badge>
+                    <Badge tone="accent" icon="notify">{t("notifyTemplates.form.ping")}</Badge>
                     <span>{t("notifyTemplates.form.pingNote")}</span>
                 </div>
             </div>
@@ -218,7 +218,7 @@ export default function NotifyTemplatesPage() {
     return (
         <div className="re-page">
             <div className="page-head">
-                <IconTile icon="inv_misc_horn_01" size="lg" />
+                <IconTile icon="notify" size="lg" />
                 <div className="ph-text">
                     <div className="kicker">{t("notifyTemplates.page.kicker")}</div>
                     <h1 className="re-h1">
@@ -227,7 +227,7 @@ export default function NotifyTemplatesPage() {
                     </h1>
                 </div>
                 <div className="ph-act">
-                    <Button icon="ability_warrior_battleshout" onClick={editor.startNew}>{t("notifyTemplates.page.new")}</Button>
+                    <Button icon="notify" onClick={editor.startNew}>{t("notifyTemplates.page.new")}</Button>
                 </div>
             </div>
 
@@ -241,7 +241,7 @@ export default function NotifyTemplatesPage() {
                 {sorted.length
                     ? sorted.map((tpl) => (
                         <div key={tpl.id} className="re-row nt-row" onClick={(e) => { if (!(e.target as HTMLElement).closest("button")) editor.startEdit(tpl.id); }}>
-                            <IconTile icon="ability_warrior_battleshout" />
+                            <IconTile icon="notify" />
                             <div className="re-ev">
                                 <span className="re-title">{tpl.name || t("notifyTemplates.page.noName")}</span>
                                 <span className="re-sub">{tpl.title || t("notifyTemplates.page.noTitle")}</span>
@@ -259,7 +259,7 @@ export default function NotifyTemplatesPage() {
             <Modal
                 open={!!editor.open}
                 onClose={close}
-                icon="inv_misc_horn_01"
+                icon="notify"
 
                 kicker={entry ? t("notifyTemplates.modal.kickerEdit") : t("notifyTemplates.modal.kickerNew")}
                 title={entry ? entry.name || t("notifyTemplates.page.noName") : t("notifyTemplates.page.new")}

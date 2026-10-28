@@ -89,7 +89,7 @@ export default function RoleSyncPart({ onConfig, reloadKey }: {
     const drift = data ? driftBadge(data.driftTotal, data.driftError, data.driftErrors) : null;
     const head = (
         <PartHead
-            icon="inv_misc_groupneedmore"
+            icon="roles"
             tone="settings"
             title={t("settings.roleSync.title")}
             tip={t("settings.roleSync.title")}
@@ -275,7 +275,7 @@ function RoleRuleModal({ data, index, onClose, onSave }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="roles"
             tone="settings"
             kicker={t("settings.roleSync.title")}
             title={existing ? t("settings.roleSync.edit") : t("settings.roleSync.create")}

@@ -37,13 +37,13 @@ export function KanalStep({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateContex
                 <div className="field">
                     <Label text={t("raidCreate.kanal.source")} tip={t("raidCreate.kanal.sourceTip")} />
                     <Segment<EventSource> ariaLabel={t("raidCreate.kanal.source")} value={source} onChange={(v) => patch({ source: v })}
-                        options={[{ value: "eventhelper", label: "EventHelper", icon: "inv_misc_note_05" }, { value: "raidhelper", label: "Raid-Helper", icon: "inv_misc_map_01" }]} />
+                        options={[{ value: "eventhelper", label: "EventHelper", icon: "raids" }, { value: "raidhelper", label: "Raid-Helper", icon: "raidHelper" }]} />
                 </div>
             )}
             {editing
                 ? (
                     <div className="re-summary">
-                        <WowIcon name="inv_letter_15" size={28} />
+                        <WowIcon name="channels" size={28} />
                         <div className="re-opt-text">
                             <span className="kicker">{t("raidCreate.kanal.channel")}</span>
                             <strong className="re-mono">#{channelName || channelId}</strong>

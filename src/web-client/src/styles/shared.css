@@ -552,6 +552,8 @@ nav.menu::-webkit-scrollbar { display: none; }
 .ver-dot.ver-forever { background: var(--ver-forever); }
 .ver-dot.ver-tbc { background: var(--ver-tbc); }
 .ver-dot.ver-classic { background: var(--ver-classic); }
+/* a game version's launcher icon (#951): the file as it is - no crop, no tint, never above 48 px */
+.ver-img { display: inline-block; flex: 0 0 auto; border-radius: 0; object-fit: contain; max-width: 48px; max-height: 48px; }
 .cswitch-seg .seg-opt { gap: 8px; min-height: var(--ctl-h-sm); padding: 0 14px; font-weight: 600; }
 .cswitch-seg .seg-opt.active { background: var(--version-color, var(--accent)); color: var(--version-ink, var(--accent-ink)); }
 /* the dot would vanish on a fill of its own colour; the name beside it stays (colour is never the only sign) */

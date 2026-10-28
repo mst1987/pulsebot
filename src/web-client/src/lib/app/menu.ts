@@ -3,6 +3,7 @@
 // (src/web/adminChrome.js via src/config/menu.js), so the two can no longer
 // drift apart.
 import MENU_JSON from "../../../../config/menu.json";
+import type { UiIconName } from "../ui/iconSet";
 import { canAccessAny, canAccessAnywhere, type SessionUser } from "../../api";
 import { tOr } from "../../i18n";
 
@@ -18,7 +19,8 @@ export type MenuEntry = {
     href: string;
     group: string;
     areas: string[];
-    wowIcon: string;
+    /** a key of the app's own icon set (#951, lib/ui/iconSet.ts) */
+    icon: UiIconName;
     /** the colour of another area (a sub entry of Raid-Events keeps the raids colour) */
     area?: string;
     /**
@@ -52,7 +54,7 @@ export type MenuEntry = {
     scope?: string;
 };
 
-export const MENU: MenuEntry[] = MENU_JSON;
+export const MENU: MenuEntry[] = MENU_JSON as MenuEntry[];
 
 /**
  * Pages under a tab that follows the version but are version-neutral themselves:

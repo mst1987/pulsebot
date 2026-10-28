@@ -54,7 +54,7 @@ export default function CancelModal({ ctx, open, onClose }: { ctx: RaidCtx; open
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="ability_creature_cursed_02" tone="bad"
+            open={open} onClose={onClose} icon="cancel" tone="bad"
             kicker={data.event.title} title={t("raidManage.cancel.title")} width={520}
             hint={cancelSummary(recipients, notify, archive)}
             footer={(

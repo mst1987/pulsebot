@@ -36,7 +36,7 @@ export default function VersionFeaturesCard({ versions, matrix, disabled, onChan
                             <th scope="col" className="vf-feature-head">{t("settings.versionFeatures.feature")}</th>
                             {cols.map((v) => (
                                 <th key={v.id} scope="col" className="vf-version">
-                                    <span className="vf-version-name tip-anchor" data-tip={v.label}><VersionDot id={v.id} />{v.short || v.label}</span>
+                                    <span className="vf-version-name tip-anchor" data-tip={v.label}><VersionDot id={v.id} icon={v.icon} label={v.label} />{v.short || v.label}</span>
                                 </th>
                             ))}
                         </tr>

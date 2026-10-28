@@ -268,7 +268,7 @@ function buildTasks({
     if (noSheet.length) {
         const first = noSheet[0];
         tasks.push({
-            id: "sheet", tone: "bad", icon: "inv_misc_note_02", title: "Sheet füllen",
+            id: "sheet", tone: "bad", icon: "googleSheets", title: "Sheet füllen",
             ref: { title: first.title, at: (first.startTime || 0) * 1000 },
             count: noSheet.length > 1 ? noSheet.length : 0,
             href: `/raids/detail?event=${encodeURIComponent(first.id)}`,
@@ -297,7 +297,7 @@ function buildTasks({
         const first = pending[0];
         const logs = pending.reduce((n, e) => n + e.pendingLogCount, 0);
         tasks.push({
-            id: "logs", tone: "mid", icon: "inv_misc_pocketwatch_01", title: "Logs zuordnen",
+            id: "logs", tone: "mid", icon: "logs", title: "Logs zuordnen",
             ref: { title: first.title, at: (first.startTime || 0) * 1000 },
             count: logs,
             href: `/raids/detail?event=${encodeURIComponent(first.id)}&tab=logs`,
@@ -310,7 +310,7 @@ function buildTasks({
     if ((inbox || []).length) {
         const items = inbox.reduce((n, s) => n + ((s && s.items) || []).length, 0);
         tasks.push({
-            id: "inbox", tone: "accent", tile: "history", icon: "inv_misc_bag_10", title: "Addon-Inbox",
+            id: "inbox", tone: "accent", tile: "history", icon: "addons", title: "Addon-Inbox",
             ref: { text: `${plural(inbox.length, "Sitzung", "Sitzungen")} · ${items} Items` },
             count: inbox.length,
             href: "/history?tab=inbox",
@@ -328,7 +328,7 @@ function buildTasks({
     if (archive && archive.count > 0) {
         const overdue = archive.overdue || 0;
         tasks.push({
-            id: "channels", tone: overdue ? "mid" : "accent", tile: overdue ? "mid" : "channels", icon: "inv_letter_15",
+            id: "channels", tone: overdue ? "mid" : "accent", tile: overdue ? "mid" : "channels", icon: "channels",
             title: "Archivierte Kanäle löschen",
             ref: { text: overdue ? `${plural(overdue, "Kanal wartet", "Kanäle warten")} länger als ${archive.hintDays} Tage` : `${plural(archive.count, "Kanal wartet", "Kanäle warten")} auf Löschung` },
             count: archive.count,
@@ -364,7 +364,7 @@ function roleDriftTask(roleDrift) {
     const first = groups[0];
     const more = groups.length > 1 ? ` · +${groups.length - 1} ${groups.length === 2 ? "Rolle" : "Rollen"}` : "";
     return {
-        id: "rolesync", tone: "mid", tile: "settings", icon: "inv_misc_groupneedmore", title: "Rollen prüfen",
+        id: "rolesync", tone: "mid", tile: "settings", icon: "roles", title: "Rollen prüfen",
         ref: { text: `${plural(first.members.length, "Mitglied hat", "Mitglieder haben")} @${first.roleName} nur noch auf ${first.guildName || "dem anderen Server"}${more}` },
         count: total,
         href: "/settings/all?section=discordserver",
@@ -396,7 +396,7 @@ function missingChannelTasks(list, { canRecreate = false } = {}) {
 /** One "Kanal fehlt" task; `canRecreate` per raid (#729: the orga of its category) or for the whole list. */
 function missingChannelTask(m, canRecreate) {
     return ({
-        id: `channel-missing:${m.eventId}`, tone: "bad", tile: "channels", icon: "inv_letter_15",
+        id: `channel-missing:${m.eventId}`, tone: "bad", tile: "channels", icon: "channels",
         title: `Kanal von ${m.title || "Raid"} fehlt`,
         ref: { title: m.channelName ? `#${m.channelName}` : m.title, at: (m.startTime || 0) * 1000 },
         count: 0,
@@ -425,7 +425,7 @@ function eventSeriesTask(failures) {
     // The reason's last part is short enough for the title ("fehlende Rechte"); the whole sentence goes into the tooltip.
     const reason = String(first.error || "").split(": ").pop();
     return {
-        id: "series", tone: "bad", tile: "raids", icon: "spell_holy_borrowedtime",
+        id: "series", tone: "bad", tile: "raids", icon: "raids",
         title: `Serie konnte Event nicht anlegen: ${reason}`,
         ref: { text: `${first.categoryName || "Kategorie"} · ${when}` },
         count: list.length > 1 ? list.length : 0,
@@ -471,7 +471,7 @@ function deployTask(deploy, now = Date.now()) {
     const running = deploy.short ? `läuft auf ${deploy.short}` : "Stand unbekannt";
     return {
         id: "deploy", tone: days >= DEPLOY_RED_DAYS ? "bad" : "mid", tile: "settings",
-        icon: "inv_misc_gear_02",
+        icon: "system",
         title: `Server ist ${plural(behind, "Commit", "Commits")} hinter main${age}`,
         ref: { text: running + (deploy.latest && deploy.latest.short ? ` · main auf ${deploy.latest.short}` : "") },
         count: behind,
@@ -515,7 +515,7 @@ function backupTask(backup, now = Date.now()) {
     else if (worst.state === "never") title = `${name}: bisher nie gelaufen`;
     else title = worst.key === "snapshot" ? `Letzte Sicherung vor ${ago}` : `${name} zuletzt vor ${ago}`;
     return {
-        id: "backup", tone: worst.light === "bad" ? "bad" : "mid", tile: "settings", icon: "inv_misc_gear_02",
+        id: "backup", tone: worst.light === "bad" ? "bad" : "mid", tile: "settings", icon: "system",
         title,
         ref: { text: "Systemstatus" },
         href: "/system",
@@ -537,7 +537,7 @@ function trialTasks(list) {
         const day = at ? DateTime.fromMillis(at, { zone: TIMEZONE }).setLocale("de").toFormat("dd.MM.") : "";
         return {
             id: `trial:${m.rosterId}:${m.userId}`, tone: m.overdue ? "mid" : "accent", tile: m.overdue ? "mid" : "roster",
-            icon: "spell_holy_borrowedtime",
+            icon: "roster",
             title: m.overdue ? `Probezeit abgelaufen: ${m.displayName}` : `Probezeit endet: ${m.displayName}`,
             ref: { title: m.rosterName, at },
             count: 0,

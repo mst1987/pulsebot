@@ -51,7 +51,7 @@ export default function CategoryCloseDialog({ category, onCancel, onClosed }: {
         <Modal
             open
             onClose={onCancel}
-            icon="inv_misc_book_09"
+            icon="categories"
             tone="settings"
             kicker={t("settings.categoryClose.kicker")}
             title={t("settings.categoryClose.title", { name })}

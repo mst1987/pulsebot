@@ -29,7 +29,7 @@ import "../styles/series.css";
 // which previews the next four dates with the channel each would get, so the
 // logic is visible before anything is saved. The scheduler is src/web/eventSeries.js.
 
-const ICON = "spell_holy_borrowedtime";
+const ICON = "raids";
 
 function DateRow({ o, draft, canWrite, onSkip, onRetry }: {
     o: SeriesDate;

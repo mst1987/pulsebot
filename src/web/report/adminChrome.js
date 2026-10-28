@@ -3,13 +3,14 @@
 // admin instead of landing on a bare public page.
 //
 // The menu entries come from src/config/menu.js — the same list the React shell
-// (src/web-client/src/components/Shell.tsx) renders, WoW icons included — so the
-// two menus can no longer drift apart (this copy once lacked Roster and
-// Loot-Council). The styles mirror the shell block of
-// src/web-client/src/index.css. (The report pages stay server-rendered because
-// they are public links posted to Discord; only the chrome around them is
-// duplicated, not a page.)
-const { MENU, wowIconUrl, isAllServers } = require("../../config/menu");
+// (src/web-client/src/components/Shell.tsx) renders, icons included (the app's
+// own set, #951, drawn inline by config/uiIconSvg.js) — so the two menus can no
+// longer drift apart (this copy once lacked Roster and Loot-Council). The styles
+// mirror the shell block of src/web-client/src/styles/shared.css. (The report
+// pages stay server-rendered because they are public links posted to Discord;
+// only the chrome around them is duplicated, not a page.)
+const { MENU, isAllServers } = require("../../config/menu");
+const { uiIconSvg } = require("../../config/uiIconSvg");
 
 // Line icons for the pure UI functions (brand, burger, logout) — everything with
 // a game meaning is a WoW icon.
@@ -21,14 +22,14 @@ const ICONS = {
 };
 
 // The menu as the chrome renders it: every top-level entry of config/menu.js
-// with its icon url resolved. A sub entry (Raidplan-Vorlagen, -Katalog) has no
+// with its icon drawn as inline HTML. A sub entry (Raidplan-Vorlagen, -Katalog) has no
 // line of its own, as in the React shell: its page is reached through the
 // icon rail of its parent's pages (src/web-client/src/components/SectionRail.tsx).
 // Two blocks as in the React shell (#918): the active server's pages first, then
 // the pages without a server ("Alle Server", menu.json `scope: "all"`).
 const TOP = MENU.filter((entry) => !entry.sub);
 const TABS = [...TOP.filter((e) => !isAllServers(e)), ...TOP.filter(isAllServers)]
-    .map((entry) => ({ ...entry, iconUrl: wowIconUrl(entry.wowIcon, 24) }));
+    .map((entry) => ({ ...entry, iconHtml: uiIconSvg(entry.icon, 24) }));
 
 // One accent per section for the active entry, the --area-* tokens of render.js.
 const AREA_STYLE = [...new Set(MENU.map((e) => e.area || e.id))].map((id) => `  .nav-item.area-${id} { --area:var(--area-${id}); --area-soft:var(--area-${id}-soft); }`).join("\n");
@@ -47,12 +48,13 @@ const CHROME_STYLE = `
   .menu-label { font-size:10.5px; font-family:var(--font-mono); text-transform:uppercase; letter-spacing:1.3px; color:var(--muted); opacity:.7; padding:14px 12px 6px; }
   .menu-label.menu-all { margin-top:12px; border-top:1px solid var(--line); padding-top:14px; }
   .nav-item { --area:var(--accent); --area-soft:var(--accent-soft); display:flex; align-items:center; gap:12px; padding:7px 12px; border-radius:8px; color:var(--muted); font-weight:600; font-size:14.5px; text-decoration:none; border:1px solid transparent; position:relative; transition:background .12s, color .12s, border-color .12s; }
-  .nav-item .wi { width:24px; height:24px; border-radius:6px; border:1px solid var(--line); flex:0 0 auto; object-fit:cover; filter:saturate(.45) brightness(.8); transition:filter .12s, box-shadow .12s, border-color .12s; }
+  .nav-item .wi { width:24px; height:24px; flex:0 0 auto; object-fit:contain; }
+  .uic-blood { color:var(--icon-blood); } .uic-bronze { color:var(--icon-bronze); } .uic-arcane { color:var(--icon-arcane); } .uic-fel { color:var(--icon-fel); }
+  .uic-discord { color:var(--discord-blurple); }
+  .wi.uic-raidHelper { border-radius:50%; }
   .nav-item:hover { background:var(--panel2); color:var(--text); }
-  .nav-item:hover .wi, .nav-item:focus-visible .wi { filter:none; }
   .nav-item.active { background:var(--area-soft); color:var(--text); border-color:var(--area-soft); }
   .nav-item.active::before { content:""; position:absolute; left:-10px; top:8px; bottom:8px; width:3px; border-radius:3px; background:var(--area); }
-  .nav-item.active .wi { filter:none; border-color:var(--area); box-shadow:0 0 0 2px var(--area-soft); }
 ${AREA_STYLE}
   .side-foot { padding:12px 14px; border-top:1px solid var(--line-soft); display:flex; align-items:center; gap:10px; }
   .avatar { width:34px; height:34px; border-radius:50%; background:var(--panel2); display:grid; place-items:center; font-weight:800; color:var(--accent); border:1px solid var(--line); flex:0 0 auto; }
@@ -105,7 +107,7 @@ function navHtml(activeTab, user) {
         const label = group !== lastGroup ? `<div class="${cls}">${group}</div>` : "";
         lastGroup = group;
         const active = tab.id === activeTab ? " active" : "";
-        return `${label}<a class="nav-item area-${tab.area || tab.id}${active}" href="${tab.landing || tab.href}"><img class="wi" src="${tab.iconUrl}" alt=""><span>${tab.label}</span></a>`;
+        return `${label}<a class="nav-item area-${tab.area || tab.id}${active}" href="${tab.landing || tab.href}">${tab.iconHtml}<span>${tab.label}</span></a>`;
     }).join("");
 }
 

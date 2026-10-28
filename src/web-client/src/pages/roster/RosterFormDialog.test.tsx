@@ -90,12 +90,12 @@ describe("RosterFormDialog — the game version it works in (#741)", () => {
         await waitFor(() => expect(api.getRosterOptions).toHaveBeenLastCalledWith("tbc"));
     });
 
-    it("shows each version with its icon", async () => {
+    it("shows each version with its launcher icon beside its name (#951)", async () => {
         create();
         const d = within(await waitFor(() => dialog()));
         const tbc = await d.findByRole("radio", { name: "WoW TBC" });
-        expect(tbc.querySelector("img")?.getAttribute("src")).toContain("expansionicon_burningcrusade");
-        expect(d.getByRole("radio", { name: "WoW Forever" }).querySelector("img")?.getAttribute("src")).toContain("spell_holy_borrowedtime");
+        expect(tbc.querySelector("img")?.getAttribute("src")).toBe("/versions/classic.png");
+        expect(d.getByRole("radio", { name: "WoW Forever" }).querySelector("img")?.getAttribute("src")).toBe("/versions/forever.png");
     });
 });
 

@@ -58,8 +58,11 @@ module.exports = {
     id: "tbc",
     label: "TBC Anniversary",
     short: "TBC",
-    // The version's WoW icon (zamimg name) next to its label in the web admin.
-    icon: "expansionicon_burningcrusade",
+    // The version's icon in the web admin (#951): the icon the Battle.net launcher shows for it, taken from the
+    // game executable, as a file in src/web-client/public/versions/. Classic Era and TBC Anniversary share the
+    // WoW Classic launcher icon (the launcher does the same), so the label always stands beside it.
+    // Shown as a plain <img> of at most 48 px - never recoloured or cropped.
+    icon: "/versions/classic.png",
     // The version's colour in the web admin (#742, dark theme): the accent while this version is shown. Editable per version in Einstellungen → Spielversion.
     color: "#9bd45a",
     // Main professions for "Mein Profil" (Berufe, gameVersions/professions.js) and their highest skill.

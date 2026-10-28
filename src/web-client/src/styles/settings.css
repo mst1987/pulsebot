@@ -44,6 +44,9 @@
 .gv-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 12px; align-items: center; }
 .gv-cat-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .gv-cat label { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* the version's icon in front of its select (#951) */
+.gv-cat-pick { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.gv-cat-pick select { flex: 1 1 auto; min-width: 0; }
 .gv-cat-since { flex: 0 0 auto; font-size: 12px; color: var(--muted); }
 .gv-empty { margin: 0; color: var(--muted); font-size: 13px; }
 @media (max-width: 560px) {

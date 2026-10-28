@@ -54,7 +54,7 @@ export function AssignChip({ r, mine, onRemove, extra, ctx }: { r: Resolved; min
     ) : r.kind === "group" ? (
         <><span className="rp-gdot" aria-hidden="true" style={{ "--rp-gdot": groupColor(ctx ? ctx.groupColors : undefined, r.group) } as React.CSSProperties} /><Users size={15} aria-hidden="true" /><span>{r.label}</span></>
     ) : r.kind === "text" ? (
-        <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={18} /><span>{r.label}</span></>
+        <><WowIcon name={iconForText(r.label) || "tasks"} size={18} /><span>{r.label}</span></>
     ) : (
         <>
             {r.kind === "slot" && ROLE_TONE[r.role] && <RoleGlyph role={r.role} size={18} />}

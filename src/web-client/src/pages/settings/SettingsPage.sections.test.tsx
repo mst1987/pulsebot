@@ -263,11 +263,11 @@ describe("the sections", () => {
         }
     });
 
-    it("carries a WoW icon per entry and counts what is missing", async () => {
+    it("carries an icon of the set (or the version's WoW icon) per entry and counts what is missing", async () => {
         const first = renderPage(<SettingsPage scope="all" />, { route: "/settings/all" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
         for (const s of sectionsFor("all", true)) {
-            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
+            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`[data-icon="${s.icon}"], img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818) and a loot-sync token missing.
         await waitFor(() => expect(within(entry("Verbindungen")).getByText("5")).toBeInTheDocument());
@@ -278,7 +278,7 @@ describe("the sections", () => {
         renderPage(<SettingsPage />, { route: "/settings" });
         await screen.findByRole("navigation", { name: "Einstellungs-Bereiche" });
         for (const s of sectionsFor("server", true)) {
-            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
+            expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`[data-icon="${s.icon}"], img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         await waitFor(() => expect(within(entry("Kategorien")).getByText("1")).toBeInTheDocument());
         expect(entry("Kategorien")).toHaveAttribute("data-tip-sub", "1 aktive Raid-Kategorien");
@@ -794,6 +794,30 @@ describe("Spielversion (#541)", () => {
         expect(body).toMatchObject({ mainVersion: "forever" });
         expect("categoryVersion" in body).toBe(false);
         expect(api.getCategorySwitch).not.toHaveBeenCalled();
+    });
+
+    it("shows every version with its launcher icon beside its label (#951)", async () => {
+        const icons: Record<string, string> = { tbc: "/versions/classic.png", classic: "/versions/classic.png", forever: "/versions/forever.png" };
+        const withIcons = gameVersions.map((v) => ({ ...v, icon: icons[v.id] }));
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions: withIcons }));
+        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
+        // the category's version: its launcher icon as a plain image in front of the select
+        const img = montag.parentElement!.querySelector("img.ver-img");
+        expect(img).toHaveAttribute("src", "/versions/classic.png");
+        expect(img).toHaveAttribute("alt", "TBC Anniversary");
+        first.unmount();
+
+        renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
+        const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
+        // Classic and TBC share the icon - the label beside it tells them apart
+        for (const [name, src] of [["TBC", icons.tbc], ["Classic", icons.classic], ["Forever", icons.forever]]) {
+            const radio = within(main).getByRole("radio", { name });
+            expect(radio.querySelector("img.ver-img")).toHaveAttribute("src", src);
+            expect(radio).toHaveTextContent(name);
+        }
+        // never above 48 px, whatever a caller asks for
+        for (const i of main.querySelectorAll("img.ver-img")) expect(Number(i.getAttribute("width"))).toBeLessThanOrEqual(48);
     });
 
     it("asks before switching a category: the dialog lists what happens and the fixes go with the save (#738)", async () => {

@@ -22,7 +22,7 @@ export function ProcessesSection({ processes }: { processes: Processes }) {
     return (
         <section className="sy-section">
             <PartHead
-                icon="inv_gizmo_02"
+                icon="system"
                 tone="system"
                 title={t("system.procs.title")}
                 crumb={t("system.procs.at", { time: formatTime(processes.at) })}
@@ -53,7 +53,7 @@ export function DiskSection({ disk }: { disk: Disk }) {
     return (
         <section className="sy-section">
             <PartHead
-                icon="inv_misc_bag_10"
+                icon="system"
                 tone="system"
                 title={t("system.disk.title")}
                 crumb={t("system.disk.at", { time: formatTime(disk.at) })}

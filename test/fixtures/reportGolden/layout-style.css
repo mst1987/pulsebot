@@ -26,6 +26,8 @@
     --area-lootcouncil:#e879f9; --area-lootcouncil-soft:rgba(232,121,249,.16);
     --area-bank:#2dd4bf; --area-bank-soft:rgba(45,212,191,.16);
     --area-kader:#fbbf24; --area-kader-soft:rgba(251,191,36,.16);
+    --icon-blood:#d4707e; --icon-bronze:#c49a4c; --icon-arcane:#b690cc; --icon-fel:#6cb2a2;
+    --discord-blurple:#5865f2;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -51,6 +53,7 @@
       --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
       --area-bank:#0f8f82; --area-bank-soft:rgba(15,143,130,.12);
       --area-kader:#b7791f; --area-kader-soft:rgba(183,121,31,.12);
+      --icon-blood:#8e2436; --icon-bronze:#7a5a1c; --icon-arcane:#6a4384; --icon-fel:#2a6a5e;
     }
   }
   :root[data-theme="light"] {
@@ -76,6 +79,7 @@
     --area-lootcouncil:#b03cc0; --area-lootcouncil-soft:rgba(176,60,192,.12);
     --area-bank:#0f8f82; --area-bank-soft:rgba(15,143,130,.12);
     --area-kader:#b7791f; --area-kader-soft:rgba(183,121,31,.12);
+    --icon-blood:#8e2436; --icon-bronze:#7a5a1c; --icon-arcane:#6a4384; --icon-fel:#2a6a5e;
   }
   * { box-sizing:border-box; }
   body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif; transition:background .2s, color .2s; }

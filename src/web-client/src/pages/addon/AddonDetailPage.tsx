@@ -28,7 +28,7 @@ import { CurseforgeLink, DownloadButtons, ErrorState, InstallGuide, StateNote } 
 import "../../styles/addon.css";
 import "../../styles/orga-mark.css";
 
-const ICON = "inv_gizmo_01";
+const ICON = "addons";
 const BACK = "/addon";
 
 /** A line of the notes: text, bold and code as React text nodes, nothing else. */

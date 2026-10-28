@@ -57,7 +57,7 @@ function NameDialog({ title, initial, action, onClose, onSubmit }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_note_01"
+            icon="tasks"
             tone="lootcouncil"
             title={title}
             width={460}
@@ -94,7 +94,7 @@ export function ProfilesTab(props: Props) {
     const current = rows.find((p) => p.id === selected) || rows.find((p) => p.isDefault) || null;
     const currentId = current ? current.id : selected;
     return (
-        <Part icon="inv_misc_coin_17" title={t("lootcouncil.profiles.title")} hint={t("lootcouncil.profiles.hint")}>
+        <Part icon="lootcouncil" title={t("lootcouncil.profiles.title")} hint={t("lootcouncil.profiles.hint")}>
             <AsyncView state={list} loading={<RaidLoader text={t("lootcouncil.profiles.loading")} />}>
                 {(data) => (
                     <div className="lc-profiles">
@@ -235,7 +235,7 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
             title: t("lootcouncil.weights.resetTitle"),
             text: t("lootcouncil.weights.resetText"),
             action: t("lootcouncil.weights.reset"),
-            icon: "spell_holy_borrowedtime",
+            icon: "simulate",
         });
         if (ok) {
             setWeights(cloneWeights(data.defaults.weights));
@@ -339,7 +339,7 @@ function ProfileForm({ row, data, options, canWrite, onStored, onCopied, onDelet
                         <Button variant="ghost" onClick={toDefaults}>{t("lootcouncil.weights.reset")}</Button>
                         <span className="lc-grow" />
                         {dirty ? <span className="lc-muted">{t("lootcouncil.weights.unsaved")}</span> : null}
-                        <Button variant="go" icon="inv_misc_note_01" running={saving} disabled={!dirty} onClick={save}>{t("lootcouncil.weights.save")}</Button>
+                        <Button variant="go" icon="tasks" running={saving} disabled={!dirty} onClick={save}>{t("lootcouncil.weights.save")}</Button>
                     </div>
                 ) : null}
             </div>

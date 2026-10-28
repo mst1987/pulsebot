@@ -81,7 +81,7 @@ export function EvaluationLink({ gear, variant = "ghost", size = "sm" }: { gear:
     if (!gear?.reportRefId) return null;
     return (
         <a className={buttonClass(variant, size, true)} href={`/r/${gear.reportRefId}`} target="_blank" rel="noopener noreferrer">
-            <WowIcon name="inv_misc_pocketwatch_01" size={size === "sm" ? 18 : 22} />
+            <WowIcon name="logs" size={size === "sm" ? 18 : 22} />
             {t("history.shared.openEvaluation")}
         </a>
     );
@@ -168,7 +168,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
     return (
         <div className="dash-card ros-part">
             <PartHead
-                icon="inv_helmet_98"
+                icon="armory"
                 tone="roster"
                 title={t("history.char.gear")}
                 crumb={crumb}

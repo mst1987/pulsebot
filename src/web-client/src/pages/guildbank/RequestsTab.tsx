@@ -173,7 +173,7 @@ export default function RequestsTab({ bankKey, list, items, canWrite = false, ca
                 <Modal
                     open
                     onClose={() => setLinking(null)}
-                    icon={<WowIcon name="inv_misc_bag_10" size={22} />}
+                    icon={<WowIcon name="guildbank" size={22} />}
                     tone="bank"
                     kicker={t("guildbank.tabsDialog.kicker")}
                     title={t("guildbank.link.title")}

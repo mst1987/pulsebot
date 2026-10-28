@@ -21,7 +21,7 @@ function OutsiderFold({ outsiders }: { outsiders: CouncilOutsider[] }) {
     if (!outsiders.length) return null;
     return (
         <FoldRow
-            icon="inv_misc_groupneedmore"
+            icon="roster"
             title={t("lootcouncil.roster.outsidersTitle")}
             count={outsiders.length}
             names={outsiders.map((o) => o.character).join(", ")}
@@ -88,7 +88,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
                     <Button
                         variant="run"
                         size="sm"
-                        icon="inv_gizmo_02"
+                        icon="simulate"
                         running={simRunning}
                         disabled={!simulatable.length}
                         onClick={() => runSim([], simulatable)}
@@ -113,7 +113,7 @@ export function RosterTab({ data, roster, sortedRoster, sim, rosterSort, openRai
             <OutsiderFold outsiders={data.outsiders || []} />
             {data.excluded.length ? (
                 <FoldRow
-                    icon="ability_rogue_feigndeath"
+                    icon="inactive"
                     title={t("lootcouncil.roster.excludedTitle")}
                     count={data.excluded.length}
                     names={data.excluded.map((e) => e.character).join(", ")}

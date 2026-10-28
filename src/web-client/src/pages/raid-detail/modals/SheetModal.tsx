@@ -39,7 +39,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
         jobs.run({
             label: t("raidModals.sheet.fillJob"),
             detail: ev.title,
-            icon: "inv_scroll_03",
+            icon: "googleSheets",
             expectedSeconds: 20,
             describe: (r) => ({ message: r.message }),
         }, () => fillRaidsheet({ event: eventId, sheetId: sheetId || raidsheets[0]?.id || "", tank3, eventTitle: ev.title, eventStartTime: ev.startTime })).then(() => {
@@ -63,14 +63,14 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
     const own = sheetLink?.source === "event";
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_scroll_03" tone="raids"
+            open={open} onClose={onClose} icon="googleSheets" tone="raids"
             kicker={ev.title} title={t("raidModals.sheet.title")} width={620}
             hint={channel ? t("raidModals.shared.inChannel", { channel }) : undefined}
             footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
             <div className="rd-dlg-stack">
                 <div className="rd-sheetrow">
-                    <IconTile icon="inv_scroll_03" tone={sheetLink ? "ok" : "none"} />
+                    <IconTile icon="googleSheets" tone={sheetLink ? "ok" : "none"} />
                     <span className="rd-sheetrow-text">
                         <b>{sheetLink ? (own ? (eventSheet?.eventTitle || t("raidModals.sheet.filled")) : (sheetLink.name || t("raidModals.sheet.categorySheet"))) : t("raidModals.sheet.none")}</b>
                         <span className="rd-muted">
@@ -117,7 +117,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
                             </div>
                             <div className="rd-form-actions">
                                 <Button
-                                    type="submit" variant="run" icon="inv_scroll_03" running={filling}
+                                    type="submit" variant="run" icon="googleSheets" running={filling}
                                     data-tip={own ? t("raidModals.sheet.refill") : t("raidModals.sheet.fillSheet")} data-tip-sub={t("raidModals.sheet.fillTipSub")}
                                 >
                                     {own ? t("raidModals.sheet.refill") : t("raidModals.sheet.fillCopy")}
@@ -135,7 +135,7 @@ export default function SheetModal({ ctx, open, onClose }: { ctx: RaidCtx; open:
                                 <label htmlFor="rd-sheet-msg">{t("raidModals.shared.message")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>
                                 <input id="rd-sheet-msg" type="text" value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("raidModals.sheet.messagePlaceholder")} />
                             </div>
-                            <Button icon="inv_letter_15" running={posting} onClick={post}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.sheet.post")}</Button>
+                            <Button icon="discord" running={posting} onClick={post}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.sheet.post")}</Button>
                         </div>
                         {posted && eventSheet?.postedChannelId && eventSheet.postedMessageId && (
                             <a className="mlink rd-small" href={messageLink(data.guildId, eventSheet.postedChannelId, eventSheet.postedMessageId)} target="_blank" rel="noopener noreferrer">

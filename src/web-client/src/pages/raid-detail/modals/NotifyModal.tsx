@@ -38,14 +38,14 @@ export default function NotifyModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const channel = ev.channelName || ev.channelId;
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_letter_15" tone="raids"
+            open={open} onClose={onClose} icon="notify" tone="raids"
             kicker={ev.title} title={t("raidModals.notify.title")} width={560}
             hint={channelHint(channel)}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     {notifyTemplates.length > 0 && (
-                        <Button type="submit" form="rd-notify-form" icon="inv_letter_15" running={busy}>{t("raidModals.notify.post")}</Button>
+                        <Button type="submit" form="rd-notify-form" icon="notify" running={busy}>{t("raidModals.notify.post")}</Button>
                     )}
                 </>
             )}

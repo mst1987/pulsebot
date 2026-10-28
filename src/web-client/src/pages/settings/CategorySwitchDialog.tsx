@@ -68,7 +68,7 @@ export default function CategorySwitchDialog({ categoryId, categoryName, version
         <Modal
             open
             onClose={onCancel}
-            icon="inv_misc_book_09"
+            icon="categories"
             tone="settings"
             kicker={t("settings.categorySwitch.kicker")}
             title={preview ? t("settings.categorySwitch.title", { name, from: preview.from.label, to: preview.to.label }) : name}

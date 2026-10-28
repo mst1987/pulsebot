@@ -67,7 +67,7 @@ export default function KaderHeader() {
     return (
         <div className="kp-top">
             <div className="kp-back-row"><BackButton to="/kader" label={t("kader.header.all")} size="sm" /></div>
-            <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
+            <IconTile icon="kader" tone="kader" size="lg" />
             <div className="kp-top-text">
                 <span className="kicker kp-accent2">{t("kader.header.kicker")}</span>
                 <KaderPicker />

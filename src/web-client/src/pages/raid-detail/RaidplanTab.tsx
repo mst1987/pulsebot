@@ -240,9 +240,9 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
         if (!view) return;
         // a template of another game version (#544) is only applied after a warning
         const otherVersion = (tpl.versionId || "tbc") !== view.versionId;
-        if (otherVersion && !(await ask({ title: t("raidBoard.template.otherTitle"), text: t("raidBoard.template.otherText", { name: tpl.name, version: versionLabel([], tpl.versionId || "tbc"), event: versionLabel([], view.versionId) }), action: t("raidBoard.template.otherAction"), tone: "danger", icon: "inv_misc_map02" }))) return;
+        if (otherVersion && !(await ask({ title: t("raidBoard.template.otherTitle"), text: t("raidBoard.template.otherText", { name: tpl.name, version: versionLabel([], tpl.versionId || "tbc"), event: versionLabel([], view.versionId) }), action: t("raidBoard.template.otherAction"), tone: "danger", icon: "raidplan" }))) return;
         const needsAsk = dirty || planHasContent(view.plan.bosses, bossKeys);
-        if (needsAsk && !(await ask({ title: t("raidBoard.template.applyTitle", { name: tpl.name }), text: t("raidBoard.template.applyText"), action: t("raidBoard.template.applyAction"), tone: "primary", icon: "inv_misc_map02" }))) return;
+        if (needsAsk && !(await ask({ title: t("raidBoard.template.applyTitle", { name: tpl.name }), text: t("raidBoard.template.applyText"), action: t("raidBoard.template.applyAction"), tone: "primary", icon: "raidplan" }))) return;
         setSaving(true);
         try {
             // The server copies the template onto the *saved* plan; unsaved edits are replaced by it (asked above).
@@ -383,7 +383,7 @@ export default function RaidplanTab({ ctx }: { ctx: RaidCtx }) {
                 </ul>
             </Modal>
 
-            <Modal open={modal === "template"} onClose={() => setModal("")} icon="inv_misc_map02" title={t("raidBoard.template.pickTitle")} width={520} hint={t("raidBoard.template.hint")}>
+            <Modal open={modal === "template"} onClose={() => setModal("")} icon="raidplan" title={t("raidBoard.template.pickTitle")} width={520} hint={t("raidBoard.template.hint")}>
                 <ul className="rp-pick">
                     <li>
                         <div className={`rp-pick-row rp-pick-profile${view.plan.templateId ? "" : " is-on"}`}>

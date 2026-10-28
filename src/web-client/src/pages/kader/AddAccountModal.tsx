@@ -59,7 +59,7 @@ export default function AddAccountModal({ startWay = "server", onClose }: { star
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             kicker={t("kader.import.kicker", { name: kader.name })}
             title={t("kader.add.title")}

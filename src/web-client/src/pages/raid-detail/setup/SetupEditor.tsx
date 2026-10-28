@@ -369,7 +369,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             title: t("setup.raidGroup.removeTitle", { title: shown.event.title }),
             text: t("setup.raidGroup.removeText", { title: shown.event.title, count: placedHere }),
             action: t("setup.raidGroup.removeAction"),
-            icon: "achievement_guildperk_everybodysfriend",
+            icon: "members",
         });
         if (!okay) return;
         setGrouping(true);
@@ -461,7 +461,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             text: t("setup.avoid.askText", { count: shown.avoidPairs }),
             action: t("setup.avoid.askYes"),
             cancelLabel: t("setup.avoid.askNo"),
-            icon: "achievement_guildperk_everybodysfriend",
+            icon: "members",
         });
     };
 
@@ -471,7 +471,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         const avoid = await avoidAnswer();
         setBusy(true);
         await chain.current;
-        const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "inv_misc_map_01", quiet: true }, () => (
+        const next = await jobs.run({ label: t("setup.editor.proposalJob"), detail: data?.event.title || "", icon: "home", quiet: true }, () => (
             proposeRaidSetup(eventId, { ...(weights ? { weights } : {}), ...(avoid === undefined ? {} : { avoid }), ...(keep ? { keep } : {}) })
         ));
         setBusy(false);
@@ -485,7 +485,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 title: t("setup.editor.approveAnywayTitle"),
                 text: t("setup.editor.approveAnywayText"),
                 action: t("setup.editor.approve"),
-                icon: "inv_misc_map_01",
+                icon: "home",
             });
             if (!okay) return;
         }
@@ -516,7 +516,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 title: t("setup.ping.askTitle"),
                 text: t("setup.ping.askText", { count: plan.count, text: plan.text }),
                 action: t("setup.ping.action"),
-                icon: "inv_letter_15",
+                icon: "notify",
                 tone: "primary",
             });
             if (!ok) return;
@@ -613,7 +613,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             title: t("setup.confirmAll.askTitle"),
             text: t("setup.confirmAll.askText", { count }),
             action: t("setup.editor.confirmAll"),
-            icon: "achievement_guildperk_everybodysfriend",
+            icon: "members",
             tone: "primary",
         });
         if (!ok) return;
@@ -669,7 +669,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     if (!setup) {
         return (
             <div className="se-start">
-                <WowIcon name="inv_misc_map_01" size={40} />
+                <WowIcon name="home" size={40} />
                 <div>
                     <div className="se-start-title">{t("setup.editor.noSetup")}</div>
                     <div className="se-start-sub">
@@ -680,7 +680,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         ].filter(Boolean).join(" · ")}
                     </div>
                 </div>
-                <Button icon="spell_holy_borrowedtime" running={busy} disabled={!data.signupCount} onClick={() => propose()}>{t("setup.editor.createProposal")}</Button>
+                <Button icon="simulate" running={busy} disabled={!data.signupCount} onClick={() => propose()}>{t("setup.editor.createProposal")}</Button>
             </div>
         );
     }
@@ -752,19 +752,19 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     let primary: ReactNode = null;
     if (!cancelled && !approved) {
         primary = (
-            <Button icon="inv_letter_15" disabled={busy || placed === 0} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
+            <Button icon="discord" disabled={busy || placed === 0} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
                 {t("setup.editor.approve")}
             </Button>
         );
     } else if (!cancelled && (state.needsPost || optionsChanged)) {
         primary = (
-            <Button icon="inv_letter_15" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
+            <Button icon="discord" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
                 {t("setup.publishLine.post")}
             </Button>
         );
     } else if (!cancelled) {
         primary = (
-            <Button icon="spell_holy_prayerofspirit" running={pinging} disabled={busy} data-tip={t("setup.ping.button")} data-tip-sub={t("setup.ping.buttonSub")} onClick={() => void pingAll()}>
+            <Button icon="message" running={pinging} disabled={busy} data-tip={t("setup.ping.button")} data-tip-sub={t("setup.ping.buttonSub")} onClick={() => void pingAll()}>
                 {t("setup.ping.button")}
             </Button>
         );
@@ -780,31 +780,31 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const nextIndex = group ? Math.max(...group.raids.map((r) => r.index)) + 1 : 2;
     const primaryTitle = group ? (group.raids.find((r) => r.index === 1)?.title || data.event.title) : data.event.title;
     const groupItems: (MoreItem | "sep")[] = cancelled ? [] : [
-        ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "achievement_guildperk_everybodysfriend", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
+        ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
         ...(isFurther ? [{
             id: "removeRaid", label: t("setup.raidGroup.remove", { title: data.event.title }),
             sub: thisRaid && thisRaid.approved ? t("setup.raidGroup.removeLocked", { title: data.event.title }) : t("setup.raidGroup.removeSub"),
-            icon: "ability_creature_cursed_02", disabled: busy || grouping || !!(thisRaid && thisRaid.approved), onSelect: () => void removeRaid(),
+            icon: "cancel", disabled: busy || grouping || !!(thisRaid && thisRaid.approved), onSelect: () => void removeRaid(),
         }] : []),
         "sep",
     ];
     const more: (MoreItem | "sep")[] = [
         ...groupItems,
-        { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "spell_holy_borrowedtime", disabled: busy, onSelect: () => void propose() },
+        { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "simulate", disabled: busy, onSelect: () => void propose() },
         // the size is the event's own (PATCH /api/raids): only who may change the event (#725, the category orga with #728)
-        ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "achievement_guildperk_everybodysfriend", disabled: busy, onSelect: () => setDialog("size") }] : []),
-        { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "inv_letter_15", disabled: busy, onSelect: () => setDialog("ping") },
+        ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "members", disabled: busy, onSelect: () => setDialog("size") }] : []),
+        { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "notify", disabled: busy, onSelect: () => setDialog("ping") },
         "sep",
         { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },
         { id: "wishes", label: t("setup.summary.wishes"), sub: opts.wishes ? t("setup.summary.wishesCapOn", { met: setup.checks.wishes.met, total: setup.checks.wishes.total }) : t("setup.more.wishesOffSub"), icon: "inv_valentineschocolate02", on: opts.wishes, disabled: busy, onSelect: () => void save(keep(), { wishes: !opts.wishes }) },
-        ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "ability_creature_cursed_02", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
+        ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "cancel", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
         "sep",
         // posted and current: posting again sends the DMs a live change left open, or redraws the message
-        ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "inv_letter_15", disabled: busy || posting, onSelect: () => void post() }] : []),
-        { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "inv_misc_book_09", on: compact, onSelect: toggleCompact },
-        { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "inv_misc_spyglass_02", disabled: !data.search, onSelect: () => setDialog("search") },
-        { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "inv_scroll_03", onSelect: () => setDialog("explain") },
-        { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "inv_misc_gear_01", disabled: busy, onSelect: () => setDialog("weights") },
+        ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "discord", disabled: busy || posting, onSelect: () => void post() }] : []),
+        { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "setup", on: compact, onSelect: toggleCompact },
+        { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "search", disabled: !data.search, onSelect: () => setDialog("search") },
+        { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "help", onSelect: () => setDialog("explain") },
+        { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "settings", disabled: busy, onSelect: () => setDialog("weights") },
     ];
 
     // the counts as square fields, toned by their check — compact ("Tanks 1/2"), each with its word, never cut
@@ -866,7 +866,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     <MoreMenu items={more} />
                     {canFill && (
                         <Button
-                            variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={busy} disabled={busy}
+                            variant="ghost" size="sm" icon="simulate" running={busy} disabled={busy}
                             data-tip={placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")} data-tip-sub={placed === 0 ? t("setup.fill.autoSub") : t("setup.fill.freeSub")}
                             onClick={fill}
                         >
@@ -875,7 +875,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     )}
                     {approved && unanswered > 0 && (
                         <Button
-                            variant="ghost" size="sm" icon="achievement_guildperk_everybodysfriend" disabled={busy}
+                            variant="ghost" size="sm" icon="members" disabled={busy}
                             data-tip={t("setup.editor.confirmAll")} data-tip-sub={t("setup.editor.confirmAllSub")}
                             onClick={() => void confirmEveryone(unanswered)}
                         >
@@ -889,7 +889,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             {/* overbooked: a calm line under the bar, the way out inside it (#811) */}
             {overbooked && (
                 <div className="se-overbooked" role="status">
-                    <WowIcon name="achievement_guildperk_everybodysfriend" size={22} />
+                    <WowIcon name="members" size={22} />
                     <span className="se-overbooked-text">{t("setup.raidGroup.overbookedHint", { count: signed, places: groupPlaces })}</span>
                     <span className="se-overbooked-sep" aria-hidden="true">—</span>
                     <Button
@@ -960,13 +960,13 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 </Popover>
             )}
 
-            <EditorDialog open={dialog === "size"} onClose={() => setDialog(null)} icon="achievement_guildperk_everybodysfriend" title={t("setup.more.size")}>
+            <EditorDialog open={dialog === "size"} onClose={() => setDialog(null)} icon="members" title={t("setup.more.size")}>
                 <SizeControl size={data.event.size} disabled={busy} onCommit={resize} />
             </EditorDialog>
-            <EditorDialog open={dialog === "ping"} onClose={() => setDialog(null)} icon="inv_letter_15" title={t("setup.pingText.title")}>
+            <EditorDialog open={dialog === "ping"} onClose={() => setDialog(null)} icon="notify" title={t("setup.pingText.title")}>
                 <PingTextField value={data.pingText || ""} disabled={busy} onSave={savePingText} />
             </EditorDialog>
-            <EditorDialog open={dialog === "details"} onClose={() => setDialog(null)} icon="inv_misc_map_01" title={t("setup.line.detailsTitle")} width={640}>
+            <EditorDialog open={dialog === "details"} onClose={() => setDialog(null)} icon="home" title={t("setup.line.detailsTitle")} width={640}>
                 <Summary
                     data={data} setup={setup} busy={busy}
                     onFairness={(on) => save(keep(), { fairness: on })}

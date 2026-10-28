@@ -19,7 +19,9 @@
 //   scope    — "all": the page is not about one Discord server (Mein Profil, Addons,
 //              Systemstatus). Both menus draw it in the block "Alle Server" below the
 //              active server's block (#918); without it the entry is per server.
-//   wowIcon — the zamimg icon name drawn in front of the label
+//   icon     — a key of the app's own icon set drawn in front of the label (#951):
+//              a glyph of uiIcons.json or a brand mark ("discord"), see
+//              uiIconSvg.js; wowIconUrl below stays for game content (bosses, items …)
 const MENU = require("./menu.json");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons";

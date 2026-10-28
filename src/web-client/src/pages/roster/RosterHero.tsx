@@ -58,7 +58,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
     return (
         <div className="ros-kpis">
             <Kpi
-                icon="achievement_guildperk_everybodysfriend"
+                icon="roster"
                 tone="accent"
                 label={t("roster.kpi.chars")}
                 tip={t("roster.kpi.charsTip", { count: total })}
@@ -66,7 +66,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
                 value={total}
             />
             <Kpi
-                icon="ability_warrior_rallyingcry"
+                icon="roster"
                 tone={attTone === "bad" ? "warn" : attTone || "none"}
                 label={t("roster.kpi.attendance")}
                 tip={avgAttendance === null ? t("roster.kpi.attendanceNone") : t("roster.kpi.attendanceTip", { pct: avgAttendance })}
@@ -78,7 +78,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
                 meter={avgAttendance === null ? undefined : avgAttendance}
             />
             <Kpi
-                icon="inv_misc_gem_variety_02"
+                icon="wishlist"
                 tone={withIssues ? "warn" : "ok"}
                 label={t("roster.kpi.issues")}
                 tip={onlyIssues ? t("roster.kpi.issuesOff") : t("roster.kpi.issuesOn")}
@@ -96,7 +96,7 @@ export function RosterKpis({ stats, onlyIssues, onToggleIssues }: {
                 active={onlyIssues}
             />
             <Kpi
-                icon="inv_misc_bag_10"
+                icon="loot"
                 tone="none"
                 label={t("roster.kpi.loot")}
                 tip={t("roster.kpi.lootTip", { count: loot })}
