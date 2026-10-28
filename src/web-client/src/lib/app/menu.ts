@@ -86,6 +86,17 @@ export function matchesHref(href: string, pathname: string): boolean {
     return pathname === href || (href !== "/" && pathname.startsWith(`${href}/`));
 }
 
+/**
+ * Like matchesHref, but a page that is a menu line of its own does not count
+ * for a shorter href it lies under: "/settings/all" ("Alle Server ›
+ * Einstellungen", #957) is not a sub-route of "/settings" (System ›
+ * Einstellungen). Sub entries (sub: true) still count for their parent.
+ */
+export function ownsPath(href: string, pathname: string): boolean {
+    if (!matchesHref(href, pathname)) return false;
+    return !MENU.some((e) => !e.sub && e.href.length > href.length && matchesHref(e.href, pathname));
+}
+
 /** The top-level entry a sub entry belongs to: the one whose href it lies under. */
 export function parentEntry(entry: MenuEntry): MenuEntry | undefined {
     if (!entry.sub) return undefined;

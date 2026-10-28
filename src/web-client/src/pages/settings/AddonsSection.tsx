@@ -183,7 +183,7 @@ export default function AddonsSection({ data, onConfig }: {
                 <div className="conn-status mid dlp-token-hint">
                     <Badge tone="mid" icon={<WarnIcon />}>{t("settings.state.tokenMissing")}</Badge>
                     <span>{t("addon.settings.tokenHint")}</span>
-                    <Link className={buttonClass("ghost", "sm")} to="/settings?section=verbindungen">{t("addon.settings.toConnections")}</Link>
+                    <Link className={buttonClass("ghost", "sm")} to="/settings/all?section=verbindungen">{t("addon.settings.toConnections")}</Link>
                 </div>
             )}
             <ListSection

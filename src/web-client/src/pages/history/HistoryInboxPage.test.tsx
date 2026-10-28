@@ -4,7 +4,7 @@ import { screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { HistoryData } from "../../api";
-import { renderPage } from "../../test/render";
+import { adminUser, renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import HistoryInboxPage from "./HistoryInboxPage";
 
@@ -29,7 +29,15 @@ describe("HistoryInboxPage", () => {
         renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
         expect(await screen.findByText(/Keine offenen Addon-Uploads./)).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Addon-Inbox" })).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: /Sync-Token verwalten/ })).toHaveAttribute("href", "/settings?section=lootsync");
+        expect(screen.getByRole("link", { name: /Sync-Token verwalten/ })).toHaveAttribute("href", "/settings/all?section=verbindungen");
+    });
+
+    // #957 review: the sync tokens live on "Alle Server", which only full admins open
+    it("shows no token link to someone who is no full admin", async () => {
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox", user: adminUser({ isAdmin: false, access: { history: { read: true, write: true } } }) });
+        expect(await screen.findByText(/Keine offenen Addon-Uploads./)).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: /Sync-Token verwalten/ })).toBeNull();
+        expect(screen.queryAllByRole("link")).toHaveLength(0);
     });
 
     it("reads in English", async () => {

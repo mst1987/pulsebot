@@ -137,21 +137,22 @@ export function itemTip(item: LaunchItem, list: LaunchChecklist): string {
 /**
  * Where an item is fixed. `canExport`: the reader may download the archive
  * (full admins). A card on this page is a jump to its id: `gv-main` (main
- * version and categories), `gv-links` (links per version).
+ * version), `gv-links` (links per version); the categories are the server's
+ * section "kategorieversion" (#957 review).
  */
 export function itemLink(item: LaunchItem, { canExport = false }: { canExport?: boolean } = {}): LaunchLink | null {
     const route = (to: string): LaunchLink => ({ kind: "route", to, label: t(`${K}.links.${item.id}`) });
     switch (item.id) {
         case "backup": return item.kind === "auto" ? route("/system") : null;
         case "export": return canExport ? { kind: "download", href: "/api/settings/archive-export?format=csv", label: t(`${K}.links.export`) } : null;
-        case "categories":
+        case "categories": return route("/settings?section=kategorieversion");
         case "mainVersion": return { kind: "jump", target: "gv-main" };
         case "versionSettings": return { kind: "jump", target: "gv-links" };
         case "templates": return route("/raids/raid-templates");
         case "series": return route("/raids/series");
         case "rosters": return route("/roster");
-        case "guildBank": return route("/settings?section=verbindungen");
-        case "talk": return route("/settings?section=discordserver");
+        case "guildBank": return route("/settings/all?section=verbindungen");
+        case "talk": return route("/settings/all?section=discordserver");
         default: return null;
     }
 }

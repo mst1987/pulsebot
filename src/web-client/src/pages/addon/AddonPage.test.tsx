@@ -205,7 +205,7 @@ describe("page Addons", () => {
         ));
         renderPage(<AddonPage />, { route: "/addon" });
         expect(await screen.findByText(/private Repo mst1987\/levelhelper fehlt der GitHub-Token/)).toBeInTheDocument();
-        expect(screen.getAllByRole("link", { name: "Token einrichten" })[0]).toHaveAttribute("href", "/settings?section=verbindungen");
+        expect(screen.getAllByRole("link", { name: "Token einrichten" })[0]).toHaveAttribute("href", "/settings/all?section=verbindungen");
     });
 
     it("names the version when it has no addons", async () => {
@@ -231,7 +231,7 @@ describe("page Addons", () => {
         renderPage(<AddonPage />, { route: "/addon" });
         expect(await screen.findByText(/gibt es hier keine Addons/)).toBeInTheDocument();
         expect(screen.queryByText(/Addons gibt es für/)).toBeNull();
-        expect(screen.getByRole("link", { name: "Addons einrichten" })).toHaveAttribute("href", "/settings?section=addons");
+        expect(screen.getByRole("link", { name: "Addons einrichten" })).toHaveAttribute("href", "/settings/all?section=addons");
     });
 
     it("never leaves the page blank: the cards carry no class an ad blocker hides", async () => {

@@ -2,10 +2,10 @@
 // blocks as the menu (#918, Epic #926 "Daten je Server"):
 //
 //   Server       — what belongs to the active Discord server: who gets in, its
-//                  raid categories, raid defaults, logs, recruitment, raid sheets
+//                  raid categories, raid defaults, logs, recruitment, raid
+//                  sheets, top items
 //   Alle Server  — what the whole bot shares: the server list and its links,
-//                  the external connections, game versions, top items,
-//                  dungeons, addons
+//                  the external connections, game versions, dungeons, addons
 //
 // Each section carries a WoW icon, and the two that can be incomplete a count.
 
@@ -35,6 +35,9 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // the active server's block
     { id: "berechtigungen", group: "server", icon: "inv_scroll_11", adminOnly: true },
     { id: "kategorien", group: "server", icon: "inv_banner_03" },
+    // #957 review: which version each of this server's categories plays (and the switch
+    // dialog, #738) - settings writers change it, so it never moved to "Alle Server"
+    { id: "kategorieversion", group: "server", icon: "inv_misc_book_11" },
     { id: "raids", group: "server", icon: "inv_misc_note_02" },
     { id: "logs", group: "server", icon: "inv_misc_pocketwatch_01" },
     { id: "recruitment", group: "server", icon: "inv_misc_grouplooking" },
@@ -43,15 +46,17 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "raidsheets", group: "server", icon: "inv_scroll_03", standalone: true },
     // #927: Raid-Helper per server - switch, id, key, the sync and the retirement; full admins only
     { id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true },
+    // #957: stays with the server - #952 turns it into a setting per server and version
+    { id: "topitems", group: "server", icon: "inv_misc_bag_10" },
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },
     // #925: the one access setting every server shares - the rest is per server (berechtigungen)
     { id: "vollAdmins", group: "global", icon: "spell_holy_sealofwisdom", adminOnly: true },
     { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
-    // #541: the main game version and the categories that play another one
+    // #541: the main game version, hiding the others, version links, features and the launch -
+    // the categories that play another one are the server's (kategorieversion)
     { id: "spielversion", group: "global", icon: "inv_misc_book_09" },
-    { id: "topitems", group: "global", icon: "inv_misc_bag_10" },
     { id: "dungeons", group: "global", icon: "spell_holy_borrowedtime" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
     { id: "addons", group: "global", icon: "inv_gizmo_01", adminOnly: true, standalone: true },
@@ -94,6 +99,41 @@ export const SECTION_PARAM_IDS: string[] = [...SETTINGS_SECTIONS.map((s) => s.id
 /** The sections this user may open — everything, unless they only hold write on "Einstellungen". */
 export function visibleSections(canManageAccess: boolean): SettingsSection[] {
     return canManageAccess ? SETTINGS_SECTIONS : SETTINGS_SECTIONS.filter((s) => !s.adminOnly);
+}
+
+/**
+ * Which page a section lives on (#957): the active server's sections under
+ * System › Einstellungen (/settings), the shared ones under Alle Server ›
+ * Einstellungen (/settings/all, full admins only).
+ */
+export type SettingsScope = "server" | "all";
+
+export const SCOPE_GROUP: Record<SettingsScope, SettingsGroup> = { server: "server", all: "global" };
+
+export const SCOPE_PATH: Record<SettingsScope, string> = { server: "/settings", all: "/settings/all" };
+
+/** The sections of one page that this user may open. */
+export function sectionsFor(scope: SettingsScope, canManageAccess: boolean): SettingsSection[] {
+    return visibleSections(canManageAccess).filter((s) => s.group === SCOPE_GROUP[scope]);
+}
+
+/** The ids one page's url may carry: its own sections plus the old ids that lead to one of them. */
+export function sectionParamIds(scope: SettingsScope): string[] {
+    const own = new Set(SETTINGS_SECTIONS.filter((s) => s.group === SCOPE_GROUP[scope]).map((s) => s.id));
+    return [...own, ...Object.keys(LEGACY_SECTIONS).filter((old) => own.has(LEGACY_SECTIONS[old]))];
+}
+
+/**
+ * The other page a `?section=` belongs to, when it is not this one's: an old
+ * link /settings?section=discordserver leads to /settings/all?section=discordserver
+ * (legacy ids followed first). Null when the id is this page's or unknown.
+ */
+export function sectionElsewhere(param: string | null, scope: SettingsScope): SettingsScope | null {
+    if (!param) return null;
+    const id = LEGACY_SECTIONS[param] || param;
+    const section = SETTINGS_SECTIONS.find((s) => s.id === id);
+    if (!section || section.group === SCOPE_GROUP[scope]) return null;
+    return scope === "server" ? "all" : "server";
 }
 
 /**

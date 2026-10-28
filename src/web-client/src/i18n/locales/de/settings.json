@@ -1,5 +1,7 @@
 {
     "crumb": "Einstellungen › {crumb}",
+    "crumbAll": "Alle Server › {crumb}",
+    "fullAdminSetup": "Das richtet ein Voll-Admin unter Alle Server › Einstellungen ein.",
     "saving": "Speichert…",
     "savedToast": "Gespeichert.",
     "serverSwitched": "Der Discord-Server wurde in einem anderen Tab gewechselt – bitte die Seite neu laden. Nichts wurde gespeichert.",
@@ -32,9 +34,13 @@
             "label": "Kategorien",
             "crumb": "Raid-Kategorien · alles, was pro Raidtag gilt"
         },
+        "kategorieversion": {
+            "label": "Spielversion je Kategorie",
+            "crumb": "Raid-Kategorien · welche WoW-Version jede Kategorie spielt"
+        },
         "spielversion": {
             "label": "Spielversion",
-            "crumb": "Raid-Kategorien · welche WoW-Version die Gilde spielt"
+            "crumb": "Spielversionen · Hauptversion und was jede Version kann"
         },
         "raids": {
             "label": "Raid-Standardwerte",
@@ -76,8 +82,11 @@
     "page": {
         "loadError": "Fehler beim Laden der Einstellungen: {message}",
         "loading": "Einstellungen werden geladen",
-        "kicker": "System · je Server und für alle Server",
+        "kickerServer": "System · {name}",
+        "kickerNoServer": "System · kein Server gewählt",
+        "kickerAll": "Alle Server",
         "infoSub": "Alle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart.\nIDs bekommst du in Discord per Rechtsklick → „ID kopieren“ (Entwicklermodus).",
+        "infoSubAll": "Was alle Server teilen: die Server und ihre Verknüpfungen, Verbindungen, Spielversionen, Dungeons und Addons. Nur für Voll-Admins.\nAlle Werte werden in der Datenbank gespeichert und greifen ohne Bot-Neustart.",
         "navAria": "Einstellungs-Bereiche",
         "permView": {
             "areas": "Bereiche",
@@ -1457,6 +1466,7 @@
         "links": {
             "backup": "Systemstatus",
             "export": "CSV laden",
+            "categories": "Spielversion je Kategorie",
             "templates": "Raid-Vorlagen",
             "series": "Serien",
             "rosters": "Roster",

@@ -120,7 +120,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             icon={icon}
             tone="settings"
             title={t("settings.sections.discordserver.label")}
-            crumb={t("settings.crumb", { crumb })}
+            crumb={t("settings.crumbAll", { crumb })}
             tip={t("settings.sections.discordserver.label")}
             tipSub={t("settings.discordServers.tipSub")}
         />

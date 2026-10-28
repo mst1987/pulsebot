@@ -1,11 +1,11 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Link } from "react-router-dom";
 import { explainRaidSetup, getRaidSetupExplain, type SetupEditorData, type StoredSetup } from "../../../api";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import { Modal } from "../../../components/ui/Modal";
 import { useJobs } from "../../../components/shell/Jobs";
+import AllSettingsLink from "../../../components/settings/AllSettingsLink";
 import type { RaidCtx } from "../meta";
 import { dateTime, weightLabels } from "./setupText";
 
@@ -128,7 +128,7 @@ export function ExplainModal({ open, onClose, ctx, data, setup, onDone }: {
             hint={t("setup.explain.hint")}
             footer={data.hasApiKey
                 ? <Button variant="run" icon="spell_holy_borrowedtime" running={running} onClick={start}>{explanation ? t("setup.explain.recreate") : t("setup.explain.create")}</Button>
-                : <Link className="btn btn-ghost" to="/settings?section=verbindungen">{t("setup.explain.addKey")}</Link>}
+                : <AllSettingsLink className="btn btn-ghost" section="verbindungen">{t("setup.explain.addKey")}</AllSettingsLink>}
         >
             {!data.hasApiKey && <p className="se-note">{t("setup.explain.noKey")}</p>}
             {explanation

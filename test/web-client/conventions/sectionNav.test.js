@@ -78,7 +78,8 @@ describe("the section rail and the main menu", () => {
 
     it("switches the settings section inside the page and keeps ?section= links working", () => {
         // a hint elsewhere links ?section=<id>; the page reads that param and remembers it
-        expect(settingsSrc).toMatch(/usePersistedSearchParam\(\s*"settings-section", "section", "berechtigungen", SECTION_PARAM_IDS, true,/);
+        // #957: one page per scope (this server / Alle Server), each remembering its own section
+        expect(settingsSrc).toMatch(/usePersistedSearchParam\(\s*scope === "all" \? "settings-all-section" : "settings-section", "section",\s*scope === "all" \? "discordserver" : "berechtigungen", sectionParamIds\(scope\), true,/);
         expect(settingsSrc).toContain("<SectionRail groups={navGroups} active={active} onSelect={setSection}");
     });
 

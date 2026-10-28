@@ -1,5 +1,7 @@
 {
     "crumb": "Settings › {crumb}",
+    "crumbAll": "All servers › {crumb}",
+    "fullAdminSetup": "A full admin sets this up under All servers › Settings.",
     "saving": "Saving…",
     "savedToast": "Saved.",
     "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
@@ -32,9 +34,13 @@
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
         },
+        "kategorieversion": {
+            "label": "Game version per category",
+            "crumb": "Raid categories · which WoW version each category plays"
+        },
         "spielversion": {
             "label": "Game version",
-            "crumb": "Raid categories · which WoW version the guild plays"
+            "crumb": "Game versions · main version and what each version offers"
         },
         "raids": {
             "label": "Raid defaults",
@@ -76,8 +82,11 @@
     "page": {
         "loadError": "Could not load the settings: {message}",
         "loading": "Loading settings",
-        "kicker": "System · per server and for all servers",
+        "kickerServer": "System · {name}",
+        "kickerNoServer": "System · no server chosen",
+        "kickerAll": "All servers",
         "infoSub": "All values are stored in the database and apply without a bot restart.\nYou get IDs in Discord with a right-click → \"Copy ID\" (developer mode).",
+        "infoSubAll": "What every server shares: the servers and their links, connections, game versions, dungeons and addons. Full admins only.\nAll values are stored in the database and apply without a bot restart.",
         "navAria": "Settings sections",
         "permView": {
             "areas": "Areas",
@@ -1457,6 +1466,7 @@
         "links": {
             "backup": "System status",
             "export": "Download CSV",
+            "categories": "Game version per category",
             "templates": "Raid templates",
             "series": "Series",
             "rosters": "Rosters",

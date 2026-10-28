@@ -35,6 +35,7 @@
         "serverRoles": "Roles",
         "members": "Members",
         "settings": "Settings",
+        "settingsAll": "Settings",
         "planTemplates": "Raid plan templates",
         "roleMessages": "Role messages",
         "planCatalog": "Raid plan catalog",

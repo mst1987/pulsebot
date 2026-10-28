@@ -278,7 +278,7 @@ describe("roleDriftTask", () => {
             ],
         };
         const task = roleDriftTask(drift);
-        expect(task).toMatchObject({ id: "rolesync", tone: "mid", count: 4, href: "/settings?section=discordserver" });
+        expect(task).toMatchObject({ id: "rolesync", tone: "mid", count: 4, href: "/settings/all?section=discordserver" });
         expect(task.ref.text).toBe("3 Mitglieder haben @Raider nur noch auf Pulse Talk · +1 Rolle");
         expect(tasksFor({ roleDrift: drift }).map((t) => t.id)).toEqual(["rolesync"]);
     });

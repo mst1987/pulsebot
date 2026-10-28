@@ -140,7 +140,17 @@ describe("guild bank page", () => {
         vi.mocked(api.getGuildBank).mockResolvedValue({ banks: [], bank: null });
         renderPage(<GuildBankPage />, { route: "/guildbank" });
         expect(await screen.findByText("Noch keine Gildenbank")).toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Zur Zuordnung" })).toHaveAttribute("href", "/settings?section=verbindungen");
+        expect(screen.getByRole("link", { name: "Zur Zuordnung" })).toHaveAttribute("href", "/settings/all?section=verbindungen");
+    });
+
+    // #957 review: the assignment lives on "Alle Server", which only full admins open
+    it("tells a settings writer who is no full admin that a full admin assigns the bank", async () => {
+        vi.mocked(api.getGuildBank).mockResolvedValue({ banks: [], bank: null });
+        const writer = adminUser({ isAdmin: false, access: { raids: { read: true, write: true }, settings: { read: true, write: true } } });
+        renderPage(<GuildBankPage />, { route: "/guildbank", user: writer });
+        expect(await screen.findByText("Noch keine Gildenbank")).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: "Zur Zuordnung" })).toBeNull();
+        expect(screen.getByText(t("settings.fullAdminSetup"))).toBeInTheDocument();
     });
 
     // #741: the version decides — no bank of this version is no bank, the hint names the versions that have one

@@ -9,7 +9,7 @@ function esc(s) {
 
 function render(opts = {}) {
     return renderAdminChrome({
-        user: { name: "Admin" },
+        user: { name: "Admin", isAdmin: true },
         activeTab: "cla",
         crumbs: [{ label: "Menü", href: "/" }, { label: "Log-Auswertung", href: "/cla" }, { label: "Test Raid" }],
         body: "<p>inhalt</p>",
@@ -54,6 +54,19 @@ describe("web/report/adminChrome", () => {
         expect(html).toContain("<a href=\"/\">Menü</a>");
         expect(html).toContain("<a href=\"/cla\">Log-Auswertung</a>");
         expect(html).toContain("<b>Test Raid</b>");
+    });
+
+    it("shows the adminOnly entries (Systemstatus, Alle Server › Einstellungen) only to a full admin (#957)", () => {
+        const adminOnly = TABS.filter((t) => t.adminOnly);
+        expect(adminOnly.map((t) => t.href)).toEqual(expect.arrayContaining(["/system", "/settings/all"]));
+        const full = render();
+        for (const tab of adminOnly) expect(full).toContain(`href="${tab.href}"`);
+        for (const user of [{ name: "Leser", isAdmin: false }, { name: "ohne Flag" }, null]) {
+            const html = render({ user });
+            for (const tab of adminOnly) expect(html).not.toContain(`href="${tab.href}"`);
+            // the rest of the menu stays
+            expect(html).toContain("href=\"/cla\"");
+        }
     });
 
     it("shows the logged-in admin with an initial avatar and a logout link", () => {

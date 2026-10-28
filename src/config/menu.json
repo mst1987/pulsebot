@@ -21,5 +21,6 @@
     { "id": "roleMessages", "label": "Rollen-Nachrichten", "href": "/channels/roles", "group": "System", "areas": ["channels"], "neutral": true, "wowIcon": "inv_shirt_guildtabard_01", "area": "channels", "sub": true },
     { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "scope": "all", "wowIcon": "inv_gizmo_01" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "neutral": true, "wowIcon": "trade_engineering" },
+    { "id": "settingsAll", "label": "Einstellungen", "href": "/settings/all", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "scope": "all", "area": "settings", "wowIcon": "inv_misc_wrench_01" },
     { "id": "system", "label": "Systemstatus", "href": "/system", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "scope": "all", "wowIcon": "inv_gizmo_02" }
 ]

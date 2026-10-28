@@ -6,6 +6,7 @@ import { classColorProps } from "../../components/character/ClassSpec";
 import { IconLink, RoleBadge } from "../../components/roster/RosterCommon";
 import { attendanceTone, combineAttendance, nightLabel } from "../../lib/roster/rosterView";
 import { Badge, Button, WowIcon, buttonClass } from "../../components/ui";
+import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { tParts, useT } from "../../i18n";
 
 function averageItemLevel(data: HistoryCharData): number {
@@ -77,10 +78,10 @@ export function CharHero({ data, roster, loading, onReload }: { data: HistoryCha
                     <IconLink href={data.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" size="md" />
                     {data.gearConfigured
                         ? <Button variant="run" icon="trade_engineering" running={loading} onClick={onReload}>{t("history.hero.reloadGear")}</Button>
-                        // no realm for the character's version (#542): the fix is under Spielversion, not Battle.net
+                        // no realm for the character's version (#542): the fix is this server's realm per version (#923), not Battle.net
                         : data.gearError
-                            ? <Link className={buttonClass("ghost", "md", true)} to="/settings?section=spielversion"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupVersion")}</Link>
-                            : <Link className={buttonClass("ghost", "md", true)} to="/settings?section=battlenet"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</Link>}
+                            ? <Link className={buttonClass("ghost", "md", true)} to="/settings?section=versionlinks"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupVersion")}</Link>
+                            : <AllSettingsLink className={buttonClass("ghost", "md", true)} section="verbindungen"><WowIcon name="trade_engineering" size={22} />{t("history.hero.setupBnet")}</AllSettingsLink>}
                 </div>
             </div>
             <div className="ros-hero-foot">

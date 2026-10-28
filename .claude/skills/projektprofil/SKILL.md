@@ -221,6 +221,13 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `originId` da, Datei fehlt → nachkopieren), nicht aus dem, was der aktuelle Lauf angelegt hat. Die
     Altdaten gehen erst, wenn JSON und Dateien zurückgelesen vollständig sind; ein Dateifehler hält sie
     für den nächsten Start (Muster `raidplanTemplateStore.migrateToServers`).
+27. Einstellungs-Abschnitte zwischen `/settings` und `/settings/all` verschieben (#957): vorher
+    `section=<id>` (und die alten Ids aus `LEGACY_SECTIONS`) im ganzen `src/web-client/src` greppen und
+    jeden Deep-Link mitziehen — auf `/settings/all` nur über `components/settings/AllSettingsLink`
+    (Nicht-Voll-Admins bekommen den Hinweis statt eines Links ins „kein Zugriff“). Und prüfen, ob der
+    Abschnitt Teile je Server enthält (z. B. Spielversion je Kategorie, Server-Schlüssel aus
+    `SERVER_SCOPED_KEYS`): die bleiben auf der Server-Seite, sonst kann sie der Einstellungs-Schreiber
+    nicht mehr ändern. Das Speichern schickt je Seite nur ihre Schlüssel (`save()` in `SettingsPage`).
 
 ## Fach-Agenten
 

@@ -95,16 +95,18 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
             { categoryIds: ["mon", "gone"], serverSettingsGuildId: "g1" },
             { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" }, serverSettingsGuildId: "g1" },
             { categoryVersion: { mon: "tbc", gone: "tbc" } },
-            { categoryReminders: { gone: CONFIG.categoryReminders.gone } },
         ];
         for (const body of tries) {
             const res = await patch("/api/settings", body);
             expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
         }
+        // #957: the reminder rules are full admins' only - even its own server's
+        const reminders = await patch("/api/settings", { categoryReminders: FOREIGN.categoryReminders });
+        expect([reminders.writeHead.mock.calls[0][0], json(reminders).error.code]).toEqual([403, "forbidden"]);
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
         // its own server's categories - and the whole maps sent back unchanged - are fine
         settingsStore.saveConfig.mockReturnValue(FOREIGN);
-        const own = await patch("/api/settings", { categoryPlanning: { mon: "sheet" }, categoryVersion: FOREIGN.categoryVersion, categoryReminders: FOREIGN.categoryReminders });
+        const own = await patch("/api/settings", { categoryPlanning: { mon: "sheet" }, categoryVersion: FOREIGN.categoryVersion });
         expect(own.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
         expect(settingsStore.saveConfig).toHaveBeenCalledTimes(1);
     });

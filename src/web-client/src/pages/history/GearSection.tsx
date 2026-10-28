@@ -6,6 +6,7 @@ import { itemQualityColor, itemQualityProps } from "../../lib/wow/itemQuality";
 import { SLOT_LABELS, findingLabel, findingsForSlot } from "../../lib/roster/rosterView";
 import { Badge, PartHead, WowIcon, buttonClass } from "../../components/ui";
 import { CheckIcon, XIcon } from "../../components/ui/icons";
+import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { GEAR_BOTTOM, GEAR_LEFT, GEAR_RIGHT, isEnchantable, NO_RAID_VALUE, SOCKET_DE, socketIconUrl } from "./charGear";
 import { tParts, useT } from "../../i18n";
 
@@ -144,7 +145,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
                 <div className="ros-note">
                     {data.gearConfigured || data.gearError
                         ? (data.gearError || t("history.gear.noLiveGear"))
-                        : <>{`${t("history.gear.bnetHintBefore")} `}<Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>{` ${t("history.gear.bnetHintAfter")}`}</>}
+                        : <>{`${t("history.gear.bnetHintBefore")} `}<AllSettingsLink inline section="verbindungen">{t("history.shared.settings")}</AllSettingsLink>{` ${t("history.gear.bnetHintAfter")}`}</>}
                 </div>
                 {!!issues.length && (
                     <div className="ros-gear-grid is-single">
@@ -183,7 +184,7 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
             />
             {wrongLevel && (
                 <div className="flash flash-err ros-flash">
-                    {t("history.gear.wrongLevel")} <strong>{tParts("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <Link to="/settings?section=battlenet">{t("history.shared.settings")}</Link>.
+                    {t("history.gear.wrongLevel")} <strong>{tParts("history.gear.wrongLevelValue", { level: s!.level })}</strong> {t("history.gear.wrongLevelNamespace", { namespace: data.gearNamespace || "?" })} <Link to="/settings?section=versionlinks">{t("history.shared.settings")}</Link>.
                 </div>
             )}
             {body}

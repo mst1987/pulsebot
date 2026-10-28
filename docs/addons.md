@@ -40,7 +40,7 @@ AuraKit und MacroHelper stehen auch auf CurseForge (nicht gelistet, nur per Link
 
 ## Leere Seite gibt es nicht
 
-- Keine Addons für die Version: „Für <Version> gibt es hier keine Addons.“, dazu die Versionen, die welche haben (`addonVersions` der Antwort, z. B. auf Classic), und für Voll-Admins der Knopf „Addons einrichten“ (`/settings?section=addons`).
+- Keine Addons für die Version: „Für <Version> gibt es hier keine Addons.“, dazu die Versionen, die welche haben (`addonVersions` der Antwort, z. B. auf Classic), und für Voll-Admins der Knopf „Addons einrichten“ (`/settings/all?section=addons`).
 - Fehler der Anfrage: Meldung mit „Erneut versuchen“ (`useApi().reload`).
 - **Klassen nie mit `ad-` beginnen.** Die Seite hieß zuerst `ad-grid`/`ad-card`; EasyList (Standardliste von uBlock Origin, AdBlock Plus, Brave …) blendet genau `.ad-card` und `.ad-grid` aus. Mit Werbeblocker blieben Kopf und Fußzeile, alle Karten fehlten ohne jede Meldung. Das Präfix ist jetzt `dlp-` (download page); `test/web-client/conventions/adBlockClasses.test.js` verbietet `ad-`, `ads-`, `advert…`, `sponsor…` im ganzen Client.
 

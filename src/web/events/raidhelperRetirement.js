@@ -184,7 +184,7 @@ function permissionsItem({ permissions }) {
             value: "nicht prüfbar",
             why: "Der Bot legt Event-Kanäle an, postet die Anmelder-Nachricht und liest die Raider-Rollen. Er ist gerade nicht verbunden.",
             detail: [],
-            link: { to: "/settings?section=discordserver", label: "Discord-Server" },
+            link: { to: "/settings/all?section=discordserver", label: "Discord-Server" },
         };
     }
     const missing = permissions.filter((p) => !p.ok);
@@ -195,7 +195,7 @@ function permissionsItem({ permissions }) {
         value: `${permissions.length - missing.length} / ${permissions.length}`,
         why: "Der Bot legt Event-Kanäle an, postet die Anmelder-Nachricht und liest die Raider-Rollen – was Raid-Helper bisher selbst gemacht hat.",
         detail: missing.map((p) => `fehlt: ${p.label}`),
-        link: { to: "/settings?section=discordserver", label: "Discord-Server" },
+        link: { to: "/settings/all?section=discordserver", label: "Discord-Server" },
     };
 }
 

@@ -5,7 +5,7 @@
 import { formatSize } from "../format";
 
 /** Where an admin sets the GitHub token (Einstellungen → Verbindungen). */
-export const TOKEN_SETTINGS_LINK = "/settings?section=verbindungen";
+export const TOKEN_SETTINGS_LINK = "/settings/all?section=verbindungen";
 
 /** The detail page of an addon (pages/addon/AddonDetailPage.tsx): its patch notes in full. */
 export const addonDetailPath = (addonId: string) => `/addon/${encodeURIComponent(addonId)}`;
