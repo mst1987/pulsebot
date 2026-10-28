@@ -52,7 +52,7 @@ const { mockRes, status, json } = require("../../helpers/http");
 const body = (r) => { const p = json(r); return p.data || p.error; };
 async function call(handler, user, payload, query = "") {
     mockUser = user;
-    readJsonBody.mockResolvedValue(payload || {});
+    readJsonBody.mockResolvedValue(payload ? { libraryGuildId: "111111111111111111", ...payload } : {});
     const r = mockRes();
     await handler({ headers: {} }, r, new URL(`http://x/api/raidplan${query ? `?${query}` : ""}`));
     return r;
@@ -296,8 +296,8 @@ describe("the players come from Raid-Helper, never at the plan's cost", () => {
         const templates = require("../../../src/stores/raidplanTemplateStore");
         templates.useFile(tempStoreFile("templates.json"));
         try {
-            const t = templates.createTemplate({ name: "BT", instanceIds: ["bt"] }).template;
-            templates.updateTemplate(t.id, { version: t.version, bosses: { "bt/supremus": { slots: [{ id: "s1", kind: "tank", n: 1, x: 0.5, y: 0.5 }] } } });
+            const t = templates.createTemplate("111111111111111111", { name: "BT", instanceIds: ["bt"] }).template;
+            templates.updateTemplate("111111111111111111", t.id, { version: t.version, bosses: { "bt/supremus": { slots: [{ id: "s1", kind: "tank", n: 1, x: 0.5, y: 0.5 }] } } });
             await activate();
             const d = body(await call(route.postApply, ORGA, { event: EV, templateId: t.id, version: 0 }));
             expect(d.plan.bosses["bt/supremus"].slots[0].userId).toBe("u1");

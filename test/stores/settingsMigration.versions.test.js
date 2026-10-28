@@ -58,7 +58,8 @@ describe("stores/settingsMigration: raid plan game versions (#544)", () => {
         expect(c.spells["c:bbbbbbbbbb"].versions).toEqual(["wotlk"]);
         // nothing else of an entry changes
         expect(c.mobs["d:gathios"]).toEqual({ ...OLD_CATALOG.mobs["d:gathios"], versions: ["tbc"] });
-        expect(stored(TEMPLATES_FILE).templates[0]).toEqual({ ...OLD_TEMPLATES.templates[0], versionId: "tbc" });
+        // the per-server step (#945) right after copies them with their version onto the server
+        expect(stored(TEMPLATES_FILE).templates[0]).toEqual({ ...OLD_TEMPLATES.templates[0], versionId: "tbc", serverId: expect.any(String), originId: "" });
         expect(stored(PROFILES_FILE).profiles.map((p) => p.versionId)).toEqual(["tbc", "tbc"]);
 
         // idempotent: nothing left to do, nothing written
@@ -100,10 +101,11 @@ describe("stores/settingsMigration: raid plan game versions (#544)", () => {
     });
 
     it("a template or profile with Forever instances gets the Forever version; the stores read the same without the migration", () => {
-        fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "t2", name: "Ony", instanceIds: ["forever-ony"], bosses: {}, version: 1 }] }));
-        fs.__store.set(PROFILES_FILE, JSON.stringify({ profiles: [{ id: "p3", name: "Ony", bossKey: "forever-ony", notes: "" }] }));
-        expect(templates.getTemplate("t2").versionId).toBe("forever");
-        expect(profiles.getProfile("p3").versionId).toBe("forever");
+        const S = "100000000000000001";
+        fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "t2", serverId: S, name: "Ony", instanceIds: ["forever-ony"], bosses: {}, version: 1 }] }));
+        fs.__store.set(PROFILES_FILE, JSON.stringify({ profiles: [{ id: "p3", serverId: S, name: "Ony", bossKey: "forever-ony", notes: "" }] }));
+        expect(templates.getTemplate(S, "t2").versionId).toBe("forever");
+        expect(profiles.getProfile(S, "p3").versionId).toBe("forever");
         migrateRaidplanVersions();
         expect(stored(TEMPLATES_FILE).templates[0].versionId).toBe("forever");
         expect(stored(PROFILES_FILE).profiles[0].versionId).toBe("forever");

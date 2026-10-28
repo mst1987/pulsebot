@@ -1,4 +1,39 @@
-import { get, getIfChanged, send, sendRaw } from "./client";
+import { get, getIfChanged, send, sendRaw, type ApiError } from "./client";
+import { t } from "../i18n";
+
+/*
+ * The raid plan library (templates, tactic profiles, a template's room maps) is per Discord server (#945): every write
+ * names the server this tab loaded the library of (`libraryGuildId`). The active server is per session, not per tab -
+ * a tab of server A whose session switched to B is refused with 409 `server_switched` instead of writing into B.
+ */
+let libraryServer = "";
+
+/** Remembers the server of a library answer (templates, profiles, the editor view). */
+function remember<T>(answer: T): T {
+    const a = (answer || {}) as { guildId?: unknown; libraryGuildId?: unknown };
+    const id = typeof a.libraryGuildId === "string" && a.libraryGuildId ? a.libraryGuildId : typeof a.guildId === "string" ? a.guildId : "";
+    if (id) libraryServer = id;
+    return answer;
+}
+
+/** The server this tab's library writes go to ("" before anything was loaded). */
+export function raidplanLibraryServer(): string {
+    return libraryServer;
+}
+
+/** A library write: names the tab's server and says a server switch in plain words. */
+function libraryWrite<T>(method: string, path: string, body: Record<string, unknown>): Promise<T> {
+    return send<T>(method, path, { ...body, libraryGuildId: libraryServer }).then(remember, (err: ApiError) => {
+        throw serverSwitched(err);
+    });
+}
+
+function serverSwitched(err: ApiError): ApiError {
+    return err && err.code === "server_switched" ? { ...err, message: t("settings.serverSwitched") } : err;
+}
+
+/** A template's own room map (`t/<id>/<boss>`) belongs to the library of a server. */
+const isTemplateMapKey = (key: string) => key.startsWith("t/");
 
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
@@ -229,7 +264,8 @@ export type RaidplanScene = { id: string; title: string; loop: boolean; length: 
 export type RaidplanStep = { id: string; action: string; participants: string[]; sentence: string; targets: RaidplanStepTarget[]; timing: RaidplanTiming };
 export type RaidplanProfile = { id: string; name: string; category: string; /** the game version (#544) */ versionId: string; bossKey: string; steps: RaidplanStep[]; targets: { title: string }[]; notes: string; updatedAt: number };
 export type RaidplanProfileInput = { name?: string; category?: string; versionId?: string; bossKey?: string; steps?: RaidplanStep[]; targets?: { title: string }[]; notes?: string };
-export type RaidplanProfiles = { profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
+/** `guildId`: the server whose library this is (#945) */
+export type RaidplanProfiles = { guildId?: string; profiles: RaidplanProfile[]; categories: string[]; profile?: RaidplanProfile };
 export type RaidplanView = {
     /** the players of the lineup the logged-in user is (own account + raider profile characters) */
     meIds?: string[];
@@ -251,6 +287,8 @@ export type RaidplanView = {
     hasApprovedSetup: boolean;
     /** a Raid-Helper event: where its players come from (header note, reload, stale); null for an own event */
     rosterSource?: RaidplanRosterSource | null;
+    /** the server whose library (profiles, templates) the editor shows (#945); its library writes name it */
+    libraryGuildId?: string;
     profiles: RaidplanProfile[];
     templates: RaidplanTemplateSummary[];
     limits: { tokensPerBoss: number; targetsPerBoss: number; usersPerTarget: number; title: number; notes: number; mapBytes: number; profileName: number; profileCategory: number };
@@ -280,7 +318,7 @@ export type RaidplanPublic = {
 
 /** `fresh`: a Raid-Helper event asks Raid-Helper again now instead of the minute's cache ("Neu laden"). */
 export function getRaidplan(eventId: string, fresh = false): Promise<RaidplanView> {
-    return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}${fresh ? "&fresh=1" : ""}`);
+    return get<RaidplanView>(`/api/raidplan?event=${encodeURIComponent(eventId)}${fresh ? "&fresh=1" : ""}`).then(remember);
 }
 
 export function getRaidplanLink(eventId: string, versionId = ""): Promise<RaidplanLinkView> {
@@ -331,23 +369,26 @@ export function publishRaidplan(input: { event: string; published: boolean; rota
 
 /** Uploads a room map: the file itself is the request body (PNG/JPG/WebP, up to 3 MB). */
 export function uploadRaidplanMap(key: string, file: File): Promise<{ key: string }> {
-    return sendRaw("POST", `/api/raidplan/map?key=${encodeURIComponent(key)}`, file, file.type || "application/octet-stream");
+    const server = isTemplateMapKey(key) ? `&libraryGuildId=${encodeURIComponent(libraryServer)}` : "";
+    return sendRaw<{ key: string }>("POST", `/api/raidplan/map?key=${encodeURIComponent(key)}${server}`, file, file.type || "application/octet-stream")
+        .catch((err: ApiError) => { throw serverSwitched(err); });
 }
 
 export function deleteRaidplanMap(key: string): Promise<{ key: string; removed: boolean }> {
+    if (isTemplateMapKey(key)) return libraryWrite<{ key: string; removed: boolean }>("POST", "/api/raidplan/map/delete", { key });
     return send("POST", "/api/raidplan/map/delete", { key });
 }
 
 export function createRaidplanProfile(input: RaidplanProfileInput): Promise<RaidplanProfiles> {
-    return send("POST", "/api/raidplan/profiles", input);
+    return libraryWrite("POST", "/api/raidplan/profiles", input);
 }
 
 export function updateRaidplanProfile(id: string, input: RaidplanProfileInput): Promise<RaidplanProfiles> {
-    return send("PATCH", "/api/raidplan/profiles", { id, ...input });
+    return libraryWrite("PATCH", "/api/raidplan/profiles", { id, ...input });
 }
 
 export function deleteRaidplanProfile(id: string): Promise<RaidplanProfiles> {
-    return send("DELETE", "/api/raidplan/profiles", { id });
+    return libraryWrite("DELETE", "/api/raidplan/profiles", { id });
 }
 
 /** The read view behind /p/<token> — no login, the token is the authentication. */
@@ -386,30 +427,31 @@ export function applyRaidplanTemplate(input: { event: string; templateId: string
     return send("POST", "/api/raidplan/apply", input);
 }
 
-export type RaidplanTemplates = { templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
+/** `guildId`: the server whose library this is (#945) */
+export type RaidplanTemplates = { guildId?: string; templates: RaidplanTemplate[]; template?: RaidplanTemplate; dropped?: number };
 export type RaidplanTemplateInput = { name?: string; category?: string; description?: string; guildId?: string; versionId?: string; instanceIds?: string[]; size?: number; counts?: BesetzungCounts | null };
 
 export function getRaidplanTemplates(): Promise<RaidplanTemplates> {
-    return get<RaidplanTemplates>("/api/raidplan/templates");
+    return get<RaidplanTemplates>("/api/raidplan/templates").then(remember);
 }
 
 export function createRaidplanTemplate(input: RaidplanTemplateInput): Promise<RaidplanTemplates> {
-    return send("POST", "/api/raidplan/templates", input);
+    return libraryWrite("POST", "/api/raidplan/templates", input);
 }
 
 /** Changes fields and/or, with `bosses` + the `version` that was read, the boards. */
 export function updateRaidplanTemplate(id: string, input: RaidplanTemplateInput & { bosses?: Record<string, RaidplanBoard>; version?: number }): Promise<RaidplanTemplates> {
-    return send("PATCH", "/api/raidplan/templates", { id, ...input });
+    return libraryWrite("PATCH", "/api/raidplan/templates", { id, ...input });
 }
 
 export function duplicateRaidplanTemplate(id: string): Promise<RaidplanTemplates> {
-    return send("POST", "/api/raidplan/templates/duplicate", { id });
+    return libraryWrite("POST", "/api/raidplan/templates/duplicate", { id });
 }
 
 export function deleteRaidplanTemplate(id: string): Promise<RaidplanTemplates> {
-    return send("DELETE", "/api/raidplan/templates", { id });
+    return libraryWrite("DELETE", "/api/raidplan/templates", { id });
 }
 
 export function getRaidplanProfiles(): Promise<RaidplanProfiles> {
-    return get<RaidplanProfiles>("/api/raidplan/profiles");
+    return get<RaidplanProfiles>("/api/raidplan/profiles").then(remember);
 }

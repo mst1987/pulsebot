@@ -153,7 +153,8 @@ bosses, version, updatedAt }`.
   (`raidplan.templatesFor(event)` is the event's version only, `{ allVersions: true }` for the editor's list).
   Templates from before #544 got their version once at start (`raidplanTemplateStore.migrateVersions`).
 
-- `guildId` is optional (the Discord raid server it is for; "" = every server). A template made for another
+- The template belongs to one server's library (`serverId`, see "Bibliothek je Server (#945)"). `guildId` is
+  optional on top (the Discord raid server it is for; "" = every server). A template made for another
   server is not offered for an event on this one and cannot be applied to it. `instanceIds` (at least one)
   decide which bosses can have a board; changing them drops the boards of bosses no longer covered.
 - **No players in a template:** `cleanBoard` runs with an empty set of allowed players and no free tokens, so
@@ -215,6 +216,41 @@ A named, categorised set of target rows the orga picks for a boss instead of typ
   collection pattern of docs/web-admin.md: **list first, one editor at a time**; a profile's rows are edited
   as one title per line. Renaming or changing a profile does not touch rows that were applied earlier — the
   plan stores copies plus the profile id; the read view shows the profile's current name.
+
+## Bibliothek je Server (#945)
+
+The library - templates (with their own room maps `t/<id>/<boss>`) and tactic profiles - belongs to **one Discord
+server** (`serverId` on every entry; epic #926: rights only per server, across servers only the full admin). The
+catalog and the default maps stay global.
+
+- **Stores** (`raidplanTemplateStore`, `raidplanProfileStore`): every read and write takes the server first
+  (`listTemplates(guildId)`, `getProfile(guildId, id)`, ...). Without a valid server (snowflake) they hold nothing and
+  refuse to write (fail closed). An entry of another server is "not found".
+- **Reads** (`GET /api/raidplan/templates`, `GET /api/raidplan/profiles`, `apiRoutes/raidplan.js`
+  `libraryReadServer`): the active server of the session; `?guildId=` of another server is 404 - only the full admin
+  may name any known server. The answer carries `guildId`. The event editor (`GET /api/raidplan`) shows the library
+  of the **event's** server (`planServer(event)`) and names it as `libraryGuildId`.
+- **Writes** (template and profile CRUD, duplicate, a template's map upload/delete) carry `libraryGuildId`, the
+  server the tab loaded the library of (`libraryWriteServer`). The active server is per session, not per tab: when
+  it differs (another tab switched), the write is refused with **409 `server_switched`** instead of landing on the
+  other server; the client shows "Der Discord-Server wurde in einem anderen Tab gewechselt ..." (`settings.serverSwitched`,
+  de/en). The full admin writes to the named server as long as it is known (404 otherwise). A map upload names it as
+  `&libraryGuildId=` in the query. The client remembers the server of the last library answer per tab
+  (`api/raidplan.ts`, `raidplanLibraryServer()`).
+- **Applying** a template and the plan's references look up the template on the event's server; `getTemplate` also
+  matches a copy's `originId`, so a plan made before #945 (its `templateId` is the old id) finds its server's copy.
+  Tactic profiles keep their id on every server, so a board's `profileId` finds the copy without that.
+- **Migration** (`settingsMigration.migrateRaidplanServers`, at start): the old global library is copied onto every
+  server of `discordServers.servers` (without a list: the home `guildId`). The first copy of a template keeps its id
+  (and its maps), every further one gets a new id with `originId` = the old id and copies of the maps; a template
+  that already had a `guildId` (the old filter) goes onto that server only. Profiles keep their id. Animations
+  (#719) and everything else of a board are copied as they are. Before the first change the old file is saved once as
+  `<file>.pre-945` (never overwritten); the global entries are removed only after the copies and their maps were read
+  back. The map copy is derived on every run from the stored copies (a copy with `originId` whose map is missing), so
+  a run that stopped after the copies, or a map that failed to save, is caught up on the next start; until then the
+  global entries stay. A second run finds no global entry and writes nothing; a run that stopped after the copies
+  makes no second copy. Without
+  any server it changes nothing and logs a WARNUNG.
 
 ## Tactic ("Taktik", feature/raidplan-8)
 

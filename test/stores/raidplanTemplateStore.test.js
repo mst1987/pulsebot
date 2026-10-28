@@ -3,6 +3,7 @@
 const { tempStoreFile } = require("../helpers/tempStore");
 const templates = require("../../src/stores/raidplanTemplateStore");
 const plans = require("../../src/stores/raidplanStore");
+const S = "100000000000000001";
 
 const PNG = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(32)]);
 const BOSS = "bt/supremus";
@@ -22,7 +23,7 @@ afterAll(() => {
 });
 
 function make(extra = {}) {
-    return templates.createTemplate({ name: "Montags-Raid", category: "Raid", instanceIds: ["bt"], ...extra }).template;
+    return templates.createTemplate(S, { name: "Montags-Raid", category: "Raid", instanceIds: ["bt"], ...extra }).template;
 }
 
 describe("templates", () => {
@@ -30,31 +31,31 @@ describe("templates", () => {
         const t = make({ description: "  fuer Montag ", guildId: "1139509316387344395" });
         expect(t).toMatchObject({ name: "Montags-Raid", category: "Raid", description: "fuer Montag", guildId: "1139509316387344395", instanceIds: ["bt"], bosses: {}, version: 1 });
         expect(t.id).toMatch(/^[0-9a-f]{12}$/);
-        expect(templates.getTemplate(t.id)).toEqual(t);
+        expect(templates.getTemplate(S, t.id)).toEqual(t);
     });
 
     it("needs a name and a known instance and refuses bad fields", () => {
-        expect(templates.createTemplate({ instanceIds: ["bt"] }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x" }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x", instanceIds: [] }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x", instanceIds: ["nope"] }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x".repeat(41), instanceIds: ["bt"] }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x", instanceIds: ["bt"], guildId: "abc" }).code).toBe("invalid");
-        expect(templates.createTemplate({ name: "x", instanceIds: ["bt"], description: "d".repeat(201) }).code).toBe("invalid");
-        expect(templates.listTemplates()).toEqual([]);
+        expect(templates.createTemplate(S, { instanceIds: ["bt"] }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x" }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x", instanceIds: [] }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x", instanceIds: ["nope"] }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x".repeat(41), instanceIds: ["bt"] }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x", instanceIds: ["bt"], guildId: "abc" }).code).toBe("invalid");
+        expect(templates.createTemplate(S, { name: "x", instanceIds: ["bt"], description: "d".repeat(201) }).code).toBe("invalid");
+        expect(templates.listTemplates(S, S)).toEqual([]);
     });
 
     it("lists by category, then name", () => {
         make({ name: "B", category: "Zwei" });
         make({ name: "A", category: "Zwei" });
         make({ name: "C", category: "Eins" });
-        expect(templates.listTemplates().map((t) => t.name)).toEqual(["C", "A", "B"]);
+        expect(templates.listTemplates(S, S).map((t) => t.name)).toEqual(["C", "A", "B"]);
     });
 
     it("saves boards with a version check and no players", () => {
         const t = make();
         const board = { slots: [{ kind: "tank", n: 1, userId: "u1" }], zones: [{ type: "danger", x: 0.2, y: 0.2, w: 0.3, h: 0.3 }], tokens: [{ userId: "u1", x: 0.5, y: 0.5 }], targets: [{ title: "MT", userIds: ["u1"] }] };
-        const r = templates.updateTemplate(t.id, { bosses: { [BOSS]: board, "kara/moroes": board, "bt/nobody": board }, version: 1 });
+        const r = templates.updateTemplate(S, t.id, { bosses: { [BOSS]: board, "kara/moroes": board, "bt/nobody": board }, version: 1 });
         expect(r.template.version).toBe(2);
         expect(Object.keys(r.template.bosses)).toEqual([BOSS]);
         const saved = r.template.bosses[BOSS];
@@ -62,34 +63,34 @@ describe("templates", () => {
         expect(saved.tokens).toEqual([]);
         expect(saved.targets[0].userIds).toEqual([]);
         expect(saved.zones[0]).toMatchObject({ type: "danger", color: "#ef4444" });
-        expect(templates.updateTemplate(t.id, { bosses: {}, version: 1 }).code).toBe("conflict");
-        expect(templates.updateTemplate(t.id, { bosses: [], version: 2 }).code).toBe("invalid");
+        expect(templates.updateTemplate(S, t.id, { bosses: {}, version: 1 }).code).toBe("conflict");
+        expect(templates.updateTemplate(S, t.id, { bosses: [], version: 2 }).code).toBe("invalid");
     });
 
     it("renames without needing a version and without touching the boards", () => {
         const t = make();
-        templates.updateTemplate(t.id, { bosses: { [BOSS]: { notes: "x" } }, version: 1 });
-        const r = templates.updateTemplate(t.id, { name: "Neu", category: "" });
+        templates.updateTemplate(S, t.id, { bosses: { [BOSS]: { notes: "x" } }, version: 1 });
+        const r = templates.updateTemplate(S, t.id, { name: "Neu", category: "" });
         expect(r.template).toMatchObject({ name: "Neu", category: "", version: 2 });
         expect(r.template.bosses[BOSS].notes).toBe("x");
-        expect(templates.updateTemplate(t.id, { name: " " }).code).toBe("invalid");
-        expect(templates.updateTemplate("nope", { name: "x" }).code).toBe("not_found");
+        expect(templates.updateTemplate(S, t.id, { name: " " }).code).toBe("invalid");
+        expect(templates.updateTemplate(S, "nope", { name: "x" }).code).toBe("not_found");
     });
 
     it("drops the boards of bosses the new instances do not have", () => {
         const t = make();
-        templates.updateTemplate(t.id, { bosses: { [BOSS]: { notes: "x" } }, version: 1 });
-        const r = templates.updateTemplate(t.id, { instanceIds: ["kara"] });
+        templates.updateTemplate(S, t.id, { bosses: { [BOSS]: { notes: "x" } }, version: 1 });
+        const r = templates.updateTemplate(S, t.id, { instanceIds: ["kara"] });
         expect(r.template.bosses).toEqual({});
-        expect(templates.updateTemplate(t.id, { instanceIds: [] }).code).toBe("invalid");
+        expect(templates.updateTemplate(S, t.id, { instanceIds: [] }).code).toBe("invalid");
     });
 
     it("deletes a template with its own maps, not the default ones", () => {
         const t = make();
         plans.saveMap(plans.templateMapKey(t.id, BOSS), PNG);
         plans.saveMap(BOSS, PNG);
-        expect(templates.deleteTemplate(t.id)).toBe(true);
-        expect(templates.deleteTemplate(t.id)).toBe(false);
+        expect(templates.deleteTemplate(S, t.id)).toBe(true);
+        expect(templates.deleteTemplate(S, t.id)).toBe(false);
         expect(plans.readMap(plans.templateMapKey(t.id, BOSS))).toBeNull();
         expect(plans.readMap(BOSS)).not.toBeNull();
     });
@@ -107,7 +108,7 @@ describe("applying a template to an event plan", () => {
 
     function withLayout() {
         const t = make();
-        return templates.updateTemplate(t.id, { bosses: { [BOSS]: layout, "bt/shade-of-akama": { notes: "Akama" } }, version: 1 }).template;
+        return templates.updateTemplate(S, t.id, { bosses: { [BOSS]: layout, "bt/shade-of-akama": { notes: "Akama" } }, version: 1 }).template;
     }
 
     it("copies the boards, fills the open slots from the setup and remembers the template", () => {
@@ -129,8 +130,8 @@ describe("applying a template to an event plan", () => {
     it("is a snapshot: changing or deleting the template later leaves the plan alone", () => {
         const t = withLayout();
         apply(t);
-        templates.updateTemplate(t.id, { bosses: { [BOSS]: { notes: "geaendert" } }, version: 2 });
-        templates.deleteTemplate(t.id);
+        templates.updateTemplate(S, t.id, { bosses: { [BOSS]: { notes: "geaendert" } }, version: 2 });
+        templates.deleteTemplate(S, t.id);
         expect(plans.getPlan("e1").bosses[BOSS].zones).toHaveLength(1);
         expect(plans.getPlan("e1").bosses[BOSS].notes).toBe("Montag");
     });

@@ -168,13 +168,16 @@ function seedPlan(eventId, event) {
     }
     bosses.general = { notes: "Allgemeine Einteilungen: Fluecke, Donnerknall, Demoralisierender Ruf." };
 
-    let tpl = templates.listTemplates().find((t) => t.name === TEMPLATE_NAME);
+    // the library is per server (#945): the template lives on the event's server
+    const server = raidplan.planServer(event);
+    if (!server) throw new Error("Kein Discord-Server fuer die Vorlage (GUILD_ID oder --guild).");
+    let tpl = templates.listTemplates(server).find((t) => t.name === TEMPLATE_NAME);
     if (!tpl) {
-        const created = templates.createTemplate({ name: TEMPLATE_NAME, category: "Demo", description: "Seed: Raidtyp BT 25, Besetzung, Heiler-Einteilungen", instanceIds: ["bt"], size: 25, counts: DEMO_COUNTS });
+        const created = templates.createTemplate(server, { name: TEMPLATE_NAME, category: "Demo", description: "Seed: Raidtyp BT 25, Besetzung, Heiler-Einteilungen", instanceIds: ["bt"], size: 25, counts: DEMO_COUNTS });
         if (created.error) throw new Error(created.error);
         tpl = created.template;
     }
-    const saved = templates.updateTemplate(tpl.id, { bosses, version: tpl.version, size: 25, counts: DEMO_COUNTS });
+    const saved = templates.updateTemplate(server, tpl.id, { bosses, version: tpl.version, size: 25, counts: DEMO_COUNTS });
     if (saved.error) throw new Error(saved.error);
     tpl = saved.template;
 

@@ -73,6 +73,8 @@ const { userSeesEvent } = require("../../services/signups/eventVisibility");
 const raidplanAccess = require("../raidplan/raidplanAccess");
 const { requestCache } = require("../../services/roster/categoryOrga");
 const { allOnServer } = require("../../services/events/eventServer");
+const { resolveServer } = require("../../services/discord/guildRoles");
+const { firstServerId } = require("../../services/discord/serverOf");
 
 // The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
 // tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.
@@ -143,7 +145,7 @@ const putPlan = withUser(EVENT_PLAN, async ({ user, body, res }) => {
         bossKeys: raidplan.planKeys(event),
         // a Raid-Helper line-up that could not be loaded right now drops nobody
         allowedUserIds: rosterSource.allowedFor(found),
-        profileIds: profileStore.listProfiles().map((p) => p.id),
+        profileIds: profileStore.listProfiles(raidplan.planServer(event)).map((p) => p.id),
         userId: user.id,
         knownRoster: knownRosterOf(found),
     });
@@ -208,13 +210,15 @@ function eventHasPlan(id) {
 
 /**
  * Whether a map key may be written: a default map always, a template's map only for
- * a template that exists, an event plan's map only for an event that has a plan. Sends the error.
+ * a template of the library's server (#945, `libraryServer`: exactly that id - a copy's
+ * `originId` never reaches the maps of the template it was copied from), an event plan's
+ * map only for an event that has a plan. Sends the error.
  */
-function mapKeyOk(res, key) {
+function mapKeyOk(res, key, libraryServer = "") {
     if (!store.isMapKey(key)) { error(res, 400, "invalid", "Unbekannter Boss oder Instanz."); return false; }
     const scope = store.mapScope(key);
     if (!scope) return true;
-    const found = scope.scope === "t" ? templateStore.getTemplate(scope.id) : eventHasPlan(scope.id);
+    const found = scope.scope === "t" ? templateStore.listTemplates(libraryServer).some((t) => t.id === scope.id) : eventHasPlan(scope.id);
     if (!found) { error(res, 404, "not_found", scope.scope === "t" ? "Vorlage nicht gefunden." : "Event nicht gefunden."); return false; }
     return true;
 }
@@ -223,10 +227,21 @@ function mapKeyOk(res, key) {
 // `raidplan` write only (the category orga names no event there and is refused).
 const MAP_RIGHTS = { globalByWrite: true, write: "raidplan", csrf: true };
 
-/** POST /api/raidplan/map?key=<key> — the body is the image itself. */
-const postMap = withUser({ ...MAP_RIGHTS, orgaScoped: (body, query) => eventOfMapKey(query.get("key")) }, async ({ req, res, url }) => {
+/** Whether a map key is a template's (`t/<id>/<boss>`): it belongs to the library of one server (#945). */
+function isTemplateMapKey(key) {
+    const scope = store.mapScope(key);
+    return !!scope && scope.scope === "t";
+}
+
+/**
+ * POST /api/raidplan/map?key=<key>[&libraryGuildId=<server>] — the body is the image itself. A template's map names the
+ * server of the tab (#945, as every write of the library does).
+ */
+const postMap = withUser({ ...MAP_RIGHTS, orgaScoped: (body, query) => eventOfMapKey(query.get("key")) }, async ({ user, req, res, url }) => {
     const key = String(url.searchParams.get("key") || "").trim();
-    if (!mapKeyOk(res, key)) return;
+    const server = isTemplateMapKey(key) ? libraryWriteServer(res, user, req, url.searchParams.get("libraryGuildId")) : "";
+    if (server === null) return;
+    if (!mapKeyOk(res, key, server)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
     if (buffer === null) return error(res, 413, "too_large", "Das Bild ist größer als 3 MB.");
     const result = store.saveMap(key, buffer);
@@ -234,10 +249,12 @@ const postMap = withUser({ ...MAP_RIGHTS, orgaScoped: (body, query) => eventOfMa
     ok(res, { key });
 });
 
-/** POST /api/raidplan/map/delete — body `{ key }` */
-const postMapDelete = withUser({ ...MAP_RIGHTS, orgaScoped: (body) => eventOfMapKey(body.key), body: true }, async ({ body, res }) => {
+/** POST /api/raidplan/map/delete — body `{ key, libraryGuildId? }` (a template's map: the tab's server, #945) */
+const postMapDelete = withUser({ ...MAP_RIGHTS, orgaScoped: (body) => eventOfMapKey(body.key), body: true }, async ({ user, req, body, res }) => {
     const key = String(body.key || "").trim();
-    if (!mapKeyOk(res, key)) return;
+    const server = isTemplateMapKey(key) ? libraryWriteServer(res, user, req, body.libraryGuildId) : "";
+    if (server === null) return;
+    if (!mapKeyOk(res, key, server)) return;
     ok(res, { key, removed: store.deleteMap(key) });
 });
 
@@ -249,7 +266,7 @@ const postApply = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     const found = await eventOf(res, body.event);
     if (!found) return;
     const event = found.event;
-    const template = templateStore.getTemplate(body.templateId);
+    const template = templateStore.getTemplate(raidplan.planServer(event), body.templateId);
     if (!template || !raidplan.templatesFor(event, { allVersions: true }).some((t) => t.id === template.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
     if (template.versionId !== raidplan.planVersion(event) && body.otherVersion !== true) return error(res, 409, "version_mismatch", "Die Vorlage gehört zu einer anderen Spielversion als das Event.");
     const result = store.applyTemplate(event.id, template, {
@@ -266,72 +283,144 @@ const postApply = withUser(EVENT_PLAN, async ({ user, body, res }) => {
     ok(res, writtenView(await refreshed(found), user));
 });
 
-function templateList() {
+// The raid plan library - templates, tactic profiles, a template's maps - is per server (#945, docs/raidplan.md
+// "Bibliothek je Server"). A read names the server (`?guildId=`, else the active one), a write the server the tab
+// loaded (`libraryGuildId`, the GET's `guildId`): the active server is per session, not per tab, so a tab of
+// server A whose session switched to B would otherwise write into B (409 `server_switched`, as settings.js does).
+// Only a full admin reaches another server than the active one; for everybody else another server is unknown (404).
+
+/** Whether `guildId` is a server of the list (the home guild without one). */
+function knownServer(guildId) {
+    const id = String(guildId || "").trim();
+    return !!id && resolveServer({ guildId: id }) === id;
+}
+
+/** The library server a read means, or null after the error was sent. */
+function libraryReadServer(res, user, req, wanted) {
+    const asked = String(wanted || "").trim();
+    const active = String(activeGuildFor(req) || "");
+    if (asked) {
+        if (user.isAdmin ? knownServer(asked) : asked === active) return asked;
+        error(res, 404, "not_found", "Server nicht gefunden.");
+        return null;
+    }
+    // a full admin without an active server reads the main server's library (the first of the list)
+    const server = active || (user.isAdmin ? String(firstServerId(getConfig()) || "") : "");
+    if (server) return server;
+    error(res, 400, "no_active_server", "Kein aktiver Discord-Server.");
+    return null;
+}
+
+/** The library server a write goes to - the tab's (`libraryGuildId`) - or null after the error was sent. */
+function libraryWriteServer(res, user, req, tab) {
+    const loaded = String(tab || "").trim();
+    const active = String(activeGuildFor(req) || "");
+    // a full admin writes to the server the tab loaded, whichever is active now
+    if (user.isAdmin && loaded) {
+        if (knownServer(loaded)) return loaded;
+        error(res, 404, "not_found", "Server nicht gefunden.");
+        return null;
+    }
+    if (loaded !== active || !loaded) {
+        if (!active && !loaded) error(res, 400, "no_active_server", "Kein aktiver Discord-Server.");
+        else error(res, 409, "server_switched", "Der Discord-Server wurde gewechselt – bitte die Seite neu laden.");
+        return null;
+    }
+    return active;
+}
+
+function templateList(server) {
     // Other versions hidden (#563): their plan templates stay out.
-    return { templates: visibleRows(templateStore.listTemplates(), (t) => t.versionId).map(raidplan.templateView) };
+    return { guildId: server, templates: visibleRows(templateStore.listTemplates(server), (t) => t.versionId).map(raidplan.templateView) };
 }
 
-/** GET /api/raidplan/templates */
-const getTemplates = withUser({}, async ({ res }) => {
-    ok(res, templateList());
+/** GET /api/raidplan/templates[?guildId=<server>] */
+const getTemplates = withUser({}, async ({ user, req, res, url }) => {
+    const server = libraryReadServer(res, user, req, url.searchParams.get("guildId"));
+    if (server === null) return;
+    ok(res, templateList(server));
 });
 
-/** POST /api/raidplan/templates — body `{ name, category?, description?, guildId?, instanceIds }` */
-const postTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    const result = templateStore.createTemplate(body);
+const LIBRARY_WRITE = { write: "raidplan", csrf: true, body: true };
+
+/** A template body whose raid-server filter (`guildId`) names a server of the list, else none ("" = every server). */
+function withKnownFilter(body) {
+    if (body.guildId === undefined || body.guildId === "" || knownServer(body.guildId)) return body;
+    return { ...body, guildId: "" };
+}
+
+/** POST /api/raidplan/templates — body `{ libraryGuildId, name, category?, description?, guildId?, instanceIds }` */
+const postTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    const result = templateStore.createTemplate(server, withKnownFilter(body));
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
+    ok(res, { ...templateList(server), template: raidplan.templateView(result.template) });
 });
 
-/** PATCH /api/raidplan/templates — body `{ id, name?, category?, description?, guildId?, instanceIds?, bosses?, version? }` */
-const patchTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    const result = templateStore.updateTemplate(body.id, body);
+/** PATCH /api/raidplan/templates — body `{ libraryGuildId, id, name?, category?, description?, guildId?, instanceIds?, bosses?, version? }` */
+const patchTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    const result = templateStore.updateTemplate(server, body.id, withKnownFilter(body));
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...templateList(), template: raidplan.templateView(result.template), dropped: result.dropped });
+    ok(res, { ...templateList(server), template: raidplan.templateView(result.template), dropped: result.dropped });
 });
 
-/** POST /api/raidplan/templates/duplicate — body `{ id }` */
-const postTemplateDuplicate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    const result = templateStore.duplicateTemplate(body.id);
+/** POST /api/raidplan/templates/duplicate — body `{ libraryGuildId, id }` */
+const postTemplateDuplicate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    const result = templateStore.duplicateTemplate(server, body.id);
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...templateList(), template: raidplan.templateView(result.template) });
+    ok(res, { ...templateList(server), template: raidplan.templateView(result.template) });
 });
 
-/** DELETE /api/raidplan/templates — body `{ id }` */
-const deleteTemplate = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    if (!templateStore.deleteTemplate(body.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
-    ok(res, templateList());
+/** DELETE /api/raidplan/templates — body `{ libraryGuildId, id }` */
+const deleteTemplate = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    if (!templateStore.deleteTemplate(server, body.id)) return error(res, 404, "not_found", "Vorlage nicht gefunden.");
+    ok(res, templateList(server));
 });
 
-function profileList() {
+function profileList(server) {
     // Other versions hidden (#563): their tactic profiles stay out.
-    const profiles = visibleRows(profileStore.listProfiles(), (p) => p.versionId);
-    return { profiles, categories: profileStore.categories(profiles) };
+    const profiles = visibleRows(profileStore.listProfiles(server), (p) => p.versionId);
+    return { guildId: server, profiles, categories: profileStore.categories(profiles) };
 }
 
-/** GET /api/raidplan/profiles */
-const getProfiles = withUser({}, async ({ res }) => {
-    ok(res, profileList());
+/** GET /api/raidplan/profiles[?guildId=<server>] */
+const getProfiles = withUser({}, async ({ user, req, res, url }) => {
+    const server = libraryReadServer(res, user, req, url.searchParams.get("guildId"));
+    if (server === null) return;
+    ok(res, profileList(server));
 });
 
-/** POST /api/raidplan/profiles — body `{ name, category?, bossKey?, targets?, notes? }` */
-const postProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    const result = profileStore.createProfile(body);
+/** POST /api/raidplan/profiles — body `{ libraryGuildId, name, category?, bossKey?, targets?, notes? }` */
+const postProfile = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    const result = profileStore.createProfile(server, body);
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...profileList(), profile: result.profile });
+    ok(res, { ...profileList(server), profile: result.profile });
 });
 
-/** PATCH /api/raidplan/profiles — body `{ id, name?, category?, bossKey?, targets?, notes? }` */
-const patchProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    const result = profileStore.updateProfile(body.id, body);
+/** PATCH /api/raidplan/profiles — body `{ libraryGuildId, id, name?, category?, bossKey?, targets?, notes? }` */
+const patchProfile = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    const result = profileStore.updateProfile(server, body.id, body);
     if (result.error) return sendFailure(res, result);
-    ok(res, { ...profileList(), profile: result.profile });
+    ok(res, { ...profileList(server), profile: result.profile });
 });
 
-/** DELETE /api/raidplan/profiles — body `{ id }` */
-const deleteProfile = withUser({ write: "raidplan", csrf: true, body: true }, async ({ body, res }) => {
-    if (!profileStore.deleteProfile(body.id)) return error(res, 404, "not_found", "Profil nicht gefunden.");
-    ok(res, profileList());
+/** DELETE /api/raidplan/profiles — body `{ libraryGuildId, id }` */
+const deleteProfile = withUser(LIBRARY_WRITE, async ({ user, req, body, res }) => {
+    const server = libraryWriteServer(res, user, req, body.libraryGuildId);
+    if (server === null) return;
+    if (!profileStore.deleteProfile(server, body.id)) return error(res, 404, "not_found", "Profil nicht gefunden.");
+    ok(res, profileList(server));
 });
 
 /** The icons offered when a mob is made, by category (generated and checked by scripts/fetch-mob-icons.js). */

@@ -212,8 +212,8 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/raidplans.json` | `raidplanStore.js` | Raidpläne: `{ plans: [...] }` mit Boards je Boss, `publicToken` der Freigabe | nein (der Token öffnet nur die Lese-Ansicht) |
 | `settings/raidplan-posts.json` | `raidplanPostStore.js` | Wo der Link zu den Einteilungen je Event gepostet wurde (Kanal, Nachricht, Text) | nein |
 | `raidplan-maps/` | `raidplanStore.js` | Hochgeladene Raumkarten (Bilder) je Boss/Instanz/Vorlage | nein |
-| `settings/raidplan-templates.json` | `raidplanTemplateStore.js` | Raidplan-Vorlagen | nein |
-| `settings/raidplan-profiles.json` | `raidplanProfileStore.js` | Taktik-Profile | nein |
+| `settings/raidplan-templates.json` | `raidplanTemplateStore.js` | Raidplan-Vorlagen, seit #945 je Discord-Server (`serverId`, Kopien mit `originId`); die alte, globale Datei liegt einmalig als `raidplan-templates.json.pre-945` daneben, siehe [raidplan/catalog.md](raidplan/catalog.md) „Bibliothek je Server (#945)“ | nein |
+| `settings/raidplan-profiles.json` | `raidplanProfileStore.js` | Taktik-Profile, seit #945 je Discord-Server (`serverId`, gleiche Id auf jedem Server); die alte Datei liegt einmalig als `raidplan-profiles.json.pre-945` daneben | nein |
 | `settings/raidplan-catalog.json` | `raidplanCatalogStore.js` | Eigene/überschriebene Mobs und Zauber des Katalogs | nein |
 | `settings/loot.json` | `lootStore.js` | Importierter Loot (Gargul/RCLootcouncil/Addon), dazu `deleted`: Schlüssel von Hand gelöschter Einträge, damit kein Import sie zurückbringt | nein |
 | `settings/loot-inbox.json` | `lootInboxStore.js` | Addon-Uploads, die noch auf Bestätigung warten, und erledigte Sessions | nein |

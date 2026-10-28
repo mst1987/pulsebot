@@ -2,6 +2,8 @@
 // can name one of several mobs of its kind, and the moved positions follow their rows when a template is applied or duplicated.
 const { tempStoreFile } = require("../../helpers/tempStore");
 const templates = require("../../../src/stores/raidplanTemplateStore");
+// the library is per server (#945)
+const S = "100000000000000001";
 const plans = require("../../../src/stores/raidplanStore");
 const inherit = require("../../../src/services/raidplan/raidplanInherit");
 const board = require("../../../src/services/raidplan/raidplanBoard");
@@ -93,9 +95,9 @@ describe("the moved positions follow their rows", () => {
     });
 
     it("applying a template: a tank of an inherited Standard row moved in the template stands there in the event; showMap and autoPlace come along", () => {
-        const t0 = templates.createTemplate({ name: "BT", category: "Raid", instanceIds: ["bt"] }).template;
+        const t0 = templates.createTemplate(S, { name: "BT", category: "Raid", instanceIds: ["bt"] }).template;
         const defaults = [row("d1", "tank", ["class:Paladin:1:tank"], [{ kind: "mob", ref: "b:this", name: "Boss", icon: "" }])];
-        const t = templates.updateTemplate(t0.id, { version: 1, bosses: {
+        const t = templates.updateTemplate(S, t0.id, { version: 1, bosses: {
             [inherit.DEFAULTS_KEY]: { assignments: defaults },
             [BOSS]: { autoPos: { "t:d1:1": { x: 0.2, y: 0.8 }, [`m:b:${BOSS}#1`]: { x: 0.5, y: 0.3 } }, autoStyle: { "t:d1:1": { size: 19 }, [`m:b:${BOSS}#1`]: { size: 96 } }, autoScale: 0.8 },
             [OTHER]: { showMap: false, autoPlace: false, notes: "x" },
@@ -113,11 +115,11 @@ describe("the moved positions follow their rows", () => {
     });
 
     it("duplicating a template keeps showMap, autoPlace and the moved positions (under the rows' new ids)", () => {
-        const t0 = templates.createTemplate({ name: "BT", category: "Raid", instanceIds: ["bt"] }).template;
-        const t = templates.updateTemplate(t0.id, { version: 1, bosses: {
+        const t0 = templates.createTemplate(S, { name: "BT", category: "Raid", instanceIds: ["bt"] }).template;
+        const t = templates.updateTemplate(S, t0.id, { version: 1, bosses: {
             [BOSS]: { showMap: false, autoPlace: false, assignments: [row("r1", "tank", ["class:Mage:1:any"], [])], autoPos: { "t:r1:1": { x: 0.1, y: 0.9 } } },
         } }).template;
-        const dup = templates.duplicateTemplate(t.id).template;
+        const dup = templates.duplicateTemplate(S, t.id).template;
         const b = dup.bosses[BOSS];
         expect(b).toMatchObject({ showMap: false, autoPlace: false });
         expect(b.autoPos).toEqual({ [`t:${b.assignments[0].id}:1`]: { x: 0.1, y: 0.9 } });
