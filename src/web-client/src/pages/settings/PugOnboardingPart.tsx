@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import {
     applyPugOnboarding, getPugOnboarding,
     type ApiError, type PugCategory, type PugItemStatus, type PugOnboardingOverview, type PugPrerequisite, type PugPrompt, type PugRole,
@@ -26,7 +26,8 @@ import { AdminOnlyBadge } from "../../components/settings/settingsUi";
 // without the version role, and the two onboarding questions. The page shows wanted
 // next to actual; only "In Discord übernehmen" (after a preview) writes. A switch per
 // PuG category decides which of them the apply covers. Full admins only: the API
-// answers everyone else with 403 forbidden, and the part then hides itself.
+// answers everyone else with 403 forbidden, and the part then hides itself. Only the
+// servers with the switch "PuG-Server" come in (`servers`); none = one line of hint.
 
 type ServerChoice = { id: string; name: string; label: string; raidCategories?: number };
 
@@ -60,12 +61,23 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
         if (guildId && !servers.some((s) => s.id === guildId)) { setGuildId(""); setCategoryIds(undefined); }
     }, [servers, guildId]);
 
+    // Each load gets a number; only the answer of the latest one sets the state, so a slow
+    // answer for a server chosen before cannot overwrite the one chosen after.
+    const loadSeq = useRef(0);
     const load = () => {
         if (!servers.length) return;
+        const seq = ++loadSeq.current;
         setData(null);
         getPugOnboarding(guildId || undefined, categoryIds)
-            .then((d) => { setData(d); setError(""); if (!guildId && d.guildId) setGuildId(d.guildId); })
-            .catch((err: ApiError) => { if (err.code === "forbidden") setHidden(true); else setError(err.message); });
+            .then((d) => {
+                if (seq !== loadSeq.current) return;
+                setData(d); setError("");
+                if (!guildId && d.guildId) setGuildId(d.guildId);
+            })
+            .catch((err: ApiError) => {
+                if (seq !== loadSeq.current) return;
+                if (err.code === "forbidden") setHidden(true); else setError(err.message);
+            });
     };
     useEffect(load, [guildId, categoryIds, servers.length]);
 
@@ -98,7 +110,7 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
             title={t("pugOnboarding.title")}
             tip={t("pugOnboarding.title")}
             tipSub={t("pugOnboarding.tipSub")}
-            action={(
+            action={servers.length === 0 ? undefined : (
                 <span className="sync-actions">
                     {servers.length > 1 && (
                         <select aria-label={t("pugOnboarding.server")} value={guildId} onChange={(e) => chooseServer(e.target.value)}>
@@ -115,7 +127,9 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
         />
     );
 
-    if (!servers.length || hidden) return null;
+    if (hidden) return null;
+    // #906: only servers with the switch "PuG-Server" are offered; without one the part is a single line.
+    if (!servers.length || data?.notPugServer) return <section className="sync-part">{head}<div className="sync-empty">{t("pugOnboarding.notPugServer")}</div></section>;
     if (error) return <section className="sync-part">{head}<div className="sync-empty">{error}</div></section>;
     if (!data) return <section className="sync-part">{head}<RaidLoader compact text={t("pugOnboarding.loading")} /></section>;
     if (!data.online) return <section className="sync-part">{head}<div className="sync-empty">{t("pugOnboarding.offline")}</div></section>;

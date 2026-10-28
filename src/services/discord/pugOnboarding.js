@@ -118,19 +118,32 @@ function serverCategories(guild, config) {
     return { pug: pug.sort(byName), other: other.sort(byName) };
 }
 
+/** The servers with the switch "PuG-Server" (`pug: true` in discordServers.servers), in list order. */
+function pugServerIds(config = getConfig()) {
+    const servers = (config && config.discordServers && config.discordServers.servers) || [];
+    return servers.filter((s) => s && s.pug === true).map((s) => str(s.guildId)).filter(Boolean);
+}
+
+/** Whether a server has the switch "PuG-Server": only those get roles & onboarding. */
+function isPugServer(guildId, config = getConfig()) {
+    return pugServerIds(config).includes(str(guildId));
+}
+
 /**
- * The server the part opens with: the first of the server list with a PuG category, ""
- * when none has one (or the bot is offline) - the caller then takes the first server.
+ * The server the part opens with: among the servers marked "PuG-Server" the first with a
+ * PuG category, else the first marked one (also while the bot is offline); "" when no
+ * server is marked - the caller then takes the first server, which answers `notPugServer`.
  */
 function firstPugServer(config = getConfig()) {
-    if (!discord.isOnline()) return "";
-    const servers = (config && config.discordServers && config.discordServers.servers) || [];
-    for (const entry of servers) {
-        const gid = str(entry && entry.guildId);
-        const guild = gid ? discord.getGuild(gid) : null;
-        if (guild && serverCategories(guild, config).pug.length) return gid;
+    const marked = pugServerIds(config);
+    if (!marked.length) return "";
+    if (discord.isOnline()) {
+        for (const gid of marked) {
+            const guild = discord.getGuild(gid);
+            if (guild && serverCategories(guild, config).pug.length) return gid;
+        }
     }
-    return "";
+    return marked[0];
 }
 
 /** The PuG categories the orga left switched on: `categoryIds` undefined = all of them. */
@@ -517,6 +530,7 @@ async function snapshot(guild, config, saved, categoryIds) {
 
 /**
  * Everything the web shows for one server; `online` false when the bot does not see it.
+ * A server without the switch "PuG-Server" gets no comparison, only `notPugServer: true`.
  * @param {{ categoryIds?: string[] }} [opts] the switched-on PuG categories (none given = all)
  */
 async function overview(guildId, config = getConfig(), { categoryIds } = {}) {
@@ -524,6 +538,9 @@ async function overview(guildId, config = getConfig(), { categoryIds } = {}) {
     const saved = savedFor(gid, config);
     const applied = saved.appliedAt ? { at: saved.appliedAt, by: saved.appliedBy } : null;
     const guild = discord.isOnline() ? discord.getGuild(gid) : null;
+    if (!isPugServer(gid, config)) {
+        return { guildId: gid, guildName: guild ? str(guild.name) : "", online: !!guild, applied, notPugServer: true };
+    }
     if (!guild) return { guildId: gid, guildName: "", online: false, applied };
     const snap = await snapshot(guild, config, saved, categoryIds);
     const selected = new Set(snap.selectedIds);
@@ -681,6 +698,10 @@ async function apply(guildId, { actor = "", categoryIds, fingerprint } = {}) {
     inFlight.add(gid);
     try {
         const config = getConfig();
+        if (!isPugServer(gid, config)) {
+            throw new PugOnboardingError(409, "not_pug_server",
+                "Dieser Server ist kein PuG-Server - setze in den Server-Einstellungen den Schalter „PuG-Server“. Nichts wurde geändert.");
+        }
         const guild = discord.isOnline() ? discord.getGuild(gid) : null;
         if (!guild) throw new PugOnboardingError(409, "offline", "Der Bot ist nicht online oder nicht auf diesem Server.");
         const saved = savedFor(gid, config);
@@ -714,5 +735,5 @@ async function apply(guildId, { actor = "", categoryIds, fingerprint } = {}) {
 
 module.exports = {
     desiredState, readActual, diff, prerequisites, overview, apply, serverCategories, savedFor, firstPugServer,
-    PugOnboardingError, VERSION_PROMPT, CLASS_PROMPT,
+    isPugServer, pugServerIds, PugOnboardingError, VERSION_PROMPT, CLASS_PROMPT,
 };

@@ -134,6 +134,19 @@ describe("stores/configStore saveConfig", () => {
         expect(saved.discordServers).not.toHaveProperty("talkGuildId");
     });
 
+    // The switch "PuG-Server" (#906): kept when on, no field when off.
+    it("keeps the switch PuG-Server of a server through a save", () => {
+        const A = "1100000000000000041";
+        const C = "1100000000000000043";
+        const saved = configStore.saveConfig({ guildId: A, discordServers: {
+            servers: [{ guildId: A, pug: true }, { guildId: C, pug: false }],
+        } });
+        expect(saved.discordServers.servers).toEqual([
+            { guildId: A, label: "", pug: true },
+            { guildId: C, label: "" },
+        ]);
+    });
+
     // Prod, Oct 2026: the list was empty (main server only through guildId), adding a
     // second server saved just that one and the main server lost its rights and loops.
     it("keeps the implicit main server first when a server is added to an empty list", () => {

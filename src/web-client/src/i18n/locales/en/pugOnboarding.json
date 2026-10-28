@@ -6,6 +6,7 @@
     "apply": "Apply in Discord",
     "applyTip": "Shows what changes first",
     "offline": "The bot is not connected to Discord right now. The overview comes back once it is online again.",
+    "notPugServer": "No PuG server – roles & onboarding only exist on servers with the switch “PuG server” (pen at the server above).",
     "noPug": "This server has no PuG category: a raid category everyone may sign up for (no raider role, no roster).",
     "otherCategories": "Not affected (with raider role or roster): {names}",
     "open": { "one": "{count} change pending", "other": "{count} changes pending" },

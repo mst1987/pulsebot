@@ -484,6 +484,17 @@ describe("stores/configSchema server federation (#890)", () => {
             expect(out[0]).toEqual({ guildId: A, label: "erst" });
         });
 
+        // #906: the switch "PuG-Server"; off is no field at all, so an old config reads unchanged.
+        it("keeps pug only as true, anything else is off and leaves no field", () => {
+            const out = schema.normalizeServers([
+                { guildId: A, label: "", pug: true },
+                { guildId: B, label: "", pug: "true" },
+                { guildId: T, label: "", pug: false },
+            ]);
+            expect(out).toEqual([{ guildId: A, label: "", pug: true }, { guildId: B, label: "" }, { guildId: T, label: "" }]);
+            expect(schema.normalizeDiscordServers({ servers: [{ guildId: A, label: "x" }] }).servers[0]).not.toHaveProperty("pug");
+        });
+
         // the migration warns about this one (settingsMigration.migrateDiscordFederation)
         it("does not append the talk server once 10 servers are set", () => {
             const servers = Array.from({ length: 10 }, (_, i) => ({ guildId: String(600000 + i) }));

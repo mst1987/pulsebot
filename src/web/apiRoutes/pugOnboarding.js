@@ -5,9 +5,10 @@
 // rights and the server's onboarding in Discord.
 //
 // GET  /api/discord/pug-onboarding?guildId=<one of the servers>&categories=<id,id>
-//      (no guildId: the first server with a PuG category, else the first server;
-//       no categories: every PuG category, "" = none)
-//      → { data: Overview }   (offline: { guildId, guildName: "", online: false, applied })
+//      (no guildId: of the servers with the switch "PuG-Server" the first with a PuG category,
+//       else the first marked one, else the first server; no categories: every PuG category, "" = none)
+//      → { data: Overview }   (offline: { guildId, guildName: "", online: false, applied };
+//        a server without the switch: { guildId, guildName, online, applied, notPugServer: true })
 //        Overview = { guildId, guildName, online, applied, pugCategories, otherCategories,
 //                     roles, prompts, categories, changes, onboarding, onboardingError,
 //                     prerequisites, fingerprint }   (shapes: services/discord/pugOnboarding.js)
@@ -15,7 +16,7 @@
 // POST /api/discord/pug-onboarding   { guildId, categoryIds: string[], fingerprint }
 //      (fingerprint: the one of the preview the orga saw; categoryIds: the switched-on ones)
 //      → { data: { done: { roles, categories, channels, onboarding }, overview: Overview } }
-//      409 offline | busy | changed | no_pug_category | no_community | missing_permissions
+//      409 not_pug_server | offline | busy | changed | no_pug_category | no_community | missing_permissions
 //          | role_above_bot | category_access | role_privileged | default_channel_hidden
 //      502 onboarding_unreadable | discord_failed (the message names the step and what was done)
 //      400 unknown_guild outside the server list | fingerprint_required | no_category_selected

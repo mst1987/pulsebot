@@ -87,6 +87,8 @@ export type PugOnboardingOverview = {
     prerequisites?: PugPrerequisite[];
     /** a hash of what the apply would do; the POST sends it back, a mismatch is 409 changed */
     fingerprint?: string;
+    /** the server has no switch "PuG-Server": nothing above is sent, the apply answers 409 not_pug_server */
+    notPugServer?: boolean;
 };
 
 export type PugApplyResult = {

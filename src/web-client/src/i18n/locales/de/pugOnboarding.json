@@ -6,6 +6,7 @@
     "apply": "In Discord übernehmen",
     "applyTip": "Zeigt erst, was sich ändert",
     "offline": "Der Bot ist gerade nicht mit Discord verbunden. Die Übersicht kommt, sobald er wieder online ist.",
+    "notPugServer": "Kein PuG-Server – Rollen & Onboarding gibt es nur auf Servern mit dem Schalter „PuG-Server“ (Stift am Server oben).",
     "noPug": "Auf diesem Server gibt es keine PuG-Kategorie: eine Raid-Kategorie, für die sich alle anmelden dürfen (ohne Raider-Rolle und ohne Roster).",
     "otherCategories": "Nicht betroffen (mit Raider-Rolle oder Roster): {names}",
     "open": { "one": "{count} Änderung offen", "other": "{count} Änderungen offen" },

@@ -19,7 +19,8 @@ import DataTable, { type Column } from "../../components/ui/DataTable";
 import PartHead from "../../components/ui/PartHead";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { AdminOnlyBadge, ChannelPicker } from "../../components/settings/settingsUi";
-import { FieldLabel } from "../../components/ui/Field";
+import { FieldLabel, InfoTip } from "../../components/ui/Field";
+import Switch from "../../components/ui/Switch";
 import { t as translate, useT } from "../../i18n";
 
 // Einstellungen → Verbindungen → Discord-Server (#891, Epic #893, design SB).
@@ -131,6 +132,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
     const config = data.discordServers;
     const now = Date.now();
+    // #906: the switch "PuG-Server" of a configured server (missing = off).
+    const isPug = (guildId: string) => config.servers.some((s) => s.guildId === guildId && s.pug === true);
 
     const repost = async (link: ServerLink) => {
         const key = linkKey(link);
@@ -323,6 +326,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
                         <span className="srv-sub">
                             <span>{t("settings.discordServers.raidCategoryCount", { count: s.raidCategories })}</span>
                             <span>{membersText(s)}</span>
+                            {isPug(s.id) && <span>{t("settings.discordServers.pugServer")}</span>}
                         </span>
                     </span>
                 </span>
@@ -341,8 +345,8 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             id: "actions", actions: true, className: "srv-actions",
             cell: (s) => (
                 <span className="row-actions">
-                    <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}
-                        onClick={() => { setEditServer({ guildId: s.id, label: s.label }); setDialog("server"); }} />
+                    <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.editServer")} tipSub={t("settings.discordServers.editServerSub")}
+                        onClick={() => { setEditServer({ guildId: s.id, label: s.label, ...(isPug(s.id) ? { pug: true } : {}) }); setDialog("server"); }} />
                     <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
                 </span>
             ),
@@ -466,7 +470,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
             {/* #896: the role sync pairs any two servers of the list and says so itself when there is only one. */}
             <RoleSyncPart onConfig={onConfig} reloadKey={data.discordServers} />
             {/* #906: roles + onboarding of a PuG server, applied only by its own button. */}
-            <PugOnboardingPart servers={data.servers} />
+            <PugOnboardingPart servers={data.servers.filter((s) => isPug(s.id))} />
             <RemindersPart onConfig={onConfig} />
 
             {dialog === "link" && (
@@ -703,7 +707,7 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
                     return;
                 }
             }
-            await onSave({ guildId: fields.guildId, label: fields.label.trim() });
+            await onSave({ guildId: fields.guildId, label: fields.label.trim(), ...(fields.pug ? { pug: true } : {}) });
         } finally { setBusy(false); }
     };
 
@@ -749,6 +753,12 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
                     <FieldLabel htmlFor="srv-add-label" tip={t("settings.discordServers.label")} tipSub={t("settings.discordServers.labelSub")}>{t("settings.discordServers.label")}</FieldLabel>
                     <input id="srv-add-label" type="text" maxLength={60} value={fields.label} placeholder={t("settings.discordServers.labelPlaceholder")}
                         onChange={(e) => setFields({ ...fields, label: e.target.value })} />
+                </div>
+                {/* #906: only on a PuG server the bot sets up version/class roles and the onboarding. */}
+                <div className="srv-pug">
+                    <Switch checked={!!fields.pug} label={t("settings.discordServers.pugServer")}
+                        onChange={(on) => setFields({ ...fields, pug: on })} />
+                    <InfoTip head={t("settings.discordServers.pugServer")} sub={t("settings.discordServers.pugServerSub")} />
                 </div>
                 {withInvites && invite && (
                     <>

@@ -2407,6 +2407,13 @@ describe("web/apiRoutes/settings", () => {
                     expect(sent[0].label).toHaveLength(60);
                 });
 
+                // #906: the "PuG-Server" switch survives the save; off is not stored
+                it("keeps the PuG-Server switch and drops anything but true", async () => {
+                    await save({ servers: [{ guildId: "20000", pug: true }, { guildId: "30000", pug: "yes" }], links: patchStored.discordServers.links });
+                    const sent = settingsStore.saveConfig.mock.calls[0][0].discordServers.servers;
+                    expect(sent).toEqual([{ guildId: "20000", label: "", pug: true }, { guildId: "30000", label: "" }]);
+                });
+
                 // #897: the old ping server (a leftover talkGuildId) is an ordinary server now
                 it("removes the old ping server like any other server", async () => {
                     const res = await save({ servers: [{ guildId: "20000" }], links: [] });
