@@ -216,6 +216,11 @@ table.idx td:has(> .bar) { padding-top: 5px; padding-bottom: 5px; }
 .part-head { display: flex; align-items: center; gap: 12px; margin: 0 0 12px; padding: 10px 14px; background: var(--panel2); border: 1px solid var(--line); border-radius: 10px; flex-wrap: wrap; }
 .part-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 800; min-width: 0; }
 .part-title .kicker { display: block; }
+/* PartHead variant="plain": no bar, no tile — a heading on a hairline, the content right under it */
+.part-head.is-plain { align-items: flex-end; margin: 0; padding: 0 0 9px; background: none; border: 0; border-bottom: 1px solid var(--line); border-radius: 0; }
+.part-head.is-plain .part-title { font-size: 18px; font-weight: 600; line-height: 1.25; }
+.part-head.is-plain .part-title > div { display: flex; align-items: baseline; flex-wrap: wrap; gap: 0 10px; min-width: 0; }
+.part-head.is-plain .ph-count { color: var(--muted); font-size: 14px; font-weight: 400; }
 .tipped { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; cursor: help; }
 table.idx th[data-tip] { text-decoration: underline dotted; text-decoration-color: var(--muted); text-underline-offset: 3px; }
 

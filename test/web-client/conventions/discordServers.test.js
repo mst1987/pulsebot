@@ -57,11 +57,14 @@ describe("Discord-Server section", () => {
         expect(section).toContain("<RemindersPart onConfig={onConfig} />");
     });
 
-    it("shows links and servers as sortable tables, links first", () => {
+    it("shows links and servers as sortable tables, each on its own tab, servers first", () => {
         expect(section).toContain("useTableSort<LinkSortKey>(\"settings-links-sort\"");
         expect(section).toContain("useTableSort<ServerSortKey>(\"settings-servers-sort\"");
         expect(section.indexOf("rows={config.links}")).toBeGreaterThan(-1);
-        expect(section.indexOf("rows={config.links}")).toBeLessThan(section.indexOf("rows={data.servers}"));
+        // design B: the tab "Server" comes first and is the default (clean URL)
+        expect(section).toContain("const SERVER_TABS = [\"servers\", \"links\", \"roles\", \"reminders\"] as const;");
+        expect(section).toContain("usePersistedSearchParam<ServerTab>(\"settings-discordserver-tab\", \"tab\", \"servers\", SERVER_TABS, true)");
+        expect(section.indexOf("rows={data.servers}")).toBeLessThan(section.indexOf("rows={config.links}"));
     });
 
     it("keeps the full server name readable on a phone, without hover", () => {

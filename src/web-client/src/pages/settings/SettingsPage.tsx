@@ -410,7 +410,6 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         // only they are refreshed, so an unsaved draft elsewhere survives.
                         getSettings().then((d) => setData((cur) => (cur ? { ...cur, servers: d.servers } : cur))).catch(() => {});
                     }}
-                    icon={activeSection.icon}
                     crumb={activeCrumb}
                 />
             );

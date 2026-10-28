@@ -105,8 +105,7 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
 
     const head = (
         <PartHead
-            icon="roster"
-            tone="settings"
+            variant="plain"
             title={t("pugOnboarding.title")}
             tip={t("pugOnboarding.title")}
             tipSub={t("pugOnboarding.tipSub")}
@@ -118,7 +117,7 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
                             {servers.map((s) => <option key={s.id} value={s.id}>{s.label || s.name || s.id}</option>)}
                         </select>
                     )}
-                    <Button variant="go" size="sm" icon={<SendIcon />} disabled={!canApply(data) || busy}
+                    <Button variant="ghost" size="sm" icon={<SendIcon />} disabled={!canApply(data) || busy}
                         data-tip={t("pugOnboarding.applyTip")} onClick={() => setPreview(true)}>
                         {t("pugOnboarding.apply")}
                     </Button>

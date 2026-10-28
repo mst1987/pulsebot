@@ -3,7 +3,7 @@
 // own texts in the language the page is switched to. The German behaviour of
 // these panels is guarded by SettingsPage.sections.test.tsx and the convention
 // tests under test/web-client/conventions/.
-import { screen } from "@testing-library/react";
+import { fireEvent, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { BotCommandsData, DiscordServersData } from "../../api";
@@ -109,11 +109,18 @@ describe("the Einstellungen panels in English", () => {
             channels: {}, servers: [], guilds: [], versions: [],
         };
         vi.mocked(api.getDiscordServers).mockResolvedValue(data);
-        renderPage(<DiscordServersSection onConfig={noop} icon="inv_letter_15" crumb="Connections" />);
-        expect(await screen.findByText("No link yet — without a link the bot posts no raid list.")).toBeInTheDocument();
-        expect(screen.getByText("No server yet — add the Discord your raids run on.")).toBeInTheDocument();
+        renderPage(<DiscordServersSection onConfig={noop} crumb="Connections" />);
+        expect(await screen.findByText("No server yet — add the Discord your raids run on.")).toBeInTheDocument();
         expect(screen.getByText("Add a server first, then its channels can be picked.")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: "Add server" })).toBeInTheDocument();
-        expect(await screen.findByText("Reminders")).toBeInTheDocument();
+        expect(screen.getByText("0 servers")).toBeInTheDocument();
+        // design B: the tabs in English, the links and the reminders behind their own tab
+        expect(screen.getByRole("tablist", { name: "Parts of the Discord servers" })).toBeInTheDocument();
+        expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Servers0", "Links0", "Roles", "Reminders"]);
+        fireEvent.click(screen.getByRole("tab", { name: /^Links/ }));
+        expect(await screen.findByText("No link yet — without a link the bot posts no raid list.")).toBeInTheDocument();
+        expect(screen.getByText("0 links")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("tab", { name: /^Reminders/ }));
+        expect(await screen.findByText("Reminders", { selector: ".part-title *" })).toBeInTheDocument();
     });
 });
