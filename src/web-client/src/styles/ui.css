@@ -20,6 +20,8 @@
 .uic-arcane { color: var(--icon-arcane); }
 .uic-fel { color: var(--icon-fel); }
 .uic-discord { color: var(--discord-blurple); }
+/* the brand images sit as small as the glyphs (their viewBox margin, iconSet.ts GLYPH_VIEWBOX) */
+.wi.uic-brand:is(img) { transform: scale(.86); }
 .wi.uic-raidHelper:is(img) { border-radius: 50%; }
 .wi.uic-softres:is(img) { filter: var(--brand-softres-filter); }
 

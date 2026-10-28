@@ -1,4 +1,4 @@
-import { BRAND_ICONS, DISCORD_PATH, UI_GLYPHS, UI_LINE_ICONS, isBrandIcon, isUiLineIcon, type UiGlyph, type UiIconName } from "../../lib/ui/iconSet";
+import { BRAND_ICONS, DISCORD_PATH, GLYPH_VIEWBOX, UI_GLYPHS, UI_LINE_ICONS, isBrandIcon, isUiLineIcon, type UiGlyph, type UiIconName } from "../../lib/ui/iconSet";
 
 // An icon of the app's own set (#951, src/web-client/src/lib/ui/iconSet.ts):
 // an own glyph as inline SVG in its tone colour, or a brand mark as the brand
@@ -20,7 +20,7 @@ export default function Icon({ name, size = 18, title, className = "" }: {
     if (isBrandIcon(name)) {
         if (name === "discord") {
             return (
-                <svg className={cls("uic-brand uic-discord")} data-icon={name} viewBox="0 0 24 24" width={size} height={size} {...a11y}>
+                <svg className={cls("uic-brand uic-discord")} data-icon={name} viewBox={GLYPH_VIEWBOX} width={size} height={size} {...a11y}>
                     {title && <title>{title}</title>}
                     <path d={DISCORD_PATH} fill="currentColor" />
                 </svg>
@@ -71,7 +71,7 @@ export default function Icon({ name, size = 18, title, className = "" }: {
         <svg
             className={cls(`uic-${glyph.tone}`)}
             data-icon={name}
-            viewBox="0 0 24 24"
+            viewBox={GLYPH_VIEWBOX}
             width={size}
             height={size}
             {...a11y}

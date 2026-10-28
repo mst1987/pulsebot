@@ -3,7 +3,7 @@
 // client's twin (lib/ui/iconSet.ts) draws Discord with the same path.
 const fs = require("fs");
 const path = require("path");
-const { uiIconSvg, isUiIcon, UI_ICONS, UI_LINE_ICONS, BRAND_FILES, DISCORD_PATH } = require("../../src/config/uiIconSvg");
+const { uiIconSvg, isUiIcon, UI_ICONS, UI_LINE_ICONS, BRAND_FILES, DISCORD_PATH, GLYPH_VIEWBOX } = require("../../src/config/uiIconSvg");
 
 const CLIENT = path.join(__dirname, "../../src/web-client");
 const PATH_RE = /^[MmLlHhVvCcSsQqTtAaZz0-9.,\s-]+$/;
@@ -72,5 +72,14 @@ describe("uiIconSvg", () => {
         const src = fs.readFileSync(path.join(CLIENT, "src/lib/ui/iconSet.ts"), "utf8");
         const m = src.match(/export const DISCORD_PATH = "([^"]+)"/);
         expect(m && m[1]).toBe(DISCORD_PATH);
+    });
+
+    it("draws the filled marks a bit smaller than their box, like the client, and line icons full size", () => {
+        const src = fs.readFileSync(path.join(CLIENT, "src/lib/ui/iconSet.ts"), "utf8");
+        const m = src.match(/export const GLYPH_VIEWBOX = "([^"]+)"/);
+        expect(m && m[1]).toBe(GLYPH_VIEWBOX);
+        expect(uiIconSvg(Object.keys(UI_ICONS)[0])).toContain(`viewBox="${GLYPH_VIEWBOX}"`);
+        expect(uiIconSvg("discord")).toContain(`viewBox="${GLYPH_VIEWBOX}"`);
+        expect(uiIconSvg("edit")).toContain("viewBox=\"0 0 24 24\"");
     });
 });
