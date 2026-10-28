@@ -61,7 +61,7 @@ export default function ImportModal({ onClose, onById }: { onClose: () => void; 
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             kicker={t("kader.import.kicker", { name: kader.name })}
             title={t("kader.import.title")}

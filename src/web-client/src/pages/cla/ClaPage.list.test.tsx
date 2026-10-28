@@ -220,10 +220,10 @@ describe("Log-Auswertung: one list", () => {
         expect(iconSrc(bt.querySelector("img")!)).toContain(RAID_CONTENTS.bt.icon);
     });
 
-    it("uses the shared raid icons and its own pocket watch for an unknown raid", () => {
+    it("uses the shared raid icons and the logs icon of the set for an unknown raid", () => {
         expect(raidIcon("hyjal")).toBe(RAID_CONTENTS.hyjal.icon);
         expect(raidIcon("unknown-raid")).toBe(LOG_FALLBACK_ICON);
-        expect(raidIcon(undefined)).toBe("inv_misc_pocketwatch_01");
+        expect(raidIcon(undefined)).toBe("logs");
     });
 });
 

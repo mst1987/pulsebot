@@ -64,7 +64,7 @@ export default function SpecPicker({ value, onChange, specCatalog, emojis }: {
             ))}
             <div className="spec-add">
                 <Button
-                    variant="ghost" size="sm" icon="inv_misc_grouplooking" className="spec-add-trigger" aria-expanded={open}
+                    variant="ghost" size="sm" icon="recruitment" className="spec-add-trigger" aria-expanded={open}
                     onClick={() => { setOpen((o) => !o); setSearch(""); }}
                 >
                     {t("signups.specPicker.add")}

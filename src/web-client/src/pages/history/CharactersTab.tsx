@@ -165,7 +165,7 @@ export function CharactersTab({ chars: allChars, categories, onChanged, version 
     const resolveButton = chars.length > 0 && (
         <Button
             variant="run"
-            icon="inv_misc_spyglass_03"
+            icon="search"
             running={busy}
             data-tip={t("history.chars.resolve")}
             data-tip-sub={t("history.chars.resolveSub")}

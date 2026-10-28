@@ -16,7 +16,7 @@ const ALL = [page, ...PARTS.map((name) => read("components", "channels", `${name
 
 describe("ChannelsPage — conventions", () => {
     it("is built from the shared building blocks, not the old stacked forms", () => {
-        expect(page).toMatch(/<PageHead[\s\S]*icon="inv_letter_15"/);
+        expect(page).toMatch(/<PageHead[\s\S]*icon="channels"/);
         expect(page).toContain("<Segment");
         expect(page).toContain("<SplitButton");
         expect(page).toContain("<RaidLoader");

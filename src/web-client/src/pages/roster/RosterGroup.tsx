@@ -64,8 +64,8 @@ function RosterRow({ c, categoryId, categoryName, hidden, onHide }: {
             <span className="ros-cell"><GearStateBadge gear={c.gear} /></span>
             <span className="ros-cell"><LootBadge count={c.lootCount} items={c.items || []} to={charHref(c, "loot")} /></span>
             <span className="ros-acts">
-                <IconLink href={c.wclUrl} icon="inv_misc_pocketwatch_01" tip="Warcraft Logs" />
-                <IconLink href={c.armoryUrl} icon="inv_shirt_guildtabard_01" tip="Armory" />
+                <IconLink href={c.wclUrl} icon="warcraftLogs" tip="Warcraft Logs" />
+                <IconLink href={c.armoryUrl} icon="roles" tip="Armory" />
                 {onHide && (hidden
                     ? (
                         <IconButton
@@ -155,7 +155,7 @@ export function RosterGroup({ id, title, crumb, icon, chars, open, onToggle, sor
                 </div>
                 <Badge count tip={t("roster.group.count", { count: chars.length })}>{chars.length}</Badge>
                 {!!withIssues && (
-                    <Badge tone={high ? "bad" : "mid"} icon="inv_misc_gem_variety_02">{tParts("roster.group.withIssues", { count: withIssues })}</Badge>
+                    <Badge tone={high ? "bad" : "mid"} icon="wishlist">{tParts("roster.group.withIssues", { count: withIssues })}</Badge>
                 )}
                 <Expand open={open} onToggle={onToggle} showLabel={!open} label={t("roster.group.details")} />
             </div>

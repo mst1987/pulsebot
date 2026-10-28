@@ -199,7 +199,7 @@ function RosterCharsList() {
                 id,
                 title: categoryNameById.get(id) || id,
                 crumb: crumbParts.join(" · "),
-                icon: info?.icon || "achievement_guildperk_everybodysfriend",
+                icon: info?.icon || "roster",
                 chars: filtered.filter((c) => c.categoryIds.includes(id)),
             };
         })
@@ -207,7 +207,7 @@ function RosterCharsList() {
         .sort((a, b) => a.title.localeCompare(b.title));
     const ungrouped = filtered.filter((c) => !c.categoryIds.length);
     if (ungrouped.length) {
-        groups.push({ id: UNGROUPED, title: t("roster.page.ungrouped"), crumb: t("roster.page.ungroupedCrumb"), icon: "inv_misc_note_02", chars: ungrouped });
+        groups.push({ id: UNGROUPED, title: t("roster.page.ungrouped"), crumb: t("roster.page.ungroupedCrumb"), icon: "members", chars: ungrouped });
     }
 
     const openIds = view.open ?? (groups[0] ? [groups[0].id] : []);
@@ -220,7 +220,7 @@ function RosterCharsList() {
             {/* a sub page of the roster overview (#654): the way back to the rosters */}
             <BackButton to="/roster" label={t("roster.detail.back")} size="sm" className="rn-back" />
             <div className="page-head">
-                <IconTile icon="achievement_guildperk_everybodysfriend" tone="roster" size="lg" />
+                <IconTile icon="roster" tone="roster" size="lg" />
                 <div className="ph-text">
                     <div className="kicker">{t("roster.page.categories", { count: data.stats.categories })}</div>
                     <h1 className="ros-title">
@@ -249,11 +249,11 @@ function RosterCharsList() {
                             onChange={(tab) => patch({ tab })}
                             options={[
                                 {
-                                    value: "active", label: t("roster.page.tabActive", { count: data.chars.length }), icon: "achievement_guildperk_everybodysfriend",
+                                    value: "active", label: t("roster.page.tabActive", { count: data.chars.length }), icon: "members",
                                     tip: t("roster.page.tabActiveTip"),
                                 },
                                 {
-                                    value: "hidden", label: t("roster.page.tabHidden", { count: data.hiddenChars.length }), icon: "inv_misc_book_09",
+                                    value: "hidden", label: t("roster.page.tabHidden", { count: data.hiddenChars.length }), icon: "inactive",
                                     tip: t("roster.page.tabHiddenTip"),
                                 },
                             ]}

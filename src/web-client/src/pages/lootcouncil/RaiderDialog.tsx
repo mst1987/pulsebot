@@ -94,7 +94,7 @@ function LogPanel({ raider, logs, loading, onLoad }: {
                     <b>{tParts("lootcouncil.dialog.log.newest", { character: raider.character })}</b>
                     <span className="lc-muted">{t("lootcouncil.dialog.log.newestSub")}</span>
                 </span>
-                <Button size="sm" variant="run" icon="inv_scroll_03" running={loading} disabled={!logs.length} onClick={() => onLoad({})}>{t("lootcouncil.dialog.log.load")}</Button>
+                <Button size="sm" variant="run" icon="warcraftLogs" running={loading} disabled={!logs.length} onClick={() => onLoad({})}>{t("lootcouncil.dialog.log.load")}</Button>
             </div>
             {logs.map((log) => (
                 <div key={log.reportId} className={`lc-logrow2${log.reportId === current ? " current" : ""}`}>
@@ -147,7 +147,7 @@ export function ExportDialog({ data, onClose }: { data: CouncilExport | null; on
         <Modal
             open={!!data}
             onClose={onClose}
-            icon="inv_gizmo_02"
+            icon="simulate"
             kicker={data ? t("lootcouncil.dialog.export.kicker", { spec: data.specLabel, date: fmtMs(data.seenAt, false) }) : t("lootcouncil.dialog.export.name")}
             title={data ? t("lootcouncil.dialog.export.title", { character: data.character }) : ""}
             width={720}
@@ -228,9 +228,9 @@ export default function RaiderDialog({
     };
 
     const sections: { id: Section; label: string; icon: string; count: number; tone?: "mid" }[] = [
-        { id: "gear", label: t("lootcouncil.dialog.section.gear"), icon: "inv_chest_cloth_49", count: gearIssues, tone: gearIssues ? "mid" : undefined },
-        { id: "bis", label: t("lootcouncil.dialog.section.bis"), icon: "inv_misc_gem_variety_02", count: gaps.length },
-        { id: "loot", label: t("lootcouncil.dialog.section.loot"), icon: "inv_misc_bag_10", count: r.lootCount },
+        { id: "gear", label: t("lootcouncil.dialog.section.gear"), icon: "armory", count: gearIssues, tone: gearIssues ? "mid" : undefined },
+        { id: "bis", label: t("lootcouncil.dialog.section.bis"), icon: "wishlist", count: gaps.length },
+        { id: "loot", label: t("lootcouncil.dialog.section.loot"), icon: "loot", count: r.lootCount },
     ];
 
     return (
@@ -333,7 +333,7 @@ export default function RaiderDialog({
                     {section === "gear" ? (
                         <>
                             <PartHead
-                                icon="inv_chest_cloth_49"
+                                icon="armory"
                                 title={t("lootcouncil.dialog.gearTitle")}
                                 crumb={t("lootcouncil.dialog.gearCrumb", { character: r.character })}
                                 action={canWrite ? (
@@ -342,11 +342,11 @@ export default function RaiderDialog({
                                         value={logOpen ? "wcl" : source}
                                         onChange={onSource}
                                         options={[
-                                            { value: "log", label: t("lootcouncil.gear.evaluation"), icon: "inv_misc_pocketwatch_01", disabled: loadingLog,
+                                            { value: "log", label: t("lootcouncil.gear.evaluation"), icon: "logs", disabled: loadingLog,
                                                 tip: source === "log" ? t("lootcouncil.dialog.sourceLogTip") : t("lootcouncil.dialog.sourceLogBackTip") },
-                                            { value: "wcl", label: "Log", icon: "inv_scroll_03",
+                                            { value: "wcl", label: "Log", icon: "warcraftLogs",
                                                 tip: t("lootcouncil.dialog.sourceWclTip") },
-                                            { value: "armory", label: "Armory", icon: "inv_shield_06", disabled: busy.has(`armory:${r.character}`),
+                                            { value: "armory", label: "Armory", icon: "armory", disabled: busy.has(`armory:${r.character}`),
                                                 tip: source === "armory" ? t("lootcouncil.dialog.sourceArmoryAgainTip") : t("lootcouncil.dialog.sourceArmoryTip") },
                                         ]}
                                     />
@@ -377,7 +377,7 @@ export default function RaiderDialog({
                     {section === "bis" ? (
                         <>
                             <PartHead
-                                icon="inv_misc_gem_variety_02"
+                                icon="wishlist"
                                 title={t("lootcouncil.dialog.bisTitle")}
                                 crumb={t("lootcouncil.dialog.bisCrumb", { character: r.character })}
                                 tip={r.bis.source === "manual" ? t("lootcouncil.dialog.manualLabel") : r.bis.sourceLabel || t("lootcouncil.candidates.listTip")}
@@ -401,7 +401,7 @@ export default function RaiderDialog({
                                             <ContentBadge contentId={item.contentId} label={item.boss} />
                                             <span className="lc-muted">{item.boss}{item.ilvl ? ` · ilvl ${item.ilvl}` : ""}</span>
                                             <Link className={buttonClass("ghost", "sm", true, "lc-dlist-act")} to={dropHref(item.id)}>
-                                                <WowIcon name="inv_misc_bag_10" size={18} />{t("lootcouncil.word.checkAsDrop")}
+                                                <WowIcon name="loot" size={18} />{t("lootcouncil.word.checkAsDrop")}
                                             </Link>
                                         </div>
                                     ))}
@@ -413,7 +413,7 @@ export default function RaiderDialog({
                     {section === "loot" ? (
                         <>
                             <PartHead
-                                icon="inv_misc_bag_10"
+                                icon="loot"
                                 title={t("lootcouncil.dialog.section.loot")}
                                 crumb={t("lootcouncil.dialog.lootCrumb", { character: r.character })}
                                 tip={t("lootcouncil.dialog.lootTip")}
@@ -450,14 +450,14 @@ export default function RaiderDialog({
                         </Button>
                     ) : null}
                     {g && r.simSupported ? (
-                        <Button variant="ghost" size="sm" icon="inv_gizmo_02" running={busy.has(`export:${r.character}`)} onClick={() => onExport(r.character)}>
+                        <Button variant="ghost" size="sm" icon="simulate" running={busy.has(`export:${r.character}`)} onClick={() => onExport(r.character)}>
                             {t("lootcouncil.dialog.export.name")}
                         </Button>
                     ) : null}
                     <span className="lc-grow" />
                     <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>
                     {canWrite ? (
-                        <Button variant="run" icon="inv_shield_06" running={busy.has(`armory:${r.character}`)} onClick={() => onArmory(r.character)}>
+                        <Button variant="run" icon="armory" running={busy.has(`armory:${r.character}`)} onClick={() => onArmory(r.character)}>
                             {t("lootcouncil.gear.armoryFetch")}
                         </Button>
                     ) : null}

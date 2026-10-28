@@ -21,7 +21,7 @@ describe("SignupsPage", () => {
         expect(read("App.tsx")).toMatch(/<Route path="signups" element=\{<Guard user=\{user\} areas=\{\["signup"\]\}><SignupsPage \/><\/Guard>\} \/>/);
         const { MENU } = require("../../../src/config/menu");
         const ids = MENU.map((e) => e.id);
-        expect(MENU.find((e) => e.id === "signups")).toMatchObject({ href: "/signups", areas: ["signup"], wowIcon: "inv_misc_book_09" });
+        expect(MENU.find((e) => e.id === "signups")).toMatchObject({ href: "/signups", areas: ["signup"], icon: "signups" });
         // Abwesenheiten (Oct 2026) stands right after Anmeldungen, the profile after it
         expect(ids.slice(ids.indexOf("signups"), ids.indexOf("signups") + 3)).toEqual(["signups", "absences", "profile"]);
     });

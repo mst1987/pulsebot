@@ -118,11 +118,11 @@ export function GearBadges({ gear: g, bisOwned, bisTotal, character, roleLabel }
     const { noench, sockets } = gearCounts(g.items);
     const out: ReactNode[] = [];
     if (g.source === "armory") {
-        out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip={t("lootcouncil.gear.armoryTip")} tipSub={`${t("lootcouncil.gear.armoryTipSub", { date: fmtMs(g.armoryAt, true) })}${g.unverifiedEnchants ? ` ${t("lootcouncil.gear.armoryUnverified", { count: g.unverifiedEnchants })}` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
+        out.push(<Badge key="src" tone="accent" icon="armory" tip={t("lootcouncil.gear.armoryTip")} tipSub={`${t("lootcouncil.gear.armoryTipSub", { date: fmtMs(g.armoryAt, true) })}${g.unverifiedEnchants ? ` ${t("lootcouncil.gear.armoryUnverified", { count: g.unverifiedEnchants })}` : ""}`}>Armory · {fmtMs(g.armoryAt, true)}</Badge>);
     } else if (g.source === "wcl") {
-        out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={t("lootcouncil.gear.wclTip", { title: g.reportTitle })} tipSub={t("lootcouncil.gear.wclTipSub", { date: fmtMs(g.wclAt, true) })}>Log · {fmtMs(g.seenAt, false)}</Badge>);
+        out.push(<Badge key="src" tone="accent" icon="warcraftLogs" tip={t("lootcouncil.gear.wclTip", { title: g.reportTitle })} tipSub={t("lootcouncil.gear.wclTipSub", { date: fmtMs(g.wclAt, true) })}>Log · {fmtMs(g.seenAt, false)}</Badge>);
     } else {
-        out.push(<Badge key="src" icon="inv_misc_pocketwatch_01" tip={t("lootcouncil.gear.logTip", { title: g.reportTitle })} tipSub={g.skippedReports ? t("lootcouncil.gear.logSkipped", { count: g.skippedReports }) : t("lootcouncil.gear.logDefault")}>{t("lootcouncil.gear.evaluation")} · {fmtMs(g.seenAt, false)}</Badge>);
+        out.push(<Badge key="src" icon="logs" tip={t("lootcouncil.gear.logTip", { title: g.reportTitle })} tipSub={g.skippedReports ? t("lootcouncil.gear.logSkipped", { count: g.skippedReports }) : t("lootcouncil.gear.logDefault")}>{t("lootcouncil.gear.evaluation")} · {fmtMs(g.seenAt, false)}</Badge>);
     }
     if (g.hitCap > 0) {
         // Spell hit for a caster, physical hit for melee, hunters and tanks.
@@ -180,9 +180,9 @@ export function CandidateGearPanel({ candidate, busy, onLoadLog, onLoadArmory }:
                 <div className="lc-muted">{t("lootcouncil.gear.noGear")}</div>
             )}
             <div className="lc-gearpanel-act">
-                {onLoadLog ? <Button variant="ghost" size="sm" icon="inv_scroll_03" running={busy} onClick={() => onLoadLog(candidate.character)}>{t("lootcouncil.gear.loadLog")}</Button> : null}
+                {onLoadLog ? <Button variant="ghost" size="sm" icon="warcraftLogs" running={busy} onClick={() => onLoadLog(candidate.character)}>{t("lootcouncil.gear.loadLog")}</Button> : null}
                 {onLoadArmory ? (
-                    <Button variant={g && g.pvpGear ? "primary" : "ghost"} size="sm" icon="inv_shield_06" running={busy} onClick={() => onLoadArmory(candidate.character)}>
+                    <Button variant={g && g.pvpGear ? "primary" : "ghost"} size="sm" icon="armory" running={busy} onClick={() => onLoadArmory(candidate.character)}>
                         {g && g.pvpGear ? t("lootcouncil.gear.armoryFetchNow") : t("lootcouncil.gear.armoryFetch")}
                     </Button>
                 ) : null}

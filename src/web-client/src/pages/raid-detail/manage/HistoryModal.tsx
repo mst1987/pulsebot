@@ -23,7 +23,7 @@ export default function HistoryModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_book_09" tone="raids"
+            open={open} onClose={onClose} icon="logs" tone="raids"
             kicker={data.event.title} title={t("raidManage.history.title")} width={560}
             footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >

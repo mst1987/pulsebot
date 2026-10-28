@@ -129,15 +129,15 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
     const footer = (
         <>
             <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-            {mode === "create" && <Button type="submit" form="rd-softres-form" icon="inv_misc_ticket_tarot_madness" running={busy} disabled={!selected.size}>{t("raidModals.softres.create")}</Button>}
+            {mode === "create" && <Button type="submit" form="rd-softres-form" icon="softres" running={busy} disabled={!selected.size}>{t("raidModals.softres.create")}</Button>}
             {mode === "link" && <Button type="submit" variant="go" icon={<SaveIcon />} form="rd-softres-form" running={busy}>{t("raidModals.softres.saveLink")}</Button>}
-            {mode === "post" && <Button type="submit" form="rd-softres-form" icon="inv_letter_15" running={busy}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.softres.postChannel")}</Button>}
+            {mode === "post" && <Button type="submit" form="rd-softres-form" icon="discord" running={busy}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.softres.postChannel")}</Button>}
         </>
     );
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_ticket_tarot_madness" tone={so?.url ? "ok" : "mid"}
+            open={open} onClose={onClose} icon="softres" tone={so?.url ? "ok" : "mid"}
             kicker={ev.title} title={mode === "create" ? t("raidModals.softres.titleCreate") : mode === "link" ? t("raidModals.softres.titleLink") : t("raidModals.softres.titlePost")}
             width={640} footer={footer}
             hint={mode === "post" && channel ? t("raidModals.shared.inChannel", { channel }) : undefined}
@@ -231,14 +231,14 @@ export default function SoftresModal({ ctx, open, onClose }: { ctx: RaidCtx; ope
                 {mode === "post" && so?.url && (
                     <form id="rd-softres-form" className="rd-form" onSubmit={post}>
                         <div className="rd-sheetrow">
-                            <WowIcon name="inv_misc_ticket_tarot_madness" size={24} />
+                            <WowIcon name="softres" size={24} />
                             <span className="rd-sheetrow-text">
                                 <b>{t("raidModals.softres.instances", { count: (so.instances || []).length })} · {t("raidModals.softres.perPlayer", { count: so.amount || 1 })}</b>
                                 <span className="rd-muted">{so.hardReserveCount ? t("raidModals.softres.hardCount", { count: so.hardReserveCount }) : t("raidModals.softres.noHard")}</span>
                             </span>
                             {posted ? <Badge tone="ok">{t("raidModals.shared.posted")}</Badge> : <Badge tone="mid">{t("raidModals.shared.notPosted")}</Badge>}
                             <a className="ibtn sm" href={so.url} target="_blank" rel="noopener noreferrer" data-tip={t("raidModals.softres.viewList")} aria-label={t("raidModals.softres.viewList")}><ExternalIcon /></a>
-                            {so.editUrl && <a className="ibtn sm" href={so.editUrl} target="_blank" rel="noopener noreferrer" data-tip={t("raidModals.softres.editList")} data-tip-sub={t("raidModals.softres.editListSub")} aria-label={t("raidModals.softres.editList")}><WowIcon name="inv_misc_note_01" size={20} /></a>}
+                            {so.editUrl && <a className="ibtn sm" href={so.editUrl} target="_blank" rel="noopener noreferrer" data-tip={t("raidModals.softres.editList")} data-tip-sub={t("raidModals.softres.editListSub")} aria-label={t("raidModals.softres.editList")}><WowIcon name="tasks" size={20} /></a>}
                         </div>
                         <div className="field">
                             <label htmlFor="rd-softres-msg">{t("raidModals.shared.message")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>

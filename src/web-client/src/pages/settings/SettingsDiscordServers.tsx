@@ -393,7 +393,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
             <section className="sync-part">
                 <PartHead
-                    icon="inv_letter_15"
+                    icon="discordServer"
                     tone="settings"
                     title={t("settings.discordServers.linksTitle")}
                     tip={t("settings.discordServers.linksTitle")}
@@ -416,7 +416,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
             <section className="sync-part">
                 <PartHead
-                    icon="achievement_guildperk_everybodysfriend"
+                    icon="discordServer"
                     tone="settings"
                     title={t("settings.discordServers.serversTitle")}
                     tip={t("settings.discordServers.serversTitle")}
@@ -442,7 +442,7 @@ export default function DiscordServersSection({ onConfig, icon, crumb }: {
 
             <section className="sync-part">
                 <PartHead
-                    icon="inv_misc_note_02"
+                    icon="channels"
                     tone="settings"
                     title={t("settings.discordServers.channelsTitle")}
                     tip={t("settings.discordServers.channelsTitle")}
@@ -546,7 +546,7 @@ function LinkModal({ data, onClose, onSave }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="discordServer"
             tone="settings"
             kicker={t("settings.sections.discordserver.label")}
             title={t("settings.discordServers.addLink")}
@@ -711,7 +711,7 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
         <Modal
             open
             onClose={onClose}
-            icon="achievement_guildperk_everybodysfriend"
+            icon="discordServer"
             tone="settings"
             kicker={t("settings.sections.discordserver.label")}
             title={entry ? guildName(data, entry.guildId) : t("settings.discordServers.addServer")}
@@ -797,7 +797,7 @@ function ChannelsModal({ data, guildId, onClose, onSave }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_note_02"
+            icon="channels"
             tone="settings"
             kicker={t("settings.editKicker")}
             title={t("settings.discordServers.channelsDialogTitle", { name: guildName(data, guildId) })}

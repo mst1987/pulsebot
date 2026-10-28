@@ -267,7 +267,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
     // An own event (#288): the orga signs somebody up from here as well.
     const addRaider = ctx.canManage && data.ownSignups && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" icon="inv_misc_groupneedmore" onClick={() => openModal("raider")} data-tip={t("raidDetail.roster.addRaider")} data-tip-sub={t("raidDetail.roster.addRaiderSub")}>
+            <Button variant="ghost" icon="roster" onClick={() => openModal("raider")} data-tip={t("raidDetail.roster.addRaider")} data-tip-sub={t("raidDetail.roster.addRaiderSub")}>
                 {t("raidDetail.roster.addRaider")}
             </Button>
         )
@@ -275,7 +275,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
     // "Fehlende pingen" (POST /api/raids/ping-missing) for whom the raid's actions are open (#729)
     const pingAction = (ctx.canWrite ?? orga) && !ev.isPast && missing.length && ev.status !== "cancelled"
         ? (
-            <Button variant="ghost" icon="inv_letter_15" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
+            <Button variant="ghost" icon="notify" onClick={() => openModal("ping")} data-tip={t("raidDetail.roster.pingMissing")} data-tip-sub={t("raidDetail.roster.pingMissingSub")}>
                 {t("raidDetail.roster.pingMissing")}<Badge tone="bad" count>{missing.length}</Badge>
             </Button>
         )
@@ -299,7 +299,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                 {lists && (
                     <div className="rd-glist">
                         <div className={`rd-grp${missingOpen && missing.length ? " open bad" : ""}`}>
-                            <IconTile icon="spell_holy_borrowedtime" tone={missing.length ? "bad" : "none"} />
+                            <IconTile icon="absences" tone={missing.length ? "bad" : "none"} />
                             <b>{t("raidDetail.roster.noReaction")}</b>
                             <Badge tone={missing.length ? "bad" : undefined} count>{missing.length}</Badge>
                             <span className="rd-grp-sub">{t("raidDetail.roster.noReactionSub")}</span>
@@ -325,7 +325,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                     </div>
                 )}
                 {allReacted && (
-                    <p className="rd-empty"><WowIcon name="achievement_guildperk_everybodysfriend" size={18} />{t("raidDetail.roster.allReacted")}</p>
+                    <p className="rd-empty"><WowIcon name="roster" size={18} />{t("raidDetail.roster.allReacted")}</p>
                 )}
             </>
         )

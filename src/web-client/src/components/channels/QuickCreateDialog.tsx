@@ -106,7 +106,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="channels"
             tone="channels"
             kicker={t("channels.quick.kicker", { category: categoryName })}
             title={t("channels.quick.title")}
@@ -115,7 +115,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_letter_15" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{tParts("channels.quick.submit", { count: todo })}</Button>
+                    <Button icon="channels" disabled={!todo || (eventOn && !time)} onClick={() => onCreate(input, todo)}>{tParts("channels.quick.submit", { count: todo })}</Button>
                 </>
             )}
         >

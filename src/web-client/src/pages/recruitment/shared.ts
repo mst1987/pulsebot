@@ -1,14 +1,14 @@
 import { formatDayMonth, formatTime } from "../../lib/format";
 
 export const ICONS = {
-    page: "inv_misc_grouplooking",
-    post: "ability_warrior_battleshout",
-    posts: "inv_letter_15",
-    templates: "inv_scroll_03",
-    applications: "inv_misc_note_01",
-    scan: "inv_misc_spyglass_02",
-    armory: "inv_misc_book_09",
-    wcl: "inv_misc_pocketwatch_01",
+    page: "recruitment",
+    post: "notify",
+    posts: "message",
+    templates: "edit",
+    applications: "tasks",
+    scan: "search",
+    armory: "armory",
+    wcl: "warcraftLogs",
 };
 
 /** "13.09. 22:41" — the lists' compact timestamp. */

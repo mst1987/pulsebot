@@ -117,7 +117,7 @@ export default function VersionLaunchCard({ versions, canExport, saved }: {
                         size="sm"
                         value={list.versionId}
                         onChange={setTarget}
-                        options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label, icon: <VersionDot id={v.id} /> }))}
+                        options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label, icon: <VersionDot id={v.id} icon={v.icon} label={v.label} /> }))}
                     />
                 )}
                 {head && <Badge tone={head.tone || undefined} icon={head.tone === "ok" ? <CheckMark /> : undefined}>{head.label}</Badge>}

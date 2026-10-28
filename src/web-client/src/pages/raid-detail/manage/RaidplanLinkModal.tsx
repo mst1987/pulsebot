@@ -61,7 +61,7 @@ export default function RaidplanLinkModal({ ctx, open, onClose, onDone }: { ctx:
     const lineup = view ? view.lineup : undefined;
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_map02" tone="raids"
+            open={open} onClose={onClose} icon="raidplan" tone="raids"
             kicker={data.event.title} title={t("raidDetail.raidplanLink.title")} width={560}
             hint={t("raidDetail.raidplanLink.readOnly")}
             footer={(

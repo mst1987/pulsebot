@@ -72,7 +72,7 @@ export default function BulkSignupDialog({ rows, profile, classes, onClose, onDo
         <Modal
             open={open}
             onClose={onClose}
-            icon="inv_misc_book_09"
+            icon="signups"
             tone="signups"
             kicker={t("signups.selectedCount", { count: rows.length })}
             title={t("signups.bulkTitle")}

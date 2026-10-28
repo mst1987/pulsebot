@@ -75,7 +75,7 @@ export default function HistoryEventPage() {
                         </div>
                         <div className="dash-card hl-card">
                             <PartHead
-                                icon="inv_misc_bag_10" tone="history" title={t("history.shared.loot")} crumb={t("history.event.crumb")}
+                                icon="loot" tone="history" title={t("history.shared.loot")} crumb={t("history.event.crumb")}
                                 action={(
                                     <>
                                         <Badge count>{tParts("history.shared.items", { count: data.items.length })}</Badge>

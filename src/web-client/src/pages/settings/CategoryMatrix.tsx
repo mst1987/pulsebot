@@ -180,12 +180,12 @@ export default function CategoryMatrix(props: CategorySettings & {
     /** The head's planning pill: the raid plan, or the sheet (its name and link in the tooltip). */
     const planningBadge = (catId: string) => {
         if (planningOf(catId, categoryPlanning, categorySheets) === "raidplan") {
-            return <Badge tone="accent" icon="inv_misc_map02" tip={t("settings.categories.planningRaidplanTip")} tipSub={t("settings.categories.planningRaidplanSub")}>{t("settings.planning.raidplan")}</Badge>;
+            return <Badge tone="accent" icon="raidplan" tip={t("settings.categories.planningRaidplanTip")} tipSub={t("settings.categories.planningRaidplanSub")}>{t("settings.planning.raidplan")}</Badge>;
         }
         const sheet = categorySheets[catId] || { url: "", name: "" };
         return sheet.url
-            ? <Badge tone="ok" icon="inv_scroll_03" tip={sheet.name || t("settings.categories.fixedSheet")} tipSub={sheet.url}>{t("settings.planning.sheet")}</Badge>
-            : <Badge tone="ok" icon="inv_scroll_03" tip={t("settings.categories.planningCopiesTip")} tipSub={t("settings.categories.planningCopiesSub")}>{t("settings.planning.sheet")}</Badge>;
+            ? <Badge tone="ok" icon="googleSheets" tip={sheet.name || t("settings.categories.fixedSheet")} tipSub={sheet.url}>{t("settings.planning.sheet")}</Badge>
+            : <Badge tone="ok" icon="googleSheets" tip={t("settings.categories.planningCopiesTip")} tipSub={t("settings.categories.planningCopiesSub")}>{t("settings.planning.sheet")}</Badge>;
     };
 
     const row = (cat: CategoryRow) => {
@@ -233,7 +233,7 @@ export default function CategoryMatrix(props: CategorySettings & {
                                 : <Badge tone="bad" icon={<WarnIcon />}>{t("settings.categories.noRoles")}</Badge>}
                             </div>
                             <div className="cat-cell">{tool
-                                ? <Badge icon="inv_misc_bag_10">{tool === "gargul" ? "Gargul" : "RCLootcouncil"}</Badge>
+                                ? <Badge icon="loot">{tool === "gargul" ? "Gargul" : "RCLootcouncil"}</Badge>
                                 : <Badge tone="mid" icon={<WarnIcon />}>{t("settings.categories.missing")}</Badge>}
                             </div>
                             <div className="cat-cell">{planningBadge(cat.id)}</div>

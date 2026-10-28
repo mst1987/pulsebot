@@ -52,7 +52,7 @@ import "../../styles/loot-council.css";
 import "../../styles/history-loot.css";
 import "../../styles/guildbank.css";
 
-const BANK_ICON = "achievement_guildperk_mobilebanking";
+const BANK_ICON = "guildbank";
 
 /**
  * No bank of this version on this server yet (#741: never another version's):

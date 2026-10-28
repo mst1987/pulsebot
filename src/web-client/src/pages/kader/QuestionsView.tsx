@@ -307,7 +307,7 @@ function CopyModal({ onClose, onCopied }: { onClose: () => void; onCopied: () =>
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             title={t("kader.questions.copyTitle")}
             width={480}

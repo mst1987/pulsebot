@@ -35,7 +35,7 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
                     options={versions.map((v) => ({ value: v.id, label: v.short, tip: v.label }))} />
                 <span className="re-raid-tpl">
                     {baseTemplate && <Badge tip={t("raidCreate.raid.templateBadge")} tipSub={t("raidCreate.raid.templateBadgeSub")}>{baseTemplate.name}</Badge>}
-                    {canSaveTemplate && <Button variant="ghost" size="sm" icon="inv_misc_note_05" onClick={template.openSave}>{t("raidCreate.raid.saveAsTemplate")}</Button>}
+                    {canSaveTemplate && <Button variant="ghost" size="sm" icon="edit" onClick={template.openSave}>{t("raidCreate.raid.saveAsTemplate")}</Button>}
                 </span>
             </div>
             {canSaveTemplate && template.open && (

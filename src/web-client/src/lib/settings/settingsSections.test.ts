@@ -7,12 +7,13 @@ import {
     SCOPE_PATH, sectionElsewhere, sectionParamIds, sectionsFor, visibleSections, type SettingsGroup,
 } from "./settingsSections";
 import { inLang } from "../../test/i18n";
+import { isUiIcon } from "../ui/iconSet";
 
 const ids = () => SETTINGS_SECTIONS.map((s) => s.id);
 const byId = (id: string) => SETTINGS_SECTIONS.find((s) => s.id === id);
 
 describe("the sections", () => {
-    it("keeps the sections in the menu's two blocks, the server first, each with a WoW icon (#918)", () => {
+    it("keeps the sections in the menu's two blocks, the server first, each with an icon of the set (#918, #951)", () => {
         expect(ids()).toEqual(expect.arrayContaining([
             "berechtigungen", "verbindungen", "discordserver", "kategorien",
             "raids", "raidsheets", "topitems", "logs", "recruitment",
@@ -24,7 +25,7 @@ describe("the sections", () => {
             // a missing text would come back as its key
             const label = sectionLabel(s);
             const crumb = sectionCrumb(s);
-            expect({ id: s.id, icon: /^[a-z0-9_]+$/.test(s.icon), label: !!label && !label.startsWith("settings."), crumb: !!crumb && !crumb.startsWith("settings.") })
+            expect({ id: s.id, icon: isUiIcon(s.icon), label: !!label && !label.startsWith("settings."), crumb: !!crumb && !crumb.startsWith("settings.") })
                 .toEqual({ id: s.id, icon: true, label: true, crumb: true });
         }
         expect(sectionLabel(SETTINGS_SECTIONS[0])).toBe("Berechtigungen");

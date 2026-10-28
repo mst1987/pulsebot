@@ -7,7 +7,7 @@
 //   Alle Server  — what the whole bot shares: the server list and its links,
 //                  the external connections, game versions, dungeons, addons
 //
-// Each section carries a WoW icon, and the two that can be incomplete a count.
+// Each section carries an icon of the app's set (#951), and the two that can be incomplete a count.
 
 import { t } from "../../i18n";
 
@@ -17,7 +17,11 @@ export type SettingsSection = {
     /** Also the key of its texts: settings.sections.<id>.label / .crumb. */
     id: string;
     group: SettingsGroup;
-    /** WoW icon of the sidebar entry and the part head. */
+    /**
+     * Icon of the sidebar entry and the part head: a key of the app's set (#951,
+     * lib/ui/iconSet.ts). The version sections take a glyph too: Classic and
+     * TBC share one launcher icon, and that icon never stands without its label.
+     */
     icon: string;
     /**
      * Full admins only. Mirrors what the API enforces (ACCESS_KEYS with
@@ -33,33 +37,33 @@ export type SettingsSection = {
 
 export const SETTINGS_SECTIONS: SettingsSection[] = [
     // the active server's block
-    { id: "berechtigungen", group: "server", icon: "inv_scroll_11", adminOnly: true },
-    { id: "kategorien", group: "server", icon: "inv_banner_03" },
+    { id: "berechtigungen", group: "server", icon: "permissions", adminOnly: true },
+    { id: "kategorien", group: "server", icon: "categories" },
     // #957 review: which version each of this server's categories plays (and the switch
     // dialog, #738) - settings writers change it, so it never moved to "Alle Server"
-    { id: "kategorieversion", group: "server", icon: "inv_misc_book_11" },
-    { id: "raids", group: "server", icon: "inv_misc_note_02" },
-    { id: "logs", group: "server", icon: "inv_misc_pocketwatch_01" },
-    { id: "recruitment", group: "server", icon: "inv_misc_grouplooking" },
+    { id: "kategorieversion", group: "server", icon: "catalog" },
+    { id: "raids", group: "server", icon: "raids" },
+    { id: "logs", group: "server", icon: "warcraftLogs" },
+    { id: "recruitment", group: "server", icon: "recruitment" },
     // #923: this server's own armory/log links and realm per version, saved on its own
-    { id: "versionlinks", group: "server", icon: "inv_misc_spyglass_02", standalone: true },
-    { id: "raidsheets", group: "server", icon: "inv_scroll_03", standalone: true },
+    { id: "versionlinks", group: "server", icon: "links", standalone: true },
+    { id: "raidsheets", group: "server", icon: "googleSheets", standalone: true },
     // #927: Raid-Helper per server - switch, id, key, the sync and the retirement; full admins only
-    { id: "raidhelper", group: "server", icon: "inv_misc_note_06", adminOnly: true, standalone: true },
+    { id: "raidhelper", group: "server", icon: "raidHelper", adminOnly: true, standalone: true },
     // #957: stays with the server - #952 turns it into a setting per server and version
-    { id: "topitems", group: "server", icon: "inv_misc_bag_10", standalone: true },
+    { id: "topitems", group: "server", icon: "loot", standalone: true },
 
     // the block "Alle Server"
-    { id: "discordserver", group: "global", icon: "inv_letter_15", adminOnly: true, standalone: true },
+    { id: "discordserver", group: "global", icon: "discordServer", adminOnly: true, standalone: true },
     // #925: the one access setting every server shares - the rest is per server (berechtigungen)
-    { id: "vollAdmins", group: "global", icon: "spell_holy_sealofwisdom", adminOnly: true },
-    { id: "verbindungen", group: "global", icon: "inv_misc_horn_01", standalone: true },
+    { id: "vollAdmins", group: "global", icon: "fullAdmin", adminOnly: true },
+    { id: "verbindungen", group: "global", icon: "apiToken", standalone: true },
     // #541: the main game version, hiding the others, version links, features and the launch -
     // the categories that play another one are the server's (kategorieversion)
-    { id: "spielversion", group: "global", icon: "inv_misc_book_09" },
-    { id: "dungeons", group: "global", icon: "spell_holy_borrowedtime" },
+    { id: "spielversion", group: "global", icon: "catalog" },
+    { id: "dungeons", group: "global", icon: "bestTimes" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
-    { id: "addons", group: "global", icon: "inv_gizmo_01", adminOnly: true, standalone: true },
+    { id: "addons", group: "global", icon: "addons", adminOnly: true, standalone: true },
 ];
 
 /** Sidebar entry and the part head's title, in the active language. */

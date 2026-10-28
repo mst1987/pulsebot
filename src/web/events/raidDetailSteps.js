@@ -56,7 +56,7 @@ function signupStep(d) {
     const target = Number(d.signupTarget) || 0;
     const missing = ((d.attendance && d.attendance.missing) || []).length;
     const step = {
-        key: "signup", label: "Anmeldung", icon: "inv_letter_15", open: { modal: "notify" },
+        key: "signup", label: "Anmeldung", icon: "notify", open: { modal: "notify" },
         value: known ? String(signups) : "—", unit: known && target ? `/ ${target}` : "",
         fill: known && target ? Math.min(1, signups / target) : null,
         done: !known || signups > 0 || !!ev.isPast,
@@ -100,7 +100,7 @@ function isOwnEvent(d) {
 function ownSetupStep(d) {
     const s = d.ownSetup || null;
     const ev = d.event || {};
-    const step = { key: "setup", label: "Setup", icon: "inv_misc_map_01", open: { tab: "setup" } };
+    const step = { key: "setup", label: "Setup", icon: "setup", open: { tab: "setup" } };
     if (!s || !s.placed) {
         return {
             ...step, done: false, tone: ev.isPast ? "none" : "mid", value: "—", unit: "",
@@ -133,7 +133,7 @@ function setupStep(d) {
     if (isOwnEvent(d)) return ownSetupStep(d);
     const setup = d.setup;
     const total = (setup && setup.total) || 0;
-    const step = { key: "setup", label: "Setup", icon: "inv_misc_map_01", open: { tab: "roster" }, done: total > 0 };
+    const step = { key: "setup", label: "Setup", icon: "setup", open: { tab: "roster" }, done: total > 0 };
     if (d.setupError) {
         return { ...step, tone: "bad", value: "—", unit: "", badge: { label: "Fehler", tone: "bad" }, tip: { head: "Setup · nicht geladen", sub: d.setupError } };
     }
@@ -157,7 +157,7 @@ function sheetStep(d) {
     const link = d.sheetLink || null;
     const ev = d.event || {};
     const posted = !!(sheet && sheet.postedChannelId && sheet.postedMessageId);
-    const step = { key: "sheet", label: "Raidsheet", icon: "inv_scroll_03", open: { modal: "sheet" }, done: !!link };
+    const step = { key: "sheet", label: "Raidsheet", icon: "googleSheets", open: { modal: "sheet" }, done: !!link };
     if (!link) {
         const configured = (d.raidsheets || []).length > 0;
         return {
@@ -189,7 +189,7 @@ function sheetStep(d) {
 function raidplanStep(d) {
     const rp = d.raidplanPost;
     const posted = !!rp.messageId;
-    const step = { key: "raidplan", label: "Einteilungen", icon: "inv_misc_map02", open: { modal: "raidplan" }, done: posted || !rp.filled };
+    const step = { key: "raidplan", label: "Einteilungen", icon: "raidplan", open: { modal: "raidplan" }, done: posted || !rp.filled };
     if (!rp.filled) {
         return {
             ...step, tone: "none", value: "—", unit: "", badge: { label: "kein Plan" },
@@ -211,7 +211,7 @@ function raidplanStep(d) {
 function softresStep(d) {
     const so = d.eventSoftres || null;
     const ev = d.event || {};
-    const step = { key: "softres", label: "Softres", icon: "inv_misc_ticket_tarot_madness", open: { modal: "softres" }, done: !!(so && so.url) };
+    const step = { key: "softres", label: "Softres", icon: "softres", open: { modal: "softres" }, done: !!(so && so.url) };
     if (!so || !so.url) {
         return {
             ...step, tone: ev.isPast ? "none" : "mid", value: "Offen", unit: "", badge: { label: "offen" },
@@ -230,7 +230,7 @@ function softresStep(d) {
 function lootStep(d) {
     const items = d.lootItems || [];
     const ev = d.event || {};
-    const step = { key: "loot", label: "Loot", icon: "inv_misc_bag_10", open: { tab: "loot" }, done: items.length > 0 };
+    const step = { key: "loot", label: "Loot", icon: "loot", open: { tab: "loot" }, done: items.length > 0 };
     if (!items.length) {
         return {
             ...step, tone: ev.isPast ? "mid" : "none", value: "—", unit: "",
@@ -260,7 +260,7 @@ function logsStep(d) {
     const logs = d.eventLogs || [];
     const ev = d.event || {};
     const open = firstOpenAnalysis(logs);
-    const step = { key: "logs", label: "Logs", icon: "inv_misc_pocketwatch_01", open: { tab: "logs" }, done: logs.length > 0 && !open };
+    const step = { key: "logs", label: "Logs", icon: "logs", open: { tab: "logs" }, done: logs.length > 0 && !open };
     if (!logs.length) {
         return {
             ...step, tone: ev.isPast ? "mid" : "none", value: "—", unit: "",
@@ -283,19 +283,19 @@ function logsStep(d) {
 function primaryFor(step, d) {
     if (!step) return null;
     switch (step.key) {
-        case "signup": return { label: "Anmelde-Aufruf posten", icon: "inv_letter_15", modal: "notify" };
+        case "signup": return { label: "Anmelde-Aufruf posten", icon: "notify", modal: "notify" };
         // The raidplan link only exists at Raid-Helper; an own event opens its setup editor.
         case "setup": return isOwnEvent(d)
-            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup posten" : "Setup bauen", icon: "inv_misc_map_01", tab: "setup" }
-            :{ label: "Raidplan öffnen", icon: "inv_misc_map_01", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
-        case "sheet": return { label: "Raidsheet füllen", icon: "inv_scroll_03", modal: "sheet" };
-        case "raidplan": return { label: "Einteilungen posten", icon: "inv_misc_map02", modal: "raidplan" };
-        case "softres": return { label: "Softres erstellen", icon: "inv_misc_ticket_tarot_madness", modal: "softres" };
-        case "loot": return { label: "Loot hinzufügen", icon: "inv_misc_bag_10", modal: "loot" };
+            ? { label: d.ownSetup && d.ownSetup.placed ? "Setup posten" : "Setup bauen", icon: "setup", tab: "setup" }
+            :{ label: "Raidplan öffnen", icon: "raidHelper", href: `https://raid-helper.xyz/raidplan/${(d.event || {}).id || ""}` };
+        case "sheet": return { label: "Raidsheet füllen", icon: "googleSheets", modal: "sheet" };
+        case "raidplan": return { label: "Einteilungen posten", icon: "raidplan", modal: "raidplan" };
+        case "softres": return { label: "Softres erstellen", icon: "softres", modal: "softres" };
+        case "loot": return { label: "Loot hinzufügen", icon: "loot", modal: "loot" };
         case "logs": {
             const open = firstOpenAnalysis(d.eventLogs || []);
-            if (!open) return { label: "Log zuordnen", icon: "inv_misc_pocketwatch_01", modal: "log" };
-            return { label: `${SECTION_LABELS[open.section]} auswerten`, icon: "inv_misc_pocketwatch_01", evaluate: { logId: open.log.id, section: open.section } };
+            if (!open) return { label: "Log zuordnen", icon: "logs", modal: "log" };
+            return { label: `${SECTION_LABELS[open.section]} auswerten`, icon: "logs", evaluate: { logId: open.log.id, section: open.section } };
         }
         default: return null;
     }
@@ -434,10 +434,10 @@ function createdStep(d) {
     const where = channel ? `in #${channel}` : "in seinem Kanal";
     const when = ev.startTime ? ` und beginnt am ${whenLabel(ev.startTime)}` : "";
     return {
-        id: "created", label: "Angelegt", icon: "inv_misc_note_05", state: "done", fill: null,
+        id: "created", label: "Angelegt", icon: "raids", state: "done", fill: null,
         value: channel ? `#${channel}` : "angelegt", unit: "", note: !channel && ev.startTime ? dayLabel(ev.startTime) : "", noteId: "",
         hint: `Das Event steht ${where}${when}. „Bearbeiten“ ändert Titel, Termin, Raid, Größe und Anmeldeschluss.`,
-        action: deed("edit", "Bearbeiten", "inv_misc_note_05", { manage: "edit" }),
+        action: deed("edit", "Bearbeiten", "edit", { manage: "edit" }),
     };
 }
 
@@ -453,7 +453,7 @@ function signupStepOwn(d, now) {
     if (c.tentative) notes.push(`${c.tentative}× vielleicht`);
     if (!notes.length && c.absence) notes.push(`${c.absence} abgemeldet`);
     const step = {
-        id: "signup", label: "Anmeldung", icon: "inv_letter_15",
+        id: "signup", label: "Anmeldung", icon: "signups",
         value: String(c.accounts), unit: "angemeldet", note: notes.join(" · "), noteId: "",
         fill: size ? Math.min(1, c.attending / size) : null,
     };
@@ -474,9 +474,9 @@ function signupStepOwn(d, now) {
     }
     // Offen: die eine Tat richtet sich danach, woran es gerade hängt.
     let action;
-    if (!c.total) action = deed("notify", "Anmelde-Aufruf posten", "inv_letter_15", { modal: "notify" });
-    else if (missing) action = deed("ping", "Fehlende pingen", "spell_holy_borrowedtime", { modal: "ping" });
-    else action = deed("signups", "Anmeldung schließen", "inv_misc_note_02", { manage: "signups" });
+    if (!c.total) action = deed("notify", "Anmelde-Aufruf posten", "notify", { modal: "notify" });
+    else if (missing) action = deed("ping", "Fehlende pingen", "notify", { modal: "ping" });
+    else action = deed("signups", "Anmeldung schließen", "signups", { manage: "signups" });
     const waiting = c.bench ? " Wer von der Warteliste nachrückt, entscheidest du im Setup." : "";
     const hint = missing
         ? `${plural(missing, "Raider hat", "Raider haben")} mit Raider-Rolle noch nicht reagiert. ${closing}`
@@ -518,8 +518,8 @@ function setupStepOwnBase(d, now) {
     const s = d.ownSetup || null;
     const ev = d.event || {};
     const size = Number(ev.size) || (s && Number(s.size)) || 0;
-    const step = { id: "setup", label: "Setup", icon: "inv_misc_map_01", value: "—", unit: "", note: "", noteId: "", fill: null };
-    const openEditor = deed("setup", "Setup öffnen", "inv_misc_map_01", { tab: "setup" });
+    const step = { id: "setup", label: "Setup", icon: "setup", value: "—", unit: "", note: "", noteId: "", fill: null };
+    const openEditor = deed("setup", "Setup öffnen", "setup", { tab: "setup" });
     if (s && s.placed) {
         const checks = s.ok === false ? ", die Prüfung meldet noch etwas" : "";
         return {
@@ -542,7 +542,7 @@ function setupStepOwnBase(d, now) {
         hint: ev.autoSuggest
             ? "Zieh die Angemeldeten direkt in die Gruppen – oder warte: zum Anmeldeschluss legt der Bot einen Entwurf an, solange noch niemand eingeteilt ist."
             : "Zieh die Angemeldeten direkt in die Gruppen. „Automatisch füllen“ verteilt sie auf Wunsch für dich.",
-        action: deed("propose", "Setup bauen", "inv_misc_map_01", { tab: "setup" }),
+        action: deed("propose", "Setup bauen", "setup", { tab: "setup" }),
     };
 }
 
@@ -557,7 +557,7 @@ function dmNote(post) {
 function approvalStep(d, now) {
     const s = d.ownSetup || null;
     const post = d.ownSetupPost || null;
-    const step = { id: "approval", label: "Freigabe", icon: "inv_misc_note_02", value: "—", unit: "", note: "", noteId: "", fill: null };
+    const step = { id: "approval", label: "Freigabe", icon: "setup", value: "—", unit: "", note: "", noteId: "", fill: null };
     // where the setup stands: one reading with the Orga-Zentrale (services/setup/setupCore.js setupPhase)
     const phase = setupPhase(s, post);
     if (phase === "none") {
@@ -580,7 +580,7 @@ function approvalStep(d, now) {
             hint: outdated
                 ? `Freigegeben als Stand ${s.version}. Die Nachricht im Kanal zeigt noch Stand ${post.version} — „Setup posten“ bringt sie nach.`
                 : `Freigegeben als Stand ${s.version}. Raider sehen die Gruppen im Web, in der Anmelde-Nachricht und im Bot.${dms}`,
-            action: outdated ? deed("post", "Setup posten", "inv_letter_15", { tab: "setup" }) : null,
+            action: outdated ? deed("post", "Setup posten", "discord", { tab: "setup" }) : null,
         };
     }
     if (d.event && d.event.isPast) {
@@ -596,7 +596,7 @@ function approvalStep(d, now) {
         hint: phase === "changed"
             ? "Die Raider sehen noch den zuletzt geposteten Stand. Erst „Setup posten“ macht die Änderung sichtbar."
             : "Der Entwurf steht, gepostet ist er nicht — Raider sehen noch nichts. Im Editor prüfen und „Setup posten“ (das gibt ihn zugleich frei).",
-        action: deed("approve", "Setup posten", "inv_misc_note_02", { tab: "setup" }),
+        action: deed("approve", "Setup posten", "discord", { tab: "setup" }),
     };
 }
 
@@ -608,13 +608,13 @@ function approvalStep(d, now) {
 function planStepOwn(d) {
     const rp = d.raidplanPost || null;
     const ev = d.event || {};
-    const step = { id: "plan", label: "Einteilungen", icon: "inv_misc_map02", value: "—", unit: "", note: "", noteId: "", fill: null };
-    const post = deed("raidplan", "Einteilungen posten", "inv_letter_15", { modal: "raidplan" });
+    const step = { id: "plan", label: "Einteilungen", icon: "raidplan", value: "—", unit: "", note: "", noteId: "", fill: null };
+    const post = deed("raidplan", "Einteilungen posten", "discord", { modal: "raidplan" });
     if (!rp || !rp.filled) {
         return {
             ...step, state: "todo", ...fixedNote("planEmpty"),
             hint: "Im Tab „Raidplan“ die Bosse einteilen und speichern — danach kommt der Link zu den Einteilungen in den Kanal.",
-            action: deed("plan", "Raidplan öffnen", "inv_misc_map02", { tab: "plan" }),
+            action: deed("plan", "Raidplan öffnen", "raidplan", { tab: "plan" }),
         };
     }
     if (rp.messageId) {
@@ -642,7 +642,7 @@ function afterStep(d) {
     const open = firstOpenAnalysis(logs);
     const ev = d.event || {};
     const step = {
-        id: "after", label: "Nachbereitung", icon: "inv_misc_pocketwatch_01", fill: null,
+        id: "after", label: "Nachbereitung", icon: "logs", fill: null,
         value: logs.length ? String(logs.length) : "—",
         unit: logs.length ? (logs.length === 1 ? "Log" : "Logs") : "",
         ...(loot ? { note: plural(loot, "Item", "Items"), noteId: "" } : fixedNote("noLoot")),
@@ -657,13 +657,13 @@ function afterStep(d) {
     let action;
     let hint;
     if (!logs.length) {
-        action = deed("log", "Log zuordnen", "inv_misc_pocketwatch_01", { modal: "log" });
+        action = deed("log", "Log zuordnen", "logs", { modal: "log" });
         hint = "Noch kein Log zugeordnet. Ein erkanntes Log oder einen Warcraft-Logs-Link diesem Raid zuordnen.";
     } else if (open) {
-        action = deed("evaluate", `${SECTION_LABELS[open.section]} auswerten`, "inv_misc_pocketwatch_01", { evaluate: { logId: open.log.id, section: open.section } });
+        action = deed("evaluate", `${SECTION_LABELS[open.section]} auswerten`, "logs", { evaluate: { logId: open.log.id, section: open.section } });
         hint = `${SECTION_LABELS[open.section]} fehlt noch. CLA prüft Gear, Consumables und Buffs, RPB Schaden, Tode, Aktivität und Cooldowns.`;
     } else {
-        action = deed("loot", "Loot importieren", "inv_misc_bag_10", { modal: "loot" });
+        action = deed("loot", "Loot importieren", "loot", { modal: "loot" });
         hint = "Die Auswertung liegt vor, der Loot fehlt. Gargul- oder RCLootcouncil-Export importieren.";
     }
     return { ...step, state: "open", hint, action };

@@ -66,7 +66,7 @@ export default function LootSystemModal({ ctx, open, onClose }: { ctx: RaidCtx; 
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_bag_10"
+            open={open} onClose={onClose} icon="loot"
             kicker={data.event.title} title={t("raidModals.lootSystem.title")} width={560}
             hint={catText}
             footer={(

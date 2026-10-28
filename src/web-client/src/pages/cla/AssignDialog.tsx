@@ -36,7 +36,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
         <Modal
             open={!!row}
             onClose={onClose}
-            icon="inv_misc_note_02"
+            icon="raids"
             kicker={row ? t("cla.assign.kicker", { title: row.title, posted: fmtPosted(row.postedAt) }) : ""}
             title={t("cla.assign.title")}
             width={720}
@@ -47,7 +47,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                         <Button variant="danger" icon={<TrashIcon />} className="la-foot-left" onClick={() => onUnlink(row)}>{t("cla.assign.unlink")}</Button>
                     )}
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button variant="go" icon="inv_misc_note_02" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>{t("cla.assign.submit")}</Button>
+                    <Button variant="go" icon="raids" disabled={!picked || picked === row.eventId} onClick={() => onAssign(row, picked)}>{t("cla.assign.submit")}</Button>
                 </>
             )}
         >
@@ -55,7 +55,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                 <div className="la-assign">
                     {row.eventId && (
                         <div className="la-assign-now">
-                            <Badge tone="accent" icon="inv_misc_note_02" className="plain">
+                            <Badge tone="accent" icon="raids" className="plain">
                                 {row.eventLabel || row.eventId}{row.eventStartTime ? ` · ${fmtEventDay(row.eventStartTime)}` : ""}
                             </Badge>
                             <span className="la-muted">{tParts("cla.assign.linked", { how: row.eventLinkSource === "auto" ? t("cla.assign.auto") : t("cla.assign.manual") })}</span>
@@ -85,7 +85,7 @@ export function AssignDialog({ row, onClose, onAssign, onUnlink }: {
                                                 <span className="la-meta">{formatEventTime(c.startTime)}{c.categoryName ? ` · ${c.categoryName}` : ""}</span>
                                             </span>
                                             <span className="la-badges la-badges-end">
-                                                <Badge tone={Math.abs(c.diffMs) === nearest ? "ok" : "mid"} icon="spell_holy_borrowedtime">{formatMatchOffset(c.diffMs)}</Badge>
+                                                <Badge tone={Math.abs(c.diffMs) === nearest ? "ok" : "mid"} icon="absences">{formatMatchOffset(c.diffMs)}</Badge>
                                                 {c.sameCategory && <Badge tone="accent" className="plain">{t("cla.assign.sameCategory")}</Badge>}
                                                 {c.eventId === row.eventId && <Badge className="plain">{t("cla.assign.current")}</Badge>}
                                             </span>

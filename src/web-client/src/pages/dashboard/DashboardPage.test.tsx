@@ -161,12 +161,11 @@ describe("Übersicht (DashboardPage)", () => {
         expect(screen.queryByText(t("dashboard.next.cancelled"))).not.toBeInTheDocument();
     });
 
-    it("offers a new raid event with a WoW icon, no line icon", async () => {
+    it("offers a new raid event with the raids icon of the set", async () => {
         await showPage(dashboard());
         const link = screen.getByRole("link", { name: t("dashboard.page.newRaid") });
         expect(link).toHaveAttribute("href", "/raids/new");
-        expect(link.querySelector("img")?.getAttribute("src")).toContain("inv_misc_note_02");
-        expect(link.querySelector("svg")).toBeNull();
+        expect(link.querySelector("[data-icon=raids]")).not.toBeNull();
     });
 
     it("loads the tiles of the menu's content version and follows a switch (#563)", async () => {

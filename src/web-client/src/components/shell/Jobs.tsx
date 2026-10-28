@@ -58,8 +58,8 @@ export type JobSpec<T> = {
      */
     quiet?: boolean;
     /**
-     * WoW icon name of the action ("spell_holy_borrowedtime" for an evaluation,
-     * "inv_gizmo_02" for a simulation). The toast shows it with the status as a
+     * Icon of the action, a key of the app's set or a WoW icon name ("simulate"
+     * for an evaluation or a simulation). The toast shows it with the status as a
      * dot on its corner; without one the toast shows the dot alone.
      */
     icon?: string;

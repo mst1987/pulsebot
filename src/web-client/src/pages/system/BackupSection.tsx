@@ -122,14 +122,14 @@ export default function BackupSection() {
     return (
         <section className="sy-section sy-backup" aria-label={t("system.backup.title")}>
             <PartHead
-                icon="inv_misc_bag_10"
+                icon="system"
                 tone="system"
                 title={t("system.backup.title")}
                 crumb={data ? t(`system.backup.crumb.${data.light}`) : undefined}
                 tip={t("system.backup.title")}
                 tipSub={`${t("system.backup.tip")}\n${t("system.backup.tipSub")}`}
                 action={(
-                    <Button variant="run" icon="inv_misc_bag_10" running={running} onClick={run} data-tip={t("system.backup.nowTip")}>
+                    <Button variant="run" icon="system" running={running} onClick={run} data-tip={t("system.backup.nowTip")}>
                         {t("system.backup.now")}
                     </Button>
                 )}

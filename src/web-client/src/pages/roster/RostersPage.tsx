@@ -126,7 +126,7 @@ function EmptyCategoryCard({ category, onCreate }: { category: RosterOverview["c
     return (
         <li className="rn-card rn-card-empty">
             <div className="rn-card-top">
-                <IconTile icon="inv_misc_note_02" tone="none" size="lg" />
+                <IconTile icon="roster" tone="none" size="lg" />
                 <div className="rn-card-title">
                     <b>{category.name}</b>
                     <VersionLine versionId={category.versionId} parts={[category.versionLabel]} />
@@ -164,7 +164,7 @@ function RosterOverviewPage() {
     return (
         <div className="rn-page">
             <PageHead
-                icon="achievement_guildperk_everybodysfriend"
+                icon="roster"
                 tone="roster"
                 kicker={kicker.join(" · ")}
                 title={t("roster.overview.title")}

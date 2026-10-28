@@ -405,7 +405,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
-        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, color: defaultColorOf(v.id) })),
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, icon: v.icon || "", color: defaultColorOf(v.id) })),
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),

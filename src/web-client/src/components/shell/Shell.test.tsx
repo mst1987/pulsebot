@@ -41,7 +41,7 @@ const entry = (name: string) => within(nav()).getByRole("link", { name });
 const entryAt = (href: string) => within(nav()).getAllByRole("link").find((a) => a.getAttribute("href") === href)!;
 
 describe("the sidebar", () => {
-    it("is rendered from the shared menu file, every top-level entry with its WoW icon", () => {
+    it("is rendered from the shared menu file, every top-level entry with its icon of the set", () => {
         showShell(adminUser());
         // a line with a landing page (Discord → its overview) leads there; the server's
         // pages come first, the pages without a server below "Alle Server" (#918)
@@ -51,7 +51,9 @@ describe("the sidebar", () => {
         for (const e of MENU.filter((m) => !m.sub)) {
             const link = entryAt(e.landing ?? e.href);
             expect(link).toHaveAccessibleName(tOr(`shell.menu.${e.id}`, e.label));
-            expect(link.querySelector("img")?.getAttribute("src")).toContain(e.wowIcon);
+            // the app's own icon set (#951): an inline SVG, no zamimg image
+            expect(link.querySelector("svg.uic")).not.toBeNull();
+            expect(link.querySelector("img")).toBeNull();
         }
     });
 

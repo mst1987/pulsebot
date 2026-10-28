@@ -146,7 +146,7 @@ export function CompareTab({ roster, view, patch, contents }: {
     return (
         <>
             <Part
-                icon="achievement_guildperk_everybodysfriend"
+                icon="roster"
                 crumb={t("lootcouncil.compare.raidersCrumb")}
                 title={t("lootcouncil.compare.raidersTitle")}
                 hint={t("lootcouncil.compare.raidersHint", { active: active.length, total: roster.length })}
@@ -190,7 +190,7 @@ export function CompareTab({ roster, view, patch, contents }: {
 
             <Part
                 tone="accent"
-                icon="inv_misc_bag_10"
+                icon="loot"
                 crumb={t("lootcouncil.compare.matrixCrumb")}
                 title={t("lootcouncil.tabs.compare")}
                 hint={t("lootcouncil.compare.matrixHint", { items: itemCount, raids: groups.length })}

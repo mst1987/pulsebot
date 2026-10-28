@@ -81,9 +81,9 @@ export function SearchModal({ open, onClose, ctx, search }: { open: boolean; onC
     };
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_spyglass_02" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={780}
+            open={open} onClose={onClose} icon="search" tone="raids" kicker={t("setup.search.kicker")} title={t("setup.search.title")} width={780}
             hint={t("setup.search.hint")}
-            footer={<Button variant="run" icon="inv_letter_15" running={posting} disabled={!search || !text.trim() || text.length > 2000 || writing} onClick={post}>{t("setup.search.post")}</Button>}
+            footer={<Button variant="run" icon="message" running={posting} disabled={!search || !text.trim() || text.length > 2000 || writing} onClick={post}>{t("setup.search.post")}</Button>}
         >
             {!search ? <p className="se-note">{t("setup.search.none")}</p> : (
                 <div className="se-search">

@@ -140,20 +140,20 @@ export default function HistoryPage() {
     const head = (
         <div className="hl-page">
             <PageHead
-                icon="inv_misc_bag_10"
+                icon="loot"
                 tone="history"
                 kicker={guildName || t("history.page.guild")}
                 title={t("history.shared.kicker")}
                 action={(fullHistory || canWrite) ? (
                     <>
                         {fullHistory && (
-                            <Button variant="ghost" className="hl-inbox-btn" icon="inv_letter_18" onClick={() => navigate("/history/inbox")}>
+                            <Button variant="ghost" className="hl-inbox-btn" icon="message" onClick={() => navigate("/history/inbox")}>
                                 {t("history.page.inbox")}
                                 {inboxCount > 0 && <> · {tParts("history.page.inboxOpen", { count: inboxCount })}</>}
                             </Button>
                         )}
                         {canWrite && (
-                            <Button icon="inv_scroll_03" disabled={!data} onClick={() => setImportOpen(true)}>{t("history.page.import")}</Button>
+                            <Button icon="import" disabled={!data} onClick={() => setImportOpen(true)}>{t("history.page.import")}</Button>
                         )}
                     </>
                 ) : undefined}

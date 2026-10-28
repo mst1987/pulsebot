@@ -21,10 +21,10 @@ const { kaderVersionIds } = require("../kader/kaderVersions");
 const settingsStore = require("../../stores/settingsStore");
 const { buildVersionContext, eventVersion } = require("../characters/characterVersions");
 
-/** `{ id, label, short, color, custom }` of a version for the client: its colour (#742) and whether the setting changed it. */
+/** `{ id, label, short, icon, color, custom }` of a version for the client: its launcher icon (#951), its colour (#742) and whether the setting changed it. */
 function versionInfo(v, config) {
     const { color, custom } = versionColor(v.id, { config });
-    return { id: v.id, label: v.label, short: v.short || v.label, color, custom };
+    return { id: v.id, label: v.label, short: v.short || v.label, icon: v.icon || "", color, custom };
 }
 
 /** Every version something is stored for: events, categories, templates, characters, loot, Kader of the Kaderplaner. */

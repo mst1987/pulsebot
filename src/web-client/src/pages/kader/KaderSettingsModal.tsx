@@ -66,7 +66,7 @@ export default function KaderSettingsModal({ mode, view, me = "", onClose, run, 
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             title={mode === "create" ? t("kader.settings.createTitle") : t("kader.settings.title")}
             width={560}

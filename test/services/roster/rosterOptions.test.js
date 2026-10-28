@@ -112,7 +112,7 @@ describe("services/roster/rosterOptions", () => {
         expect(rosterOptions({ guildId: "g1", config: split, versionId: "tbc" }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
         expect(rosterOptions({ guildId: "g1", config: { ...split, hideOtherVersions: true } }).categories.map((c) => c.id)).toEqual(["700000000000000002"]);
         expect(opts.versions.map((v) => v.id)).toEqual(expect.arrayContaining(["tbc", "forever"]));
-        expect(opts.versions.find((v) => v.id === "tbc").icon).toBe("expansionicon_burningcrusade");
+        expect(opts.versions.find((v) => v.id === "tbc").icon).toBe("/versions/classic.png");
         expect(rosterOptions({ guildId: "g1", canSeeKader: false }).kaders).toEqual([]);
         const none = rosterOptions({});
         expect(none).toEqual(expect.objectContaining({ guildId: "", canManageRoles: false, online: false, roles: [] }));

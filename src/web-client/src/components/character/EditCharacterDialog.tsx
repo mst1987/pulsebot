@@ -94,7 +94,7 @@ export default function EditCharacterDialog({ character, classes, lastName = fal
         <Modal
             open
             onClose={onClose}
-            icon={classes.find((c) => c.id === character.className)?.icon || "achievement_character_human_male"}
+            icon={classes.find((c) => c.id === character.className)?.icon || "profile"}
             tone="profile"
             kicker={owner ? t("profile.edit.kickerOf", { owner }) : t("profile.title")}
             title={t("profile.edit.title", { name: character.name })}
@@ -112,8 +112,8 @@ export default function EditCharacterDialog({ character, classes, lastName = fal
                 value={way}
                 onChange={(v) => { setWay(v); setError(""); }}
                 options={[
-                    { value: "log", label: t("profile.edit.wayLog"), icon: "inv_misc_pocketwatch_01" },
-                    { value: "manual", label: t("profile.edit.wayManual"), icon: "inv_scroll_03" },
+                    { value: "log", label: t("profile.edit.wayLog"), icon: "logs" },
+                    { value: "manual", label: t("profile.edit.wayManual"), icon: "edit" },
                 ]}
             />
 

@@ -45,7 +45,7 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
         }
     };
     const rotate = async () => {
-        if (!(await ask({ title: t("raidBoard.share.rotateTitle"), text: t("raidBoard.share.rotateText"), action: t("raidBoard.share.rotate"), tone: "primary", icon: "inv_misc_key_03" }))) return;
+        if (!(await ask({ title: t("raidBoard.share.rotateTitle"), text: t("raidBoard.share.rotateText"), action: t("raidBoard.share.rotate"), tone: "primary", icon: "permissions" }))) return;
         onRotate();
     };
 
@@ -60,7 +60,7 @@ export default function ShareModal({ open, onClose, published, publicPath, dirty
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_note_02" title={t("raidBoard.share.title")} width={520}
+            open={open} onClose={onClose} icon="links" title={t("raidBoard.share.title")} width={520}
             footer={(
                 <>
                     {published && <Button variant="no" onClick={() => onPublish(false)} disabled={busy}>{t("raidBoard.share.unpublish")}</Button>}

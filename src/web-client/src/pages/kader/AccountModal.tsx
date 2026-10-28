@@ -216,7 +216,7 @@ export default function AccountModal({ userId, onClose }: { userId: string; onCl
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             kicker={player.hasProfile ? t("kader.account.withProfile") : t("kader.account.manual")}
             title={`@${player.displayName}`}

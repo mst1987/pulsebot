@@ -60,7 +60,7 @@ function EventRadio({ ev, checked, onPick, aside }: {
     return (
         <button type="button" role="radio" aria-checked={checked} className={`hl-radio${checked ? " on" : ""}`} onClick={onPick}>
             <span className="dot" aria-hidden="true" />
-            <IconTile icon="inv_misc_note_02" tone={checked ? undefined : "none"} />
+            <IconTile icon="raids" tone={checked ? undefined : "none"} />
             <span className="txt">
                 <b>{ev.eventLabel}</b>
                 <small>{[ev.startTime ? formatEventTime(ev.startTime) : "", ev.categoryName].filter(Boolean).join(" · ")}</small>
@@ -227,7 +227,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
             </div>
 
             <div className="hl-session-foot">
-                <Button variant="go" icon="inv_misc_bag_10" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>{t("common.apply")}</Button>
+                <Button variant="go" icon="loot" onClick={accept} disabled={!!busy || !eventId} running={busy === "accept"}>{t("common.apply")}</Button>
                 <Button variant="ghost" onClick={() => setLootOpen(true)}>{t("history.shared.viewLoot")}</Button>
                 {disabledReason && <span className="muted">{disabledReason}</span>}
                 <IconButton

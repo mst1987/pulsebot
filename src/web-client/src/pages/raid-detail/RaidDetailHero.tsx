@@ -201,7 +201,7 @@ export default function RaidDetailHero({ data, user, orga, canAct = orga, allows
                 <div className="rd-hero-actions">
                     {missing && (
                         <Badge
-                            tone="bad" icon="inv_letter_15" tip={t("raidDetail.hero.channelMissing")}
+                            tone="bad" icon="channels" tip={t("raidDetail.hero.channelMissing")}
                             tipSub={onRecreateChannel ? t("raidDetail.hero.channelMissingSub") : t("raidDetail.hero.channelMissingSubReader")}
                         >
                             {t("raidDetail.hero.channelMissing")}

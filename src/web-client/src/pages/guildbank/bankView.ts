@@ -106,7 +106,7 @@ export function isDirectItemInput(text: string): boolean {
 }
 
 /** The WoW icon of the "Warteliste" dialogs (#775). */
-export const WAITLIST_ICON = "inv_misc_pocketwatch_01";
+export const WAITLIST_ICON = "absences";
 
 /** How many waiting-list entries wait over the listed items (the head's "N warten"). */
 export function waitingTotal(items: GuildBankItem[]): number {

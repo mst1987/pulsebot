@@ -48,7 +48,7 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
         <div className="ov-dlg-grid">
             <div className="ov-dlg-col">
                 <SectHead
-                    icon="achievement_guildperk_everybodysfriend" title={t("dashboard.raidDetails.signups")}
+                    icon="signups" title={t("dashboard.raidDetails.signups")}
                     count={<Badge tone="accent" count className="ov-push">{raid.signupCount}/{planned}</Badge>}
                 />
                 <div>
@@ -76,22 +76,22 @@ function Details({ raid, guildId }: { raid: NextRaidDetails; guildId: string }) 
             </div>
 
             <div className="ov-dlg-col">
-                <SectHead icon="inv_misc_note_01" tone="mid" title={t("dashboard.raidDetails.prep")} />
+                <SectHead icon="tasks" tone="mid" title={t("dashboard.raidDetails.prep")} />
                 <div className="ov-glist">
-                    {usesSheet(raid) && check(!!raid.sheet, "inv_misc_note_02", t("dashboard.raidDetails.raidsheet"), raid.sheet ? (raid.sheet.playerCount ? t("dashboard.raidDetails.players", { count: raid.sheet.playerCount }) : t("dashboard.raidDetails.present")) : t("dashboard.raidDetails.missing"),
+                    {usesSheet(raid) && check(!!raid.sheet, "googleSheets", t("dashboard.raidDetails.raidsheet"), raid.sheet ? (raid.sheet.playerCount ? t("dashboard.raidDetails.players", { count: raid.sheet.playerCount }) : t("dashboard.raidDetails.present")) : t("dashboard.raidDetails.missing"),
                         raid.sheet?.url ? { href: raid.sheet.url, tip: t("dashboard.raidDetails.openSheet") } : undefined)}
-                    {check(raid.setupCount > 0, "inv_misc_groupneedmore", t("dashboard.raidDetails.setupComp"), raid.setupCount ? t("dashboard.raidDetails.setCount", { count: raid.setupCount }) : t("dashboard.raidDetails.open"),
+                    {check(raid.setupCount > 0, "setup", t("dashboard.raidDetails.setupComp"), raid.setupCount ? t("dashboard.raidDetails.setCount", { count: raid.setupCount }) : t("dashboard.raidDetails.open"),
                         raidplanUrl(raid.id) ? { href: raidplanUrl(raid.id), tip: t("dashboard.raidDetails.openRaidplan") } : undefined)}
                     {raid.lootSystem && !raid.lootSystem.softres
-                        ? check(true, "inv_misc_bag_10", t("dashboard.raidDetails.lootSystem"), raid.lootSystem.label)
-                        : check(!!raid.softres, "inv_scroll_11", t("dashboard.raidDetails.softres"), raid.softres ? t("dashboard.raidDetails.created") : t("dashboard.raidDetails.missing"),
+                        ? check(true, "loot", t("dashboard.raidDetails.lootSystem"), raid.lootSystem.label)
+                        : check(!!raid.softres, "softres", t("dashboard.raidDetails.softres"), raid.softres ? t("dashboard.raidDetails.created") : t("dashboard.raidDetails.missing"),
                             raid.softres ? { href: raid.softres.url, tip: t("dashboard.raidDetails.openSoftres") } : undefined)}
-                    {check(!!eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState), "inv_letter_15", t("dashboard.raidDetails.discordPost"), eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) ? t("dashboard.raidDetails.posted") : t("dashboard.raidDetails.unknown"),
+                    {check(!!eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState), "discord", t("dashboard.raidDetails.discordPost"), eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) ? t("dashboard.raidDetails.posted") : t("dashboard.raidDetails.unknown"),
                         eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState) ? { href: eventPostUrl(guildId, raid.channelId, raid.id, raid.channelState), tip: t("dashboard.raidDetails.openDiscord") } : undefined)}
                 </div>
 
                 <SectHead
-                    icon="spell_holy_borrowedtime" tone="mid" title={t("dashboard.raidDetails.notSignedUp")}
+                    icon="absences" tone="mid" title={t("dashboard.raidDetails.notSignedUp")}
                     count={raid.rolesConfigured && !raid.membersError
                         ? <Badge tone={raid.notSignedUp.length ? "mid" : "ok"} count className="ov-push">{raid.notSignedUp.length}</Badge>
                         : undefined}
@@ -160,7 +160,7 @@ export default function RaidDetailsModal({ eventId, guildId, title, icon, onClos
                     {raid && usesSheet(raid) && !raid.sheet
                         ? (
                             <Link className={buttonClass("primary", "md", true)} to={detailHref}>
-                                <WowIcon name="inv_misc_note_02" size={22} />{t("dashboard.raidDetails.fillSheet")}
+                                <WowIcon name="googleSheets" size={22} />{t("dashboard.raidDetails.fillSheet")}
                             </Link>
                         )
                         : (

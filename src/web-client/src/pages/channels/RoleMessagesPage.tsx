@@ -201,7 +201,7 @@ export default function RoleMessagesPage() {
     return (
         <div className="rm-page">
             <PageHead
-                icon="inv_shirt_guildtabard_01"
+                icon="message"
                 tone="channels"
                 kicker={t("roleMessages.page.kicker")}
                 title={t("roleMessages.page.title")}
@@ -237,7 +237,7 @@ export default function RoleMessagesPage() {
             <Modal
                 open={canWrite && !!editor.open}
                 onClose={close}
-                icon="inv_shirt_guildtabard_01"
+                icon="message"
                 tone="channels"
                 kicker={entry ? t("roleMessages.modal.kickerEdit") : t("roleMessages.modal.kickerNew")}
                 title={entry ? entry.title : t("roleMessages.page.new")}

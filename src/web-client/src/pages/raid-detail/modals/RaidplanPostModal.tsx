@@ -45,14 +45,14 @@ export default function RaidplanPostModal({ ctx, open, onClose }: { ctx: RaidCtx
     if (rp?.filled) sub = rp.published ? t("raidModals.raidplan.publishedHint") : t("raidModals.raidplan.draftHint");
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_map02" tone="raids"
+            open={open} onClose={onClose} icon="raidplan" tone="raids"
             kicker={ev.title} title={t("raidModals.raidplan.title")} width={560}
             hint={channel ? t("raidModals.shared.inChannel", { channel }) : undefined}
             footer={<Button variant="ghost" onClick={onClose}>{t("common.close")}</Button>}
         >
             <div className="rd-dlg-stack">
                 <div className="rd-sheetrow">
-                    <IconTile icon="inv_misc_map02" tone={rp?.filled ? "ok" : "none"} />
+                    <IconTile icon="raidplan" tone={rp?.filled ? "ok" : "none"} />
                     <span className="rd-sheetrow-text">
                         <b>{!rp?.filled ? t("raidModals.raidplan.empty") : rp.published ? t("raidModals.raidplan.published") : t("raidModals.raidplan.draft")}</b>
                         <span className="rd-muted">{sub}</span>
@@ -73,7 +73,7 @@ export default function RaidplanPostModal({ ctx, open, onClose }: { ctx: RaidCtx
                                 <label htmlFor="rd-plan-msg">{t("raidModals.shared.message")} <span className="rd-muted">{t("raidModals.shared.optional")}</span></label>
                                 <input id="rd-plan-msg" type="text" maxLength={500} value={message} onChange={(e) => setMessage(e.target.value)} placeholder={t("raidModals.raidplan.messagePlaceholder")} />
                             </div>
-                            <Button icon="inv_letter_15" running={posting} onClick={post}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.raidplan.post")}</Button>
+                            <Button icon="discord" running={posting} onClick={post}>{posted ? t("raidModals.shared.updateMessage") : t("raidModals.raidplan.post")}</Button>
                         </div>
                         {posted && (
                             <a className="mlink rd-small" href={messageLink(data.guildId, rp.channelId, rp.messageId)} target="_blank" rel="noopener noreferrer">

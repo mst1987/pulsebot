@@ -67,7 +67,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
     const wclOk = connectionState("wcl", connectionInputs(data, tokens)).tone === "ok";
     const all: Card[] = [
         {
-            id: "discord", title: "Discord & Raid-Helper", icon: "inv_letter_15", adminOnly: true,
+            id: "discord", title: "Discord & Raid-Helper", icon: "discord", adminOnly: true,
             tip: "Discord & Raid-Helper",
             tipSub: t("settings.connections.discordSub"),
             rows: [
@@ -88,7 +88,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             ],
         },
         {
-            id: "wcl", title: "Warcraft Logs", icon: "inv_misc_spyglass_02", adminOnly: true,
+            id: "wcl", title: "Warcraft Logs", icon: "search", adminOnly: true,
             tip: "Warcraft Logs API v2",
             tipSub: t("settings.connections.wclSub"),
             rows: [
@@ -98,7 +98,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             ],
         },
         {
-            id: "anthropic", title: t("settings.connections.aiTitle"), icon: "inv_misc_book_11", adminOnly: true,
+            id: "anthropic", title: t("settings.connections.aiTitle"), icon: "catalog", adminOnly: true,
             tip: t("settings.connections.aiTip"),
             tipSub: t("settings.connections.aiSub"),
             rows: [
@@ -109,7 +109,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
         },
         {
             // #818: the private addon repos of the page "Addons"
-            id: "github", title: t("settings.connections.githubTitle"), icon: "inv_gizmo_01", adminOnly: true,
+            id: "github", title: t("settings.connections.githubTitle"), icon: "addons", adminOnly: true,
             tip: t("settings.connections.githubTip"),
             tipSub: t("settings.connections.githubSub"),
             rows: [
@@ -118,7 +118,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             ],
         },
         {
-            id: "lootsync", title: t("settings.connections.lootSyncTitle"), icon: "inv_misc_punchcards_blue", adminOnly: true,
+            id: "lootsync", title: t("settings.connections.lootSyncTitle"), icon: "apiToken", adminOnly: true,
             tip: t("settings.connections.lootSyncTip"),
             tipSub: t("settings.connections.lootSyncSub"),
             rows: [
@@ -467,7 +467,7 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
         <Modal
             open={open}
             onClose={close}
-            icon="inv_misc_punchcards_blue"
+            icon="apiToken"
             tone="settings"
             kicker={t("settings.editKicker")}
             title={t("settings.tokens.title")}
@@ -496,7 +496,7 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
                     <FieldLabel htmlFor="token-name" tip={t("settings.tokens.new")} tipSub={t("settings.tokens.newSub")}>{t("settings.tokens.new")}</FieldLabel>
                     <div className="secret-row">
                         <input id="token-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.tokens.namePlaceholder")} />
-                        <Button icon="inv_misc_punchcards_blue" onClick={create} disabled={busy}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
+                        <Button icon="apiToken" onClick={create} disabled={busy}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
                     </div>
                 </div>
                 {!tokens ? <RaidLoader compact text={t("settings.tokens.loading")} /> : !tokens.length ? (

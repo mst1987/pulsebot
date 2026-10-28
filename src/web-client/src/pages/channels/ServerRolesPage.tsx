@@ -58,7 +58,7 @@ export default function ServerRolesPage() {
     return (
         <div className="drl-page">
             <PageHead
-                icon="achievement_guildperk_everybodysfriend" tone="channels"
+                icon="roles" tone="channels"
                 kicker={data && data.guildName ? `${t("discord.roles.page.kicker")} · ${data.guildName}` : t("discord.roles.page.kicker")}
                 title={t("discord.roles.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}

@@ -57,9 +57,9 @@ export function RaiderHints({ raider }: { raider: CouncilRaider }) {
         out.push(<Badge key="nogear" tip={t("lootcouncil.candidates.noGearTip")} tipSub={t("lootcouncil.list.noGearTipSub")}>{t("lootcouncil.candidates.noGear")}</Badge>);
     } else {
         if (g.source === "armory") {
-            out.push(<Badge key="src" tone="accent" icon="inv_shield_06" tip={t("lootcouncil.list.armoryTip")} tipSub={t("lootcouncil.list.armoryTipSub", { date: fmtMs(g.armoryAt, true) })}>Armory</Badge>);
+            out.push(<Badge key="src" tone="accent" icon="armory" tip={t("lootcouncil.list.armoryTip")} tipSub={t("lootcouncil.list.armoryTipSub", { date: fmtMs(g.armoryAt, true) })}>Armory</Badge>);
         } else if (g.source === "wcl") {
-            out.push(<Badge key="src" tone="accent" icon="inv_scroll_03" tip={t("lootcouncil.list.logTip")} tipSub={t("lootcouncil.list.logTipSub", { title: t("common.quoted", { text: g.reportTitle }), date: fmtMs(g.wclAt, true) })}>Log</Badge>);
+            out.push(<Badge key="src" tone="accent" icon="warcraftLogs" tip={t("lootcouncil.list.logTip")} tipSub={t("lootcouncil.list.logTipSub", { title: t("common.quoted", { text: g.reportTitle }), date: fmtMs(g.wclAt, true) })}>Log</Badge>);
         }
         if (g.pvpGear) {
             out.push(<Badge key="pvp" tone="bad" tip={t("lootcouncil.gear.pvpGear")} tipSub={t("lootcouncil.list.pvpTipSub")}>{t("lootcouncil.gear.pvpGear")}</Badge>);

@@ -54,7 +54,7 @@ export default function RaiderCharactersModal({ categoryId, categoryName, onClos
         <Modal
             open
             onClose={onClose}
-            icon="ability_rogue_disguise"
+            icon="profile"
             tone="settings"
             kicker={t("settings.raiderChars.kicker", { name: categoryName })}
             title={t("settings.raiderChars.title")}

@@ -65,7 +65,7 @@ export function GapCard({ gap, sim, expanded, onToggle, sortState }: {
                 )}
                 <span className="lc-grow" />
                 <Link className={buttonClass("ghost", "sm", true)} to={dropHref(gap.id)}>
-                    <WowIcon name="inv_misc_bag_10" size={18} />{t("lootcouncil.word.checkAsDrop")}
+                    <WowIcon name="loot" size={18} />{t("lootcouncil.word.checkAsDrop")}
                 </Link>
                 {gap.candidates.length ? <Expand open={expanded} onToggle={onToggle} label={t("lootcouncil.gaps.candidates", { count: gap.candidates.length })} /> : null}
             </div>

@@ -79,7 +79,7 @@ export function LogsTab({ logs, onChanged, lead }: { logs: LootLog[]; onChanged:
                                 <td className="small">{formatDate(l.postedAt || 0)}</td>
                                 <td className="small">{l.zone || ""}</td>
                                 <td className="small">{l.eventId
-                                    ? <Badge icon="inv_misc_note_02" tip={l.eventLabel || l.eventId} tipSub={l.eventStartTime ? formatEventTime(l.eventStartTime) : undefined}>{l.eventLabel || l.eventId}</Badge>
+                                    ? <Badge icon="raids" tip={l.eventLabel || l.eventId} tipSub={l.eventStartTime ? formatEventTime(l.eventStartTime) : undefined}>{l.eventLabel || l.eventId}</Badge>
                                     : <span className="sub">—</span>}</td>
                                 <td>{l.status === "done" ? <Badge tone="ok">{t("history.logs.done")}</Badge> : <Badge tone="mid">{t("history.logs.open")}</Badge>}</td>
                                 <td className="cell-actions">

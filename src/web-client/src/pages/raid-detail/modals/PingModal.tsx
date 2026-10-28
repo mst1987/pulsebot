@@ -36,13 +36,13 @@ export default function PingModal({ ctx, open, onClose }: { ctx: RaidCtx; open: 
     const channel = data.event.channelName || data.event.channelId;
     return (
         <Modal
-            open={open} onClose={onClose} icon="spell_holy_borrowedtime" tone="bad"
+            open={open} onClose={onClose} icon="notify" tone="bad"
             kicker={data.event.title} title={t("raidModals.ping.title")} width={480}
             hint={channelHint(channel)}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="rd-ping-form" icon="inv_letter_15" running={busy} disabled={!missing}>{t("raidModals.ping.submit", { count: missing })}</Button>
+                    <Button type="submit" form="rd-ping-form" icon="notify" running={busy} disabled={!missing}>{t("raidModals.ping.submit", { count: missing })}</Button>
                 </>
             )}
         >

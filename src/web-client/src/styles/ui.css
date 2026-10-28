@@ -10,6 +10,19 @@
 /* ---- WoW icon ---- */
 .wi { display: block; width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
 
+/* ---- the app's own icon set (#951, components/ui/Icon.tsx) ----
+   It shares .wi so every size a page gives a WoW icon applies, but the frame of a
+   game icon (rounded corner, ring, shadow, desaturation) does not: a glyph stands
+   bare in its tone, a brand mark as the brand ships it. */
+.wi.uic:is(svg, img) { border: 0; border-radius: 0; box-shadow: none; filter: none; object-fit: contain; overflow: visible; }
+.uic-blood { color: var(--icon-blood); }
+.uic-bronze { color: var(--icon-bronze); }
+.uic-arcane { color: var(--icon-arcane); }
+.uic-fel { color: var(--icon-fel); }
+.uic-discord { color: var(--discord-blurple); }
+.wi.uic-raidHelper:is(img) { border-radius: 50%; }
+.wi.uic-softres:is(img) { filter: var(--brand-softres-filter); }
+
 /* ---- buttons: leading WoW icon, the run spinner, disabled ---- */
 .btn.has-icon { padding-left: 10px; gap: 8px; }
 .btn .wi { width: 22px; height: 22px; border-radius: 5px; box-shadow: 0 0 0 1px var(--shade-35); }

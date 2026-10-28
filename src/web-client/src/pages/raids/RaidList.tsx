@@ -191,12 +191,12 @@ export function UpcomingRaidList({ events, guildId, canWrite, orga = false, sees
                                 <div className="re-acts">
                                     {rowOrga && ev.channelState === "missing" && <Badge tone="bad" tip={t("raids.list.channelMissing")} tipSub={t("raids.list.channelMissingSub")}>{t("raids.list.channelMissing")}</Badge>}
                                     {eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState) && (
-                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState)} icon="inv_letter_15" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
+                                        <IconLink href={eventPostUrl(guildId, ev.channelId, ev.id, ev.channelState)} icon="discord" tip={t("raids.list.discordPost")} tipSub={ev.channelName ? t("raids.list.discordPostSubIn", { channel: ev.channelName }) : t("raids.list.discordPostSub")} />
                                     )}
-                                    {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="inv_misc_groupneedmore" tip={t("raids.list.setup")} tipSub={t("raids.list.setupSub")} />}
-                                    {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
+                                    {raidplanUrl(ev.id) && <IconLink href={raidplanUrl(ev.id)} icon="raidplan" tip={t("raids.list.setup")} tipSub={t("raids.list.setupSub")} />}
+                                    {ev.softres?.url && <IconLink href={ev.softres.url} icon="softres" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                     {rowWrite && (
-                                        <IconButton icon="spell_holy_borrowedtime" size="sm" tip={t("raids.list.repeat")} tipSub={t("raids.list.repeatSub")} onClick={() => onRepeat(ev.id)} />
+                                        <IconButton icon="raids" size="sm" tip={t("raids.list.repeat")} tipSub={t("raids.list.repeatSub")} onClick={() => onRepeat(ev.id)} />
                                     )}
                                     <DetailLink id={ev.id} />
                                 </div>
@@ -247,14 +247,14 @@ function LogBadges({ ev }: { ev: PastRaid }) {
     if (done.length) {
         badges.push(
             <Link key="done" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge tone="ok" icon="inv_misc_pocketwatch_01" tip={t("raids.list.analysed", { count: done.length })} tipSub={`${names(done)}\n${t("raids.list.analysedSub")}`}>{t("raids.list.analysed", { count: done.length })}</Badge>
+                <Badge tone="ok" icon="logs" tip={t("raids.list.analysed", { count: done.length })} tipSub={`${names(done)}\n${t("raids.list.analysedSub")}`}>{t("raids.list.analysed", { count: done.length })}</Badge>
             </Link>,
         );
     }
     if (assigned.length) {
         badges.push(
             <Link key="assigned" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge icon="inv_misc_pocketwatch_01" tip={t("raids.list.assignedTip", { count: assigned.length })} tipSub={`${names(assigned)}\n${t("raids.list.assignedSub")}`}>{t("raids.list.assigned", { count: assigned.length })}</Badge>
+                <Badge icon="logs" tip={t("raids.list.assignedTip", { count: assigned.length })} tipSub={`${names(assigned)}\n${t("raids.list.assignedSub")}`}>{t("raids.list.assigned", { count: assigned.length })}</Badge>
             </Link>,
         );
     }
@@ -264,7 +264,7 @@ function LogBadges({ ev }: { ev: PastRaid }) {
             : t("raids.list.pendingFits", { title: l.title || t("raids.list.logFallback") })));
         badges.push(
             <Link key="pending" className="re-blink" to={detailHref(ev.id, "logs")}>
-                <Badge tone="mid" icon="inv_misc_pocketwatch_01" tip={t("raids.list.pendingTip", { count: pending.length })} tipSub={`${lines.join("\n")}\n${t("raids.list.pendingSub")}`}>{t("raids.list.pending", { count: pending.length })}</Badge>
+                <Badge tone="mid" icon="logs" tip={t("raids.list.pendingTip", { count: pending.length })} tipSub={`${lines.join("\n")}\n${t("raids.list.pendingSub")}`}>{t("raids.list.pending", { count: pending.length })}</Badge>
             </Link>,
         );
     }
@@ -277,7 +277,7 @@ function LogBadges({ ev }: { ev: PastRaid }) {
 function LootBadge({ ev, orga, canLoot, canImport = true }: { ev: PastRaid; orga: boolean; canLoot: boolean; canImport?: boolean }) {
     const t = useT();
     if (ev.lootCount) {
-        const badge = <Badge tone="accent" icon="inv_misc_bag_10" tip={t("raids.list.lootTip", { count: ev.lootCount })} tipSub={t("raids.list.lootSub")}>{t("raids.list.lootBadge", { count: ev.lootCount })}</Badge>;
+        const badge = <Badge tone="accent" icon="loot" tip={t("raids.list.lootTip", { count: ev.lootCount })} tipSub={t("raids.list.lootSub")}>{t("raids.list.lootBadge", { count: ev.lootCount })}</Badge>;
         // the loot page opens for whoever may read the loot (history or loot views) - raiders too
         return canLoot ? <Link className="re-blink" to={`/history/event?event=${encodeURIComponent(ev.id)}`}>{badge}</Link> : badge;
     }
@@ -286,7 +286,7 @@ function LootBadge({ ev, orga, canLoot, canImport = true }: { ev: PastRaid; orga
     if (!orga || !canImport) return null;
     return (
         <Link className="re-blink" to="/history?tab=import">
-            <Badge tone="mid" icon="inv_misc_bag_10" tip={t("raids.list.noLoot")} tipSub={t("raids.list.noLootSub")}>{t("raids.list.noLootBadge")}</Badge>
+            <Badge tone="mid" icon="loot" tip={t("raids.list.noLoot")} tipSub={t("raids.list.noLootSub")}>{t("raids.list.noLootBadge")}</Badge>
         </Link>
     );
 }
@@ -339,7 +339,7 @@ export function PastRaidList({ events, emptyMessage, orga = false, seesAll = fal
                                     {orga && <div className="re-badges">{seesRow(ev) && <LogBadges ev={ev} />}</div>}
                                     <div className="re-badges"><LootBadge ev={ev} orga={orga && seesRow(ev)} canLoot={canLoot} canImport={canImport} /></div>
                                     <div className="re-acts">
-                                        {ev.softres?.url && <IconLink href={ev.softres.url} icon="inv_scroll_11" tip="Softres" tipSub={t("raids.list.softresSub")} />}
+                                        {ev.softres?.url && <IconLink href={ev.softres.url} icon="softres" tip="Softres" tipSub={t("raids.list.softresSub")} />}
                                         <DetailLink id={ev.id} />
                                     </div>
                                 </div>

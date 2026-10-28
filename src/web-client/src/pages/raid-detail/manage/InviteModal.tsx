@@ -49,13 +49,13 @@ export default function InviteModal({ ctx, open, onClose }: { ctx: RaidCtx; open
     const channel = data.event.channelName || data.event.channelId;
     return (
         <Modal
-            open={open} onClose={onClose} icon="spell_holy_prayerofspirit" tone="raids"
+            open={open} onClose={onClose} icon="message" tone="raids"
             kicker={data.event.title} title={t("raidManage.invite.title")} width={460}
             hint={channel ? t("raidManage.invite.hint", { channel }) : undefined}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon="inv_letter_15" running={busy} disabled={!preview} onClick={submit}>
+                    <Button icon="message" running={busy} disabled={!preview} onClick={submit}>
                         {preview ? t("raidManage.invite.pingCount", { count: preview.count }) : t("raidManage.invite.ping")}
                     </Button>
                 </>

@@ -83,7 +83,7 @@ export default function DiscordOverviewPage() {
     return (
         <div className="dov-page">
             <PageHead
-                icon="inv_misc_spyglass_02" tone="channels"
+                icon="search" tone="channels"
                 kicker={t("discord.overview.kicker")}
                 title={t("discord.overview.title")}
                 meta={data && data.guildId && !data.online

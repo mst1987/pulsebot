@@ -71,7 +71,7 @@ describe("Kategorien list", () => {
         expect(matrix).toContain("<Badge tone=\"bad\" icon={<WarnIcon />}>{t(\"settings.categories.noRoles\")}</Badge>");
         expect(matrix).toContain("<Badge tone=\"mid\" icon={<WarnIcon />}>{t(\"settings.categories.missing\")}</Badge>");
         expect([de["settings.categories.noRoles"], de["settings.categories.missing"]]).toEqual(["keine", "fehlt"]);
-        expect(matrix).toContain("icon=\"inv_scroll_03\"");
+        expect(matrix).toContain("icon=\"googleSheets\"");
         expect(matrix).toContain("{summary.assigned} / {summary.members}");
     });
 
@@ -79,7 +79,7 @@ describe("Kategorien list", () => {
         expect(detail).toMatch(/<Segment ariaLabel=\{t\("settings\.categories\.lootAddonAria"/);
         expect(detail).toContain("[\"gargul\", \"rclc\", \"\"].map((value) => ({ value, label: lootToolLabel(value) }))");
         expect(de["settings.lootTool.none"]).toBe("keins");
-        expect(detail).toContain("icon=\"ability_rogue_disguise\"");
+        expect(detail).toContain("icon=\"profile\"");
         expect(matrix).toContain("onAssign={() => setAssigning(cat)}");
         expect(matrix).toContain("categoryId={assigning.id}");
         const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "RaiderCharactersModal.tsx"), "utf8");

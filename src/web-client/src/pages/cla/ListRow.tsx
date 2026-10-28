@@ -66,7 +66,7 @@ function EventCell({ row, eventsError, onAssign }: { row: ClaRow; eventsError: s
         const when = row.eventStartTime ? formatEventTime(row.eventStartTime) : "";
         return (
             <Badge
-                tone="accent" icon="inv_misc_note_02" className="plain la-event"
+                tone="accent" icon="raids" className="plain la-event"
                 tip={row.eventLabel || t("cla.event.fallback")}
                 tipSub={t("cla.event.sub", { start: when ? t("cla.event.start", { when }) : "", source: row.eventLinkSource === "auto" ? t("cla.event.auto") : t("cla.event.manual") })}
             >
@@ -86,7 +86,7 @@ function EventCell({ row, eventsError, onAssign }: { row: ClaRow; eventsError: s
     }
     return (
         <Button
-            variant="ghost" size="sm" icon="inv_misc_note_02" onClick={onAssign}
+            variant="ghost" size="sm" icon="raids" onClick={onAssign}
             data-tip={row.matchAmbiguous ? t("cla.event.ambiguous") : t("cla.event.found")}
             data-tip-sub={row.matchAmbiguous ? t("cla.event.ambiguousSub") : `${cands[0].title} · ${formatMatchOffset(cands[0].diffMs)}`}
         >
@@ -116,7 +116,7 @@ export function ListRow({ row, running, eventsError, onEvaluate, onAssign, onRes
         action = <Button variant="run" size="sm" running>{t("cla.row.running")}</Button>;
     } else if (row.kind === "log" && !row.sections.length) {
         action = (
-            <Button variant="run" size="sm" icon="inv_misc_pocketwatch_01" data-tip={t("cla.row.evaluateBoth")} data-tip-sub={t("cla.row.evaluateBothSub")} onClick={() => onEvaluate("both")}>
+            <Button variant="run" size="sm" icon="logs" data-tip={t("cla.row.evaluateBoth")} data-tip-sub={t("cla.row.evaluateBothSub")} onClick={() => onEvaluate("both")}>
                 {t("cla.row.evaluate")}
             </Button>
         );
@@ -128,16 +128,16 @@ export function ListRow({ row, running, eventsError, onEvaluate, onAssign, onRes
             </Button>
         );
     } else if (row.report) {
-        action = <a className={buttonClass("ghost", "sm", true)} href={row.report.url}><WowIcon name="inv_scroll_03" size={18} />{t("cla.row.report")}</a>;
+        action = <a className={buttonClass("ghost", "sm", true)} href={row.report.url}><WowIcon name="logs" size={18} />{t("cla.row.report")}</a>;
     }
 
     const items: MenuItem[] = [
-        ...(row.report ? [{ id: "report", label: t("cla.menu.openReport"), icon: <WowIcon name="inv_scroll_03" size={20} />, href: row.report.url }] : []),
+        ...(row.report ? [{ id: "report", label: t("cla.menu.openReport"), icon: <WowIcon name="logs" size={20} />, href: row.report.url }] : []),
         ...(row.wclUrl ? [{ id: "wcl", label: t("cla.menu.wcl"), icon: <ExternalIcon />, href: row.wclUrl, external: true }] : []),
-        ...(discord ? [{ id: "msg", label: t("cla.menu.message"), icon: <WowIcon name="inv_letter_15" size={20} />, href: discord, external: true }] : []),
+        ...(discord ? [{ id: "msg", label: t("cla.menu.message"), icon: <WowIcon name="discord" size={20} />, href: discord, external: true }] : []),
         "sep",
         ...(row.kind === "log"
-            ? [{ id: "assign", label: row.eventId ? t("cla.menu.changeAssign") : t("cla.menu.assign"), icon: <WowIcon name="inv_misc_note_02" size={20} />, onSelect: onAssign }]
+            ? [{ id: "assign", label: row.eventId ? t("cla.menu.changeAssign") : t("cla.menu.assign"), icon: <WowIcon name="raids" size={20} />, onSelect: onAssign }]
             : []),
         ...(row.kind === "log"
             ? ANALYSES.filter((a) => row.sections.includes(a.key)).map((a) => ({ id: `reset-${a.key}`, label: t("cla.menu.reset", { label: a.label }), icon: <UndoIcon />, onSelect: () => onReset(a.key) }))
@@ -156,7 +156,7 @@ export function ListRow({ row, running, eventsError, onEvaluate, onAssign, onRes
                 <span className="la-meta">
                     {fmtPosted(row.postedAt)}
                     {row.source === "channel"
-                        ? <>{" · "}<WowIcon name="inv_letter_15" size={14} />{row.channelName ? `#${row.channelName}` : t("cla.row.logChannel")}</>
+                        ? <>{" · "}<WowIcon name="channels" size={14} />{row.channelName ? `#${row.channelName}` : t("cla.row.logChannel")}</>
                         : <>{" · "}<ExternalIcon />{t("cla.row.link")}</>}
                 </span>
             </div>

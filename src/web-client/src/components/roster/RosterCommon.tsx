@@ -97,7 +97,7 @@ export function GearStateBadge({ gear }: { gear: CharGearReport | null }) {
     const t = useT();
     if (!gear) {
         return (
-            <Badge icon="inv_misc_pocketwatch_01" tip={t("roster.badge.notEvaluated")} tipSub={t("roster.badge.notEvaluatedSub")}>
+            <Badge icon="logs" tip={t("roster.badge.notEvaluated")} tipSub={t("roster.badge.notEvaluatedSub")}>
                 {t("roster.badge.notEvaluated")}
             </Badge>
         );
@@ -113,7 +113,7 @@ export function GearStateBadge({ gear }: { gear: CharGearReport | null }) {
     return (
         <Badge
             tone={high ? "bad" : "mid"}
-            icon="inv_misc_gem_variety_02"
+            icon="wishlist"
             tip={`${t("roster.badge.gearProblems", { count: gear.issueCount })}${high ? t("roster.badge.high", { count: high }) : ""}`}
             tipSub={`${summary.join("\n")}\n${t("roster.badge.fromEvaluation", { source })}`}
         >
@@ -133,7 +133,7 @@ export function LootBadge({ count, items, to }: { count: number; items: CharLoot
     const sub = count ? `${shown.join("\n")}\n${t("roster.badge.lootHint")}` : t("roster.badge.noLootYet");
     return (
         <Link className="ros-badge-link" to={to} data-tip={count ? t("roster.badge.itemsReceived", { count }) : t("roster.badge.noLoot")} data-tip-sub={sub}>
-            <Badge icon="inv_misc_bag_10">{count}</Badge>
+            <Badge icon="loot">{count}</Badge>
         </Link>
     );
 }

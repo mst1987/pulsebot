@@ -163,7 +163,7 @@ export function ManualBisTab({ versionId, canWrite, onSaved }: {
     return (
         <>
             <Part
-                icon="inv_misc_book_09"
+                icon="wishlist"
                 crumb={t("lootcouncil.manualBis.crumb", { version: data.versionLabel })}
                 title={t("lootcouncil.manualBis.specTitle")}
                 hint={t("lootcouncil.manualBis.specHint")}
@@ -203,7 +203,7 @@ export function ManualBisTab({ versionId, canWrite, onSaved }: {
             {current ? (
                 <Part
                     tone="accent"
-                    icon="inv_misc_gem_variety_02"
+                    icon="wishlist"
                     crumb={current.label}
                     title={t("lootcouncil.manualBis.slotsTitle", { count: filledSlots, total: data.slots.length })}
                     hint={t("lootcouncil.manualBis.slotsHint", { max: data.maxPerSlot })}

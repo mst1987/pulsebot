@@ -20,7 +20,7 @@ export default function useEvaluate(ctx: { onChanged: (msg: string) => void }) {
         jobs.run({
             label: t("raidDetail.evaluate.label", { label }),
             detail: log.title || log.reportId || "",
-            icon: "inv_misc_pocketwatch_01",
+            icon: "logs",
             expectedSeconds: EVAL_SECONDS[section],
             describe: (r) => ({
                 message: r.alreadyEvaluated ? t("raidDetail.evaluate.already", { label }) : t("raidDetail.evaluate.created", { label }),

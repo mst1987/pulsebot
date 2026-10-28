@@ -59,7 +59,7 @@ export default function MembersPage() {
     return (
         <div className="dmb-page">
             <PageHead
-                icon="achievement_reputation_01" tone="channels"
+                icon="members" tone="channels"
                 kicker={data && data.guildName ? `${t("discord.members.page.kicker")} · ${data.guildName}` : t("discord.members.page.kicker")}
                 title={t("discord.members.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}

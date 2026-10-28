@@ -80,11 +80,11 @@ export default function HideOtherVersionsCard({ versions, mainVersion, hidden, u
                 <span className="gv-group-title">{t("settings.gameVersion.preview")}</span>
                 <div className="gv-hide-bar" aria-hidden="true">
                     {hidden ? (
-                        <span className="cswitch-quiet"><VersionDot id={main.id} />{main.short || main.label}</span>
+                        <span className="cswitch-quiet"><VersionDot id={main.id} icon={main.icon} label={main.label} />{main.short || main.label}</span>
                     ) : (
                         <span className="seg cswitch-seg">
                             {[main, ...others].map((v) => (
-                                <span key={v.id} className={`seg-opt${v.id === main.id ? " active" : ""}`}><VersionDot id={v.id} />{v.short || v.label}</span>
+                                <span key={v.id} className={`seg-opt${v.id === main.id ? " active" : ""}`}><VersionDot id={v.id} icon={v.icon} label={v.label} />{v.short || v.label}</span>
                             ))}
                         </span>
                     )}

@@ -89,7 +89,7 @@ export function TerminStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm;
             )}
             <div className={`re-more${moreOpen ? " open" : ""}`}>
                 <div className="re-more-head">
-                    <WowIcon name="inv_misc_book_09" size={22} />
+                    <WowIcon name="settings" size={22} />
                     <div className="re-opt-text">
                         <strong>{t("raidCreate.termin.more")}</strong>
                         <span className="re-sub">{leaderText} · {descText}</span>

@@ -60,7 +60,7 @@ export default function GuildBanksCard() {
     return (
         <section className="conn-card rhr-card" data-conn="guild-banks">
             <div className="conn-head">
-                <IconTile icon="achievement_guildperk_mobilebanking" tone={pending ? "mid" : "bank"} />
+                <IconTile icon="guildbank" tone={pending ? "mid" : "bank"} />
                 <div className="conn-title">
                     <span>{t("settings.guildBanks.title")}</span>
                     <InfoTip head={t("settings.guildBanks.title")} sub={t("settings.guildBanks.infoSub")} />

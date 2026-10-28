@@ -38,7 +38,7 @@ function Who({ r, mine, names = [], ctx }: { r: Resolved; mine: boolean; names?:
         const mk = groupMark(ctx ? ctx.groupMarks : undefined, r.group);
         body = <span className="rp-gtag" style={{ "--gc": col, "--gi": inkOn(col) } as React.CSSProperties}><Users size={18} aria-hidden="true" /><strong>{r.label}</strong>{mk && <MarkIcon mark={mk as never} size={18} />}</span>;
     }
-    else if (r.kind === "text") body = <><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={24} /><span><Mentions text={r.label} names={names} /></span></>;
+    else if (r.kind === "text") body = <><WowIcon name={iconForText(r.label) || "tasks"} size={24} /><span><Mentions text={r.label} names={names} /></span></>;
     else {
         body = (
             <>

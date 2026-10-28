@@ -52,7 +52,7 @@ export default function LogAssignModal({ ctx, open, onClose }: { ctx: RaidCtx; o
     const current = picked || unlinked[0]?.id || "";
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_misc_pocketwatch_01" tone="cla"
+            open={open} onClose={onClose} icon="logs" tone="cla"
             kicker={data.event.title} title={t("raidModals.logAssign.title")} width={540}
             hint={t("raidModals.logAssign.hint", { count: unlinked.length })}
             footer={(

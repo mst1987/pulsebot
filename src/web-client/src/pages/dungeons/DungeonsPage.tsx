@@ -24,7 +24,7 @@ import { DUNGEON_TABS, isDungeonTab, formatSeconds, type DungeonTab } from "./du
 import { OverallTable, PointsTable, RunsTable } from "./DungeonTables";
 import "../../styles/dungeons.css";
 
-const DUNGEON_ICON = "spell_holy_borrowedtime";
+const DUNGEON_ICON = "bestTimes";
 
 /** Nothing stored for this version yet: where the data comes from, and which versions have some. */
 function EmptyBoard({ version, others }: { version: string; others: string[] }) {

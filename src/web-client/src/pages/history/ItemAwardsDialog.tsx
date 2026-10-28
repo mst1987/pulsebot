@@ -221,7 +221,7 @@ export function RaiderReasonDialog({ raider, bucket, contents, onClose }: {
             open={open}
             onClose={onClose}
             width={720}
-            icon={raider?.iconUrl ? <img className="hl-tile-img" src={raider.iconUrl} alt="" /> : "inv_misc_bag_10"}
+            icon={raider?.iconUrl ? <img className="hl-tile-img" src={raider.iconUrl} alt="" /> : "loot"}
             tone="history"
             kicker={[specLabel, bucket ? t("history.awards.reasonKicker", { reason: bucket.reasonLabel }) : ""].filter(Boolean).join(" · ")}
             title={raider && bucket ? `${raider.character} · ${bucket.label}` : ""}

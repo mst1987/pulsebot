@@ -124,7 +124,7 @@ export function MenuRailPage({ user, parent, children }: { user: SessionUser; pa
     const { pathname } = useLocation();
     const family = menuFamily(parent);
     const items = family.filter((e) => canAccessAny(user, e.areas))
-        .map((e) => ({ id: e.id, label: menuLabel(e), icon: e.wowIcon, href: e.href }));
+        .map((e) => ({ id: e.id, label: menuLabel(e), icon: e.icon, href: e.href }));
     if (items.length < 2) return <>{children}</>;
     const rail = (
         <SectionRail

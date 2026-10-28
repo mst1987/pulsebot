@@ -8,8 +8,8 @@ const { page, council, parts, filterBar, roster, dialog, drop, css, app } = file
 
 describe("loot council — page structure", () => {
     it("heads the page with the shared page head and one primary action to the drop check", () => {
-        expect(page).toMatch(/<PageHead\s+icon="inv_misc_coin_02"/);
-        expect(page).toMatch(/<Button icon="inv_misc_bag_10" onClick=\{\(\) => navigate\(dropHref\(\)\)\}>\{t\("lootcouncil\.page\.dropCheck"\)\}<\/Button>/);
+        expect(page).toMatch(/<PageHead\s+icon="lootcouncil"/);
+        expect(page).toMatch(/<Button icon="loot" onClick=\{\(\) => navigate\(dropHref\(\)\)\}>\{t\("lootcouncil\.page\.dropCheck"\)\}<\/Button>/);
         expect(text("page.dropCheck")).toBe("Drop prüfen");
     });
 
@@ -113,7 +113,7 @@ describe("loot council — the raider list", () => {
         expect(bar).toMatch(/w: p\.share \* w\.share/);
         expect(bar).toMatch(/w: p\.need \* w\.need/);
         expect(bar).toMatch(/w: \(p\.tenure \|\| 0\) \* w\.tenure/);
-        for (const icon of ["inv_misc_pocketwatch_02", "inv_misc_bag_10", "inv_misc_gem_variety_02", "achievement_reputation_01"]) expect(bar).toContain(icon);
+        for (const icon of ["move", "loot", "wishlist", "members"]) expect(bar).toContain(icon);
         expect(bar).toMatch(/t\("lootcouncil\.need\.score", \{ score \}\)/);
         expect(text("need.score")).toBe("Bedarf {score} von 100");
         expect(bar).toMatch(/t\("lootcouncil\.need\.weighted", \{ drought: w\.drought, share: w\.share, need: w\.need, tenure: w\.tenure \}\)/);
@@ -124,7 +124,7 @@ describe("loot council — the raider list", () => {
     });
 
     it("folds the raiders set aside into one line that can take them back", () => {
-        expect(page).toMatch(/<FoldRow\s+icon="ability_rogue_feigndeath"\s+title=\{t\("lootcouncil\.roster\.excludedTitle"\)\}/);
+        expect(page).toMatch(/<FoldRow\s+icon="inactive"\s+title=\{t\("lootcouncil\.roster\.excludedTitle"\)\}/);
         expect(text("roster.excludedTitle")).toBe("Nicht eingeplant");
         expect(page).toContain("onClick={() => setExcluded(e.character, false)}");
     });
@@ -158,7 +158,7 @@ describe("loot council — the raider dialog", () => {
 
     it("has three sections: gear, BiS gaps, loot received", () => {
         const d = fn(dialog, "RaiderDialog");
-        const sections = { gear: ["Gear", "inv_chest_cloth_49"], bis: ["BiS-Lücken", "inv_misc_gem_variety_02"], loot: ["Erhaltener Loot", "inv_misc_bag_10"] };
+        const sections = { gear: ["Gear", "armory"], bis: ["BiS-Lücken", "wishlist"], loot: ["Erhaltener Loot", "loot"] };
         for (const [id, [label, icon]] of Object.entries(sections)) {
             expect(d).toContain(`{ id: "${id}", label: t("lootcouncil.dialog.section.${id}"), icon: "${icon}"`);
             expect(text(`dialog.section.${id}`)).toBe(label);
@@ -189,14 +189,14 @@ describe("loot council — the raider dialog", () => {
         expect(dialog + parts + roster).not.toMatch(/function GearStamp|function GearLegend/);
     });
 
-    it("picks the gear source in a segment with WoW icons, the log panel opening at \"Log\"", () => {
+    it("picks the gear source in a segment with icons of the set, the log panel opening at \"Log\"", () => {
         const d = fn(dialog, "RaiderDialog");
         expect(d).toMatch(/ariaLabel=\{t\("lootcouncil\.dialog\.sourceAria", \{ character: r\.character \}\)\}/);
         expect(text("dialog.sourceAria")).toBe("Gear-Quelle für {character}");
-        expect(d).toMatch(/label: t\("lootcouncil\.gear\.evaluation"\), icon: "inv_misc_pocketwatch_01"/);
+        expect(d).toMatch(/label: t\("lootcouncil\.gear\.evaluation"\), icon: "logs"/);
         expect(text("gear.evaluation")).toBe("Auswertung");
-        expect(d).toMatch(/label: "Log", icon: "inv_scroll_03"/);
-        expect(d).toMatch(/label: "Armory", icon: "inv_shield_06"/);
+        expect(d).toMatch(/label: "Log", icon: "warcraftLogs"/);
+        expect(d).toMatch(/label: "Armory", icon: "armory"/);
         expect(d).toMatch(/if \(value === "wcl"\) \{ setLogOpen\(\(o\) => !o\); return; \}/);
         expect(d).toMatch(/else if \(source !== "log"\) onEvaluation\(r\.character\);/);
         expect(d).toMatch(/\{logOpen \? \(\s*<LogPanel/);
@@ -205,8 +205,8 @@ describe("loot council — the raider dialog", () => {
     it("keeps the actions in the foot: exclude, sim export, close, armory", () => {
         const d = fn(dialog, "RaiderDialog");
         expect(d).toMatch(/variant="no"[\s\S]{0,120}onClick=\{\(\) => onExclude\(r\.character\)\}/);
-        expect(d).toMatch(/icon="inv_gizmo_02"[\s\S]{0,120}onClick=\{\(\) => onExport\(r\.character\)\}/);
-        expect(d).toMatch(/variant="run" icon="inv_shield_06"[\s\S]{0,120}onClick=\{\(\) => onArmory\(r\.character\)\}/);
+        expect(d).toMatch(/icon="simulate"[\s\S]{0,120}onClick=\{\(\) => onExport\(r\.character\)\}/);
+        expect(d).toMatch(/variant="run" icon="armory"[\s\S]{0,120}onClick=\{\(\) => onArmory\(r\.character\)\}/);
     });
 
     it("opens the sim export as a second, shared modal", () => {
@@ -239,8 +239,8 @@ describe("loot council — the drop check page", () => {
         expect(drop).toMatch(/<div className="ph-act lc-dropsearch">\s*<ItemSearchPicker/);
         expect(drop).toMatch(/onPick=\{\(item: ItemSearchResult\) => navigate\(dropHref\(item\.id\)\)\}/);
         expect(drop).toMatch(/<BisSpecs specs=\{focus\.item\.bisSpecs\} \/>/);
-        expect(drop).toMatch(/icon="inv_misc_coin_02"\s+crumb=\{t\("lootcouncil\.drop\.verdictCrumb"\)\}/);
-        expect(drop).toMatch(/icon="inv_misc_grouplooking"\s+crumb=\{t\("lootcouncil\.drop\.candidatesCrumb"\)\}/);
+        expect(drop).toMatch(/icon="lootcouncil"\s+crumb=\{t\("lootcouncil\.drop\.verdictCrumb"\)\}/);
+        expect(drop).toMatch(/icon="recruitment"\s+crumb=\{t\("lootcouncil\.drop\.candidatesCrumb"\)\}/);
         expect(text("drop.verdictCrumb")).toBe("Drop prüfen › Empfehlung");
         expect(text("drop.candidatesCrumb")).toBe("Drop prüfen › Kandidaten");
         const heads = { need: "Bedarf", last: "Zuletzt", items: "Items", replaces: "Ersetzt" };

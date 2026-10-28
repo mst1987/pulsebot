@@ -241,7 +241,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                         <span className="note">{saved ? t("settings.categories.noRaiders") : t("settings.categories.saveRolesFirst")}</span>
                     )}
                     <span className="grow" />
-                    <Button variant="ghost" size="sm" icon="ability_rogue_disguise" onClick={onAssign} disabled={!saved}>
+                    <Button variant="ghost" size="sm" icon="profile" onClick={onAssign} disabled={!saved}>
                         {t("settings.categories.assign")}
                     </Button>
                 </div>
@@ -434,7 +434,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
             out.push({ key: "sheet", node: (
                 <CategoryField label={t("settings.categories.fixedSheet")} htmlFor={`catsheet-name-${cat.id}`} sub={t("settings.categories.fixedSheetShort")} more={t("settings.categories.fixedSheetSub")}>
                     <div className="sheet-field">
-                        <WowIcon name="inv_scroll_03" size={20} />
+                        <WowIcon name="googleSheets" size={20} />
                         <div className="sheet-inputs">
                             <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder={t("settings.categories.sheetNamePlaceholder")}
                                 onChange={(e) => s.onSheet(cat.id, { ...sheet, name: e.target.value })} />

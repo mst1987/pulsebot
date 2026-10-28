@@ -717,7 +717,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
     return (
         <RailLayout rail={rail} className="settings-layout">
             <div className="page-head settings-head">
-                <IconTile icon={scope === "all" ? "inv_misc_wrench_01" : "trade_engineering"} tone="settings" size="lg" />
+                <IconTile icon="settings" tone="settings" size="lg" />
                 <div className="ph-text">
                     {/* #957: the server page names the server its values belong to */}
                     <div className="kicker">

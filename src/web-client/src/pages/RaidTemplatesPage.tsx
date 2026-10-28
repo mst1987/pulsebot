@@ -33,7 +33,7 @@ import { tParts, useT } from "../i18n";
 // plan fields are the shared ones of components/raid/RaidFields.tsx, the same the
 // "Event anlegen" dialog uses (#261).
 
-const NO_ICON = "inv_misc_note_01";
+const NO_ICON = "tasks";
 
 function InstanceIcons({ icons }: { icons: string[] }) {
     return (
@@ -259,7 +259,7 @@ export default function RaidTemplatesPage() {
     return (
         <div className="rt-page">
             <PageHead
-                icon="inv_misc_note_02"
+                icon="raids"
                 tone="raids"
                 kicker={t("raidTemplates.page.kicker")}
                 title={t("raidTemplates.page.title")}
@@ -268,7 +268,7 @@ export default function RaidTemplatesPage() {
                         {canWrite && (
                             <IconButton icon={<RefreshIcon />} tip={t("raidTemplates.page.import")} tipSub={t("raidTemplates.page.importSub")} disabled={importing} onClick={importFromRaidHelper} />
                         )}
-                        {canWrite && <Button icon="inv_misc_note_05" onClick={editor.startNew}>{t("raidTemplates.page.new")}</Button>}
+                        {canWrite && <Button icon="edit" onClick={editor.startNew}>{t("raidTemplates.page.new")}</Button>}
                     </>
                 )}
             />

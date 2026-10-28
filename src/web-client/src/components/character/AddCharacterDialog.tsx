@@ -26,9 +26,9 @@ import { useT } from "../../i18n";
 export type AddWay = "log" | "armory" | "manual";
 
 const WAYS: { value: AddWay; key: string; icon: string }[] = [
-    { value: "log", key: "profile.add.wayLog", icon: "inv_misc_pocketwatch_01" },
-    { value: "armory", key: "profile.add.wayArmory", icon: "inv_misc_book_09" },
-    { value: "manual", key: "profile.add.wayManual", icon: "inv_scroll_03" },
+    { value: "log", key: "profile.add.wayLog", icon: "logs" },
+    { value: "armory", key: "profile.add.wayArmory", icon: "armory" },
+    { value: "manual", key: "profile.add.wayManual", icon: "edit" },
 ];
 
 const MATCH_KEY: Record<string, string> = { similar: "profile.add.matchSimilar", assigned: "profile.add.matchAssigned", name: "profile.add.matchName" };
@@ -127,7 +127,7 @@ export default function AddCharacterDialog({
         <Modal
             open={!!way}
             onClose={onClose}
-            icon="achievement_character_human_male"
+            icon="profile"
             tone="profile"
             kicker={t("profile.title")}
             title={t("profile.add.title")}

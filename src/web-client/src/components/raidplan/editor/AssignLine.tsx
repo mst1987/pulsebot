@@ -37,7 +37,7 @@ export function LineChip({ r, open, mine, order, ctx, readOnly, asTank = false }
     if (r.kind === "group") return <span className="rp-lc is-grp" style={{ "--rp-gline": groupColor(ctx.groupColors, r.group) } as React.CSSProperties}><span>{r.label}</span></span>;
     if (r.kind === "mob") return <span className="rp-lc is-mk" data-tip={readOnly ? r.label : undefined}><MobIcon icon={r.icon} size={18} /><span>{r.label}</span></span>;
     if (r.kind === "mark") return <span className="rp-lc is-mk"><MarkIcon mark={r.mark as never} size={16} /><span>{r.label}</span></span>;
-    if (r.kind === "text") return <span className="rp-lc is-mk"><WowIcon name={iconForText(r.label) || "inv_misc_note_01"} size={16} /><span>{r.label}</span></span>;
+    if (r.kind === "text") return <span className="rp-lc is-mk"><WowIcon name={iconForText(r.label) || "tasks"} size={16} /><span>{r.label}</span></span>;
     return <span className="rp-lc is-slot">{no}<span>{r.label}</span></span>;
 }
 

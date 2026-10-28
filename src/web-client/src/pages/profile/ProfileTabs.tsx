@@ -19,7 +19,7 @@ export type ProfileTab = { kind: "info" } | { kind: "char"; key: string } | { ki
 /** From this many characters a phone gets the "⋯" list next to the scrolling row. */
 export const MORE_FROM = 6;
 
-const INFO_ICON = "inv_misc_note_01";
+const INFO_ICON = "tasks";
 
 /**
  * Room the "⋯" list leaves free at the foot of the screen: the toasts sit there

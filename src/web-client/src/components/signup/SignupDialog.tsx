@@ -165,7 +165,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
         <Modal
             open={!!row}
             onClose={onClose}
-            icon={row.instanceIcon || "inv_misc_book_09"}
+            icon={row.instanceIcon || "signups"}
             tone="signups"
             kicker={kicker}
             title={`${row.title} · ${mine ? t("signups.dialog.change") : t("signups.signUp")}`}
@@ -279,7 +279,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                     <div className="an-wish">
                         <Badge
                             tone="ok"
-                            icon="achievement_guildperk_everybodysfriend"
+                            icon="members"
                             tip={t("signups.dialog.wishTip")}
                             tipSub={row.wishes ? t("signups.dialog.wishOn") : t("signups.dialog.wishOff")}
                         >

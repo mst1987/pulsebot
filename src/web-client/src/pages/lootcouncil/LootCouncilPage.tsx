@@ -386,7 +386,7 @@ function CouncilPage() {
             text: t("lootcouncil.page.excludeText"),
             action: t("lootcouncil.page.excludeAction"),
             tone: "danger",
-            icon: "ability_rogue_feigndeath",
+            icon: "inactive",
         });
         if (!ok) return;
         closeDetails();
@@ -411,11 +411,11 @@ function CouncilPage() {
         <NeedWeightsProvider weights={data.weights}>
             <div className="lc-back-row"><BackButton to="/lootcouncil" label={t("lootcouncil.overview.back")} size="sm" /></div>
             <PageHead
-                icon="inv_misc_coin_02"
+                icon="lootcouncil"
                 tone="lootcouncil"
                 kicker={kicker}
                 title={t("lootcouncil.title")}
-                action={<Button icon="inv_misc_bag_10" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
+                action={<Button icon="loot" onClick={() => navigate(dropHref())}>{t("lootcouncil.page.dropCheck")}</Button>}
             />
 
             {/* Who the council works for (#676): roster, profile, linked Kader. */}
@@ -434,7 +434,7 @@ function CouncilPage() {
             {content.manualBis && content.manualLists === false && shownTab !== "bislists" ? (
                 <div className="lc-panel lc-mb-hint" role="note">
                     <span>{t("lootcouncil.manualBis.noListsYet")}</span>
-                    <Button variant="ghost" size="sm" icon="inv_misc_book_09" onClick={() => patch({ tab: "bislists" })}>{t("lootcouncil.manualBis.openTab")}</Button>
+                    <Button variant="ghost" size="sm" icon="wishlist" onClick={() => patch({ tab: "bislists" })}>{t("lootcouncil.manualBis.openTab")}</Button>
                 </div>
             ) : null}
 

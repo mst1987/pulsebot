@@ -449,7 +449,7 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
         <Modal
             open
             onClose={onClose}
-            icon="inv_misc_groupneedmore"
+            icon="kader"
             tone="kader"
             kicker={t("kader.takeover.kicker", { name: kader.name })}
             title={t(`kader.takeover.title.${step}`)}
@@ -531,7 +531,7 @@ export function TakeoverLine() {
             text: t("kader.takeover.pullText", { count: pending }),
             action: t("kader.takeover.pullAction"),
             tone: "primary",
-            icon: "inv_misc_groupneedmore",
+            icon: "kader",
         });
         if (!ok) return;
         setBusy(true);

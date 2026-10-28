@@ -95,7 +95,7 @@ export default function SignupsPage() {
     return (
         <div className="an-page">
             <PageHead
-                icon="inv_misc_book_09"
+                icon="signups"
                 tone="signups"
                 kicker={`${user.name} · ${t("signups.page.upcoming", { count })}`}
                 title={t("signups.page.title")}

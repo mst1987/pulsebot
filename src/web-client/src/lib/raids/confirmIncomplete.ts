@@ -33,7 +33,7 @@ export async function withIncompleteConfirm<T>(ask: ConfirmFn, run: (force: bool
             text: createElement(IncompleteRaid, { raids: refusal.raids, message }),
             action: t("jobs.incomplete.action"),
             tone: "run",
-            icon: pending ? raidIcon(pending.contentId) : "inv_misc_pocketwatch_01",
+            icon: pending ? raidIcon(pending.contentId) : "logs",
         });
         if (!go) {
             // Deliberately an error: it ends the job's toast as "abgebrochen"

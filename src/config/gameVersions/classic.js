@@ -129,8 +129,8 @@ module.exports = {
     id: "classic",
     label: "Classic Era",
     short: "Classic",
-    // The version's WoW icon; see tbc.js.
-    icon: "expansionicon_classic",
+    // The version's launcher icon, shared with TBC Anniversary; see tbc.js.
+    icon: "/versions/classic.png",
     // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.
     color: "#9fb0c8",
     // Main professions for "Mein Profil" (Berufe): TBC's without Jewelcrafting, up to 300.

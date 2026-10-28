@@ -185,7 +185,7 @@ export function ProfilesModal({ open, onClose, profiles, categories, bosses, bos
 
     return (
         <Modal
-            open={open} onClose={onClose} icon="inv_scroll_03"
+            open={open} onClose={onClose} icon="import"
             title={editing ? (editing === "new" ? t("raidBoard.profile.saveTitle") : t("raidBoard.profile.rename")) : t("raidBoard.profile.manageTitle")}
             width={600} initialFocus=".rp-form-name"
             hint={editing === "new" && draft ? t("raidBoard.steps.library.saveHint", { n: draftSteps.length }) : undefined}

@@ -34,11 +34,11 @@ import "../../styles/rosters.css";
 
 type TabId = "members" | "composition" | "attendance" | "sync" | "history";
 const TABS: { id: TabId; icon: string; label: string }[] = [
-    { id: "members", icon: "achievement_guildperk_everybodysfriend", label: "roster.detail.tabMembers" },
-    { id: "composition", icon: "inv_misc_groupneedmore", label: "roster.detail.tabComposition" },
-    { id: "attendance", icon: "inv_misc_note_01", label: "roster.detail.tabAttendance" },
+    { id: "members", icon: "members", label: "roster.detail.tabMembers" },
+    { id: "composition", icon: "setup", label: "roster.detail.tabComposition" },
+    { id: "attendance", icon: "tasks", label: "roster.detail.tabAttendance" },
     { id: "sync", icon: "spell_nature_astralrecal", label: "roster.detail.tabSync" },
-    { id: "history", icon: "inv_misc_book_09", label: "roster.detail.tabHistory" },
+    { id: "history", icon: "logs", label: "roster.detail.tabHistory" },
 ];
 
 /** Which tab the address names; a raider (not the roster's orga) has the Komposition only (epic #723). */

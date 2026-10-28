@@ -155,7 +155,7 @@ export function ArchiveSettingsDialog({ data, onClose, onSave }: {
         <Modal
             open
             onClose={onClose}
-            icon="inv_letter_15"
+            icon="channels"
             tone="channels"
             kicker={t("channels.archiveSettings.kicker")}
             title={t("channels.archiveSettings.title")}

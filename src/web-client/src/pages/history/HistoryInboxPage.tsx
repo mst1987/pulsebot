@@ -59,7 +59,7 @@ export default function HistoryInboxPage() {
                 />
                 <div className="ph-act">
                     <AllSettingsLink hide className={buttonClass("ghost", "md", true)} section="verbindungen">
-                        <WowIcon name="inv_misc_enggizmos_27" size={22} />{t("history.inbox.manageToken")}
+                        <WowIcon name="addons" size={22} />{t("history.inbox.manageToken")}
                     </AllSettingsLink>
                 </div>
             </div>

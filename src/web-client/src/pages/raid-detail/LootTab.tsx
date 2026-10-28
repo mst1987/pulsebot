@@ -139,11 +139,11 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     return (
         <section className="panel rd-panel">
             <PartHead
-                icon="inv_misc_bag_10"
+                icon="loot"
                 tone="history"
                 title={t("raidDetail.loot.title")}
                 crumb={crumb}
-                action={canLoot ? <Button size="sm" icon="inv_misc_bag_10" onClick={() => openModal("loot")}>{t("raidDetail.loot.add")}</Button> : undefined}
+                action={canLoot ? <Button size="sm" icon="loot" onClick={() => openModal("loot")}>{t("raidDetail.loot.add")}</Button> : undefined}
             />
 
             {!items.length ? (
@@ -157,7 +157,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                             value={groupBy}
                             onChange={(v) => { setGroupBy(v); setOpenKeys(null); }}
                             options={[
-                                { value: "character", label: t("raidDetail.loot.byRaider"), icon: "achievement_guildperk_everybodysfriend" },
+                                { value: "character", label: t("raidDetail.loot.byRaider"), icon: "members" },
                                 { value: "boss", label: t("raidDetail.loot.byBoss"), icon: "achievement_boss_illidan" },
                             ]}
                         />
@@ -183,12 +183,12 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                 <div key={g.key} className="rd-loot-grp">
                                     <div className={`rd-grp${open ? " open" : ""}`} style={g.head?.classColor && groupBy === "character" ? { "--cc": g.head.classColor } as React.CSSProperties : undefined}>
                                         {g.aside
-                                            ? <IconTile icon="inv_misc_gem_variety_02" tone="none" />
+                                            ? <IconTile icon="wishlist" tone="none" />
                                             : groupBy === "character"
                                                 ? g.head?.specIconUrl
                                                     ? <SpecTile iconUrl={g.head.specIconUrl} classColor={g.head.classColor} />
-                                                    : <IconTile icon="achievement_guildperk_everybodysfriend" tone="none" />
-                                                : <IconTile icon="inv_misc_bag_10" tone="none" />}
+                                                    : <IconTile icon="members" tone="none" />
+                                                : <IconTile icon="loot" tone="none" />}
                                         <b {...(groupBy === "character" && !g.aside ? classColorProps(g.head?.classColor) : {})}>{g.title}</b>
                                         {groupBy === "character" && !g.aside && g.head?.className && (
                                             <span className="rd-grp-sub">{g.head.spec ? `${g.head.spec} ${g.head.className}` : g.head.className}</span>

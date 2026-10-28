@@ -100,7 +100,7 @@ function Head({ lead, children }: { lead: string; children?: ReactNode }) {
     const t = useT();
     return (
         <div className="page-head">
-            <IconTile icon="spell_nature_timestop" tone="absences" size="lg" />
+            <IconTile icon="absences" tone="absences" size="lg" />
             <div className="ph-text">
                 <div className="kicker">{t("absences.kicker")}</div>
                 <h1>{t("absences.title")}</h1>

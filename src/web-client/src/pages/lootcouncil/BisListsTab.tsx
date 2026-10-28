@@ -98,7 +98,7 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
     return (
         <>
             <Part
-                icon="inv_misc_spyglass_03"
+                icon="search"
                 crumb={t("lootcouncil.bisLists.searchCrumb")}
                 title={t("lootcouncil.bisLists.searchTitle")}
                 hint={t("lootcouncil.bisLists.searchHint")}
@@ -151,7 +151,7 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
             </Part>
 
             <Part
-                icon="inv_misc_book_09"
+                icon="wishlist"
                 crumb={t("lootcouncil.bisLists.specsCrumb")}
                 title={t("lootcouncil.bisLists.specsTitle")}
                 hint={t("lootcouncil.bisLists.specsHint", { specs: data.specs.length, lists: data.columns.length })}
@@ -230,7 +230,7 @@ export function BisListsTab({ view, patch, versionId = "" }: { view: View; patch
 
             <Part
                 tone="accent"
-                icon="inv_misc_gem_variety_02"
+                icon="wishlist"
                 crumb={t("lootcouncil.bisLists.matrixCrumb")}
                 title={TIER_LABEL[data.tier] || data.tier.toUpperCase()}
                 hint={t("lootcouncil.bisLists.matrixHint", { shown: columns.length, total: data.columns.length, contested: data.contested })}

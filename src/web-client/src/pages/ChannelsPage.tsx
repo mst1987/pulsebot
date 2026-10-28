@@ -99,7 +99,7 @@ export default function ChannelsPage() {
     /** A change over several channels as one job: channel by channel, progress in the toast. */
     const stepJob = async (label: string, verb: string, ids: string[], step: (id: string) => Promise<ChannelResult[]>) => {
         setDialog(null);
-        await run({ label, detail: t("channels.count", { count: ids.length }), icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async (update) => {
+        await run({ label, detail: t("channels.count", { count: ids.length }), icon: "channels", describe: (m: string) => ({ message: m }) }, async (update) => {
             const results = await runInSteps(ids, step, {
                 onProgress: (n, total) => update({ progress: n / total, detail: t("channels.jobs.progress", { done: n, total }) }),
             });
@@ -129,7 +129,7 @@ export default function ChannelsPage() {
         text: t("channels.jobs.archiveText", { category: categoryName }),
         action: t("channels.jobs.archive"),
         tone: "primary",
-        icon: "inv_letter_15",
+        icon: "channels",
     });
 
     const archive = async (ids: string[]) => {
@@ -144,7 +144,7 @@ export default function ChannelsPage() {
 
     const remove = async (ids: string[], confirm: string, anywhere = false) => {
         setDialog(null);
-        await run({ label: anywhere ? t("channels.jobs.deleteAnywhere") : t("channels.jobs.deleteArchive"), detail: t("channels.count", { count: ids.length }), icon: "inv_letter_15", describe: (m: string) => ({ message: m }) }, async () => {
+        await run({ label: anywhere ? t("channels.jobs.deleteAnywhere") : t("channels.jobs.deleteArchive"), detail: t("channels.count", { count: ids.length }), icon: "channels", describe: (m: string) => ({ message: m }) }, async () => {
             // One request: the server checks the confirmation for the whole set and
             // deletes one channel after another with a pause.
             const result = await deleteChannels(ids, confirm, anywhere);
@@ -159,7 +159,7 @@ export default function ChannelsPage() {
         setDialog(null);
         const label = input.withEvent ? t("channels.jobs.createWithEvents") : t("channels.jobs.create");
         // The message carries one line per channel whose event failed (the toast keeps the line breaks).
-        await run({ label, detail: t("channels.jobs.bySchema", { count }), icon: "inv_letter_15", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
+        await run({ label, detail: t("channels.jobs.bySchema", { count }), icon: "channels", expectedSeconds: Math.max(2, count * (input.withEvent ? 3 : 1)), describe: (m: string) => ({ message: m }) }, async () => {
             const result = await quickCreateChannels(input);
             if (result.failed) throw new Error(result.message || t("channels.jobs.createFailed"));
             return result.message || t("channels.jobs.created");
@@ -169,7 +169,7 @@ export default function ChannelsPage() {
 
     const saveArchiveSettings = async (input: ArchiveSettingsInput, then?: string[]) => {
         setDialog(null);
-        const saved = await run({ label: t("channels.jobs.archiveSettings"), icon: "inv_letter_15", describe: () => ({ message: t("channels.jobs.archiveSaved") }) }, () => saveChannelConfig(input));
+        const saved = await run({ label: t("channels.jobs.archiveSettings"), icon: "channels", describe: () => ({ message: t("channels.jobs.archiveSaved") }) }, () => saveChannelConfig(input));
         if (!saved) return;
         const fresh = await getChannels().catch(() => null);
         if (fresh) setData(fresh);
@@ -186,7 +186,7 @@ export default function ChannelsPage() {
     if (!data.activeGuildId) {
         return (
             <>
-                <PageHead icon="inv_letter_15" tone="channels" kicker={t("channels.page.kicker")} title={t("channels.page.title")} />
+                <PageHead icon="channels" tone="channels" kicker={t("channels.page.kicker")} title={t("channels.page.title")} />
                 <DiscordTabs user={user} />
                 <div className="empty">{t("channels.page.pickServer")}</div>
             </>
@@ -200,7 +200,7 @@ export default function ChannelsPage() {
     return (
         <div className="kn-page">
             <PageHead
-                icon="inv_letter_15"
+                icon="channels"
                 tone="channels"
                 kicker={[t("channels.page.kicker"), data.guildName].filter(Boolean).join(" · ")}
                 title={t("channels.page.title")}
@@ -213,7 +213,7 @@ export default function ChannelsPage() {
                 action={canWrite ? (
                     <SplitButton
                         label={t("common.create")}
-                        icon="inv_letter_15"
+                        icon="channels"
                         onClick={() => setDialog({ kind: "quick" })}
                         menuTip={t("channels.page.createMore")}
                         options={[{ id: "single", label: t("channels.page.createSingle"), onSelect: () => setDialog({ kind: "create" }) }]}

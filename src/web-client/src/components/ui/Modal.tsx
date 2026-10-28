@@ -157,7 +157,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
                         </Button>
                         <Button
                             variant={tone}
-                            icon={current.actionIcon ?? (tone === "danger" ? <TrashIcon /> : tone === "run" ? "spell_holy_borrowedtime" : tone === "go" ? <CheckIcon /> : undefined)}
+                            icon={current.actionIcon ?? (tone === "danger" ? <TrashIcon /> : tone === "run" ? "simulate" : tone === "go" ? <CheckIcon /> : undefined)}
                             onClick={() => answer(true)}
                         >
                             {current.action || t("common.ok")}

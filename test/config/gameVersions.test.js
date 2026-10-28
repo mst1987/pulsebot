@@ -270,10 +270,24 @@ describe("config/gameVersions", () => {
             expect(JSON.parse(JSON.stringify(versions))).toEqual(versions);
         });
 
-        it("gives every version a WoW icon of its own", () => {
-            const icons = gv.publicVersions().map((v) => v.icon);
-            expect(icons.every((i) => /^[a-z0-9_]+$/.test(i))).toBe(true);
-            expect(new Set(icons).size).toBe(icons.length);
+        it("gives every version the icon its Battle.net launcher shows (#951)", () => {
+            // Classic Era and TBC Anniversary share the WoW Classic launcher icon, like the launcher itself
+            expect(Object.fromEntries(gv.publicVersions().map((v) => [v.id, v.icon]))).toEqual({
+                classic: "/versions/classic.png",
+                tbc: "/versions/classic.png",
+                forever: "/versions/forever.png",
+            });
+            expect(gv.publicVersions().some((v) => "logo" in v)).toBe(false);
+        });
+
+        it("points every version's icon at a file in public/versions", () => {
+            const fs = require("fs");
+            const path = require("path");
+            const dir = path.join(__dirname, "../../src/web-client/public");
+            for (const v of gv.publicVersions()) {
+                const file = /^\/versions\/[a-z0-9-]+\.png$/.test(v.icon) && fs.existsSync(path.join(dir, v.icon));
+                expect({ id: v.id, file }).toEqual({ id: v.id, file: true });
+            }
         });
     });
 });

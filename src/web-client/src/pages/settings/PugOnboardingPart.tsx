@@ -93,7 +93,7 @@ export default function PugOnboardingPart({ servers }: { servers: ServerChoice[]
 
     const head = (
         <PartHead
-            icon="ability_warrior_rallyingcry"
+            icon="roster"
             tone="settings"
             title={t("pugOnboarding.title")}
             tip={t("pugOnboarding.title")}
@@ -313,7 +313,7 @@ function PreviewModal({ data, busy, onClose, onApply }: { data: PugOnboardingOve
         <Modal
             open
             onClose={onClose}
-            icon="ability_warrior_rallyingcry"
+            icon="roster"
             tone="settings"
             kicker={data.guildName}
             title={t("pugOnboarding.preview.title")}

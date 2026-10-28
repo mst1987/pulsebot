@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { canSwitch, versionRef } from "../../lib/app/contentVersion";
 import { useT } from "../../i18n";
+import WowIcon from "../ui/WowIcon";
 
 // The content switch in the top bar (#563, design "Content-Umschalter"): one
 // segment "Forever | TBC" next to the server select, each version with its
@@ -10,8 +11,16 @@ import { useT } from "../../i18n";
 // version there is nothing to switch and it stays away, and with "Andere
 // Versionen ausblenden" only a quiet hint says which version is shown.
 
-/** The coloured dot of a version (tokens --ver-<id>). */
-export function VersionDot({ id }: { id: string }) {
+/**
+ * The mark of a version (#951): the icon its Battle.net launcher shows, a file
+ * under public/versions, as a plain image of at most 48 px - never recoloured
+ * or cropped. Classic Era and TBC Anniversary share that icon, so the version's
+ * label always stands beside it: the alt text names the version, but the image
+ * stays out of the accessible name (the label next to it carries it). Without
+ * an icon the coloured dot (tokens --ver-<id>).
+ */
+export function VersionDot({ id, icon, label = "", size = 16 }: { id: string; icon?: string; label?: string; size?: number }) {
+    if (icon) return <WowIcon name={icon} size={size} alt={label} className={`ver-${id}`} />;
     return <span className={`ver-dot ver-${id}`} aria-hidden="true" />;
 }
 
@@ -28,7 +37,7 @@ export default function ContentSwitch() {
         if (!state.hidden) return null;
         return (
             <span className="cswitch-quiet" data-tip={t("shell.content.hiddenTip")} data-tip-sub={t("shell.content.hiddenSub")}>
-                <VersionDot id={current.id} />{current.short}
+                <VersionDot id={current.id} icon={current.icon} label={current.label} />{current.short}
             </span>
         );
     }
@@ -49,7 +58,7 @@ export default function ContentSwitch() {
                     data-tip={v.label}
                     onClick={() => pick(v.id)}
                 >
-                    <VersionDot id={v.id} />{v.short}
+                    <VersionDot id={v.id} icon={v.icon} label={v.label} />{v.short}
                 </button>
             ))}
         </div>
@@ -65,7 +74,7 @@ export default function ContentSwitch() {
                 aria-label={t("shell.content.chipAria", { version: current.label })}
                 onClick={() => setOpen((o) => !o)}
             >
-                <VersionDot id={current.id} />{current.short}
+                <VersionDot id={current.id} icon={current.icon} label={current.label} />{current.short}
             </button>
             {open && (
                 <div className="cswitch-panel">

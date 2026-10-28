@@ -43,7 +43,7 @@ function ItemLine({ item, onImport }: { item: RetirementItem; onImport: () => vo
             <span className="rhr-value">{item.value}</span>
             <span className="rhr-act">
                 {item.action === "import" ? (
-                    <Button variant="ghost" size="sm" icon="inv_scroll_03" onClick={onImport}>{t("settings.retirement.importAction")}</Button>
+                    <Button variant="ghost" size="sm" icon="import" onClick={onImport}>{t("settings.retirement.importAction")}</Button>
                 ) : item.link ? (
                     <Link className="rhr-link" to={item.link.to} data-tip={t("settings.retirement.toLink", { label: item.link.label })}>{item.link.label}<ChevronRightIcon /></Link>
                 ) : null}
@@ -85,7 +85,7 @@ function ImportModal({ open, onClose, onStored }: {
         <Modal
             open={open}
             onClose={close}
-            icon="inv_scroll_03"
+            icon="import"
             tone="settings"
             kicker={t("settings.retirement.title")}
             title={t("settings.retirement.importTitle")}
@@ -196,7 +196,7 @@ export default function RaidhelperRetirementCard() {
     return (
         <section className="conn-card rhr-card" data-conn="raidhelper-retirement">
             <div className="conn-head">
-                <IconTile icon="spell_holy_borrowedtime" tone={list && !list.disabled && !list.ready ? "mid" : "settings"} />
+                <IconTile icon="raidHelper" tone={list && !list.disabled && !list.ready ? "mid" : "settings"} />
                 <div className="conn-title">
                     <span>{t("settings.retirement.title")}</span>
                     <InfoTip

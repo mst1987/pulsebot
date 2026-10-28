@@ -250,7 +250,7 @@ export default function DropCheckPage() {
 
                     <div className="lc-panel lc-verdictpanel">
                         <PartHead
-                            icon="inv_misc_coin_02"
+                            icon="lootcouncil"
                             crumb={t("lootcouncil.drop.verdictCrumb")}
                             title={verdict?.basis === "sim" ? t("lootcouncil.drop.titleSim")
                                 : verdict?.basis === "need" ? t("lootcouncil.sim.highestNeedTip")
@@ -258,7 +258,7 @@ export default function DropCheckPage() {
                             tip={verdict?.basis === "need" ? t("lootcouncil.drop.needTip") : undefined}
                             tipSub={verdict?.basis === "need" ? t("lootcouncil.drop.needTipSub") : undefined}
                             action={canSim ? (
-                                <Button variant="run" size="sm" icon="inv_gizmo_02" running={simRunning} onClick={() => simulateDrop(focus)}>
+                                <Button variant="run" size="sm" icon="simulate" running={simRunning} onClick={() => simulateDrop(focus)}>
                                     {verdict?.basis === "sim" ? t("lootcouncil.sim.rerun") : t("lootcouncil.drop.simulateGain")}
                                 </Button>
                             ) : undefined}
@@ -304,7 +304,7 @@ export default function DropCheckPage() {
                     {focus.candidates.length ? (
                         <>
                             <PartHead
-                                icon="inv_misc_grouplooking"
+                                icon="recruitment"
                                 crumb={t("lootcouncil.drop.candidatesCrumb")}
                                 title={t("lootcouncil.drop.candidatesTitle")}
                                 tip={t("lootcouncil.drop.candidatesTip")}
@@ -332,7 +332,7 @@ export default function DropCheckPage() {
                         weggelassen — sonst sieht eine kurze Liste nach einem Fehler aus. */}
                     {focus.unwearable.length ? (
                         <FoldRow
-                            icon="ability_creature_cursed_02"
+                            icon="cancel"
                             title={t("lootcouncil.drop.unwearable")}
                             count={focus.unwearable.length}
                             names={focus.unwearable.map((u) => u.character).join(", ")}
@@ -354,7 +354,7 @@ export default function DropCheckPage() {
                         aber genannt, damit sein Fehlen in der Liste erklärt ist. */}
                     {focus.owned?.length ? (
                         <FoldRow
-                            icon="inv_misc_bag_10"
+                            icon="loot"
                             title={t("lootcouncil.drop.owned")}
                             count={focus.owned.length}
                             names={focus.owned.map((o) => o.character).join(", ")}

@@ -192,11 +192,11 @@ export default function ClaPage() {
 
     const head = (
         <PageHead
-            icon="inv_misc_pocketwatch_01"
+            icon="logs"
             tone="cla"
             kicker="Warcraft Logs · CLA & RPB"
             title={t("cla.page.title")}
-            action={<Button icon="inv_misc_spyglass_02" onClick={() => setNewOpen(true)}>{t("cla.page.newEvaluation")}</Button>}
+            action={<Button icon="search" onClick={() => setNewOpen(true)}>{t("cla.page.newEvaluation")}</Button>}
         />
     );
 
@@ -220,7 +220,7 @@ export default function ClaPage() {
                     <div className="ph-act">
                         {data.autoMatchCount > 0 && (
                             <Button
-                                variant="ghost" size="sm" icon="spell_holy_borrowedtime" running={automatching} onClick={automatch}
+                                variant="ghost" size="sm" icon="simulate" running={automatching} onClick={automatch}
                                 data-tip={t("cla.toolbar.autoMatch")} data-tip-sub={t("cla.toolbar.autoMatchSub")}
                             >
                                 {t("cla.toolbar.autoMatch")} <Badge count tone="mid">{data.autoMatchCount}</Badge>
@@ -229,7 +229,7 @@ export default function ClaPage() {
                         {data.logChannelsConfigured
                             ? (
                                 <IconButton
-                                    icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "inv_misc_spyglass_03"}
+                                    icon={scanning ? <span className="btn-spin" aria-hidden="true" /> : "search"}
                                     tip={scanning ? t("cla.toolbar.scanning") : t("cla.toolbar.scan")}
                                     tipSub={t("cla.toolbar.scanSub")}
                                     disabled={scanning} onClick={scan}
@@ -239,7 +239,7 @@ export default function ClaPage() {
                                 <a
                                     className={buttonClass("ghost", "sm", true)} href="/settings?section=logs"
                                     data-tip={t("cla.toolbar.noChannels")} data-tip-sub={t("cla.toolbar.noChannelsSub")}
-                                ><WowIcon name="inv_letter_15" size={18} />{t("cla.toolbar.setupChannels")}</a>
+                                ><WowIcon name="channels" size={18} />{t("cla.toolbar.setupChannels")}</a>
                             )}
                     </div>
                 </div>

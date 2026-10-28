@@ -163,6 +163,10 @@
     --rp-line-fearward: #fde68a; --rp-line-special: #60a5fa; --rp-line-dispel: #2dd4bf; --rp-line-cc: #ec4899; --rp-line-buff: #a3e635;
     --rp-line-curse: #818cf8; --rp-line-aoe: #38bdf8; --rp-line-other: #cbd5e1;
     --rp-line-debuff: #fb7185; --rp-line-blessing: #f9a8d4; --rp-line-aura: #e879f9; --rp-line-totem: #67e8f9; --rp-line-brez: #fdba74;
+    /* the four tones of the app's own icon set (#951, lib/ui/iconSet.ts): muted inks, one per glyph */
+    --icon-blood: #d4707e; --icon-bronze: #c49a4c; --icon-arcane: #b690cc; --icon-fel: #6cb2a2;
+    /* brand marks are never recoloured: Discord always in its Blurple; Softres' black mark is inverted on a dark page */
+    --brand-softres-filter: invert(1);
 }
 @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
@@ -203,6 +207,8 @@
         --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
         /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
         --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
+        --icon-blood: #8e2436; --icon-bronze: #7a5a1c; --icon-arcane: #6a4384; --icon-fel: #2a6a5e;
+        --brand-softres-filter: none;
     }
 }
 :root[data-theme="light"] {
@@ -243,6 +249,8 @@
     --medal-gold: #b88a12; --medal-silver: #8792a0; --medal-bronze: #a5622f;
     /* role group areas (#559): the board stays a dark picture, only the badge's shadow is softer on a light page */
     --rp-area-badge-bg: rgba(18, 22, 26, .92); --rp-area-badge-ink: #f1f3f8; --rp-area-badge-shadow: rgba(0, 0, 0, .3); --rp-area-calm-fill: .33; --rp-area-line: .6;
+    --icon-blood: #8e2436; --icon-bronze: #7a5a1c; --icon-arcane: #6a4384; --icon-fel: #2a6a5e;
+    --brand-softres-filter: none;
 }
 
 /* ---- the version colour (#742) ----

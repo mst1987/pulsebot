@@ -26,7 +26,7 @@ export default function KaderStart({ canWrite, onCreate }: { canWrite: boolean; 
     return (
         <div className="kp-page kp-startpage">
             <div className="kp-top">
-                <IconTile icon="inv_misc_groupneedmore" tone="kader" size="lg" />
+                <IconTile icon="kader" tone="kader" size="lg" />
                 <div className="kp-top-text">
                     <span className="kicker kp-accent2">{t("kader.start.kicker")}</span>
                     <h1 className="kp-start-title">{t("kader.start.title")}</h1>

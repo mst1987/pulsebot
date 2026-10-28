@@ -52,6 +52,8 @@ export type SessionGuild = { id: string; name: string; role?: GuildRole; label?:
 /** A game version the content switch offers (#563). */
 export type ContentVersionRef = {
     id: string; label: string; short: string;
+    /** The version's launcher icon (#951), a file under public/versions; Classic and TBC share one, so always beside the label. */
+    icon?: string;
     /** The version's colour (#742): the setting's, else the rule set's. Missing = the stylesheet's default. */
     color?: string;
     /** The colour differs from the rule set's — only then the client writes its own values (lib/app/versionColor.ts). */
