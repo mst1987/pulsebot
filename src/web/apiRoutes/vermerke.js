@@ -20,7 +20,8 @@ const { ok, error } = require("../http/apiResponse");
 const { withUser, ORGA_ONLY } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
-const { userCan, userIsOrga } = require("../../config/permissions");
+const { userCan } = require("../../config/permissions");
+const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
 const notes = require("../../stores/userNotesStore");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
 const categoryOrga = require("../../services/roster/categoryOrga");
@@ -185,9 +186,12 @@ const postDelete = withUser({ full: true, csrf: true, body: true }, async ({ bod
     }
 });
 
-/** Whether the caller may see the short form on `guildId`: the area, the global orga or a manager there. */
+/**
+ * Whether the caller may see the short form on `guildId`: the area, the global raid orga (orga rank with
+ * `raids` write, the rule of the setup editor) or a roster manager there.
+ */
 async function maySeeShort(user, req, guildId) {
-    if (userCan(user, "vermerke", "read") || userIsOrga(user)) return true;
+    if (userCan(user, "vermerke", "read") || isGlobalRaidOrga(user)) return true;
     return categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req), guildId });
 }
 

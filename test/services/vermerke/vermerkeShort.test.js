@@ -1,6 +1,7 @@
 // The short form of the Vermerke (docs/vermerke.md, #979): the highest active
 // level and the reasons with their counts - never the text, the author or the raids.
 const fs = require("fs");
+const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const notes = require("../../../src/stores/userNotesStore");
 const { shortOf, shortFor, activeLevelFor } = require("../../../src/services/vermerke/vermerkeShort");
@@ -40,5 +41,21 @@ describe("services/vermerke/vermerkeShort", () => {
         expect(shortFor("B", [U, V, W], { now: 3000 })).toEqual({ [W]: { level: "hint", reasons: { loot: 1 } } });
         expect(shortOf("B", U)).toBe(null);
         expect(shortFor("A", "nope")).toEqual({});
+    });
+
+    it("reads the store once for many persons", () => {
+        const file = tempStoreFile("user-notes.json");
+        notes.useFile(file);
+        notes.addEntry("A", U, { level: "warning", reason: "behavior" }, by);
+        notes.addEntry("A", V, { level: "hint", reason: "loot" }, by);
+        const spy = jest.spyOn(fs, "readFileSync");
+        try {
+            const out = shortFor("A", [U, V, W, "444444444444444444", "555555555555555555"], { now: 3000 });
+            expect(Object.keys(out).sort()).toEqual([U, V].sort());
+            const reads = spy.mock.calls.filter(([p]) => path.resolve(String(p)) === path.resolve(file));
+            expect(reads).toHaveLength(1);
+        } finally {
+            spy.mockRestore();
+        }
     });
 });

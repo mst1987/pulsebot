@@ -328,6 +328,22 @@ function activeEntries(guildId, userId, { now = Date.now() } = {}) {
     return personFor(guildId, userId).entries.filter((e) => !e.hidden && isActive(e, now));
 }
 
+/**
+ * The counting entries of many persons at once with a single read of the file (the short form of a
+ * whole raid, #979): `{ [userId]: entries }` - active, not hidden on `guildId`; persons without one
+ * are left out.
+ */
+function activeEntriesMany(guildId, userIds, { now = Date.now() } = {}) {
+    const visible = visibleOn(store.read(), guildId);
+    const out = {};
+    for (const uid of new Set((Array.isArray(userIds) ? userIds : []).map(str).filter(Boolean))) {
+        const p = visible[uid];
+        const entries = p ? p.entries.filter((e) => !e.hidden && isActive(e, now)) : [];
+        if (entries.length) out[uid] = entries;
+    }
+    return out;
+}
+
 /** The highest active level of `userId` on `guildId` ("hint" < "warning" < "shadowban"), null when none counts. */
 function activeLevelFor(guildId, userId, opts = {}) {
     let best = null;
@@ -341,5 +357,5 @@ module.exports = {
     LEVELS, REASONS, MAX_TEXT, MAX_ENTRIES, MAX_EVENTS,
     NoteError, useFile, isActive, levelRank,
     addEntry, updateEntry, archiveEntry, removeEntry, hideShared,
-    listFor, personFor, activeEntries, activeLevelFor,
+    listFor, personFor, activeEntries, activeEntriesMany, activeLevelFor,
 };

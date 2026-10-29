@@ -160,6 +160,24 @@ describe("web/apiRoutes/vermerke", () => {
             expect(JSON.stringify(body(short))).not.toContain("MARKER-TEXT");
         });
 
+        it("the global orga without raids write gets no short form (the rule of the setup editor)", async () => {
+            await add();
+            mockUser = { ...ORGA, access: { ...emptyAccess(), raids: { read: true, write: false } } };
+            const res = await get("/api/vermerke/short", { userIds: U });
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("orga_only");
+        });
+
+        it("an orga member with the area sees the own entries too - a deliberate exception", async () => {
+            const self = granted("read", U);
+            mockUser = ADMIN;
+            await add();
+            mockUser = self;
+            const person = body(await get("/api/vermerke/person", { userId: U }));
+            expect(person.entries).toEqual([expect.objectContaining({ text: "MARKER-TEXT" })]);
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+        });
+
         it("a roster manager of the active server gets the short form - asked for that server", async () => {
             await add();
             mockUser = { ...RAIDER, id: "888888888888888888" };

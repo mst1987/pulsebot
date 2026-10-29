@@ -24,13 +24,17 @@ notes when he switches characters).
 At most **50 notes per person and server** (`400 too_many`). A note **counts** (is active) while it is not
 archived, not expired and — for a shared one of another server — not hidden there. Expired and archived notes stay
 in the archive of the person. `activeLevelFor(server, user)` is the highest active level, or `null`.
+Archived notes count towards the limit of 50 too — a full archive refuses a new note with `too_many` until a full
+admin removes one for good. The `history` of a note keeps its last 100 changes, older ones are cut.
 
 **Archive instead of delete.** The orga archives (and restores) a note; removing one for good is for full admins
 only and also removes the hide marks other servers set on it.
 
 **Shared notes.** A shared note of server A is read on server B with the name of A (its label in the server
 settings, else its Discord name) and cannot be changed there (404). B can **hide** it for itself
-(`POST /api/vermerke/hide`) — it then no longer counts on B, A is not touched.
+(`POST /api/vermerke/hide`) — it then no longer counts on B, A is not touched. B sees **everything** of a shared
+note — text, author, history, `eventIds` — just as A does (a decision of the user: sharing means sharing all).
+When A takes `shared` back, B's hide mark stays in the store; should A share the note again, it stays hidden on B.
 
 ## Store
 
@@ -72,8 +76,10 @@ Store refusals keep their code: `bad_user`, `bad_level`, `bad_reason`, `text_too
 
 For every orga that plans a raid (#981): the highest active level and the reasons with their counts — **no text, no
 author, no raids**. `shortOf(server, user)` / `shortFor(server, userIds)` in `vermerkeShort.js`; the endpoint is
-open at the gate (`auth: "menu"`) and lets in: `vermerke` read, the global orga, or a manager of a roster of the
+open at the gate (`auth: "menu"`) and lets in: `vermerke` read, the global raid orga (orga rank with `raids` write,
+`isGlobalRaidOrga` in `web/events/raidOrgaAccess.js` — the rule of the setup editor), or a manager of a roster of the
 **active server** (`categoryOrga.isAnyCategoryManager(user, { guildId })`). Everyone else: 403 `orga_only`.
+`shortFor` reads the store **once** for all ids (`activeEntriesMany`), so a raid with 40 signups is one read.
 
 ## Never to the person
 
@@ -82,3 +88,7 @@ dashboard "Für dich", `/e/<id>`, `/p/<token>`, nor in "Ansicht als Raider" (an 
 has no `vermerke` right). `test/services/vermerke/vermerkeNeverToPerson.test.js` holds it twice: none of these pages
 loads the store or the short form (whole require closure), and a raider / the raider view gets 403 on every route
 without the marker text.
+
+"Never to the person" means: never to a raider **without orga or Vermerke rights**. Whoever holds the rights (the
+area `vermerke`, or the short form as raid orga / roster manager) also sees the notes on the own account — a
+deliberate exception the user decided, nothing is filtered (`test/web/apiRoutes/vermerke.test.js` holds it).

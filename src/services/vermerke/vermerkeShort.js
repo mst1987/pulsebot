@@ -18,7 +18,11 @@ function activeLevelFor(guildId, userId, opts = {}) {
 
 /** The short form of one person: `{ level, reasons: { [reason]: count } }`, null when no entry counts. */
 function shortOf(guildId, userId, { now = Date.now() } = {}) {
-    const entries = notes.activeEntries(guildId, userId, { now });
+    return summarize(notes.activeEntries(guildId, userId, { now }));
+}
+
+/** Level and reason counts of counting entries, null when there are none. */
+function summarize(entries) {
     if (!entries.length) return null;
     let level = null;
     const reasons = {};
@@ -31,13 +35,14 @@ function shortOf(guildId, userId, { now = Date.now() } = {}) {
 
 /**
  * The short form of every person of `userIds` on `guildId` that has an active entry:
- * `{ [userId]: { level, reasons } }` - persons without one are not listed.
+ * `{ [userId]: { level, reasons } }` - persons without one are not listed. Reads the store once,
+ * however many persons are asked (a raid with 40 signups is one read).
  */
-function shortFor(guildId, userIds, opts = {}) {
+function shortFor(guildId, userIds, { now = Date.now() } = {}) {
+    const ids = (Array.isArray(userIds) ? userIds : []).map(str).filter(Boolean);
     const out = {};
-    for (const uid of new Set((Array.isArray(userIds) ? userIds : []).map(str).filter(Boolean))) {
-        const s = shortOf(guildId, uid, opts);
-        if (s) out[uid] = s;
+    for (const [uid, entries] of Object.entries(notes.activeEntriesMany(guildId, ids, { now }))) {
+        out[uid] = summarize(entries);
     }
     return out;
 }
