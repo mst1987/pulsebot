@@ -499,7 +499,7 @@ async function payloadFor(event, approved, { contentPing = null } = {}) {
     });
     const key = `setup:${event.id}`;
     try {
-        return withImages(build(visualOn(getConfig(), "setupImage")), { key });
+        return withImages(build(visualOn(getConfig(), "setupImage", event.guildId)), { key });
     } catch (e) {
         logger.warn(`${key}: picture not rendered, fields instead: ${(e && e.message) || e}`);
         return withImages(build(false));

@@ -975,6 +975,11 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // { [versionId]: [{ id, name, iconUrl, quality }] }; the loot views count an
     // award as a top item by the server and version of its raid.
     topItems: Object.freeze({}),
+    // #961 the drawn pictures of this server's bot messages: only the switches the
+    // server set itself ({ overviewWeekStrip?, setupImage?, eventCover?: boolean });
+    // a switch it has not set follows config.discordVisuals, the global default
+    // (services/discord/serverSettings.js serverVisuals).
+    discordVisuals: Object.freeze({}),
 });
 
 /**

@@ -9,11 +9,11 @@ const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../stores/settingsStore");
 const {
-    normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, DISCORD_VISUALS_DEFAULT, MAX_SERVERS,
+    normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, MAX_SERVERS,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../stores/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../services/discord/serverAccess");
-const { serverSetting } = require("../../services/discord/serverSettings");
+const { serverSetting, serverVisuals, ownVisualsOf } = require("../../services/discord/serverSettings");
 const serverDefaults = require("../../services/discord/serverDefaults");
 const { serverLang, defaultLang } = require("../../services/discord/botLanguage");
 const { isSnowflake } = require("../../utils/ids");
@@ -290,6 +290,11 @@ function serverDefaultsOf(config, guildId) {
         botLanguage: ownLang || fallback,
         botLanguageDefault: fallback,
         botLanguageOwn: !!ownLang,
+        // #961 the drawn pictures: what this server draws (own switch, else the global default);
+        // without a server the default itself. discordVisualsOwn = whether it set switches itself.
+        discordVisuals: serverVisuals(id, { config: cfg }),
+        discordVisualsDefault: serverVisuals("", { config: cfg }),
+        discordVisualsOwn: !!id && Object.keys(ownVisualsOf(((cfg.serverSettings || {})[id] || {}).discordVisuals)).length > 0,
     };
 }
 
@@ -349,14 +354,16 @@ const SERVER_SCOPED_KEYS = [
     "logChannels", "raidhelper", "versionOverrides", "categoryIds",
     "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",
     "rolePermissions", "baseAccess", "userPermissions", "orgaRoleIds", "botCommandAccess",
+    "discordVisuals",
 ];
 // Server-bound keys that, without an active server, edit the first server
 // (#927 Raid-Helper, as its section shows; #926 the categories, shown on the
 // first server then); every other key then needs one.
 const FIRST_SERVER_FALLBACK_KEYS = ["raidhelper", "categoryIds"];
-// Server-bound keys with a global default besides (#924 bot language): without
-// an active server they write that default (full admins only, updateSettings).
-const GLOBAL_DEFAULT_KEYS = ["botLanguage"];
+// Server-bound keys with a global default besides (#924 bot language, #961 the
+// drawn pictures): without an active server they write that default (full admins
+// only, updateSettings).
+const GLOBAL_DEFAULT_KEYS = ["botLanguage", "discordVisuals"];
 
 /**
  * The server a PATCH of server-bound settings writes to — guarded against a
@@ -981,9 +988,20 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // server — the one checked by serverSettingsTarget() (no first-server fallback for these).
     // Without one the language goes to the global default (checked above).
     const ownServer = serverDefaultsPatch(body);
+    // #961 the drawn pictures: only the known switches, as booleans
+    const sentVisuals = body.discordVisuals && typeof body.discordVisuals === "object" ? ownVisualsOf(body.discordVisuals) : null;
     if (writesDefault) {
-        partial.botLanguage = ownServer.botLanguage;
+        if (body.botLanguage !== undefined) partial.botLanguage = ownServer.botLanguage;
         delete ownServer.botLanguage;
+        // the global default, merged per switch by the store
+        if (sentVisuals) partial.discordVisuals = sentVisuals;
+    } else if (body.discordVisuals === null) {
+        // "use the default again": the server's own switches go (serverSettingsTarget checked there is a server)
+        ownServer.discordVisuals = undefined;
+    } else if (sentVisuals && server && server.guildId) {
+        // the server's own switches: the ones sent over the ones it set before (the store replaces the key whole)
+        const before = ownVisualsOf(((getConfig().serverSettings || {})[server.guildId] || {}).discordVisuals);
+        ownServer.discordVisuals = { ...before, ...sentVisuals };
     }
     if (Object.keys(ownServer).length) {
         const guildId = server ? server.guildId : "";
@@ -1094,12 +1112,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryVersion = body.categoryVersion && typeof body.categoryVersion === "object" ? body.categoryVersion : {};
     }
     if (body.hideOtherVersions !== undefined) partial.hideOtherVersions = body.hideOtherVersions === true;
-    // The drawn pictures in bot messages (a test): only the known switches, as booleans, merged by the store.
-    if (body.discordVisuals !== undefined && body.discordVisuals && typeof body.discordVisuals === "object") {
-        partial.discordVisuals = Object.fromEntries(Object.keys(DISCORD_VISUALS_DEFAULT)
-            .filter((key) => typeof body.discordVisuals[key] === "boolean")
-            .map((key) => [key, body.discordVisuals[key]]));
-    }
+    // The drawn pictures in bot messages (#961): per server or the global default - written above with the server's values.
     // Dungeon records (Einstellungen -> Dungeon-Bestzeiten): only the two fields, merged and checked by the store.
     if (body.dungeonRecords !== undefined && body.dungeonRecords && typeof body.dungeonRecords === "object") {
         partial.dungeonRecords = {};

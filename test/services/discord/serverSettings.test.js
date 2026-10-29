@@ -2,7 +2,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
-const { serverSetting } = require("../../../src/services/discord/serverSettings");
+const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../src/services/discord/serverSettings");
 
 const A = "111111111111111111";
 const B = "222222222222222222";
@@ -35,5 +35,27 @@ describe("services/discord/serverSettings (#917)", () => {
         fs.__store.set(settingsPath("config.json"), JSON.stringify({ guildId: A, serverSettings: { [A]: {} } }));
         expect(serverSetting(A, "lang", { fallback: "de" })).toBe("de");
         expect(serverSetting(A, "lang")).toBeUndefined();
+    });
+});
+
+describe("services/discord/serverSettings: picture switches per server (#961)", () => {
+    const ON = { overviewWeekStrip: true, setupImage: true, eventCover: true };
+
+    it("keeps only known switches with a boolean", () => {
+        expect(ownVisualsOf({ setupImage: false, eventCover: "no", other: true })).toEqual({ setupImage: false });
+        expect(ownVisualsOf(null)).toEqual({});
+    });
+
+    it("lays the server's own switches over the global default; no server = the default", () => {
+        const config = { discordVisuals: { eventCover: false }, serverSettings: { [A]: { discordVisuals: { eventCover: true, setupImage: false } } } };
+        expect(serverVisuals(A, { config })).toEqual({ ...ON, setupImage: false });
+        expect(serverVisuals(B, { config })).toEqual({ ...ON, eventCover: false });
+        expect(serverVisuals("", { config })).toEqual({ ...ON, eventCover: false });
+        expect(serverVisuals(A, { config: {} })).toEqual(ON);
+    });
+
+    it("reads the stored config when none is passed", () => {
+        fs.__store.set(settingsPath("config.json"), JSON.stringify({ guildId: A, serverSettings: { [A]: { discordVisuals: { overviewWeekStrip: false } } } }));
+        expect(serverVisuals(A)).toEqual({ ...ON, overviewWeekStrip: false });
     });
 });

@@ -1591,7 +1591,11 @@
         "setupImage": "Setup as a graphic",
         "setupImageTip": "Test: the groups of the posted setup as a picture instead of a list; confirm marks in the picture, the buttons stay.",
         "eventCover": "Cover of the Discord event",
-        "eventCoverTip": "Test: a raid's Discord server event gets the raid's picture as its cover (the event's own picture, else the zone art)."
+        "eventCoverTip": "Test: a raid's Discord server event gets the raid's picture as its cover (the event's own picture, else the zone art).",
+        "defaultLabel": "Default for all servers",
+        "defaultText": "No server picked: this applies to every server without its own switches, new servers too.",
+        "defaultOnlyAdmins": "Only full admins change the default.",
+        "noneOn": "all off"
     },
     "dungeonRecords": {
         "post": "Post new guild records",

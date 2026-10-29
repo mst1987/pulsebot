@@ -2,7 +2,7 @@ import type { AdminConfig, LogChannelInput, RolePermissions, Access, EventSource
 import { type CategorySheet } from "./CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
-import { discordVisualsOf, type CategoryAttendance, type DiscordVisualKey } from "../../lib/settings/settingsLogic";
+import { DISCORD_VISUAL_KEYS, discordVisualsOf, type CategoryAttendance, type DiscordVisualKey } from "../../lib/settings/settingsLogic";
 import type { SwitchFix } from "../../lib/settings/categoryVersions";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
@@ -65,8 +65,12 @@ export type Draft = {
     botLanguageDefault: "de" | "en";
     /** Whether the active server keeps its own bot language; off = it follows the default. */
     botLanguageOwn: boolean;
-    /** The drawn pictures in bot messages (a test), every switch as a boolean. */
+    /** The drawn pictures in bot messages (a test), every switch as a boolean: what the active server draws. */
     discordVisuals: Record<DiscordVisualKey, boolean>;
+    /** The global default of the pictures (#961); without a server `discordVisuals` is the default. */
+    discordVisualsDefault: Record<DiscordVisualKey, boolean>;
+    /** Whether the active server keeps its own picture switches; off = it follows the default. */
+    discordVisualsOwn: boolean;
     /** "Neue Gildenrekorde posten" (Dungeon-Bestzeiten): off by default. */
     dungeonRecords: { post: boolean; channelId: string };
     /** Settings per game version (#542), every version the server sent. */
@@ -79,6 +83,8 @@ export type Draft = {
 export type ServerDefaultsBody = Partial<Pick<AdminConfig, "officerRoleId" | "applicationChannelId" | "raidDefaults">> & {
     /** A language; `null` drops the active server's own value ("Standard verwenden"). Without a server: the default. */
     botLanguage?: "de" | "en" | null;
+    /** #961 the picture switches, all three; `null` drops the active server's own ones. Without a server: the default. */
+    discordVisuals?: Record<DiscordVisualKey, boolean> | null;
 };
 
 /**
@@ -96,6 +102,12 @@ export function serverDefaultsChanges(saved: Draft, draft: Draft): ServerDefault
     else if (draft.botLanguageOwn ? (!saved.botLanguageOwn || draft.botLanguage !== saved.botLanguage) : draft.botLanguage !== saved.botLanguage) {
         // An own value on the active server, or — without a server, where nothing is own — the default.
         out.botLanguage = draft.botLanguage;
+    }
+    const visualsChanged = DISCORD_VISUAL_KEYS.some((key) => draft.discordVisuals[key] !== saved.discordVisuals[key]);
+    if (saved.discordVisualsOwn && !draft.discordVisualsOwn) out.discordVisuals = null;
+    else if (draft.discordVisualsOwn ? (!saved.discordVisualsOwn || visualsChanged) : visualsChanged) {
+        // the server's own switches, or - without a server - the default
+        out.discordVisuals = { ...draft.discordVisuals };
     }
     return out;
 }
@@ -145,6 +157,8 @@ export function toDraft(config: AdminConfig, guildId = ""): Draft {
         botLanguageDefault: (config.botLanguageDefault || config.botLanguage) === "en" ? "en" : "de",
         botLanguageOwn: config.botLanguageOwn === true,
         discordVisuals: discordVisualsOf(config.discordVisuals),
+        discordVisualsDefault: discordVisualsOf(config.discordVisualsDefault || config.discordVisuals),
+        discordVisualsOwn: config.discordVisualsOwn === true,
         dungeonRecords: { post: config.dungeonRecords?.post === true, channelId: config.dungeonRecords?.channelId || "" },
         versionSettings: Object.fromEntries(Object.entries(config.versionSettings || {}).map(([id, block]) => [id, blockOf(block)])),
         versionDisabled: disabledFromConfig(config.versionSettings),

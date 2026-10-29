@@ -62,3 +62,35 @@ describe("serverDefaultsChanges: bot language default and own value (#924)", () 
         expect(serverDefaultsChanges(saved, { ...saved, botLanguage: "de", botLanguageOwn: false })).toEqual({ botLanguage: null });
     });
 });
+
+describe("serverDefaultsChanges: picture switches default and own value (#961)", () => {
+    const on = { overviewWeekStrip: true, setupImage: true, eventCover: true };
+
+    it("reads own switches and default from the config; a missing default falls back to the switches", () => {
+        const d = draft({ discordVisuals: { setupImage: false }, discordVisualsDefault: {}, discordVisualsOwn: true });
+        expect(d).toMatchObject({ discordVisuals: { ...on, setupImage: false }, discordVisualsDefault: on, discordVisualsOwn: true });
+        expect(draft({ discordVisuals: { eventCover: false } })).toMatchObject({ discordVisualsDefault: { ...on, eventCover: false }, discordVisualsOwn: false });
+    });
+
+    it("sends nothing while nothing changed", () => {
+        const saved = draft({ discordVisualsOwn: true, discordVisuals: { setupImage: false } });
+        expect(serverDefaultsChanges(saved, { ...saved })).toEqual({});
+    });
+
+    it("sends all switches when the server gets own ones, even equal to the default", () => {
+        const saved = draft({ discordVisuals: {}, discordVisualsDefault: {} });
+        expect(serverDefaultsChanges(saved, { ...saved, discordVisualsOwn: true })).toEqual({ discordVisuals: on });
+    });
+
+    it("sends changed own switches, and changed default switches without a server", () => {
+        const own = draft({ discordVisualsOwn: true });
+        expect(serverDefaultsChanges(own, { ...own, discordVisuals: { ...on, eventCover: false } })).toEqual({ discordVisuals: { ...on, eventCover: false } });
+        const def = draft({});
+        expect(serverDefaultsChanges(def, { ...def, discordVisuals: { ...on, setupImage: false } })).toEqual({ discordVisuals: { ...on, setupImage: false } });
+    });
+
+    it("sends null when the own switches are dropped", () => {
+        const saved = draft({ discordVisuals: { setupImage: false }, discordVisualsDefault: {}, discordVisualsOwn: true });
+        expect(serverDefaultsChanges(saved, { ...saved, discordVisuals: on, discordVisualsOwn: false })).toEqual({ discordVisuals: null });
+    });
+});
