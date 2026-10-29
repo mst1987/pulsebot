@@ -1,6 +1,6 @@
 // The raid overview message of a category (services/events/raidOverviewPanel.js): pure.
 const { DateTime } = require("luxon");
-const { raidOverviewPayload, payloadHash, groupByRaidId, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS } = require("../../../src/services/events/raidOverviewPanel");
+const { raidOverviewPayload, shownRaids, payloadHash, groupByRaidId, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS } = require("../../../src/services/events/raidOverviewPanel");
 const { cardText, cardButtons, nodes } = require("../../helpers/cardText");
 
 const at = (iso) => Math.floor(DateTime.fromISO(iso, { zone: "Europe/Berlin" }).toSeconds());
@@ -112,6 +112,20 @@ describe("services/events/raidOverviewPanel", () => {
             expect(listed).toBeLessThanOrEqual(MAX_RAIDS);
             expect((text.match(/Wed \d\d\.\d\d\. –/g) || []).length).toBeLessThanOrEqual(MAX_IDS);
             expect(text).toContain(`+${many.length - listed} more raids`);
+            // shownRaids names exactly the raids the card lists
+            const shown = shownRaids({ categoryName: "🔥 PUG Raids", events: many, now: NOW, lang: "en", attending });
+            expect(shown).toHaveLength(listed);
+            expect(shown.every((e) => text.includes(`<#${e.channelId}>`))).toBe(true);
+        });
+
+        it("names no raid when nothing is planned", () => {
+            expect(shownRaids({ events: [], now: NOW, lang: "en", attending })).toEqual([]);
+            expect(shownRaids()).toEqual([]);
+        });
+
+        it("lists an upcoming raid with the defaults (now, German, the app's emojis, category form)", () => {
+            const later = { id: "x", title: "Kara", startTime: Math.floor(Date.now() / 1000) + 3600, channelId: "c1" };
+            expect(shownRaids({ events: [later], attending: () => 0 })).toEqual([later]);
         });
 
         it("stays within Discord's 40 components and 4000 characters, whatever the titles", () => {
@@ -223,6 +237,18 @@ describe("services/events/raidOverviewPanel", () => {
     });
 
     describe("footer and hash", () => {
+        it("keeps a category overview's hash of before the server overview (else every overview would be redrawn)", () => {
+            // fixed values, computed once with the code of origin/main c0537c47 - change them only on purpose
+            const events = () => [
+                raid("a", "2026-10-17T20:00:00", { signUps: Array.from({ length: 17 }, (_, i) => ({ userId: `u${i}` })) }),
+                raid("b", "2026-10-21T20:00:00", { size: 10, signUps: [{ userId: "x" }] }),
+                raid("c", "2026-10-30T20:00:00", { leaderId: "" }),
+                raid("gone", "2026-10-18T20:00:00", { status: "cancelled" }),
+            ];
+            expect(payloadHash(build(events(), { emojis: {} }), "en")).toBe("dd9cd623b8c482ff");
+            expect(payloadHash(build(events(), { emojis: {}, lang: "de" }), "de")).toBe("942c4481db911734");
+        });
+
         it("shows the last change only when given, and leaves it out of the hash", () => {
             const events = [raid("a", "2026-10-17T20:00:00")];
             const without = build(events);
@@ -292,6 +318,42 @@ describe("services/events/raidOverviewPanel", () => {
             const payload = build(many, { weekStrip: true });
             expect(nodes(payload).length).toBeLessThanOrEqual(MAX_COMPONENTS);
             expect(payload.images.length).toBeLessThanOrEqual(MAX_IDS);
+        });
+    });
+
+    describe("the overview of a whole server (server: true)", () => {
+        const events = () => [
+            raid("a", "2026-10-17T20:00:00", { categoryName: "⚔️ 10er" }),
+            raid("b", "2026-10-18T20:00:00", { categoryName: "🔥 40er", leaderId: "" }),
+            raid("c", "2026-10-19T20:00:00", { categoryName: "", channelId: "" }),
+        ];
+
+        it("is headed Raids and names each raid's category first on its second line", () => {
+            const text = texts(build(events(), { categoryName: "", server: true }));
+            expect(text).toContain("## Raids");
+            expect(text).not.toContain("## PUG Raids");
+            expect(text).toContain("10er · <#ch-a> · led by <@lead-a>");
+            expect(text).toContain("40er · <#ch-b>");
+            expect(text).not.toContain("40er · <#ch-b> · led by");
+            // a raid without category or channel just keeps its leader
+            expect(text).toContain("led by <@lead-c>");
+            expect(text).not.toContain("⚔️");
+        });
+
+        it("writes the heading in German", () => {
+            expect(texts(build(events(), { categoryName: "", server: true, lang: "de" }))).toContain("## Raids");
+        });
+
+        it("leaves the overview of a category exactly as it was", () => {
+            const plain = build(events());
+            const off = build(events(), { server: false });
+            expect(JSON.stringify(off)).toBe(JSON.stringify(plain));
+            expect(payloadHash(off, "en")).toBe(payloadHash(plain, "en"));
+            const text = texts(plain);
+            expect(text).toContain("## PUG Raids");
+            expect(text).toContain("\n<#ch-a> · led by <@lead-a>");
+            expect(text).not.toContain("10er");
+            expect(payloadHash(build(events(), { server: true }), "en")).not.toBe(payloadHash(plain, "en"));
         });
     });
 });

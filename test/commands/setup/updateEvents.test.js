@@ -14,6 +14,8 @@ describe("commands/setup/updateEvents", () => {
         raidOverview.adoptMessage.mockResolvedValue({ overview: {} });
         raidOverview.refreshOverviews.mockResolvedValue({ edited: 1, removed: 0, failed: 0, unchanged: 0 });
         store.listOverviews.mockReturnValue([]);
+        store.findServerInChannel.mockReturnValue(null);
+        store.isServerOverview.mockImplementation((o) => Boolean(o) && o.scope === "server");
     });
 
     it("exports the correct command contract", () => {
@@ -60,13 +62,66 @@ describe("commands/setup/updateEvents", () => {
 
         expect(raidOverview.refreshOverviews.mock.calls.map((c) => c[0].messageId)).toEqual(["m1", "m3"]);
         expect(raidOverview.refreshOverviews).toHaveBeenCalledWith(expect.objectContaining({ onlyStale: false }));
-        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("neu gezeichnet");
+        expect(interaction.deferReply).toHaveBeenCalledWith({ ephemeral: true });
+        expect(interaction.reply).not.toHaveBeenCalled();
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("neu gezeichnet");
+    });
+
+    it("acknowledges before it redraws anything", async () => {
+        store.listOverviews.mockReturnValue([{ categoryId: "cat-1", messageId: "m1" }]);
+        const order = [];
+        const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
+        interaction.deferReply.mockImplementation(async () => { order.push("defer"); });
+        raidOverview.refreshOverviews.mockImplementation(async () => { order.push("refresh"); return {}; });
+
+        await updateEvents.execute(interaction, {});
+
+        expect(order).toEqual(["defer", "refresh"]);
     });
 
     it("points to /createoverview when the category has no overview yet", async () => {
         const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
         await updateEvents.execute(interaction, {});
         expect(raidOverview.refreshOverviews).not.toHaveBeenCalled();
-        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("/createoverview");
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("/createoverview");
+    });
+
+    it("also redraws the server-wide overview of the channel, once", async () => {
+        const server = { guildId: "guild-1", channelId: "c1", messageId: "srv", categoryId: "", scope: "server" };
+        store.listOverviews.mockReturnValue([{ categoryId: "cat-1", messageId: "m1" }, server]);
+        store.findServerInChannel.mockReturnValue(server);
+        const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
+
+        await updateEvents.execute(interaction, {});
+
+        expect(store.findServerInChannel).toHaveBeenCalledWith("c1");
+        expect(raidOverview.refreshOverviews.mock.calls.map((c) => c[0].messageId)).toEqual(["m1", "srv"]);
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Übersichten wurden neu gezeichnet");
+    });
+
+    it("redraws a channel's server overview without pointing to /createoverview", async () => {
+        const server = { guildId: "guild-1", channelId: "c1", messageId: "srv", categoryId: "", scope: "server" };
+        store.listOverviews.mockReturnValue([server]);
+        store.findServerInChannel.mockReturnValue(server);
+        const interaction = mockInteraction({ channel: { id: "c1", parent: { id: "cat-1" } } });
+
+        await updateEvents.execute(interaction, {});
+
+        expect(raidOverview.refreshOverviews.mock.calls.map((c) => c[0].messageId)).toEqual(["srv"]);
+        const text = cardText(interaction.editReply.mock.calls[0][0]);
+        expect(text).toContain("Die Übersicht wurde neu gezeichnet.");
+        expect(text).not.toContain("/createoverview");
+    });
+
+    it("works in a channel without a category when a server overview lives there", async () => {
+        const server = { guildId: "guild-1", channelId: "c1", messageId: "srv", categoryId: "", scope: "server" };
+        store.findServerInChannel.mockReturnValue(server);
+        const interaction = mockInteraction({ channel: { id: "c1", parent: null } });
+
+        await updateEvents.execute(interaction, {});
+
+        expect(interaction.reply).not.toHaveBeenCalled();
+        expect(raidOverview.refreshOverviews.mock.calls.map((c) => c[0].messageId)).toEqual(["srv"]);
+        expect(cardText(interaction.editReply.mock.calls[0][0])).not.toMatch(/Keine Kategorie/);
     });
 });

@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import type { BotMessage, DiscordOverview } from "../../api";
 import { adminUser } from "../../test/render";
 import { switchLang } from "../../test/i18n";
-import { attentionItems, botCheckRank, botCheckRows, channelMissing, functionState, hygieneLine, messageStatus, purposeLabel, refreshWait, uncheckedLine } from "./overview";
+import { attentionItems, botCheckRank, botCheckRows, channelMissing, functionState, hygieneLine, messageExtra, messageName, messageStatus, purposeLabel, refreshWait, uncheckedLine } from "./overview";
 
 function overview(over: Partial<DiscordOverview> = {}): DiscordOverview {
     return {
@@ -175,6 +175,18 @@ describe("messages and hygiene", () => {
         expect(uncheckedLine([message({ status: "unknown" }), message({ messageId: "m2", status: "unknown" }), message({ status: "ok" })])).toBe("2 Nachrichten nicht geprüft");
         expect(uncheckedLine([message({ status: "unknown" })])).toBe("1 Nachricht nicht geprüft");
         expect(uncheckedLine([message({ status: "deleted" })])).toBe("");
+    });
+
+    it("names a raid overview of the whole server \"Alle Kategorien\", in both languages", async () => {
+        const server = message({ kind: "raidOverview", kindLabel: "Raid-Übersicht", categoryName: "", scope: "server" });
+        const category = message({ kind: "raidOverview", kindLabel: "Raid-Übersicht", categoryId: "cat1", categoryName: "40er" });
+        expect(messageExtra(server)).toBe("Alle Kategorien");
+        expect(messageName(server)).toBe("Raid-Übersicht · Alle Kategorien");
+        expect(messageExtra(category)).toBe("40er");
+        expect(messageExtra(message({ title: "Berufe" }))).toBe("Berufe");
+        expect(messageExtra(message({}))).toBe("");
+        await switchLang("en");
+        expect(messageExtra(server)).toBe("All categories");
     });
 });
 

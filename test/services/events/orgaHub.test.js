@@ -233,7 +233,8 @@ describe("services/events/orgaHub refreshHubs", () => {
 });
 
 describe("services/events/orgaHub start / nudge", () => {
-    beforeEach(() => jest.useFakeTimers());
+    // the clock starts at NOW: with the real date the fixture raids would lie in the past one day
+    beforeEach(() => jest.useFakeTimers({ now: NOW }));
     afterEach(() => {
         hub.stopOrgaHubs();
         jest.useRealTimers();
