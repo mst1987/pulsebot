@@ -3,7 +3,7 @@
 // redraws it.
 //
 // One Components V2 container in the bot's accent colour, no buttons:
-//   heading       the category's name
+//   heading       the category's name ("Raids" for the overview of a whole server)
 //   per raid ID   (lockout week Wednesday to Tuesday, utils/time/raidId.js)
 //                 "This ID" / "Next ID" / "ID" and its range "Wed 14.10. – Tue 20.10.",
 //                 then per raid a Section: three lines of text and the zone picture as its
@@ -11,6 +11,7 @@
 //                 a raid without a picture is a plain text display):
 //                   **Sat 18.10.** · **Title** · [clock] <t:start:t> · <t:start:R>
 //                   <#channel> · [crown] led by <@leader>
+//                   (server overview: "10er · <#channel> · …", the raid's category first)
 //                   -# [fill bar of five app emojis] 17 / 25 signed up
 //   footer        "Updates itself · last change <t:…:t>"
 //
@@ -129,8 +130,8 @@ function fillLine(event, counts, lang, now) {
     return tr(lang, "{count} / {size} signed up", { count: counts, size });
 }
 
-/** The three lines of one raid. */
-function raidLines(event, { lang, now, attending, emojis }) {
+/** The three lines of one raid; `server` opens the second line with the raid's category ("10er · <#channel> · …"). */
+function raidLines(event, { lang, now, attending, emojis, server = false }) {
     const start = Math.floor(Number(event.startTime) || 0);
     const title = plain(event.title) || "Raid";
     const counts = attending(event);
@@ -138,6 +139,7 @@ function raidLines(event, { lang, now, attending, emojis }) {
     const head = [day && `**${day}**`, title && `**${title}**`,
         `${icon(emojis, "time")} <t:${start}:t>`.trim(), `<t:${start}:R>`].filter(Boolean).join(" · ");
     const where = [
+        server ? plainCategoryName(event.categoryName) : "",
         event.channelId ? `<#${event.channelId}>` : "",
         event.leaderId ? `${icon(emojis, "leader")} ${tr(lang, "led by {leader}", { leader: `<@${event.leaderId}>` })}`.trim() : "",
     ].filter(Boolean).join(" · ");
@@ -164,7 +166,7 @@ function groupByRaidId(events, now) {
 }
 
 /**
- * The overview of one category.
+ * The overview of one category - or, with `server`, of every raid category of a server.
  * @param {object} o
  * @param {string} [o.categoryName] Discord's name, decoration and all
  * @param {object[]} [o.events] the category's raids (loadEventGroups rows), any order
@@ -173,13 +175,17 @@ function groupByRaidId(events, now) {
  * @param {(event: object) => number} o.attending how many accounts are coming (talkOverview's attendingCount)
  * @param {object} [o.emojis] name -> app emoji (appEmojis.appEmojiMap()); missing ones fall back to unicode / nothing
  * @param {number} [o.lastChange] unix seconds for the footer; 0 leaves the time out (what the hash is taken over)
+ * @param {boolean} [o.server] the overview of every raid category of a server: heading "Raids", each raid's
+ *   second line opens with its category's plain name (the rows' `categoryName`); `categoryName` is not used
  * @param {boolean} [o.weekStrip] draw each ID's week as a picture above its raids (raidWeekStrip.js); the
  *   payload then carries `images: [{ name, svg }]` for services/discord/discordImage.js `withImages`
  * @returns {{ flags: number, components: object[], embeds: [], content: "", images?: object[] }} API JSON
  */
-function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap(), weekStrip = false } = {}) {
+function raidOverviewPayload({
+    categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap(), weekStrip = false, server = false,
+} = {}) {
     const c = new ContainerBuilder().setAccentColor(embedAccentColor);
-    const heading = `## ${plainCategoryName(categoryName) || tr(lang, "Raids")}`;
+    const heading = `## ${(!server && plainCategoryName(categoryName)) || tr(lang, "Raids")}`;
     c.addTextDisplayComponents(text(heading));
     let used = heading.length;
     let components = 4; // container, heading, footer separator + footer text
@@ -202,7 +208,7 @@ function raidOverviewPayload({ categoryName = "", events = [], now = Date.now(),
         let cost = 2; // separator + the ID's title
         for (const event of group.events) {
             if (shown + rows.length >= MAX_RAIDS) break;
-            const block = raidLines(event, { lang, now, attending, emojis });
+            const block = raidLines(event, { lang, now, attending, emojis, server });
             const picture = raidPicture(event);
             const rowCost = picture ? 3 : 1;
             if (used + length + block.length + 2 > TEXT_BUDGET - 80) break;

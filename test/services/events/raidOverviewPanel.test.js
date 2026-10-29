@@ -294,4 +294,40 @@ describe("services/events/raidOverviewPanel", () => {
             expect(payload.images.length).toBeLessThanOrEqual(MAX_IDS);
         });
     });
+
+    describe("the overview of a whole server (server: true)", () => {
+        const events = () => [
+            raid("a", "2026-10-17T20:00:00", { categoryName: "⚔️ 10er" }),
+            raid("b", "2026-10-18T20:00:00", { categoryName: "🔥 40er", leaderId: "" }),
+            raid("c", "2026-10-19T20:00:00", { categoryName: "", channelId: "" }),
+        ];
+
+        it("is headed Raids and names each raid's category first on its second line", () => {
+            const text = texts(build(events(), { categoryName: "", server: true }));
+            expect(text).toContain("## Raids");
+            expect(text).not.toContain("## PUG Raids");
+            expect(text).toContain("10er · <#ch-a> · led by <@lead-a>");
+            expect(text).toContain("40er · <#ch-b>");
+            expect(text).not.toContain("40er · <#ch-b> · led by");
+            // a raid without category or channel just keeps its leader
+            expect(text).toContain("led by <@lead-c>");
+            expect(text).not.toContain("⚔️");
+        });
+
+        it("writes the heading in German", () => {
+            expect(texts(build(events(), { categoryName: "", server: true, lang: "de" }))).toContain("## Raids");
+        });
+
+        it("leaves the overview of a category exactly as it was", () => {
+            const plain = build(events());
+            const off = build(events(), { server: false });
+            expect(JSON.stringify(off)).toBe(JSON.stringify(plain));
+            expect(payloadHash(off, "en")).toBe(payloadHash(plain, "en"));
+            const text = texts(plain);
+            expect(text).toContain("## PUG Raids");
+            expect(text).toContain("\n<#ch-a> · led by <@lead-a>");
+            expect(text).not.toContain("10er");
+            expect(payloadHash(build(events(), { server: true }), "en")).not.toBe(payloadHash(plain, "en"));
+        });
+    });
 });

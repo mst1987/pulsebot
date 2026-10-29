@@ -64,9 +64,15 @@ export function purposeLabel(c: { key: string; label: string }): string {
 /** A fixed message's kind in the active language. */
 export const messageKindLabel = (m: Pick<BotMessage, "kind" | "kindLabel">) => tOr(`discord.overview.kind.${m.kind}`, m.kindLabel || m.kind);
 
+/** What a fixed message is about beside its kind: its title, its category, or "All categories" for a raid overview of the whole server ("" = nothing). */
+export function messageExtra(m: Pick<BotMessage, "title" | "categoryName" | "scope">): string {
+    if (m.scope === "server") return t("discord.overview.allCategories");
+    return m.title || m.categoryName;
+}
+
 /** What a fixed message is: its kind, and its title or category when it has one. */
 export function messageName(m: BotMessage): string {
-    const extra = m.title || m.categoryName;
+    const extra = messageExtra(m);
     return extra ? `${messageKindLabel(m)} · ${extra}` : messageKindLabel(m);
 }
 

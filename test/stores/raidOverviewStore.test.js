@@ -67,6 +67,31 @@ describe("stores/raidOverviewStore", () => {
         expect(JSON.parse(fs.readFileSync(FILE, "utf8")).scannedGuilds).toEqual(["g1"]);
     });
 
+    it("keeps the overview of a whole server apart from the category overviews of its channel", () => {
+        const server = store.setOverview(entry({ messageId: "m9", categoryId: "cat1", scope: "server" }));
+        expect(server).toEqual({ guildId: "g1", channelId: "c1", messageId: "m9", categoryId: "", scope: "server", hash: "h", lastChange: 100 });
+        expect(store.isServerOverview(server)).toBe(true);
+        expect(store.findServerInChannel("c1").messageId).toBe("m9");
+        expect(store.findServerInChannel("c2")).toBeNull();
+        // never the overview of a category, not even of "" or the category it was posted with
+        expect(store.findInChannel("c1", "")).toBeNull();
+        expect(store.findInChannel("c1", "cat1")).toBeNull();
+        store.setOverview(entry());
+        expect(store.findInChannel("c1", "cat1").messageId).toBe("m1");
+        expect(store.findServerInChannel("c1").messageId).toBe("m9");
+        expect(store.isServerOverview(store.getOverview("m1"))).toBe(false);
+        expect(store.getOverview("m1")).not.toHaveProperty("scope");
+        // survives a reload of the file
+        store.useFile(FILE);
+        expect(store.getOverview("m9")).toMatchObject({ scope: "server", categoryId: "" });
+    });
+
+    it("refuses a server overview without its server", () => {
+        expect(store.setOverview(entry({ guildId: "", scope: "server" }))).toBeNull();
+        fs.writeFileSync(FILE, JSON.stringify({ overviews: [{ channelId: "c", messageId: "m", scope: "server", categoryId: "" }] }));
+        expect(store.listOverviews()).toEqual([]);
+    });
+
     it("reads a damaged file as empty", () => {
         fs.writeFileSync(FILE, JSON.stringify({ overviews: [null, { channelId: "c" }, entry()], scannedGuilds: "x" }));
         expect(store.listOverviews()).toEqual([entry()]);

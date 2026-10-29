@@ -13,7 +13,7 @@ import RaidLoader from "../../components/ui/RaidLoader";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDateTime } from "../../lib/format";
 import {
-    attentionItems, botCheckRank, botCheckRows, functionState, hygieneLine, mayOpenHref, messageKindLabel,
+    attentionItems, botCheckRank, botCheckRows, functionState, hygieneLine, mayOpenHref, messageExtra, messageKindLabel,
     messageStatus, refreshWait, uncheckedLine, type AttentionItem, type BotCheckRow,
 } from "../../lib/discord/overview";
 import "../../styles/discord-overview.css";
@@ -216,7 +216,7 @@ function Messages({ messages }: { messages: BotMessage[] }) {
     const t = useT();
     const sort = useTableSort<MsgSort>("discord-overview-msg-sort", MSG_SORT, "status");
     const rows = sort.apply(messages, (m, key) => {
-        if (key === "kind") return `${messageKindLabel(m)} ${m.title || m.categoryName}`.toLowerCase();
+        if (key === "kind") return `${messageKindLabel(m)} ${messageExtra(m)}`.toLowerCase();
         if (key === "channel") return (m.channelName || "").toLowerCase();
         return messageStatus(m).rank;
     });
@@ -235,7 +235,7 @@ function Messages({ messages }: { messages: BotMessage[] }) {
                     <tbody>
                         {rows.map((m) => {
                             const st = messageStatus(m);
-                            const extra = m.title || m.categoryName;
+                            const extra = messageExtra(m);
                             return (
                                 <tr key={`${m.kind}-${m.messageId || m.channelId || m.categoryId}`}>
                                     <td>
