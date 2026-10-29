@@ -43,6 +43,11 @@ jest.mock("@resvg/resvg-js", () => {
     const actual = jest.requireActual("@resvg/resvg-js");
     return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
 });
+// the real panel; shownRaids wrapped so a test can make the listed raids depend on the language
+jest.mock("../../../src/services/events/raidOverviewPanel", () => {
+    const actual = jest.requireActual("../../../src/services/events/raidOverviewPanel");
+    return { ...actual, shownRaids: jest.fn(actual.shownRaids) };
+});
 jest.mock("../../../src/logger", () => {
     const log = { warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() };
     return { ...log, child: () => log };
@@ -218,6 +223,177 @@ describe("services/events/raidOverview", () => {
         });
     });
 
+    describe("the overview of a whole server (scope server)", () => {
+        const twoCategories = () => {
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "🔥 10er", events: [raid("a", { title: "Karazhan", categoryName: "🔥 10er" }), raid("b", { startTime: NOW_SEC + 9 * DAY, title: "Late Raid", categoryName: "🔥 10er" })] },
+                { categoryId: "cat2", categoryName: "40er", events: [raid("c", { startTime: NOW_SEC + DAY, title: "Molten Core", categoryName: "40er" })] },
+                { categoryId: "", categoryName: "Ohne Kategorie", events: [raid("d", { title: "Loose Raid" })] },
+            ];
+        };
+        const serverPost = (over = {}) => overview.postOverview({ guildId: "g1", channelId: "c-ov", scope: "server", now: NOW, ...over });
+
+        it("lists the raids of every raid category of the server by time, each with its category, and remembers it as the server's", async () => {
+            twoCategories();
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            const res = await serverPost();
+            expect(res).toMatchObject({ edited: false });
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            expect(text).toContain("## Raids");
+            // mixed languages (cat1 English, cat2 the server's German): the server's language
+            expect(text).toContain("Diese ID");
+            expect(text.indexOf("Molten Core")).toBeLessThan(text.indexOf("Karazhan"));
+            expect(text).toContain("40er · <#ch-c>");
+            expect(text).toContain("10er · <#ch-a>");
+            expect(text).toContain("Late Raid");
+            // a raid without a category belongs to no raid category
+            expect(text).not.toContain("Loose Raid");
+            expect(loadEventGroups).toHaveBeenCalledWith("g1");
+            expect(store.getOverview("ms")).toMatchObject({ guildId: "g1", channelId: "c-ov", categoryId: "", scope: "server", lastChange: NOW_SEC });
+        });
+
+        it("speaks the language all its categories share", async () => {
+            twoCategories();
+            mockGroups[1].events = [];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            expect(text).toContain("This ID");
+            expect(text).toContain("## Raids");
+        });
+
+        it("takes its language only from the raids it lists, not from those cut off by its limits", async () => {
+            // cat1 (English) fills the card; cat2 (the server's German) only has raids past the limits
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: Array.from({ length: 16 }, (_, i) => raid(`e${i}`, { startTime: NOW_SEC + DAY + i * 3600, categoryName: "10er" })) },
+                { categoryId: "cat2", categoryName: "40er", events: [
+                    raid("late4", { startTime: NOW_SEC + 30 * DAY, title: "Fourth ID Raid", categoryName: "40er" }),
+                    raid("late1", { startTime: NOW_SEC + DAY + 20 * 3600, title: "Sixteenth Raid", categoryName: "40er" }),
+                ] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            expect(text).not.toContain("Fourth ID Raid");
+            expect(text).not.toContain("Sixteenth Raid");
+            expect(text).toContain("This ID");
+            expect(text).toMatch(/\+\d+ more raids/);
+        });
+
+        it("speaks the server's language once a listed raid comes from a category of another language", async () => {
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] },
+                { categoryId: "cat2", categoryName: "40er", events: [raid("c", { startTime: NOW_SEC + 30 * DAY, categoryName: "40er" })] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Diese ID");
+        });
+
+        it("falls back to the server's language when the shown raids' language would list other raids", async () => {
+            // German lists only cat1 (English); English would let a cat2 (German) raid in: no stable answer
+            const { shownRaids } = require("../../../src/services/events/raidOverviewPanel");
+            const byLang = ({ events, lang }) => (lang === "de" ? events.filter((e) => e.title !== "Tight Fit") : events);
+            shownRaids.mockImplementationOnce(byLang).mockImplementationOnce(byLang);
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] },
+                { categoryId: "cat2", categoryName: "40er", events: [raid("c", { title: "Tight Fit", categoryName: "40er" })] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(shownRaids.mock.calls.map((c) => c[0].lang)).toEqual(["de", "en"]);
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Diese ID");
+        });
+
+        it("keeps the shown raids' language when it lists the same raids in it", async () => {
+            const { shownRaids } = require("../../../src/services/events/raidOverviewPanel");
+            mockGroups = [{ categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] }];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(shownRaids.mock.calls.map((c) => c[0].lang)).toEqual(["de", "en"]);
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("This ID");
+        });
+
+        it("speaks the server's language without any raid", async () => {
+            mockGroups = [{ categoryId: "cat1", categoryName: "10er", events: [] }];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Gerade sind keine Raids geplant");
+        });
+
+        it("applies the filters of a category's overview and leaves out raids of another server", async () => {
+            twoCategories();
+            mockGroups[0].events.push(
+                raid("h", { versionId: "hidden", title: "Hidden Raid" }),
+                raid("x", { status: "cancelled", title: "Cancelled Raid" }),
+                raid("p", { startTime: NOW_SEC - 3600, title: "Begun Raid" }),
+                raid("s", { raidGroupId: "a", title: "Sibling Raid" }),
+            );
+            mockGroups[1].events.push(raid("o", { guildId: "g2", title: "Other Server Raid" }));
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            for (const gone of ["Hidden Raid", "Cancelled Raid", "Begun Raid", "Sibling Raid", "Other Server Raid"]) expect(text).not.toContain(gone);
+            expect(text).toContain("Molten Core");
+        });
+
+        it("edits the server overview of the channel, never a category's overview there, and is never found as one", async () => {
+            twoCategories();
+            tracked({ channelId: "c-ov" });
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(discord.editPayload).not.toHaveBeenCalled();
+            expect(store.listOverviews()).toHaveLength(2);
+            discord.editPayload.mockResolvedValue({ url: "https://discord.com/channels/g1/c-ov/ms" });
+            const again = await serverPost();
+            expect(again.edited).toBe(true);
+            expect(discord.editPayload).toHaveBeenCalledWith("c-ov", "ms", expect.any(Object));
+            expect(discord.postPayload).toHaveBeenCalledTimes(1);
+            expect(store.findInChannel("c-ov", "cat1").messageId).toBe("m1");
+            expect(store.findServerInChannel("c-ov").messageId).toBe("ms");
+        });
+
+        it("needs its server and a channel", async () => {
+            expect(await overview.postOverview({ channelId: "c-ov", scope: "server" })).toEqual({ error: "No server." });
+            expect(await overview.postOverview({ guildId: "g1", scope: "server" })).toEqual({ error: "No channel." });
+            mockGroupsError = "Raid-Helper down";
+            expect(await serverPost()).toEqual({ error: "Raid-Helper down" });
+            expect(store.listOverviews()).toEqual([]);
+        });
+
+        it("is redrawn by the sweep when its content changed and forgotten when deleted", async () => {
+            twoCategories();
+            tracked({ messageId: "ms", channelId: "c-ov", categoryId: "", scope: "server" });
+            discord.editPayload.mockResolvedValue({});
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 1 });
+            expect(cardText(discord.editPayload.mock.calls[0][2])).toContain("## Raids");
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 0, unchanged: 1 });
+            mockGroups[1].events[0].signUps = [{ userId: "u1" }];
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ edited: 1 });
+            discord.editPayload.mockRejectedValue(unknownMessage());
+            mockGroups[1].events[0].signUps = [];
+            expect(await overview.refreshOverviews({ now: NOW })).toMatchObject({ removed: 1 });
+            expect(store.listOverviews()).toEqual([]);
+            expect(discord.postPayload).not.toHaveBeenCalled();
+        });
+
+        it("logs a failed redraw under 'server'", async () => {
+            tracked({ messageId: "ms", channelId: "c-ov", categoryId: "", scope: "server" });
+            discord.editPayload.mockRejectedValue(new Error("Missing Access"));
+            expect((await overview.refreshOverviews({ now: NOW })).failed).toBe(1);
+            expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining("server/ms"));
+        });
+
+        it("leaves the category overviews byte for byte as they were", async () => {
+            const before = await overview.currentContent("cat1", "g1", { now: NOW });
+            twoCategories();
+            mockGroups = [{ categoryId: "cat1", categoryName: "🔥 PUG Raids", events: [raid("a"), raid("b", { startTime: NOW_SEC + 9 * DAY })] }];
+            const after = await overview.currentContent("cat1", "g1", { now: NOW });
+            expect(after.hash).toBe(before.hash);
+            expect(cardText(after.payload)).not.toContain("PUG Raids · ");
+        });
+    });
+
     describe("adoptMessage (a click on an old overview)", () => {
         it("registers the message and draws it in the new design", async () => {
             discord.editPayload.mockResolvedValue({});
@@ -293,6 +469,17 @@ describe("services/events/raidOverview", () => {
             expect(voice.messages.fetch).not.toHaveBeenCalled();
             expect(loose.messages.fetch).not.toHaveBeenCalled();
             expect(store.getOverview("z").hash).toBe("keep");
+        });
+
+        it("never adopts a server overview as the overview of its channel's category", async () => {
+            const c1 = channel("c1", [msg("srv", { interaction: { commandName: "createoverview" } })]);
+            store.setOverview({ guildId: "g1", channelId: "c1", messageId: "srv", scope: "server", hash: "keep", lastChange: 5 });
+            discord.getGuild.mockImplementation((id) => (id === "g1" ? guildWith([c1]) : undefined));
+            const res = await overview.adoptExisting({ pauseMs: 0, wait });
+            expect(res.adopted).toBe(0);
+            expect(store.listOverviews()).toHaveLength(1);
+            expect(store.getOverview("srv")).toMatchObject({ scope: "server", categoryId: "", hash: "keep" });
+            expect(store.findInChannel("c1", "cat-c1")).toBeNull();
         });
 
         it("survives a channel it cannot read, adopts the rest and tries that server again next time", async () => {

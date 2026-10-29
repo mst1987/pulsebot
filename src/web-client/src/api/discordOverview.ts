@@ -65,6 +65,8 @@ export type BotMessage = {
     channelId: string;
     channelName: string;
     messageId: string;
+    /** "server" for a raid overview of every raid category of the server (`/createoverview scope:server`) */
+    scope?: "server";
     /** the message in Discord, "" when there is none to open */
     link: string;
     status: BotMessageStatus;

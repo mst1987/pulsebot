@@ -15,6 +15,13 @@
 // central cached sync, never a request of its own. A message deleted in Discord
 // ("Unknown Message") is forgotten, not posted again: the orga placed it by hand.
 //
+// `/createoverview scope:server` posts the overview of a whole server instead
+// (store entry `scope: "server"`, currentServerContent): the raids of every raid
+// category of that server in one card, each raid's second line opening with its
+// category - for a public channel like "raid-overview" outside the raid categories.
+// Same sweep, nudge, hash and limits; the adoption scan below never takes it for
+// the overview of its channel's category (it skips every message the store knows).
+//
 // With `config.discordVisuals.overviewWeekStrip` (on unless switched off) each ID
 // opens with its week drawn as a picture (raidWeekStrip.js): the PNG is rendered
 // only when the content hash changed (it covers the SVG) and goes with the edit as
@@ -35,11 +42,12 @@ const signupStore = require("../../stores/signupStore");
 const settingsStore = require("../../stores/settingsStore");
 const discord = require("../discord/discord");
 const guildRoles = require("../discord/guildRoles");
-const { categoryLang } = require("../discord/botLanguage");
+const { categoryLang, serverLang } = require("../discord/botLanguage");
+const { guildOfEvent, storedCategoryGuilds } = require("../discord/serverOf");
 const { loadEventGroups } = require("./raidEventGroups");
 const { visibleRows, versionOfEvent } = require("./mainVersion");
 const { attendingCount } = require("../talk/talkOverview");
-const { raidOverviewPayload, payloadHash } = require("./raidOverviewPanel");
+const { raidOverviewPayload, shownRaids, payloadHash } = require("./raidOverviewPanel");
 const { categoryNameFor } = require("../signups/availabilityPanel");
 const { visualOn, withImages } = require("../discord/discordImage");
 const logger = require("../../logger").child("raidOverview");
@@ -100,6 +108,66 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
     return { payload, hash: payloadHash(payload, lang), lang, build };
 }
 
+/**
+ * What the overview of a whole server shows now (`/createoverview scope:server`): the raids of every raid
+ * category of this server together, by time and raid ID - a raid without a category is no raid category's and
+ * stays out, so does one whose server is known to be another. Same filters as a category's overview. Its
+ * language: the one all categories of the listed raids share (after the card's limits, raidOverviewPanel.shownRaids),
+ * else (mixed or none) the server's.
+ * @returns {Promise<{ payload?: object, hash?: string, lang?: string, error?: string }>}
+ */
+async function currentServerContent(guildId, { config, now = Date.now(), cache = new Map() } = {}) {
+    const cfg = config || settingsStore.getConfig();
+    const gid = str(guildId);
+    const { groups, error } = await groupsOf(gid, cache);
+    if (error) return { error };
+    const categoryGuilds = storedCategoryGuilds();
+    const ofThisServer = (e) => {
+        const owner = guildOfEvent(e, { categoryGuilds });
+        return !owner || owner === gid;
+    };
+    const events = [];
+    const categoryOf = new Map();
+    for (const group of groups || []) {
+        const cat = str(group && group.categoryId);
+        if (!cat) continue;
+        const rows = visibleRows(((group.events) || []).filter((e) => !isRaidSibling(e) && ofThisServer(e)), (e) => versionOfEvent(e, { config: cfg }), cfg)
+            .map((e) => ({ ...e, categoryName: e.categoryName || group.categoryName || "" }));
+        for (const row of rows) categoryOf.set(row, cat);
+        events.push(...rows);
+    }
+    events.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
+    // The language comes from the raids the card actually lists (after its limits), which in turn depend a
+    // little on the language (text budget): start from the server's, settle on the shown raids' one.
+    const fallback = serverLang(cfg, gid);
+    const langOf = (lang) => {
+        const langs = new Set(shownRaids({ events, now, lang, attending: attendingCount, server: true })
+            .map((e) => categoryLang(categoryOf.get(e), cfg, gid)));
+        return langs.size === 1 ? [...langs][0] : fallback;
+    };
+    let lang = langOf(fallback);
+    if (lang !== fallback && langOf(lang) !== lang) lang = fallback;
+    const weekStrip = visualOn(cfg, "overviewWeekStrip", gid);
+    const build = (lastChange, { pictures = weekStrip } = {}) => raidOverviewPayload({
+        events,
+        now,
+        lang,
+        attending: attendingCount,
+        lastChange,
+        weekStrip: pictures,
+        server: true,
+    });
+    const payload = build(0);
+    return { payload, hash: payloadHash(payload, lang), lang, build };
+}
+
+/** What a remembered overview shows now: a server's (`scope: "server"`) or a category's. */
+function contentOf(overview, opts) {
+    return store.isServerOverview(overview)
+        ? currentServerContent(overview.guildId, opts)
+        : currentContent(overview.categoryId, overview.guildId, opts);
+}
+
 // Overviews whose picture could not be rendered and were said so once.
 const renderWarned = new Set();
 
@@ -120,19 +188,22 @@ function renderedPayload(content, lastChange, key) {
 
 /**
  * Post the overview of a category into a channel - or, when that channel already
- * holds one of this category, edit it instead of posting a second.
+ * holds one of this category, edit it instead of posting a second. `scope: "server"` posts the overview of
+ * every raid category of the server `guildId` instead (one per channel, the channel may sit anywhere).
  * @returns {Promise<{ overview?: object, url?: string, edited?: boolean, error?: string }>}
  */
-async function postOverview({ guildId, channelId, categoryId, config, now = Date.now() } = {}) {
-    const cat = str(categoryId);
+async function postOverview({ guildId, channelId, categoryId, scope = "", config, now = Date.now() } = {}) {
+    const server = str(scope) === "server";
+    const cat = server ? "" : str(categoryId);
     const channel = str(channelId);
-    if (!cat) return { error: "No category." };
-    if (!channel) return { error: "No channel." };
     const gid = str(guildId);
-    const content = await currentContent(cat, gid, { config, now });
+    if (server && !gid) return { error: "No server." };
+    if (!server && !cat) return { error: "No category." };
+    if (!channel) return { error: "No channel." };
+    const content = server ? await currentServerContent(gid, { config, now }) : await currentContent(cat, gid, { config, now });
     if (content.error) return { error: content.error };
     const lastChange = Math.floor(now / 1000);
-    const earlier = store.findInChannel(channel, cat);
+    const earlier = server ? store.findServerInChannel(channel) : store.findInChannel(channel, cat);
     if (earlier) {
         try {
             const edited = await discord.editPayload(channel, earlier.messageId, renderedPayload(content, lastChange, `overview:${earlier.messageId}`));
@@ -145,12 +216,13 @@ async function postOverview({ guildId, channelId, categoryId, config, now = Date
     }
     let posted;
     try {
-        posted = await discord.postPayload(channel, renderedPayload(content, lastChange, `overview:${channel}:${cat}`));
+        posted = await discord.postPayload(channel, renderedPayload(content, lastChange, `overview:${channel}:${server ? "server" : cat}`));
     } catch (e) {
         return { error: (e && e.message) || String(e) };
     }
     const overview = store.setOverview({
-        guildId: posted.guildId || gid, channelId: posted.channelId, messageId: posted.messageId, categoryId: cat, hash: content.hash, lastChange,
+        guildId: posted.guildId || gid, channelId: posted.channelId, messageId: posted.messageId, categoryId: cat,
+        ...(server ? { scope: "server" } : {}), hash: content.hash, lastChange,
     });
     return { overview, url: posted.url, edited: false };
 }
@@ -183,7 +255,7 @@ async function refreshOverviews({ config, onlyStale = true, messageId = "", now 
     for (const overview of store.listOverviews()) {
         if (messageId && overview.messageId !== str(messageId)) continue;
         try {
-            const content = await currentContent(overview.categoryId, overview.guildId, { config: cfg, now, cache });
+            const content = await contentOf(overview, { config: cfg, now, cache });
             if (content.error) throw new Error(content.error);
             if (onlyStale && overview.hash === content.hash) {
                 out.unchanged += 1;
@@ -203,7 +275,7 @@ async function refreshOverviews({ config, onlyStale = true, messageId = "", now 
                 continue;
             }
             out.failed += 1;
-            if (!warned.has(overview.messageId)) logger.warn(`${overview.categoryId}/${overview.messageId}: ${(e && e.message) || e}`);
+            if (!warned.has(overview.messageId)) logger.warn(`${overview.categoryId || "server"}/${overview.messageId}: ${(e && e.message) || e}`);
             warned.add(overview.messageId);
         }
     }
@@ -362,7 +434,7 @@ function stopRaidOverviews() {
 }
 
 module.exports = {
-    currentContent, postOverview, adoptMessage, refreshOverviews, adoptExisting, isOverviewMessage, scheduleRefresh, sweep, onOverviewMessageDeleted,
+    currentContent, currentServerContent, postOverview, adoptMessage, refreshOverviews, adoptExisting, isOverviewMessage, scheduleRefresh, sweep, onOverviewMessageDeleted,
     startRaidOverviews, stopRaidOverviews,
     COMMAND_NAME, OLD_BUTTON_ID,
 };
