@@ -120,6 +120,12 @@ describe("services/events/raidOverviewPanel", () => {
 
         it("names no raid when nothing is planned", () => {
             expect(shownRaids({ events: [], now: NOW, lang: "en", attending })).toEqual([]);
+            expect(shownRaids()).toEqual([]);
+        });
+
+        it("lists an upcoming raid with the defaults (now, German, the app's emojis, category form)", () => {
+            const later = { id: "x", title: "Kara", startTime: Math.floor(Date.now() / 1000) + 3600, channelId: "c1" };
+            expect(shownRaids({ events: [later], attending: () => 0 })).toEqual([later]);
         });
 
         it("stays within Discord's 40 components and 4000 characters, whatever the titles", () => {

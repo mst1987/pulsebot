@@ -43,6 +43,11 @@ jest.mock("@resvg/resvg-js", () => {
     const actual = jest.requireActual("@resvg/resvg-js");
     return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
 });
+// the real panel; shownRaids wrapped so a test can make the listed raids depend on the language
+jest.mock("../../../src/services/events/raidOverviewPanel", () => {
+    const actual = jest.requireActual("../../../src/services/events/raidOverviewPanel");
+    return { ...actual, shownRaids: jest.fn(actual.shownRaids) };
+});
 jest.mock("../../../src/logger", () => {
     const log = { warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() };
     return { ...log, child: () => log };
@@ -283,6 +288,30 @@ describe("services/events/raidOverview", () => {
             discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
             await serverPost();
             expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Diese ID");
+        });
+
+        it("falls back to the server's language when the shown raids' language would list other raids", async () => {
+            // German lists only cat1 (English); English would let a cat2 (German) raid in: no stable answer
+            const { shownRaids } = require("../../../src/services/events/raidOverviewPanel");
+            const byLang = ({ events, lang }) => (lang === "de" ? events.filter((e) => e.title !== "Tight Fit") : events);
+            shownRaids.mockImplementationOnce(byLang).mockImplementationOnce(byLang);
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] },
+                { categoryId: "cat2", categoryName: "40er", events: [raid("c", { title: "Tight Fit", categoryName: "40er" })] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(shownRaids.mock.calls.map((c) => c[0].lang)).toEqual(["de", "en"]);
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Diese ID");
+        });
+
+        it("keeps the shown raids' language when it lists the same raids in it", async () => {
+            const { shownRaids } = require("../../../src/services/events/raidOverviewPanel");
+            mockGroups = [{ categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] }];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(shownRaids.mock.calls.map((c) => c[0].lang)).toEqual(["de", "en"]);
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("This ID");
         });
 
         it("speaks the server's language without any raid", async () => {
