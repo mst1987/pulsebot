@@ -62,38 +62,59 @@ function shortWhen(seconds) {
  * @param {{ label: string, url: string, emoji?: string }[]} [o.links] the category's links (Einstellungen → Kategorien)
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())
  * @param {boolean} [o.guildBank] whether the guild bank area shows (a guild bank channel is set)
+ * @param {object} [o.features] the sections switched on/off (availabilityStore.getFeatures); a missing key = on.
+ *   A section that is off is left out with its divider; with no section left a short line says so. The footer
+ *   about personal answers shows only while a section with such an answer (My raid, entries, evaluation, bank) does.
  * @returns {{ flags: number, components: object[], embeds: [] }} API JSON; `embeds: []` clears an old embed panel on edit
  */
-function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [], emojis = {}, guildBank = false } = {}) {
+function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nextRaid = null, links = [], emojis = {}, guildBank = false, features = {} } = {}) {
+    const on = (key) => !features || features[key] !== false;
     const category = plainCategoryName(categoryName);
     const vars = { category };
     const c = new ContainerBuilder().setAccentColor(COLOR_PANEL);
     c.addTextDisplayComponents(text(`## ${category ? tr(lang, "Raid hub · {category}", vars) : tr(lang, "Raid hub")}\n-# ${category
         ? tr(lang, "Everything for your {category} raids in one place", vars)
         : tr(lang, "Everything for your raids in one place")}`));
+    let sections = 0;
+    // sections with a button that answers only the clicking raider — the footer's "Personal answers" is about those
+    let personal = 0;
 
-    c.addSeparatorComponents(line());
-    const start = nextRaid && Number(nextRaid.startTime) > 0 ? Math.floor(Number(nextRaid.startTime)) : 0;
-    if (start) {
-        const head = `${DATE_ICON(emojis)} **${tr(lang, "Next raid")}** · ${shortWhen(start)}`;
-        const sub = `-# <t:${start}:R> · ${tr(lang, "{count} signed up", { count: Math.max(0, Number(nextRaid.attending) || 0) })}`;
-        c.addSectionComponents(section(`${head}\n${sub}`, new ButtonBuilder().setCustomId(id("r", categoryId)).setLabel(tr(lang, "My raid")).setStyle(ButtonStyle.Primary)));
-    } else {
-        c.addTextDisplayComponents(text(`${DATE_ICON(emojis)} **${tr(lang, "Next raid")}**\n-# ${tr(lang, "No raid planned yet.")}`));
+    if (on("nextRaid")) {
+        sections++;
+        c.addSeparatorComponents(line());
+        const start = nextRaid && Number(nextRaid.startTime) > 0 ? Math.floor(Number(nextRaid.startTime)) : 0;
+        if (start) {
+            personal++;
+            const head = `${DATE_ICON(emojis)} **${tr(lang, "Next raid")}** · ${shortWhen(start)}`;
+            const sub = `-# <t:${start}:R> · ${tr(lang, "{count} signed up", { count: Math.max(0, Number(nextRaid.attending) || 0) })}`;
+            c.addSectionComponents(section(`${head}\n${sub}`, new ButtonBuilder().setCustomId(id("r", categoryId)).setLabel(tr(lang, "My raid")).setStyle(ButtonStyle.Primary)));
+        } else {
+            c.addTextDisplayComponents(text(`${DATE_ICON(emojis)} **${tr(lang, "Next raid")}**\n-# ${tr(lang, "No raid planned yet.")}`));
+        }
     }
 
-    c.addSeparatorComponents(line());
-    c.addTextDisplayComponents(text(`🏖️ **${tr(lang, "Absence & attendance")}**\n-# ${tr(lang, "Enter a period – the bot signs you off or up for every raid in it.")}`));
-    c.addSeparatorComponents(gap());
-    c.addActionRowComponents(panelButtons(categoryId, lang));
+    if (on("attendance")) {
+        sections++;
+        personal++;
+        c.addSeparatorComponents(line());
+        c.addTextDisplayComponents(text(`🏖️ **${tr(lang, "Absence & attendance")}**\n-# ${tr(lang, "Enter a period – the bot signs you off or up for every raid in it.")}`));
+        c.addSeparatorComponents(gap());
+        c.addActionRowComponents(panelButtons(categoryId, lang));
+    }
 
-    c.addSeparatorComponents(line());
-    c.addSectionComponents(section(
-        `📊 **${tr(lang, "Your evaluation")}**\n-# ${tr(lang, "Your latest raid, your points, your characters")}`,
-        new ButtonBuilder().setCustomId(id("o", categoryId)).setLabel(tr(lang, "Evaluation")).setStyle(ButtonStyle.Secondary),
-    ));
+    if (on("evaluation")) {
+        sections++;
+        personal++;
+        c.addSeparatorComponents(line());
+        c.addSectionComponents(section(
+            `📊 **${tr(lang, "Your evaluation")}**\n-# ${tr(lang, "Your latest raid, your points, your characters")}`,
+            new ButtonBuilder().setCustomId(id("o", categoryId)).setLabel(tr(lang, "Evaluation")).setStyle(ButtonStyle.Secondary),
+        ));
+    }
 
-    if (guildBank) {
+    if (guildBank && on("guildBank")) {
+        sections++;
+        personal++;
         c.addSeparatorComponents(line());
         c.addSectionComponents(section(
             `🏦 **${tr(lang, "Guild bank")}**\n-# ${tr(lang, "Request mats, potions or enchants – the orga will get back to you by DM")}`,
@@ -101,16 +122,23 @@ function organizerPayload({ categoryId = "", categoryName = "", lang = "de", nex
         ));
     }
 
-    const usable = (links || []).filter((l) => l && l.label && l.url).slice(0, MAX_LINKS);
+    const usable = on("links") ? (links || []).filter((l) => l && l.label && l.url).slice(0, MAX_LINKS) : [];
     if (usable.length) {
+        sections++;
         c.addSeparatorComponents(line());
         c.addTextDisplayComponents(text(`🔗 **${tr(lang, "Links")}**`));
         c.addSeparatorComponents(gap());
         c.addActionRowComponents(new ActionRowBuilder().addComponents(usable.map((l) => linkButton(l.label, l.url, l.emoji))));
     }
 
-    c.addSeparatorComponents(gap(SeparatorSpacingSize.Large));
-    c.addTextDisplayComponents(text(`-# ${tr(lang, "Personal answers are only visible to you")}`));
+    if (!sections) {
+        // every section off, or only ones with nothing to show (the guild bank without its channel)
+        c.addSeparatorComponents(line());
+        c.addTextDisplayComponents(text(`-# ${tr(lang, "Nothing is switched on in this hub right now.")}`));
+    } else if (personal) {
+        c.addSeparatorComponents(gap(SeparatorSpacingSize.Large));
+        c.addTextDisplayComponents(text(`-# ${tr(lang, "Personal answers are only visible to you")}`));
+    }
     return { flags: MessageFlags.IsComponentsV2, components: [c.toJSON()], embeds: [] };
 }
 

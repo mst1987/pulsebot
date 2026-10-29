@@ -135,6 +135,40 @@ describe("services/events/orgaHubPanel", () => {
             .toContain("1 weitere Raid steht im Web");
     });
 
+    describe("parts switched off (#969)", () => {
+        const link = (i) => ({ label: `Link ${i}`, url: `https://example.org/${i}` });
+        const base = { categoryId: "cat1", raids: [raid(1)], total: 1, webUrl: "https://eh.example/raids", links: [link(1)], counts: [{ status: "open", label: "1 Setup offen" }] };
+
+        it("leaves out the summary line, but keeps heading and raid list", () => {
+            const p = orgaHubPayload({ ...base, features: { summary: false } });
+            expect(texts(p)[0]).toBe("## Orga-Zentrale\n-# 1 Raid in den nächsten 4 Wochen");
+            expect(all(p.components).filter((c) => c.type === 9)).toHaveLength(1);
+        });
+
+        it("drops the \"Raid anlegen\" button, and \"Links …\" together with the links row", () => {
+            const p = orgaHubPayload({ ...base, features: { newRaid: false, links: false } });
+            expect(buttons(p).map((b) => b.label)).toEqual(["Alle Raids im Web", "Setup"]);
+            expect(JSON.stringify(p)).not.toContain("example.org");
+        });
+
+        it("draws no empty buttons row and a plain empty text when everything is off", () => {
+            const p = orgaHubPayload({ categoryId: "cat1", links: [link(1)], features: { newRaid: false, links: false, summary: false } });
+            expect(all(p.components).filter((c) => c.type === 1)).toHaveLength(0);
+            expect(texts(p)).toContain("Noch kein Raid geplant.");
+        });
+
+        it("gives the room of switched-off buttons to the raid list", () => {
+            expect(raidCapacity(5, { links: false })).toBe(MAX_RAIDS);
+            expect(raidCapacity(5, { newRaid: false })).toBeGreaterThanOrEqual(raidCapacity(5));
+            expect(raidCapacity(0, { newRaid: false, links: false })).toBe(MAX_RAIDS);
+            const raids = Array.from({ length: 13 }, (_, i) => raid(i + 1));
+            for (const features of [{}, { newRaid: false }, { links: false }, { summary: false }, { newRaid: false, links: false, summary: false }]) {
+                const p = orgaHubPayload({ ...base, raids, total: 13, links: [1, 2, 3, 4, 5].map(link), features });
+                expect(all(p.components).length).toBeLessThanOrEqual(COMPONENT_LIMIT);
+            }
+        });
+    });
+
     it("draws the status icons from the bot's application emojis where it has them", () => {
         expect(statusIcon({ eh_ui_orgaopen: { id: "42", name: "eh_ui_orgaopen" } }, "open")).toBe("<:eh_ui_orgaopen:42>");
         expect(statusIcon({}, "posted")).toBe("✅");

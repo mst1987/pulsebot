@@ -8,6 +8,10 @@
 //           raid sheet ...), at most MAX_LINKS per category, checked like the
 //           raider organizer's (availabilityStore.checkLinks); kept apart from
 //           the hub so posting anew keeps them
+//   features = { [categoryId]: { newRaid?, links?, summary? } } — the parts of the
+//           hub that are switched off (#969): "Raid anlegen", the links ("Links …"
+//           plus their row) and the status line; only `false` is stored, a
+//           missing key means "on". The raid list always stays.
 //
 // `hash` is the fingerprint of what the message shows (orgaHub.payloadHash),
 // so the sweep redraws only a hub whose content changed. Kept apart from the
@@ -15,14 +19,20 @@
 // and a save of the settings page must never race it.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
-const { checkLinks, readLinks, MAX_LINKS, LINK_LABEL_MAX } = require("./availabilityStore");
+const { checkLinks, readLinks, readFeatures, mergeFeatures, MAX_LINKS, LINK_LABEL_MAX } = require("./availabilityStore");
+
+/** The parts of the hub that can be switched off per category. */
+const FEATURE_KEYS = ["newRaid", "links", "summary"];
+
+const plainObject = (value) => (value && typeof value === "object" && !Array.isArray(value) ? value : {});
 
 const store = createJsonStore({
     file: settingsPath("orga-hubs.json"),
-    defaults: () => ({ hubs: [], links: {} }),
+    defaults: () => ({ hubs: [], links: {}, features: {} }),
     normalize: (data) => ({
         hubs: Array.isArray(data && data.hubs) ? data.hubs.filter((h) => h && h.categoryId && h.channelId && h.messageId) : [],
-        links: data && data.links && typeof data.links === "object" && !Array.isArray(data.links) ? data.links : {},
+        links: plainObject(data && data.links),
+        features: plainObject(data && data.features),
     }),
 });
 
@@ -117,4 +127,28 @@ function setLinks(categoryId, list) {
     return { links: checked.value.map((l) => ({ ...l })) };
 }
 
-module.exports = { MAX_LINKS, LINK_LABEL_MAX, getLinks, listLinks, setLinks, listHubs, getHub, setHub, markHubDrawn, removeHub, useFile };
+/** A category's hub parts: `{ newRaid: true, links: true, summary: true }`, a missing key = on. */
+function getFeatures(categoryId) {
+    return readFeatures(store.read().features[str(categoryId)], FEATURE_KEYS);
+}
+
+/** Every category with at least one part switched off: `{ [categoryId]: { key: boolean } }`. */
+function listFeatures() {
+    const out = {};
+    for (const categoryId of Object.keys(store.read().features)) out[categoryId] = getFeatures(categoryId);
+    return out;
+}
+
+/** Switch parts of a category's hub (only the keys given change). `{ features }` or `{ error }` (German). */
+function setFeatures(categoryId, input) {
+    const data = store.read();
+    const result = mergeFeatures(data.features, categoryId, input, FEATURE_KEYS);
+    if (result.error) return result;
+    store.write(data);
+    return result;
+}
+
+module.exports = {
+    MAX_LINKS, LINK_LABEL_MAX, FEATURE_KEYS, getLinks, listLinks, setLinks, getFeatures, listFeatures, setFeatures,
+    listHubs, getHub, setHub, markHubDrawn, removeHub, useFile,
+};

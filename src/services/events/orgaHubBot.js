@@ -9,14 +9,26 @@
 // orga (an admin or an orga role, permissions.userIsOrga) or a manager of the
 // category's roster - the rule the web shares (services/roster/categoryOrga.js).
 // Everybody else gets a short refusal only they see.
+//
+// A part the orga switched off in the web (#969, orgaHubStore.getFeatures) answers
+// a button of an older message with a short ephemeral note instead.
 const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { initialState, stepMessage, clearNamePattern } = require("./eventDraft");
 const categoryOrga = require("../roster/categoryOrga");
+const store = require("../../stores/orgaHubStore");
 
 const links = require("./orgaHubLinks");
 
 const DENIED = links.DENIED;
+const SWITCHED_OFF = "Diese Funktion ist in dieser Orga-Zentrale ausgeschaltet.";
+
+/** The hub part an action belongs to ("newRaid", "links"), "" for none. */
+function featureOf(action) {
+    if (action === "new") return "newRaid";
+    if (links.LINK_ACTIONS.includes(action)) return "links";
+    return "";
+}
 
 /** `{ action, categoryId }` of a customId `orga:<action>:<categoryId>`. */
 function parseCustomId(customId) {
@@ -46,9 +58,14 @@ async function openCreateFlow(interaction, guildId) {
 
 /** Every `orga:` customId: "Raid anlegen" or one of the links' (orgaHubLinks.js). */
 async function handleOrga(interaction, guildId) {
-    const { action } = parseCustomId(interaction.customId);
+    const { action, categoryId } = parseCustomId(interaction.customId);
+    const feature = featureOf(action);
+    // one read of a small store before anything else: cheap enough before Discord's acknowledgement
+    if (feature && categoryId && store.getFeatures(categoryId)[feature] === false) {
+        return interaction.reply(card({ kind: "info", title: SWITCHED_OFF, ephemeral: true }));
+    }
     if (links.LINK_ACTIONS.includes(action)) return links.handleLinkAction(interaction, guildId);
     return openCreateFlow(interaction, guildId);
 }
 
-module.exports = { handleOrga, openCreateFlow, isCategoryOrga, parseCustomId, DENIED };
+module.exports = { handleOrga, openCreateFlow, isCategoryOrga, parseCustomId, featureOf, DENIED, SWITCHED_OFF };

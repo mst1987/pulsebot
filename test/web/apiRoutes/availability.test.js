@@ -278,6 +278,46 @@ describe("Links des Organizers", () => {
     });
 });
 
+describe("Bereiche der Raid-Zentrale (#969)", () => {
+    const ALL_ON = { nextRaid: true, attendance: true, evaluation: true, guildBank: true, links: true };
+    afterEach(() => {
+        for (const id of Object.keys(store.listFeatures())) store.setFeatures(id, ALL_ON);
+    });
+
+    it("GET panels liefert die Schalter je Kategorie und ihre Schlüssel mit", async () => {
+        store.setFeatures("cat1", { evaluation: false });
+        const data = json(await call("GET", "/api/availability/panels", ORGA)).data;
+        expect(data.features).toEqual({ cat1: { ...ALL_ON, evaluation: false } });
+        expect(data.featureKeys).toEqual(["nextRaid", "attendance", "evaluation", "guildBank", "links"]);
+    });
+
+    it("PUT features speichert und zeichnet das Panel der Kategorie neu", async () => {
+        const res = await call("PUT", "/api/availability/features", ORGA, { json: { categoryId: "cat1", features: { guildBank: false } } });
+        expect(status(res)).toBe(200);
+        expect(json(res).data).toEqual({ categoryId: "cat1", features: { ...ALL_ON, guildBank: false } });
+        expect(store.getFeatures("cat1").guildBank).toBe(false);
+        expect(panel.refreshPanels).toHaveBeenCalledWith({ categoryId: "cat1" });
+    });
+
+    it("PUT features lehnt eine unbekannte Kategorie und einen unbekannten Bereich mit 400 ab", async () => {
+        expect(status(await call("PUT", "/api/availability/features", ORGA, { json: { categoryId: "nope", features: { links: false } } }))).toBe(400);
+        expect(status(await call("PUT", "/api/availability/features", ORGA, { json: { features: { links: false } } }))).toBe(400);
+        const bad = await call("PUT", "/api/availability/features", ORGA, { json: { categoryId: "cat1", features: { bogus: false } } });
+        expect(status(bad)).toBe(400);
+        expect(store.listFeatures()).toEqual({});
+        expect(panel.refreshPanels).not.toHaveBeenCalled();
+    });
+
+    it("PUT features für eine Kategorie eines anderen Servers ergibt 403", async () => {
+        expect(status(await call("PUT", "/api/availability/features", ORGA, { json: { categoryId: "catA", features: { links: false } } }))).toBe(403);
+        expect(store.listFeatures()).toEqual({});
+    });
+
+    it("gehört zum Bereich Einstellungen", () => {
+        expect(route.routes.find((r) => r.method === "PUT" && r.path === "/api/availability/features").area).toBe("settings");
+    });
+});
+
 describe("the orga's overview", () => {
     it("hands the weeks and the category on, the reasons and editing only to the raid lead, with Discord names", async () => {
         const res = await call("GET", "/api/availability/overview", ORGA, { query: "weeks=4&category=cat1" });

@@ -130,6 +130,73 @@ describe("organizerPayload", () => {
         expect(buttons(en).map((b) => b.label).pop()).toBe("Make a request");
         expect(all(en).filter((c) => c.type === 9).pop().components[0].content).toContain("**Guild bank**");
     });
+
+    describe("ausgeschaltete Bereiche (#969)", () => {
+        const links = [{ label: "WCL", url: "https://www.warcraftlogs.com/guild/1" }];
+        const full = { ...base, links, guildBank: true };
+        const dividers = (payload) => all(payload).filter((c) => c.type === 14 && c.divider).length;
+
+        it("zeigt mit fehlenden Schaltern alles wie bisher", () => {
+            expect(JSON.stringify(organizerPayload({ ...full, features: {} }))).toBe(JSON.stringify(organizerPayload(full)));
+            expect(dividers(organizerPayload(full))).toBe(5);
+        });
+
+        it("lässt einen ausgeschalteten Bereich samt Trenner weg", () => {
+            const payload = organizerPayload({ ...full, features: { evaluation: false } });
+            expect(customIds(payload)).not.toContain("availability:o:cat1");
+            expect(texts(payload).join("\n")).not.toContain("Deine Auswertung");
+            expect(dividers(payload)).toBe(4);
+            expect(JSON.stringify(payload)).not.toBe(JSON.stringify(organizerPayload(full)));
+        });
+
+        it("nimmt jeden Bereich einzeln heraus", () => {
+            expect(customIds(organizerPayload({ ...full, features: { nextRaid: false } }))[0]).toBe("availability:a:cat1");
+            expect(customIds(organizerPayload({ ...full, features: { attendance: false } }))).toEqual(["availability:r:cat1", "availability:o:cat1", "availability:b:cat1"]);
+            expect(customIds(organizerPayload({ ...full, features: { guildBank: false } }))).not.toContain("availability:b:cat1");
+            const noLinks = organizerPayload({ ...full, features: { links: false } });
+            expect(linkButtons(noLinks)).toEqual([]);
+            expect(texts(noLinks).join("\n")).not.toContain("**Links**");
+        });
+
+        it("lässt die Gildenbank ohne Kanal weg, auch wenn ihr Schalter an ist", () => {
+            expect(customIds(organizerPayload({ ...base, guildBank: false, features: { guildBank: true } }))).not.toContain("availability:b:cat1");
+        });
+
+        const HEAD = "## Raid-Zentrale · TBC Montag\n-# Alles für deine TBC Montag-Raids an einem Ort";
+        const NOTHING = "-# In dieser Zentrale ist gerade nichts eingeschaltet.";
+        const FOOTER = "-# Persönliche Antworten siehst nur du";
+
+        it("sagt bei allem aus knapp, dass nichts eingeschaltet ist", () => {
+            const off = { nextRaid: false, attendance: false, evaluation: false, guildBank: false, links: false };
+            const payload = organizerPayload({ ...full, features: off });
+            expect(texts(payload)).toEqual([HEAD, NOTHING]);
+            expect(buttons(payload)).toEqual([]);
+            expect(dividers(payload)).toBe(1);
+        });
+
+        it("sagt es auch, wenn nur die Gildenbank an ist, aber ihr Kanal fehlt", () => {
+            const onlyBank = { nextRaid: false, attendance: false, evaluation: false, guildBank: true, links: false };
+            const payload = organizerPayload({ ...full, guildBank: false, features: onlyBank });
+            expect(texts(payload)).toEqual([HEAD, NOTHING]);
+            expect(texts(organizerPayload({ ...full, features: onlyBank })).join("\n")).not.toContain(NOTHING);
+        });
+
+        it("zeigt die Fußzeile nur mit einem Bereich mit persönlicher Antwort", () => {
+            expect(texts(organizerPayload(full))).toContain(FOOTER);
+            const onlyLinks = { nextRaid: false, attendance: false, evaluation: false, guildBank: false };
+            const links = texts(organizerPayload({ ...full, features: onlyLinks }));
+            expect(links.join("\n")).toContain("**Links**");
+            expect(links).not.toContain(FOOTER);
+            expect(links).not.toContain(NOTHING);
+            // the next raid without a raid has no "My raid" button, so nothing personal either
+            const noRaid = texts(organizerPayload({ ...full, nextRaid: null, features: { ...onlyLinks, nextRaid: true, links: false } }));
+            expect(noRaid).not.toContain(FOOTER);
+            for (const key of ["attendance", "evaluation", "guildBank"]) {
+                expect(texts(organizerPayload({ ...full, features: { ...onlyLinks, [key]: true } }))).toContain(FOOTER);
+            }
+            expect(texts(organizerPayload({ ...full, features: { ...onlyLinks, nextRaid: true } }))).toContain(FOOTER);
+        });
+    });
 });
 
 describe("myRaidPayload", () => {

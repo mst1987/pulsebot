@@ -16,6 +16,11 @@ const { resolveAccess } = require("../../../src/services/discord/userAccess");
 const bot = require("../../../src/services/events/orgaHubBot");
 const button = require("../../../src/commands/event/orgaHubButton");
 const { cardText } = require("../../helpers/cardText");
+const store = require("../../../src/stores/orgaHubStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
+
+beforeAll(() => store.useFile(tempStoreFile("orga-hubs.json")));
+afterAll(() => store.useFile(null));
 
 const interaction = (customId, userId = "u1", guildId = "g1") => ({
     customId, guildId, user: { id: userId },
@@ -73,5 +78,35 @@ describe("services/events/orgaHubBot", () => {
     it("is the component `orga` with the access of /event", () => {
         expect(button).toMatchObject({ name: "orga", accessOf: "event" });
         expect(button.data).toBeUndefined();
+    });
+});
+
+describe("services/events/orgaHubBot switched-off parts (#969)", () => {
+    afterEach(() => store.setFeatures("cat1", { newRaid: true, links: true, summary: true }));
+
+    it("maps the actions to the hub's parts", () => {
+        expect(bot.featureOf("new")).toBe("newRaid");
+        expect(["links", "ladd", "ledit", "lsave", "ldel"].map(bot.featureOf)).toEqual(Array(5).fill("links"));
+        expect(bot.featureOf("x")).toBe("");
+    });
+
+    it("answers a button of a switched-off part ephemerally and opens nothing", async () => {
+        resolveAccess.mockResolvedValue({ isAdmin: true, access: {} });
+        store.setFeatures("cat1", { newRaid: false, links: false });
+        for (const id of ["orga:new:cat1", "orga:links:cat1"]) {
+            const i = interaction(id);
+            await button.execute(i);
+            expect(i.reply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(cardText(i.reply.mock.calls[0][0])).toContain(bot.SWITCHED_OFF);
+            expect(i.deferReply).not.toHaveBeenCalled();
+        }
+        expect(mockStepMessage).not.toHaveBeenCalled();
+    });
+
+    it("still opens the create flow when only the links are off", async () => {
+        resolveAccess.mockResolvedValue({ isAdmin: true, access: {} });
+        store.setFeatures("cat1", { links: false });
+        await button.execute(interaction("orga:new:cat1"));
+        expect(mockStepMessage).toHaveBeenCalled();
     });
 });

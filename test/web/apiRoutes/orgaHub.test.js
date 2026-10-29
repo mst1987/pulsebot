@@ -2,7 +2,7 @@
 // list, post and remove a category's hub, gated by the area `settings`.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn() }));
+jest.mock("../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn(), saveFeatures: jest.fn() }));
 let mockActive = "";
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive }));
 let mockClient = null;
@@ -154,5 +154,48 @@ describe("apiRoutes/orgaHub - rights per server (#925)", () => {
     it("lets a full admin act on every server", async () => {
         orgaHub.saveLinks.mockResolvedValue({ links: [] });
         expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "catA", links: [] }))).toBe(200);
+    });
+});
+
+// The hub's parts switched on/off (#969): area settings, a known category only, the hub redrawn by the service.
+describe("apiRoutes/orgaHub - parts on/off (#969)", () => {
+    const channels = new Map([["catA", { id: "catA", guildId: "A" }], ["catB", { id: "catB", guildId: "B" }]]);
+    beforeEach(() => {
+        mockClient = { channels: { cache: channels } };
+    });
+    afterEach(() => store.setFeatures("catB", { newRaid: true, links: true, summary: true }));
+
+    it("lists the switches and their keys next to the hubs", async () => {
+        store.setFeatures("catB", { summary: false });
+        const res = await get("/api/orga-hubs");
+        expect(body(res).features).toEqual({ catB: { newRaid: true, links: true, summary: false } });
+        expect(body(res).featureKeys).toEqual(["newRaid", "links", "summary"]);
+    });
+
+    it("saves through the hub service and answers the stored switches", async () => {
+        orgaHub.saveFeatures.mockResolvedValue({ features: { newRaid: false, links: true, summary: true } });
+        const res = await request("PUT", "/api/orga-hub/features", { categoryId: "catB", features: { newRaid: false } });
+        expect(status(res)).toBe(200);
+        expect(orgaHub.saveFeatures).toHaveBeenCalledWith("catB", { newRaid: false });
+        expect(body(res)).toEqual({ categoryId: "catB", features: { newRaid: false, links: true, summary: true } });
+    });
+
+    it("answers an unknown category and an unknown part with 400", async () => {
+        expect(status(await request("PUT", "/api/orga-hub/features", { categoryId: "nope", features: { newRaid: false } }))).toBe(400);
+        expect(status(await request("PUT", "/api/orga-hub/features", { features: { newRaid: false } }))).toBe(400);
+        expect(orgaHub.saveFeatures).not.toHaveBeenCalled();
+        orgaHub.saveFeatures.mockResolvedValue({ error: "Den Bereich gibt es nicht." });
+        expect(status(await request("PUT", "/api/orga-hub/features", { categoryId: "catB", features: { bogus: false } }))).toBe(400);
+    });
+
+    it("lets only settings writers of the category's server switch", async () => {
+        mockUser = withSettings(false);
+        expect(status(await request("PUT", "/api/orga-hub/features", { categoryId: "catB", features: {} }))).toBe(403);
+        mockUser = { id: "8", isAdmin: false, access: emptyAccess() };
+        expect(status(await request("PUT", "/api/orga-hub/features", { categoryId: "catB", features: {} }))).toBe(403);
+        mockUser = { ...withSettings(true), isOrga: true };
+        mockActive = "B";
+        expect(status(await request("PUT", "/api/orga-hub/features", { categoryId: "catA", features: {} }))).toBe(403);
+        expect(orgaHub.saveFeatures).not.toHaveBeenCalled();
     });
 });

@@ -7,12 +7,15 @@
 // POST   /api/orga-hub    area settings — post (or move) a category's hub; body { categoryId, channelId }
 // DELETE /api/orga-hub    area settings — take it down; body { categoryId }
 // PUT    /api/orga-hub/links  area settings — replace them and redraw the hub; body { categoryId, links }
+// PUT    /api/orga-hub/features  area settings — switch parts of the hub on/off and redraw it (#969);
+//                              body { categoryId, features: { newRaid?, links?, summary? } }; GET carries them too
 const { ok, error: apiError } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const orgaHubStore = require("../../stores/orgaHubStore");
 const orgaHub = require("../../services/events/orgaHub");
 const linkCheck = require("../../services/discord/linkCheck");
-const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../http/serverQuery");
+const settingsStore = require("../../stores/settingsStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -35,7 +38,8 @@ const otherServer = (res) => apiError(res, 403, "other_server", OTHER_SERVER);
 const getHubs = withUser({}, async ({ user, req, res }) => {
     const hubs = orgaHubStore.listHubs().filter((h) => mayUseServer(user, req, h.guildId));
     const links = Object.fromEntries(Object.entries(orgaHubStore.listLinks()).filter(([categoryId]) => onActiveServer(user, req, categoryId)));
-    ok(res, { hubs: hubs.map(hubView), links, maxLinks: orgaHubStore.MAX_LINKS });
+    const features = Object.fromEntries(Object.entries(orgaHubStore.listFeatures()).filter(([categoryId]) => onActiveServer(user, req, categoryId)));
+    ok(res, { hubs: hubs.map(hubView), links, maxLinks: orgaHubStore.MAX_LINKS, features, featureKeys: orgaHubStore.FEATURE_KEYS });
 });
 
 /** POST /api/orga-hub — post (or move) a category's hub. */
@@ -65,12 +69,33 @@ const putLinks = withUser({ csrf: true, body: true }, async ({ user, req, body, 
     ok(res, { categoryId: str(body.categoryId), links: result.links });
 });
 
+const UNKNOWN_CATEGORY = "Diese Raid-Kategorie gibt es nicht (mehr) – bitte eine andere wählen.";
+
+/** Whether the bot knows a raid category (#969): an active one or a category channel in its cache. */
+function knownCategory(categoryId, config = settingsStore.getConfig()) {
+    const id = str(categoryId);
+    if (!id) return false;
+    const active = (Array.isArray(config.categoryIds) ? config.categoryIds : []).map(str);
+    return active.includes(id) || !!guildOfChannel(id);
+}
+
+/** PUT /api/orga-hub/features — switch parts of a category's hub on or off (#969); the hub is redrawn at once. */
+const putFeatures = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const categoryId = str(body.categoryId);
+    if (!knownCategory(categoryId)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
+    if (!onActiveServer(user, req, categoryId)) return otherServer(res);
+    const result = await orgaHub.saveFeatures(categoryId, body.features);
+    if (result.error) return apiError(res, 400, "bad_request", result.error);
+    ok(res, { categoryId, features: result.features });
+});
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/orga-hubs", handler: getHubs, area: "settings" },
     { method: "POST", path: "/api/orga-hub", handler: postHub, area: "settings" },
     { method: "DELETE", path: "/api/orga-hub", handler: deleteHub, area: "settings" },
     { method: "PUT", path: "/api/orga-hub/links", handler: putLinks, area: "settings" },
+    { method: "PUT", path: "/api/orga-hub/features", handler: putFeatures, area: "settings" },
 ];
 
 module.exports = { routes };
