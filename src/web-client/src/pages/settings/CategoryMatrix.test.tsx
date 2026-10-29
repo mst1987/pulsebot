@@ -23,7 +23,10 @@ vi.mock("../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer, serverListed }: {
+function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer, serverListed, serverOverview, onServerOverview }: {
+    /** In the server overview per category; with onServerOverview the card is offered. */
+    serverOverview?: Record<string, boolean>;
+    onServerOverview?: (id: string, on: boolean) => void;
     /** #927: false = Raid-Helper is off on the active server. */
     raidhelperActive?: boolean;
     /** #926: the active server's categories, those without a proven server, and other servers' ones. */
@@ -80,6 +83,8 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             onSetupDms={noop}
             onAnnounce={noop}
             onDiscordEvent={noop}
+            categoryServerOverview={serverOverview}
+            onServerOverview={onServerOverview}
             onVoiceChannel={noop}
             onMessageLook={noop}
             categoryLanguage={languages}
@@ -182,6 +187,29 @@ describe("CategoryMatrix: the open card's tabs", () => {
         expect(within(panel).getByText(t("settings.categories.panel"))).toBeInTheDocument();
         expect(within(panel).getByText(t("settings.categories.orgaHub"))).toBeInTheDocument();
         expect(within(panel).getByText(t("settings.categories.links"))).toBeInTheDocument();
+    });
+
+    it("switches a category out of the server overview in the Discord-Zentralen tab, shown by default", async () => {
+        const onServerOverview = vi.fn();
+        const user = await openCard({ onServerOverview });
+        // the switch alone is enough for the tab
+        await user.click(tab("hubs"));
+        const panel = screen.getByRole("tabpanel");
+        expect(within(panel).getByText(t("settings.categories.serverOverviewShort"))).toBeVisible();
+        const toggle = within(panel).getByRole("checkbox", { name: t("settings.categories.serverOverviewAria", { name: "Raids Mittwoch" }) });
+        expect(toggle).toBeChecked();
+        await user.click(toggle);
+        expect(onServerOverview).toHaveBeenCalledWith("c1", false);
+    });
+
+    it("shows a category left out of the server overview switched off and switches it back on", async () => {
+        const onServerOverview = vi.fn();
+        const user = await openCard({ serverOverview: { c1: false }, onServerOverview });
+        await user.click(tab("hubs"));
+        const toggle = screen.getByRole("checkbox", { name: t("settings.categories.serverOverviewAria", { name: "Raids Mittwoch" }) });
+        expect(toggle).not.toBeChecked();
+        await user.click(toggle);
+        expect(onServerOverview).toHaveBeenCalledWith("c1", true);
     });
 
     it("moves between the tabs with the arrow keys, Home and End", async () => {

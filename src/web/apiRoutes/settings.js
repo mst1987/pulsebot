@@ -29,6 +29,7 @@ const roleSync = require("../../services/discord/roleSync");
 const pugRoleGuard = require("../../services/discord/pugRoleGuard");
 const languageChange = require("../../services/discord/languageChange");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
+const raidOverview = require("../../services/events/raidOverview");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { normalizeLootSystem } = require("../../services/loot/lootSystem");
 const { lastReminderRun } = require("../events/reminders");
@@ -125,6 +126,18 @@ function normalizeCategorySetupDms(raw) {
 // The Discord-event switch per category (#305) — same contract as the setup DMs.
 function normalizeCategoryDiscordEvent(raw) {
     return normalizeCategorySetupDms(raw);
+}
+
+// In the server overview per category: `{ id: false }` takes it out, true stays in
+// the patch so the store's merge drops a category shown again.
+function normalizeCategoryServerOverviewPatch(raw) {
+    const out = {};
+    if (!raw || typeof raw !== "object") return out;
+    for (const [categoryId, on] of Object.entries(raw)) {
+        const id = String(categoryId).trim();
+        if (id) out[id] = on !== false;
+    }
+    return out;
 }
 
 // The voice channel per category (#305): `{ id: channelId|"" }` — an empty
@@ -1084,6 +1097,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
             .map(([id, value]) => [String(id).trim(), attendanceSettings(value)]));
     }
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
+    if (body.categoryServerOverview !== undefined) partial.categoryServerOverview = normalizeCategoryServerOverviewPatch(body.categoryServerOverview);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
     if (body.categoryMessageLook !== undefined) partial.categoryMessageLook = normalizeCategoryMessageLookPatch(body.categoryMessageLook);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
@@ -1176,6 +1190,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // The guild bank area of the raider organizers comes and goes with its channel:
     // redraw them now instead of at the next five-minute sweep (not awaited, never throws).
     else if (guildBankOf(saved) !== guildBankOf(before)) void availabilityPanel.refreshPanels({ config: saved }).catch(() => {});
+    // A category taken into or out of the server overview: the overviews are redrawn after the
+    // usual short pause (the same nudge an event change gives), not at the next sweep.
+    if (stableJson(saved.categoryServerOverview || {}) !== stableJson(before.categoryServerOverview || {})) raidOverview.scheduleRefresh();
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {

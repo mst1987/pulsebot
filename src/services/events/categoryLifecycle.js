@@ -46,7 +46,7 @@ const { kadersCountingCategory, dropAttendanceCategory } = require("../kader/kad
 // categoryEras, the version and name its raids read under.
 const SETTINGS_KEYS = [
     "categoryRoles", "categoryLootTool", "categoryLootSystem", "categorySignupSource", "categorySetupDms", "categoryLanguage",
-    "categoryAttendance", "categoryDiscordEvent", "categoryVoiceChannel", "categoryMessageLook", "categoryAnnounce", "categorySignupNotes",
+    "categoryAttendance", "categoryDiscordEvent", "categoryServerOverview", "categoryVoiceChannel", "categoryMessageLook", "categoryAnnounce", "categorySignupNotes",
     "categorySignupNoteChannel", "categorySignupCharacters", "categorySheets", "categoryPlanning", "categoryRaidTemplate", "categoryReminders",
 ];
 

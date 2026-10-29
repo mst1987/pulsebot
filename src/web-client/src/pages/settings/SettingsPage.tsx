@@ -286,6 +286,8 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             // sent as false, a cleared voice channel as "".
             categoryDiscordEvent: draft.categoryDiscordEvent,
             categoryVoiceChannel: draft.categoryVoiceChannel,
+            // merged on the server too: false leaves a category out of the server overview, true shows it again
+            categoryServerOverview: draft.categoryServerOverview,
             // Merged per category on the server; one back at the defaults drops out.
             categoryMessageLook: draft.categoryMessageLook,
             categoryAnnounce: draft.categoryAnnounce,
@@ -442,6 +444,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     categoryLanguage={draft.categoryLanguage}
                     categoryAttendance={draft.categoryAttendance}
                     categoryDiscordEvent={draft.categoryDiscordEvent}
+                    categoryServerOverview={draft.categoryServerOverview}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
                     categoryMessageLook={draft.categoryMessageLook}
@@ -466,6 +469,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     onLanguage={(id, lang) => patch({ categoryLanguage: { ...draft.categoryLanguage, [id]: lang } })}
                     onAttendance={(id, value) => patch({ categoryAttendance: { ...draft.categoryAttendance, [id]: value } })}
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
+                    onServerOverview={(id, on) => patch({ categoryServerOverview: { ...draft.categoryServerOverview, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
                     onAnnounce={(id, mode) => patch({
                         categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode } },

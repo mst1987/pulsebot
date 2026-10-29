@@ -164,6 +164,9 @@ export type AdminConfig = {
     categoryAttendance?: Record<string, { show?: boolean; window?: number; absences?: boolean }>;
     // A Discord event per raid (#305): only switched-on categories are listed.
     categoryDiscordEvent?: Record<string, boolean>;
+    // Left out of the server overview (/createoverview scope:server): only `false` entries are listed;
+    // a `true` sent back drops the entry (shown again).
+    categoryServerOverview?: Record<string, boolean>;
     // The voice channel a category's raids meet in (#305), keyed by category id.
     categoryVoiceChannel?: Record<string, string>;
     // The look of a category's signup message: raid picture below it (default on)

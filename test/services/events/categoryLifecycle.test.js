@@ -243,7 +243,7 @@ describe("services/events/categoryLifecycle", () => {
 
         it("keeps what the history reads (version and sections), and drops what would keep it offered", () => {
             for (const key of ["categoryVersion", "categoryEras"]) expect(lifecycle.SETTINGS_KEYS).not.toContain(key);
-            for (const key of ["categoryLootSystem", "categoryAttendance", "categoryReminders", "categoryRoles"]) expect(lifecycle.SETTINGS_KEYS).toContain(key);
+            for (const key of ["categoryLootSystem", "categoryAttendance", "categoryReminders", "categoryRoles", "categoryServerOverview"]) expect(lifecycle.SETTINGS_KEYS).toContain(key);
         });
     });
 });

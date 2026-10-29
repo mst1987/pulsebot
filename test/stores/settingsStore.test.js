@@ -308,6 +308,15 @@ describe("stores/settingsStore", () => {
             expect(getConfig().categoryMessageLook).toEqual({ c2: { titleSize: "huge" } });
         });
 
+        it("shows every category in the server overview by default and stores only the excluded ones", () => {
+            expect(getConfig().categoryServerOverview).toEqual({});
+            saveConfig({ categoryServerOverview: { c1: false, c2: true, c3: "no" } });
+            expect(getConfig().categoryServerOverview).toEqual({ c1: false });
+            // switching it back on drops the entry again
+            saveConfig({ categoryServerOverview: { c1: true } });
+            expect(getConfig().categoryServerOverview).toEqual({});
+        });
+
         it("keeps the Discord event off by default and the voice channel only as a snowflake (#305)", () => {
             expect(getConfig().categoryDiscordEvent).toEqual({});
             expect(getConfig().categoryVoiceChannel).toEqual({});
