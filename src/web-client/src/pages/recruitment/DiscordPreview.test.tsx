@@ -40,6 +40,23 @@ describe("DiscordPreview", () => {
         expect(screen.queryByText("Jetzt bewerben")).not.toBeInTheDocument();
     });
 
+    it("shows a link button with the bot's default label, else the own label", () => {
+        const { container, rerender } = render(<DiscordPreview content="x" buttonLabel="" buttonKind="link" emojis={[]} />);
+        expect(container.querySelector(".dc-btn-link")).toHaveTextContent("Server beitreten");
+        expect(screen.queryByText("Jetzt bewerben")).not.toBeInTheDocument();
+        rerender(<DiscordPreview content="x" buttonLabel="Zur Gilde" buttonKind="link" emojis={[]} />);
+        expect(container.querySelector(".dc-btn-link")).toHaveTextContent("Zur Gilde");
+    });
+
+    it("shows a forum post's title above the message, a placeholder while it is empty, and none outside a forum", () => {
+        const { container, rerender } = render(<DiscordPreview content="x" buttonLabel="" forumTitle="Wir suchen Heiler" emojis={[]} />);
+        expect(container.querySelector(".dc-forum-title")).toHaveTextContent("Wir suchen Heiler");
+        rerender(<DiscordPreview content="x" buttonLabel="" forumTitle="  " emojis={[]} />);
+        expect(container.querySelector(".dc-forum-title.dc-empty")).toHaveTextContent("Titel fehlt");
+        rerender(<DiscordPreview content="x" buttonLabel="" emojis={[]} />);
+        expect(container.querySelector(".dc-forum-title")).toBeNull();
+    });
+
     it("says so when there is no text yet", () => {
         render(<DiscordPreview content="" buttonLabel="" emojis={[]} />);
         expect(screen.getByText("Noch kein Text.")).toBeInTheDocument();

@@ -12,6 +12,8 @@ import { useT } from "../../i18n";
 import { ICONS, openExternal } from "./shared";
 import { DraftBadge, TipLabel } from "./RecruitmentBits";
 import { MessageFields } from "./MessageFields";
+import { isDiscordInviteUrl } from "../../lib/discord/inviteLink";
+import { FORUM_TITLE_MAX } from "./linkDraft";
 
 export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
     data: RecruitmentData;
@@ -100,17 +102,28 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
 }) {
     const t = useT();
     // Draft per post, so edits to a live message survive a detour to another tab.
-    const initial = { content: post.content, buttonLabel: post.buttonLabel };
+    const isLink = post.buttonKind === "link";
+    const isForum = !!post.parentChannelId;
+    const initial = { content: post.content, buttonLabel: post.buttonLabel, linkUrl: post.linkUrl || "", forumTitle: post.forumTitle || "" };
     const [draft, patch, clearDraft] = useDraftState(`recruitment-post:${post.id}`, initial);
     const [busy, setBusy] = useState(false);
     const toast = useToast();
-    const dirty = draft.content !== initial.content || draft.buttonLabel !== initial.buttonLabel;
+    const linkUrl = draft.linkUrl ?? "";
+    const forumTitle = draft.forumTitle ?? "";
+    const dirty = draft.content !== initial.content || draft.buttonLabel !== initial.buttonLabel
+        || linkUrl !== initial.linkUrl || forumTitle !== initial.forumTitle;
+    const linkBad = isLink && !isDiscordInviteUrl(linkUrl);
+    const titleBad = isForum && !forumTitle.trim();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
         setBusy(true);
         try {
-            await updateRecruitmentPost({ id: post.id, ...draft });
+            await updateRecruitmentPost({
+                id: post.id, content: draft.content, buttonLabel: draft.buttonLabel,
+                ...(isLink ? { linkUrl: linkUrl.trim() } : {}),
+                ...(isForum ? { forumTitle: forumTitle.trim() } : {}),
+            });
             clearDraft();
             onSaved(t("recruitment.editor.postUpdated"));
         } catch (err) {
@@ -124,7 +137,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
         <Modal
             open onClose={onClose} width={1120} icon={ICONS.posts} tone="recruitment" initialFocus="#rc-content"
             kicker={t("recruitment.editor.editPost")}
-            title={`#${post.channelName || post.channelId}`}
+            title={isForum ? (post.forumTitle || post.channelName || post.channelId) : `#${post.channelName || post.channelId}`}
             hint={(
                 <span className="rc-foot-badges">
                     {templateName && <Badge tone="accent" icon={ICONS.templates}>{templateName}</Badge>}
@@ -135,7 +148,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
                 <>
                     <Button variant="ghost" icon={<ExternalIcon />} onClick={() => openExternal(messageLink(post.guildId, post.channelId, post.messageId))}>{t("recruitment.posts.openInDiscord")}</Button>
                     <Button variant="ghost" onClick={() => { clearDraft(); onClose(); }}>{t("common.cancel")}</Button>
-                    <Button type="submit" form="rc-post-form" variant="go" icon={<SaveIcon />} running={busy}>{t("recruitment.editor.saveAndUpdate")}</Button>
+                    <Button type="submit" form="rc-post-form" variant="go" icon={<SaveIcon />} running={busy} disabled={linkBad || titleBad}>{t("recruitment.editor.saveAndUpdate")}</Button>
                 </>
             )}
         >
@@ -143,7 +156,32 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
                 <MessageFields
                     data={data} content={draft.content} setContent={(v) => patch({ content: v })}
                     buttonLabel={draft.buttonLabel} setButtonLabel={(v) => patch({ buttonLabel: v })}
-                />
+                    buttonKind={isLink ? "link" : "apply"} forumTitle={isForum ? forumTitle : undefined}
+                >
+                    {isForum && (
+                        <div className="field">
+                            <TipLabel
+                                label={t("recruitment.postDialog.forumTitle")} htmlFor="rc-forum-title"
+                                tip={t("recruitment.postDialog.forumTitle")} tipSub={t("recruitment.postDialog.forumTitleSub")}
+                                extra={<span className="rc-kind">{t("recruitment.postDialog.titleCount", { count: forumTitle.length, max: FORUM_TITLE_MAX })}</span>}
+                            />
+                            <input
+                                id="rc-forum-title" type="text" maxLength={FORUM_TITLE_MAX} value={forumTitle} required aria-invalid={titleBad}
+                                onChange={(e) => patch({ forumTitle: e.target.value })}
+                            />
+                        </div>
+                    )}
+                    {isLink && (
+                        <div className="field">
+                            <TipLabel label={t("recruitment.postDialog.linkUrl")} htmlFor="rc-link-url" tip={t("recruitment.postDialog.linkUrl")} tipSub={t("recruitment.postDialog.linkUrlSub")} />
+                            <input
+                                id="rc-link-url" type="url" value={linkUrl} aria-invalid={linkBad} required
+                                onChange={(e) => patch({ linkUrl: e.target.value })} placeholder="https://discord.gg/..."
+                            />
+                            {linkBad && <div className="rc-postdlg-hint" role="alert">{t("recruitment.postDialog.linkInvalid")}</div>}
+                        </div>
+                    )}
+                </MessageFields>
             </form>
         </Modal>
     );

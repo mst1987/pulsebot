@@ -76,6 +76,23 @@ describe("stores/recruitmentStore posts", () => {
     it("a post without a source defaults to web", () => {
         expect(store.saveRecruitmentPost({ channelId: "c9", messageId: "m9" })).toMatchObject({ source: "web", templateId: "" });
     });
+
+    it("keeps a forum post's link button, parent forum and title across a scan update", () => {
+        const p = store.saveRecruitmentPost({
+            channelId: "t1", messageId: "t1", buttonKind: "link", linkUrl: "https://discord.gg/abc",
+            parentChannelId: "f1", forumTitle: "Wir suchen",
+        });
+        expect(p).toMatchObject({ buttonKind: "link", linkUrl: "https://discord.gg/abc", parentChannelId: "f1", forumTitle: "Wir suchen" });
+        const again = store.saveRecruitmentPost({ id: p.id, content: "neu" });
+        expect(again).toMatchObject({ buttonKind: "link", linkUrl: "https://discord.gg/abc", parentChannelId: "f1", forumTitle: "Wir suchen" });
+        expect(store.saveRecruitmentPost({ id: p.id, buttonKind: "nonsense" }).buttonKind).toBe("link");
+    });
+
+    it("reads a post from before (no button kind) as an apply post", () => {
+        fs.writeFileSync(postsFile, JSON.stringify({ posts: [{ id: "p", channelId: "c", messageId: "m" }] }));
+        expect(store.listRecruitmentPosts()[0].buttonKind).toBe("apply");
+        expect(store.saveRecruitmentPost({ channelId: "c2", messageId: "m2" }).buttonKind).toBe("apply");
+    });
 });
 
 describe("stores/recruitmentStore game versions (#553)", () => {

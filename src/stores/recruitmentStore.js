@@ -15,6 +15,7 @@ const { knownVersion, mainVersionFor } = require("../services/events/mainVersion
 
 const templatesStore = createJsonStore({ file: settingsPath("recruitment.json"), defaults: { templates: [] } });
 const postsStore = createJsonStore({ file: settingsPath("recruitment-posts.json"), defaults: { posts: [] } });
+const BUTTON_KINDS = ["apply", "link"];
 
 /** All recruitment templates, newest-edited first. */
 function listRecruitment() {
@@ -75,7 +76,7 @@ function deleteRecruitment(id) {
 function listRecruitmentPosts() {
     const data = postsStore.read();
     const posts = Array.isArray(data.posts) ? data.posts : [];
-    return posts.map(withVersion).sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
+    return posts.map((p) => ({ ...withVersion(p), buttonKind: BUTTON_KINDS.includes(p && p.buttonKind) ? p.buttonKind : "apply" })).sort((a, b) => (b.postedAt || 0) - (a.postedAt || 0));
 }
 
 function getRecruitmentPost(id) {
@@ -92,24 +93,36 @@ function saveRecruitmentPost(data) {
     const match = posts.find((p) =>
         (data.id && p.id === data.id)
         || (p.channelId === data.channelId && p.messageId === data.messageId));
+    const had = match || {};
+    // The sent value, else the one the record had, else "".
+    const keep = (key) => data[key] || had[key] || "";
+    // A field the caller may clear: sent (even empty) wins, else the record's.
+    const replace = (key) => (data[key] !== undefined ? String(data[key] || "") : (had[key] || ""));
     const clean = {
-        guildId: data.guildId || (match && match.guildId) || "",
-        channelId: data.channelId || (match && match.channelId) || "",
-        messageId: data.messageId || (match && match.messageId) || "",
-        channelName: data.channelName || (match && match.channelName) || "",
+        guildId: keep("guildId"),
+        channelId: keep("channelId"),
+        messageId: keep("messageId"),
+        channelName: keep("channelName"),
         content: data.content || "",
         title: data.title || "",
         body: data.body || "",
         buttonLabel: data.buttonLabel || "",
         // A message the admin menu posted stays "web" when a later scan finds it
         // again — the scan only knows that it exists, not where it came from.
-        source: (match && match.source === "web") ? "web" : (data.source || (match && match.source) || "web"),
+        source: had.source === "web" ? "web" : (data.source || had.source || "web"),
         // Which template it was posted from — kept across edits and re-scans; a
         // message the scan found on its own has none.
-        templateId: data.templateId || (match && match.templateId) || "",
+        templateId: keep("templateId"),
         // The version its apply button names (#553): the one sent (the template's,
         // or what a scan read off the button), else the one it had.
-        versionId: knownVersion(data.versionId) || (match && match.versionId) || mainVersionFor(),
+        versionId: knownVersion(data.versionId) || had.versionId || mainVersionFor(),
+        // The button under the card: "apply" (the apply flow) or "link" (linkUrl, e.g. an invite to the guild's server).
+        // A record from before has none and is an apply post; a re-scan (which sends none) keeps what it had.
+        buttonKind: BUTTON_KINDS.includes(data.buttonKind) ? data.buttonKind : (had.buttonKind || "apply"),
+        linkUrl: replace("linkUrl"),
+        // A post in a forum: channelId is the post (thread), parentChannelId the forum, forumTitle its title.
+        parentChannelId: keep("parentChannelId"),
+        forumTitle: replace("forumTitle"),
     };
     let saved;
     if (match) {

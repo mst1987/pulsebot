@@ -604,6 +604,43 @@ function listTextChannels(guildId) {
 }
 
 /**
+ * Where a recruitment post may go: the text channels of listTextChannels() plus the forums in which the bot may open a post
+ * (SendMessages and SendMessagesInThreads). `kind` tells the dialog which is which — a forum post needs a title.
+ */
+function listRecruitmentTargets(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return [];
+    const me = guild.members.me;
+    const may = (c, flags) => !me || flags.every((f) => c.permissionsFor(me).has(f));
+    const { SendMessages, SendMessagesInThreads } = PermissionsBitField.Flags;
+    return [...guild.channels.cache.values()]
+        .filter((c) => (TEXT_CHANNEL_TYPES.includes(c.type) && may(c, [SendMessages]))
+            || (c.type === ChannelType.GuildForum && may(c, [SendMessages, SendMessagesInThreads])))
+        .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+        .map((c) => ({
+            id: c.id, name: c.name, category: c.parent ? c.parent.name : "", parentId: c.parentId || "",
+            kind: c.type === ChannelType.GuildForum ? "forum" : "text",
+        }));
+}
+
+/**
+ * Channels of a guild an invite may lead into (text and announcement channels), with whether the bot may create one
+ * there (`canInvite`) — a missing right shows in the dialog instead of failing on the click.
+ */
+function listInviteChannels(guildId) {
+    const guild = getGuild(guildId);
+    if (!guild) return [];
+    const me = guild.members.me;
+    return [...guild.channels.cache.values()]
+        .filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))
+        .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
+        .map((c) => ({
+            id: c.id, name: c.name, category: c.parent ? c.parent.name : "",
+            canInvite: !me || c.permissionsFor(me).has(PermissionsBitField.Flags.CreateInstantInvite),
+        }));
+}
+
+/**
  * Voice (and stage) channels of a guild — the picker for the raid's voice
  * channel (#305). Unlike listTextChannels() nothing is filtered by the bot's
  * rights: the bot never speaks there, it only names the channel.
@@ -721,6 +758,14 @@ async function duplicateChannel(channelId, newName) {
  * apply button inside it. Editing an older text or embed post turns it into the card (`content: ""`, `embeds: []`).
  */
 function buildRecruitmentMessage(template) {
+    if (template.buttonKind === "link") {
+        // a link button (an invite to the guild's server) instead of the apply flow — the URL is checked by the route
+        const link = new ButtonBuilder()
+            .setURL(template.linkUrl)
+            .setLabel(template.buttonLabel || "Server beitreten")
+            .setStyle(ButtonStyle.Link);
+        return card({ text: template.content || "", buttons: [link] });
+    }
     const apply = new ButtonBuilder()
         .setCustomId(applyButtonId(template.versionId))
         .setLabel(template.buttonLabel || "Jetzt bewerben")
@@ -728,21 +773,61 @@ function buildRecruitmentMessage(template) {
     return card({ text: template.content || "", buttons: [apply] });
 }
 
-/** Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url }. */
+// A forum post's title: Discord takes at most 100 characters.
+const FORUM_TITLE_MAX = 100;
+const forumTitleOf = (value) => String(value || "").trim().slice(0, FORUM_TITLE_MAX);
+
+/**
+ * Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url, parentChannelId }.
+ * A forum gets a new post (a thread) titled `template.forumTitle` with the card as its starter message; then channelId is
+ * the thread and messageId the starter message — the same id — so editing and deleting work as for a channel post.
+ */
 async function postRecruitment(channelId, template) {
+    if (!client) throw Object.assign(new Error("Bot nicht verbunden."), { code: "bot_offline" });
+    const target = await client.channels.fetch(String(channelId || "")).catch(() => null);
+    if (target && target.type === ChannelType.GuildForum) {
+        const name = forumTitleOf(template.forumTitle);
+        if (!name) throw Object.assign(new Error("Ein Forum-Beitrag braucht einen Titel."), { code: "title_required" });
+        const thread = await target.threads.create({ name, message: buildRecruitmentMessage(template), reason: "Recruitment-Beitrag" });
+        return { guildId: target.guildId, channelId: thread.id, messageId: thread.id, parentChannelId: target.id, url: thread.url || "" };
+    }
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     const posted = await channel.send(buildRecruitmentMessage(template));
-    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
+    return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url, parentChannelId: "" };
 }
 
-/** Edit an already-posted recruitment message in place. */
+/**
+ * Edit an already-posted recruitment message in place. A forum post is woken up first (Discord archives quiet posts and
+ * refuses edits there) and renamed when `template.forumTitle` differs from its title.
+ */
 async function editRecruitment(channelId, messageId, template) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
+    if (typeof channel.isThread === "function" && channel.isThread()) {
+        if (channel.archived) await channel.setArchived(false, "Recruitment-Beitrag bearbeitet");
+        const name = forumTitleOf(template.forumTitle);
+        if (name && name !== channel.name) await channel.setName(name, "Recruitment-Beitrag bearbeitet");
+    }
     const message = await channel.messages.fetch(messageId);
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
     await message.edit(buildRecruitmentMessage(template));
     return { channelId, messageId, url: message.url };
+}
+
+/**
+ * A permanent invite into `channelId` for a recruitment link button: never expires, no use limit, its own code (the
+ * pattern of pugInvites.ensureInvite). Throws code "invite_permission" when the bot lacks "Einladung erstellen" there.
+ */
+async function createRecruitmentInvite(channelId, reason = "Recruitment-Link") {
+    const channel = await fetchTextChannel(channelId, "Kanal nicht gefunden.");
+    const me = channel.guild && channel.guild.members && channel.guild.members.me;
+    const perms = me && typeof channel.permissionsFor === "function" ? channel.permissionsFor(me) : null;
+    if (perms && !perms.has(PermissionsBitField.Flags.CreateInstantInvite)) {
+        throw Object.assign(new Error("Dem Bot fehlt dort das Recht „Einladung erstellen“. Gib das Recht frei oder füge einen Link selbst ein."),
+            { code: "invite_permission" });
+    }
+    const invite = await channel.createInvite({ maxAge: 0, maxUses: 0, unique: true, reason });
+    return { code: invite.code, url: invite.url || `https://discord.gg/${invite.code}` };
 }
 
 /** Try to delete a posted message (best-effort). */
@@ -1355,6 +1440,7 @@ module.exports = {
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
     fetchGuildMembersCached, warmGuildMembers, MEMBERS_CACHE_TTL_MS, MEMBERS_STALE_MAX_MS, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
+    listRecruitmentTargets, listInviteChannels, createRecruitmentInvite, buildRecruitmentMessage,
     isRecruitmentMessage, extractTemplate,
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, findLogButtonMessage, logButtonExists, LOG_EVAL_PREFIX,

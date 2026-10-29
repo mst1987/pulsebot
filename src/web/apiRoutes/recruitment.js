@@ -1,7 +1,7 @@
 const { ok, error } = require("../http/apiResponse");
 const { withUser } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
-const { mayUseServer, mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../http/serverQuery");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
@@ -12,14 +12,47 @@ const serverDefaults = require("../../services/discord/serverDefaults");
 const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../config/gameVersions");
+const { cleanInviteUrl } = require("../../utils/recruitment/inviteLink");
 const { mainVersionFor, visibleRows, visibleVersions, resolveVersionQuery } = require("../../services/events/mainVersion");
+
+/**
+ * The servers a link button's invite can come from: the bot's servers the caller may act on, each with its channels
+ * (`canInvite`: the bot may create an invite there) and the channel of a recruitment post already tracked there as the
+ * suggestion.
+ */
+function inviteServersFor(user, req) {
+    const posts = listRecruitmentPosts();
+    return discord.listGuilds().filter((g) => mayUseServer(user, req, g.id)).map((g) => {
+        const channels = discord.listInviteChannels(g.id);
+        const ids = new Set(channels.map((c) => c.id));
+        const known = posts.filter((p) => p.guildId === g.id).map((p) => p.parentChannelId || p.channelId).find((id) => ids.has(id));
+        const suggestion = known || (channels.find((c) => c.canInvite) || {}).id || "";
+        return { id: g.id, name: g.name, channels, suggestedChannelId: suggestion };
+    });
+}
+
+/**
+ * The button part of a post request: `{ buttonKind, linkUrl, buttonLabel }`, or `{ error }` for a link that is not a
+ * Discord invite or channel link (checked here, never trusted from the client).
+ */
+function buttonOf(body, fallback = {}) {
+    const kind = body.buttonKind === "link" || body.buttonKind === "apply" ? body.buttonKind : (fallback.buttonKind || "apply");
+    const label = String(body.buttonLabel !== undefined ? body.buttonLabel : (fallback.buttonLabel || "")).trim().slice(0, 80);
+    if (kind === "apply") return { buttonKind: "apply", linkUrl: "", buttonLabel: label };
+    const linkUrl = cleanInviteUrl(body.linkUrl !== undefined ? body.linkUrl : fallback.linkUrl);
+    if (!linkUrl) return { error: "Nur Discord-Einladungen (discord.gg/…, discord.com/invite/…) oder Discord-Kanal-Links sind erlaubt." };
+    return { buttonKind: "link", linkUrl, buttonLabel: label };
+}
+
+const FORUM_TITLE_MAX = 100;
+const titleOf = (value) => String(value || "").trim().slice(0, FORUM_TITLE_MAX);
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
  * Applications are only fetched (a Discord API call) when the applications tab
  * is actually open, mirroring the SSR page's loadRecruitmentOpts().
  */
-const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
+const getRecruitmentData = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const editId = (url.searchParams.get("edit") || "").trim();
     const editPostId = (url.searchParams.get("editpost") || "").trim();
@@ -50,6 +83,11 @@ const getRecruitmentData = withUser({}, async ({ req, res, url }) => {
         editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
         posts: ofPage(visibleRows(guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(), (p) => p.versionId), editPostId),
         channels: discord.listTextChannels(guildId),
+        // Where a post may go: the text channels plus the forums (kind "forum": a post with a title).
+        targets: discord.listRecruitmentTargets(guildId),
+        // Servers the bot may make an invite on for a link button: only those the caller may act on (#925) -
+        // for any other server (a partner guild's) the link is pasted by hand.
+        inviteServers: inviteServersFor(user, req),
         emojis: discord.listEmojis(guildId),
         specCatalog: SPEC_CATALOG,
         applications: ofPage(visibleRows(applications, (a) => a.versionId || "tbc")),
@@ -82,9 +120,17 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ us
     if (!template || !channelId) return error(res, 400, "invalid", "Vorlage oder Channel fehlt.");
     // a channel of another server is out of reach (#925): only a full admin posts on every server
     if (!mayUseChannel(user, req, channelId)) return error(res, 403, "other_server", OTHER_SERVER);
+    const button = buttonOf(body, template);
+    if (button.error) return error(res, 400, "invalid_link", button.error);
+    const forumTitle = titleOf(body.forumTitle);
+    const message = { ...template, ...button, forumTitle };
     try {
-        const posted = await discord.postRecruitment(channelId, template);
-        const channel = await discord.fetchTextChannel(channelId).catch(() => null);
+        const posted = await discord.postRecruitment(channelId, message);
+        // a forum post is listed under its forum's name
+        const client = discord.getClient();
+        const channel = posted.parentChannelId
+            ? (client ? await client.channels.fetch(posted.parentChannelId).catch(() => null) : null)
+            : await discord.fetchTextChannel(channelId).catch(() => null);
         const saved = saveRecruitmentPost({
             guildId: posted.guildId,
             channelId: posted.channelId,
@@ -93,15 +139,40 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ us
             content: template.content,
             title: template.title,
             body: template.body,
-            buttonLabel: template.buttonLabel,
+            buttonLabel: button.buttonLabel,
             source: "web",
             templateId: template.id,
             // the version the posted button names (#553)
             versionId: template.versionId,
+            buttonKind: button.buttonKind,
+            linkUrl: button.linkUrl,
+            parentChannelId: posted.parentChannelId || "",
+            forumTitle: posted.parentChannelId ? forumTitle : "",
         });
         ok(res, saved, 201);
     } catch (e) {
+        if (e && e.code === "title_required") return error(res, 400, "title_required", e.message);
         error(res, 400, "post_failed", e.message || "Posten fehlgeschlagen.");
+    }
+});
+
+/**
+ * POST /api/recruitment/invite — a permanent invite for a link button. Body: { guildId, channelId }.
+ * Only on a server the caller may act on (#925: a full admin every server, everybody else the active one) and only into a
+ * channel of that server; a partner guild's link is pasted by hand instead.
+ */
+const createRecruitmentInviteHandler = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const guildId = String(body.guildId || "").trim();
+    const channelId = String(body.channelId || "").trim();
+    if (!guildId || !channelId) return error(res, 400, "invalid", "Server oder Kanal fehlt.");
+    if (!mayUseServer(user, req, guildId)) return error(res, 403, "other_server", OTHER_SERVER);
+    if (guildOfChannel(channelId) !== guildId) return error(res, 400, "wrong_guild", "Der Kanal liegt nicht auf diesem Server.");
+    try {
+        const invite = await discord.createRecruitmentInvite(channelId, `Recruitment-Link (${user.username || user.id || "Web"})`);
+        ok(res, invite, 201);
+    } catch (e) {
+        if (e && e.code === "invite_permission") return error(res, 400, "invite_permission", e.message);
+        error(res, 400, "invite_failed", e.message || "Einladung konnte nicht erstellt werden.");
     }
 });
 
@@ -114,12 +185,18 @@ function ownPost(id, user, req) {
     return post && mayUseServer(user, req, post.guildId) ? post : null;
 }
 
-/** POST /api/recruitment/post-update — edit an already-posted message. Body: { id, content, buttonLabel }. */
+/**
+ * POST /api/recruitment/post-update — edit an already-posted message. Body: { id, content, buttonLabel, linkUrl?, forumTitle? }.
+ * The kind of button stays (an apply post stays one); a link post may get a new link, a forum post a new title.
+ */
 const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const post = ownPost(String(body.id || "").trim(), user, req);
     if (!post) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
+    const button = buttonOf({ buttonLabel: body.buttonLabel || "", linkUrl: body.linkUrl }, post);
+    if (button.error) return error(res, 400, "invalid_link", button.error);
+    const forumTitle = post.parentChannelId ? (titleOf(body.forumTitle) || post.forumTitle || "") : "";
     // The button keeps the version of the post (#553) — an edit changes the text, not whose applications it collects.
-    const template = { content: body.content || "", title: "", body: "", buttonLabel: body.buttonLabel || "", versionId: post.versionId };
+    const template = { content: body.content || "", title: "", body: "", ...button, versionId: post.versionId, forumTitle };
     try {
         await discord.editRecruitment(post.channelId, post.messageId, template);
         const saved = saveRecruitmentPost({ id: post.id, ...template });
@@ -156,6 +233,7 @@ const routes = [
     { method: "POST", path: "/api/recruitment/delete", handler: deleteRecruitmentTemplate, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/post", handler: postRecruitmentTemplate, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/post-update", handler: updateRecruitmentPost, area: "recruitment" },
+    { method: "POST", path: "/api/recruitment/invite", handler: createRecruitmentInviteHandler, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/post-delete", handler: deleteRecruitmentPostHandler, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/scan", handler: scanRecruitmentPosts, area: "recruitment" },
 ];
@@ -166,6 +244,7 @@ module.exports = {
     deleteRecruitmentTemplate,
     postRecruitmentTemplate,
     updateRecruitmentPost,
+    createRecruitmentInviteHandler,
     deleteRecruitmentPostHandler,
     scanRecruitmentPosts,
     routes,

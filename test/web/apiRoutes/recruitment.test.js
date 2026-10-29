@@ -44,6 +44,9 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     listCategories: jest.fn(() => []),
     listAllChannels: jest.fn(() => []),
     listTextChannels: jest.fn(() => []),
+    listRecruitmentTargets: jest.fn(() => []),
+    listInviteChannels: jest.fn(() => []),
+    createRecruitmentInvite: jest.fn(),
     listRoles: jest.fn(() => []),
     createChannel: jest.fn(),
     duplicateChannel: jest.fn(),
@@ -295,9 +298,37 @@ describe("web/apiRoutes/recruitment", () => {
 
             const res = await post("/api/recruitment/post-update", { id: "p1", content: "new", buttonLabel: "Bewerben" });
 
-            expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", { content: "new", title: "", body: "", buttonLabel: "Bewerben" });
-            expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith({ id: "p1", content: "new", title: "", body: "", buttonLabel: "Bewerben" });
+            // a post from before (no buttonKind) stays an apply post
+            const sent = { content: "new", title: "", body: "", buttonLabel: "Bewerben", buttonKind: "apply", linkUrl: "", forumTitle: "", versionId: undefined };
+            expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", sent);
+            expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith({ id: "p1", ...sent });
             expect(json(res)).toEqual({ data: { id: "p1", content: "new" } });
+        });
+
+        it("renames a forum post and keeps its link, or takes a new valid one", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getRecruitmentPost.mockReturnValue({
+                id: "p1", channelId: "t1", messageId: "t1", parentChannelId: "f1", forumTitle: "Alt",
+                buttonKind: "link", linkUrl: "https://discord.gg/alt", versionId: "tbc",
+            });
+            settingsStore.saveRecruitmentPost.mockReturnValue({ id: "p1" });
+
+            await post("/api/recruitment/post-update", { id: "p1", content: "x", buttonLabel: "", forumTitle: "  Neu  " });
+            expect(discord.editRecruitment).toHaveBeenLastCalledWith("t1", "t1", expect.objectContaining({
+                buttonKind: "link", linkUrl: "https://discord.gg/alt", forumTitle: "Neu",
+            }));
+
+            await post("/api/recruitment/post-update", { id: "p1", content: "x", linkUrl: "https://discord.com/invite/neu" });
+            expect(discord.editRecruitment).toHaveBeenLastCalledWith("t1", "t1", expect.objectContaining({
+                linkUrl: "https://discord.com/invite/neu", forumTitle: "Alt",
+            }));
+
+            discord.editRecruitment.mockClear();
+            const bad = await post("/api/recruitment/post-update", { id: "p1", content: "x", linkUrl: "https://evil.example/x" });
+            expect(status(bad)).toBe(400);
+            expect(json(bad).error.code).toBe("invalid_link");
+            expect(discord.editRecruitment).not.toHaveBeenCalled();
         });
 
         it("keeps the post's version on its button (#553)", async () => {
@@ -395,5 +426,87 @@ describe("web/apiRoutes/recruitment - rights per server (#925)", () => {
         await post("/api/recruitment/post", { templateId: "t1", channelId: "cA" });
         expect(discord.postRecruitment).toHaveBeenCalledWith("cA", expect.any(Object));
         expect(status(await post("/api/recruitment/post-delete", { id: "pA" }))).toBe(200);
+    });
+
+    it("creates an invite only on the caller's own server and only into a channel of it", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        discord.createRecruitmentInvite.mockResolvedValue({ code: "abc", url: "https://discord.gg/abc" });
+        // another server's channel: 403 and no invite made
+        const foreign = await post("/api/recruitment/invite", { guildId: "A", channelId: "cA" });
+        expect(status(foreign)).toBe(403);
+        expect(json(foreign).error.code).toBe("other_server");
+        // a channel of A named as one of B
+        const wrong = await post("/api/recruitment/invite", { guildId: "B", channelId: "cA" });
+        expect(json(wrong).error.code).toBe("wrong_guild");
+        expect(status(await post("/api/recruitment/invite", { guildId: "B" }))).toBe(400);
+        expect(discord.createRecruitmentInvite).not.toHaveBeenCalled();
+
+        const res = await post("/api/recruitment/invite", { guildId: "B", channelId: "cB" });
+        expect(status(res)).toBe(201);
+        expect(json(res).data).toEqual({ code: "abc", url: "https://discord.gg/abc" });
+        expect(discord.createRecruitmentInvite).toHaveBeenCalledWith("cB", expect.stringContaining("Recruitment-Link"));
+    });
+
+    it("says so when the bot may not create an invite there", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        discord.createRecruitmentInvite.mockRejectedValue(Object.assign(new Error("Recht fehlt"), { code: "invite_permission" }));
+        const res = await post("/api/recruitment/invite", { guildId: "B", channelId: "cB" });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("invite_permission");
+    });
+
+    it("offers invites only on servers the caller may act on, suggesting a tracked post's channel", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        discord.listGuilds.mockReturnValue([{ id: "A", name: "Pulse A" }, { id: "B", name: "Pulse B" }]);
+        discord.listInviteChannels.mockImplementation((g) => (g === "B"
+            ? [{ id: "cB", name: "willkommen", canInvite: true }, { id: "fB", name: "forum", canInvite: true }]
+            : [{ id: "cA", name: "a", canInvite: true }]));
+        settingsStore.listRecruitmentPosts.mockReturnValue([{ id: "p", guildId: "B", channelId: "t9", parentChannelId: "fB" }]);
+        try {
+            const data = json(await get("/api/recruitment")).data;
+            expect(data.inviteServers.map((s) => [s.id, s.suggestedChannelId])).toEqual([["B", "fB"]]);
+            auth.getUser.mockReturnValue(admin);
+            const all = json(await get("/api/recruitment")).data;
+            expect(all.inviteServers.map((s) => s.id)).toEqual(["A", "B"]);
+            expect(all.inviteServers[0].suggestedChannelId).toBe("cA");
+        } finally {
+            discord.listGuilds.mockReturnValue([]);
+            discord.listInviteChannels.mockReset().mockReturnValue([]);
+            settingsStore.listRecruitmentPosts.mockReturnValue([]);
+        }
+    });
+
+    it("posts with a link button only for a Discord link", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        const bad = await post("/api/recruitment/post", { templateId: "t1", channelId: "cB", buttonKind: "link", linkUrl: "https://evil.example" });
+        expect(status(bad)).toBe(400);
+        expect(json(bad).error.code).toBe("invalid_link");
+        expect(discord.postRecruitment).not.toHaveBeenCalled();
+
+        await post("/api/recruitment/post", { templateId: "t1", channelId: "cB", buttonKind: "link", linkUrl: " https://discord.gg/abc ", buttonLabel: "Komm rein" });
+        expect(discord.postRecruitment).toHaveBeenCalledWith("cB", expect.objectContaining({
+            buttonKind: "link", linkUrl: "https://discord.gg/abc", buttonLabel: "Komm rein",
+        }));
+        expect(settingsStore.saveRecruitmentPost).toHaveBeenLastCalledWith(expect.objectContaining({
+            buttonKind: "link", linkUrl: "https://discord.gg/abc", parentChannelId: "", forumTitle: "",
+        }));
+    });
+
+    it("tracks a forum post by its thread, under the forum's name and with its title", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        const forumChannels = new Map([["fB", { id: "fB", guildId: "B", name: "recruitment" }]]);
+        discord.getClient.mockReturnValue({ channels: { cache: forumChannels, fetch: jest.fn(async (id) => forumChannels.get(id) || null) } });
+        discord.postRecruitment.mockResolvedValue({ guildId: "B", channelId: "t1", messageId: "t1", parentChannelId: "fB" });
+        await post("/api/recruitment/post", {
+            templateId: "t1", channelId: "fB", buttonKind: "link", linkUrl: "https://discord.gg/abc", forumTitle: " Wir suchen ",
+        });
+        expect(discord.postRecruitment).toHaveBeenCalledWith("fB", expect.objectContaining({ forumTitle: "Wir suchen" }));
+        expect(settingsStore.saveRecruitmentPost).toHaveBeenLastCalledWith(expect.objectContaining({
+            channelId: "t1", messageId: "t1", parentChannelId: "fB", channelName: "recruitment", forumTitle: "Wir suchen",
+        }));
+
+        discord.postRecruitment.mockRejectedValue(Object.assign(new Error("Titel fehlt"), { code: "title_required" }));
+        const res = await post("/api/recruitment/post", { templateId: "t1", channelId: "fB" });
+        expect(json(res).error.code).toBe("title_required");
     });
 });

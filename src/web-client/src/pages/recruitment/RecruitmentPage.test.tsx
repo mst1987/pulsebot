@@ -108,7 +108,7 @@ describe("Recruitment page head", () => {
         const dialog = await screen.findByRole("dialog");
         const send = within(dialog).getByRole("button", { name: "In Channel posten" });
         expect(send).toBeDisabled();
-        await user.selectOptions(within(dialog).getByLabelText("Ziel-Channel"), "c1");
+        await user.selectOptions(within(dialog).getByLabelText("Ziel"), "c1");
         await user.click(send);
 
         await waitFor(() => expect(api.postRecruitmentTemplate).toHaveBeenCalledWith({ templateId: "t1", channelId: "c1" }));
