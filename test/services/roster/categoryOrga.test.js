@@ -128,6 +128,14 @@ describe("services/roster/categoryOrga orgaCategoryIds / isAnyCategoryManager", 
         expect(await orga.isAnyCategoryManager(raider("fmgr"), { memberRoleIds })).toBe(false);
         expect(await orga.isAnyCategoryManager(null)).toBe(false);
     });
+
+    it("guildId: counts only the rosters of that server (#979)", async () => {
+        const memberRoleIds = roles({});
+        expect(await orga.isAnyCategoryManager(raider("mgr"), { memberRoleIds, guildId: "g1" })).toBe(true);
+        expect(await orga.isAnyCategoryManager(raider("mgr"), { memberRoleIds, guildId: "g2" })).toBe(false);
+        expect(await orga.isAnyCategoryManager(raider("other"), { memberRoleIds, guildId: "g2" })).toBe(true);
+        expect(await orga.isAnyCategoryManager(raider("other"), { memberRoleIds, guildId: "g1" })).toBe(false);
+    });
 });
 
 describe("services/roster/categoryOrga canOrgaEvent", () => {

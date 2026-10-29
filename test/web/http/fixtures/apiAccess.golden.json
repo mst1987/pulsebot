@@ -1,5 +1,11 @@
 {
   "areaByPath": {
+    "/api/vermerke": "vermerke",
+    "/api/vermerke/person": "vermerke",
+    "/api/vermerke/update": "vermerke",
+    "/api/vermerke/archive": "vermerke",
+    "/api/vermerke/hide": "vermerke",
+    "/api/vermerke/delete": "vermerke",
     "/api/dashboard": ["dashboard", "signup"],
     "/api/dashboard/next-raid": "dashboard",
     "/api/dungeons": ["roster", "signup"],
@@ -307,7 +313,8 @@
   ],
   "anyArea": [
     "/api/session/guild",
-    "/api/session/lang"
+    "/api/session/lang",
+    "/api/vermerke/short"
   ],
   "tokenAuth": [
     "/api/ingest/loot",

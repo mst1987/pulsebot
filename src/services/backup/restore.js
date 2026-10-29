@@ -41,6 +41,7 @@ const SENSITIVE_FILES = new Set([
     "settings/calendar-tokens.json",
     "settings/availability.json",
     "settings/attendance-overrides.json",
+    "settings/user-notes.json",
 ]);
 const SENSITIVE_MODE = 0o600;
 const PLAIN_MODE = 0o644;

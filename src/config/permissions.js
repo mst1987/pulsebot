@@ -50,6 +50,10 @@ const AREAS = [
     // and the few people they name: never part of a base access by default, so
     // only full admins and explicit role or single-account grants open it.
     { id: "kader", tab: "kader", label: "Kaderplaner", description: "Raidkader für WoW Forever planen: Spieler-Pool, Kader je Raid, Gruppen-Setups. Die Zuweisungen gelten nur im Planer, das Raider-Profil bleibt unverändert." },
+    // Notes on Discord accounts (docs/vermerke.md, #979): hint, warning, shadowban.
+    // Sensitive, so like "kader" never part of a base access - only full admins and
+    // explicit grants open it. Never shown to the person a note is about.
+    { id: "vermerke", tab: "vermerke", label: "Vermerke", description: "Vermerke an Discord-Konten: Hinweis, Warnung oder Shadowban mit Grund und Notiz. Lesen = Liste und Notizen, Schreiben = anlegen, ändern, archivieren. Nie für die Person sichtbar." },
     { id: "channels", tab: "channels", label: "Discord", description: "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten. Zeigt auch die Mitgliederliste beider Server mit Roster-Status und Charakteren aus allen Kategorien." },
     { id: "settings", tab: "settings", label: "Einstellungen", description: "Bot-Konfiguration. Admin-Rollen und Berechtigungen bleiben Voll-Admins vorbehalten." },
 ];
