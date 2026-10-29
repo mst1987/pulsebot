@@ -6,7 +6,7 @@ const path = require("path");
 const crypto = require("crypto");
 const { createSnapshot, readManifest } = require("../../../src/services/backup/snapshot");
 const {
-    verifySnapshot, restoreSnapshot, countDataDir, listDataFiles, normalizeOnly, matchesOnly, isSafeRel, summaryLine,
+    verifySnapshot, restoreSnapshot, countDataDir, listDataFiles, normalizeOnly, matchesOnly, isSafeRel, summaryLine, SENSITIVE_FILES,
 } = require("../../../src/services/backup/restore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -73,6 +73,10 @@ beforeEach(async () => {
 });
 
 describe("helpers", () => {
+    it("counts the notes on people (Vermerke, #979) among the sensitive files", () => {
+        expect(SENSITIVE_FILES.has("settings/user-notes.json")).toBe(true);
+    });
+
     it("normalises --only paths and matches files and directories", () => {
         expect(normalizeOnly(".\\data\\settings\\rosters.json")).toBe("settings/rosters.json");
         expect(normalizeOnly("reports/")).toBe("reports");

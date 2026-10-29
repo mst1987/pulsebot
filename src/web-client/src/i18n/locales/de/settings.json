@@ -402,6 +402,10 @@
             "label": "Kaderplaner",
             "description": "Raidkader für WoW Forever planen: Spieler-Pool, Kader je Raid, Gruppen-Setups. Die Zuweisungen gelten nur im Planer, das Raider-Profil bleibt unverändert."
         },
+        "vermerke": {
+            "label": "Vermerke",
+            "description": "Vermerke an Discord-Konten: Hinweis, Warnung oder Shadowban mit Grund und Notiz. Lesen = Liste und Notizen, Schreiben = anlegen, ändern, archivieren. Nie für die Person sichtbar."
+        },
         "channels": {
             "label": "Discord",
             "description": "Discord-Kanäle anlegen und duplizieren, Rollen-Nachrichten posten. Zeigt auch die Mitgliederliste beider Server mit Roster-Status und Charakteren aus allen Kategorien."

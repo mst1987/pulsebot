@@ -108,6 +108,7 @@ Bereichswissen steht in `docs/` — die passende Datei öffnen, Neues dorthin sc
 | [docs/channels.md](docs/channels.md) | Kanäle-Seite, Namensregeln, Archiv, Schnellanlage |
 | [docs/roster-profile.md](docs/roster-profile.md) | Roster-Bereich und das Raider-Profil („Mein Profil“) |
 | [docs/kaderplaner.md](docs/kaderplaner.md) | Kaderplaner (WoW Forever): Kader-Status, Gespräche, Stimmen, Datenschutz |
+| [docs/vermerke.md](docs/vermerke.md) | Vermerke an Discord-Konten: Stufen, Gründe, Teilen, Ablauf, Kurzform, nie bei der Person |
 | [docs/loot-council.md](docs/loot-council.md) | Loot-Council: Bedarf, Gear-Quellen, BiS-Listen, Simulation |
 | [docs/logcheck.md](docs/logcheck.md) | Kampfverlauf, Analyzer, Empfehlungen, Report-Seiten, Raid-Wächter |
 | [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLC), Addon-Sync und Inbox, Vergabegrund |

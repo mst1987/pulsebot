@@ -402,6 +402,10 @@
             "label": "Roster planner",
             "description": "Plan raid rosters for WoW Forever: player pool, a roster per raid, group setups. Assignments only apply inside the planner; the raider profile stays unchanged."
         },
+        "vermerke": {
+            "label": "Notes",
+            "description": "Notes on Discord accounts: hint, warning or shadowban with a reason and a note. Read = the list and the notes, write = add, change, archive. Never visible to the person."
+        },
         "channels": {
             "label": "Discord",
             "description": "Create and duplicate Discord channels, post role messages. Also shows the member list of both servers with roster status and characters from all categories."

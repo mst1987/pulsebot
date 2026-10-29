@@ -268,6 +268,22 @@ describe("config/permissions — per-account grants", () => {
         });
     });
 
+    // The Vermerke are notes on accounts (docs/vermerke.md, #979): like the Kaderplaner nobody gets
+    // them by default.
+    describe("the vermerke area", () => {
+        it("is its own area on its own tab", () => {
+            expect(AREAS.find((a) => a.id === "vermerke")).toMatchObject({ tab: "vermerke", label: "Vermerke" });
+        });
+
+        it("is in no default base access and opens only with an explicit grant", () => {
+            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "vermerke")).toBe(false);
+            expect(can(accessForUser({ "42": { vermerke: { read: true } } }, "42"), "vermerke")).toBe(true);
+            expect(can(accessForUser({ "42": { vermerke: { read: true } } }, "43"), "vermerke")).toBe(false);
+            expect(userCan({ isAdmin: true, access: emptyAccess() }, "vermerke", "write")).toBe(true);
+        });
+    });
+
     // The raid plan left "raids" (docs/permissions.md): the tactics are handed out on their own.
     describe("the raidplan area", () => {
         it("is its own area, right after the raid events whose tab it shares", () => {

@@ -145,13 +145,16 @@ async function orgaCategoryIds(user, { config, managerOnly = false, ...opts } = 
 
 /**
  * Whether `user` manages the current roster of at least one category - the global orga does not count
- * here (the `orgaScoped` gate asks it for those who are not). Stops at the first hit.
+ * here (the `orgaScoped` gate asks it for those who are not). Stops at the first hit. `guildId`: only
+ * the rosters of that server count (a right that holds per server, e.g. the Vermerke short form, #979).
  */
-async function isAnyCategoryManager(user, { config, ...opts } = {}) {
+async function isAnyCategoryManager(user, { config, guildId = "", ...opts } = {}) {
     if (!user) return false;
-    const cats = [...new Set(rosterStore.listRosters().map((r) => str(r.categoryId)).filter(Boolean))];
+    const gid = str(guildId);
+    const cats = [...new Set(rosterStore.listRosters(gid).map((r) => str(r.categoryId)).filter(Boolean))];
     for (const cat of cats) {
         const roster = categoryRoster.currentRoster(cat, { config });
+        if (gid && roster && str(roster.guildId) !== gid) continue;
         if (roster && await managesRoster(user, roster, opts)) return true;
     }
     return false;
