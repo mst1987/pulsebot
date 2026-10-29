@@ -47,7 +47,7 @@ const { guildOfEvent, storedCategoryGuilds } = require("../discord/serverOf");
 const { loadEventGroups } = require("./raidEventGroups");
 const { visibleRows, versionOfEvent } = require("./mainVersion");
 const { attendingCount } = require("../talk/talkOverview");
-const { raidOverviewPayload, payloadHash } = require("./raidOverviewPanel");
+const { raidOverviewPayload, shownRaids, payloadHash } = require("./raidOverviewPanel");
 const { categoryNameFor } = require("../signups/availabilityPanel");
 const { visualOn, withImages } = require("../discord/discordImage");
 const logger = require("../../logger").child("raidOverview");
@@ -108,14 +108,12 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
     return { payload, hash: payloadHash(payload, lang), lang, build };
 }
 
-/** Whether a raid still shows in an overview: not cancelled, not begun (raidOverviewPanel.groupByRaidId). */
-const isUpcoming = (e, now) => !!e && e.status !== "cancelled" && (Number(e.startTime) || 0) >= Math.floor(now / 1000);
-
 /**
  * What the overview of a whole server shows now (`/createoverview scope:server`): the raids of every raid
  * category of this server together, by time and raid ID - a raid without a category is no raid category's and
  * stays out, so does one whose server is known to be another. Same filters as a category's overview. Its
- * language: the one all categories with an upcoming raid share, else (mixed or none) the server's.
+ * language: the one all categories of the listed raids share (after the card's limits, raidOverviewPanel.shownRaids),
+ * else (mixed or none) the server's.
  * @returns {Promise<{ payload?: object, hash?: string, lang?: string, error?: string }>}
  */
 async function currentServerContent(guildId, { config, now = Date.now(), cache = new Map() } = {}) {
@@ -129,17 +127,26 @@ async function currentServerContent(guildId, { config, now = Date.now(), cache =
         return !owner || owner === gid;
     };
     const events = [];
-    const langs = new Set();
+    const categoryOf = new Map();
     for (const group of groups || []) {
         const cat = str(group && group.categoryId);
         if (!cat) continue;
         const rows = visibleRows(((group.events) || []).filter((e) => !isRaidSibling(e) && ofThisServer(e)), (e) => versionOfEvent(e, { config: cfg }), cfg)
             .map((e) => ({ ...e, categoryName: e.categoryName || group.categoryName || "" }));
-        if (rows.some((e) => isUpcoming(e, now))) langs.add(categoryLang(cat, cfg, gid));
+        for (const row of rows) categoryOf.set(row, cat);
         events.push(...rows);
     }
     events.sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
-    const lang = langs.size === 1 ? [...langs][0] : serverLang(cfg, gid);
+    // The language comes from the raids the card actually lists (after its limits), which in turn depend a
+    // little on the language (text budget): start from the server's, settle on the shown raids' one.
+    const fallback = serverLang(cfg, gid);
+    const langOf = (lang) => {
+        const langs = new Set(shownRaids({ events, now, lang, attending: attendingCount, server: true })
+            .map((e) => categoryLang(categoryOf.get(e), cfg, gid)));
+        return langs.size === 1 ? [...langs][0] : fallback;
+    };
+    let lang = langOf(fallback);
+    if (lang !== fallback && langOf(lang) !== lang) lang = fallback;
     const weekStrip = visualOn(cfg, "overviewWeekStrip", gid);
     const build = (lastChange, { pictures = weekStrip } = {}) => raidOverviewPayload({
         events,

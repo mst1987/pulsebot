@@ -181,27 +181,21 @@ function groupByRaidId(events, now) {
  *   payload then carries `images: [{ name, svg }]` for services/discord/discordImage.js `withImages`
  * @returns {{ flags: number, components: object[], embeds: [], content: "", images?: object[] }} API JSON
  */
-function raidOverviewPayload({
-    categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap(), weekStrip = false, server = false,
+function layout({
+    categoryName = "", events = [], now = Date.now(), lang = "de", attending, emojis = appEmojiMap(), server = false,
 } = {}) {
-    const c = new ContainerBuilder().setAccentColor(embedAccentColor);
     const heading = `## ${(!server && plainCategoryName(categoryName)) || tr(lang, "Raids")}`;
-    c.addTextDisplayComponents(text(heading));
     let used = heading.length;
     let components = 4; // container, heading, footer separator + footer text
 
     const groups = groupByRaidId(events, now);
     const total = groups.reduce((n, g) => n + g.events.length, 0);
     let shown = 0;
-    let listedIds = 0;
-    const images = [];
-    if (!groups.length) {
-        const none = tr(lang, "No raids are planned right now. New raids show up here by themselves.");
-        c.addTextDisplayComponents(text(none));
-        used += none.length;
-    }
+    const listed = [];
+    const none = groups.length ? "" : tr(lang, "No raids are planned right now. New raids show up here by themselves.");
+    used += none.length;
     for (const group of groups) {
-        if (listedIds >= MAX_IDS || shown >= MAX_RAIDS) break;
+        if (listed.length >= MAX_IDS || shown >= MAX_RAIDS) break;
         const title = `${icon(emojis, "date")} **${idTitle(group.id, now, lang)}** · ${rangeLabel(group.id, lang)}`.trim();
         const rows = [];
         let length = title.length;
@@ -218,6 +212,33 @@ function raidOverviewPayload({
             cost += rowCost;
         }
         if (!rows.length) break;
+        listed.push({ group, title, rows });
+        used += length;
+        components += cost;
+        shown += rows.length;
+    }
+    return { heading, none, listed, total, shown };
+}
+
+/**
+ * The raids an overview actually lists - after the limits (MAX_IDS IDs, MAX_RAIDS raids, the text and
+ * component budget). Takes the same options as raidOverviewPayload.
+ * @returns {object[]} the listed events, in their order
+ */
+function shownRaids(options) {
+    return layout(options).listed.flatMap((l) => l.rows.map((r) => r.event));
+}
+
+function raidOverviewPayload({
+    categoryName = "", events = [], now = Date.now(), lang = "de", attending, lastChange = 0, emojis = appEmojiMap(), weekStrip = false, server = false,
+} = {}) {
+    const c = new ContainerBuilder().setAccentColor(embedAccentColor);
+    const { heading, none, listed, total, shown } = layout({ categoryName, events, now, lang, attending, emojis, server });
+    c.addTextDisplayComponents(text(heading));
+    let listedIds = 0;
+    const images = [];
+    if (none) c.addTextDisplayComponents(text(none));
+    for (const { group, title, rows } of listed) {
         c.addSeparatorComponents(line());
         if (weekStrip) {
             // The picture carries the ID's title and range, so it takes the title line's place (same component count).
@@ -242,9 +263,6 @@ function raidOverviewPayload({
                 c.addTextDisplayComponents(text(block));
             }
         }
-        used += length;
-        components += cost;
-        shown += rows.length;
         listedIds += 1;
     }
 
@@ -270,4 +288,4 @@ function payloadHash(payload, lang = "") {
     return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload.components)}${pictures ? `|${pictures}` : ""}`).digest("hex").slice(0, 16);
 }
 
-module.exports = { raidOverviewPayload, payloadHash, groupByRaidId, rangeLabel, dayLabel, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS };
+module.exports = { raidOverviewPayload, shownRaids, payloadHash, groupByRaidId, rangeLabel, dayLabel, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS };

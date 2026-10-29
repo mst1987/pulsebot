@@ -1,6 +1,6 @@
 // The raid overview message of a category (services/events/raidOverviewPanel.js): pure.
 const { DateTime } = require("luxon");
-const { raidOverviewPayload, payloadHash, groupByRaidId, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS } = require("../../../src/services/events/raidOverviewPanel");
+const { raidOverviewPayload, shownRaids, payloadHash, groupByRaidId, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS } = require("../../../src/services/events/raidOverviewPanel");
 const { cardText, cardButtons, nodes } = require("../../helpers/cardText");
 
 const at = (iso) => Math.floor(DateTime.fromISO(iso, { zone: "Europe/Berlin" }).toSeconds());
@@ -112,6 +112,14 @@ describe("services/events/raidOverviewPanel", () => {
             expect(listed).toBeLessThanOrEqual(MAX_RAIDS);
             expect((text.match(/Wed \d\d\.\d\d\. –/g) || []).length).toBeLessThanOrEqual(MAX_IDS);
             expect(text).toContain(`+${many.length - listed} more raids`);
+            // shownRaids names exactly the raids the card lists
+            const shown = shownRaids({ categoryName: "🔥 PUG Raids", events: many, now: NOW, lang: "en", attending });
+            expect(shown).toHaveLength(listed);
+            expect(shown.every((e) => text.includes(`<#${e.channelId}>`))).toBe(true);
+        });
+
+        it("names no raid when nothing is planned", () => {
+            expect(shownRaids({ events: [], now: NOW, lang: "en", attending })).toEqual([]);
         });
 
         it("stays within Discord's 40 components and 4000 characters, whatever the titles", () => {
@@ -223,6 +231,18 @@ describe("services/events/raidOverviewPanel", () => {
     });
 
     describe("footer and hash", () => {
+        it("keeps a category overview's hash of before the server overview (else every overview would be redrawn)", () => {
+            // fixed values, computed once with the code of origin/main c0537c47 - change them only on purpose
+            const events = () => [
+                raid("a", "2026-10-17T20:00:00", { signUps: Array.from({ length: 17 }, (_, i) => ({ userId: `u${i}` })) }),
+                raid("b", "2026-10-21T20:00:00", { size: 10, signUps: [{ userId: "x" }] }),
+                raid("c", "2026-10-30T20:00:00", { leaderId: "" }),
+                raid("gone", "2026-10-18T20:00:00", { status: "cancelled" }),
+            ];
+            expect(payloadHash(build(events(), { emojis: {} }), "en")).toBe("dd9cd623b8c482ff");
+            expect(payloadHash(build(events(), { emojis: {}, lang: "de" }), "de")).toBe("942c4481db911734");
+        });
+
         it("shows the last change only when given, and leaves it out of the hash", () => {
             const events = [raid("a", "2026-10-17T20:00:00")];
             const without = build(events);

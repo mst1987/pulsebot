@@ -257,6 +257,34 @@ describe("services/events/raidOverview", () => {
             expect(text).toContain("## Raids");
         });
 
+        it("takes its language only from the raids it lists, not from those cut off by its limits", async () => {
+            // cat1 (English) fills the card; cat2 (the server's German) only has raids past the limits
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: Array.from({ length: 16 }, (_, i) => raid(`e${i}`, { startTime: NOW_SEC + DAY + i * 3600, categoryName: "10er" })) },
+                { categoryId: "cat2", categoryName: "40er", events: [
+                    raid("late4", { startTime: NOW_SEC + 30 * DAY, title: "Fourth ID Raid", categoryName: "40er" }),
+                    raid("late1", { startTime: NOW_SEC + DAY + 20 * 3600, title: "Sixteenth Raid", categoryName: "40er" }),
+                ] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            expect(text).not.toContain("Fourth ID Raid");
+            expect(text).not.toContain("Sixteenth Raid");
+            expect(text).toContain("This ID");
+            expect(text).toMatch(/\+\d+ more raids/);
+        });
+
+        it("speaks the server's language once a listed raid comes from a category of another language", async () => {
+            mockGroups = [
+                { categoryId: "cat1", categoryName: "10er", events: [raid("a", { categoryName: "10er" })] },
+                { categoryId: "cat2", categoryName: "40er", events: [raid("c", { startTime: NOW_SEC + 30 * DAY, categoryName: "40er" })] },
+            ];
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            expect(cardText(discord.postPayload.mock.calls[0][1])).toContain("Diese ID");
+        });
+
         it("speaks the server's language without any raid", async () => {
             mockGroups = [{ categoryId: "cat1", categoryName: "10er", events: [] }];
             discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
