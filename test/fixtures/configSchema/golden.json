@@ -48,6 +48,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -123,6 +124,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -256,6 +258,7 @@
       "categoryDiscordEvent": {
         "1300000000000000001": true
       },
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {
         "1300000000000000001": "1100000000000000009"
       },
@@ -383,6 +386,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -490,6 +494,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -627,6 +632,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -730,6 +736,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -841,6 +848,7 @@
       "categoryLanguage": {},
       "categoryAttendance": {},
       "categoryDiscordEvent": {},
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {},
       "categoryMessageLook": {},
       "categoryAnnounce": {},
@@ -936,6 +944,7 @@
       "categoryDiscordEvent": {
         "a": true
       },
+      "categoryServerOverview": {},
       "categoryVoiceChannel": {
         "a": "1300000000000000003"
       },

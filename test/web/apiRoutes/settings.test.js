@@ -70,6 +70,7 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
+jest.mock("../../../src/services/events/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
 jest.mock("../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
@@ -1835,6 +1836,36 @@ describe("web/apiRoutes/settings", () => {
                 readJsonBody.mockResolvedValue({ categoryDiscordEvent: { c1: true } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryDiscordEvent: { c1: true } });
+                noActiveServer();
+            });
+        });
+
+        describe("Kategorie in der Server-Übersicht", () => {
+            const { scheduleRefresh } = require("../../../src/services/events/raidOverview");
+
+            it("stores the switch as booleans and redraws the overviews soon after a change", async () => {
+                readJsonBody.mockResolvedValue({ categoryServerOverview: { c1: false, c2: true, c3: "x" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryServerOverview: { c1: false, c2: true, c3: true } });
+                expect(scheduleRefresh).toHaveBeenCalledTimes(1);
+            });
+
+            it("does not redraw when the switch did not change", async () => {
+                settingsStore.getConfig.mockReturnValue({ categoryServerOverview: { c1: false } });
+                settingsStore.saveConfig.mockImplementationOnce(() => ({ categoryServerOverview: { c1: false } }));
+                readJsonBody.mockResolvedValue({ categoryServerOverview: { c1: false } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(scheduleRefresh).not.toHaveBeenCalled();
+                settingsStore.getConfig.mockReturnValue({});
+            });
+
+            it("is a setting a limited settings user may change (not full-admin-only)", async () => {
+                requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                requireFullAdmin.mockReturnValue(null);
+                categoriesOnActiveServer("c1");
+                readJsonBody.mockResolvedValue({ categoryServerOverview: { c1: false } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryServerOverview: { c1: false } });
                 noActiveServer();
             });
         });

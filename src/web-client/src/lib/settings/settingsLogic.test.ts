@@ -230,6 +230,15 @@ describe("save bar change list", () => {
         ]);
     });
 
+    it("names the server overview switch per category, missing = shown", () => {
+        const draft = base();
+        draft.categoryServerOverview = { c1: false, c2: true };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · nicht in der Server-Übersicht"]);
+        const saved = { ...base(), categoryServerOverview: { c1: false } };
+        expect(logic.draftChanges(saved, { ...base(), categoryServerOverview: { c1: true } }, names)).toEqual(["Hyjal & BT · in der Server-Übersicht"]);
+        expect(logic.draftChanges(saved, { ...base(), categoryServerOverview: { c1: false } }, names)).toEqual([]);
+    });
+
     it("names the create announcement, missing = off (#306; #894: always the event channel)", () => {
         const draft = base();
         draft.categoryAnnounce = { c1: { enabled: true } };

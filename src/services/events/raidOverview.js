@@ -40,6 +40,7 @@ const { isRaidSibling } = require("../../utils/raidGroup");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const settingsStore = require("../../stores/settingsStore");
+const { inServerOverview } = require("../../stores/configSchema");
 const discord = require("../discord/discord");
 const guildRoles = require("../discord/guildRoles");
 const { categoryLang, serverLang } = require("../discord/botLanguage");
@@ -111,7 +112,8 @@ async function currentContent(categoryId, guildId, { config, now = Date.now(), c
 /**
  * What the overview of a whole server shows now (`/createoverview scope:server`): the raids of every raid
  * category of this server together, by time and raid ID - a raid without a category is no raid category's and
- * stays out, so does one whose server is known to be another. Same filters as a category's overview. Its
+ * stays out, so does one whose server is known to be another, and every raid of a category taken out of it
+ * (`config.categoryServerOverview`, inServerOverview). Same filters as a category's overview. Its
  * language: the one all categories of the listed raids share (after the card's limits, raidOverviewPanel.shownRaids),
  * else (mixed or none) the server's.
  * @returns {Promise<{ payload?: object, hash?: string, lang?: string, error?: string }>}
@@ -130,7 +132,8 @@ async function currentServerContent(guildId, { config, now = Date.now(), cache =
     const categoryOf = new Map();
     for (const group of groups || []) {
         const cat = str(group && group.categoryId);
-        if (!cat) continue;
+        // a category taken out of the server overview (Einstellungen -> Kategorien) keeps only its own
+        if (!cat || !inServerOverview(cfg, cat)) continue;
         const rows = visibleRows(((group.events) || []).filter((e) => !isRaidSibling(e) && ofThisServer(e)), (e) => versionOfEvent(e, { config: cfg }), cfg)
             .map((e) => ({ ...e, categoryName: e.categoryName || group.categoryName || "" }));
         for (const row of rows) categoryOf.set(row, cat);

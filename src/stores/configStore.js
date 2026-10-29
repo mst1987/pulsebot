@@ -14,7 +14,7 @@ const { normalizeCategoryLootSystem } = require("../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../services/events/embedLook");
 const {
     normalizeConfig, normalizeDiscordServers, normalizeRaidhelperRetirement, normalizeVersionLaunch, normalizeCategorySignupSource,
-    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryServerOverview, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning,
     normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings,
     normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings,
@@ -110,6 +110,7 @@ function resolveEventSheetLink(eventSheet, categoryId) {
  * - categorySignupSource: `current` already carries the categories pinned for an
  *   install from before #291 (signupSourcesOf), so a save writes them down;
  * - categorySetupDms, categoryDiscordEvent (#305): a category switched off drops out;
+ * - categoryServerOverview: a category shown again (true) drops out;
  * - categoryAttendance: a category's object is replaced whole, one back at the defaults drops out;
  * - categoryLanguage: "" = back to the server language, the category drops out;
  * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
@@ -126,6 +127,7 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryLanguage", normalizeCategoryLanguage],
     ["categoryAttendance", normalizeCategoryAttendance],
     ["categoryDiscordEvent", normalizeCategoryFlags],
+    ["categoryServerOverview", normalizeCategoryServerOverview],
     ["categoryVoiceChannel", normalizeCategoryVoiceChannel],
     ["categoryMessageLook", normalizeCategoryMessageLook],
     ["categoryAnnounce", normalizeCategoryAnnounce],

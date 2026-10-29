@@ -6,6 +6,7 @@ const mockSignupListeners = new Set();
 let mockGroups = [];
 let mockGroupsError = null;
 let mockVisuals = { overviewWeekStrip: false };
+let mockServerOverview = {};
 
 jest.mock("../../../src/services/discord/discord", () => ({
     postPayload: jest.fn(),
@@ -20,7 +21,7 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "Fallback Name") }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ attendingCount: (e) => (e.signUps || []).length }));
 jest.mock("../../../src/stores/settingsStore", () => ({
-    getConfig: () => ({ discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [] }, categoryLanguage: { cat1: "en" }, discordVisuals: mockVisuals }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [] }, categoryLanguage: { cat1: "en" }, categoryServerOverview: mockServerOverview, discordVisuals: mockVisuals }),
 }));
 jest.mock("../../../src/stores/eventStore", () => ({
     onEventsChanged: (fn) => {
@@ -77,6 +78,7 @@ beforeEach(() => {
     mockGroups = [{ categoryId: "cat1", categoryName: "🔥 PUG Raids", events: [raid("a"), raid("b", { startTime: NOW_SEC + 9 * DAY })] }];
     mockGroupsError = null;
     mockVisuals = { overviewWeekStrip: false };
+    mockServerOverview = {};
     discord.isOnline.mockReturnValue(true);
 });
 
@@ -250,6 +252,22 @@ describe("services/events/raidOverview", () => {
             expect(text).not.toContain("Loose Raid");
             expect(loadEventGroups).toHaveBeenCalledWith("g1");
             expect(store.getOverview("ms")).toMatchObject({ guildId: "g1", channelId: "c-ov", categoryId: "", scope: "server", lastChange: NOW_SEC });
+        });
+
+        it("leaves out a category switched off for the server overview, while its own overview still lists it", async () => {
+            twoCategories();
+            mockServerOverview = { cat2: false };
+            discord.postPayload.mockResolvedValue(posted("ms", "c-ov"));
+            await serverPost();
+            const text = cardText(discord.postPayload.mock.calls[0][1]);
+            expect(text).toContain("Karazhan");
+            expect(text).not.toContain("Molten Core");
+            // only English raids left: the card speaks English
+            expect(text).toContain("This ID");
+
+            discord.postPayload.mockResolvedValue(posted("m2", "c2"));
+            await overview.postOverview({ guildId: "g1", channelId: "c2", categoryId: "cat2", now: NOW });
+            expect(cardText(discord.postPayload.mock.calls[1][1])).toContain("Molten Core");
         });
 
         it("speaks the language all its categories share", async () => {
