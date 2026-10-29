@@ -10,8 +10,20 @@ export type OrgaHub = { categoryId: string; channelId: string; postedAt: number;
 /** One link button below "Raid anlegen" (at most `maxLinks` per category). */
 export type OrgaLink = { label: string; url: string; /** One emoji or a custom "<:name:id>"; none = no emoji. */ emoji?: string };
 
-export function getOrgaHubs(): Promise<{ hubs: OrgaHub[]; links?: Record<string, OrgaLink[]>; maxLinks?: number }> {
+export function getOrgaHubs(): Promise<{
+    hubs: OrgaHub[];
+    links?: Record<string, OrgaLink[]>;
+    maxLinks?: number;
+    /** Categories with a part of their hub switched off (#969); missing = all on. */
+    features?: Record<string, Record<string, boolean>>;
+    featureKeys?: string[];
+}> {
     return get("/api/orga-hubs");
+}
+
+/** Switch parts of a category's orga hub on or off (only the keys given change); the posted hub is redrawn at once. */
+export function saveOrgaHubFeatures(categoryId: string, features: Record<string, boolean>): Promise<{ categoryId: string; features: Record<string, boolean> }> {
+    return send("PUT", "/api/orga-hub/features", { categoryId, features });
 }
 
 /** Replace a category's orga links (its posted hub is redrawn at once); empty rows are dropped. */

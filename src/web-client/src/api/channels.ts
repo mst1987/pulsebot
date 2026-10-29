@@ -1,6 +1,6 @@
 import { get, send, type ApiError } from "./client";
 import { t } from "../i18n";
-import type { AdminConfig } from "./settings";
+import { explainUnknownServer, type AdminConfig } from "./settings";
 
 export type Category = { id: string; name: string };
 export type Channel = {
@@ -191,7 +191,8 @@ export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guild
     // checked on the body key: the raid-channel purpose ("raidDefaults.channelId") is sent as `raidDefaults`
     if (Object.keys(partial).some((k) => SERVER_SCOPED_KEYS.includes(k))) partial.serverSettingsGuildId = guildId;
     return send<{ config: AdminConfig }>("PATCH", "/api/settings", partial).catch((err: ApiError) => {
-        throw err && err.code === "server_switched" ? { ...err, message: t("settings.serverSwitched") } : err;
+        if (err && err.code === "server_switched") throw { ...err, message: t("settings.serverSwitched") };
+        return explainUnknownServer(err);
     });
 }
 

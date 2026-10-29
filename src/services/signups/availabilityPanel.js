@@ -64,6 +64,8 @@ function currentPayload(categoryId, cfg, { now = Date.now() } = {}) {
         lang: categoryLang(categoryId, cfg),
         nextRaid: nextRaidSummary(categoryId, { now }),
         links: store.getLinks(categoryId),
+        // the sections the orga switched off in the web (#969)
+        features: store.getFeatures(categoryId),
         emojis: appEmojiMap(),
         // the guild bank area shows while the category's server has its orga channel set
         // (#924, services/signups/guildBank.js)

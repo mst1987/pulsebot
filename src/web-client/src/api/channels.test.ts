@@ -106,6 +106,10 @@ describe("purposes are settings", () => {
         vi.mocked(client.send).mockRejectedValueOnce({ code: "forbidden", message: "nope" });
         await expect(saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a"], "g1"))
             .rejects.toEqual({ code: "forbidden", message: "nope" });
+        // #962: a server that is not entered says where to add it
+        vi.mocked(client.send).mockRejectedValueOnce({ code: "unknown_server", message: "raw" });
+        await expect(saveChannelPurpose(purpose({ key: "logChannels", multiple: true }), ["a"], "g1"))
+            .rejects.toMatchObject({ code: "unknown_server", message: t("settings.unknownServer") });
     });
 
     it("scopes the same keys per server as the backend", () => {

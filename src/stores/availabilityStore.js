@@ -18,6 +18,10 @@
 //   links = { [categoryId]: [{ label, url, emoji? }] } — the link buttons of a
 //           category's raider organizer (WCL invite, info sheet …), at most
 //           MAX_LINKS, kept apart from the panel so posting anew keeps them
+//   features = { [categoryId]: { nextRaid?, attendance?, evaluation?, guildBank?, links? } }
+//           — the sections of a category's raider organizer that are switched
+//           off (#969); only `false` is stored, a missing key means "on", so a
+//           category nobody touched shows every section
 //
 // Old entries are pruned once their last day is long over; nothing else
 // removes them except the raider or the orga.
@@ -37,14 +41,21 @@ const DAY = /^\d{4}-\d{2}-\d{2}$/;
 /** Link buttons per category (one Discord action row) and the longest label Discord shows. */
 const MAX_LINKS = 5;
 const LINK_LABEL_MAX = 40;
+/** The sections of the raider organizer that can be switched off per category, in the panel's order. */
+const FEATURE_KEYS = ["nextRaid", "attendance", "evaluation", "guildBank", "links"];
+
+function plainObject(value) {
+    return value && typeof value === "object" && !Array.isArray(value) ? value : {};
+}
 
 const store = createJsonStore({
     file: settingsPath("availability.json"),
-    defaults: () => ({ entries: [], panels: [], links: {} }),
+    defaults: () => ({ entries: [], panels: [], links: {}, features: {} }),
     normalize: (data) => ({
         entries: Array.isArray(data && data.entries) ? data.entries.filter((e) => e && e.id && e.userId) : [],
         panels: Array.isArray(data && data.panels) ? data.panels.filter((p) => p && p.channelId && p.messageId) : [],
         links: data && data.links && typeof data.links === "object" && !Array.isArray(data.links) ? data.links : {},
+        features: plainObject(data && data.features),
     }),
 });
 
@@ -277,6 +288,67 @@ function setLinks(categoryId, list) {
     return { links: checked.value };
 }
 
+/**
+ * Stored switches read back against `keys`: every key true unless stored as `false`;
+ * unknown keys are dropped. Shared with the Orga-Zentrale (orgaHubStore).
+ */
+function readFeatures(stored, keys) {
+    const raw = plainObject(stored);
+    return Object.fromEntries(keys.map((k) => [k, raw[k] !== false]));
+}
+
+/**
+ * Check switches against `keys`: `{ value: { key: boolean } }` (only the keys given) or
+ * `{ error }` (German) for an unknown key or a value that is not true/false.
+ */
+function checkFeatures(input, keys) {
+    if (!input || typeof input !== "object" || Array.isArray(input)) return { error: "Die Schalter fehlen." };
+    const value = {};
+    for (const [key, on] of Object.entries(input)) {
+        if (!keys.includes(key)) return { error: `Den Bereich „${key}“ gibt es nicht.` };
+        if (typeof on !== "boolean") return { error: `Der Schalter „${key}“ muss an oder aus sein.` };
+        value[key] = on;
+    }
+    return { value };
+}
+
+/**
+ * Change switches of `map[categoryId]` in place: the given keys are merged over the stored
+ * ones, only `false` stays stored, an all-on category is removed. `{ features }` or `{ error }`.
+ */
+function mergeFeatures(map, categoryId, input, keys) {
+    const cat = str(categoryId);
+    if (!cat) return { error: "Keine Kategorie gewählt." };
+    const checked = checkFeatures(input, keys);
+    if (checked.error) return checked;
+    const next = { ...readFeatures(map[cat], keys), ...checked.value };
+    const off = Object.fromEntries(keys.filter((k) => next[k] === false).map((k) => [k, false]));
+    if (Object.keys(off).length) map[cat] = off;
+    else delete map[cat];
+    return { features: next };
+}
+
+/** A category's sections of the raider organizer: `{ nextRaid: true, … }`, a missing key = on. */
+function getFeatures(categoryId) {
+    return readFeatures(store.read().features[str(categoryId)], FEATURE_KEYS);
+}
+
+/** Every category with at least one section switched off: `{ [categoryId]: { key: boolean } }`. */
+function listFeatures() {
+    const out = {};
+    for (const id of Object.keys(store.read().features)) out[id] = getFeatures(id);
+    return out;
+}
+
+/** Switch sections of a category's raider organizer (only the keys given change). `{ features }` or `{ error }`. */
+function setFeatures(categoryId, input) {
+    const data = store.read();
+    const result = mergeFeatures(data.features, categoryId, input, FEATURE_KEYS);
+    if (result.error) return result;
+    store.write(data);
+    return result;
+}
+
 function removePanel(categoryId) {
     const data = store.read();
     const hit = data.panels.find((p) => str(p.categoryId) === str(categoryId));
@@ -291,4 +363,5 @@ module.exports = {
     listEntries, getEntry, addEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
     MAX_LINKS, LINK_LABEL_MAX, checkLinks, readLinks, getLinks, listLinks, setLinks,
+    FEATURE_KEYS, readFeatures, checkFeatures, mergeFeatures, getFeatures, listFeatures, setFeatures,
 };

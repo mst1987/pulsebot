@@ -71,6 +71,20 @@ describe("availabilityPanel", () => {
         expect(await panel.refreshPanels({ onlyStale: true })).toEqual({ edited: 1, failed: 0, unchanged: 0 });
     });
 
+    it("lässt einen ausgeschalteten Bereich weg und zeichnet das Panel deshalb neu (#969)", async () => {
+        await panel.postPanel({ categoryId: "cat1", channelId: "c1" });
+        const before = store.getPanel("cat1").hash;
+        store.setFeatures("cat1", { evaluation: false });
+        try {
+            expect(await panel.refreshPanels({ onlyStale: true })).toEqual({ edited: 1, failed: 0, unchanged: 0 });
+            const after = discord.editPayload.mock.calls[0][2];
+            expect(customIds(after)).toEqual(["availability:a:cat1", "availability:p:cat1", "availability:l:cat1"]);
+            expect(store.getPanel("cat1").hash).not.toBe(before);
+        } finally {
+            store.setFeatures("cat1", { evaluation: true });
+        }
+    });
+
     it("postet auf Deutsch, wenn der Server Deutsch spricht, und zeichnet Panels bei einem Wechsel neu", async () => {
         mockConfig = {};
         await panel.postPanel({ categoryId: "cat1", channelId: "c1" });

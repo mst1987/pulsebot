@@ -1,6 +1,7 @@
 import { useState } from "react";
-import { postOrgaHub, removeOrgaHub, type ApiError, type OrgaHub, type OrgaLink } from "../../api";
+import { postOrgaHub, removeOrgaHub, saveOrgaHubFeatures, type ApiError, type OrgaHub, type OrgaLink } from "../../api";
 import OrgaLinksEditor from "./OrgaLinksEditor";
+import HubFeatureSwitches from "./HubFeatureSwitches";
 import { useToast } from "../../components/shell/Jobs";
 import { Button, buttonClass } from "../../components/ui/Button";
 import { useConfirm } from "../../components/ui/Modal";
@@ -28,6 +29,12 @@ export type OrgaHubs = {
     maxLinks: number;
     /** A category's links were saved (as the server kept them). */
     onLinks: (categoryId: string, links: OrgaLink[]) => void;
+    /** Categories with a part of the hub switched off (#969); missing = all on. */
+    features?: Record<string, Record<string, boolean>>;
+    /** The hub's parts in their order; none = no switches shown. */
+    featureKeys?: string[];
+    /** A category's switches were saved (as the server kept them). */
+    onFeatures?: (categoryId: string, features: Record<string, boolean>) => void;
 };
 
 export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categoryId: string; categoryName: string; hubs: OrgaHubs }) {
@@ -91,6 +98,9 @@ export default function OrgaHubRow({ categoryId, categoryName, hubs }: { categor
                     <Button variant="danger" size="sm" icon={<TrashIcon />} disabled={busy} onClick={remove}>{t("common.remove")}</Button>
                 </div>
             )}
+            <HubFeatureSwitches kind="orga" categoryId={categoryId} keys={hubs.featureKeys || []}
+                features={(hubs.features || {})[categoryId] || {}} save={saveOrgaHubFeatures}
+                onSaved={(id, f) => hubs.onFeatures && hubs.onFeatures(id, f)} />
             <OrgaLinksEditor categoryId={categoryId} links={hubs.links[categoryId] || []} maxLinks={hubs.maxLinks} onSaved={hubs.onLinks} />
         </CategoryField>
     );

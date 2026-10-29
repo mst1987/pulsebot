@@ -100,3 +100,23 @@ describe("stores/orgaHubStore", () => {
         expect(store.listHubs()).toEqual([]);
     });
 });
+
+describe("stores/orgaHubStore features (#969)", () => {
+    it("reads a missing key as on and stores only what is switched off", () => {
+        expect(store.FEATURE_KEYS).toEqual(["newRaid", "links", "summary"]);
+        expect(store.getFeatures("cat1")).toEqual({ newRaid: true, links: true, summary: true });
+        expect(store.setFeatures("cat1", { summary: false }).features).toEqual({ newRaid: true, links: true, summary: false });
+        expect(JSON.parse(fs.readFileSync(FILE, "utf8")).features).toEqual({ cat1: { summary: false } });
+        expect(store.listFeatures()).toEqual({ cat1: { newRaid: true, links: true, summary: false } });
+        store.setFeatures("cat1", { summary: true });
+        expect(store.listFeatures()).toEqual({});
+    });
+
+    it("refuses an unknown key and drops unknown stored keys on reading", () => {
+        expect(store.setFeatures("cat1", { nextRaid: false }).error).toMatch(/nextRaid/);
+        fs.mkdirSync(require("path").dirname(FILE), { recursive: true });
+        fs.writeFileSync(FILE, JSON.stringify({ hubs: [], features: { cat1: { links: false, old: false }, cat2: "nope" } }));
+        expect(store.getFeatures("cat1")).toEqual({ newRaid: true, links: false, summary: true });
+        expect(store.getFeatures("cat2")).toEqual({ newRaid: true, links: true, summary: true });
+    });
+});

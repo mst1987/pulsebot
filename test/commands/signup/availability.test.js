@@ -344,3 +344,87 @@ describe("Gildenbank", () => {
         expect(answerOf(stale.editReply.mock.calls[0][0]).description).toBe("⚠️ Die Gildenbank ist gerade nicht eingerichtet.");
     });
 });
+
+describe("switched-off sections (#969)", () => {
+    afterEach(() => store.setFeatures("cat1", Object.fromEntries(store.FEATURE_KEYS.map((k) => [k, true]))));
+    const OFF = "This feature is switched off in this raid hub.";
+
+    it("answers every button of a switched-off section ephemerally and opens nothing", async () => {
+        store.setFeatures("cat1", { attendance: false, nextRaid: false, evaluation: false, guildBank: false });
+        for (const id of ["availability:a:cat1", "availability:p:cat1", "availability:l:cat1", "availability:r:cat1", "availability:o:cat1", "availability:b:cat1"]) {
+            const i = click(id);
+            await command.execute(i);
+            expect(i.showModal).not.toHaveBeenCalled();
+            const payload = replyPayload(i);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(answerOf(payload).text).toContain(OFF);
+        }
+    });
+
+    it("leaves the other sections working", async () => {
+        store.setFeatures("cat1", { evaluation: false });
+        const i = click("availability:a:cat1");
+        await command.execute(i);
+        expect(i.showModal).toHaveBeenCalled();
+        const other = click("availability:a:cat2");
+        await command.execute(other);
+        expect(other.showModal).toHaveBeenCalled();
+    });
+
+    it("refuses the follow-up steps of an open modal or pick card once their section is off", async () => {
+        withCharacters();
+        store.setFeatures("cat1", { attendance: false, guildBank: false });
+        const steps = [
+            submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" }),
+            submit("availability:mp:cat1", { from: dayPlus(0), to: dayPlus(5) }),
+            select("availability:bp:cat1:0", ["22829"]),
+            submit("availability:mb:cat1", { item: "Flask", amount: "2" }),
+            submit("availability:mbi:cat1:22829", { amount: "2" }),
+        ];
+        for (const i of steps) {
+            await command.execute(i);
+            expect(i.showModal).not.toHaveBeenCalled();
+            expect(i.deferReply).not.toHaveBeenCalled();
+            const payload = replyPayload(i);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(answerOf(payload).text).toContain(OFF);
+        }
+        expect(store.listEntries({ userId: ANNA })).toEqual([]);
+        expect(discord.postPayload).not.toHaveBeenCalled();
+    });
+
+    it("stops an open raid picker once attendance is off, but lets it be cancelled", async () => {
+        withCharacters();
+        for (const step of [(token) => select(`availability:${token}:r`, ["eh-b"]), (token) => click(`availability:${token}:save`)]) {
+            store.setFeatures("cat1", { attendance: true });
+            const modal = submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" });
+            await command.execute(modal);
+            const token = tokenOf(replyPayload(modal));
+            store.setFeatures("cat1", { attendance: false });
+            const i = step(token);
+            await command.execute(i);
+            expect(answerOf(i.update.mock.calls[0][0]).text).toContain(OFF);
+            expect(i.deferUpdate).not.toHaveBeenCalled();
+            // the session is over: a second click finds nothing to save
+            const again = click(`availability:${token}:save`);
+            await command.execute(again);
+            expect(answerOf(again.update.mock.calls[0][0]).text).toContain("expired");
+        }
+        expect(store.listEntries({ userId: ANNA })).toEqual([]);
+        expect(mocks.signups.get(`eh-a/${ANNA}`)).toBeUndefined();
+
+        const second = submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) });
+        await command.execute(second);
+        const cancel = click(`availability:${tokenOf(replyPayload(second))}:x`);
+        await command.execute(cancel);
+        expect(answerOf(cancel.update.mock.calls[0][0]).text).toContain("Cancelled");
+    });
+
+    it("keeps \"My entries\" working inside an ephemeral answer", async () => {
+        store.setFeatures("cat1", { attendance: false });
+        const i = click("availability:l:cat1", { message: { flags: { has: (f) => f === MessageFlags.Ephemeral } } });
+        await command.execute(i);
+        const calls = [...i.reply.mock.calls, ...i.update.mock.calls].map((c) => answerOf(c[0]).text).join("\n");
+        expect(calls).not.toContain(OFF);
+    });
+});

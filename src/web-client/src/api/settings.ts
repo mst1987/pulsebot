@@ -1,4 +1,5 @@
-import { get, send } from "./client";
+import { get, send, type ApiError } from "./client";
+import { t } from "../i18n";
 import type { Area, Access, RolePermissions } from "./session";
 import type { Category } from "./channels";
 import type { DiscordServers, DiscordServerCard } from "./discordServers";
@@ -443,7 +444,16 @@ export type SettingsUpdate = {
  * categories are narrowed to the active server (#926).
  */
 export function updateSettings(partial: Partial<AdminConfig> & { logChannels?: LogChannelInput[]; wclGuilds?: WclGuildInput[]; serverSettingsGuildId?: string }): Promise<SettingsUpdate> {
-    return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer);
+    return send<SettingsUpdate>("PATCH", "/api/settings", partial).then(forServer, explainUnknownServer);
+}
+
+/**
+ * #962: values of a server that is not entered under Alle Server › Discord-Server
+ * would be lost — the server refuses them with 400 `unknown_server`; the message
+ * then says where to enter the server first.
+ */
+export function explainUnknownServer(err: ApiError): never {
+    throw err && err.code === "unknown_server" ? { ...err, message: t("settings.unknownServer") } : err;
 }
 
 type SwitchVersion = { id: string; label: string; short: string };
@@ -571,5 +581,5 @@ export function deleteIngestToken(id: string): Promise<{ id: string }> {
  * switched to another server since answers 409 `server_switched` (#921).
  */
 export function saveVersionOverrides(guildId: string, versionOverrides: VersionOverrides): Promise<{ config: AdminConfig }> {
-    return send("PATCH", "/api/settings", { versionOverrides, serverSettingsGuildId: guildId });
+    return send<{ config: AdminConfig }>("PATCH", "/api/settings", { versionOverrides, serverSettingsGuildId: guildId }).catch(explainUnknownServer);
 }

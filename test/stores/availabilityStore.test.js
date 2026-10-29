@@ -173,3 +173,38 @@ describe("Emoji der Links", () => {
         store.setLinks("catE", []);
     });
 });
+
+describe("Bereiche der Raid-Zentrale (#969)", () => {
+    const ALL_ON = { nextRaid: true, attendance: true, evaluation: true, guildBank: true, links: true };
+    afterEach(() => {
+        for (const id of Object.keys(store.listFeatures())) store.setFeatures(id, ALL_ON);
+    });
+
+    it("liest einen fehlenden Schluessel als an, auch fuer eine nie beruehrte Kategorie", () => {
+        expect(store.FEATURE_KEYS).toEqual(["nextRaid", "attendance", "evaluation", "guildBank", "links"]);
+        expect(store.getFeatures("neu")).toEqual(ALL_ON);
+        expect(store.listFeatures()).toEqual({});
+    });
+
+    it("aendert nur die gegebenen Schluessel und merkt sich nur die ausgeschalteten", () => {
+        expect(store.setFeatures("catF", { evaluation: false })).toEqual({ features: { ...ALL_ON, evaluation: false } });
+        expect(store.setFeatures("catF", { links: false }).features).toEqual({ ...ALL_ON, evaluation: false, links: false });
+        expect(store.listFeatures()).toEqual({ catF: { ...ALL_ON, evaluation: false, links: false } });
+        store.setFeatures("catF", { evaluation: true, links: true });
+        expect(store.listFeatures()).toEqual({});
+    });
+
+    it("lehnt unbekannte Schluessel, Nicht-Wahrheitswerte und eine fehlende Kategorie ab", () => {
+        expect(store.setFeatures("catF", { raidPlan: false }).error).toMatch(/raidPlan/);
+        expect(store.setFeatures("catF", { links: "aus" }).error).toMatch(/links/);
+        expect(store.setFeatures("catF", null).error).toBeTruthy();
+        expect(store.setFeatures("catF", ["links"]).error).toBeTruthy();
+        expect(store.setFeatures("", { links: false }).error).toBeTruthy();
+        expect(store.listFeatures()).toEqual({});
+    });
+
+    it("verwirft beim Lesen unbekannte gespeicherte Schluessel", () => {
+        expect(store.readFeatures({ evaluation: false, alt: false }, store.FEATURE_KEYS)).toEqual({ ...ALL_ON, evaluation: false });
+        expect(store.readFeatures("kaputt", ["a"])).toEqual({ a: true });
+    });
+});

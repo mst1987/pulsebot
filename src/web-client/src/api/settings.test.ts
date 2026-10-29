@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { requireBackend } from "../test/backend";
 import { closeCategory, forServer, getCategoryDeactivate, getReminders, getRoleSync, getSettings, saveVersionOverrides, serverCategoriesOf, updateSettings, type AdminConfig } from "./settings";
 import { SERVER_SCOPED_KEYS } from "./channels";
+import { t } from "../i18n";
 
 const { AREA_BY_PATH } = requireBackend<{ AREA_BY_PATH: Record<string, string> }>("web/http/apiAccess");
 
@@ -17,6 +18,17 @@ afterEach(() => {
 });
 
 describe("api/settings.ts", () => {
+    // #962: a server that is not entered - the save is refused, the message says where to add it
+    it("names a server that is not entered in plain words, on every settings save", async () => {
+        const refuse = () => vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: "unknown_server", message: "raw" } }), { status: 400 }));
+        refuse();
+        await expect(updateSettings({ serverSettingsGuildId: "g9" })).rejects.toMatchObject({ code: "unknown_server", message: t("settings.unknownServer") });
+        refuse();
+        await expect(saveVersionOverrides("g9", {})).rejects.toMatchObject({ code: "unknown_server", message: t("settings.unknownServer") });
+        vi.mocked(fetch).mockResolvedValueOnce(new Response(JSON.stringify({ error: { code: "forbidden", message: "nope" } }), { status: 403 }));
+        await expect(updateSettings({})).rejects.toMatchObject({ code: "forbidden", message: "nope" });
+    });
+
     it("loads the role sync from the endpoint the router serves, gated to settings", async () => {
         expect(await getRoleSync()).toEqual({ ok: true });
         expect(vi.mocked(fetch).mock.calls[0][0]).toBe("/api/settings/role-sync");

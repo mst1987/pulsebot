@@ -6,6 +6,7 @@
     "savedToast": "Saved.",
     "serverSwitched": "The Discord server was switched in another tab – please reload the page. Nothing was saved.",
     "noActiveServer": "Please pick a server at the top first. Channels and roles always belong to one server.",
+    "unknownServer": "This Discord server is not entered yet – add it under All servers › Settings › Discord servers first. Nothing was saved.",
     "account": "Account {id}",
     "noName": "(no name)",
     "editKicker": "Edit connection",
@@ -1042,6 +1043,37 @@
         "notesShort": "A short message to the raid lead.",
         "panelShort": "For raiders: next raid, absence and attendance, your links.",
         "orgaHubShort": "For the orga: raids of the next 4 weeks and \"Create raid\".",
+        "hubFeatures": "Parts in Discord",
+        "hubFeaturesAllOff": "Every part is off – the message only shows its heading and a note that nothing is switched on.",
+        "hubFeatureSaved": "Saved – the message is redrawn",
+        "hubFeature": {
+            "raid": {
+                "nextRaid": "Next raid",
+                "attendance": "Absence & attendance",
+                "evaluation": "Evaluation",
+                "guildBank": "Guild bank",
+                "links": "Links"
+            },
+            "orga": {
+                "newRaid": "Create raid",
+                "links": "Links",
+                "summary": "Status line"
+            }
+        },
+        "hubFeatureTip": {
+            "raid": {
+                "nextRaid": "The category's next raid with the \"My raid\" button.",
+                "attendance": "Mark absent and attending, my entries.",
+                "evaluation": "\"Evaluation\" button with the raider's latest raid.",
+                "guildBank": "Guild bank button – only shown with a guild bank channel.",
+                "links": "The link buttons at the bottom of the message."
+            },
+            "orga": {
+                "newRaid": "\"Create raid\" button for this category.",
+                "links": "\"Links …\" button and the link line.",
+                "summary": "The status line above the raid list. The raid list itself always stays."
+            }
+        },
         "planningShort": "Raid plan or Google Sheet, never both.",
         "fixedSheetShort": "Every raid of this category links this sheet.",
         "setupDmsShort": "Every raider learns their spot by DM.",

@@ -104,7 +104,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
     const loadTokens = tokensData.reload;
     // The absence/attendance panels per category: posted and removed at once, never through the draft.
     // The organizer's link buttons come with them and are saved the same way.
-    const panelsData = useApi(() => getAvailabilityPanels().then((r) => ({ panels: r.panels, links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const panelsData = useApi(() => getAvailabilityPanels().then((r) => ({ panels: r.panels, links: r.links || {}, maxLinks: r.maxLinks || 5, features: r.features || {}, featureKeys: r.featureKeys || [] })), [], { enabled: !!data });
     const setPanel = (categoryId: string, panel: AvailabilityPanel | null) => panelsData.setData((cur) => (cur ? {
         ...cur,
         panels: [...cur.panels.filter((p) => p.categoryId !== categoryId), ...(panel ? [panel] : [])],
@@ -115,9 +115,13 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
         delete rest[categoryId];
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
+    // #969: the switched-on parts of a category's hub, as the server kept them.
+    const setPanelFeatures = (categoryId: string, features: Record<string, boolean>) => panelsData.setData((cur) => (cur ? {
+        ...cur, features: { ...cur.features, [categoryId]: features },
+    } : cur));
     // The Orga-Zentrale per category: posted and removed at once like the panels.
     // Its link buttons come with it and are saved the same way.
-    const hubsData = useApi(() => getOrgaHubs().then((r) => ({ hubs: r.hubs || [], links: r.links || {}, maxLinks: r.maxLinks || 5 })), [], { enabled: !!data });
+    const hubsData = useApi(() => getOrgaHubs().then((r) => ({ hubs: r.hubs || [], links: r.links || {}, maxLinks: r.maxLinks || 5, features: r.features || {}, featureKeys: r.featureKeys || [] })), [], { enabled: !!data });
     const setHub = (categoryId: string, hub: OrgaHub | null) => hubsData.setData((cur) => (cur ? {
         ...cur,
         hubs: [...cur.hubs.filter((h) => h.categoryId !== categoryId), ...(hub ? [hub] : [])],
@@ -128,6 +132,9 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
         delete rest[categoryId];
         return { ...cur, links: links.length ? { ...rest, [categoryId]: links } : rest };
     });
+    const setHubFeatures = (categoryId: string, features: Record<string, boolean>) => hubsData.setData((cur) => (cur ? {
+        ...cur, features: { ...cur.features, [categoryId]: features },
+    } : cur));
     // #738: the category whose version switch waits for the confirmation dialog.
     const [switching, setSwitching] = useState<{ id: string; versionId: string } | null>(null);
     // #744: a save that deactivates categories first shows what pauses; a category
@@ -477,6 +484,9 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setPanel,
                         onLinks: setLinks,
+                        features: panelsData.data.features,
+                        featureKeys: panelsData.data.featureKeys,
+                        onFeatures: setPanelFeatures,
                     } : undefined}
                     orgaHubs={hubsData.data ? {
                         hubs: hubsData.data.hubs,
@@ -485,6 +495,9 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         channels: data.noteChannels ? data.noteChannels.channels : [],
                         onChange: setHub,
                         onLinks: setOrgaLinks,
+                        features: hubsData.data.features,
+                        featureKeys: hubsData.data.featureKeys,
+                        onFeatures: setHubFeatures,
                     } : undefined}
                     icon={activeSection.icon}
                     crumb={activeCrumb}
