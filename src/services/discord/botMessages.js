@@ -50,6 +50,8 @@ function entry(kind, raw, extra = {}) {
         guildId: str(extra.guildId || raw.guildId),
         channelId: str(raw.channelId),
         messageId: str(raw.messageId),
+        // a raid overview of every raid category of the server (`/createoverview scope:server`), shown as "All categories"
+        ...(raw.scope === "server" ? { scope: "server" } : {}),
     };
 }
 
@@ -150,7 +152,8 @@ function after(ms) {
 
 /**
  * The fixed messages of one server, each
- * `{ kind, kindLabel, title, categoryId, categoryName, channelId, channelName, messageId, link, status }`.
+ * `{ kind, kindLabel, title, categoryId, categoryName, channelId, channelName, messageId, link, status }`
+ * (+ `scope: "server"` for a raid overview of the whole server).
  *
  * A status is kept CACHE_MS per message; "unknown" (bot offline, time limit,
  * Discord error) is never kept. `fresh` checks every message again. The whole

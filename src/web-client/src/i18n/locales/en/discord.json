@@ -386,7 +386,8 @@
             "roleMessage": "Role message",
             "addonCenter": "Addon hub",
             "recruitment": "Recruitment"
-        }
+        },
+        "allCategories": "All categories"
     },
     "members": {
         "page": {

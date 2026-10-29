@@ -110,6 +110,16 @@ describe("collect", () => {
         const config = { discordServers: { servers: [{ guildId: EVENT, label: "TBC" }, { guildId: TALK, label: "" }], links: [{ from: EVENT, to: TALK, channelId: CH }] } };
         expect(collect(TALK, config)).toEqual([expect.objectContaining({ kind: "talkOverview", messageId: msg(9) })]);
     });
+
+    it("marks a raid overview of the whole server, and only that one", () => {
+        mockData.overviews = [
+            { categoryId: "c1", guildId: EVENT, channelId: CH, messageId: msg(4) },
+            { categoryId: "", scope: "server", guildId: EVENT, channelId: CH, messageId: msg(5) },
+        ];
+        const [category, server] = collect(EVENT, SERVERS);
+        expect(category).not.toHaveProperty("scope");
+        expect(server).toMatchObject({ kind: "raidOverview", scope: "server", categoryId: "", messageId: msg(5) });
+    });
 });
 
 describe("statusOfError", () => {

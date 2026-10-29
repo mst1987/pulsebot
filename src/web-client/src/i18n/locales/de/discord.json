@@ -386,7 +386,8 @@
             "roleMessage": "Rollen-Nachricht",
             "addonCenter": "Addon-Zentrale",
             "recruitment": "Rekrutierung"
-        }
+        },
+        "allCategories": "Alle Kategorien"
     },
     "members": {
         "page": {

@@ -378,7 +378,7 @@ Auf einen Blick, ob auf einem Server etwas zu tun ist (Auswahl oben, sobald mind
 
 - **Braucht Aufmerksamkeit:** je Punkt ein Wort wie *fehlt*, *gelöscht*, *Hinweis* oder *Aufräumen*, worum es geht, warum, und ein Knopf dorthin, wo man es behebt (z. B. *Kanal zuordnen*, *Neu posten*, *Zu den Rollen*). Ist nichts offen, steht dort **Alles in Ordnung**. Darunter eine Zeile zu den Rollen: wie viele es gibt, wie viele niemand hat und wie viele heikle Rechte haben.
 - **Neu und gegangen:** wer in den letzten 7 Tagen auf den Server gekommen ist oder ihn verlassen hat, mit Roster bzw. Zahl der Charaktere. Ein Klick auf den Namen öffnet die Person auf der Mitglieder-Seite.
-- **Feste Bot-Nachrichten:** Orga- und Raid-Zentralen, Raid-Übersichten, Rollen-Nachrichten, Addon-Zentrale, Rekrutierung — ob sie noch stehen, mit Link nach Discord. Spalten mit Pfeil lassen sich sortieren.
+- **Feste Bot-Nachrichten:** Orga- und Raid-Zentralen, Raid-Übersichten, Rollen-Nachrichten, Addon-Zentrale, Rekrutierung — ob sie noch stehen, mit Link nach Discord. Eine Raid-Übersicht des ganzen Servers (`/createoverview scope:server`) heißt dort „Raid-Übersicht · Alle Kategorien“. Spalten mit Pfeil lassen sich sortieren.
 - **Bot-Check:** je Funktion des Bots die Rechte, die sie braucht, und ob er sie auf dem gewählten Server hat; geprüft wird nur, was dort eingerichtet ist. Fehlende Rechte stehen oben und sind genannt. *Recht prüfen* in der Liste oben springt hierher.
 - **Neu prüfen** fragt Discord sofort neu, ob die festen Nachrichten noch stehen (sonst gilt das Ergebnis bis zu 10 Minuten). Danach wartet der Knopf 30 Sekunden.
 - Ist der Bot gerade offline, sagt die Seite das, statt alte Punkte zu zeigen.
