@@ -117,6 +117,15 @@ Abmeldung und die Antwort an den Raider bleiben **unverändert**; ein Fehler bei
 (`test/services/signups/signupService.signals.test.js`). Der Bot legt nie selbst einen Vermerk an. Details:
 [vermerke.md](vermerke.md) „Hints from the data“.
 
+## Erste Anmeldung mit Vermerk an die Orga (#983)
+
+Ist der Schalter des Servers an (Vermerke › Einstellungen), legt `submitSignup` die **erste** Anmeldung je Person
+und Raid in die Zwei-Minuten-Sammlung von `services/vermerke/orgaSignupQueue.js` — nicht bei Status- oder
+Rollenwechsel, Ab- und Wiederanmeldung, nicht bei einem Eintrag der Orga für jemanden. Erst der Bot-Prozess liest
+die Vermerke und schreibt der Orga eine Zeile; die Antwort an den Raider bleibt **unverändert**
+(`test/services/signups/signupService.orgaNotice.test.js`). Raid-Helper-Anmeldungen laufen nicht über
+`submitSignup` und bringen keinen Hinweis. Details: [vermerke.md](vermerke.md) „Hint to the orga at signup“.
+
 ## Nachricht bei Vielleicht / Absagen (`src/services/signups/signupNotes.js`)
 
 Wer „Vielleicht“ oder „Absagen“ wählt, kann der Raidleitung eine kurze Nachricht hinterlassen; der Bot postet sie in einen Kanal.

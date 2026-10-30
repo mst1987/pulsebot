@@ -117,6 +117,31 @@ describe("web/apiRoutes/vermerke - hints", () => {
         expect(body(saved)).toMatchObject({ own: { lateHours: 6, noShow: 20 }, thresholds: { lateHours: 6, noShow: 20, windowDays: 60 } });
     });
 
+    // #983: the orga's hint at signup sits beside the thresholds, saved only when it is sent
+    it("reads and saves the orga's hint at signup without touching the thresholds", async () => {
+        mockConfig = { serverSettings: { A: { vermerkeSignals: { noShow: 5 } } } };
+        const view = body(await get("/api/vermerke/signals/settings"));
+        expect(view).toMatchObject({ orgaNotice: { enabled: false, level: "warning" }, orgaNoticeLevels: ["warning", "shadowban"] });
+
+        const bad = await post("/api/vermerke/signals/settings", { orgaNotice: { enabled: "ja", level: "hint" }, serverSettingsGuildId: "A" });
+        expect(status(bad)).toBe(400);
+        expect(body(bad).error).toMatchObject({ code: "bad_orga_notice", fields: ["enabled", "level"] });
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+
+        const saved = await post("/api/vermerke/signals/settings", { orgaNotice: { enabled: true, level: "shadowban" }, serverSettingsGuildId: "A" });
+        expect(status(saved)).toBe(200);
+        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { A: { vermerkeOrgaNotice: { enabled: true, level: "shadowban" } } } });
+        expect(body(saved)).toMatchObject({ own: { noShow: 5 }, orgaNotice: { enabled: true, level: "shadowban" } });
+        expect(mockConfig.serverSettings.A.vermerkeSignals).toEqual({ noShow: 5 });
+
+        // both at once, and another server keeps its own switch
+        mockActive = "B";
+        expect(body(await get("/api/vermerke/signals/settings")).orgaNotice).toEqual({ enabled: false, level: "warning" });
+        mockActive = "A";
+        const both = await post("/api/vermerke/signals/settings", { thresholds: { noShow: 4 }, orgaNotice: { enabled: false }, serverSettingsGuildId: "A" });
+        expect(body(both)).toMatchObject({ own: { noShow: 4 }, orgaNotice: { enabled: false, level: "warning" } });
+    });
+
     it("lets the read level see and only the write level change", async () => {
         signoff("A", "e1");
         mockUser = granted("read");

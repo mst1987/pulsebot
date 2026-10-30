@@ -1,20 +1,24 @@
 import { useEffect, useState } from "react";
 import {
     getSignalSettings, saveSignalSettings, SIGNAL_THRESHOLD_KEYS,
-    type SignalSettings, type SignalThresholdKey,
+    type OrgaNotice, type OrgaNoticeLevel, type SignalSettings, type SignalThresholdKey,
 } from "../../api/vermerke";
 import type { ApiError } from "../../api/client";
-import { Button, InfoTip, Modal, NumberStepper } from "../../components/ui";
+import { Button, InfoTip, Modal, NumberStepper, Segment, Switch } from "../../components/ui";
 import { SaveIcon } from "../../components/ui/icons";
 import { useT } from "../../i18n";
 
-// The thresholds of "Hinweise aus den Daten" (#993) for the active server: from
-// how many times in the window a hint shows. One line per value with − and +,
-// the number always with its word ("60 Tage", "unter 12 Stunden"); a value the
-// server set itself gets "Standard" beside it. Everyone with "vermerke" read
-// sees the values, only write changes them.
+// The settings of "Hinweise aus den Daten" for the active server. First the
+// thresholds (#993): from how many times in the window a hint shows. One line
+// per value with − and +, the number always with its word ("60 Tage", "unter 12
+// Stunden"); a value the server set itself gets "Standard" beside it. Then the
+// hint to the orga at a signup (#983): a switch (off by default) and from which
+// level - warning, or shadowban only. Everyone with "vermerke" read sees the
+// values, only write changes them.
 
 type Draft = Partial<Record<SignalThresholdKey, number | null>>;
+const NOTICE_OFF: OrgaNotice = { enabled: false, level: "warning" };
+const NOTICE_LEVELS: OrgaNoticeLevel[] = ["warning", "shadowban"];
 
 /** The draft from the server's own values: null = the default counts. */
 function draftOf(s: SignalSettings): Draft {
@@ -33,6 +37,7 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
     const [settings, setSettings] = useState<SignalSettings | null>(null);
     const [loadFailed, setLoadFailed] = useState("");
     const [draft, setDraft] = useState<Draft>({});
+    const [notice, setNotice] = useState<OrgaNotice>(NOTICE_OFF);
     const [saving, setSaving] = useState(false);
     const [failed, setFailed] = useState("");
     const [badFields, setBadFields] = useState<string[]>([]);
@@ -43,6 +48,7 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
             if (!live) return;
             setSettings(s);
             setDraft(draftOf(s));
+            setNotice(s.orgaNotice || NOTICE_OFF);
         }).catch((err: ApiError) => {
             if (live) setLoadFailed(t("vermerke.thresholds.loadError", { message: (err && err.message) || String(err) }));
         });
@@ -57,16 +63,24 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
         setDraft((d) => ({ ...d, [key]: value }));
         setBadFields((f) => f.filter((x) => x !== key));
     };
-    const changed = settings ? SIGNAL_THRESHOLD_KEYS.some((k) => (draft[k] ?? null) !== (typeof settings.own[k] === "number" ? settings.own[k] : null)) : false;
+    // an older server without the switch (#983) shows none and saves none
+    const hasNotice = !!(settings && settings.orgaNotice);
+    const savedNotice = (settings && settings.orgaNotice) || NOTICE_OFF;
+    const noticeChanged = hasNotice && (notice.enabled !== savedNotice.enabled || notice.level !== savedNotice.level);
+    const changed = settings
+        ? noticeChanged || SIGNAL_THRESHOLD_KEYS.some((k) => (draft[k] ?? null) !== (typeof settings.own[k] === "number" ? settings.own[k] : null))
+        : false;
+    const levels = settings && settings.orgaNoticeLevels && settings.orgaNoticeLevels.length ? settings.orgaNoticeLevels : NOTICE_LEVELS;
 
     const save = async () => {
         if (!settings) return;
         setSaving(true);
         setFailed("");
         try {
-            const next = await saveSignalSettings(draft, settings.guildId);
+            const next = await saveSignalSettings(draft, settings.guildId, hasNotice ? notice : undefined);
             setSettings(next);
             setDraft(draftOf(next));
+            setNotice(next.orgaNotice || NOTICE_OFF);
             onSaved();
             onClose();
         } catch (err) {
@@ -74,6 +88,8 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
             if (e && e.code === "bad_threshold") {
                 setBadFields(Array.isArray(e.fields) ? e.fields : []);
                 setFailed(t("vermerke.thresholds.badThreshold"));
+            } else if (e && e.code === "bad_orga_notice") {
+                setFailed(t("vermerke.thresholds.orga.bad"));
             } else if (e && e.code === "server_switched") {
                 setFailed(t("vermerke.thresholds.serverSwitched"));
             } else {
@@ -103,6 +119,7 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
         >
             {loadFailed && <p className="vmk-error" role="alert">{loadFailed}</p>}
             {failed && <p className="vmk-error" role="alert">{failed}</p>}
+            {settings && hasNotice && <h3 className="vmk-thr-head">{t("vermerke.thresholds.thresholdsHead")}</h3>}
             {settings && (
                 <ul className="vmk-thr-list">
                     {SIGNAL_THRESHOLD_KEYS.map((key) => {
@@ -142,6 +159,35 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
                         );
                     })}
                 </ul>
+            )}
+            {settings && hasNotice && (
+                <section className="vmk-orga" aria-labelledby="vmk-orga-head">
+                    <h3 className="vmk-thr-head" id="vmk-orga-head">
+                        {t("vermerke.thresholds.orga.head")}
+                        <InfoTip head={t("vermerke.thresholds.orga.head")} sub={t("vermerke.thresholds.orga.tip")} />
+                    </h3>
+                    {canWrite ? (
+                        <div className="vmk-orga-row">
+                            <Switch
+                                checked={notice.enabled}
+                                onChange={(enabled) => setNotice((n) => ({ ...n, enabled }))}
+                                label={t("vermerke.thresholds.orga.switch")}
+                            />
+                            <Segment<OrgaNoticeLevel>
+                                size="sm"
+                                ariaLabel={t("vermerke.thresholds.orga.levelLabel")}
+                                value={notice.level}
+                                onChange={(level) => setNotice((n) => ({ ...n, level }))}
+                                options={levels.map((level) => ({ value: level, label: t(`vermerke.thresholds.orga.level.${level}`), disabled: !notice.enabled }))}
+                            />
+                        </div>
+                    ) : (
+                        <p className="vmk-orga-value">
+                            {notice.enabled ? t(`vermerke.thresholds.orga.on.${notice.level}`) : t("vermerke.thresholds.orga.off")}
+                        </p>
+                    )}
+                    <p className="vmk-orga-sub">{t("vermerke.thresholds.orga.sub")}</p>
+                </section>
             )}
         </Modal>
     );
