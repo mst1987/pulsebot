@@ -17,6 +17,7 @@ const AREAS = [
     require("./addons"),
     require("./roleMessages"),
     require("./softres"),
+    require("./roster"),
 ];
 
 const merged = {};

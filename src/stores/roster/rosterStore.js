@@ -19,6 +19,7 @@
 //       kaderId | null,                     // the Kader of the Kaderplaner linked to it (1:1, see below)
 //       lootSystem: "" | "softres" | "lootcouncil" | "gdkp" | "other",  // only read WITHOUT category (#676)
 //       lootProfileId: "",                  // its Loot-Council profile ("" = the default profile, #676)
+//       imageChannelId: null,               // the channel the roster picture went to last (setImageChannel)
 //       members: { [userId]: {              // ≤ 500
 //         status: "core" | "trial" | "bench" | "pause", since, by,
 //         chars: [charKey],                 // profile keys (characterKeyOf(name, versionId))
@@ -259,6 +260,7 @@ function normalizeRoster(raw, id = raw && raw.id) {
         kaderId,
         lootSystem: normalizeLootSystem(raw.lootSystem),
         lootProfileId: /^[a-z0-9_-]{1,40}$/i.test(str(raw.lootProfileId)) ? str(raw.lootProfileId) : "",
+        imageChannelId: idOf(raw.imageChannelId) || null,
         members: normalizeMembers(raw.members, multi, versionId),
         history: normalizeHistory(raw.history),
         createdAt: isoOf(raw.createdAt),
@@ -407,7 +409,7 @@ function markMigrated(all, categoryId) {
 }
 
 // closedAt / closedReason only through closeRoster
-const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy", "closedAt", "closedReason"];
+const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy", "closedAt", "closedReason", "imageChannelId"];
 
 /**
  * A new roster. `data` as the stored shape (missing fields get their defaults);
@@ -485,6 +487,21 @@ function assignLootProfile(rosterId, profileId) {
     const roster = all.rosters[str(rosterId)];
     if (!roster) return false;
     roster.lootProfileId = str(profileId);
+    writeAll(all);
+    return true;
+}
+
+/**
+ * Remember the channel the roster picture was last posted to, so the dialog
+ * offers it again. No history line - it is no setting, and a closed roster
+ * may still be posted.
+ * @returns {boolean} whether the roster exists
+ */
+function setImageChannel(rosterId, channelId) {
+    const all = readAll();
+    const roster = all.rosters[str(rosterId)];
+    if (!roster) return false;
+    roster.imageChannelId = idOf(channelId) || null;
     writeAll(all);
     return true;
 }
@@ -784,7 +801,7 @@ function migrateVersions() {
 
 module.exports = {
     listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
-    upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile,
+    upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile, setImageChannel,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };

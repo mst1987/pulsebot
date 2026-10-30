@@ -25,7 +25,7 @@ describe("stores/roster/rosterStore normalizeRoster", () => {
             roleIds: [], trialRoleId: null, managers: { roleIds: [], userIds: [] },
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
             allowMultipleChars: false, signupOnly: false, publicRaids: false, source: { kind: "manual" }, kaderId: null,
-            lootSystem: "", lootProfileId: "",
+            lootSystem: "", lootProfileId: "", imageChannelId: null,
             members: {}, history: [], createdAt: "", createdBy: "", closedAt: null, closedReason: "",
         });
     });
@@ -528,5 +528,26 @@ describe("stores/roster/rosterStore versionId", () => {
     it("migrateVersions does nothing without a file", () => {
         expect(rosterStore.migrateVersions()).toEqual({});
         expect(fs.__store.has(ROSTERS_FILE)).toBe(false);
+    });
+});
+
+describe("stores/rosterStore setImageChannel", () => {
+    it("remembers the last picture channel without a history line, also on a closed roster", () => {
+        const r = createRoster({ name: "Kern", guildId: "g1" }, { now: NOW });
+        rosterStore.closeRoster(r.id, { reason: "version_switch", now: NOW });
+        const lines = getRoster(r.id).history.length;
+        expect(rosterStore.setImageChannel(r.id, "c42")).toBe(true);
+        expect(getRoster(r.id).imageChannelId).toBe("c42");
+        expect(getRoster(r.id).history.length).toBe(lines);
+        expect(rosterStore.setImageChannel(r.id, "")).toBe(true);
+        expect(stored().rosters[r.id].imageChannelId).toBeNull();
+        expect(rosterStore.setImageChannel("nope", "c42")).toBe(false);
+    });
+
+    it("is no setting: updateRoster leaves it alone", () => {
+        const r = createRoster({ name: "Kern", guildId: "g1" }, { now: NOW });
+        rosterStore.setImageChannel(r.id, "c42");
+        updateRoster(r.id, { imageChannelId: "c99", name: "Neu" }, { now: NOW });
+        expect(getRoster(r.id).imageChannelId).toBe("c42");
     });
 });

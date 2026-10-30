@@ -310,9 +310,22 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-spec-pick { margin-top: 8px; }
 .rn-spec-ico { width: 18px; height: 18px; border-radius: 4px; margin-right: 6px; vertical-align: -4px; }
 
+/* "Roster als Bild": the PNG left (scrolls when wider than the dialog), switches and channel right */
+.rn-img-body { display: grid; grid-template-columns: minmax(0, 1fr) 280px; gap: 24px; align-items: start; padding-top: 14px; }
+.rn-img-preview { margin: 0; display: flex; flex-direction: column; gap: 8px; min-height: 160px; max-height: 70vh; overflow: auto; border: 1px solid var(--line); background: var(--bg); }
+.rn-img-preview img { display: block; width: 100%; height: auto; }
+.rn-img-preview.rn-img-loading img { opacity: .5; }
+.rn-img-preview.rn-img-failed img { display: none; }
+.rn-img-preview figcaption { padding: 8px 12px; }
+.rn-img-side .rn-dlg-sec:first-child { padding-top: 0; }
+.rn-img-err { color: var(--high); font-weight: 600; }
+.rn-img-ok { color: var(--good); }
+.rn-img-ok a { color: var(--accent); }
+
 @media (max-width: 1100px) {
     .rn-comp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .rn-sync { grid-template-columns: minmax(0, 1fr); }
+    .rn-img-body { grid-template-columns: minmax(0, 1fr); }
 }
 
 @media (max-width: 700px) {
