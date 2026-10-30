@@ -3,6 +3,7 @@
 // A page rather than a dialog from the head button: a raid week with four raids
 // brings four cards, each with its own event choice, and that does not fit into
 // a modal. The head button on the history page leads here with the open count.
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox } from "../../api";
@@ -18,7 +19,11 @@ import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/history-loot.css";
 import RaidLoader from "../../components/ui/RaidLoader";
+import Segment from "../../components/ui/Segment";
+import { DismissedList, WaitingList } from "./InboxWaiting";
 import { tParts, useT } from "../../i18n";
+
+type Tab = "ready" | "waiting" | "dismissed";
 
 export default function HistoryInboxPage() {
     const t = useT();
@@ -37,8 +42,17 @@ export default function HistoryInboxPage() {
     const events = history.data?.events || [];
     const categories = history.data?.categories || [];
 
-    const afterChange = (msg: string) => {
-        toast(msg);
+    // Uploads that found no raid by themselves (#1002) and those dismissed in the last 14 days.
+    const waiting = inbox.data?.waiting || [];
+    const waitingBanks = inbox.data?.waitingBanks || [];
+    const dismissed = inbox.data?.dismissed || [];
+    const waitCount = waiting.length + waitingBanks.length;
+    const [picked, setTab] = useState<Tab | null>(null);
+    // Open on "Wartet auf Zuordnung" when nothing is ready but something waits.
+    const tab: Tab = picked || (!sessions?.length && waitCount ? "waiting" : "ready");
+
+    const afterChange = (msg: string, error?: boolean) => {
+        toast(msg, error ? "err" : undefined);
         inbox.reload();
     };
 
@@ -64,6 +78,23 @@ export default function HistoryInboxPage() {
                 </div>
             </div>
 
+            {inbox.data && (waitCount > 0 || dismissed.length > 0) && (
+                <div className="hl-inbox-tabs">
+                    <Segment<Tab>
+                        ariaLabel={t("history.waiting.tabs")}
+                        value={tab}
+                        onChange={setTab}
+                        options={[
+                            { value: "ready", label: t("history.waiting.tabReady", { count: sessions?.length || 0 }) },
+                            { value: "waiting", label: t("history.waiting.tabWaiting", { count: waitCount }), tip: t("history.waiting.tabWaitingTip") },
+                            { value: "dismissed", label: t("history.waiting.tabDismissed", { count: dismissed.length }), tip: t("history.waiting.tabDismissedTip") },
+                        ]}
+                    />
+                </div>
+            )}
+            {tab === "waiting" && <WaitingList waiting={waiting} banks={waitingBanks} onDone={afterChange} />}
+            {tab === "dismissed" && <DismissedList dismissed={dismissed} onDone={afterChange} />}
+            {tab === "ready" && <>
             {loadError && <div className="empty">{tParts("history.inbox.loadError", { message: loadError.message })}</div>}
             {!loadError && !sessions && <RaidLoader text={t("history.inbox.loading")} />}
             {!loadError && sessions && !sessions.length && (
@@ -82,6 +113,7 @@ export default function HistoryInboxPage() {
                 />
             ))}
             <LinkedSessions linked={linked} />
+            </>}
         </>
     );
 }

@@ -316,9 +316,58 @@ export type InboxLinkedSession = {
     at: number;
 };
 
+/**
+ * A raid an upload that waits for its assignment (#1002) could belong to: a raid
+ * of the same day on one of the upload key's servers, same version and realm.
+ */
+export type InboxCandidate = InboxMatchEvent & {
+    guildId: string;
+    /** The server's name as the server list shows it. */
+    serverName: string;
+    /** The raid is on the active server: only then it can be assigned from here. */
+    ownServer: boolean;
+    /** The best candidate ("Vorschlag"): the most participants. */
+    suggested: boolean;
+    /** Participants of the upload who were signed up for this raid, of all of them. */
+    matched: number;
+    total: number;
+};
+
+/** An upload no raid holds alone (#1002): it waits for the orga of each of its servers. */
+export type InboxWaitingSession = InboxSession & {
+    gameVersion?: string;
+    waiting?: boolean;
+    servers: string[];
+    candidates: InboxCandidate[];
+};
+
+/** A dismissed upload, restorable for 14 days after `dismissedAt`. */
+export type InboxDismissedSession = InboxWaitingSession & { dismissedAt: number; dismissedBy: string };
+
+/** A new guild bank of a personal key that fits several servers (#1002). */
+export type InboxWaitingBank = {
+    key: string;
+    gameVersion: string;
+    realm: string;
+    guild: string;
+    faction: string;
+    receivedAt: number;
+    uploadedBy: string;
+    items: number;
+    servers: { guildId: string; name: string; ownServer: boolean }[];
+};
+
+export type LootInbox = {
+    sessions: InboxSession[];
+    waiting?: InboxWaitingSession[];
+    dismissed?: InboxDismissedSession[];
+    waitingBanks?: InboxWaitingBank[];
+    linked?: InboxLinkedSession[];
+};
+
 /** `version`: the menu's content version (#741) — sessions of its raids, and those without a raid yet. */
-export function getLootInbox(version = ""): Promise<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }> {
-    return get<{ sessions: InboxSession[]; linked?: InboxLinkedSession[] }>(`/api/history/inbox${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+export function getLootInbox(version = ""): Promise<LootInbox> {
+    return get<LootInbox>(`/api/history/inbox${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
 /** An event as the import preview names it; startTime in ms. */
@@ -361,4 +410,14 @@ export function dismissLootInbox(
     id: string,
 ): Promise<{ id: string; sessionId: string }> {
     return send("POST", "/api/history/inbox-dismiss", { id });
+}
+
+/** Bring a dismissed upload of the last 14 days back into the inbox (#1002). */
+export function restoreLootInbox(id: string): Promise<{ id: string; sessionId: string; waiting: boolean }> {
+    return send("POST", "/api/history/inbox-restore", { id });
+}
+
+/** Give a waiting guild bank to one of its servers (#1002); the first pick wins, a second one gets 409. */
+export function assignInboxBank(key: string, guildId: string): Promise<{ key: string; guildId: string }> {
+    return send("POST", "/api/history/inbox-bank-assign", { key, guildId });
 }

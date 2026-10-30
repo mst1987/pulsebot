@@ -230,3 +230,29 @@ button.rbadge:hover { filter: brightness(1.1); box-shadow: 0 0 0 2px var(--accen
 .hl-inbox-other { display: flex; flex-direction: column; gap: 8px; }
 td.sub.hl-msg-cell { padding: 16px; }
 td.sub.hl-msg-cell.hl-msg-bad { color: var(--high); }
+
+/* Addon-Inbox: "Wartet auf Zuordnung" / "Verworfen" (#1002) - lists with dividers, no cards. */
+.hl-inbox-tabs { margin: 0 0 16px; }
+.hl-wait-list { max-width: 640px; display: flex; flex-direction: column; gap: 24px; }
+.hl-wait { border-top: 2px solid var(--line); }
+.hl-wait-head { padding: 10px 0 8px; }
+.hl-wait-title { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hl-wait-title b { font-size: 18px; font-weight: 800; line-height: 1.2; }
+.hl-wait-recv { color: var(--muted); font-size: 13px; }
+.hl-wait-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
+.hl-wait-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
+.hl-wait-row.muted { color: var(--muted); }
+.hl-wait-row.is-best .hl-wait-what b { font-weight: 800; }
+.hl-wait-when { flex: 0 0 140px; color: var(--muted); font-size: 13px; }
+.hl-wait-what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hl-wait-what b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
+.hl-wait-what small { color: var(--muted); font-size: 13px; }
+.hl-wait-other { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.hl-wait-actions { display: flex; justify-content: flex-end; padding: 8px 0 0; border-top: 1px solid var(--line-soft); }
+.hl-wait-foot { color: var(--muted); font-size: 13px; margin: 0; }
+.hl-wait-empty { max-width: 640px; }
+@media (max-width: 600px) {
+    .hl-wait-row { flex-wrap: wrap; gap: 6px 10px; }
+    .hl-wait-when { flex-basis: 100%; }
+    .hl-wait-row .btn { margin-left: auto; }
+}
