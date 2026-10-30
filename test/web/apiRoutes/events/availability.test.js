@@ -275,6 +275,20 @@ describe("PUT /api/availability", () => {
         expect(status(await call("PUT", "/api/availability", ANNA, { json: { id: onA, scope: [{ guildId: "A", categoryIds: [] }] } }))).toBe(200);
     });
 
+    it("ein Raider bearbeitet einen Orga-Eintrag als er selbst: ohne Orga-Rechte, die Ablehnung kommt durch", async () => {
+        const id = add({ createdBy: ORGA.id, via: "web" });
+        availability.changeEntry.mockResolvedValueOnce({
+            entry: entry({ id, createdBy: ANNA.id, via: "web", scope: [{ guildId: "g", categoryIds: [] }] }),
+            results: [{ eventId: "eh-c", ok: false, error: "Die Anmeldung ist geschlossen." }],
+            dm: true,
+        });
+        const res = await call("PUT", "/api/availability", ANNA, { json: { id, from: "2030-03-20", to: "2030-03-28", scope: [{ guildId: "g", categoryIds: [] }] } });
+        expect(status(res)).toBe(200);
+        // the route hands over who edits - never the orga that once entered it
+        expect(availability.changeEntry).toHaveBeenCalledWith(id, expect.anything(), expect.objectContaining({ userId: ANNA.id, orga: false }));
+        expect(json(res).data.results).toMatchObject([{ eventId: "eh-c", ok: false, error: "Die Anmeldung ist geschlossen." }]);
+    });
+
     it("gehört zum Bereich Anmeldung", () => {
         expect(route.routes.find((r) => r.method === "PUT" && r.path === "/api/availability").area).toBe("signup");
     });
@@ -563,6 +577,16 @@ describe("rights per server (#925)", () => {
         expect(availability.deleteEntry).not.toHaveBeenCalled();
         availability.deleteEntry.mockReturnValueOnce({ entry: { id } });
         expect(status(await call("DELETE", "/api/availability", ANNA, { json: { id } }))).toBe(200);
+    });
+
+    it("offers the orga only the raider's servers it may use, the raider all of theirs", async () => {
+        let data = json(await call("GET", "/api/availability", ORGA, { query: `userId=${ANNA.id}` })).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g"]);
+        expect(data.categories).toEqual([mockCat1]);
+        data = json(await call("GET", "/api/availability", ANNA)).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g", "A"]);
+        data = json(await call("GET", "/api/availability", ADMIN, { query: `userId=${ANNA.id}` })).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g", "A"]);
     });
 
     it("refuses an entry for somebody else in a category of another server", async () => {

@@ -23,6 +23,7 @@ const { TIMEZONE } = require("../../config/timezone");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { firstServerId } = require("../discord/servers/serverOf");
 const profiles = require("../../stores/roster/raiderProfileStore");
+const { spec: specOfVersion } = require("../../config/gameVersions");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -71,13 +72,14 @@ function charactersOf(entry) {
 }
 
 /**
- * The characters an attendance signs a raid up with: those of the raid's version,
- * in the entry's order, at most `max` (the raid's maxCharactersFor - the rest is
- * left out instead of the raid failing).
+ * The characters an attendance signs a raid up with: those of the raid's version
+ * whose spec that version knows, in the entry's order, at most `max` (the raid's
+ * maxCharactersFor - the rest is left out instead of the raid failing). The cut
+ * comes after the filter, so a character that cannot play the raid takes no place.
  */
 function charactersFor(entry, event, { max = Infinity, config } = {}) {
     const version = versionOfEvent(event, { config });
-    const fit = charactersOf(entry).filter((c) => !c.versionId || c.versionId === version);
+    const fit = charactersOf(entry).filter((c) => (!c.versionId || c.versionId === version) && !!specOfVersion(c.spec, version));
     return fit.slice(0, Math.max(0, Number(max) || 0) || fit.length);
 }
 

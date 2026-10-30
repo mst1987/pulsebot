@@ -197,6 +197,28 @@ describe("buildOverview", () => {
         expect(view.raiders.map((r) => r.userId)).toEqual(["u1"]);
         expect(view.raiders[0].periods[0]).toMatchObject({ categoryId: "", categoryName: "Montag, Mittwoch" });
     });
+
+    it("an entry for a whole server shows only under that server's categories, an older one without scope everywhere", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        // the raids tell each category's server: mon on g1, wed on g2
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        entry("onG1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        entry("older", "2030-03-24", "2030-03-30");
+        const ids = (categoryId) => overview.buildOverview({ now: NOW, categoryId }).raiders.map((r) => r.userId).sort();
+        expect(ids("wed")).toEqual(["older", "onG2"]);
+        expect(ids("mon")).toEqual(["older", "onG1"]);
+        expect(ids("")).toEqual(["older", "onG1", "onG2"]);
+    });
+
+    it("a server-wide entry whose server has no active category shows only without a filter", () => {
+        mockConfig = { categoryIds: ["mon"], guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        expect(overview.buildOverview({ now: NOW }).raiders.map((r) => r.userId)).toEqual(["onG2"]);
+        expect(overview.buildOverview({ now: NOW, categoryId: "mon" }).raiders).toEqual([]);
+    });
 });
 
 describe("raiderDetail", () => {

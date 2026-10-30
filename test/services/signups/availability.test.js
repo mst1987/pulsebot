@@ -543,6 +543,39 @@ describe("changeEntry", () => {
             .toBe("Bitte mindestens einen Server oder eine Kategorie wählen.");
     });
 
+    it("wer bearbeitet, bestimmt die Rechte: der Raider auf einem Orga-Eintrag meldet ohne Orga-Rechte an", async () => {
+        // eh-b: the signup is closed (deadline gone) - only the orga may still sign up there
+        mockEvents.set("eh-b", raid("eh-b", 4, { signupDeadline: sec(NOW) - 60 }));
+        const { entry } = await availability.createEntry(ANNA, { scope: ALL, kind: "presence", from: today, to: dayPlus(1), character: "Nerathil", spec: "Mage-Arcane" }, { by: ORGA, via: "web", now: NOW, dm: false });
+        expect(entry.createdBy).toBe(ORGA);
+        const res = await availability.changeEntry(entry.id, { scope: ALL, from: today, to: dayPlus(5), characters: [{ character: "Nerathil", spec: "Mage-Arcane" }] }, { userId: ANNA, now: NOW });
+        expect(res.entry).toMatchObject({ createdBy: ANNA, via: "web" });
+        const byId = Object.fromEntries(res.results.map((r) => [r.eventId, r]));
+        expect(byId["eh-a"].ok).toBe(true);
+        expect(byId["eh-b"].ok).toBe(false);
+        expect(byId["eh-b"].error).toBeTruthy();
+        expect(mockSignups.get(`eh-b/${ANNA}`)).toBeUndefined();
+        // the DM no longer says the raid lead entered it
+        expect(dmText(discord.sendDirectMessage.mock.calls[0]).footer || "").toBe("");
+    });
+
+    it("die Orga auf einem fremden Eintrag bearbeitet mit Orga-Rechten und steht dann als Ersteller", async () => {
+        mockEvents.set("eh-b", raid("eh-b", 4, { signupDeadline: sec(NOW) - 60 }));
+        const { entry } = await availability.createEntry(ANNA, { scope: ALL, kind: "presence", from: today, to: dayPlus(1), character: "Nerathil", spec: "Mage-Arcane" }, { via: "web", now: NOW, dm: false });
+        const res = await availability.changeEntry(entry.id, { scope: ALL, from: today, to: dayPlus(5), characters: [{ character: "Nerathil", spec: "Mage-Arcane" }] }, { userId: ORGA, orga: true, now: NOW, dm: false });
+        expect(res.entry).toMatchObject({ createdBy: ORGA, via: "web" });
+        expect(res.results.find((r) => r.eventId === "eh-b").ok).toBe(true);
+        expect(mockSignups.get(`eh-b/${ANNA}`).status).toBe("signed");
+    });
+
+    it("eine Panel-Abwesenheit ist nach dem Bearbeiten im Web keine Panel-Abwesenheit mehr", async () => {
+        const { entry } = await availability.createEntry(ANNA, { scope: [{ guildId: "g1", categoryIds: ["cat1"] }], kind: "absence", from: today, to: dayPlus(1) }, { via: "panel", now: NOW, dm: false });
+        expect(availability._internal.fromPanel(entry)).toBe(true);
+        const res = await availability.changeEntry(entry.id, { scope: [{ guildId: "g1", categoryIds: ["cat1"] }], from: today, to: dayPlus(5) }, { userId: ANNA, now: NOW, dm: false });
+        expect(res.entry.via).toBe("web");
+        expect(availability._internal.fromPanel(res.entry)).toBe(false);
+    });
+
     it("tauscht bei einer Anwesenheit die Charaktere", async () => {
         profiles.addCharacter(ANNA, { name: "Brokk", className: "Warrior", specs: ["Warrior-Arms"] }, { name: "Anna" });
         const { entry } = await availability.createEntry(ANNA, { scope: ALL, kind: "presence", from: today, to: dayPlus(1), character: "Nerathil", spec: "Mage-Arcane" }, { now: NOW, dm: false });

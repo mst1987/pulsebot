@@ -17,6 +17,9 @@ module.exports = {
     "Next raid": "Nächster Raid",
     "No raid planned yet.": "Noch kein Raid geplant.",
     "This feature is switched off in this raid hub.": "Diese Funktion ist in dieser Raid-Zentrale ausgeschaltet.",
+    // /availability in a DM or on a server outside the server list: no "every server" entry
+    "Please run this on the Discord server the absence or attendance is for – or enter it on the web under Signups.":
+        "Bitte auf dem Discord-Server ausführen, für den die Ab-/Anwesenheit gelten soll – oder im Web unter Anmeldungen eintragen.",
     "My raid": "Mein Raid",
     "Your evaluation": "Deine Auswertung",
     "Your latest raid, your points, your characters": "Dein letzter Raid, deine Punkte, deine Charaktere",

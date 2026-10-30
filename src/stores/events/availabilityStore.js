@@ -73,17 +73,20 @@ const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const ids = (list) => [...new Set((Array.isArray(list) ? list : []).map(str).filter(Boolean))];
 
 /**
- * A scope as stored: one part per server (`guildId` required), its categories
- * without duplicates; two parts of one server are merged ("every category" wins).
+ * A scope as stored: one part per server, its categories without duplicates; two
+ * parts of one server are merged ("every category" wins). A part without server
+ * keeps only named categories (the older form: the category decides the server -
+ * a panel whose category's server could not be told).
  */
 function scopeList(list) {
     const parts = new Map();
     for (const s of Array.isArray(list) ? list : []) {
         const guildId = str(s && s.guildId);
-        if (!guildId) continue;
-        const cats = ids(s.categoryIds);
+        const cats = ids(s && s.categoryIds);
+        if (!guildId && !cats.length) continue;
         const had = parts.get(guildId);
-        if (!had) parts.set(guildId, cats);
+        if (!guildId) parts.set("", ids([...(had || []), ...cats]));
+        else if (!had) parts.set(guildId, cats);
         else parts.set(guildId, had.length && cats.length ? ids([...had, ...cats]) : []);
     }
     return [...parts].map(([guildId, categoryIds]) => ({ guildId, categoryIds }));
@@ -183,9 +186,11 @@ const EDITABLE = ["from", "to", "comment", "scope", "characters", "categoryId", 
  * Change an entry (the raider's or the orga's edit): period, comment, scope,
  * characters, skipped raids. `applied` stays - a raid it was applied to is never
  * touched again. A new `scope` replaces an older entry's `categoryId`.
+ * `editor` ({ createdBy, via }): who edits now - the rights later raids are
+ * applied with follow the last editor, not whoever entered it first.
  * Returns `{ entry }` or `{ error }`.
  */
-function updateEntry(id, patch = {}) {
+function updateEntry(id, patch = {}, editor = {}) {
     const data = store.read();
     const index = data.entries.findIndex((e) => e.id === str(id));
     if (index < 0) return { error: "Diesen Eintrag gibt es nicht (mehr)." };
@@ -194,7 +199,11 @@ function updateEntry(id, patch = {}) {
     for (const key of EDITABLE) if (patch[key] !== undefined) changes[key] = patch[key];
     if (changes.scope !== undefined && changes.categoryId === undefined) changes.categoryId = "";
     if (changes.characters !== undefined) Object.assign(changes, { character: "", spec: "", versionId: "" });
-    const entry = complete({ ...old, ...changes, id: old.id, userId: old.userId, kind: old.kind, applied: old.applied, createdAt: old.createdAt, createdBy: old.createdBy, via: old.via });
+    const entry = complete({
+        ...old, ...changes, id: old.id, userId: old.userId, kind: old.kind, applied: old.applied, createdAt: old.createdAt,
+        createdBy: str(editor.createdBy) || old.createdBy,
+        via: editor.via !== undefined ? str(editor.via) : old.via,
+    });
     const problem = entryProblem(entry);
     if (problem) return { error: problem };
     data.entries[index] = entry;

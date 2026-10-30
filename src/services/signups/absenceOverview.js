@@ -33,6 +33,7 @@ const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
 const { scopeCovers, scopeOf, scopeView, charactersView } = require("./availabilityScope");
+const { categoryContext, displayServerOf } = require("../categories/categoryGuild");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -108,6 +109,41 @@ function entryCategories(entry) {
     const scope = scopeOf(entry);
     if (!scope || scope.some((s) => !s.categoryIds.length)) return null;
     return [...new Set(scope.flatMap((s) => s.categoryIds))];
+}
+
+/**
+ * The active categories of each server (displayServerOf), read lazily and once
+ * per overview: the category context reads several stores, so only an entry
+ * covering a whole server asks for it.
+ */
+function serverCategoryIndex(config) {
+    let ctx = null;
+    const memo = new Map();
+    return (guildId) => {
+        const gid = str(guildId);
+        if (!memo.has(gid)) {
+            if (!ctx) ctx = categoryContext(config);
+            memo.set(gid, gid ? activeCategories(config).filter((id) => displayServerOf(id, ctx) === gid) : []);
+        }
+        return memo.get(gid);
+    };
+}
+
+/**
+ * Whether an entry shows in an overview filtered by category. A part naming
+ * categories shows when one of them is picked; a part covering a whole server
+ * stands for that server's categories only - never for another server's. Only
+ * an older entry without any scope (scopeOf -> null) shows everywhere; with no
+ * filter, a server-wide part whose server lists no active category still shows.
+ */
+function entryInFilter(entry, { picked, inPick, inCategory, serverCategories }) {
+    const scope = scopeOf(entry);
+    if (!scope) return true;
+    return scope.some((s) => {
+        const ids = s.categoryIds.length ? s.categoryIds : serverCategories(s.guildId);
+        if (!s.categoryIds.length && !ids.length) return !picked.length;
+        return ids.some((id) => inPick(id) && inCategory(id));
+    });
 }
 
 /** What a raider plays, as the overview shows them: the signup's first character, else the profile's first. */
@@ -269,13 +305,11 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.
     const picked = (Array.isArray(categoryId) ? categoryId : str(categoryId).split(",")).map(str).filter(Boolean);
     const inPick = (id) => !picked.length || picked.includes(str(id));
 
+    const serverCategories = serverCategoryIndex(cfg);
+    const inCategory = (id) => inOverview(cfg, id);
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
-        .filter((e) => {
-            // an entry of named categories shows when one of them is picked and in the overview
-            const cats = entryCategories(e);
-            return !cats || cats.some((id) => inPick(id) && inOverview(cfg, id));
-        });
+        .filter((e) => entryInFilter(e, { picked, inPick, inCategory, serverCategories }));
     // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
     const allRaids = raidsBetween(from, to, { config: cfg, versionId: version });
     const raids = allRaids.filter((e) => inPick(e.categoryId));

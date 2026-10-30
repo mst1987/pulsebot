@@ -62,7 +62,15 @@ describe("charactersOf / charactersFor", () => {
         expect(charactersFor(e, event({ versionId: "tbc" }), { max: 1 }).map((c) => c.character)).toEqual(["A"]);
         expect(charactersFor(e, event({ versionId: "forever" })).map((c) => c.character)).toEqual(["B"]);
         // a character without version counts everywhere
-        expect(charactersFor({ character: "Old", spec: "x" }, event({ versionId: "forever" }))).toHaveLength(1);
+        expect(charactersFor({ character: "Old", spec: "Mage-Fire" }, event({ versionId: "forever" }))).toHaveLength(1);
+    });
+
+    it("filtert Specs, die die Raid-Version nicht kennt, vor dem Kürzen", () => {
+        const e = { characters: [{ character: "Bad", spec: "Foo-Bar", versionId: "tbc" }, ...chars] };
+        // the unknown spec takes no place: max 1 is A, not Bad
+        expect(charactersFor(e, event({ versionId: "tbc" }), { max: 1 }).map((c) => c.character)).toEqual(["A"]);
+        expect(charactersFor({ character: "Old", spec: "x" }, event({ versionId: "forever" }))).toEqual([]);
+        expect(covers(entry({ kind: "presence", characters: [{ character: "Bad", spec: "Foo-Bar", versionId: "tbc" }] }), event({ versionId: "tbc" }))).toBe(false);
     });
 });
 

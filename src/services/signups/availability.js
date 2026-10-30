@@ -40,9 +40,9 @@ const { categoryContext, displayServerOf } = require("../categories/categoryGuil
 const { eventGuildIds } = require("../discord/roles/guildRoles");
 const { firstServerId } = require("../discord/servers/serverOf");
 const { membershipByServer, isOpenRaid, serverOf } = require("./pugMembership");
-const { versionOfEvent, mainVersionFor, isVersionVisible } = require("../versions/mainVersion");
+const { mainVersionFor, isVersionVisible } = require("../versions/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
-const { spec: specOf, rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
 const { langOf, eventLang } = require("../discord/botLanguage");
@@ -168,9 +168,16 @@ function scopeInput(input, cfg) {
     const merged = new Map();
     for (const part of parts) {
         const guildId = str(part.guildId);
-        if (!guildId || !servers.includes(guildId)) return { error: "Diesen Server gibt es hier nicht." };
         const cats = [...new Set((Array.isArray(part.categoryIds) ? part.categoryIds : []).map(str).filter(Boolean))];
         if (cats.length) ctx = ctx || categoryContext(cfg);
+        // A panel's category whose server cannot be told (no cache, no event of it yet):
+        // the older form - the category alone decides where it counts (scopeOf).
+        if (!guildId && cats.length && cats.every((c) => !displayServerOf(c, ctx))) {
+            const before = merged.get("");
+            merged.set("", [...new Set([...(before || []), ...cats])]);
+            continue;
+        }
+        if (!guildId || !servers.includes(guildId)) return { error: "Diesen Server gibt es hier nicht." };
         if (cats.some((c) => displayServerOf(c, ctx) !== guildId)) return { error: "Die Kategorie gehört nicht zu diesem Server." };
         // the same server twice: one part, "every category" wins
         const before = merged.get(guildId);
@@ -283,10 +290,8 @@ async function applyOutcome(entry, event, { now, config, members }) {
     }
     if (previous) return { ok: false, skipped: previous.status === "absence" ? "absent" : "already_signed" };
     if (absentFor(entry.userId, event, { config })) return { ok: false, skipped: "absent" };
-    // the characters of the raid's version, in order, as many as it takes - the rest is left out
-    const version = versionOfEvent(event, { config });
-    const chars = charactersFor(entry, event, { max: maxCharactersFor(event, config), config })
-        .filter((c) => specOf(c.spec, version));
+    // the characters that can play the raid (its version, a spec of it), in order, as many as it takes - the rest is left out
+    const chars = charactersFor(entry, event, { max: maxCharactersFor(event, config), config });
     if (!chars.length) return { ok: false, error: "Klasse passt nicht zu diesem Raid" };
     const saved = await submitSignup(event.id, entry.userId, {
         characters: chars.map((c) => ({ character: c.character, spec: c.spec })),
@@ -390,7 +395,10 @@ async function changeEntry(id, input = {}, { userId = "", orga = false, eventIds
     if (checked.value.scope.length) patch.scope = checked.value.scope;
     else { patch.scope = []; patch.categoryId = checked.value.categoryId; }
     if (old.kind === "presence") patch.characters = checked.value.characters;
-    const updated = store.updateEntry(old.id, patch);
+    // whoever edits decides the rights the new raids are applied with: the owner edits as themselves (web,
+    // raider role, deadline, seats, membership), only the orga on someone else's entry edits as the orga
+    const editor = str(userId) || old.userId;
+    const updated = store.updateEntry(old.id, patch, { createdBy: editor, via: "web" });
     if (updated.error) return updated;
     const targets = fresh.filter((e) => !skip.includes(e.id));
     const members = await membersFor(updated.entry, targets, cfg);
@@ -527,5 +535,5 @@ module.exports = {
     raidsInRange, foreignRaids, checkInput, createEntry, changeEntry, applyToEvent, deleteEntry, activeEntries, covers, absentFor, today, dayOf, dayStart, shortDay,
     entrySummary: entryDm,
     // only for the tests: not part of the module's API
-    _internal: { raidDm, applyToRaid, absentFor },
+    _internal: { raidDm, applyToRaid, absentFor, fromPanel },
 };

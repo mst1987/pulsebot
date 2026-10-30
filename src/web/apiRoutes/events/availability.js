@@ -142,15 +142,18 @@ function resultView(r) {
 }
 
 /** GET /api/availability — the raider's entries that are not over, and their characters. */
-const getAvailability = withUser({}, async ({ user, query, res }) => {
+const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
     const entries = availability.activeEntries(target.userId);
     const names = viewNames(config, entries);
-    // the servers of the raider the entry is for (their memberships), each with its categories
-    const servers = await entryServers(target.userId, { config, categoryNames: names.categories });
+    // the servers of the raider the entry is for (their memberships), each with its categories;
+    // for somebody else only the servers the caller may use (#925) - a save elsewhere is refused anyway
+    const own = target.userId === str(user.id);
+    const servers = (await entryServers(target.userId, { config, categoryNames: names.categories }))
+        .filter((s) => own || mayUseServer(user, req, s.guildId));
     ok(res, {
         userId: target.userId,
         name: profile.name || "",
