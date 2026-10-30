@@ -135,7 +135,8 @@
             "expiresAt": "expiry",
             "shared": "sharing"
         },
-        "failed": "That did not work: {message}"
+        "failed": "That did not work: {message}",
+        "activeTip": "What counts: this server's own entries and the shared entries of other servers, unless hidden here. Archived and expired ones do not count."
     },
     "dialog": {
         "kickerNew": "New note",
@@ -171,7 +172,10 @@
         "save": "Save",
         "create": "Add note",
         "tooMany": "This person already has {max} notes stored – the archive counts too. A full admin has to delete an old entry for good first.",
-        "failed": "Saving did not work: {message}"
+        "failed": "Saving did not work: {message}",
+        "textTooLong": "At most {max} characters.",
+        "raidOlder": "Older raid",
+        "personClear": "Clear search"
     },
     "signals": {
         "title": "Hints from the data",
@@ -260,5 +264,9 @@
         "add": "Add note",
         "addSub": "Add a new note for this member",
         "open": "View notes"
+    },
+    "error": {
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the note belongs to the right server.",
+        "archived": "Archived notes do not change any more. Restore the entry from the archive first."
     }
 }

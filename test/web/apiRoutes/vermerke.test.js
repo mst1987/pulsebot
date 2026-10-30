@@ -42,7 +42,10 @@ const categoryOrga = require("../../../src/services/roster/categoryOrga");
 const notes = require("../../../src/stores/userNotesStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../src/config/permissions");
 const route = require("../../../src/web/apiRoutes/vermerke");
-const { get, post } = routerClient(route);
+const client = routerClient(route);
+const { get } = client;
+// every change names the server its page was loaded for (409 server_switched otherwise)
+const post = (path, payload) => client.post(path, { serverSettingsGuildId: mockActive, ...payload });
 
 const U = "111111111111111111";
 const V = "222222222222222222";
@@ -159,6 +162,23 @@ describe("web/apiRoutes/vermerke", () => {
         it("needs an active server", async () => {
             mockActive = "";
             expect(body(await get("/api/vermerke")).error.code).toBe("no_server");
+            expect(body(await get("/api/vermerke/people", { q: "ze" })).error.code).toBe("no_server");
+            expect(body(await get("/api/vermerke/raids", { userId: U })).error.code).toBe("no_server");
+        });
+
+        it("refuses a change from a page loaded for another server (409 server_switched)", async () => {
+            const { entry } = body(await add());
+            const stale = { serverSettingsGuildId: "B" };
+            for (const res of [
+                await add(stale),
+                await post("/api/vermerke/update", { userId: U, id: entry.id, level: "hint", ...stale }),
+                await post("/api/vermerke/archive", { userId: U, id: entry.id, ...stale }),
+                await post("/api/vermerke/hide", { id: entry.id, ...stale }),
+                await client.post("/api/vermerke", { userId: U, level: "hint", reason: "other" }),
+            ]) {
+                expect([status(res), body(res).error.code]).toEqual([409, "server_switched"]);
+            }
+            expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ level: "warning" })]);
         });
     });
 

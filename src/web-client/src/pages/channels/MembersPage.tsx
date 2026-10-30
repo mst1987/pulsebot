@@ -115,7 +115,7 @@ export default function MembersPage() {
                 />
             )}
             {dialog && (
-                <VermerkDialog preset={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notesState.reload(); }} />
+                <VermerkDialog guildId={data ? data.guildId : ""} preset={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notesState.reload(); }} />
             )}
         </div>
     );

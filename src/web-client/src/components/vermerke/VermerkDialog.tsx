@@ -1,12 +1,12 @@
 import { useEffect, useId, useState } from "react";
 import {
     createVermerk, getVermerkRaids, searchVermerkPeople, updateVermerk,
-    MAX_NOTE_TEXT, MAX_NOTES, NOTE_LEVELS, NOTE_REASONS,
+    MAX_NOTE_TEXT, NOTE_LEVELS, NOTE_REASONS,
     type NoteLevel, type NoteReason, type PersonHit, type RecentRaid, type VermerkEntry,
 } from "../../api/vermerke";
-import type { ApiError } from "../../api/client";
-import { Button, Chip, Field, Modal, Segment, Switch } from "../ui";
-import { SearchIcon } from "../ui/icons";
+import { Button, Chip, Field, IconButton, Modal, Segment, Switch } from "../ui";
+import { SearchIcon, XIcon } from "../ui/icons";
+import { vermerkErrorText } from "./vermerkError";
 import LevelMark from "./LevelMark";
 import ReasonIcon from "./ReasonIcon";
 import { formatDayMonth, isoDay } from "../../lib/format";
@@ -29,6 +29,8 @@ export type VermerkDialogPreset = {
     level?: NoteLevel;
     reason?: NoteReason;
     eventIds?: string[];
+    /** titles of preset raids that may be older than the four weeks of the chips */
+    eventTitles?: Record<string, string>;
 };
 
 type Expiry = "never" | "d30" | "d90" | "date";
@@ -43,7 +45,9 @@ function expiryOf(choice: Expiry, date: string): number | null {
     return null;
 }
 
-export default function VermerkDialog({ preset, onClose, onSaved }: {
+export default function VermerkDialog({ guildId, preset, onClose, onSaved }: {
+    /** the server the page was loaded for: a write from another one is refused (409 server_switched) */
+    guildId: string;
     preset: VermerkDialogPreset;
     onClose: () => void;
     /** after a save, with the person's id */
@@ -55,8 +59,10 @@ export default function VermerkDialog({ preset, onClose, onSaved }: {
     const [person, setPerson] = useState<VermerkDialogPerson | null>(preset.person || null);
     const [level, setLevel] = useState<NoteLevel>(entry ? entry.level : preset.level || "hint");
     const [reason, setReason] = useState<NoteReason | null>(entry ? entry.reason : preset.reason || null);
-    const [expiry, setExpiry] = useState<Expiry>(entry && entry.expiresAt ? "date" : "never");
-    const [date, setDate] = useState(entry && entry.expiresAt ? isoDay(entry.expiresAt) : "");
+    const startExpiry: Expiry = entry && entry.expiresAt ? "date" : "never";
+    const startDate = entry && entry.expiresAt ? isoDay(entry.expiresAt) : "";
+    const [expiry, setExpiry] = useState<Expiry>(startExpiry);
+    const [date, setDate] = useState(startDate);
     const [text, setText] = useState(entry ? entry.text : "");
     const [eventIds, setEventIds] = useState<string[]>(entry ? entry.eventIds : preset.eventIds || []);
     const [shared, setShared] = useState(entry ? entry.shared : false);
@@ -70,14 +76,15 @@ export default function VermerkDialog({ preset, onClose, onSaved }: {
         if (!person || !reason || !ready) return;
         setSaving(true);
         setFailed("");
-        const fields = { level, reason, text: text.trim(), eventIds, expiresAt: expiryOf(expiry, date), shared };
+        const fields = { level, reason, text: text.trim(), eventIds, shared };
+        // a change sends the expiry only when it was changed: re-saving keeps the exact time
+        const expiryChanged = !entry || expiry !== startExpiry || date !== startDate;
         try {
-            if (entry) await updateVermerk(person.userId, entry.id, fields);
-            else await createVermerk(person.userId, person.name, fields);
+            if (entry) await updateVermerk(guildId, person.userId, entry.id, expiryChanged ? { ...fields, expiresAt: expiryOf(expiry, date) } : fields);
+            else await createVermerk(guildId, person.userId, person.name, { ...fields, expiresAt: expiryOf(expiry, date) });
             onSaved(person.userId);
         } catch (err) {
-            const e = err as ApiError;
-            setFailed(e && e.code === "too_many" ? t("vermerke.dialog.tooMany", { max: MAX_NOTES }) : t("vermerke.dialog.failed", { message: (e && e.message) || String(err) }));
+            setFailed(vermerkErrorText(t, err, "vermerke.dialog.failed"));
         } finally {
             setSaving(false);
         }
@@ -150,10 +157,13 @@ export default function VermerkDialog({ preset, onClose, onSaved }: {
                     id={`${id}-text`} rows={3} value={text} placeholder={t("vermerke.dialog.textPlaceholder")}
                     onChange={(e) => setText(e.target.value)} aria-invalid={tooLong || undefined}
                 />
-                <div className={`vmk-count${tooLong ? " vmk-count-over" : ""}`}>{t("vermerke.dialog.textCount", { count: text.length, max: MAX_NOTE_TEXT })}</div>
+                <div className={`vmk-count${tooLong ? " vmk-count-over" : ""}`}>
+                    {tooLong && <span className="vmk-count-msg" role="alert">{t("vermerke.dialog.textTooLong", { max: MAX_NOTE_TEXT })}</span>}
+                    <span>{t("vermerke.dialog.textCount", { count: text.length, max: MAX_NOTE_TEXT })}</span>
+                </div>
             </Field>
             <Field label={t("vermerke.dialog.raids")} tip={t("vermerke.dialog.raidsTip")}>
-                {person ? <RaidChips userId={person.userId} picked={eventIds} onChange={setEventIds} /> : <p className="vmk-muted">{t("vermerke.dialog.raidsPick")}</p>}
+                {person ? <RaidChips userId={person.userId} picked={eventIds} titles={preset.eventTitles} onChange={setEventIds} /> : <p className="vmk-muted">{t("vermerke.dialog.raidsPick")}</p>}
             </Field>
             <Switch checked={shared} onChange={setShared} label={t("vermerke.dialog.shared")} tip={t("vermerke.dialog.sharedTip")} />
         </Modal>
@@ -182,13 +192,14 @@ function PersonSearch({ inputId, onPick }: { inputId: string; onPick: (hit: Pers
 
     return (
         <>
-            <label className="vmk-search">
+            <div className="vmk-search">
                 <SearchIcon />
                 <input
                     id={inputId} type="search" value={query} autoComplete="off"
                     placeholder={t("vermerke.dialog.personSearch")} onChange={(e) => setQuery(e.target.value)}
                 />
-            </label>
+                {query && <IconButton icon={<XIcon />} tip={t("vermerke.dialog.personClear")} size="sm" onClick={() => setQuery("")} />}
+            </div>
             {query.trim().length < MIN_QUERY && <p className="vmk-muted vmk-note">{t("vermerke.dialog.personHint")}</p>}
             {hits && hits.length === 0 && <p className="vmk-muted vmk-note">{t("vermerke.dialog.personNone")}</p>}
             {hits && hits.length > 0 && (
@@ -207,9 +218,17 @@ function PersonSearch({ inputId, onPick }: { inputId: string; onPick: (hit: Pers
     );
 }
 
-function RaidChips({ userId, picked, onChange }: { userId: string; picked: string[]; onChange: (ids: string[]) => void }) {
+function RaidChips({ userId, picked, titles, onChange }: {
+    userId: string;
+    picked: string[];
+    /** known titles of picked raids outside the four weeks */
+    titles?: Record<string, string>;
+    onChange: (ids: string[]) => void;
+}) {
     const t = useT();
     const [raids, setRaids] = useState<RecentRaid[] | null>(null);
+    // the raids picked when the dialog opened: one outside the four weeks stays as a chip, also once taken off
+    const [initial] = useState(picked);
 
     useEffect(() => {
         let live = true;
@@ -221,7 +240,9 @@ function RaidChips({ userId, picked, onChange }: { userId: string; picked: strin
     }, [userId]);
 
     if (!raids) return null;
-    if (raids.length === 0) return <p className="vmk-muted">{t("vermerke.dialog.raidsNone")}</p>;
+    // a picked raid outside the four weeks (an older entry, a hint) stays as a chip to take off
+    const older = [...new Set([...initial, ...picked])].filter((id) => !raids.some((r) => r.eventId === id));
+    if (raids.length === 0 && older.length === 0) return <p className="vmk-muted">{t("vermerke.dialog.raidsNone")}</p>;
     const toggle = (id: string) => onChange(picked.includes(id) ? picked.filter((x) => x !== id) : [...picked, id]);
     // signed-up raids first, then the newest
     const sorted = [...raids].sort((a, b) => Number(b.signed) - Number(a.signed) || b.startTime - a.startTime);
@@ -233,6 +254,11 @@ function RaidChips({ userId, picked, onChange }: { userId: string; picked: strin
                     tip={r.title} tipSub={r.signed ? t("vermerke.dialog.raidSigned") : t("vermerke.dialog.raidNotSigned")}
                 >
                     <span className="vmk-raid-date">{formatDayMonth(r.startTime * 1000)}</span> {r.title}
+                </Chip>
+            ))}
+            {older.map((id) => (
+                <Chip key={id} pressed={picked.includes(id)} onClick={() => toggle(id)} tip={(titles && titles[id]) || t("vermerke.dialog.raidOlder")} tipSub={t("vermerke.dialog.raidOlder")}>
+                    {(titles && titles[id]) || t("vermerke.dialog.raidOlder")}
                 </Chip>
             ))}
         </div>

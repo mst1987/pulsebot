@@ -73,16 +73,18 @@ export default function VermerkePage() {
             )}
             {!data && !state.error && <RaidLoader text={t("vermerke.page.loading")} />}
             {data && (
-                <List
-                    people={people} tab={tab} setTab={(v) => { setTab(v); setAll(false); }} level={level} setLevel={(v) => { setLevel(v); setAll(false); }}
-                    all={all} setAll={setAll} sort={sort} openId={openId} onOpen={open}
-                />
+                <div className="vmk-body">
+                    <List
+                        people={people} tab={tab} setTab={(v) => { setTab(v); setAll(false); }} level={level} setLevel={(v) => { setLevel(v); setAll(false); }}
+                        all={all} setAll={setAll} sort={sort} openId={openId} onOpen={open}
+                    />
+                    <VermerkSignals canWrite={canWrite} onAdd={(preset) => setDialog(preset)} />
+                </div>
             )}
-            {data && <VermerkSignals canWrite={canWrite} onAdd={(preset) => setDialog(preset)} />}
 
             {data && openId && (
                 <VermerkDrawer
-                    key={openId} userId={openId} guildName={data.guildName} fallbackName={openPerson ? openPerson.name : ""}
+                    key={openId} userId={openId} guildId={data.guildId} guildName={data.guildName} fallbackName={openPerson ? openPerson.name : ""}
                     canWrite={canWrite} version={version} onClose={close} onChanged={changed}
                     onAdd={(person) => setDialog({ person })}
                     onEdit={(person, entry) => setDialog({ person, entry })}
@@ -90,7 +92,7 @@ export default function VermerkePage() {
             )}
             {dialog && (
                 <VermerkDialog
-                    preset={dialog} onClose={() => setDialog(null)}
+                    guildId={data ? data.guildId : ""} preset={dialog} onClose={() => setDialog(null)}
                     onSaved={(userId) => { setDialog(null); changed(); if (userId !== openId) open(userId); }}
                 />
             )}

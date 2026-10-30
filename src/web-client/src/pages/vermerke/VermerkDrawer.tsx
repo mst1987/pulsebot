@@ -1,15 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
     archiveVermerk, getVermerkPerson, hideVermerk,
     type VermerkEntry, type VermerkHistory,
 } from "../../api/vermerke";
 import { useApi } from "../../hooks/useApi";
-import { Button, IconButton, useConfirm } from "../../components/ui";
+import { Button, IconButton, InfoTip, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { ChevronDownIcon, EditIcon, EyeIcon, EyeOffIcon, LockIcon, PlusIcon, RefreshIcon, XIcon } from "../../components/ui/icons";
 import LevelMark from "../../components/vermerke/LevelMark";
 import ReasonIcon from "../../components/vermerke/ReasonIcon";
 import type { VermerkDialogPerson } from "../../components/vermerke/VermerkDialog";
+import { vermerkErrorText } from "../../components/vermerke/vermerkError";
 import { formatDate, formatDateTime } from "../../lib/format";
 import { initialsOf } from "../../lib/discord/serverRoles";
 import "../../styles/vermerke.css";
@@ -20,8 +21,10 @@ import { useT } from "../../i18n";
 // carries a lock and that server's name and is read only — this server may only
 // hide it for itself (write). Below, folded: what was hidden here and the archive.
 
-export default function VermerkDrawer({ userId, guildName, fallbackName, canWrite, version, onClose, onChanged, onAdd, onEdit }: {
+export default function VermerkDrawer({ userId, guildId, guildName, fallbackName, canWrite, version, onClose, onChanged, onAdd, onEdit }: {
     userId: string;
+    /** the server the page was loaded for: a write from another one is refused (409 server_switched) */
+    guildId: string;
     guildName: string;
     /** the name from the list, until the person is loaded */
     fallbackName: string;
@@ -38,6 +41,12 @@ export default function VermerkDrawer({ userId, guildName, fallbackName, canWrit
     const [busy, setBusy] = useState("");
     const [failed, setFailed] = useState("");
     const ask = useConfirm();
+    const ref = useRef<HTMLElement>(null);
+
+    // the drawer takes the focus when it opens (also from /vermerke?user=...), Escape closes it
+    useEffect(() => {
+        if (ref.current) ref.current.focus();
+    }, [userId]);
 
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
@@ -63,7 +72,7 @@ export default function VermerkDrawer({ userId, guildName, fallbackName, canWrit
             await job();
             onChanged();
         } catch (err) {
-            setFailed(t("vermerke.drawer.failed", { message: (err as Error).message || String(err) }));
+            setFailed(vermerkErrorText(t, err, "vermerke.drawer.failed"));
         } finally {
             setBusy("");
         }
@@ -74,16 +83,16 @@ export default function VermerkDrawer({ userId, guildName, fallbackName, canWrit
         edit: (e) => onEdit(person, e),
         archive: async (e) => {
             const yes = await ask({ title: t("vermerke.drawer.archiveIt"), text: t("vermerke.drawer.archiveSub"), action: t("vermerke.drawer.archiveIt"), tone: "danger" });
-            if (yes) await run(e.id, () => archiveVermerk(userId, e.id, true));
+            if (yes) await run(e.id, () => archiveVermerk(guildId, userId, e.id, true));
         },
-        restore: (e) => run(e.id, () => archiveVermerk(userId, e.id, false)),
-        hide: (e, hide) => run(e.id, () => hideVermerk(e.id, hide)),
+        restore: (e) => run(e.id, () => archiveVermerk(guildId, userId, e.id, false)),
+        hide: (e, hide) => run(e.id, () => hideVermerk(guildId, e.id, hide)),
     };
 
     return (
         <>
             <div className="vmk-backdrop" aria-hidden="true" onClick={onClose} />
-            <aside className="vmk-drawer" aria-label={name}>
+            <aside className="vmk-drawer" aria-label={name} ref={ref} tabIndex={-1}>
                 <div className="vmk-drawer-head">
                     <span className="vmk-av vmk-av-lg" aria-hidden="true">{initialsOf(name)}</span>
                     <div className="vmk-drawer-title">
@@ -107,6 +116,7 @@ export default function VermerkDrawer({ userId, guildName, fallbackName, canWrit
                             <section className="vmk-sec">
                                 <div className="vmk-sec-head">
                                     <h3>{active.length ? t("vermerke.drawer.active", { count: active.length }) : t("vermerke.drawer.noneActive")}</h3>
+                                    {active.length > 0 && <InfoTip head={t("vermerke.drawer.active", { count: active.length })} sub={t("vermerke.drawer.activeTip")} />}
                                 </div>
                                 {active.map((e) => <Entry key={e.id} entry={e} actions={actions} />)}
                             </section>

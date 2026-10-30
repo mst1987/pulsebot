@@ -82,21 +82,24 @@ export function getVermerkPerson(userId: string): Promise<VermerkPersonDetail> {
     return get(`/api/vermerke/person?userId=${encodeURIComponent(userId)}`);
 }
 
-export function createVermerk(userId: string, name: string, fields: VermerkFields): Promise<{ entry: VermerkEntry }> {
-    return send("POST", "/api/vermerke", { userId, name, ...fields });
+// Every change names the server its page was loaded for (`guildId` of the list): after a server
+// switch in another tab the API answers 409 `server_switched` instead of writing on the wrong one.
+
+export function createVermerk(guildId: string, userId: string, name: string, fields: VermerkFields): Promise<{ entry: VermerkEntry }> {
+    return send("POST", "/api/vermerke", { userId, name, ...fields, serverSettingsGuildId: guildId });
 }
 
-export function updateVermerk(userId: string, id: string, fields: Partial<VermerkFields>): Promise<{ entry: VermerkEntry }> {
-    return send("POST", "/api/vermerke/update", { userId, id, ...fields });
+export function updateVermerk(guildId: string, userId: string, id: string, fields: Partial<VermerkFields>): Promise<{ entry: VermerkEntry }> {
+    return send("POST", "/api/vermerke/update", { userId, id, ...fields, serverSettingsGuildId: guildId });
 }
 
-export function archiveVermerk(userId: string, id: string, archived = true): Promise<{ entry: VermerkEntry }> {
-    return send("POST", "/api/vermerke/archive", { userId, id, archived });
+export function archiveVermerk(guildId: string, userId: string, id: string, archived = true): Promise<{ entry: VermerkEntry }> {
+    return send("POST", "/api/vermerke/archive", { userId, id, archived, serverSettingsGuildId: guildId });
 }
 
 /** Hides (or shows again) a shared entry of another server on the active one. */
-export function hideVermerk(id: string, hidden = true): Promise<{ id: string; hidden: boolean }> {
-    return send("POST", "/api/vermerke/hide", { id, hidden });
+export function hideVermerk(guildId: string, id: string, hidden = true): Promise<{ id: string; hidden: boolean }> {
+    return send("POST", "/api/vermerke/hide", { id, hidden, serverSettingsGuildId: guildId });
 }
 
 export function searchVermerkPeople(query: string): Promise<{ results: PersonHit[] }> {

@@ -168,7 +168,7 @@ describe("Vermerke: drawer", () => {
         const drawer = await screen.findByRole("complementary", { name: "Jaina" });
         await within(drawer).findByText("Dreimal nicht gekommen.");
         await user.click(within(drawer).getByRole("button", { name: "Für diesen Server ausblenden" }));
-        expect(api.hideVermerk).toHaveBeenCalledWith("shared", true);
+        expect(api.hideVermerk).toHaveBeenCalledWith("g1", "shared", true);
         await waitFor(() => expect(api.getVermerkPerson).toHaveBeenCalledTimes(2));
         expect(api.getVermerke).toHaveBeenCalledTimes(2);
     });
@@ -203,7 +203,7 @@ describe("Vermerke: dialog", () => {
         expect(within(dlg).getByRole("button", { name: /Karazhan/ })).toHaveAttribute("aria-pressed", "true");
         await user.click(within(dlg).getByRole("switch", { name: /Auf allen Servern zeigen/ }));
         await user.click(save);
-        expect(api.createVermerk).toHaveBeenCalledWith("t", "Thrall", {
+        expect(api.createVermerk).toHaveBeenCalledWith("g1", "t", "Thrall", {
             level: "hint", reason: "no_show", text: "", eventIds: ["r1"], expiresAt: null, shared: true,
         });
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
@@ -220,6 +220,75 @@ describe("Vermerke: dialog", () => {
         await user.click(within(dlg).getByRole("button", { name: "Verhalten" }));
         await user.click(within(dlg).getByRole("button", { name: "Vermerk anlegen" }));
         expect(await within(dlg).findByRole("alert")).toHaveTextContent("schon 50 Vermerke gespeichert – das Archiv zählt mit");
+    });
+
+    it("says when the server was switched meanwhile, in the dialog and in the drawer", async () => {
+        const user = userEvent.setup();
+        const switched = () => Object.assign(new Error("server_switched"), { code: "server_switched" });
+        vi.mocked(api.createVermerk).mockRejectedValue(switched());
+        vi.mocked(api.hideVermerk).mockRejectedValue(switched());
+        renderPage(<VermerkePage />, { route: "/vermerke?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        await within(drawer).findByText("Dreimal nicht gekommen.");
+        await user.click(within(drawer).getByRole("button", { name: "Für diesen Server ausblenden" }));
+        expect(await within(drawer).findByText(/Du hast inzwischen den Server gewechselt/)).toBeInTheDocument();
+        await user.click(within(drawer).getByRole("button", { name: "Eintrag hinzufügen" }));
+        const dlg = await screen.findByRole("dialog");
+        await user.click(within(dlg).getByRole("button", { name: "Verhalten" }));
+        await user.click(within(dlg).getByRole("button", { name: "Vermerk anlegen" }));
+        expect(await within(dlg).findByRole("alert")).toHaveTextContent("Du hast inzwischen den Server gewechselt");
+        expect(api.createVermerk).toHaveBeenCalledWith("g1", "j", "Jaina", expect.objectContaining({ reason: "behavior" }));
+    });
+
+    it("says in words when the note is too long and keeps the button off", async () => {
+        const user = userEvent.setup();
+        renderPage(<VermerkePage />, { route: "/vermerke?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        await within(drawer).findByText("Hat im Raid geflamed.");
+        await user.click(within(drawer).getByRole("button", { name: "Eintrag hinzufügen" }));
+        const dlg = await screen.findByRole("dialog");
+        await user.click(within(dlg).getByRole("button", { name: "Verhalten" }));
+        const save = within(dlg).getByRole("button", { name: "Vermerk anlegen" });
+        expect(save).toBeEnabled();
+        await user.click(within(dlg).getByRole("textbox"));
+        await user.paste("x".repeat(1001));
+        expect(within(dlg).getByText("Höchstens 1000 Zeichen.")).toBeInTheDocument();
+        expect(save).toBeDisabled();
+    });
+
+    it("re-saves an entry without its expiry when the expiry was not changed", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.updateVermerk).mockResolvedValue({ entry: entry({}) });
+        renderPage(<VermerkePage />, { route: "/vermerke?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        const own = (await within(drawer).findByText("Hat im Raid geflamed.")).closest("[data-entry]") as HTMLElement;
+        await user.click(within(own).getByRole("button", { name: "Bearbeiten" }));
+        const dlg = await screen.findByRole("dialog");
+        await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateVermerk).toHaveBeenCalled());
+        const [guild, userId, id, fields] = vi.mocked(api.updateVermerk).mock.calls[0];
+        expect([guild, userId, id]).toEqual(["g1", "j", "own"]);
+        expect(fields).not.toHaveProperty("expiresAt");
+    });
+
+    it("clears the person search with its own button", async () => {
+        const user = userEvent.setup();
+        renderPage(<VermerkePage />, { route: "/vermerke" });
+        await screen.findByText("Thrall");
+        await user.click(screen.getByRole("button", { name: "Vermerk anlegen" }));
+        const dlg = await screen.findByRole("dialog");
+        expect(within(dlg).queryByRole("button", { name: "Suche leeren" })).not.toBeInTheDocument();
+        await user.type(within(dlg).getByRole("searchbox"), "Thr");
+        await user.click(within(dlg).getByRole("button", { name: "Suche leeren" }));
+        expect(within(dlg).getByRole("searchbox")).toHaveValue("");
+    });
+});
+
+describe("Vermerke: drawer focus", () => {
+    it("takes the focus when opened by link", async () => {
+        renderPage(<VermerkePage />, { route: "/vermerke?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        await waitFor(() => expect(drawer).toHaveFocus());
     });
 });
 
@@ -276,6 +345,24 @@ describe("Vermerke: hints from the data", () => {
         expect(within(dlg).getByRole("button", { name: "Server verlassen" })).toHaveAttribute("aria-pressed", "true");
         expect(api.reasonOfSignal("left_server")).toBe("left_server");
         expect(api.reasonOfSignal("signoff_after_setup")).toBe("late_signoff");
+    });
+
+    it("keeps raids of the hint older than four weeks as chips to deselect", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getVermerkSignals).mockResolvedValue({ signals: [signal(8, { events: [{ eventId: "old1", title: "Gruul", startTime: 1_780_000_000 }] })], thresholds: null });
+        renderPage(<VermerkePage />, { route: "/vermerke" });
+        const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
+        const row = section.querySelector('[data-user="s8"]') as HTMLElement;
+        await user.click(within(row).getByRole("button", { name: "Vermerk anlegen" }));
+        const dlg = await screen.findByRole("dialog");
+        const gruul = await within(dlg).findByRole("button", { name: /Gruul/ });
+        expect(gruul).toHaveAttribute("aria-pressed", "true");
+        expect(await within(dlg).findByRole("button", { name: /Karazhan/ })).toHaveAttribute("aria-pressed", "false");
+        await user.click(gruul);
+        // deselected it stays as a chip to pick again
+        expect(within(dlg).getByRole("button", { name: /Gruul/ })).toHaveAttribute("aria-pressed", "false");
+        await user.click(within(dlg).getByRole("button", { name: "Vermerk anlegen" }));
+        expect(api.createVermerk).toHaveBeenCalledWith("g1", "s8", "Raider8", expect.objectContaining({ eventIds: [] }));
     });
 });
 

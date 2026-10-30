@@ -57,6 +57,23 @@ function guildOf(req, res) {
     return guildId;
 }
 
+const SWITCHED = "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.";
+
+/**
+ * The active server for a change, or null after the answer: 400 without one, 409 `server_switched`
+ * when the page was loaded for another server (`serverSettingsGuildId`) - a change in another tab
+ * must not land on the server the page does not show.
+ */
+function writeGuildOf(req, res, body) {
+    const guildId = guildOf(req, res);
+    if (!guildId) return null;
+    if (String((body && body.serverSettingsGuildId) || "") !== guildId) {
+        error(res, 409, "server_switched", SWITCHED);
+        return null;
+    }
+    return guildId;
+}
+
 /** Sends a store refusal (NoteError) as its answer; anything else is thrown on. */
 function refuse(res, err) {
     if (err instanceof notes.NoteError) {
@@ -141,7 +158,7 @@ const byOf = (user) => ({ by: String(user.id || ""), byName: String(user.name ||
 
 /** POST /api/vermerke { userId, name, level, reason, text?, eventIds?, expiresAt?, shared? } - a new entry. */
 const postEntry = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     const userId = q.snowflake(body, "userId");
     if (!userId) return error(res, 400, "bad_user", "Kein Discord-Konto angegeben.");
@@ -155,7 +172,7 @@ const postEntry = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/update { userId, id, ...fields } - changes an entry of this server. */
 const postUpdate = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const entry = notes.updateEntry(guildId, q.str(body, "userId"), q.str(body, "id"), partialFieldsOf(body), byOf(user));
@@ -167,7 +184,7 @@ const postUpdate = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/archive { userId, id, archived? } - archives (default) or restores an entry of this server. */
 const postArchive = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const entry = notes.archiveEntry(guildId, q.str(body, "userId"), q.str(body, "id"), { archived: q.bool(body, "archived", true), ...byOf(user) });
@@ -179,7 +196,7 @@ const postArchive = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/hide { id, hidden? } - hides (default) or shows again a shared entry of another server here. */
 const postHide = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const hidden = q.bool(body, "hidden", true);
@@ -274,11 +291,8 @@ const getSignalSettings = withUser(async ({ req, res }) => {
  * whole number in its range: 400 `bad_threshold` with `fields` (the keys), nothing saved.
  */
 const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
-    if (String(body.serverSettingsGuildId || "") !== guildId) {
-        return error(res, 409, "server_switched", "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.");
-    }
     const checked = validateThresholds(body.thresholds);
     if (checked.fields.length) {
         return sendJson(res, 400, { error: { code: "bad_threshold", message: "Ungültiger Schwellenwert – jede Zahl muss ganz sein und in ihrem Bereich liegen.", fields: checked.fields } });

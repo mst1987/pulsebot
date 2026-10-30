@@ -64,7 +64,7 @@ export default function VermerkSignals({ canWrite, onAdd }: { canWrite: boolean;
                             <span className="vmk-sig-acts">
                                 <Button
                                     variant="ghost" size="sm" icon={<PlusIcon />}
-                                    onClick={() => onAdd({ person: { userId: s.userId, name: s.name }, reason: reasonOfSignal(s.kind), eventIds: s.events.map((e) => e.eventId) })}
+                                    onClick={() => onAdd({ person: { userId: s.userId, name: s.name }, reason: reasonOfSignal(s.kind), eventIds: s.events.map((e) => e.eventId), eventTitles: Object.fromEntries(s.events.map((e) => [e.eventId, e.title])) })}
                                 >
                                     {t("vermerke.signals.add")}
                                 </Button>

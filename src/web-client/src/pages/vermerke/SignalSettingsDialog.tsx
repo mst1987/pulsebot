@@ -86,7 +86,7 @@ export default function SignalSettingsDialog({ canWrite, onClose, onSaved }: {
 
     return (
         <Modal
-            open onClose={onClose} icon="vermerke" tone="vermerke" className="vmk-thr-dlg" width={520}
+            open onClose={onClose} icon="vermerke" tone="vermerke" className="vmk-thr-dlg" width={580}
             kicker={t("vermerke.signals.title")}
             title={t("vermerke.thresholds.title")}
             hint={canWrite ? undefined : t("vermerke.thresholds.readOnly")}

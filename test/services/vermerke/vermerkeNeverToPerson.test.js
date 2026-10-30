@@ -73,8 +73,12 @@ const PERSON_PAGES = [
     "web/apiRoutes/raidplan.js",
     "web/http/viewAs.js",
 ];
-// the read side of the hints (#982) too: the signup pages only write events (signalRecorder.js)
-const NOTE_MODULES = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"];
+// the read side of the hints (#982) and the person search of the dialog (#980) too: the signup pages
+// only write events (signalRecorder.js)
+const NOTE_MODULES = [
+    "stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "services/vermerke/vermerkePeople.js",
+    "web/apiRoutes/vermerke.js",
+];
 
 describe("Vermerke never reach the person", () => {
     it.each(PERSON_PAGES)("%s loads neither the store nor the short form", (entry) => {
@@ -100,6 +104,8 @@ describe("Vermerke never reach the person", () => {
             get("/api/vermerke"),
             get("/api/vermerke/person", { userId: U }),
             get("/api/vermerke/short", { userIds: U }),
+            get("/api/vermerke/people", { q: "Zed" }),
+            get("/api/vermerke/raids", { userId: U }),
             post("/api/vermerke", { userId: U, level: "hint", reason: "other", text: "x" }),
             post("/api/vermerke/update", { userId: U, id: "n_x", text: "x" }),
             post("/api/vermerke/archive", { userId: U, id: "n_x" }),

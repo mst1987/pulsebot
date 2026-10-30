@@ -135,7 +135,8 @@
             "expiresAt": "Ablauf",
             "shared": "Teilen"
         },
-        "failed": "Hat nicht geklappt: {message}"
+        "failed": "Hat nicht geklappt: {message}",
+        "activeTip": "Es zählen die eigenen Einträge dieses Servers und die geteilten Einträge anderer Server, solange sie hier nicht ausgeblendet sind. Archivierte und abgelaufene zählen nicht."
     },
     "dialog": {
         "kickerNew": "Neuer Vermerk",
@@ -171,7 +172,10 @@
         "save": "Speichern",
         "create": "Vermerk anlegen",
         "tooMany": "Für diese Person sind schon {max} Vermerke gespeichert – das Archiv zählt mit. Ein Voll-Admin muss erst einen alten Eintrag endgültig löschen.",
-        "failed": "Speichern hat nicht geklappt: {message}"
+        "failed": "Speichern hat nicht geklappt: {message}",
+        "textTooLong": "Höchstens {max} Zeichen.",
+        "raidOlder": "Älterer Raid",
+        "personClear": "Suche leeren"
     },
     "signals": {
         "title": "Hinweise aus den Daten",
@@ -260,5 +264,9 @@
         "add": "Vermerk anlegen",
         "addSub": "Neuen Vermerk für dieses Mitglied anlegen",
         "open": "Vermerke ansehen"
+    },
+    "error": {
+        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit der Vermerk zum richtigen Server gehört.",
+        "archived": "Archivierte Vermerke ändern sich nicht mehr. Hol den Eintrag erst aus dem Archiv zurück."
     }
 }
