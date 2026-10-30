@@ -17,7 +17,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockGroups = [];
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockRoleIds = null;

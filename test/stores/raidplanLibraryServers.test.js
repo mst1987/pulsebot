@@ -2,9 +2,9 @@
 // belong to one server, and the one-off migration copies the old global library onto every listed server.
 const fs = require("fs");
 const { tempStoreFile } = require("../helpers/tempStore");
-const templates = require("../../src/stores/raidplanTemplateStore");
-const profiles = require("../../src/stores/raidplanProfileStore");
-const plans = require("../../src/stores/raidplanStore");
+const templates = require("../../src/stores/raidplan/raidplanTemplateStore");
+const profiles = require("../../src/stores/raidplan/raidplanProfileStore");
+const plans = require("../../src/stores/raidplan/raidplanStore");
 
 const A = "100000000000000001";
 const B = "100000000000000002";

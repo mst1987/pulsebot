@@ -10,7 +10,7 @@ require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { card } = require("./utils/discord/card.js");
 const { tr } = require("./utils/i18n/botText.js");
-const userPrefs = require("./stores/userPrefsStore.js");
+const userPrefs = require("./stores/settings/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
@@ -291,7 +291,7 @@ function start() {
     // reliable way to see which version the bot actually runs on after an
     // upgrade. Keep it first, before anything can fail.
     console.log(`PulseBot starting on Node ${process.version} (${runMode()}, ${process.env.EVENTHELPER_ENV_FILE}, NODE_ENV=${process.env.NODE_ENV || "-"})`);
-    require("./stores/settingsMigration").migrateSettings();
+    require("./stores/settings/settingsMigration").migrateSettings();
     // a category switched to another game version closes its roster (#739)
     require("./services/roster/rosterVersionSwitch").registerRosterVersionSwitch();
     loadCommands(path.join(__dirname, "commands"));

@@ -3,7 +3,7 @@
 const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const notes = require("../../../src/stores/userNotesStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
 const { shortOf, shortFor, activeLevelFor, shadowbannedAmong } = require("../../../src/services/vermerke/vermerkeShort");
 
 const U = "111111111111111111";

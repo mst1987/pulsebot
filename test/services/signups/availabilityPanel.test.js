@@ -1,6 +1,6 @@
 // Das Panel der Ab-/Anwesenheiten je Raid-Kategorie: posten, ersetzen, entfernen.
 let mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockNext = null;
 jest.mock("../../../src/services/signups/organizer", () => ({ nextRaidSummary: jest.fn(() => mockNext) }));
 jest.mock("../../../src/logger", () => ({ warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() }));
@@ -14,7 +14,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 
 const discord = require("../../../src/services/discord/discord");
 const logger = require("../../../src/logger");
-const store = require("../../../src/stores/availabilityStore");
+const store = require("../../../src/stores/events/availabilityStore");
 const panel = require("../../../src/services/signups/availabilityPanel");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

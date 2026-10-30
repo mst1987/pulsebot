@@ -17,9 +17,9 @@
 // Partials.Message (#430), so a message it did not cache (every message after
 // a restart) would never reach "messageDelete".
 const linkCheck = require("./linkCheck");
-const eventStore = require("../../stores/eventStore");
-const { getOverviewState, overviewKeys } = require("../../stores/talkOverviewStore");
-const { getConfig } = require("../../stores/settingsStore");
+const eventStore = require("../../stores/events/eventStore");
+const { getOverviewState, overviewKeys } = require("../../stores/discord/talkOverviewStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const logger = require("../../logger").child("linkWatch");
 
 // discord.js' ChannelType.GuildCategory (the plain number: this module's tests mock little of discord.js).

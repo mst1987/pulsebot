@@ -3,7 +3,7 @@
 // A server without an entry gets the default of the part that owns the key (or
 // the fallback the caller passes). There is no global fallback: a value set for
 // one server never answers for another, unless a part says so itself.
-const { SERVER_SETTING_DEFAULTS, DISCORD_VISUALS_DEFAULT, normalizeDiscordVisuals } = require("../../../stores/configSchema");
+const { SERVER_SETTING_DEFAULTS, DISCORD_VISUALS_DEFAULT, normalizeDiscordVisuals } = require("../../../stores/settings/configSchema");
 
 /**
  * One setting of one server.
@@ -13,7 +13,7 @@ const { SERVER_SETTING_DEFAULTS, DISCORD_VISUALS_DEFAULT, normalizeDiscordVisual
  *   `fallback` replaces the part's default for a server without an entry
  */
 function serverSetting(guildId, key, { config, fallback } = {}) {
-    const cfg = config || require("../../../stores/settingsStore").getConfig();
+    const cfg = config || require("../../../stores/settings/settingsStore").getConfig();
     const blocks = (cfg && cfg.serverSettings) || {};
     const block = blocks[String(guildId || "").trim()];
     if (block && Object.prototype.hasOwnProperty.call(block, key) && block[key] !== undefined) return block[key];
@@ -39,7 +39,7 @@ function ownVisualsOf(block) {
  * @returns {{ overviewWeekStrip: boolean, setupImage: boolean, eventCover: boolean }}
  */
 function serverVisuals(guildId, { config } = {}) {
-    const cfg = config || require("../../../stores/settingsStore").getConfig();
+    const cfg = config || require("../../../stores/settings/settingsStore").getConfig();
     const block = ((cfg && cfg.serverSettings) || {})[String(guildId || "").trim()];
     return { ...normalizeDiscordVisuals(cfg && cfg.discordVisuals), ...ownVisualsOf(block && block.discordVisuals) };
 }

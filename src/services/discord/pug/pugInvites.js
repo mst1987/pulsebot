@@ -31,11 +31,11 @@
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const discord = require("../discord");
 const guildRoles = require("../roles/guildRoles");
-const inviteStore = require("../../../stores/discordInviteStore");
-const originStore = require("../../../stores/memberOriginStore");
-const eventStore = require("../../../stores/eventStore");
-const signupStore = require("../../../stores/signupStore");
-const { readStored } = require("../../../stores/configStore");
+const inviteStore = require("../../../stores/discord/discordInviteStore");
+const originStore = require("../../../stores/discord/memberOriginStore");
+const eventStore = require("../../../stores/events/eventStore");
+const signupStore = require("../../../stores/events/signupStore");
+const { readStored } = require("../../../stores/settings/configStore");
 const log = require("../../../logger").child("pugInvites");
 
 const INVITE_CHANNEL_TYPES = [ChannelType.GuildText, ChannelType.GuildAnnouncement];

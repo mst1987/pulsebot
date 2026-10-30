@@ -2,9 +2,9 @@
 // of a server (#921: serverSettings[guildId].logChannels, logChannelSettings.js), tracks them, and evaluates them once (via the shared buildReport
 // pipeline). Used by both the live messageCreate listener and the admin menu.
 
-const { getConfig } = require("../../stores/settingsStore");
-const logStore = require("../../stores/logStore");
-const eventStore = require("../../stores/eventStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const logStore = require("../../stores/loot/logStore");
+const eventStore = require("../../stores/events/eventStore");
 const discord = require("../discord/discord");
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { buildReport, ReportError } = require("../../utils/logcheck/report");

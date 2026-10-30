@@ -8,7 +8,7 @@ jest.mock("../../../src/classes/warcraftlogs.js", () => {
     WarcraftLogs.__getCasts = getCasts;
     return WarcraftLogs;
 });
-jest.mock("../../../src/stores/reportStore.js");
+jest.mock("../../../src/stores/loot/reportStore.js");
 jest.mock("../../../src/utils/discord/reply.js");
 jest.mock("../../../src/utils/logcheck/gearIssues.js");
 jest.mock("../../../src/utils/logcheck/consumables.js");
@@ -21,7 +21,7 @@ jest.mock("../../../src/utils/logcheck/common.js");
 
 const command = require("../../../src/commands/logcheck/logcheck.js");
 const WarcraftLogs = require("../../../src/classes/warcraftlogs.js");
-const { saveReport } = require("../../../src/stores/reportStore.js");
+const { saveReport } = require("../../../src/stores/loot/reportStore.js");
 const { botEditReply } = require("../../../src/utils/discord/reply.js");
 const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
 const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
@@ -33,7 +33,7 @@ const { analyzeBossUptimes } = require("../../../src/utils/logcheck/bossUptimes.
 const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { cardText, cardControls } = require("../../helpers/cardText.js");
-const { saveConfig } = require("../../../src/stores/configStore.js");
+const { saveConfig } = require("../../../src/stores/settings/configStore.js");
 
 function primeAnalyzers() {
     // buildGearIssues / selectPlayers / potionsByName results are used unguarded,

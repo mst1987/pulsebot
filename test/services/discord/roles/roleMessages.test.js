@@ -6,7 +6,7 @@ const { ComponentType, MessageFlags, PermissionsBitField } = require("discord.js
 const mockLog = { info: jest.fn(), warn: jest.fn(), debug: jest.fn(), error: jest.fn() };
 jest.mock("../../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
 let mockConfig = {};
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 let mockLang = "de";
 jest.mock("../../../../src/services/discord/botLanguage", () => ({ langOfInteraction: () => mockLang }));
 // The real server helpers over a fixed server list: the first server and the talk server (#895).
@@ -36,8 +36,8 @@ const mockDiscord = {
 };
 jest.mock("../../../../src/services/discord/discord", () => mockDiscord);
 
-const rosterStore = require("../../../../src/stores/rosterStore");
-const store = require("../../../../src/stores/roleMessageStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const store = require("../../../../src/stores/discord/roleMessageStore");
 const svc = require("../../../../src/services/discord/roles/roleMessages");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { mockInteraction } = require("../../../helpers/mockInteraction");

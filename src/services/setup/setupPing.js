@@ -9,7 +9,7 @@
 //
 // Only own events: their setup is ours (setupEditor.js); a Raid-Helper event's
 // raid plan lives at Raid-Helper.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const discord = require("../discord/discord");
 const { approvedSetupOf, confirmationsFor, unansweredOf, PING_OPEN_TEXT, PING_TEXT_MAX, pingTextOf } = require("./setupCore");
 const { tr } = require("../../utils/i18n/botText");

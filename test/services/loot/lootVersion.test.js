@@ -1,10 +1,10 @@
 // Imported loot links the Wowhead of its event's version (#542): an own event's
 // own version, else the category's.
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const { getEvent } = require("../../../src/stores/eventStore");
-const { getConfig } = require("../../../src/stores/configStore");
+const { getEvent } = require("../../../src/stores/events/eventStore");
+const { getConfig } = require("../../../src/stores/settings/configStore");
 jest.mock("../../../src/utils/loot/wowhead");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const { versionOfImport, relinkItems, linkItemsForImport, enrichForImport } = require("../../../src/services/loot/lootVersion");

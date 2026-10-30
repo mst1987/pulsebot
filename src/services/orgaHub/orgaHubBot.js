@@ -16,7 +16,7 @@ const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { initialState, stepMessage, clearNamePattern } = require("../events/eventDraft");
 const categoryOrga = require("../roster/categoryOrga");
-const store = require("../../stores/orgaHubStore");
+const store = require("../../stores/discord/orgaHubStore");
 
 const links = require("./orgaHubLinks");
 

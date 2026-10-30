@@ -19,9 +19,9 @@
 // For one account relationOf() reads the stores directly; for a whole server
 // relationIndex() reads them once and answers each account from memory (the
 // list page asks for hundreds of members at once).
-const rosterStore = require("../../../stores/rosterStore");
-const raiderCharactersStore = require("../../../stores/raiderCharactersStore");
-const raiderProfileStore = require("../../../stores/raiderProfileStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
+const raiderCharactersStore = require("../../../stores/roster/raiderCharactersStore");
+const raiderProfileStore = require("../../../stores/roster/raiderProfileStore");
 const { nameKeyOf } = require("../../../utils/loot/lootImport");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

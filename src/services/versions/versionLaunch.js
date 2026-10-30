@@ -6,7 +6,7 @@
 // Roster, Gildenbanken, Discord-Server); this only says what is still open.
 //
 // Computed on every read from the real data. Only the items nothing can check
-// (VERSION_LAUNCH_MANUAL in stores/configSchema.js: the archive export, the loot
+// (VERSION_LAUNCH_MANUAL in stores/settings/configSchema.js: the archive export, the loot
 // addon on the new client, the raid lists and reminders, and the backup on an
 // instance that takes none) are marked by hand, stored per target version in
 // `config.versionLaunch` = { [versionId]: { [itemId]: { at, byName } } }.
@@ -17,15 +17,15 @@
 //
 // `buildChecklist(inputs)` is pure (the tests drive it item by item);
 // `loadChecklist(versionId)` gathers the inputs, each best-effort.
-const { getConfig, saveConfig, listRaidTemplates } = require("../../stores/settingsStore");
-const { VERSION_LAUNCH_MANUAL } = require("../../stores/configSchema");
+const { getConfig, saveConfig, listRaidTemplates } = require("../../stores/settings/settingsStore");
+const { VERSION_LAUNCH_MANUAL } = require("../../stores/settings/configSchema");
 const { VERSIONS, rulesFor, instance } = require("../../config/gameVersions");
 const { knownVersion } = require("./mainVersion");
 const { featureState } = require("./versionCapabilities");
-const { normalizeBlock, versionSettingsOf } = require("../../stores/versionSettingsSchema");
-const rosterStore = require("../../stores/rosterStore");
-const seriesStore = require("../../stores/eventSeriesStore");
-const bankStore = require("../../stores/guildBankStockStore");
+const { normalizeBlock, versionSettingsOf } = require("../../stores/settings/versionSettingsSchema");
+const rosterStore = require("../../stores/roster/rosterStore");
+const seriesStore = require("../../stores/events/eventSeriesStore");
+const bankStore = require("../../stores/loot/guildBankStockStore");
 const guildRoles = require("../discord/roles/guildRoles");
 const { listKnownCategories } = require("../categories/categoryNames");
 const backupStatus = require("../backup/backupStatus");

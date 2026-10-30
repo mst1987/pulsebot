@@ -9,7 +9,7 @@
 // will call it with reason "manual". The CLI (scripts/backup/snapshot.js) calls createSnapshot itself.
 const { createSnapshot, listSnapshots } = require("./snapshot");
 const { backupEnabled, resolveBackupDir, normalizeBackupSettings } = require("./backupConfig");
-const configStore = require("../../stores/configStore");
+const configStore = require("../../stores/settings/configStore");
 const logger = require("../../logger").child("backup");
 
 /** How often the job asks whether a snapshot is due. */

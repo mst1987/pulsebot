@@ -30,16 +30,16 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
 }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(),
     getRaidTemplate: jest.fn((id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25 } : null)),
 }));
 
 const { DateTime } = require("luxon");
-const { getConfig } = require("../../../src/stores/settingsStore");
+const { getConfig } = require("../../../src/stores/settings/settingsStore");
 const discordChannels = require("../../../src/services/discord/discordChannels");
-const eventStore = require("../../../src/stores/eventStore");
-const store = require("../../../src/stores/eventSeriesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const store = require("../../../src/stores/events/eventSeriesStore");
 const series = require("../../../src/web/events/eventSeries");
 const { series: baseSeries } = require("../../factories/events");
 

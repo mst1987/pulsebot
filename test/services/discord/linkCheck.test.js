@@ -3,15 +3,15 @@
 // the stores are mocked; nothing talks to the network.
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(() => null) }));
 jest.mock("../../../src/utils/publicUrl", () => ({ publicBaseUrl: jest.fn(() => "https://eh.example") }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: jest.fn((id) => (id === "eh-1" ? { id: "eh-1" } : null)),
 }));
-jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
+jest.mock("../../../src/stores/raidplan/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
 const { publicBaseUrl } = require("../../../src/utils/publicUrl");
-const raidplanStore = require("../../../src/stores/raidplanStore");
+const raidplanStore = require("../../../src/stores/raidplan/raidplanStore");
 const linkCheck = require("../../../src/services/discord/linkCheck");
 const { makeClient, makeGuild, makeChannel, discordError } = require("../../helpers/discordClient");
 

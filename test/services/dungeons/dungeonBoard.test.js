@@ -1,6 +1,6 @@
 // The tables of the dungeon page and /bestzeiten: per dungeon, the overall
 // medal ranking and the achievement points — one version at a time.
-const store = require("../../../src/stores/dungeonRunStore");
+const store = require("../../../src/stores/roster/dungeonRunStore");
 const board = require("../../../src/services/dungeons/dungeonBoard");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

@@ -58,8 +58,8 @@
 // (raiderCharactersStore - a rogue assigned under "TBC Montag" also stands for
 // the account in "PUG Raids"), and per night the characters of its own signup.
 const { listStoredEvents } = require("../events/eventSources");
-const { listLogs } = require("../../stores/logStore");
-const { listReports, getReport } = require("../../stores/reportStore");
+const { listLogs } = require("../../stores/loot/logStore");
+const { listReports, getReport } = require("../../stores/loot/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { contentsForText, content: contentMeta } = require("../../config/data/raidContent");
 const { VERSIONS } = require("../../config/gameVersions");
@@ -67,11 +67,11 @@ const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/ma
 const logger = require("../../logger").child("attendance");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
-const eventStore = require("../../stores/eventStore");
-const availabilityStore = require("../../stores/availabilityStore");
-const overridesStore = require("../../stores/attendanceOverridesStore");
+const eventStore = require("../../stores/events/eventStore");
+const availabilityStore = require("../../stores/events/availabilityStore");
+const overridesStore = require("../../stores/events/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
-const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { listAllAssignments } = require("../../stores/roster/raiderCharactersStore");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 
 /** How many raid nights of a category attendance looks back over. */

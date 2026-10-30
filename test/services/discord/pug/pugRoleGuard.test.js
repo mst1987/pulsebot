@@ -4,7 +4,7 @@
 // server does not count, and without config.pugRoles nothing changes.
 jest.mock("../../../../src/config/variables", () => ({ adminRoleIds: [] }));
 
-const rosterStore = require("../../../../src/stores/rosterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const guard = require("../../../../src/services/discord/pug/pugRoleGuard");
 
 const GID = "100000000000000001";

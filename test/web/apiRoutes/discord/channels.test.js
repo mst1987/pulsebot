@@ -14,7 +14,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -44,12 +44,12 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -81,7 +81,7 @@ jest.mock("../../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
 }));
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -158,12 +158,12 @@ jest.mock("../../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../../src/stores/eventSheetStore", () => ({
+jest.mock("../../../../src/stores/events/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
@@ -184,8 +184,8 @@ jest.mock("../../../../src/web/channels/channelOps", () => {
     const actual = jest.requireActual("../../../../src/web/channels/channelOps");
     return { ...actual, runSerial: (ids, fn) => actual.runSerial(ids, fn, { pauseMs: 0 }) };
 });
-jest.mock("../../../../src/stores/channelArchiveStore", () => {
-    const actual = jest.requireActual("../../../../src/stores/channelArchiveStore");
+jest.mock("../../../../src/stores/discord/channelArchiveStore", () => {
+    const actual = jest.requireActual("../../../../src/stores/discord/channelArchiveStore");
     return {
         ...actual,
         getChannelConfig: jest.fn(() => ({ archiveCategoryId: "arch", schemas: {}, archiveDeleteHintDays: 14 })),
@@ -224,15 +224,15 @@ jest.mock("../../../../src/web/http/apiBody", () => {
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
 const { post, handle } = routerClient(require("../../../../src/web/apiRoutes/discord/channels"));
 const { requireAdmin, requireCsrf } = require("../../../../src/web/http/apiMiddleware");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const dc = require("../../../../src/services/discord/discordChannels");
-const archiveStore = require("../../../../src/stores/channelArchiveStore");
-const { listRaidEvents } = require("../../../../src/stores/raidEventStore");
+const archiveStore = require("../../../../src/stores/discord/channelArchiveStore");
+const { listRaidEvents } = require("../../../../src/stores/events/raidEventStore");
 const { loadEventGroups, eventLookbackSince } = require("../../../../src/services/events/raidEventGroups");
 const routes = require("../../../../src/web/apiRoutes/discord/channels");
 const realMiddleware = jest.requireActual("../../../../src/web/http/apiMiddleware");
@@ -648,7 +648,7 @@ describe("web/apiRoutes/channels", () => {
             });
 
             describe("gleich Event anlegen", () => {
-                const { getConfig } = require("../../../../src/stores/settingsStore");
+                const { getConfig } = require("../../../../src/stores/settings/settingsStore");
                 const eventCreate = require("../../../../src/services/events/eventCreate");
                 const input = { categoryId: "cat1", schema: "{tag}-{dd}-{mm}-{raid}", raid: "kara", from: "2026-09-23", count: 3, interval: "weekly", withEvent: true, time: "1930", saveSchema: true };
 
@@ -793,7 +793,7 @@ describe("web/apiRoutes/channels", () => {
                     });
 
                     it("refuses a default template of another version than the category plays before the first channel", async () => {
-                        const settingsStore = require("../../../../src/stores/settingsStore");
+                        const settingsStore = require("../../../../src/stores/settings/settingsStore");
                         settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er", versionId: "forever" } : null));
                         try {
                             for (const who of [ADMIN, MANAGER]) {

@@ -1,6 +1,6 @@
 // Which Loot-Council profile applies (#676, docs/loot-council.md "Profile je
 // Roster"): the council's weighting and view come from a profile
-// (stores/councilProfilesStore.js), picked per roster:
+// (stores/loot/councilProfilesStore.js), picked per roster:
 //
 //   1. the roster's own (`roster.lootProfileId`, set in the roster settings),
 //   2. else the profile its category keeps (a category without roster, or one
@@ -12,8 +12,8 @@
 // else the category itself) or nothing ("Alle Raid-Kategorien" = the default).
 // Every reader goes through here - the page, the drop check, the addon's sync
 // (web/loot/councilView.js) - so they can never disagree.
-const profilesStore = require("../../stores/councilProfilesStore");
-const rosterStore = require("../../stores/rosterStore");
+const profilesStore = require("../../stores/loot/councilProfilesStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const { rosterLootSystem } = require("./lootSystem");
 const { rosterOfCategory } = require("../roster/categoryRoster");
 const { mainVersionFor, knownVersion } = require("../versions/mainVersion");

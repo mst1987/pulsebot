@@ -5,7 +5,7 @@ const png = require("../../../scripts/lib/png");
 const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
 const { MOB_NPCS } = require("../../../scripts/data/raidplanMobNpcs");
 const generated = require("../../../src/config/generated/mobIcons.json");
-const catalog = require("../../../src/stores/raidplanCatalogStore");
+const catalog = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const board = require("../../../src/services/raidplan/raidplanBoard");
 const { icon } = require("../../factories/raidplan");
 

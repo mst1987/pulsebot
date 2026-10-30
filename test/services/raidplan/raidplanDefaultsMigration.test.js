@@ -4,7 +4,7 @@
 // same before and after.
 const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const plans = require("../../../src/stores/raidplanStore");
+const plans = require("../../../src/stores/raidplan/raidplanStore");
 const inherit = require("../../../src/services/raidplan/raidplanInherit");
 const board = require("../../../src/services/raidplan/raidplanBoard");
 const { migratePlan, signature } = require("../../../src/services/raidplan/raidplanDefaultsMigration");

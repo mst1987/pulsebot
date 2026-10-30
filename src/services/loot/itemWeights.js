@@ -5,7 +5,7 @@
 // time less than one that drops once a lockout. Every award therefore counts
 // with a weight instead of 1 — in the loot share and in the drought alike
 // (web/loot/lootCouncil.js). The weight comes from the item's *class*, each with
-// a default the council can change (stores/councilWeightsStore.js), or from a
+// a default the council can change (stores/loot/councilWeightsStore.js), or from a
 // per-item exception.
 //
 // Which class an item is in — the first rule that applies wins:

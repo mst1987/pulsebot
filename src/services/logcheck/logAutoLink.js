@@ -12,7 +12,7 @@
 // still correct a wrong assignment on the event detail page — the automatic pass
 // never touches a log that already carries an `eventId`.
 
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const discord = require("../discord/discord");
 const { autoMatches } = require("./logEventMatch");
 const { loadMatchableEvents, eventLinkFields } = require("./matchableEvents");

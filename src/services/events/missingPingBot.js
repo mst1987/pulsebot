@@ -24,7 +24,7 @@
 // event (`action: "ping"`, also Event verwalten's) in the last two minutes
 // refuses another one. The answers are orga texts and stay German.
 const { ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { card } = require("../../utils/discord/card");
 const { findMissingRaiders, pingMissingRaiders } = require("./missingPing");
 const { MISSING_PREFIX } = require("./eventMessage");

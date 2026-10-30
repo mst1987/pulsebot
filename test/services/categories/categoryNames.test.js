@@ -9,7 +9,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
     listRaidEvents: (...a) => mockListRaidEvents(...a),
 }));
 

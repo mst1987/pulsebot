@@ -28,8 +28,8 @@ const { ROLES } = require("../../config/gameVersions/classes");
 const { tr, serviceText, specLabel: specLabelOf, classLabel: classLabelOf } = require("../i18n/botText");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { answerUpdate } = require("./signupReply");
-const { listSignups, getSignup } = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { listSignups, getSignup } = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
 const {
     roleCounts, signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,

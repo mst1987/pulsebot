@@ -16,7 +16,7 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { runRestoreTest, readRestoreTestStatus } = require("./restoreTest");
 const { backupEnabled, resolveBackupDir, normalizeBackupSettings, RESTORE_TEST_WINDOW_MS } = require("./backupConfig");
-const configStore = require("../../stores/configStore");
+const configStore = require("../../stores/settings/configStore");
 const logger = require("../../logger").child("backup");
 
 /** How often the job asks whether a probe is due. */

@@ -11,7 +11,7 @@ jest.mock("../../../src/services/events/eventServer", () => ({
     allOnServer: jest.fn(() => true), serverOfEntry: jest.fn(() => "g1"), guildOfCategory: jest.fn(() => "g1"), liveGuildOf: jest.fn(() => "g1"),
 }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 123) }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     listNotify: jest.fn(() => [{ id: "n1" }]),
     listRaidsheets: jest.fn(() => [{ id: "sheet-kara", name: "Karazhan", keywords: ["kara"] }]),
@@ -26,42 +26,42 @@ jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => []),
 }));
 jest.mock("../../../src/utils/raidhelper/client", () => ({ createRaidhelperClient: jest.fn(), raidhelperDisabled: jest.fn(() => false) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
 // `isClosed`: the raid plan's step asks the category orga (categoryOrga.canOrgaEvent, #726)
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []), isClosed: jest.fn(() => false) }));
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(() => null), isOwnEventId: jest.fn((id) => String(id).startsWith("eh")) }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), getSignup: jest.fn(() => null) }));
-jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
-jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
-jest.mock("../../../src/stores/raidplanPostStore", () => ({ getRaidplanPost: jest.fn(() => null) }));
-jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../../src/stores/eventLootSystemStore", () => ({ lootSystemOf: jest.fn(() => "softres") }));
-jest.mock("../../../src/stores/lootStore", () => ({ listByEvent: jest.fn(() => []), listAll: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null), listRosters: jest.fn(() => []), isClosed: jest.fn(() => false) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(() => null), isOwnEventId: jest.fn((id) => String(id).startsWith("eh")) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []), getSignup: jest.fn(() => null) }));
+jest.mock("../../../src/stores/raidplan/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
+jest.mock("../../../src/stores/raidplan/raidplanPostStore", () => ({ getRaidplanPost: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/eventLootSystemStore", () => ({ lootSystemOf: jest.fn(() => "softres") }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listByEvent: jest.fn(() => []), listAll: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/logStore", () => ({
-    ...jest.requireActual("../../../src/stores/logStore"),
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ resolveAssignmentProfiles: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({
+    ...jest.requireActual("../../../src/stores/loot/logStore"),
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
 }));
 jest.mock("../../../src/services/logcheck/logChannel", () => ({ backfillLogTitles: jest.fn(async () => {}) }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const settingsStore = require("../../../src/stores/settingsStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../../src/utils/raidhelper/client");
-const { getRaidEvent } = require("../../../src/stores/raidEventStore");
-const { getEvent } = require("../../../src/stores/eventStore");
-const { listSignups } = require("../../../src/stores/signupStore");
-const raidplanStore = require("../../../src/stores/raidplanStore");
-const { getEventSoftres } = require("../../../src/stores/eventSoftresStore");
-const logStore = require("../../../src/stores/logStore");
+const { getRaidEvent } = require("../../../src/stores/events/raidEventStore");
+const { getEvent } = require("../../../src/stores/events/eventStore");
+const { listSignups } = require("../../../src/stores/events/signupStore");
+const raidplanStore = require("../../../src/stores/raidplan/raidplanStore");
+const { getEventSoftres } = require("../../../src/stores/events/eventSoftresStore");
+const logStore = require("../../../src/stores/loot/logStore");
 const { backfillLogTitles } = require("../../../src/services/logcheck/logChannel");
 const { buildRaidDetail, _internal } = require("../../../src/web/events/raidDetailView");
 const { getRaidDetail } = require("../../../src/web/apiRoutes/events/raidDetail");
 const { mockRes, status, json } = require("../../helpers/http");
 const { knownChannels } = require("../../helpers/linkCheck");
-const notes = require("../../../src/stores/userNotesStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
@@ -295,7 +295,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
     });
 
     it("measures the missing list against the roster's core and trial members where the category has a roster (#658)", async () => {
-        const rosterStore = require("../../../src/stores/rosterStore");
+        const rosterStore = require("../../../src/stores/roster/rosterStore");
         rosterStore.rosterForCategory.mockReturnValue({ roleIds: [], members: { u1: { status: "core" }, u5: { status: "trial" }, u6: { status: "bench" } } });
         discord.listHumanMembers.mockResolvedValueOnce({ members: [{ id: "u1", displayName: "Tanki" }, { id: "u5", displayName: "Neu" }, { id: "u6", displayName: "Bank" }], error: null });
         try {
@@ -415,8 +415,8 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         mockUser = ADMIN;
         return sent(r);
     };
-    const rosterStore = require("../../../src/stores/rosterStore");
-    const signupStore = require("../../../src/stores/signupStore");
+    const rosterStore = require("../../../src/stores/roster/rosterStore");
+    const signupStore = require("../../../src/stores/events/signupStore");
     const signups = [
         { userId: "u7", character: "Rai", spec: "Warrior-Arms", status: "signed", canAlso: ["tank"], comment: "mine", at: 1 },
         { userId: "u8", character: "Other", spec: "Mage-Fire", status: "absence", canAlso: ["healer"], comment: "secret", at: 2 },
@@ -504,8 +504,8 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
 // #729: the orga of a category (a manager of its current roster, no orga rank, no raider role of the category)
 describe("the orga of the raid's category", () => {
     const MANAGER = { id: "m1", name: "Mgr", isAdmin: false, access: { raids: { read: true, write: false } } };
-    const rosterStore = require("../../../src/stores/rosterStore");
-    const signupStore = require("../../../src/stores/signupStore");
+    const rosterStore = require("../../../src/stores/roster/rosterStore");
+    const signupStore = require("../../../src/stores/events/signupStore");
     const ROSTER = { id: "r-cat1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["m1"], roleIds: [] }, members: {}, roleIds: ["r1"] };
     const read = async (user, eventId) => {
         mockUser = user;

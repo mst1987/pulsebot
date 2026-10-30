@@ -39,7 +39,7 @@ jest.mock("../../../../src/services/vermerke/vermerkePeople", () => ({
 }));
 
 const categoryOrga = require("../../../../src/services/roster/categoryOrga");
-const notes = require("../../../../src/stores/userNotesStore");
+const notes = require("../../../../src/stores/roster/userNotesStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../../src/config/permissions");
 const route = require("../../../../src/web/apiRoutes/roster/vermerke");
 const client = routerClient(route);

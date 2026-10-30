@@ -32,8 +32,8 @@ jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
     ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map(),
 }));
-jest.mock("../../../../src/stores/eventSeriesStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventSeriesStore"),
+jest.mock("../../../../src/stores/events/eventSeriesStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventSeriesStore"),
     getSeries: jest.fn(() => null),
 }));
 // own events: one on each server
@@ -41,17 +41,17 @@ const mockEvents = {
     "eh-a": { id: "eh-a", guildId: "A", categoryId: "catA", channelId: "chA" },
     "eh-b": { id: "eh-b", guildId: "B", categoryId: "catB", channelId: "chB", voiceChannelId: "voiceB" },
 };
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: (id) => mockEvents[id] || null,
 }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/raidEventStore"),
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/raidEventStore"),
     getRaidEvent: jest.fn(() => null),
 }));
-jest.mock("../../../../src/stores/raidhelperEventsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/raidhelperEventsStore"),
+jest.mock("../../../../src/stores/events/raidhelperEventsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/raidhelperEventsStore"),
     snapshotGuilds: jest.fn(() => []),
     readSnapshot: jest.fn(() => ({ events: [] })),
 }));

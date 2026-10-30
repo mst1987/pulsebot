@@ -1,7 +1,7 @@
 // Die Discord-Bausteine der Ab-/Anwesenheiten (src/utils/signup/availabilityDialog.js):
 // customIds, Panel, Modal, Auswahl, Liste, Sitzungen.
-const profiles = require("../../../src/stores/raiderProfileStore");
-const sessionStore = require("../../../src/stores/availabilitySessionStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const sessionStore = require("../../../src/stores/events/availabilitySessionStore");
 const dialog = require("../../../src/utils/signup/availabilityDialog");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -45,7 +45,7 @@ describe("customIds", () => {
         dialog.saveSession(token, session);
         // a fresh copy of the module (the bot after a deploy) finds it again
         jest.isolateModules(() => {
-            require("../../../src/stores/availabilitySessionStore").useFile(SESSIONS_FILE);
+            require("../../../src/stores/events/availabilitySessionStore").useFile(SESSIONS_FILE);
             const fresh = require("../../../src/utils/signup/availabilityDialog");
             expect(fresh.getSession(token, ANNA)).toMatchObject({ kind: "absence", from: "2026-10-24", selected: ["eh-1"] });
         });

@@ -9,22 +9,22 @@ jest.mock("../../../src/services/discord/discord", () => ({
     // what the real pingDelivery calls (the fallback test below, #894)
     getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), postMissingPing: jest.fn(), sendDirectMessage: jest.fn(),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn() }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
 jest.mock("../../../src/services/setup/setupInput", () => ({ proposeSetup: jest.fn() }));
 
 const discord = require("../../../src/services/discord/discord");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { proposeSetup } = require("../../../src/services/setup/setupInput");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { deliverUserPing } = require("../../../src/services/discord/pingDelivery");
-const reminderStore = require("../../../src/stores/reminderStore");
+const reminderStore = require("../../../src/stores/events/reminderStore");
 const reminders = require("../../../src/web/events/reminders");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { shadowbannedAmong } = require("../../../src/services/vermerke/vermerkeShort");
 
 const HOUR = 60 * 60 * 1000;

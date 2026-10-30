@@ -15,18 +15,18 @@
 const { ok, error } = require("../../http/apiResponse");
 const { readJsonBody } = require("../../http/apiBody");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
-const { addImport: addLootImport, eventsWithLoot } = require("../../../stores/lootStore");
+const { addImport: addLootImport, eventsWithLoot } = require("../../../stores/loot/lootStore");
 const { rememberFromLoot } = require("../../../services/characters/characterInfo");
 const { parseEventHelperSessions, LootParseError } = require("../../../utils/loot/lootImport");
 const { linkItemsForImport, enrichForImport } = require("../../../services/loot/lootVersion");
 const { bestDayMatch } = require("../../loot/lootEventMatch");
-const { verifyToken, touchToken, bearerFrom } = require("../../../stores/ingestTokenStore");
-const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../../stores/lootInboxStore");
+const { verifyToken, touchToken, bearerFrom } = require("../../../stores/loot/ingestTokenStore");
+const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../../stores/loot/lootInboxStore");
 const { councilRoster } = require("../../loot/lootCouncil");
 const { councilOptsFromQuery, categoryOptions } = require("../../loot/councilQuery");
 const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4 } = require("../../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../../loot/councilView");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { serverIds, serverLabel } = require("../../../services/discord/roles/guildRoles");
 const { versionOfEvent, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { wclGuildsOf } = require("../../../services/logcheck/wclGuildSettings");
@@ -519,7 +519,7 @@ async function councilServers(guildIds = null) {
  * POST /api/ingest/guildbank — a guild bank scan from the sync tool
  * (`eventhelper-guildbank` v1, utils/guildbank/guildBankScan.js), same
  * bearer-token auth as the loot upload. The scan replaces the bank's stock;
- * what the orga decided per item stays (stores/guildBankStockStore.js). Item
+ * what the orga decided per item stays (stores/loot/guildBankStockStore.js). Item
  * names are looked up on Wowhead only after the answer went out.
  */
 async function ingestGuildBank(req, res) {

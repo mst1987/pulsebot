@@ -1,12 +1,12 @@
 // "Fehlende pingen" under the signup message: the preview (who is missing, how
 // many, the buttons), nobody missing, many names, the confirm that pings once
 // and the guards against a second ping.
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(), appendEventLog: jest.fn() }));
 jest.mock("../../../src/services/events/missingPing", () => ({ findMissingRaiders: jest.fn(), pingMissingRaiders: jest.fn() }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ MISSING_PREFIX: "event-missing" }));
 
 const { ButtonStyle, ComponentType, MessageFlags } = require("discord.js");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { findMissingRaiders, pingMissingRaiders } = require("../../../src/services/events/missingPing");
 const { KIND_COLORS } = require("../../../src/utils/discord/card");
 const bot = require("../../../src/services/events/missingPingBot");

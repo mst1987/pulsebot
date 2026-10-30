@@ -3,7 +3,7 @@
 // only an approval makes the setup visible — and a change after the approval
 // is a draft again while raiders keep seeing the approved lineup.
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [...mockEvents.values()],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -20,9 +20,9 @@ jest.mock("../../../src/stores/eventStore", () => ({
     },
 }));
 let mockSignups = [];
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 // The event message links the setup only on a real PUBLIC_BASE_URL (#537).
 jest.mock("../../../src/utils/publicUrl", () => ({ publicBaseUrl: () => "https://eh.example" }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));

@@ -1,13 +1,13 @@
 // /recruitment: posts a recruitment template from the admin menu into a channel
 // and remembers the post so the menu can edit it later.
-jest.mock("../../../src/stores/recruitmentStore", () => ({
+jest.mock("../../../src/stores/roster/recruitmentStore", () => ({
     listRecruitment: jest.fn(() => []),
     saveRecruitmentPost: jest.fn(),
 }));
 
 const { MessageFlags } = require("discord.js");
 const { cardText, cardControls } = require("../../helpers/cardText");
-const { listRecruitment, saveRecruitmentPost } = require("../../../src/stores/recruitmentStore");
+const { listRecruitment, saveRecruitmentPost } = require("../../../src/stores/roster/recruitmentStore");
 const { embedAccentColor } = require("../../../src/config/variables");
 const recruitment = require("../../../src/commands/apply/recruitment");
 const { mockInteraction } = require("../../helpers/mockInteraction");

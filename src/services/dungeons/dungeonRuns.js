@@ -16,7 +16,7 @@
 // apart does not change the stored time. Members are joined, the earliest
 // start stays. Everything is per game version (#741): a run of another
 // version never merges.
-const store = require("../../stores/dungeonRunStore");
+const store = require("../../stores/roster/dungeonRunStore");
 const { newId } = require("../../utils/ids");
 const { parseLevelHelperUpload, memberKey, MAX_MEMBERS } = require("../../utils/dungeons/levelHelperUpload");
 

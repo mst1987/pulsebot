@@ -4,7 +4,7 @@
 // version (#741). Without this door a server whose only Forever data is the
 // planner could never switch to Forever and so lost its Kader. Only version
 // ids leave through here - no Kader, no player, nothing logged.
-const kaderStore = require("../../stores/kaderStore");
+const kaderStore = require("../../stores/roster/kaderStore");
 const { kaderVersion } = require("./kaderModel");
 
 /** The version ids of every Kader of every server, once each. */

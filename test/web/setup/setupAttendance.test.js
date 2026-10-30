@@ -2,14 +2,14 @@
 // its attendance — manual links (assignment, own profile) vs. the signup's own
 // characters (auto). The counting itself is tested in rosterAttendance.test.js.
 const mockSignups = {};
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
 let mockProfiles = [];
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
-jest.mock("../../../src/stores/characterStore", () => ({
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({
     getCharacter: (name) => ({ Zibbo: { className: "Priest" } }[name] || null),
 }));
 let mockAssignments = {};
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: () => mockAssignments }));
 const mockCounted = jest.fn();
 const mockBuild = jest.fn(() => ({}));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({
@@ -18,7 +18,7 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
 }));
 
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 let mockHistory = [];
 jest.mock("../../../src/services/setup/setupInput", () => ({ benchHistory: () => ({ source: "setups", history: mockHistory }) }));

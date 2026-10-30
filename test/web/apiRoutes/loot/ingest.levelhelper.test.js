@@ -9,10 +9,10 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../../src/stores/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../../src/stores/loot/ingestTokenStore").bearerFrom,
 }));
 jest.mock("../../../../src/services/dungeons/dungeonRecords", () => ({ postNewRecords: jest.fn(async () => 0) }));
 
@@ -22,9 +22,9 @@ jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 
-const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
+const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestTokenStore");
 const { postNewRecords } = require("../../../../src/services/dungeons/dungeonRecords");
-const store = require("../../../../src/stores/dungeonRunStore");
+const store = require("../../../../src/stores/roster/dungeonRunStore");
 const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { tempStoreFile } = require("../../../helpers/tempStore");

@@ -2,7 +2,7 @@
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const board = require("../../../src/services/raidplan/raidplanBoard");
 const raidplan = require("../../../src/web/raidplan/raidplan");
-const catalogStore = require("../../../src/stores/raidplanCatalogStore");
+const catalogStore = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { person: basePerson } = require("../../factories/raidplan");
 

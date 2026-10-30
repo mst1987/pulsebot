@@ -21,9 +21,9 @@ const { isCategoryActive } = require("../../services/categories/categoryLifecycl
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const discord = require("../../services/discord/discord");
 const { listKnownCategories } = require("../../services/categories/categoryNames");
-const { getConfig } = require("../../stores/configStore");
-const profiles = require("../../stores/raiderProfileStore");
-const raiderCharacters = require("../../stores/raiderCharactersStore");
+const { getConfig } = require("../../stores/settings/configStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const raiderCharacters = require("../../stores/roster/raiderCharactersStore");
 const { logIndex } = require("../characters/profileLogs");
 const { serverDateTime } = require("../../utils/time");
 

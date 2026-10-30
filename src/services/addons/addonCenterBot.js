@@ -26,8 +26,8 @@ const {
 } = require("discord.js");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
-const { getConfig } = require("../../stores/configStore");
-const store = require("../../stores/addonCenterStore");
+const { getConfig } = require("../../stores/settings/configStore");
+const store = require("../../stores/settings/addonCenterStore");
 const { resolveAccess } = require("../discord/members/userAccess");
 const { interactionGuildId } = require("../discord/servers/serverAccess");
 const { langOfInteraction } = require("../discord/botLanguage");

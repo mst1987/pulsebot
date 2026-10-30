@@ -9,27 +9,27 @@ const mockEvents = [];
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
     guildRole: (gid) => (gid === "900000000000000001" ? "event" : gid === "900000000000000002" ? "talk" : ""),
 }));
-jest.mock("../../../../src/stores/rosterStore", () => ({
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({
     listRosters: () => mockRosters,
     isClosed: (r) => !!r.closedAt,
 }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({
     hasProfile: (uid) => !!mockProfiles[uid],
     getProfile: (uid) => mockProfiles[uid],
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     charactersForUser: (uid) => mockAssignments[uid] || [],
 }));
-jest.mock("../../../../src/stores/signupStore", () => ({
+jest.mock("../../../../src/stores/events/signupStore", () => ({
     signupsOfUser: (uid) => mockSignups[uid] || {},
 }));
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     listEvents: (gid) => mockEvents.filter((e) => e.guildId === gid),
 }));
 
 const memberActivity = require("../../../../src/services/discord/members/memberActivity");
-const store = require("../../../../src/stores/memberActivityStore");
-const signals = require("../../../../src/stores/userSignalsStore");
+const store = require("../../../../src/stores/discord/memberActivityStore");
+const signals = require("../../../../src/stores/roster/userSignalsStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const fs = require("fs");
 

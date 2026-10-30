@@ -14,7 +14,7 @@
 const { roleUses } = require("../roles/selfRole");
 const { VERSIONS } = require("../../../config/gameVersions");
 const { CLASSES } = require("../../../config/gameVersions/classes");
-const rosterStore = require("../../../stores/rosterStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

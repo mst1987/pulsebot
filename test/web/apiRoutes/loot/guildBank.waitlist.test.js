@@ -15,15 +15,15 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     postPayload: jest.fn(async () => ({ channelId: "900000", messageId: "m1" })),
     sendDirectMessage: jest.fn(async () => ({ ok: true })),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const stockStore = require("../../../../src/stores/guildBankStockStore");
-const requests = require("../../../../src/stores/guildBankStore");
-const profiles = require("../../../../src/stores/raiderProfileStore");
+const stockStore = require("../../../../src/stores/loot/guildBankStockStore");
+const requests = require("../../../../src/stores/loot/guildBankStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../../src/utils/guildbank/guildBankScan");
 const {
     getGuildBankWaitlist, addGuildBankWaiting, moveGuildBankWaiting, removeGuildBankWaiting, previewGuildBankWaitlist, importGuildBankWaitlist,

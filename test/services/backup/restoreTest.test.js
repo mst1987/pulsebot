@@ -107,7 +107,7 @@ describe("runRestoreTest: passes", () => {
     });
 
     it("leaves every store on its own file and the live data untouched", async () => {
-        const eventStore = require("../../../src/stores/eventStore");
+        const eventStore = require("../../../src/stores/events/eventStore");
         const before = registeredStores().map((s) => s.file);
         put(DATA_DIR, "settings/events.json", events(11));
         const res = await run();

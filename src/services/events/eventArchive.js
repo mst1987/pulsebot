@@ -19,7 +19,7 @@ const { tr } = require("../../utils/i18n/botText");
 function currentConfig(config) {
     if (config && typeof config === "object") return config;
     try {
-        return require("../../stores/settingsStore").getConfig() || {};
+        return require("../../stores/settings/settingsStore").getConfig() || {};
     } catch {
         return {};
     }

@@ -2,18 +2,18 @@
 // Dialog mit der neuen Wahl neu. Dazu: der Zugang aller Dialog-Schritte hängt am
 // „Anmelden“-Button (Router-Guard).
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
 const { answerOf } = require("../../helpers/signupMocks");
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/services/events/eventMessage", () => ({ SIGNUP_BUTTON_PREFIX: "event-signup" }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn() }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const settings = require("../../../src/stores/settingsStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const settings = require("../../../src/stores/settings/settingsStore");
 const { guardInteraction } = require("../../../src/services/discord/botAccess");
 const command = require("../../../src/commands/signup/signupPick");
 const statusCommand = require("../../../src/commands/signup/signupStatus");

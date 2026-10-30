@@ -11,7 +11,7 @@
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { isBackground } = require("../../utils/raidhelper/budget");
 const discord = require("../discord/discord");
-const { saveRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
+const { saveRaidEvents, getRaidEvent } = require("../../stores/events/raidEventStore");
 const { RECENT_WINDOW_DAYS } = require("./overview/recentEvents");
 const { signupStatus } = require("../../utils/attendance");
 const { mainVersionFor } = require("../versions/mainVersion");

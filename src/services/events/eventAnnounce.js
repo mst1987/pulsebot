@@ -17,9 +17,9 @@
 //
 // A series event (#289) is announced like a hand-made one: it goes through
 // eventCreate.createEvent(), so there is one switch and no special path.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const linkCheck = require("../discord/linkCheck");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { deliverAnnouncement } = require("../discord/pingDelivery");
 const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");

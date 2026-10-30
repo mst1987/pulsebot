@@ -5,24 +5,24 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGrou
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => ["r1"]) }));
 jest.mock("../../../src/web/signups/signupView", () => ({ memberEventList: jest.fn(() => ({ rows: [], rolesUnknown: false })) }));
 jest.mock("../../../src/web/availability/raiderAttendance", () => ({ raiderAttendance: jest.fn(() => ({ categories: [] })) }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ getProfile: jest.fn(() => ({ characters: [] })) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ charactersForUser: jest.fn(() => []) }));
-jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../../src/stores/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogsForEvent: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ getReportHints: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ getProfile: jest.fn(() => ({ characters: [] })) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ charactersForUser: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../../src/stores/raidplan/raidplanStore", () => ({ getPlan: jest.fn(() => null) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogsForEvent: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ getReportHints: jest.fn(() => null) }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const discord = require("../../../src/services/discord/discord");
 const { memberEventList } = require("../../../src/web/signups/signupView");
 const memberRoleMemory = require("../../../src/services/discord/roles/memberRoleMemory");
 const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const { charactersForUser } = require("../../../src/stores/raiderCharactersStore");
-const { getEventSoftres } = require("../../../src/stores/eventSoftresStore");
-const { getPlan } = require("../../../src/stores/raidplanStore");
-const { listLogsForEvent } = require("../../../src/stores/logStore");
-const { getReportHints } = require("../../../src/stores/reportStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const { charactersForUser } = require("../../../src/stores/roster/raiderCharactersStore");
+const { getEventSoftres } = require("../../../src/stores/events/eventSoftresStore");
+const { getPlan } = require("../../../src/stores/raidplan/raidplanStore");
+const { listLogsForEvent } = require("../../../src/stores/loot/logStore");
+const { getReportHints } = require("../../../src/stores/loot/reportStore");
 const { loadPersonal, upcomingRow, reportFor, profileFigures, characterNames } = require("../../../src/web/dashboard/dashboardPersonal");
 
 const user = { id: "u1", name: "Heilbert" };

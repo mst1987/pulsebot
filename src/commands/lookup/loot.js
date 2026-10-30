@@ -3,7 +3,7 @@
 // same functions the web pages use (lootStore, lootStats), never from a second
 // reading of the loot file.
 const { SlashCommandBuilder } = require("discord.js");
-const { listAll, listByCharacter } = require("../../stores/lootStore");
+const { listAll, listByCharacter } = require("../../stores/loot/lootStore");
 const { itemCatalog } = require("../../services/loot/lootStats");
 const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");
 const { annotatedCharacters } = require("../../services/characters/characterInfo");

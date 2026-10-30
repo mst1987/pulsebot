@@ -10,8 +10,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => mockGuild),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => mockConfig),
     saveConfig: jest.fn(),
 }));
@@ -25,8 +25,8 @@ jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
     // The category-name snapshot: cat-b is a category of server B.
     storedCategoryGuilds: () => new Map([["cat-a", "gA"], ["cat-b", "gB"]]),
 }));
-jest.mock("../../../../src/stores/lootStore", () => ({
-    ...jest.requireActual("../../../../src/stores/lootStore"),
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
+    ...jest.requireActual("../../../../src/stores/loot/lootStore"),
     repairItemNames: jest.fn(async () => 0),
 }));
 jest.mock("../../../../src/utils/loot/lootImport", () => ({
@@ -54,8 +54,8 @@ const mockConfig = {
 
 const { json, status, routerClient } = require("../../../helpers/http");
 const { getUser } = require("../../../../src/web/http/auth");
-const lootStore = require("../../../../src/stores/lootStore");
-const eventStore = require("../../../../src/stores/eventStore");
+const lootStore = require("../../../../src/stores/loot/lootStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get, post } = routerClient(require("../../../../src/web/apiRoutes/loot/history"));
 

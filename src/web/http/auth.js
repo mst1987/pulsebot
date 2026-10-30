@@ -7,7 +7,7 @@ const {
     discordClientId, discordClientSecret, publicBaseUrl, logcheckAdminIds,
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../../config/variables");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissions");
 // What an account may do (its roles on the configured servers, the base access) is
 // the bot's question too — the guild bank's orga buttons check the same rights

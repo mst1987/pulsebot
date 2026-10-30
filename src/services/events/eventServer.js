@@ -15,10 +15,10 @@
 // the bot's live channel cache first (a category made a minute ago is not in
 // the stored snapshot yet), then from the series stored for it, then from the
 // snapshot. Whatever stays unknown is foreign: only a full admin reaches it.
-const eventStore = require("../../stores/eventStore");
-const raidEventStore = require("../../stores/raidEventStore");
-const raidhelperEventsStore = require("../../stores/raidhelperEventsStore");
-const eventSeriesStore = require("../../stores/eventSeriesStore");
+const eventStore = require("../../stores/events/eventStore");
+const raidEventStore = require("../../stores/events/raidEventStore");
+const raidhelperEventsStore = require("../../stores/events/raidhelperEventsStore");
+const eventSeriesStore = require("../../stores/events/eventSeriesStore");
 const { storedCategoryGuilds } = require("../discord/servers/serverOf");
 
 const str = (value) => String(value === undefined || value === null ? "" : value).trim();

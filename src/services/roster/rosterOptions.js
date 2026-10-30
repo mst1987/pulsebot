@@ -12,10 +12,10 @@ const { listStoredEvents } = require("../events/eventSources");
 const { isCategoryActive } = require("../categories/categoryLifecycle");
 const { mainVersionFor, visibleVersions } = require("../versions/mainVersion");
 const { publicVersions } = require("../../config/gameVersions");
-const { getRaidTemplate } = require("../../stores/raidTemplateStore");
-const rosterStore = require("../../stores/rosterStore");
+const { getRaidTemplate } = require("../../stores/events/raidTemplateStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const { kaderChoices } = require("./rosterCreate");
-const { listProfiles, defaultProfileId } = require("../../stores/councilProfilesStore");
+const { listProfiles, defaultProfileId } = require("../../stores/loot/councilProfilesStore");
 const { LOOT_SYSTEMS } = require("../loot/lootSystem");
 
 /**

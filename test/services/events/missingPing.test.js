@@ -1,18 +1,18 @@
 // Who is missing (findMissingRaiders): the derivation the raid detail, Event verwalten
 // and the signup message's "Fehlende pingen" share — and the ping on top of it.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryRoles: { cat1: ["500000"] } })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryRoles: { cat1: ["500000"] } })) }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn(), postMissingPing: jest.fn(),
     getGuild: jest.fn(), fetchGuildMembersCached: jest.fn(), sendDirectMessage: jest.fn(),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 jest.mock("../../../src/services/discord/botLanguage", () => ({ serverLang: jest.fn(() => "de"), eventLang: jest.fn(() => "de"), langOf: jest.fn(() => "de") }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const settingsStore = require("../../../src/stores/settingsStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { findMissingRaiders, pingMissingRaiders } = require("../../../src/services/events/missingPing");
 
 const future = Math.floor(Date.now() / 1000) + 3600;

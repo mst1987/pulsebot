@@ -20,16 +20,16 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "Fallback Name") }));
 jest.mock("../../../../src/services/talk/talkOverview", () => ({ attendingCount: (e) => (e.signUps || []).length }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }], links: [] }, categoryLanguage: { cat1: "en" }, categoryServerOverview: mockServerOverview, discordVisuals: mockVisuals }),
 }));
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     onEventsChanged: (fn) => {
         mockEventListeners.add(fn);
         return () => mockEventListeners.delete(fn);
     },
 }));
-jest.mock("../../../../src/stores/signupStore", () => ({
+jest.mock("../../../../src/stores/events/signupStore", () => ({
     onSignupsChanged: (fn) => {
         mockSignupListeners.add(fn);
         return () => mockSignupListeners.delete(fn);
@@ -58,7 +58,7 @@ const { DateTime } = require("luxon");
 const discord = require("../../../../src/services/discord/discord");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
 const logger = require("../../../../src/logger").child();
-const store = require("../../../../src/stores/raidOverviewStore");
+const store = require("../../../../src/stores/events/raidOverviewStore");
 const overview = require("../../../../src/services/events/overview/raidOverview");
 const { cardText } = require("../../../helpers/cardText");
 const { tempStoreFile } = require("../../../helpers/tempStore");

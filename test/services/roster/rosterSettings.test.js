@@ -3,8 +3,8 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
-const configStore = require("../../../src/stores/configStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const { cleanSettings, adminOnlyChanges, updateRosterSettings, MANAGER_FIELDS } = require("../../../src/services/roster/rosterSettings");
 
 const R1 = "900000000000000001";
@@ -198,7 +198,7 @@ describe("services/roster/rosterSettings PuG onboarding roles (#930)", () => {
 });
 
 describe("services/roster/rosterSettings loot system and Loot-Council profile (#676)", () => {
-    const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+    const councilProfilesStore = require("../../../src/stores/loot/councilProfilesStore");
     const { rosterLootSystem } = require("../../../src/services/loot/lootSystem");
     const CAT = "700000000000000001";
 

@@ -5,18 +5,18 @@ jest.mock("../../../src/utils/loot/softres", () => {
     const actual = jest.requireActual("../../../src/utils/loot/softres");
     return { normalizeTitle: actual.normalizeTitle, nameOf: actual.nameOf, fetchRaid: jest.fn() };
 });
-jest.mock("../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     listEventSoftres: jest.fn(() => []),
     markEventSoftresPosted: jest.fn(),
     setEventSoftresStatus: jest.fn(),
 }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
     getEvent: jest.fn(() => null),
 }));
-jest.mock("../../../src/stores/raidhelperEventsStore", () => ({ readSnapshot: jest.fn(() => ({ events: [] })) }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../src/stores/events/raidhelperEventsStore", () => ({ readSnapshot: jest.fn(() => ({ events: [] })) }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: jest.fn(() => null),
     charactersOfVersion: jest.fn((profile, versionId) => ((profile && profile.characters) || []).filter((c) => !versionId || c.versionId === versionId)),
 }));
@@ -33,10 +33,10 @@ jest.mock("../../../src/services/discord/discord", () => ({
 jest.mock("../../../src/services/discord/botLanguage", () => ({ eventLang: jest.fn(() => "de") }));
 
 const softres = require("../../../src/utils/loot/softres");
-const store = require("../../../src/stores/eventSoftresStore");
-const eventStore = require("../../../src/stores/eventStore");
-const { readSnapshot } = require("../../../src/stores/raidhelperEventsStore");
-const { getProfile } = require("../../../src/stores/raiderProfileStore");
+const store = require("../../../src/stores/events/eventSoftresStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { readSnapshot } = require("../../../src/stores/events/raidhelperEventsStore");
+const { getProfile } = require("../../../src/stores/roster/raiderProfileStore");
 const { getStoredEvent } = require("../../../src/services/events/eventSources");
 const { eventLang } = require("../../../src/services/discord/botLanguage");
 const discord = require("../../../src/services/discord/discord");

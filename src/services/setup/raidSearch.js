@@ -14,7 +14,7 @@
 // (services/discord/botLanguage.js `serverLang`, German by default) with the
 // class and spec names of that language; it ends with the link to the signup
 // message. The orga edits it before it goes out.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { emojiFor, specEmojiName, classEmojiName, roleUiEmojiName } = require("../discord/appEmojis");

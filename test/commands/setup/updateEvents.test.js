@@ -2,10 +2,10 @@ const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { cardText } = require("../../helpers/cardText.js");
 
 jest.mock("../../../src/services/events/overview/raidOverview.js");
-jest.mock("../../../src/stores/raidOverviewStore.js");
+jest.mock("../../../src/stores/events/raidOverviewStore.js");
 
 const raidOverview = require("../../../src/services/events/overview/raidOverview.js");
-const store = require("../../../src/stores/raidOverviewStore.js");
+const store = require("../../../src/stores/events/raidOverviewStore.js");
 const updateEvents = require("../../../src/commands/setup/updateEvents.js");
 
 describe("commands/setup/updateEvents", () => {

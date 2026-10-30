@@ -69,8 +69,8 @@ const linkCheck = require("../discord/linkCheck");
 // Colour and picture of the embed (#307): the event's own, else the rule set of
 // its instances, else the accent — and never a picture Discord cannot load.
 const { embedColor, embedImageFields, messageLookOf } = require("./embedLook");
-const { getEvent, setEventMessage, listEvents } = require("../../stores/eventStore");
-const { listSignups, onSignupsChanged } = require("../../stores/signupStore");
+const { getEvent, setEventMessage, listEvents } = require("../../stores/events/eventStore");
+const { listSignups, onSignupsChanged } = require("../../stores/events/signupStore");
 const discord = require("../discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("../signups/signupService");
@@ -85,9 +85,9 @@ const { migrateSignup, maxCharactersFor } = require("../signups/signupCharacters
 // public, like the report pages.
 const { icsUrlFor } = require("./icsFeed");
 const { clip } = require("../../utils/text");
-const { getConfig, resolveEventSheetLink } = require("../../stores/configStore");
-const { getEventSheet } = require("../../stores/eventSheetStore");
-const { getEventSoftres } = require("../../stores/eventSoftresStore");
+const { getConfig, resolveEventSheetLink } = require("../../stores/settings/configStore");
+const { getEventSheet } = require("../../stores/events/eventSheetStore");
+const { getEventSoftres } = require("../../stores/events/eventSoftresStore");
 const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");

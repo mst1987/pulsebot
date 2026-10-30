@@ -13,8 +13,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "TBC Montag") }));
 jest.mock("../../../src/services/discord/appEmojis", () => ({ ...jest.requireActual("../../../src/services/discord/appEmojis"), appEmojiMap: () => ({}) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn((guildId, { sinceSeconds, untilSeconds }) => mockEvents
         .filter((e) => e.startTime >= sinceSeconds && e.startTime <= untilSeconds)
         .sort((a, b) => b.startTime - a.startTime)),
@@ -23,7 +23,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
         return () => mockEventListeners.delete(fn);
     },
 }));
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     listSignups: (id) => mockSignups[id] || [],
     onSignupsChanged: (fn) => {
         mockSignupListeners.add(fn);
@@ -39,7 +39,7 @@ jest.mock("../../../src/logger", () => ({ warn: jest.fn(), debug: jest.fn(), inf
 
 const discord = require("../../../src/services/discord/discord");
 const logger = require("../../../src/logger");
-const store = require("../../../src/stores/orgaHubStore");
+const store = require("../../../src/stores/discord/orgaHubStore");
 const hub = require("../../../src/services/orgaHub/orgaHub");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

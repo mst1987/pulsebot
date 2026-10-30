@@ -14,7 +14,7 @@ const { fail } = require("../http/apiResult");
 const { loadEventGroups, eventLookbackSince } = require("../../services/events/raidEventGroups");
 const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
-} = require("../../stores/settingsStore");
+} = require("../../stores/settings/settingsStore");
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { archiveOf } = require("../../services/events/eventArchive");
@@ -24,28 +24,28 @@ const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
     hasStarted, isRosterKnown,
 } = require("../../utils/attendance");
-const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
-const { getEventSheet } = require("../../stores/eventSheetStore");
-const { getRaidEvent } = require("../../stores/raidEventStore");
+const { resolveAssignmentProfiles } = require("../../stores/roster/raiderCharactersStore");
+const { getEventSheet } = require("../../stores/events/eventSheetStore");
+const { getRaidEvent } = require("../../stores/events/raidEventStore");
 const { listStoredEvents } = require("../../services/events/eventSources");
-const { getEventSoftres } = require("../../stores/eventSoftresStore");
+const { getEventSoftres } = require("../../stores/events/eventSoftresStore");
 const softres = require("../../utils/loot/softres");
-const { lootSystemOf } = require("../../stores/eventLootSystemStore");
-const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../../stores/lootStore");
+const { lootSystemOf } = require("../../stores/events/eventLootSystemStore");
+const { listByEvent: listLootByEvent, listAll: listAllLoot } = require("../../stores/loot/lootStore");
 const { lootOfGuild } = require("../../services/loot/lootServer");
 const { raidSteps, eventSteps } = require("./raidDetailSteps");
 const { summarizePlayers } = require("./raidPlayerSummary");
 const { withClassLook: withLootClassLook } = require("../loot/lootClassLook");
-const { listLogs, listLogsForEvent, evaluatedSections } = require("../../stores/logStore");
+const { listLogs, listLogsForEvent, evaluatedSections } = require("../../stores/loot/logStore");
 const { backfillLogTitles } = require("../../services/logcheck/logChannel");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
 const discord = require("../../services/discord/discord");
-const { listSignups } = require("../../stores/signupStore");
+const { listSignups } = require("../../stores/events/signupStore");
 const { eventSignupList } = require("../signups/signupView");
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const { groupSummary } = require("../../services/events/raidGroup");
-const raidplanStore = require("../../stores/raidplanStore");
+const raidplanStore = require("../../stores/raidplan/raidplanStore");
 const { raidplanPostState } = require("../../services/raidplan/raidplanPost");
 const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");

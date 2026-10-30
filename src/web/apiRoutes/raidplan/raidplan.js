@@ -44,13 +44,13 @@ const { readRawBody } = require("../../http/apiBody");
 const { sendFailure } = require("../../http/apiResult");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const auth = require("../../http/auth");
-const { getEvent, isOwnEventId } = require("../../../stores/eventStore");
-const store = require("../../../stores/raidplanStore");
-const profileStore = require("../../../stores/raidplanProfileStore");
-const templateStore = require("../../../stores/raidplanTemplateStore");
+const { getEvent, isOwnEventId } = require("../../../stores/events/eventStore");
+const store = require("../../../stores/raidplan/raidplanStore");
+const profileStore = require("../../../stores/raidplan/raidplanProfileStore");
+const templateStore = require("../../../stores/raidplan/raidplanTemplateStore");
 const raidplan = require("../../raidplan/raidplan");
 const assign = require("../../../services/raidplan/raidplanAssign");
-const catalog = require("../../../stores/raidplanCatalogStore");
+const catalog = require("../../../stores/raidplan/raidplanCatalogStore");
 const rosterSource = require("../../raidplan/raidplanRosterSource");
 const { instancesFromTitle } = require("../../raidplan/raidplanTitle");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -60,7 +60,7 @@ const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersio
 const { raidhelperDisabled } = require("../../../utils/raidhelper/client");
 const { progressFor } = require("../../../services/raidplan/raidplanProgress");
 const { syncRaidplanPost } = require("../../../services/raidplan/raidplanPost");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const { planningRefusal } = require("../../../services/events/planning");
 
 // A write on an event plan: an archived event (a hidden game version, #563) is read only, and the orga of a

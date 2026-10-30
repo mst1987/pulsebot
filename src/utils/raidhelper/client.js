@@ -1,6 +1,6 @@
 const Raidhelper = require("../../classes/raidhelper");
-const { getConfig } = require("../../stores/settingsStore");
-const { readSnapshot } = require("../../stores/raidhelperEventsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const { readSnapshot } = require("../../stores/events/raidhelperEventsStore");
 const budget = require("./budget");
 const { raidhelperOf, activeRaidhelperGuilds } = require("./servers");
 
@@ -63,7 +63,7 @@ function disabledClient() {
 // The event list comes from the sync job, never from a page (#608): Raid-Helper
 // allows 1000 requests a day (budget.js), and pages that asked on every view
 // used them up. Every list read of the default client answers from
-// stores/raidhelperEventsStore.js, which services/events/raidhelperSync.js
+// stores/events/raidhelperEventsStore.js, which services/events/raidhelperSync.js
 // fills every few minutes (and on "Jetzt aktualisieren" in the settings).
 // `{ live: true }` is for that job and for explicit admin actions only.
 const SINGLE_CACHE_MS = 5 * 60 * 1000;

@@ -2,7 +2,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
-const configStore = require("../../../src/stores/configStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const { migrateLogChannels, runLogChannelMigration, lookupWithClient } = require("../../../src/services/logcheck/logChannelMigration");
 
 const FILE = settingsPath("config.json");

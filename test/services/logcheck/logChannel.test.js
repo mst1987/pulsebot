@@ -1,5 +1,5 @@
-jest.mock("../../../src/stores/settingsStore.js");
-jest.mock("../../../src/stores/logStore.js");
+jest.mock("../../../src/stores/settings/settingsStore.js");
+jest.mock("../../../src/stores/loot/logStore.js");
 jest.mock("../../../src/services/discord/discord.js");
 jest.mock("../../../src/utils/logcheck/report.js", () => {
     class ReportError extends Error {}
@@ -10,8 +10,8 @@ jest.mock("../../../src/classes/warcraftlogs.js", () =>
     jest.fn().mockImplementation(() => ({ getFights: mockGetFights })));
 
 const { ChannelType } = require("discord.js");
-const { getConfig } = require("../../../src/stores/settingsStore.js");
-const logStore = require("../../../src/stores/logStore.js");
+const { getConfig } = require("../../../src/stores/settings/settingsStore.js");
+const logStore = require("../../../src/stores/loot/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 require("../../helpers/discordMock").withClientHelpers(discord);
 const { buildReport, ReportError } = require("../../../src/utils/logcheck/report.js");
@@ -242,7 +242,7 @@ describe("services/logcheck/logChannel — evaluateLog", () => {
     });
 
     it("hands the guard the instances the log's own raid planned", async () => {
-        const eventStore = require("../../../src/stores/eventStore.js");
+        const eventStore = require("../../../src/stores/events/eventStore.js");
         const spy = jest.spyOn(eventStore, "getEvent").mockReturnValue({ id: "eh-1", instanceIds: ["hyjal", "bt"] });
         logStore.getLog.mockReturnValue({ id: "l1", status: "open", link: "x", eventId: "eh-1" });
         buildReport.mockRejectedValue(new ReportError("egal"));

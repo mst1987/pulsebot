@@ -1,7 +1,7 @@
 // The per-server values of #924: one server's channel/role or nothing - never another server's.
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const defaults = require("../../../../src/services/discord/servers/serverDefaults");
 
 const MAIN = "1700000000000000001";

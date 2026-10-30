@@ -115,7 +115,7 @@ function defaultDeps() {
     const { versionInfo } = require("../../src/web/http/version");
     const retention = () => {
         try {
-            return normalizeBackupSettings(require("../../src/stores/configStore").getConfig().backup).retention;
+            return normalizeBackupSettings(require("../../src/stores/settings/configStore").getConfig().backup).retention;
         } catch {
             return normalizeBackupSettings(null).retention;
         }

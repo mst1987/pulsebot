@@ -22,7 +22,7 @@
 const { adminRoleIds: envAdminRoleIds } = require("../../../config/variables");
 const { normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess, mergeAccess } = require("../../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../../config/botCommands");
-const { serverSettingGuildIds } = require("../../../stores/configSchema");
+const { serverSettingGuildIds } = require("../../../stores/settings/configSchema");
 const { serverSetting } = require("./serverSettings");
 
 /** The settings keys that are kept per server (#925). */
@@ -33,7 +33,7 @@ function normalizeRoleIdList(raw) {
     return Array.isArray(raw) ? [...new Set(raw.map((id) => String(id).trim()).filter(Boolean))] : [];
 }
 
-const cfgOf = (config) => config || require("../../../stores/settingsStore").getConfig();
+const cfgOf = (config) => config || require("../../../stores/settings/settingsStore").getConfig();
 
 /**
  * The rights settings of one server, normalised. An empty or unknown guild id

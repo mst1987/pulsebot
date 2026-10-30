@@ -3,7 +3,7 @@
 // fehlendes Recht — und dass nichts davon je wirft.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventDiscordEvent: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -13,12 +13,12 @@ jest.mock("../../../src/stores/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), botCanManageEvents: jest.fn(() => true) }));
 
 const { ChannelType, GuildScheduledEventEntityType, GuildScheduledEventStatus } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const deRaw = require("../../../src/services/discord/discordEvent");
 // The builders in English unless a test passes another language (German is their default).
 const de = { ...deRaw, buildScheduledEvent: (e, o = {}) => deRaw.buildScheduledEvent(e, { lang: "en", ...o }) };

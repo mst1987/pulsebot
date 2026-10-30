@@ -4,22 +4,22 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { mayUseServer } = require("../../http/serverQuery");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../../dashboard/dashboardData");
-const { getConfig, saveConfig } = require("../../../stores/settingsStore");
-const { listLogs } = require("../../../stores/logStore");
+const { getConfig, saveConfig } = require("../../../stores/settings/settingsStore");
+const { listLogs } = require("../../../stores/loot/logStore");
 const { deleteLogKeepingReportGuild } = require("../../../services/logcheck/reportGuild");
 const { logPostedAt } = require("../../../services/logcheck/reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
     decorate: decorateLootItem, listAll: listAllLoot,
-} = require("../../../stores/lootStore");
+} = require("../../../stores/loot/lootStore");
 const { lootStats } = require("../../../services/loot/lootStats");
 const { listAwards } = require("../../loot/lootAwards");
 const { withClassLook: withLootClassLook } = require("../../loot/lootClassLook");
 const { lootCatalog, suggestedContents } = require("../../loot/lootCatalog");
 const { reasonCatalog } = require("../../../utils/loot/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../../../services/characters/characterInfo");
-const { getCharacter } = require("../../../stores/characterStore");
+const { getCharacter } = require("../../../stores/roster/characterStore");
 const { loadCharGear } = require("../../../services/characters/charGear");
 const { issuesForCharacter } = require("../../characters/charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, nameKeyOf, LootParseError } = require("../../../utils/loot/lootImport");
@@ -27,7 +27,7 @@ const { bestDayMatch, formatDayDisplay, dayKey } = require("../../loot/lootEvent
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
-} = require("../../../stores/lootInboxStore");
+} = require("../../../stores/loot/lootInboxStore");
 const { sessionContentLabel } = require("../../loot/lootSessionContent");
 const { previewImport } = require("../../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../../utils/setup/setupView");

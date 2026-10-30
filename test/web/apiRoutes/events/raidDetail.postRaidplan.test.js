@@ -69,7 +69,7 @@ describe("POST /api/raids/post-raidplan", () => {
     });
 
     it("refuses with 409 when the event's category plans with a sheet", async () => {
-        const { saveConfig } = require("../../../../src/stores/configStore");
+        const { saveConfig } = require("../../../../src/stores/settings/configStore");
         saveConfig({ categoryPlanning: { cat1: "sheet" } });
         readJsonBody.mockResolvedValue({ event: "eh-1" });
         const r = mockRes();

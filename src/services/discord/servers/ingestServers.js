@@ -12,7 +12,7 @@
 //
 // It lives in services/ and not in web/ so the guild bank (services/guildbank)
 // can ask it as well (test/docs/layering.test.js).
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { eventGuildIds, serverLabel } = require("../roles/guildRoles");
 const { resolveGuildAccess, accessForGuild } = require("../members/userAccess");
 const categoryOrga = require("../../roster/categoryOrga");

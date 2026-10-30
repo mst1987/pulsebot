@@ -4,9 +4,9 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { getConfig } = require("../../../stores/settingsStore");
-const { getCategoryAssignments, setCategoryAssignments } = require("../../../stores/raiderCharactersStore");
-const { listCharacters } = require("../../../stores/characterStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { getCategoryAssignments, setCategoryAssignments } = require("../../../stores/roster/raiderCharactersStore");
+const { listCharacters } = require("../../../stores/roster/characterStore");
 const discord = require("../../../services/discord/discord");
 const { expectedRoleIds } = require("../../../services/roster/categoryRoles");
 const { mainVersionFor } = require("../../../services/versions/mainVersion");

@@ -27,7 +27,7 @@
 // own. Every answer is ephemeral and German (orga text).
 const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const store = require("../../stores/guildBankStore");
+const store = require("../../stores/loot/guildBankStore");
 const guildBank = require("../../services/signups/guildBank");
 const { userMayAny } = require("../../services/discord/members/userAccess");
 const { interactionGuildId } = require("../../services/discord/servers/serverAccess");

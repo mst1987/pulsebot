@@ -1,6 +1,6 @@
 // Wer einen Abend von Hand setzen darf (#677): Admins, raids mit Schreibrecht, Manager des Rosters der Kategorie.
 const mockRosterForCategory = jest.fn(() => null);
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a) }));
 
 const { canEditAttendance, canEditAnyAttendance } = require("../../../src/services/characters/attendanceAccess");
 

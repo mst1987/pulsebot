@@ -3,7 +3,7 @@
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");

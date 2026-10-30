@@ -14,7 +14,7 @@ const { card } = require("../../utils/discord/card");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { CONFIRM_PREFIX } = require("./setupCore");
 const confirm = require("./setupConfirm");
 

@@ -5,7 +5,7 @@ const { mockInteraction } = require("../../helpers/mockInteraction.js");
 jest.mock("../../../src/classes/raidhelper.js");
 jest.mock("../../../src/classes/sheets.js");
 jest.mock("../../../src/utils/discord/reply.js");
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: jest.fn(),
 }));
@@ -14,7 +14,7 @@ jest.mock("../../../src/services/setup/setupEditor", () => ({ raidHelperSlots: j
 jest.mock("../../../src/utils/setup/fillSetup", () => ({ fillSetupSheet: jest.fn().mockResolvedValue({ playerCount: 1, tanks: [0, 0, 0], healers: 0, warlocks: 0, priests: 0, mages: 0, hunters: 0 }) }));
 
 const reply = require("../../../src/utils/discord/reply.js");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { fillSetupSheet } = require("../../../src/utils/setup/fillSetup");
 const fillSetup = require("../../../src/commands/setup/fillSetup.js");
 

@@ -51,7 +51,7 @@ function eventStore() {
 }
 
 function signupStore() {
-    const actual = jest.requireActual("../../src/stores/signupStore");
+    const actual = jest.requireActual("../../src/stores/events/signupStore");
     const list = (eventId) => [...signups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
     // The newest signup with a spec over every event `keep` accepts (updatedAt, else at, decides).
     const lastOwnSignupOf = (userId, keep = null) => {

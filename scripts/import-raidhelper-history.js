@@ -52,7 +52,7 @@ function formatResult(result) {
 async function main(argv, { log = console.log } = {}) {
     const flags = parseArgs(argv);
     require("dotenv").config({ path: flags.dev ? ".env.dev" : ".env", quiet: true });
-    const { getConfig } = require("../src/stores/settingsStore");
+    const { getConfig } = require("../src/stores/settings/settingsStore");
     const { runImport } = require("../src/web/events/raidhelperHistoryImport");
     const guildId = flags.guildId || getConfig().guildId || "";
     const result = await runImport({

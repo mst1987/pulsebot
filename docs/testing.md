@@ -8,7 +8,7 @@ Die Regel (#434), kurz auch in `.claude/rules/tests.md` (lädt, sobald eine Date
 
 | Quelle | Test |
 |---|---|
-| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/stores/`), die Dienste (`src/services/<bereich>/`) und die Module unter `src/web/<bereich>/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/stores/eventStore.js` → `test/stores/eventStore.test.js`, `src/services/events/eventCreate.js` → `test/services/events/eventCreate.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
+| `src/utils/`, `src/classes/`, `src/commands/`, `src/config/`, die Stores (`src/stores/`), die Dienste (`src/services/<bereich>/`) und die Module unter `src/web/<bereich>/` | gespiegelt: `src/utils/time/index.js` → `test/utils/time/index.test.js`, `src/stores/events/eventStore.js` → `test/stores/events/eventStore.test.js`, `src/services/events/eventCreate.js` → `test/services/events/eventCreate.test.js`, `src/web/report/widgets.js` → `test/web/report/widgets.test.js` |
 | ein Route-Modul `src/web/apiRoutes/<name>.js` | `test/web/apiRoutes/<name>.test.js`; ein zweites Thema derselben Route als `<name>.<thema>.test.js` (`raidplan.templates.test.js`) |
 | der Dispatcher `src/web/http/apiRouter.js` | `test/web/http/apiRouter.test.js`: nur Dispatch, 404/405, Fehlerbehandlung (AppError, 500-Umschlag), Area-Gate |
 | eine Suite, die für eine Datei zu groß ist, oder ein Thema quer zu einem Modul | `<modul>.<thema>.test.js` daneben: `test/web/loot/lootCouncil.gear.test.js`; im Client `src/web-client/src/lib/raidplan/__tests__/raidplan.slots.test.ts` |

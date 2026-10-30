@@ -16,12 +16,12 @@
 // category shows up when it has raids of that version or plays it today - a
 // category just switched to Forever shows "noch keine gezählten Raids" there
 // until its first Forever raid, its TBC nights stay under TBC.
-const signupStore = require("../../stores/signupStore");
-const eventStore = require("../../stores/eventStore");
-const profileStore = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
-const { categoryAttendanceFor } = require("../../stores/configSchema");
-const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
+const signupStore = require("../../stores/events/signupStore");
+const eventStore = require("../../stores/events/eventStore");
+const profileStore = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
+const { getCategoryAssignments } = require("../../stores/roster/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts, categoryInfo, neutralNight, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../../services/versions/mainVersion");

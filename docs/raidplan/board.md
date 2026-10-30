@@ -72,7 +72,7 @@ proxy's HTML.
   (boss / trash) "Karte ausblenden / anzeigen" (`SectionStrip` `onMap`; the chips of `BossNav` before Oct 2026). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
 - Tests: `src/web-client/src/lib/raidplan/__tests__/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
-  `test/web/apiRoutes/raidplan/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
+  `test/web/apiRoutes/raidplan/raidplan.test.js` ("a section without its map", order), `test/stores/raidplan/raidplanStore.test.js`,
   `test/services/raidplan/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)

@@ -19,17 +19,17 @@ jest.mock("../../../src/services/discord/linkCheck", () => ({
     messageFound: jest.fn(),
 }));
 jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: () => [{ id: "c1", name: "TBC" }] }));
-jest.mock("../../../src/stores/orgaHubStore", () => ({ listHubs: () => mockData.hubs || [] }));
-jest.mock("../../../src/stores/availabilityStore", () => ({ listPanels: () => mockData.panels || [] }));
-jest.mock("../../../src/stores/raidOverviewStore", () => ({ listOverviews: () => mockData.overviews || [] }));
+jest.mock("../../../src/stores/discord/orgaHubStore", () => ({ listHubs: () => mockData.hubs || [] }));
+jest.mock("../../../src/stores/events/availabilityStore", () => ({ listPanels: () => mockData.panels || [] }));
+jest.mock("../../../src/stores/events/raidOverviewStore", () => ({ listOverviews: () => mockData.overviews || [] }));
 // Keyed per link "from:to" (#892); a pre-#892 record still sits under the source alone (`legacyKey`).
-jest.mock("../../../src/stores/talkOverviewStore", () => ({
-    overviewKeys: jest.requireActual("../../../src/stores/talkOverviewStore").overviewKeys,
+jest.mock("../../../src/stores/discord/talkOverviewStore", () => ({
+    overviewKeys: jest.requireActual("../../../src/stores/discord/talkOverviewStore").overviewKeys,
     getOverviewState: (key, { legacyKey = "" } = {}) => (mockData.talk || {})[key] || (legacyKey && (mockData.talk || {})[legacyKey]) || { channelId: "", messageId: "" },
 }));
-jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => mockData.roleMessages || [] }));
-jest.mock("../../../src/stores/addonCenterStore", () => ({ getCenter: () => mockData.center || null }));
-jest.mock("../../../src/stores/recruitmentStore", () => ({ listRecruitmentPosts: () => mockData.recruitment || [] }));
+jest.mock("../../../src/stores/discord/roleMessageStore", () => ({ listMessages: () => mockData.roleMessages || [] }));
+jest.mock("../../../src/stores/settings/addonCenterStore", () => ({ getCenter: () => mockData.center || null }));
+jest.mock("../../../src/stores/roster/recruitmentStore", () => ({ listRecruitmentPosts: () => mockData.recruitment || [] }));
 
 const linkCheck = require("../../../src/services/discord/linkCheck");
 const { botMessages, collect, clearCache, statusOfError, CACHE_MS } = require("../../../src/services/discord/botMessages");

@@ -10,15 +10,15 @@ jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "cat1", name: "Raid Mo / Do" }, { id: "cat2", name: "PuG Karazhan" }]),
 }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
 const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const rosterStore = require("../../../src/stores/rosterStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const characterStore = require("../../../src/stores/characterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { buildRosterOverview, buildRosterDetail, rosterFigures } = require("../../../src/web/roster/rosterView");
 
@@ -244,8 +244,8 @@ describe("buildRosterDetail", () => {
     });
 
     it("suggests 'left early' to the orga from the log's kills, with the server's number of kills (#990)", async () => {
-        const { listLogs } = require("../../../src/stores/logStore");
-        const reportStore = require("../../../src/stores/reportStore");
+        const { listLogs } = require("../../../src/stores/loot/logStore");
+        const reportStore = require("../../../src/stores/loot/reportStore");
         listLogs.mockReturnValue([{ eventId: "e1", reportRefId: "r-990" }]);
         reportStore.listReports.mockReturnValue([{ id: "r-990", generatedAt: Date.now() + count }]);
         reportStore.getReport.mockReturnValue({

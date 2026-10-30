@@ -25,7 +25,7 @@ const { mainVersionFor, knownVersion } = require("../versions/mainVersion");
 function configOf(config) {
     if (config && typeof config === "object") return config;
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }

@@ -3,20 +3,20 @@
 // gap in tanks and healers, the four figures of the head, the hints and one
 // raider's detail.
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     listEvents: (_guildId, { sinceSeconds = 0 } = {}) => [...mockEvents.values()].filter((e) => e.startTime >= sinceSeconds),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
     listSignups: (eventId) => [...mockSignups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
-const store = require("../../../src/stores/availabilityStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const store = require("../../../src/stores/events/availabilityStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const overview = require("../../../src/services/signups/absenceOverview");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../factories/events");

@@ -1,6 +1,6 @@
 // /addons (#818): an ephemeral card of the guild's addons for the command's
 // game version, with a link to the web page — never to a file.
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: jest.fn() }));
 jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn() }));
 

@@ -30,7 +30,7 @@ jest.mock("../../../src/services/roster/categoryOrga", () => ({
     isAnyCategoryManager: jest.fn(async () => false),
 }));
 
-const notes = require("../../../src/stores/userNotesStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
 const { shortFor } = require("../../../src/services/vermerke/vermerkeShort");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { effectiveUser } = require("../../../src/web/http/viewAs");
@@ -77,7 +77,7 @@ const PERSON_PAGES = [
 // only write events (signalRecorder.js); the orga's hint at signup (#983) only queues there
 // (orgaSignupQueue.js), its read side and post (orgaSignupNotice.js) are the bot's job
 const NOTE_MODULES = [
-    "stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "services/vermerke/vermerkePeople.js",
+    "stores/roster/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "services/vermerke/vermerkePeople.js",
     "web/apiRoutes/roster/vermerke.js", "services/vermerke/orgaSignupNotice.js",
 ];
 

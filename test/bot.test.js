@@ -11,7 +11,7 @@ jest.mock("../src/web/http/jobs", () => ({ startJobs: mockStartJobs }));
 jest.mock("../src/services/logcheck/logChannel", () => ({ handleLogMessage: jest.fn() }));
 // The start-up upgrade of old settings files (#420) must not touch the real data/.
 const mockMigrateSettings = jest.fn(() => ({ changes: [] }));
-jest.mock("../src/stores/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
+jest.mock("../src/stores/settings/settingsMigration", () => ({ migrateSettings: mockMigrateSettings }));
 const mockGuard = jest.fn(async () => true);
 jest.mock("../src/services/discord/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
@@ -319,7 +319,7 @@ describe("bot interaction router", () => {
     });
 
     it("notes the client language of every interaction, best-effort", async () => {
-        const userPrefs = require("../src/stores/userPrefsStore");
+        const userPrefs = require("../src/stores/settings/userPrefsStore");
         const spy = jest.spyOn(userPrefs, "noteClientLang").mockImplementation(() => true);
         bot.client.commands.set("plain", { name: "plain", data: { name: "plain" }, execute: jest.fn() });
         const i = fakeInteraction("isAutocomplete", { commandName: "plain" });

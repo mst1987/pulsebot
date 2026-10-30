@@ -13,12 +13,12 @@
 const { VERSIONS, LEGACY_VERSION } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, versionOfEvent, visibleVersions, hidesOtherVersions, otherVersions } = require("./mainVersion");
 const { versionColor } = require("./versionSettings");
-const eventStore = require("../../stores/eventStore");
-const { listRaidEvents } = require("../../stores/raidEventStore");
-const lootStore = require("../../stores/lootStore");
-const profiles = require("../../stores/raiderProfileStore");
+const eventStore = require("../../stores/events/eventStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
+const lootStore = require("../../stores/loot/lootStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { kaderVersionIds } = require("../kader/kaderVersions");
-const settingsStore = require("../../stores/settingsStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const { buildVersionContext, eventVersion } = require("../characters/characterVersions");
 
 /** `{ id, label, short, icon, color, custom }` of a version for the client: its launcher icon (#951), its colour (#742) and whether the setting changed it. */

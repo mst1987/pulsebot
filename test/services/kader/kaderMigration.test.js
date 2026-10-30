@@ -1,6 +1,6 @@
 // The step from the #566 planner to Kader with states, pure (docs/kaderplaner.md,
 // "Umstellung"). The whole run over a stored file, with the profiles as a second
-// source and its golden master, is test/stores/settingsMigration.kader.test.js.
+// source and its golden master, is test/stores/settings/settingsMigration.kader.test.js.
 const { migrateLegacyPlanner, charOfAssignments, decisionFor, migrationSummary, defaultRoleOf, clearStaleDecisions } = require("../../../src/services/kader/kaderMigration");
 
 const NOW = "2026-10-01T12:00:00.000Z";

@@ -15,8 +15,8 @@ jest.mock("../../../src/services/events/eventSources", () => ({
 }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [], error: null })) }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["g1"]) }));
-jest.mock("../../../src/stores/eventStore", () => ({ appendEventLog: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({ appendEventLog: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["cat1"], categoryRaidTemplate: {} })),
     getRaidTemplate: jest.fn((id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", instanceIds: ["ssc", "tk"], size: 25 } : null)),
 }));
@@ -33,8 +33,8 @@ const discord = require("../../../src/services/discord/discord");
 const { createEvent } = require("../../../src/services/events/eventCreate");
 const { signupSourceFor, ownUpcomingRaw } = require("../../../src/services/events/eventSources");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const eventStore = require("../../../src/stores/eventStore");
-const store = require("../../../src/stores/eventSeriesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const store = require("../../../src/stores/events/eventSeriesStore");
 const series = require("../../../src/web/events/eventSeries");
 const { buildTasks, _internal: { eventSeriesTask } } = require("../../../src/web/dashboard/dashboardOverview");
 const { series: baseSeries } = require("../../factories/events");

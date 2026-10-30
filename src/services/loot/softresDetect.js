@@ -12,10 +12,10 @@
 // events and the synced Raid-Helper list (raidhelperEventsStore); Raid-Helper
 // itself is never asked (1000 requests a day). A record that already has a url
 // is never overwritten, whoever made it: the menu wins.
-const eventStore = require("../../stores/eventStore");
-const { readSnapshot } = require("../../stores/raidhelperEventsStore");
-const { getEventSoftres, setEventSoftresLink } = require("../../stores/eventSoftresStore");
-const { lootSystemOf } = require("../../stores/eventLootSystemStore");
+const eventStore = require("../../stores/events/eventStore");
+const { readSnapshot } = require("../../stores/events/raidhelperEventsStore");
+const { getEventSoftres, setEventSoftresLink } = require("../../stores/events/eventSoftresStore");
+const { lootSystemOf } = require("../../stores/events/eventLootSystemStore");
 const discord = require("../discord/discord");
 const logger = require("../../logger").child("softresDetect");
 

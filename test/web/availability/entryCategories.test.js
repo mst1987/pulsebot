@@ -4,11 +4,11 @@ const NOW = Date.UTC(2030, 2, 21, 12, 0);
 const sec = (iso) => Math.floor(Date.parse(iso) / 1000);
 
 const mockEvents = [];
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (_g, { sinceSeconds = 0 } = {}) => mockEvents.filter((e) => e.startTime >= sinceSeconds),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const rosterAttendance = require("../../../src/services/characters/rosterAttendance");
 const { entryCategories, entryCategoryIds } = require("../../../src/web/availability/entryCategories");

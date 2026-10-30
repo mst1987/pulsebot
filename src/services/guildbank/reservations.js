@@ -1,5 +1,5 @@
 // What is set aside from a guild bank's stock: the amounts of the requests the
-// orga confirmed (stores/guildBankStore.js, status "confirmed") that wait for
+// orga confirmed (stores/loot/guildBankStore.js, status "confirmed") that wait for
 // the hand-out in game. The stock page (#632) shows them as "Vorgemerkt" and
 // takes them off "Verfügbar"; the request form (#633) checks a new request
 // against the same number, the hand-out list (#634) ends the reservation by
@@ -11,7 +11,7 @@
 // A request counts when its `bankKey` is this bank's, its `itemId` is set and
 // its status is "confirmed". Open requests are not reserved yet (the orga has
 // not said yes), handed-out ones are gone from the bank with the next scan.
-const store = require("../../stores/guildBankStore");
+const store = require("../../stores/loot/guildBankStore");
 
 /**
  * The confirmed amounts per item of one bank.

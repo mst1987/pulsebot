@@ -3,13 +3,13 @@
 // every single lookup - quadratic in raids, seconds on a season of data. Now
 // every event's signups are asked of the store once per overview, and the
 // store parses its file once per change (jsonStore cache).
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({ categoryIds: ["mon"] }) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({ categoryIds: ["mon"] }) }));
 
 const fs = require("fs");
-const availability = require("../../../src/stores/availabilityStore");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const availability = require("../../../src/stores/events/availabilityStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const overview = require("../../../src/services/signups/absenceOverview");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

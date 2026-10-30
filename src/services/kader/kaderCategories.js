@@ -3,7 +3,7 @@
 // ("Kategorie abschließen", services/categories/categoryLifecycle.js) it leaves
 // every Kader of every server. The answer names the Kader only (id and name) —
 // nothing of its players leaves through here, and nothing is logged.
-const kaderStore = require("../../stores/kaderStore");
+const kaderStore = require("../../stores/roster/kaderStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

@@ -12,29 +12,29 @@ const mockRosterForCategory = jest.fn(() => null);
 const mockGetRoster = jest.fn(() => null);
 const mockListProfiles = jest.fn(() => []);
 
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../../src/services/loot/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
-jest.mock("../../../src/stores/councilStore", () => ({
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
+jest.mock("../../../src/stores/loot/councilStore", () => ({
     excludedKeys: (...a) => mockExcludedKeys(...a),
     plannedRoles: () => new Map(),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     rosterForCategory: (...a) => mockRosterForCategory(...a),
     rostersForCategory: (id) => [mockRosterForCategory(id, "tbc")].filter(Boolean),
     getRoster: (...a) => mockGetRoster(...a),
     listRosters: () => [],
 }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: () => [] }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: () => [], getEvent: () => null, isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { councilSyncPayloadV2 } = require("../../../src/web/loot/councilSync");

@@ -42,7 +42,7 @@ function logChannelsOf(guildId, { config } = {}) {
  * @param {{ config?: object }} [opts]
  */
 function allLogChannels({ config } = {}) {
-    const cfg = config || require("../../stores/settingsStore").getConfig();
+    const cfg = config || require("../../stores/settings/settingsStore").getConfig();
     const out = [];
     for (const guildId of Object.keys((cfg && cfg.serverSettings) || {})) {
         for (const c of logChannelsOf(guildId, { config: cfg })) out.push({ guildId, ...c });

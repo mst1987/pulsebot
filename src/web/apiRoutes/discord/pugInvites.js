@@ -6,7 +6,7 @@ const { withUser } = require("../../http/apiHandler");
 const guildRoles = require("../../../services/discord/roles/guildRoles");
 const discord = require("../../../services/discord/discord");
 const pugInvites = require("../../../services/discord/pug/pugInvites");
-const inviteStore = require("../../../stores/discordInviteStore");
+const inviteStore = require("../../../stores/discord/discordInviteStore");
 
 /** How long the page waits for the check against Discord before it answers anyway. */
 const RECONCILE_WAIT_MS = 5000;

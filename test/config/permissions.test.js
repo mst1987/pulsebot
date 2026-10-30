@@ -260,7 +260,7 @@ describe("config/permissions — per-account grants", () => {
         });
 
         it("is in no default base access and opens only with an explicit grant", () => {
-            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            const { CONFIG_DEFAULTS } = require("../../src/stores/settings/configSchema");
             expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "kader")).toBe(false);
             expect(can(accessForUser({ "42": { kader: { read: true } } }, "42"), "kader")).toBe(true);
             expect(can(accessForUser({ "42": { kader: { read: true } } }, "43"), "kader")).toBe(false);
@@ -276,7 +276,7 @@ describe("config/permissions — per-account grants", () => {
         });
 
         it("is in no default base access and opens only with an explicit grant", () => {
-            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            const { CONFIG_DEFAULTS } = require("../../src/stores/settings/configSchema");
             expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "vermerke")).toBe(false);
             expect(can(accessForUser({ "42": { vermerke: { read: true } } }, "42"), "vermerke")).toBe(true);
             expect(can(accessForUser({ "42": { vermerke: { read: true } } }, "43"), "vermerke")).toBe(false);
@@ -292,7 +292,7 @@ describe("config/permissions — per-account grants", () => {
         });
 
         it("is not implied by raids, nor raids by it, and is in no default base access", () => {
-            const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
+            const { CONFIG_DEFAULTS } = require("../../src/stores/settings/configSchema");
             expect(can(baseAccessMap(CONFIG_DEFAULTS.baseAccess), "raidplan")).toBe(false);
             const orga = accessForRoles({ r: { raids: { read: true, write: true } } }, ["r"]);
             expect(can(orga, "raidplan")).toBe(false);

@@ -2,7 +2,7 @@
 // never changed — the archive flag, the write guard and the raider's line.
 let mockConfig = {};
 const mockStored = new Map();
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/events/eventSources", () => ({ getStoredEvent: (id) => mockStored.get(id) || null }));
 
 const {

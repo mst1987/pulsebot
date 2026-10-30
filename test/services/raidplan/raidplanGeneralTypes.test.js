@@ -6,7 +6,7 @@ const assign = require("../../../src/services/raidplan/raidplanAssign");
 const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
 const { ASSIGN_TYPES, CLASS_IDS } = assign;
 const raidplan = require("../../../src/web/raidplan/raidplan");
-const catalogStore = require("../../../src/stores/raidplanCatalogStore");
+const catalogStore = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 beforeEach(() => catalogStore.useFile(tempStoreFile("general-types-catalog.json")));

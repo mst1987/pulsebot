@@ -5,7 +5,7 @@
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
-const store = require("../../../src/stores/guildBankStockStore");
+const store = require("../../../src/stores/loot/guildBankStockStore");
 const emojis = require("../../../src/services/guildbank/itemEmojis");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");

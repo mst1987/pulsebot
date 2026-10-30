@@ -7,7 +7,7 @@
 // marks nothing - the next check tries again.
 const { readParts, PARTS } = require("./backupStatus");
 const { backupEnabled } = require("./backupConfig");
-const alertStore = require("../../stores/backupAlertStore");
+const alertStore = require("../../stores/settings/backupAlertStore");
 const logger = require("../../logger").child("backup");
 
 const CHECK_MS = 30 * 60 * 1000;

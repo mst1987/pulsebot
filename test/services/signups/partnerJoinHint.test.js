@@ -4,11 +4,11 @@
 // mit Einladung auch Link-Knopf; nicht lesbar (andere Fehler, zu langsam, keine
 // Guild) → nichts. Dazu die Rollen für die Raider-Rolle: kein Mitglied → keine.
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), memberRoleIds: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "100000000000000001" })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "100000000000000001" })) }));
 
 const discord = require("../../../src/services/discord/discord");
 const hint = require("../../../src/services/signups/partnerJoinHint");
-const inviteStore = require("../../../src/stores/discordInviteStore");
+const inviteStore = require("../../../src/stores/discord/discordInviteStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const MAIN = "100000000000000001";

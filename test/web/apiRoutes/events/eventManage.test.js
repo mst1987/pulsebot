@@ -6,8 +6,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 // #925: the event "eh-a" is one of the active server g1
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: (id) => (id === "eh-a" ? { id, guildId: "g1" } : null),
 }));
 jest.mock("../../../../src/services/events/eventManage", () => ({

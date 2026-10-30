@@ -13,11 +13,11 @@
 // not cached is not noted (a known gap, accepted; the overview is a hint, not
 // a register).
 const guildRoles = require("../roles/guildRoles");
-const memberActivityStore = require("../../../stores/memberActivityStore");
+const memberActivityStore = require("../../../stores/discord/memberActivityStore");
 const memberRelation = require("./memberRelation");
 const signalRecorder = require("../../vermerke/signalRecorder");
-const eventStore = require("../../../stores/eventStore");
-const signupStore = require("../../../stores/signupStore");
+const eventStore = require("../../../stores/events/eventStore");
+const signupStore = require("../../../stores/events/signupStore");
 const logger = require("../../../logger").child("memberActivity");
 
 const DAY_MS = 24 * 60 * 60 * 1000;

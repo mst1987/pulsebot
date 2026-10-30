@@ -16,7 +16,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
   nie davon abzweigen), Remote `mst1987/pulsebot` (**öffentlich** — keine Hosts oder Schlüssel einchecken).
 - Stack: Node ≥ 22 (`.nvmrc` 22), CommonJS-Bot ohne TypeScript, discord.js 14, eigener HTTP-Router
   (`src/web/http/`), JSON-Stores unter `data/` (git-ignoriert, keine DB, keine Migrationen — Store-
-  Migrationen laufen beim Start, `src/stores/settingsMigration.js`). Web-Admin: React + Vite + TS in
+  Migrationen laufen beim Start, `src/stores/settings/settingsMigration.js`). Web-Admin: React + Vite + TS in
   `src/web-client/`, gebaut nach `dist/`.
 - Verwandt: `D:\programming\eventhelper-addon` (`mst1987/eventhelper-addon`, öffentlich: Lua-Addon
   EventHelperSync + Node-Sync-Tool). Wire-Format `eventhelper-loot` — eine Änderung braucht beide

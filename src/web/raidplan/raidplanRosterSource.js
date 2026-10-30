@@ -12,10 +12,10 @@
 // raider Raid-Helper no longer lists - every fallback keeps every player the plan names (raidplanBoard ANY_PLAYER), so an outage never
 // costs the plan its players.
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
-const { getEvent, isOwnEventId } = require("../../stores/eventStore");
-const { getRaidEvent } = require("../../stores/raidEventStore");
-const raiderProfiles = require("../../stores/raiderProfileStore");
-const store = require("../../stores/raidplanStore");
+const { getEvent, isOwnEventId } = require("../../stores/events/eventStore");
+const { getRaidEvent } = require("../../stores/events/raidEventStore");
+const raiderProfiles = require("../../stores/roster/raiderProfileStore");
+const store = require("../../stores/raidplan/raidplanStore");
 const { raidhelperLineup } = require("./raidhelperRoster");
 const raidplan = require("./raidplan");
 const { ANY_PLAYER } = require("../../services/raidplan/raidplanBoard");

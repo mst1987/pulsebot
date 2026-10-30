@@ -14,12 +14,12 @@ jest.mock("../../../src/utils/setup/fillSetup.js", () => ({
 }));
 jest.mock("../../../src/utils/raidhelper/queries.js");
 jest.mock("../../../src/utils/setup/response.js");
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/events/eventSources", () => ({
     ownEventInChannel: jest.fn(() => null),
     ownSignedUpEvents: jest.fn(() => []),
 }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     getEvent: jest.fn(() => null),
 }));
@@ -30,7 +30,7 @@ const reply = require("../../../src/utils/discord/reply.js");
 const { fillSetupSheet } = require("../../../src/utils/setup/fillSetup.js");
 const utilsRaidhelper = require("../../../src/utils/raidhelper/queries.js");
 const eventSources = require("../../../src/services/events/eventSources");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { raidHelperSlots } = require("../../../src/services/setup/setupEditor");
 const signup = require("../../../src/commands/setup/signup.js");
 const fillSetup = require("../../../src/commands/setup/fillSetup.js");

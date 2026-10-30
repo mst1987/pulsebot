@@ -1,5 +1,5 @@
 const { AsyncLocalStorage } = require("async_hooks");
-const { readBudget, writeBudget } = require("../../stores/raidhelperBudgetStore");
+const { readBudget, writeBudget } = require("../../stores/events/raidhelperBudgetStore");
 const { RAIDHELPER_BUDGET } = require("../../config/constants");
 const { TIMEZONE } = require("../../config/timezone");
 const { isLiveInstance } = require("../../config/runMode");
@@ -14,7 +14,7 @@ const { isLiveInstance } = require("../../config/runMode");
 //
 //   - classes/raidhelper.js asks check() before every request and record()s
 //     every attempt that actually leaves (a retry counts too). The count lives
-//     in stores/raidhelperBudgetStore.js, hour by hour, so a restart keeps it.
+//     in stores/events/raidhelperBudgetStore.js, hour by hour, so a restart keeps it.
 //   - Each request has a priority with its own cap (config/constants.js
 //     RAIDHELPER_BUDGET): `background` (the jobs of web/http/jobs.js) stops
 //     first, `read` (page loads, bot commands) next, `write` (create an event,

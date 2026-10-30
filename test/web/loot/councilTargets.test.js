@@ -7,13 +7,13 @@ jest.mock("../../../src/services/roster/rosterCreate", () => ({ kaderChoices: je
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: () => [{ id: "cA", name: "Mittwoch" }, { id: "cB", name: "Sonntag" }, { id: "cC", name: "Montag" }],
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({ categoryIds: ["cA", "cB", "cC"] }) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({ categoryIds: ["cA", "cB", "cC"] }) }));
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
-const profilesStore = require("../../../src/stores/councilProfilesStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const profilesStore = require("../../../src/stores/loot/councilProfilesStore");
 const { kaderChoices } = require("../../../src/services/roster/rosterCreate");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { councilHead, councilRosters, councilCategories, councilOverview } = require("../../../src/web/loot/councilTargets");
 
 const CONFIG = { categoryIds: ["cA", "cB", "cC"], categoryLootSystem: { cA: "lootcouncil", cB: "softres", cC: "lootcouncil" } };

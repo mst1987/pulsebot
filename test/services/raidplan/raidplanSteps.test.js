@@ -2,7 +2,7 @@
 const { tempStoreFile } = require("../../helpers/tempStore");
 const steps = require("../../../src/services/raidplan/raidplanSteps");
 const board = require("../../../src/services/raidplan/raidplanBoard");
-const profiles = require("../../../src/stores/raidplanProfileStore");
+const profiles = require("../../../src/stores/raidplan/raidplanProfileStore");
 // the library is per server (#945)
 const S = "100000000000000001";
 

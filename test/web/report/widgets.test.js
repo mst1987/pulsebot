@@ -2,7 +2,7 @@
 // tested on their own with hand-built inputs.
 jest.mock("../../../src/web/characters/charLinks", () => ({ armoryUrlFor: jest.fn(() => "") }));
 const mockListLogs = jest.fn(() => []);
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockListLogs(...a) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: (...a) => mockListLogs(...a) }));
 
 const { armoryUrlFor } = require("../../../src/web/characters/charLinks");
 const w = require("../../../src/web/report/widgets");

@@ -173,7 +173,7 @@ function pinnedCategoryVersion(log, { config } = {}) {
     let cfg = config;
     if (!cfg) {
         try {
-            cfg = require("../../stores/configStore").getConfig() || {};
+            cfg = require("../../stores/settings/configStore").getConfig() || {};
         } catch {
             cfg = {};
         }

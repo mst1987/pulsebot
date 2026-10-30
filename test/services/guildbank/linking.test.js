@@ -5,15 +5,15 @@
 // the link dialog's character search, the import's suggestions and the pick
 // it resolves. Real profile store on a temp file; the report and character
 // stores are factory mocks (what the logs and the loot saw).
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     getReportRoster: jest.fn(() => null),
 }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const characterStore = require("../../../src/stores/characterStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { resetCache } = require("../../../src/services/characters/characterEvidence");
 const linking = require("../../../src/services/guildbank/linking");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -134,7 +134,7 @@ describe("services/guildbank/linking — confirmed characters only", () => {
 
 describe("services/guildbank/linking — the recipient's own evidence (#806)", () => {
     it("links a name without a raider profile (no Discord account) when the logs or the loot of the bank's version saw it", () => {
-        const reports = require("../../../src/stores/reportStore");
+        const reports = require("../../../src/stores/loot/reportStore");
         reports.listReports.mockReturnValue([{ id: "r1", versionId: "tbc" }]);
         reports.getReportRoster.mockReturnValue({ roster: [{ name: "Skerra" }] });
         resetCache();

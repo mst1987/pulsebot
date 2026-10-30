@@ -6,11 +6,11 @@ jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverAnnouncement: jest.fn(async () => ({ event: { messageId: "m1" }, mentioned: 0, dm: null })),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const fs = require("fs");
 const { deliverAnnouncement } = require("../../../src/services/discord/pingDelivery");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const announce = require("../../../src/services/events/eventAnnounce");
 const { knownChannels } = require("../../helpers/linkCheck");
 

@@ -6,7 +6,7 @@ let mockCsrf = true;
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => mockCsrf, getActiveGuild: () => "" }));
 let mockActive = "900000000000000001";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000003" }], links: [] } }),
 }));
 jest.mock("../../../../src/services/discord/pug/pugOnboarding", () => {

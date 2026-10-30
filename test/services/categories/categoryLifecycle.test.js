@@ -3,31 +3,31 @@
 jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/services/discord/servers/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "g1") }));
-jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: jest.fn(), listSeries: jest.fn(() => ({})), deleteSeries: jest.fn(() => true) }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/events/eventSeriesStore", () => ({ getSeries: jest.fn(), listSeries: jest.fn(() => ({})), deleteSeries: jest.fn(() => true) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     listRosters: jest.fn(() => []),
     closeRoster: jest.fn((id) => ({ id, closedAt: "2026-10-11T00:00:00.000Z" })),
 }));
-jest.mock("../../../src/stores/councilProfilesStore", () => ({
+jest.mock("../../../src/stores/loot/councilProfilesStore", () => ({
     categoryProfiles: jest.fn(() => ({})), categoryProfileId: jest.fn(() => ""), setCategoryProfile: jest.fn(),
 }));
 jest.mock("../../../src/services/kader/kaderCategories", () => ({ kadersCountingCategory: jest.fn(() => []), dropAttendanceCategory: jest.fn(() => 0) }));
-jest.mock("../../../src/stores/configStore", () => ({ dropCategoryEntries: jest.fn(() => ({ config: {}, removed: [] })) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ dropCategoryEntries: jest.fn(() => ({ config: {}, removed: [] })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../../src/services/discord/discord");
 const guildRoles = require("../../../src/services/discord/roles/guildRoles");
 const serverOf = require("../../../src/services/discord/servers/serverOf");
-const seriesStore = require("../../../src/stores/eventSeriesStore");
-const eventStore = require("../../../src/stores/eventStore");
-const { listRaidEvents } = require("../../../src/stores/raidEventStore");
-const rosterStore = require("../../../src/stores/rosterStore");
-const councilProfiles = require("../../../src/stores/councilProfilesStore");
+const seriesStore = require("../../../src/stores/events/eventSeriesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { listRaidEvents } = require("../../../src/stores/events/raidEventStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const councilProfiles = require("../../../src/stores/loot/councilProfilesStore");
 const kaderCategories = require("../../../src/services/kader/kaderCategories");
-const configStore = require("../../../src/stores/configStore");
-const settingsStore = require("../../../src/stores/settingsStore");
+const configStore = require("../../../src/stores/settings/configStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const lifecycle = require("../../../src/services/categories/categoryLifecycle");
 
 const NOW = Date.UTC(2026, 9, 11);

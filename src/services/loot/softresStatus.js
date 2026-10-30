@@ -26,10 +26,10 @@
 // the card is still posted, just without "Signed up" and "Who is missing?".
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const softres = require("../../utils/loot/softres");
-const { getEventSoftres, listEventSoftres, markEventSoftresPosted, setEventSoftresStatus } = require("../../stores/eventSoftresStore");
-const eventStore = require("../../stores/eventStore");
-const { readSnapshot } = require("../../stores/raidhelperEventsStore");
-const { getProfile, charactersOfVersion } = require("../../stores/raiderProfileStore");
+const { getEventSoftres, listEventSoftres, markEventSoftresPosted, setEventSoftresStatus } = require("../../stores/events/eventSoftresStore");
+const eventStore = require("../../stores/events/eventStore");
+const { readSnapshot } = require("../../stores/events/raidhelperEventsStore");
+const { getProfile, charactersOfVersion } = require("../../stores/roster/raiderProfileStore");
 const { getStoredEvent } = require("../events/eventSources");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { approvedSetupOf } = require("../setup/setupCore");

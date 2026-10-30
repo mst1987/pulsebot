@@ -1,6 +1,6 @@
 // The server rule for loot (#919): raid -> import server -> category -> first server.
-jest.mock("../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../src/stores/settingsStore"),
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "gA" }, { guildId: "gB" }] } })),
 }));
 jest.mock("../../../src/services/discord/servers/serverOf", () => ({

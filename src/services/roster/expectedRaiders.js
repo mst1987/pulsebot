@@ -15,7 +15,7 @@
 // version (`versionId`, versionOfEvent) - a raid of the old version still
 // expects the closed roster of that version, a raid of the new one its own.
 // Without a version: the one the category plays now.
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
 const discord = require("../discord/discord");
 const { expectedRoleIds } = require("./categoryRoles");
 const { rosterOfCategory } = require("./categoryRoster");

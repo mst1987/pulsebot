@@ -3,8 +3,8 @@
 const mockRosterForCategory = jest.fn(() => null);
 const mockGetRoster = jest.fn(() => null);
 const mockListProfiles = jest.fn(() => []);
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a), getRoster: (...a) => mockGetRoster(...a) }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: (...a) => mockRosterForCategory(...a), getRoster: (...a) => mockGetRoster(...a) }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: (...a) => mockListProfiles(...a) }));
 
 const { rosterCandidates, specIdOf, CANDIDATE_STATUSES } = require("../../../src/web/loot/councilRosterSource");
 

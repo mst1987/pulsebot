@@ -8,9 +8,9 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
 }));
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
 const { addMember, updateMember, removeMember, setStatus, cleanPatch } = require("../../../src/services/roster/rosterMembers");
 
 let roster;

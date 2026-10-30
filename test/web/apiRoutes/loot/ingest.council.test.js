@@ -8,7 +8,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
     bearerFrom: (req) => {
@@ -17,7 +17,7 @@ jest.mock("../../../../src/stores/ingestTokenStore", () => ({
     },
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["c1", "c2"] })),
 }));
 jest.mock("../../../../src/services/discord/discord", () => ({
@@ -39,9 +39,9 @@ jest.mock("../../../../src/web/loot/lootCouncil", () => ({
     councilRoster: jest.fn(),
 }));
 
-const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
+const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestTokenStore");
 const { councilRoster } = require("../../../../src/web/loot/lootCouncil");
-const { getConfig } = require("../../../../src/stores/settingsStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const { listCategories } = require("../../../../src/services/discord/discord");
 const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { storedCategoryGuilds } = require("../../../../src/services/discord/servers/serverOf");

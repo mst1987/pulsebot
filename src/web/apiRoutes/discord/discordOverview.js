@@ -27,7 +27,7 @@
 const { ok } = require("../../http/apiResponse");
 const { serverFromQuery, mayUseServer } = require("../../http/serverQuery");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const discord = require("../../../services/discord/discord");
 const guildRoles = require("../../../services/discord/roles/guildRoles");
 const memberActivity = require("../../../services/discord/members/memberActivity");

@@ -17,7 +17,6 @@ const CODE = /\.(c|m)?[jt]sx?$/;
 const TEST = /\.test\.(c|m)?[jt]sx?$/;
 
 const ALLOWED = {
-    "src/stores": "#1016",
     "src/utils/logcheck": "#1017",
 };
 

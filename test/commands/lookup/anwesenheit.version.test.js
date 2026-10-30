@@ -2,24 +2,24 @@
 // of a Forever category only the Forever raids count - the TBC nights the same
 // category ran before it was switched stay under TBC. Only the stores are mocked.
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: (...a) => mockListRaidEvents(...a) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: () => [], getEvent: jest.fn(), isOwnEventId: () => false }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
-    ...jest.requireActual("../../../src/stores/raiderCharactersStore"),
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: (...a) => mockListRaidEvents(...a) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReport: () => null }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: () => [], getEvent: jest.fn(), isOwnEventId: () => false }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
+    ...jest.requireActual("../../../src/stores/roster/raiderCharactersStore"),
     listAllAssignments: () => ({ fcat: { u1: "Elesham" } }),
 }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: () => [] }));
 jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: () => [{ id: "fcat", name: "Donnerstag" }] }));
 // loot in a raid nobody stored a version for is TBC: the character raided TBC before the category was switched
-jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: () => [{ eventId: "t1" }], listAll: () => [] }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listByCharacter: () => [{ eventId: "t1" }], listAll: () => [] }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: () => [{ character: "Elesham", categoryIds: ["fcat"] }] }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: () => ["g1"] }));
 
-const configStore = require("../../../src/stores/configStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const own = require("../../../src/commands/lookup/anwesenheit");
 const { versionNote } = require("../../../src/services/versions/commandVersion");
 const { mockInteraction } = require("../../helpers/mockInteraction");

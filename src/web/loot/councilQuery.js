@@ -1,9 +1,9 @@
 // How a request's query string becomes the options of councilRoster(), shared by
 // the council page (GET /api/lootcouncil) and the sync tool's token endpoint
 // (GET /api/ingest/council) so both answer from the same roster.
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const discord = require("../../services/discord/discord");
-const { getRoster } = require("../../stores/rosterStore");
+const { getRoster } = require("../../stores/roster/rosterStore");
 const { mainVersionFor, resolveVersionQuery, knownVersion } = require("../../services/versions/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 

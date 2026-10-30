@@ -30,9 +30,9 @@
 // Layering: a service - it reads stores, config and other services, never
 // src/web. The loot council's classAndSpec (web/loot/lootCouncil.js) reads the
 // same characterStore records the "logs" step does.
-const raiderProfileStore = require("../../stores/raiderProfileStore");
-const characterStore = require("../../stores/characterStore");
-const { lastImportedSpecOf } = require("../../stores/specHistoryStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
+const characterStore = require("../../stores/roster/characterStore");
+const { lastImportedSpecOf } = require("../../stores/roster/specHistoryStore");
 const { spec: specOfVersion, rulesFor } = require("../../config/gameVersions");
 const { specKeyFromRaidHelper, ownUpcomingRaw } = require("../events/eventSources");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");

@@ -7,7 +7,7 @@ jest.mock("http", () => {
     };
 });
 // Isolate routing from disk/network by mocking the collaborators.
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     getReport: jest.fn(),
     deleteReport: jest.fn(),
 }));
@@ -39,8 +39,8 @@ jest.mock("../../../src/services/events/icsFeed", () => ({ buildIcs: jest.fn(() 
 // The raider's subscription (#312) — again only the routing; the token check
 // and the content live in calendarFeed.test.js.
 jest.mock("../../../src/web/pages/calendarFeed", () => ({ feedFor: jest.fn(() => null) }));
-jest.mock("../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../src/stores/eventStore"),
+jest.mock("../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/eventStore"),
     getEvent: jest.fn(() => null),
 }));
 // Who looks at a PuG raid (#905, #907) — the lookup itself lives in pugMembership.test.js.
@@ -50,14 +50,14 @@ jest.mock("../../../src/services/signups/pugMembership", () => ({
 }));
 
 const http = require("http");
-const store = require("../../../src/stores/reportStore");
+const store = require("../../../src/stores/loot/reportStore");
 const render = require("../../../src/web/report/render");
 const eventPublicPage = require("../../../src/web/pages/eventPublicPage");
 const docsPage = require("../../../src/web/pages/docsPage");
 const icsFeed = require("../../../src/services/events/icsFeed");
 const calendarFeed = require("../../../src/web/pages/calendarFeed");
-const eventStore = require("../../../src/stores/eventStore");
-const raidplanStore = require("../../../src/stores/raidplanStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const raidplanStore = require("../../../src/stores/raidplan/raidplanStore");
 const auth = require("../../../src/web/http/auth");
 const apiRouter = require("../../../src/web/http/apiRouter");
 const staticClient = require("../../../src/web/http/staticClient");

@@ -23,8 +23,8 @@
 //                        of THIS interaction comes before the stored one, so
 //                        even the very first click is answered right; the server
 //                        language last is the one of the interaction's server.
-const userPrefs = require("../../stores/userPrefsStore");
-const settingsStore = require("../../stores/settingsStore");
+const userPrefs = require("../../stores/settings/userPrefsStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const { normalizeLang } = require("../../utils/i18n/botText");
 const { serverSetting } = require("./servers/serverSettings");
 const { guildOfEvent, storedCategoryGuilds } = require("./servers/serverOf");

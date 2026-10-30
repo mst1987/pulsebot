@@ -2,7 +2,7 @@
 jest.mock("../../../src/services/discord/discord", () => ({ postPayload: jest.fn() }));
 
 const discord = require("../../../src/services/discord/discord");
-const store = require("../../../src/stores/dungeonRunStore");
+const store = require("../../../src/stores/roster/dungeonRunStore");
 const { newRecords, postNewRecords, recordSetting, MAX_POSTS } = require("../../../src/services/dungeons/dungeonRecords");
 const { cardText } = require("../../helpers/cardText");
 const { tempStoreFile } = require("../../helpers/tempStore");

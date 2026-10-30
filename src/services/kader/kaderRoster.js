@@ -4,7 +4,7 @@
 // name - and nothing else. Wishes, interview answers, notes, votes, comments,
 // the Verlauf and the activity log never leave through here; the answer is
 // built field by field, never by copying an entry
-// (test/services/kader/kaderRoster.test.js and test/stores/kaderStore.test.js
+// (test/services/kader/kaderRoster.test.js and test/stores/roster/kaderStore.test.js
 // keep it that way).
 //
 // The takeover into Discord (docs/kaderplaner.md "Übernahme",
@@ -12,7 +12,7 @@
 // its own pieces: the Kader's `takeover` record, the move back to provisional
 // of a player whose role was taken in Discord, the players' history lines and
 // the activity lines of all that. Nothing here is logged.
-const kaderStore = require("../../stores/kaderStore");
+const kaderStore = require("../../stores/roster/kaderStore");
 const model = require("./kaderModel");
 const { recordChanges } = require("./kaderActivity");
 

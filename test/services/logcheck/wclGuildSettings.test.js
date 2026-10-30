@@ -90,11 +90,11 @@ describe("services/logcheck/wclGuildSettings (#922)", () => {
 
         it("reads the stored config without one handed in", () => {
             jest.isolateModules(() => {
-                jest.doMock("../../../src/stores/settingsStore", () => ({ getConfig: () => config }));
+                jest.doMock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => config }));
                 const mod = require("../../../src/services/logcheck/wclGuildSettings");
                 expect(mod.allWclGuilds()).toHaveLength(3);
             });
-            jest.dontMock("../../../src/stores/settingsStore");
+            jest.dontMock("../../../src/stores/settings/settingsStore");
         });
     });
 

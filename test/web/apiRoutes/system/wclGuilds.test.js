@@ -5,7 +5,7 @@ let mockConfig;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: { id: "1", name: "Orga", isAdmin: true } }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => mockConfig) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => mockConfig) }));
 jest.mock("../../../../src/services/logcheck/wclGuildSync", () => ({ fetchEntry: jest.fn() }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");

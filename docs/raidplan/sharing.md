@@ -177,7 +177,7 @@ The read link as one message in the event's channel, like "Sheet posten" for the
 - **Publishing on the way:** a draft is published (`raidplanStore.setPublished`, the token minted if there is
   none), so the posted link never leads to the 404; an already published plan keeps its token. The answer says
   when it published ("… Der Raidplan ist dafür freigegeben worden.").
-- **One message per event:** `src/stores/raidplanPostStore.js` (`settings/raidplan-posts.json`, `{ posts: [{
+- **One message per event:** `src/stores/raidplan/raidplanPostStore.js` (`settings/raidplan-posts.json`, `{ posts: [{
   eventId, channelId, messageId, message, postedAt, postedBy }] }`) remembers where it went; a second post edits
   that message (`discord.editLink`), and only when that fails (deleted by hand) posts a new one. Without
   `message` in the body the text of the last post stays, `""` clears it. Deleting the event forgets the record.

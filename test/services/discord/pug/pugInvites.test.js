@@ -3,18 +3,18 @@ const mockLog = { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jes
 jest.mock("../../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
 jest.mock("../../../../src/services/discord/discord", () => ({ getGuild: jest.fn() }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
-jest.mock("../../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/configStore", () => ({ ...jest.requireActual("../../../../src/stores/configStore"), readStored: jest.fn() }));
+jest.mock("../../../../src/stores/events/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ ...jest.requireActual("../../../../src/stores/settings/configStore"), readStored: jest.fn() }));
 
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const discord = require("../../../../src/services/discord/discord");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
-const eventStore = require("../../../../src/stores/eventStore");
-const signupStore = require("../../../../src/stores/signupStore");
-const configStore = require("../../../../src/stores/configStore");
-const inviteStore = require("../../../../src/stores/discordInviteStore");
-const originStore = require("../../../../src/stores/memberOriginStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
+const configStore = require("../../../../src/stores/settings/configStore");
+const inviteStore = require("../../../../src/stores/discord/discordInviteStore");
+const originStore = require("../../../../src/stores/discord/memberOriginStore");
 const pugInvites = require("../../../../src/services/discord/pug/pugInvites");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 

@@ -44,12 +44,12 @@ const { userSeesEvent } = require("../../../services/signups/eventVisibility");
 // who may edit a raid's setup - the rule of the `orgaScoped` gate, per event (#725)
 const { canWriteSetup } = require("../../setup/setupAccess");
 const categoryOrga = require("../../../services/roster/categoryOrga");
-const { getConfig } = require("../../../stores/settingsStore");
-const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../../stores/eventStore");
-const { listSignups } = require("../../../stores/signupStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { getEvent, isOwnEventId, setEventExtraRole, EXTRA_ROLES } = require("../../../stores/events/eventStore");
+const { listSignups } = require("../../../stores/events/signupStore");
 const discord = require("../../../services/discord/discord");
 const setupEditor = require("../../../services/setup/setupEditor");
-const profiles = require("../../../stores/raiderProfileStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
 const { refreshEventMessage } = require("../../../services/events/eventMessage");
 const setupMessage = require("../../../services/setup/setupMessage");
 const { saveSetupPingText, setupPingPlan } = require("../../../services/setup/setupPing");

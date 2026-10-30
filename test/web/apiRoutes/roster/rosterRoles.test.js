@@ -3,7 +3,7 @@
 let mockUser = { id: "200001", isAdmin: false, access: { roster: { read: true, write: true } } };
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/stores/rosterStore", () => ({ getRoster: jest.fn() }));
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({ getRoster: jest.fn() }));
 jest.mock("../../../../src/services/roster/rosterAccess", () => ({ canManageRosterLive: jest.fn(async () => true), isRosterOrga: jest.fn(async () => true) }));
 jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
     applyRoleChange: jest.fn(async (roster, userId, roleId, give) => ({ roleId, roleName: "Raider", give, ok: true, code: "done", changed: true })),
@@ -13,13 +13,13 @@ jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
 jest.mock("../../../../src/services/roster/rosterSyncView", () => ({
     rosterSyncView: jest.fn(async (roster) => ({ rosterId: roster.id, inRosterWithoutRole: [], roleWithoutRoster: [], withoutChar: [], logCharsWithoutPerson: [], mirrored: [] })),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ roleSync: [] })) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ roleSync: [] })) }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const { requireCsrf } = require("../../../../src/web/http/apiMiddleware");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const { canManageRosterLive, isRosterOrga } = require("../../../../src/services/roster/rosterAccess");
 const { applyRoleChange } = require("../../../../src/services/roster/rosterRoleSync");
 const { rosterSyncView } = require("../../../../src/services/roster/rosterSyncView");

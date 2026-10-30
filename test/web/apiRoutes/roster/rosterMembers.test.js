@@ -33,8 +33,8 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const raiderProfileStore = require("../../../../src/stores/raiderProfileStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const raiderProfileStore = require("../../../../src/stores/roster/raiderProfileStore");
 const discord = require("../../../../src/services/discord/discord");
 const rosterRoleSync = require("../../../../src/services/roster/rosterRoleSync");
 const { searchMembers } = require("../../../../src/services/roster/rosterMemberSearch");
@@ -218,7 +218,7 @@ describe("GET /api/rosters/member-search", () => {
     });
 
     it("searches the main version while the others are hidden, whatever is asked (#563)", async () => {
-        const configStore = require("../../../../src/stores/configStore");
+        const configStore = require("../../../../src/stores/settings/configStore");
         const spy = jest.spyOn(configStore, "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
         try {
             searchMembers.mockResolvedValueOnce({ results: [] });

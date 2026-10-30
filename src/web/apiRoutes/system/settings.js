@@ -7,11 +7,11 @@ const { firstServerId, storedCategoryGuilds } = require("../../../services/disco
 const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
-} = require("../../../stores/settingsStore");
+} = require("../../../stores/settings/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, MAX_SERVERS,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
-} = require("../../../stores/configSchema");
+} = require("../../../stores/settings/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
 const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../services/discord/servers/serverSettings");
 const serverDefaults = require("../../../services/discord/servers/serverDefaults");
@@ -23,7 +23,7 @@ const categoryGuild = require("../../../services/categories/categoryGuild");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
     assignTokenGuild: assignIngestTokenGuild,
-} = require("../../../stores/ingestTokenStore");
+} = require("../../../stores/loot/ingestTokenStore");
 const discord = require("../../../services/discord/discord");
 const guildRoles = require("../../../services/discord/roles/guildRoles");
 const roleSync = require("../../../services/discord/roles/roleSync");
@@ -52,7 +52,7 @@ const { normalizeCategorySignupCharacters } = require("../../../services/signups
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/settings/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../../services/roster/categoryRoles");
 const { switchRosterPreview, rostersAfterSwitches } = require("../../../services/roster/rosterVersionSwitch");
 

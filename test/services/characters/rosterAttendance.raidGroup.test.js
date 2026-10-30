@@ -3,30 +3,30 @@
 // group, placed (or benched) in any of their setups; the further raid is never a
 // night of its own. Somebody signed up at the first raid, placed in Raid 2 and in
 // Raid 2's log is present, not "Nicht erschienen".
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: () => [] }));
 const mockLogs = [];
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => mockLogs }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => mockLogs }));
 const mockReports = new Map();
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: () => [...mockReports.keys()].map((id, i) => ({ id, zone: "Zul'Aman", generatedAt: 1000 - i })),
     getReport: (id) => (mockReports.has(id) ? { zone: "Zul'Aman", roster: mockReports.get(id).map((name) => ({ name })) } : null),
 }));
 const mockEvents = [];
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (guildId, opts = {}) => mockEvents.filter((e) => opts.siblings === true || !(e.raidGroupId && e.raidGroupId !== e.id))
         .filter((e) => !opts.untilSeconds || e.startTime <= opts.untilSeconds),
     getEvent: (id) => mockEvents.find((e) => e.id === id) || null,
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
 const mockSignups = {};
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
-    ...jest.requireActual("../../../src/stores/raiderCharactersStore"),
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
+    ...jest.requireActual("../../../src/stores/roster/raiderCharactersStore"),
     listAllAssignments: () => ({}),
 }));
-jest.mock("../../../src/stores/availabilityStore", () => ({ listEntries: () => [] }));
-jest.mock("../../../src/stores/attendanceOverridesStore", () => ({ listOverrides: () => ({}) }));
+jest.mock("../../../src/stores/events/availabilityStore", () => ({ listEntries: () => [] }));
+jest.mock("../../../src/stores/events/attendanceOverridesStore", () => ({ listOverrides: () => ({}) }));
 
 const { buildAttendanceContext, attendanceForAccounts, attendanceFor } = require("../../../src/services/characters/rosterAttendance");
 

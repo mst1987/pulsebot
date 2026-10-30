@@ -14,15 +14,17 @@ Helpers, factories, mock convention and coverage thresholds in full:
 **Where a test goes:**
 - `utils/`, `classes/`, `commands/`, `config/`, `stores/`, `services/` and `web/` are mirrored one
   to one: `src/utils/time/index.js` → `test/utils/time/index.test.js`.
-- A route module `src/web/apiRoutes/<name>.js` is tested in `test/web/apiRoutes/<name>.test.js`
+- A route module `src/web/apiRoutes/<area>/<name>.js` is tested in `test/web/apiRoutes/<area>/<name>.test.js`
   (through the real router with `routerClient` from `test/helpers/http.js`);
   `test/web/http/apiRouter.test.js` keeps only dispatch, 404/405, error handling and the area gate.
 - A suite too big for one file, or a topic of one module, is `<modul>.<thema>.test.js` next to it
   (`test/web/loot/lootCouncil.gear.test.js`).
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails
   otherwise; its allowlist is for pure data tables (with a reason).
-- The React client has its own suite: Vitest, `*.test.ts(x)` next to the module (docs/testing.md,
-  „Web-Client“).
+- The React client has its own suite: Vitest, `*.test.ts(x)` in the `__tests__/` folder next to the
+  module (docs/testing.md, „Web-Client“; `test/web-client/conventions/testsDir.test.js`).
+- A code folder holds at most 25 modules (`test/docs/folderSize.test.js`); past that it gets sub
+  folders by topic, moved with `npm run move` (scripts/README.md).
 
 **How:**
 - Config in `jest.config.js` (Node environment, coverage from `src/**/*.js`). `coverageThreshold`

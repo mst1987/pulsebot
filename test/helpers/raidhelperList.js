@@ -3,9 +3,9 @@
 // Since rights hold per server, withUser answers 404 for a raid whose server
 // nobody knows (services/events/eventServer.js, fail closed). A Raid-Helper
 // event is known through its snapshot or through the synced list of a server
-// (stores/raidhelperEventsStore.js, filled by raidhelperSync.js). A test that
+// (stores/events/raidhelperEventsStore.js, filled by raidhelperSync.js). A test that
 // means "a Raid-Helper event of this server" puts its id there first.
-const raidhelperEventsStore = require("../../src/stores/raidhelperEventsStore");
+const raidhelperEventsStore = require("../../src/stores/events/raidhelperEventsStore");
 const { tempStoreFile } = require("./tempStore");
 
 /**

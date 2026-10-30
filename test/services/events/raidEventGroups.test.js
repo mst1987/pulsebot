@@ -3,22 +3,22 @@ const mockGetAllEvents = jest.fn();
 jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ fetchEvents: mockFetchEvents, getAllEvents: mockGetAllEvents })));
 jest.mock("../../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn() }));
 // The EventHelper's own store, read through the real adapter (eventSources.js).
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 // g1 has Raid-Helper switched on (#927)
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({
     categorySignupSource: { cat1: "eventhelper" },
     serverSettings: { g1: { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } } },
 })) }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const { listSignups } = require("../../../src/stores/signupStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { listSignups } = require("../../../src/stores/events/signupStore");
 const discord = require("../../../src/services/discord/discord");
-const { listRaidEvents } = require("../../../src/stores/raidEventStore");
+const { listRaidEvents } = require("../../../src/stores/events/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../../src/services/events/raidEventGroups");
 const { event: baseEvent, ownEvent } = require("../../factories/events");
 

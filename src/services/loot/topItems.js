@@ -11,7 +11,7 @@
 // version's loot table, plus a Wowhead search for items no boss drops.
 const { serverSetting } = require("../discord/servers/serverSettings");
 const { knownVersion } = require("../versions/mainVersion");
-const { normalizeTopItems } = require("../../stores/configSchema");
+const { normalizeTopItems } = require("../../stores/settings/configSchema");
 
 /** How many top items one version of one server may hold. */
 const MAX_TOP_ITEMS = 500;

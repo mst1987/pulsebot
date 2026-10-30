@@ -5,10 +5,10 @@ jest.mock("../../../../src/config/variables", () => ({
     logcheckAdminIds: ["233598324022837249"],
     adminRoleIds: [],
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
 
-const { getConfig } = require("../../../../src/stores/settingsStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
 const discord = require("../../../../src/services/discord/discord");
 const userAccess = require("../../../../src/services/discord/members/userAccess");

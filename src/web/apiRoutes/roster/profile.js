@@ -7,18 +7,18 @@
 // GET /api/roster/character-claims.
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const profiles = require("../../../stores/raiderProfileStore");
-const specHistory = require("../../../stores/specHistoryStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
+const specHistory = require("../../../stores/roster/specHistoryStore");
 const { logIndex, logSuggestions } = require("../../characters/profileLogs");
 const { profileView, lookupArmory } = require("../../characters/profileView");
-const calendarTokens = require("../../../stores/calendarTokenStore");
+const calendarTokens = require("../../../stores/events/calendarTokenStore");
 const calendarFeed = require("../../pages/calendarFeed");
 const { userIcsUrl } = require("../../../services/events/icsFeed");
 const { rulesFor, professionsOf, VERSIONS } = require("../../../config/gameVersions");
 const { mainVersionFor, knownVersion, isVersionVisible, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { profileRaiding } = require("../../../services/characters/profileRaiding");
 const { anyWishItemsAllowed, resolveWishItems, searchWishItems } = require("../../../services/characters/wishItems");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { userIsOrga } = require("../../../config/permissions");
 const { ROLE_LABELS } = require("../../../config/gameVersions/classes");

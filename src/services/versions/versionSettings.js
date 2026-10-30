@@ -1,7 +1,7 @@
 // Settings per game version (#542): where a character of a version is looked
 // up and where its items and spells link to. One block per rule set of
 // config/gameVersions, edited in Einstellungen → Spielversion; the fields and
-// their normalisers are stores/versionSettingsSchema.js.
+// their normalisers are stores/settings/versionSettingsSchema.js.
 //
 // Every field may be empty, and empty means "not there for this version": no
 // link (never a guessed or a TBC one), no armory request, no softres list. The
@@ -20,7 +20,7 @@
 // template yields no link rather than a broken one.
 const { rulesFor } = require("../../config/gameVersions");
 const { wowheadItemId } = require("../../config/data/wowheadItemAliases");
-const schema = require("../../stores/versionSettingsSchema");
+const schema = require("../../stores/settings/versionSettingsSchema");
 const { knownVersion, mainVersionFor } = require("./mainVersion");
 const { externalLink } = require("../discord/linkCheck");
 
@@ -33,7 +33,7 @@ const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 function configOf(config) {
     if (config && typeof config === "object") return config;
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }
@@ -106,7 +106,7 @@ function fillChar(template, character, { region = "", realm = "" } = {}) {
         .replace(/\{char\}/g, encodeURIComponent(name)));
 }
 
-// The Warcraft Logs site of a log template: stores/versionSettingsSchema.js (the
+// The Warcraft Logs site of a log template: stores/settings/versionSettingsSchema.js (the
 // feature source, versionCapabilities.js, reads it there without this module).
 const { wclSiteOf } = schema;
 

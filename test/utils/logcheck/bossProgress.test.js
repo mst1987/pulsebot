@@ -1,6 +1,6 @@
 // #534: which bosses of a plan the log shows down, fought and next (src/utils/logcheck/bossProgress.js).
 const { deriveProgress, sectionForFight, fightKeys, isRunning } = require("../../../src/utils/logcheck/bossProgress");
-const { bossesForInstances } = require("../../../src/stores/raidplanStore");
+const { bossesForInstances } = require("../../../src/stores/raidplan/raidplanStore");
 
 /** The plan sections of some instances, as the service hands them in (no "Allgemein", no trash). */
 const sections = (...ids) => bossesForInstances(ids).filter((b) => !b.general && !b.trash).map((b) => ({ key: b.key, name: b.name, instanceId: b.instanceId }));

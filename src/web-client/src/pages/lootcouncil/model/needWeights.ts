@@ -7,7 +7,7 @@ import type { CouncilRaider, CouncilWeightsView, NeedShares } from "../../../api
 import { locale, type TFunction } from "../../../i18n";
 import type { NeedSubject } from "../NeedBar";
 
-/** The server's defaults (stores/councilWeightsStore.js): 45 / 30 / 10 / 15. */
+/** The server's defaults (stores/loot/councilWeightsStore.js): 45 / 30 / 10 / 15. */
 export const DEFAULT_SHARES: NeedShares = { drought: 0.45, share: 0.3, need: 0.1, tenure: 0.15 };
 export const DEFAULT_TENURE_DAYS = 90;
 

@@ -8,7 +8,7 @@ jest.mock("../../../src/classes/raidhelper", () =>
 );
 
 // one server with Raid-Helper switched on (#927)
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: () => ({
         discordServers: { servers: [{ guildId: "111111111111111111" }] },
         serverSettings: { "111111111111111111": { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } } },
@@ -23,7 +23,7 @@ jest.mock("../../../src/utils/discord/reply", () => ({
 }));
 
 const mockOwnEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: (id) => mockOwnEvents.get(id) || null }));
 
 const {
     getAllSignUps,

@@ -7,8 +7,8 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
 }));
 
 const wowhead = require("../../../src/utils/loot/wowhead");
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const requestStore = require("../../../src/stores/guildBankStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const requestStore = require("../../../src/stores/loot/guildBankStore");
 const itemMeta = require("../../../src/services/guildbank/itemMeta");
 const { parseQuery, pickHit, addByHand, search } = require("../../../src/services/guildbank/addItem");
 const { tempStoreFile } = require("../../helpers/tempStore");

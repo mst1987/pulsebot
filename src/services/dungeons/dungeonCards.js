@@ -1,4 +1,4 @@
-// The Discord cards of the dungeon times (stores/dungeonRunStore.js): the
+// The Discord cards of the dungeon times (stores/roster/dungeonRunStore.js): the
 // answer of /bestzeiten (top runs of one dungeon, or the overall ranking) and
 // the post of a new guild record (dungeonRecords.js). Written in English and
 // translated with tr() (config/botText/de/dungeons.js); `lang` is the reader's

@@ -90,7 +90,7 @@ function wclGuildsOf(guildId, { config } = {}) {
  * @param {{ config?: object }} [opts]
  */
 function allWclGuilds({ config } = {}) {
-    const cfg = config || require("../../stores/settingsStore").getConfig();
+    const cfg = config || require("../../stores/settings/settingsStore").getConfig();
     const out = [];
     for (const guildId of Object.keys((cfg && cfg.serverSettings) || {})) {
         for (const e of wclGuildsOf(guildId, { config: cfg })) out.push({ guildId, key: entryKey(e), ...e });

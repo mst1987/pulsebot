@@ -22,7 +22,7 @@
 // verwalten" on a target server it adds nothing there and says so.
 const discord = require("../discord");
 const guildRoles = require("./guildRoles");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 
 const REASON = "EventHelper Rollen-Abgleich";
 

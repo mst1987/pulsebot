@@ -6,7 +6,7 @@
 // raider profile, else the id; an empty `by` is the bot or the start-up
 // migration. `what` and `detail` stay as stored: the client translates the
 // codes ("member-added", "role-give-failed", "status core → bench", ...).
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const discord = require("../../services/discord/discord");
 
 const DEFAULT_LIMIT = 50;

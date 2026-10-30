@@ -31,8 +31,8 @@ jest.mock("../../../../src/services/events/eventServer", () => ({ allOnServer: (
 
 const auth = require("../../../../src/web/http/auth");
 const discord = require("../../../../src/services/discord/discord");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const overridesStore = require("../../../../src/stores/attendanceOverridesStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const overridesStore = require("../../../../src/stores/events/attendanceOverridesStore");
 const routeModule = require("../../../../src/web/apiRoutes/events/attendance");
 const { post } = routerClient(routeModule);
 

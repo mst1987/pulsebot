@@ -25,7 +25,7 @@ const {
 } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { clip } = require("../../utils/discord/botLookup");
-const store = require("../../stores/orgaHubStore");
+const store = require("../../stores/discord/orgaHubStore");
 const orgaHub = require("./orgaHub");
 const { categoryNameFor } = require("../signups/availabilityPanel");
 const { plainCategoryName } = require("../../utils/signup/availabilityDialog");

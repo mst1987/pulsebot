@@ -9,8 +9,8 @@
 // stays a valid choice (entryCategoryIds). Pictured with the final-boss icon of
 // the newest raid its events' titles name, "" = none known: read from the event
 // store alone, no reports or logs (this runs on every open of the dialog).
-const eventStore = require("../../stores/eventStore");
-const settingsStore = require("../../stores/settingsStore");
+const eventStore = require("../../stores/events/eventStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const { CONTENT_ICONS } = require("../../services/characters/rosterAttendance");
 const { contentsForText } = require("../../config/data/raidContent");
 const { mainVersionFor } = require("../../services/versions/mainVersion");
