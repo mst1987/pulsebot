@@ -1,4 +1,4 @@
-// German bot texts of the role messages (services/discord/roleMessages.js): the
+// German bot texts of the role messages (services/discord/roles/roleMessages.js): the
 // ephemeral answer to a click on a role button.
 module.exports = {
     "You now have the role {role}.": "Du hast jetzt die Rolle {role}.",

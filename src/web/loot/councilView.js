@@ -14,7 +14,7 @@ const { serverContext, guildOfLootEvent } = require("../../services/loot/lootSer
 const { primeArmoryGear } = require("../../services/loot/armoryGear");
 const { categoryLootSystem } = require("../../services/loot/lootSystem");
 const councilProfiles = require("../../services/loot/councilProfiles");
-const { getRaidTemplate } = require("../../stores/raidTemplateStore");
+const { getRaidTemplate } = require("../../stores/events/raidTemplateStore");
 const { instanceById } = require("../../config/gameVersions");
 
 /**

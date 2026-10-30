@@ -3,7 +3,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { DateTime } = require("luxon");
 const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { serverIds } = require("../../services/discord/roles/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/versions/commandVersion");

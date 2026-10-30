@@ -3,7 +3,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 // The one place an Anthropic client is created (#429). The key comes from the
 // settings (Einstellungen → Verbindungen → KI-Formulierung) and is passed in
 // by the caller — never from .env. Users today: the recommendation phrasing
-// (utils/logcheck/recommendationText.js) and the setup explanation
+// (utils/logcheck/recommendations/recommendationText.js) and the setup explanation
 // (utils/setup/explainText.js). Prompts, model and call shape stay with them.
 //
 // Not built on classes/httpClient.js: the SDK brings its own transport,

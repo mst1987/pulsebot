@@ -32,11 +32,11 @@
 //                 `categoryEras`) and its remembered name (category-names.json)
 //                 stay, so the history keeps reading under its version and name.
 const categoryGuild = require("./categoryGuild");
-const seriesStore = require("../../stores/eventSeriesStore");
-const eventStore = require("../../stores/eventStore");
-const { listRaidEvents } = require("../../stores/raidEventStore");
-const rosterStore = require("../../stores/rosterStore");
-const councilProfiles = require("../../stores/councilProfilesStore");
+const seriesStore = require("../../stores/events/eventSeriesStore");
+const eventStore = require("../../stores/events/eventStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const councilProfiles = require("../../stores/loot/councilProfilesStore");
 const { kadersCountingCategory, dropAttendanceCategory } = require("../kader/kaderCategories");
 
 // The category maps a closed category leaves: everything that steers new
@@ -55,7 +55,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 /** The settings store's config, lazily (it pulls in much of the app). */
 function configOf(config) {
     if (config && typeof config === "object") return config;
-    return require("../../stores/settingsStore").getConfig() || {};
+    return require("../../stores/settings/settingsStore").getConfig() || {};
 }
 
 /** The active raid categories as stored (ids, each once). */
@@ -231,7 +231,7 @@ function closeCategory(categoryId, { config, actor = "", ctx, guildId = "" } = {
     if (str(guildId) && judged.guildId !== str(guildId)) return { error: { status: 409, code: "category_other_server", message: "Die Kategorie gehört zu einem anderen Discord-Server — bitte dort abschließen." } };
     const preview = closePreview(id, { config: cfg });
     const series = seriesStore.deleteSeries(id);
-    const { removed: settings } = require("../../stores/configStore").dropCategoryEntries(id, SETTINGS_KEYS);
+    const { removed: settings } = require("../../stores/settings/configStore").dropCategoryEntries(id, SETTINGS_KEYS);
     let councilProfile = false;
     if (preview.councilProfile) {
         try {

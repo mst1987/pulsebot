@@ -27,13 +27,13 @@
 const { ok } = require("../../http/apiResponse");
 const { serverFromQuery, mayUseServer } = require("../../http/serverQuery");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const discord = require("../../../services/discord/discord");
-const guildRoles = require("../../../services/discord/guildRoles");
-const memberActivity = require("../../../services/discord/memberActivity");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
+const memberActivity = require("../../../services/discord/members/memberActivity");
 const { botCheck } = require("../../../services/discord/botCheck");
 const { botMessages } = require("../../../services/discord/botMessages");
-const { roleHygiene } = require("../../../services/discord/roleHygiene");
+const { roleHygiene } = require("../../../services/discord/roles/roleHygiene");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

@@ -9,7 +9,7 @@ import { requireBackend } from "../../../test/backend";
 import { inLang } from "../../../test/i18n";
 
 const { publicVersions } = requireBackend("config/gameVersions");
-const { normalizePlan } = requireBackend("stores/eventStore");
+const { normalizePlan } = requireBackend("stores/events/eventStore");
 const { renderChannelName } = requireBackend("utils/channelNames");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the libs loose fixtures, as the Jest version did

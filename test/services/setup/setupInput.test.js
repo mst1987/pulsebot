@@ -1,18 +1,18 @@
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn() }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn() }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profileStore = require("../../../src/stores/raiderProfileStore");
-const settingsStore = require("../../../src/stores/settingsStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profileStore = require("../../../src/stores/roster/raiderProfileStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const attendance = require("../../../src/services/characters/rosterAttendance");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup, rosterStatusFor } = require("../../../src/services/setup/setupInput");
 const { ownEvent } = require("../../factories/events");
 

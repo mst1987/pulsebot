@@ -9,7 +9,7 @@
 //                 the link "Alle Raids im Web" and "Links ..." (orga:links:<categoryId>:
 //                 the orga manages the links in Discord, services/orgaHub/orgaHubLinks.js)
 //   links         the category's orga links as link buttons in a row of their own
-//                 (none = no row), stores/orgaHubStore.js
+//                 (none = no row), stores/discord/orgaHubStore.js
 //   one section per raid, soonest first, at most MAX_RAIDS:
 //                 **title** / date · countdown · channel / status icon, label, detail
 //                 with a link button into the web on the right (none for a cancelled raid)
@@ -100,7 +100,7 @@ function raidLines(raid, emojis) {
  *   the category's raids in the next weeks, soonest first (`url` = the button into the web, "" for none)
  * @param {{ status: string, label: string }[]} [o.counts] the summary (orgaStatus.statusCounts)
  * @param {number} [o.total] how many active raids the weeks hold (the heading counts these)
- * @param {{ label: string, url: string }[]} [o.links] the orga links (stores/orgaHubStore.js), at most five
+ * @param {{ label: string, url: string }[]} [o.links] the orga links (stores/discord/orgaHubStore.js), at most five
  * @param {string} [o.webUrl] "Alle Raids im Web", "" when no public address is set
  * @param {number} [o.weeks] how far ahead it looks
  * @param {object} [o.emojis] the bot's application emojis by name (appEmojis.appEmojiMap())

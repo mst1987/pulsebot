@@ -8,26 +8,26 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () =>
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockGuildId }));
 let mockGuildId = "900000000000000001";
 // the server list (#895): two equal servers
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
-jest.mock("../../../../src/services/discord/serverRoles", () => ({
+jest.mock("../../../../src/services/discord/servers/serverRoles", () => ({
     listServerRoles: jest.fn(async (guildId) => ({ guildId, online: true, roles: [] })),
     serverRoleDetail: jest.fn(),
     roleCount: jest.fn(() => 12),
 }));
-jest.mock("../../../../src/services/discord/serverMembers", () => ({ memberCount: jest.fn(() => 186) }));
+jest.mock("../../../../src/services/discord/servers/serverMembers", () => ({ memberCount: jest.fn(() => 186) }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => ({ id: "900000000000000001" })),
     listAllChannels: jest.fn(() => [{ id: "1", isThread: false }, { id: "2", isThread: false }, { id: "3", isThread: true }]),
 }));
 
-const svc = require("../../../../src/services/discord/serverRoles");
-const members = require("../../../../src/services/discord/serverMembers");
+const svc = require("../../../../src/services/discord/servers/serverRoles");
+const members = require("../../../../src/services/discord/servers/serverMembers");
 const discord = require("../../../../src/services/discord/discord");
-const store = require("../../../../src/stores/roleMessageStore");
+const store = require("../../../../src/stores/discord/roleMessageStore");
 const route = require("../../../../src/web/apiRoutes/discord/discordRoles");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

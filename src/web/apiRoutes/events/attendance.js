@@ -15,7 +15,7 @@
 // bad_request, invalid_status, reason_too_long (400), not_found (404, unknown event).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const overridesStore = require("../../../stores/attendanceOverridesStore");
+const overridesStore = require("../../../stores/events/attendanceOverridesStore");
 const { getStoredEvent } = require("../../../services/events/eventSources");
 const { canEditAttendance } = require("../../../services/characters/attendanceAccess");
 const { versionOfEvent } = require("../../../services/versions/mainVersion");

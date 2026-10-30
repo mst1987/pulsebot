@@ -5,7 +5,7 @@ const { MessageFlags } = require("discord.js");
 const { cardText } = require("../../helpers/cardText");
 
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -14,11 +14,11 @@ jest.mock("../../../src/stores/eventStore", () => ({
         return JSON.parse(JSON.stringify(e));
     }),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const confirmBot = require("../../../src/services/setup/setupConfirmBot");
 const setupCore = require("../../../src/services/setup/setupCore");
 

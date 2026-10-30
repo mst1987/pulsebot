@@ -1,6 +1,6 @@
 // Raid-Vorlagen (#266): the rules behind the page (lib/raids/raidTemplates.ts), run
 // for real against the server's. The page is rendered in
-// pages/__tests__/RaidTemplatesPage.test.tsx (its source rules: test/web-client/conventions/raidTemplates.test.js).
+// pages/__tests__/RaidTemplatesPage.test.tsx (its source rules: test/web-client/conventions/events/raidTemplates.test.js).
 import { describe, expect, it } from "vitest";
 import * as mod from "../raidTemplates";
 import { requireBackend } from "../../../test/backend";

@@ -18,7 +18,7 @@
 const { slotsFor, item: itemInfo } = require("../../config/wowsims");
 const { bisForSpec } = require("../../config/data/councilSpecs");
 const { bisTiers } = require("../../config/data/bisSets");
-const { metaGemActive } = require("../logcheck/gearIssues");
+const { metaGemActive } = require("../logcheck/gear/gearIssues");
 const claData = require("../../config/data/claData");
 // The pinned WoWSims binary has its own item database and does not know TBC
 // Anniversary's re-issued Brewfest ids either — an unknown item aborts the

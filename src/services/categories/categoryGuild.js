@@ -29,11 +29,11 @@
 // Built once per request (categoryContext) — the stores are read once, never
 // per category.
 const discord = require("../discord/discord");
-const guildRoles = require("../discord/guildRoles");
-const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
-const eventStore = require("../../stores/eventStore");
-const { listRaidEvents } = require("../../stores/raidEventStore");
-const rosterStore = require("../../stores/rosterStore");
+const guildRoles = require("../discord/roles/guildRoles");
+const { storedCategoryGuilds, firstServerId } = require("../discord/servers/serverOf");
+const eventStore = require("../../stores/events/eventStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

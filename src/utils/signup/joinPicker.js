@@ -15,11 +15,11 @@
 // Only the member sees it: the texts are in their language (`lang`).
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
-const { getSignup, lastSignupOf, lastOwnSignupOf, migrateSignup } = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { getSignup, lastSignupOf, lastOwnSignupOf, migrateSignup } = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { defaultCanAlso, signupWindow } = require("../../services/signups/signupService");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { buildClasses } = require("../../config/gameVersions/classes");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { emojiOption, specEmojiName } = require("../../services/discord/appEmojis");

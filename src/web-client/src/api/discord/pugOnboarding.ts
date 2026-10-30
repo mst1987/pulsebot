@@ -3,7 +3,7 @@ import { guildQuery } from "./discordOverview";
 
 // Roles & onboarding of a PuG server (#906): the contract is the header of
 // src/web/apiRoutes/discord/pugOnboarding.js, the shapes come from
-// src/services/discord/pugOnboarding.js, the overview is docs/discord-servers.md.
+// src/services/discord/pug/pugOnboarding.js, the overview is docs/discord-servers.md.
 
 /** "new" = missing in Discord, "changed" = differs, "same" = as wanted, "lost" = goes away on apply. */
 export type PugItemStatus = "new" | "changed" | "same" | "lost";

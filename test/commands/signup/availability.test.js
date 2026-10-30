@@ -5,9 +5,9 @@ const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 const { cardText } = require("../../helpers/cardText");
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => ({
     ...require("../../helpers/signupMocks").discord(),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm" })),
@@ -18,10 +18,10 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 
 const mocks = require("../../helpers/signupMocks");
 const discord = require("../../../src/services/discord/discord");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const store = require("../../../src/stores/availabilityStore");
-const sessionStore = require("../../../src/stores/availabilitySessionStore");
-const bankStore = require("../../../src/stores/guildBankStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const store = require("../../../src/stores/events/availabilityStore");
+const sessionStore = require("../../../src/stores/events/availabilitySessionStore");
+const bankStore = require("../../../src/stores/loot/guildBankStore");
 const availability = require("../../../src/services/signups/availability");
 const organizer = require("../../../src/services/signups/organizer");
 const command = require("../../../src/commands/signup/availability");

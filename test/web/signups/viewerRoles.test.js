@@ -3,7 +3,7 @@
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn() }));
 
 const discord = require("../../../src/services/discord/discord");
-const { _resetForTests } = require("../../../src/services/discord/memberRoleMemory");
+const { _resetForTests } = require("../../../src/services/discord/roles/memberRoleMemory");
 const { viewerRoles } = require("../../../src/web/signups/viewerRoles");
 
 beforeEach(() => {

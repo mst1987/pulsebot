@@ -21,8 +21,8 @@ const { DateTime } = require("luxon");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const profiles = require("../../stores/raiderProfileStore");
-const sessionStore = require("../../stores/availabilitySessionStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const sessionStore = require("../../stores/events/availabilitySessionStore");
 const { VERSIONS } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../i18n/botText");

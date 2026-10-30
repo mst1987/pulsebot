@@ -72,7 +72,7 @@ proxy's HTML.
   (boss / trash) "Karte ausblenden / anzeigen" (`SectionStrip` `onMap`; the chips of `BossNav` before Oct 2026). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
 - Tests: `src/web-client/src/lib/raidplan/__tests__/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
-  `test/web/apiRoutes/raidplan/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
+  `test/web/apiRoutes/raidplan/raidplan.test.js` ("a section without its map", order), `test/stores/raidplan/raidplanStore.test.js`,
   `test/services/raidplan/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)
@@ -262,7 +262,7 @@ drawn by `PlanBoard` into `svg.rp-links`, the same in the editor (`BoardWorkspac
 - Tests: "lines on the map" in `src/web-client/src/lib/raidplan/assign/__tests__/assign.test.ts` (types, auto places, tank to his mob,
   mob icons, slot fallback), "the lines of the rows" in `components/raidplan/editor/__tests__/BoardWorkspace.test.tsx`
   (rendered heal / tank / kick lines with their class and no stroke of their own) and the CSS guard in
-  `test/web-client/conventions/assign.test.js` (every type's class points at a variable of `tokens.css`, nothing
+  `test/web-client/conventions/raidplan/assign.test.js` (every type's class points at a variable of `tokens.css`, nothing
   hides `.rp-links`).
 
 ## Facing arrow per icon and role group placeholders (feature/raidplan-10)

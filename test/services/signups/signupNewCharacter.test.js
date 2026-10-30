@@ -1,7 +1,7 @@
 // A signup with a character not in the profile yet (#907,
 // src/services/signups/signupNewCharacter.js): class -> spec -> name like the
 // bot, the character lands in the profile of the raid's version.
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { addSignupCharacter, planSignupCharacter } = require("../../../src/services/signups/signupNewCharacter");
 

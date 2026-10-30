@@ -10,12 +10,12 @@
 // intent. Three answers: member, not a member (Discord says "unknown member"),
 // unknown (bot offline, other error, too slow) — only "not a member" shows the
 // note, a Discord hiccup never nags a raider.
-const settingsStore = require("../../stores/settingsStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
-const guildRoles = require("../discord/guildRoles");
+const guildRoles = require("../discord/roles/guildRoles");
 // The invite of one link ("from:to"), sync, URL or "" (#905: made on a click in
 // the settings; without one the note comes without a button).
-const { inviteUrlForLink } = require("../discord/pugInvites");
+const { inviteUrlForLink } = require("../discord/pug/pugInvites");
 const { tr } = require("../../utils/i18n/botText");
 const logger = require("../../logger").child("partner-join-hint");
 

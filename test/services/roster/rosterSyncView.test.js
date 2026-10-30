@@ -7,25 +7,25 @@ jest.mock("../../../src/services/discord/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
     listRoles: jest.fn(() => [{ id: "main", name: "Raider", color: "#ff0000" }, { id: "trial", name: "Probe", color: "" }]),
 }));
-jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
-jest.mock("../../../src/services/discord/memberRoles", () => ({ recentWrite: jest.fn(() => undefined) }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../src/services/discord/roles/memberRoles", () => ({ recentWrite: jest.fn(() => undefined) }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: jest.fn((userId) => ({ userId, name: userId === "100003" ? "Profilname" : "", characters: [] })),
     firstCharacter: jest.fn(() => null),
     claimsFor: jest.fn(() => []),
 }));
-jest.mock("../../../src/stores/rosterHiddenStore", () => ({ isHidden: jest.fn(() => false) }));
+jest.mock("../../../src/stores/roster/rosterHiddenStore", () => ({ isHidden: jest.fn(() => false) }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     buildAttendanceContext: jest.fn(() => ({ raidsByCategory: new Map() })),
 }));
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
-const memberRoles = require("../../../src/services/discord/memberRoles");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
-const rosterHidden = require("../../../src/stores/rosterHiddenStore");
+const memberRoles = require("../../../src/services/discord/roles/memberRoles");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
+const rosterHidden = require("../../../src/stores/roster/rosterHiddenStore");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { rosterSyncView, mirroredRoles, logCharsList, titleCase, MAX_LOG_CHARS } = require("../../../src/services/roster/rosterSyncView");
 
 const member = (id, roleIds = [], { bot = false, name } = {}) => ({

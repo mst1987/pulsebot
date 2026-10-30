@@ -8,15 +8,15 @@ jest.mock("../../../src/services/events/eventDraft", () => ({
     stepMessage: jest.fn(),
     clearNamePattern: jest.fn(),
 }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn() }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn() }));
 jest.mock("../../../src/services/roster/categoryRoster", () => ({ currentRoster: jest.fn((cat) => (cat === "cat1" ? { id: "r1", guildId: "g1", managers: { userIds: ["mgr"], roleIds: [] } } : null)) }));
 jest.mock("../../../src/services/signups/availabilityPanel", () => ({ categoryNameFor: jest.fn(() => "╭・ TBC Montag") }));
 jest.mock("../../../src/services/orgaHub/orgaHub", () => ({ saveLinks: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
-const { resolveAccess } = require("../../../src/services/discord/userAccess");
+const { resolveAccess } = require("../../../src/services/discord/members/userAccess");
 const orgaHub = require("../../../src/services/orgaHub/orgaHub");
-const store = require("../../../src/stores/orgaHubStore");
+const store = require("../../../src/stores/discord/orgaHubStore");
 const links = require("../../../src/services/orgaHub/orgaHubLinks");
 const button = require("../../../src/commands/event/orgaHubButton");
 const { cardText, cardControls } = require("../../helpers/cardText");

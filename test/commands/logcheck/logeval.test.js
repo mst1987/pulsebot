@@ -1,6 +1,6 @@
 jest.mock("../../../src/services/logcheck/logChannel.js");
 jest.mock("../../../src/services/discord/discord.js");
-jest.mock("../../../src/stores/logStore.js");
+jest.mock("../../../src/stores/loot/logStore.js");
 jest.mock("../../../src/utils/logcheck/report.js", () => ({
     reportSummaryLines: jest.fn(() => ["👥 Raider: **25**"]),
 }));
@@ -9,7 +9,7 @@ const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/logcheck/logeval.js");
 const { evaluateLog } = require("../../../src/services/logcheck/logChannel.js");
 const { reportSummaryLines } = require("../../../src/utils/logcheck/report.js");
-const logStore = require("../../../src/stores/logStore.js");
+const logStore = require("../../../src/stores/loot/logStore.js");
 const discord = require("../../../src/services/discord/discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { cardText, cardControls } = require("../../helpers/cardText.js");

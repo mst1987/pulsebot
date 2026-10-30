@@ -9,7 +9,7 @@ let mockClient = null;
 jest.mock("../../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
 const orgaHub = require("../../../../src/services/orgaHub/orgaHub");
-const store = require("../../../../src/stores/orgaHubStore");
+const store = require("../../../../src/stores/discord/orgaHubStore");
 const route = require("../../../../src/web/apiRoutes/discord/orgaHub");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

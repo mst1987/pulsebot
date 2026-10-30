@@ -9,7 +9,7 @@
 // `findMissingRaiders` is the derivation alone — the signup button's preview
 // shows it before anything is posted.
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { computeAttendance, hasStarted } = require("../../utils/attendance");
 const { deliverUserPing, dmSummary } = require("../discord/pingDelivery");
 const { fail } = require("../../web/http/apiResult");

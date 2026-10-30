@@ -8,10 +8,10 @@
 //   - the public page sees only the *approved* setup (setupEditor.js: a raider
 //     never sees a draft). A token whose player is not in the approved setup is
 //     left out of the public page instead of being named from a draft.
-const store = require("../../stores/raidplanStore");
+const store = require("../../stores/raidplan/raidplanStore");
 const inherit = require("../../services/raidplan/raidplanInherit");
-const profileStore = require("../../stores/raidplanProfileStore");
-const templateStore = require("../../stores/raidplanTemplateStore");
+const profileStore = require("../../stores/raidplan/raidplanProfileStore");
+const templateStore = require("../../stores/raidplan/raidplanTemplateStore");
 const { approvedSetupOf, benchAndPool } = require("../../services/setup/setupCore");
 const groupsOf = require("../../services/raidplan/raidplanGroups");
 const { rulesForEvent, versionOfEvent, visibleRows } = require("../../services/versions/mainVersion");
@@ -20,12 +20,12 @@ const { wowIconUrl } = require("../../config/menu");
 const assign = require("../../services/raidplan/raidplanAssign");
 const stepsOf = require("../../services/raidplan/raidplanSteps");
 const besetzungOf = require("../../services/raidplan/raidplanBesetzung");
-const catalogStore = require("../../stores/raidplanCatalogStore");
+const catalogStore = require("../../stores/raidplan/raidplanCatalogStore");
 const { catalogEnabled } = require("../../services/versions/versionCapabilities");
 const { versionColor } = require("../../services/versions/versionSettings");
 const { serverOfEntry } = require("../../services/events/eventServer");
-const { firstServerId } = require("../../services/discord/serverOf");
-const { getConfig } = require("../../stores/configStore");
+const { firstServerId } = require("../../services/discord/servers/serverOf");
+const { getConfig } = require("../../stores/settings/configStore");
 
 /**
  * The server whose raid plan library (templates, tactic profiles) a plan uses (#945): the raid's own server, else the
@@ -57,7 +57,7 @@ function catalogFor(versionId) {
     const view = catalogStore.catalogView(versionId);
     return catalogEnabled(versionId) ? view : { ...view, mobs: [], spells: [] };
 }
-const raiderProfiles = require("../../stores/raiderProfileStore");
+const raiderProfiles = require("../../stores/roster/raiderProfileStore");
 const characterKey = raiderProfiles.characterKey;
 
 const ROLES = ["tank", "healer", "melee", "ranged"];

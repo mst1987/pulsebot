@@ -8,32 +8,32 @@ jest.mock("../../../src/classes/warcraftlogs.js", () => {
     WarcraftLogs.__getCasts = getCasts;
     return WarcraftLogs;
 });
-jest.mock("../../../src/stores/reportStore.js");
+jest.mock("../../../src/stores/loot/reportStore.js");
 jest.mock("../../../src/utils/discord/reply.js");
-jest.mock("../../../src/utils/logcheck/gearIssues.js");
-jest.mock("../../../src/utils/logcheck/consumables.js");
-jest.mock("../../../src/utils/logcheck/shadowResi.js");
-jest.mock("../../../src/utils/logcheck/drums.js");
-jest.mock("../../../src/utils/logcheck/potions.js");
-jest.mock("../../../src/utils/logcheck/sunder.js");
-jest.mock("../../../src/utils/logcheck/bossUptimes.js");
+jest.mock("../../../src/utils/logcheck/gear/gearIssues.js");
+jest.mock("../../../src/utils/logcheck/consumables/consumables.js");
+jest.mock("../../../src/utils/logcheck/consumables/shadowResi.js");
+jest.mock("../../../src/utils/logcheck/consumables/drums.js");
+jest.mock("../../../src/utils/logcheck/consumables/potions.js");
+jest.mock("../../../src/utils/logcheck/buffs/sunder.js");
+jest.mock("../../../src/utils/logcheck/buffs/bossUptimes.js");
 jest.mock("../../../src/utils/logcheck/common.js");
 
 const command = require("../../../src/commands/logcheck/logcheck.js");
 const WarcraftLogs = require("../../../src/classes/warcraftlogs.js");
-const { saveReport } = require("../../../src/stores/reportStore.js");
+const { saveReport } = require("../../../src/stores/loot/reportStore.js");
 const { botEditReply } = require("../../../src/utils/discord/reply.js");
-const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
-const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
-const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
-const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
-const { analyzePotions, potionsByName } = require("../../../src/utils/logcheck/potions.js");
-const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
-const { analyzeBossUptimes } = require("../../../src/utils/logcheck/bossUptimes.js");
+const { buildGearIssues } = require("../../../src/utils/logcheck/gear/gearIssues.js");
+const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables/consumables.js");
+const { analyzeShadowResi } = require("../../../src/utils/logcheck/consumables/shadowResi.js");
+const { analyzeDrums } = require("../../../src/utils/logcheck/consumables/drums.js");
+const { analyzePotions, potionsByName } = require("../../../src/utils/logcheck/consumables/potions.js");
+const { analyzeSunder } = require("../../../src/utils/logcheck/buffs/sunder.js");
+const { analyzeBossUptimes } = require("../../../src/utils/logcheck/buffs/bossUptimes.js");
 const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { cardText, cardControls } = require("../../helpers/cardText.js");
-const { saveConfig } = require("../../../src/stores/configStore.js");
+const { saveConfig } = require("../../../src/stores/settings/configStore.js");
 
 function primeAnalyzers() {
     // buildGearIssues / selectPlayers / potionsByName results are used unguarded,

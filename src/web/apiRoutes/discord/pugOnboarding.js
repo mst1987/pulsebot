@@ -1,4 +1,4 @@
-// Roles & onboarding of a PuG server (#906, services/discord/pugOnboarding.js,
+// Roles & onboarding of a PuG server (#906, services/discord/pug/pugOnboarding.js,
 // docs/discord-servers.md): the version and class roles, the rights of the PuG categories
 // and the onboarding questions, compared with what Discord has, and taken over on request.
 // Full admins only (area `settings`, full: true): the button changes roles, category
@@ -11,7 +11,7 @@
 //        a server without the switch: { guildId, guildName, online, applied, notPugServer: true })
 //        Overview = { guildId, guildName, online, applied, pugCategories, otherCategories,
 //                     roles, prompts, categories, changes, onboarding, onboardingError,
-//                     prerequisites, fingerprint }   (shapes: services/discord/pugOnboarding.js)
+//                     prerequisites, fingerprint }   (shapes: services/discord/pug/pugOnboarding.js)
 //
 // POST /api/discord/pug-onboarding   { guildId, categoryIds: string[], fingerprint }
 //      (fingerprint: the one of the preview the orga saw; categoryIds: the switched-on ones)
@@ -23,7 +23,7 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { serverFromQuery } = require("../../http/serverQuery");
-const pugOnboarding = require("../../../services/discord/pugOnboarding");
+const pugOnboarding = require("../../../services/discord/pug/pugOnboarding");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

@@ -1,7 +1,7 @@
 // Rollen-Nachrichten (self-service roles): the editor's logic without React —
 // what blocks a role, what is still wrong with the form, the server's error
 // codes in words, the colour field and the button rows of the preview. The
-// server checks everything again (src/services/discord/roleMessages.js); this
+// server checks everything again (src/services/discord/roles/roleMessages.js); this
 // side only says it before the click.
 import type { ApiError, RoleMessageChannelOption, RoleMessageInput, RoleMessageLimits, RoleMessageRole, RoleMessageRoleOption } from "../../api";
 import { t } from "../../i18n";

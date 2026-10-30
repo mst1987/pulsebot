@@ -1,8 +1,8 @@
 jest.mock("../../../src/services/discord/discord", () => ({ listGuilds: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "" })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ guildId: "" })) }));
 
 const discord = require("../../../src/services/discord/discord");
-const settingsStore = require("../../../src/stores/settingsStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const { pickActiveGuild } = require("../../../src/web/http/guildChoice");
 
 beforeEach(() => {

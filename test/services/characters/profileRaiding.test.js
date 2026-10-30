@@ -5,10 +5,10 @@ jest.mock("../../../src/services/versions/storedVersion", () => ({
     storedVersionOf: (id) => ({ ev_tbc: "tbc", ev_forever: "forever" })[id] || "",
 }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../src/stores/rosterStore");
-const lootStore = require("../../../src/stores/lootStore");
-const dungeonRuns = require("../../../src/stores/dungeonRunStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const lootStore = require("../../../src/stores/loot/lootStore");
+const dungeonRuns = require("../../../src/stores/roster/dungeonRunStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { profileRaiding, storedCharacterOf, LOOT_SHOWN } = require("../../../src/services/characters/profileRaiding");
 

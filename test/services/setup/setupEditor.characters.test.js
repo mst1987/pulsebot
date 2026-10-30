@@ -5,7 +5,7 @@
 // snapshot, the setup message, the DMs, the bot's lookup) shows the PLACED
 // character, never the signup's first one.
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [...mockEvents.values()],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -16,9 +16,9 @@ jest.mock("../../../src/stores/eventStore", () => ({
     },
 }));
 let mockSignups = [];
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => mockSignups }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => mockSignups }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],

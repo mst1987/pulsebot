@@ -3,11 +3,11 @@
 // without a circular dependency (server.js requires apiRouter.js).
 const { listStoredEvents, ownUpcomingRaw, cancelFields } = require("../../services/events/eventSources");
 const { scanRaidEvents } = require("../../services/events/raidEventScan");
-const { listByEvent: listLootByEvent } = require("../../stores/lootStore");
-const { getEventSheet } = require("../../stores/eventSheetStore");
-const { getEventSoftres } = require("../../stores/eventSoftresStore");
-const { lootSystemOf } = require("../../stores/eventLootSystemStore");
-const { listLogs } = require("../../stores/logStore");
+const { listByEvent: listLootByEvent } = require("../../stores/loot/lootStore");
+const { getEventSheet } = require("../../stores/events/eventSheetStore");
+const { getEventSoftres } = require("../../stores/events/eventSoftresStore");
+const { lootSystemOf } = require("../../stores/events/eventLootSystemStore");
+const { listLogs } = require("../../stores/loot/logStore");
 const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/overview/recentEvents");
 const { autoLinkLogs } = require("../../services/logcheck/logAutoLink");
 const { logPostedAt } = require("../../services/logcheck/reportList");
@@ -15,16 +15,16 @@ const { recordVersion } = require("../../services/logcheck/logVersion");
 const { listAwards } = require("../loot/lootAwards");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../../services/discord/discord");
-const { getConfig, resolveEventSheetLink } = require("../../stores/settingsStore");
+const { getConfig, resolveEventSheetLink } = require("../../stores/settings/settingsStore");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
-const { listReports, getReport } = require("../../stores/reportStore");
+const { listReports, getReport } = require("../../stores/loot/reportStore");
 const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
-const { listPending } = require("../../stores/lootInboxStore");
+const { listPending } = require("../../stores/loot/lootInboxStore");
 const { serverContext, sessionInGuild } = require("../../services/loot/lootServer");
-const { getChannelConfig, listArchived, archiveHint } = require("../../stores/channelArchiveStore");
+const { getChannelConfig, listArchived, archiveHint } = require("../../stores/discord/channelArchiveStore");
 const { buildRoster } = require("../characters/roster");
 const { rosterStats } = require("../characters/rosterStats");
-const { resolveAssignmentProfiles } = require("../../stores/raiderCharactersStore");
+const { resolveAssignmentProfiles } = require("../../stores/roster/raiderCharactersStore");
 const softres = require("../../utils/loot/softres");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
@@ -33,14 +33,14 @@ const {
     zoneForEvent, raidSize, roleFill, classCounts, notSignedUp, isAttending,
     lastReportArea, newLootSince,
 } = require("./dashboardOverview");
-const { getEvent, listEvents } = require("../../stores/eventStore");
+const { getEvent, listEvents } = require("../../stores/events/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { versionOfEvent, mainVersionFor } = require("../../services/versions/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
-const rosterStore = require("../../stores/rosterStore");
-const { getProfile } = require("../../stores/raiderProfileStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const { getProfile } = require("../../stores/roster/raiderProfileStore");
 const { canManageRosterLive } = require("../../services/roster/rosterAccess");
 const { trialEnding, extendedTrialUntil } = require("../../services/roster/rosterTrials");
 const { planningOf } = require("../../services/events/planning");

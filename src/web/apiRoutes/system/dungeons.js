@@ -14,7 +14,7 @@ const { ok } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
 const { versionShort } = require("../../../services/versions/versionTag");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { dungeonBoard, versionsWithData } = require("../../../services/dungeons/dungeonBoard");
 
 /** GET /api/dungeons — the tables of one version. */

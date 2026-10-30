@@ -2,7 +2,7 @@
 // active server (an empty side on either end is no filter).
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
 const { activeRoster, inGuild } = require("../../../src/web/roster/activeRoster");
 const { tempStoreFile } = require("../../helpers/tempStore");

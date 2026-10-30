@@ -41,18 +41,18 @@ const {
 const { embedAccentColor } = require("../../config/variables");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
-const guildRoles = require("../discord/guildRoles");
+const guildRoles = require("../discord/roles/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
 const { versionShort } = require("../versions/versionTag");
 const { VERSIONS, instanceById } = require("../../config/gameVersions");
 const { entryForSpec } = require("../../config/data/classlist");
-const { onSignupsChanged } = require("../../stores/signupStore");
+const { onSignupsChanged } = require("../../stores/events/signupStore");
 const {
     getOverviewState, setOverviewState, overviewKeys, listOverviewKeys, removeOverviewState,
-} = require("../../stores/talkOverviewStore");
-const { readStored } = require("../../stores/configStore");
+} = require("../../stores/discord/talkOverviewStore");
+const { readStored } = require("../../stores/settings/configStore");
 const { signupStatus } = require("../../utils/attendance");
 const { accountCount, ATTENDING_STATUSES } = require("../../utils/signup/capacity");
 

@@ -8,15 +8,15 @@ jest.mock("../../../src/services/events/eventDraft", () => ({
     stepMessage: (...args) => mockStepMessage(...args),
     clearNamePattern: jest.fn(),
 }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn() }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn() }));
 jest.mock("../../../src/services/roster/categoryRoster", () => ({ currentRoster: jest.fn((cat) => (cat === "cat1" ? { id: "r1", guildId: "g1", managers: { userIds: ["mgr"], roleIds: [] } } : null)) }));
 
 const { MessageFlags } = require("discord.js");
-const { resolveAccess } = require("../../../src/services/discord/userAccess");
+const { resolveAccess } = require("../../../src/services/discord/members/userAccess");
 const bot = require("../../../src/services/orgaHub/orgaHubBot");
 const button = require("../../../src/commands/event/orgaHubButton");
 const { cardText } = require("../../helpers/cardText");
-const store = require("../../../src/stores/orgaHubStore");
+const store = require("../../../src/stores/discord/orgaHubStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 beforeAll(() => store.useFile(tempStoreFile("orga-hubs.json")));

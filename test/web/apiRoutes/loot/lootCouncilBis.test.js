@@ -5,7 +5,7 @@
 let mockUser = null;
 let mockConfig = {};
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/utils/loot/wowhead", () => ({
     ...jest.requireActual("../../../../src/utils/loot/wowhead"),
     lookupItem: jest.fn(),
@@ -13,7 +13,7 @@ jest.mock("../../../../src/utils/loot/wowhead", () => ({
 }));
 
 const wowhead = require("../../../../src/utils/loot/wowhead");
-const store = require("../../../../src/stores/manualBisStore");
+const store = require("../../../../src/stores/loot/manualBisStore");
 const route = require("../../../../src/web/apiRoutes/loot/lootCouncilBis");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

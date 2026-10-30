@@ -7,11 +7,11 @@ let mockActive = "900000000000000001";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 jest.mock("../../../../src/services/discord/linkCheck", () => ({ messageLink: (g, c, m) => `https://discord.com/channels/${g}/${c}/${m}` }));
 // the server list (#895): two equal servers
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
-jest.mock("../../../../src/services/discord/roleMessages", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/roleMessages");
+jest.mock("../../../../src/services/discord/roles/roleMessages", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/roles/roleMessages");
     return {
         LIMITS: actual.LIMITS,
         guildIdOf: actual.guildIdOf,
@@ -22,8 +22,8 @@ jest.mock("../../../../src/services/discord/roleMessages", () => {
     };
 });
 
-const svc = require("../../../../src/services/discord/roleMessages");
-const store = require("../../../../src/stores/roleMessageStore");
+const svc = require("../../../../src/services/discord/roles/roleMessages");
+const store = require("../../../../src/stores/discord/roleMessageStore");
 const route = require("../../../../src/web/apiRoutes/discord/roleMessages");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

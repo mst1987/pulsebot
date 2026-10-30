@@ -16,7 +16,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
   nie davon abzweigen), Remote `mst1987/pulsebot` (**öffentlich** — keine Hosts oder Schlüssel einchecken).
 - Stack: Node ≥ 22 (`.nvmrc` 22), CommonJS-Bot ohne TypeScript, discord.js 14, eigener HTTP-Router
   (`src/web/http/`), JSON-Stores unter `data/` (git-ignoriert, keine DB, keine Migrationen — Store-
-  Migrationen laufen beim Start, `src/stores/settingsMigration.js`). Web-Admin: React + Vite + TS in
+  Migrationen laufen beim Start, `src/stores/settings/settingsMigration.js`). Web-Admin: React + Vite + TS in
   `src/web-client/`, gebaut nach `dist/`.
 - Verwandt: `D:\programming\eventhelper-addon` (`mst1987/eventhelper-addon`, öffentlich: Lua-Addon
   EventHelperSync + Node-Sync-Tool). Wire-Format `eventhelper-loot` — eine Änderung braucht beide
@@ -155,7 +155,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     (adminRoleIds/ADMIN_ROLE_IDS, orgaRoleIds, officerRoleId, rolePermissions, botCommandAccess[*].roleIds,
     categoryRoles, Roster roleIds/trialRoleId/managers.roleIds, roleSync beide Seiten), keine
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
-    (`services/discord/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
+    (`services/discord/roles/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
     Freigaben) muss auch in `selfRole.configReason` — sonst kann sich jemand die Rolle selbst holen.
     Rollenfelder entstehen auch als **Nebenwirkung**: der Versionswechsel einer Kategorie legt mit
     `categorySwitchFixes[*].roster.roleIds` ein Roster an (`rosterVersionSwitch`) und

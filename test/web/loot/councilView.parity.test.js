@@ -11,17 +11,17 @@ const mockExcludedKeys = jest.fn(() => new Set());
 const mockRosters = {};
 const mockProfiles = jest.fn(() => []);
 
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../../src/services/loot/charGear", () => ({
     gearByCharacter: () => new Map(),
     gearFor: () => null,
     charKey: (n) => String(n).toLowerCase(),
 }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
-jest.mock("../../../src/stores/councilStore", () => {
-    const actual = jest.requireActual("../../../src/stores/councilStore");
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
+jest.mock("../../../src/stores/loot/councilStore", () => {
+    const actual = jest.requireActual("../../../src/stores/loot/councilStore");
     return {
         excludedKeys: (...a) => mockExcludedKeys(...a),
         plannedRoles: () => new Map(),
@@ -30,28 +30,28 @@ jest.mock("../../../src/stores/councilStore", () => {
         VIEW_DEFAULTS: actual.VIEW_DEFAULTS,
     };
 });
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: () => [] }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: () => [], getEvent: () => null, isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: (...a) => mockProfiles(...a) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     rosterForCategory: (id) => mockRosters[id] || null,
     rostersForCategory: (id) => (mockRosters[id] ? [mockRosters[id]] : []),
     getRoster: (id) => Object.values(mockRosters).find((r) => r.id === id) || null,
     // every roster: "dabei seit" without a category (#668)
     listRosters: () => Object.values(mockRosters),
 }));
-jest.mock("../../../src/stores/logGearStore", () => ({ loadLogGear: jest.fn(), clearLogGear: jest.fn(), recentLogs: () => [] }));
-jest.mock("../../../src/stores/simStore", () => ({ startCouncilSim: jest.fn(), getJob: jest.fn() }));
+jest.mock("../../../src/stores/loot/logGearStore", () => ({ loadLogGear: jest.fn(), clearLogGear: jest.fn(), recentLogs: () => [] }));
+jest.mock("../../../src/stores/loot/simStore", () => ({ startCouncilSim: jest.fn(), getJob: jest.fn() }));
 jest.mock("../../../src/services/loot/armoryGear", () => ({
     primeArmoryGear: jest.fn(async () => ({ answered: 0 })),
     clearArmoryFor: jest.fn(),
 }));
-jest.mock("../../../src/stores/raidTemplateStore", () => ({ getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/events/raidTemplateStore", () => ({ getRaidTemplate: () => null }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: () => [{ id: "c1", name: "Mittwoch" }, { id: "c2", name: "Sonntag" }],
 }));
@@ -63,10 +63,10 @@ const mockConfig = {
     categoryLootSystem: { c1: "lootcouncil", c3: "softres" },
     categoryLootTool: { c2: "rclc" },
 };
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/web/http/apiMiddleware", () => require("../../helpers/http").apiMiddlewareMock());
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
-jest.mock("../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: () => ({ id: "t1", name: "PC" }),
     touchToken: jest.fn(),
     bearerFrom: () => "ehl_good",
@@ -76,7 +76,7 @@ const { getLootCouncil } = require("../../../src/web/apiRoutes/loot/lootCouncil"
 const { ingestCouncil } = require("../../../src/web/apiRoutes/loot/ingest");
 const { mockRes, body } = require("../../helpers/http");
 const { lootRow, DAY, now } = require("../../helpers/lootCouncil");
-const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+const councilProfilesStore = require("../../../src/stores/loot/councilProfilesStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 afterAll(() => councilProfilesStore.useFile(null));

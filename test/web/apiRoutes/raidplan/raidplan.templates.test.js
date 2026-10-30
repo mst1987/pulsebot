@@ -6,8 +6,8 @@ let mockViewer = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     // the server list of this test: the active one and another (a template filter may only name these)
     resolveServer: jest.fn(({ guildId = "" } = {}) => {
         const id = String(guildId || "");
@@ -16,8 +16,8 @@ jest.mock("../../../../src/services/discord/guildRoles", () => ({
     }),
 }));
 const mockEvents = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
 }));
@@ -25,9 +25,9 @@ jest.mock("../../../../src/stores/eventStore", () => ({
 const { readJsonBody, readRawBody } = require("../../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { ownEvent } = require("../../../factories/events");
-const plans = require("../../../../src/stores/raidplanStore");
-const profiles = require("../../../../src/stores/raidplanProfileStore");
-const templates = require("../../../../src/stores/raidplanTemplateStore");
+const plans = require("../../../../src/stores/raidplan/raidplanStore");
+const profiles = require("../../../../src/stores/raidplan/raidplanProfileStore");
+const templates = require("../../../../src/stores/raidplan/raidplanTemplateStore");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const { checkAccess, areasFor } = require("../../../../src/web/http/apiAccess");
 

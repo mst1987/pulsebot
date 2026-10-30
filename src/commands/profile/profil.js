@@ -9,11 +9,11 @@
 // character of the main game version (there is no "main", only the raider's
 // order) — the other characters are switched on the web page.
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { mainVersionFor, visibleRows } = require("../../services/versions/mainVersion");
 const { versionShort } = require("../../services/versions/versionTag");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr, specLabel } = require("../../utils/i18n/botText");

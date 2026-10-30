@@ -12,9 +12,9 @@
 //   - an edit (PATCH /api/raids) keeps the raid's version and takes only such a voice channel.
 // The create dialog's choices (GET /api/raids/new) are cut down to the same, so nothing is offered
 // that the server would refuse.
-const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../stores/settings/settingsStore");
 const { templateVersionProblem } = require("../../services/categories/categoryEras");
-const { getChannelConfig } = require("../../stores/channelArchiveStore");
+const { getChannelConfig } = require("../../stores/discord/channelArchiveStore");
 const { mainVersionFor, versionOfEvent } = require("../../services/versions/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
 const eventCreate = require("../../services/events/eventCreate");

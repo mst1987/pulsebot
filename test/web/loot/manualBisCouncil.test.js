@@ -6,19 +6,19 @@ const mockListAll = jest.fn(() => []);
 const mockAnnotated = jest.fn(() => []);
 const mockGearByCharacter = jest.fn(() => new Map());
 
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../../src/services/loot/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
-jest.mock("../../../src/stores/councilStore", () => ({ excludedKeys: () => new Set(), plannedRoles: () => new Map() }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
+jest.mock("../../../src/stores/loot/councilStore", () => ({ excludedKeys: () => new Set(), plannedRoles: () => new Map() }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: () => [] }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
 
-const manualBisStore = require("../../../src/stores/manualBisStore");
+const manualBisStore = require("../../../src/stores/loot/manualBisStore");
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const {
     manualIndex, manualBisForSpec, manualBisItems, manualBisSpecsView, manualItemView,

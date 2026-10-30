@@ -1,6 +1,6 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeGuildFor } = require("../../http/activeGuild");
 const discord = require("../../../services/discord/discord");
 const {
@@ -11,7 +11,7 @@ const {
 const { userCanAny, userIsOrga } = require("../../../config/permissions");
 const { buildTasks, zoneFor } = require("../../dashboard/dashboardOverview");
 const { loadPersonal } = require("../../dashboard/dashboardPersonal");
-const { loadDrift } = require("../../../services/discord/roleSync");
+const { loadDrift } = require("../../../services/discord/roles/roleSync");
 const { seriesFailures } = require("../../events/eventSeries");
 const { deployStatus } = require("../../http/deployStatus");
 const { readParts: readBackupParts } = require("../../../services/backup/backupStatus");

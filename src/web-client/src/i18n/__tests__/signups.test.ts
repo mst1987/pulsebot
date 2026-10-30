@@ -1,6 +1,6 @@
 // The "signups" namespace in two languages, with the real `t` (#435: formerly
 // test/web-client/i18n-signups.test.js; the source rules are in
-// test/web-client/conventions/i18n-signups.test.js).
+// test/web-client/conventions/i18n/i18n-signups.test.js).
 import { describe, expect, it } from "vitest";
 import { t } from "..";
 import { GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups/status";

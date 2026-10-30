@@ -5,9 +5,9 @@
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => ({
     ...require("../../helpers/signupMocks").discord(),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm" })),
@@ -17,9 +17,9 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 
 const mocks = require("../../helpers/signupMocks");
 const discord = require("../../../src/services/discord/discord");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const bankStore = require("../../../src/stores/guildBankStore");
-const stockStore = require("../../../src/stores/guildBankStockStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const bankStore = require("../../../src/stores/loot/guildBankStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
 const command = require("../../../src/commands/signup/availability");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { mockInteraction } = require("../../helpers/mockInteraction");

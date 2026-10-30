@@ -16,16 +16,16 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     editPayload: jest.fn(async () => ({})),
     sendDirectMessage: jest.fn(async () => ({ ok: true })),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
 
 const discord = require("../../../../src/services/discord/discord");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const stockStore = require("../../../../src/stores/guildBankStockStore");
-const requests = require("../../../../src/stores/guildBankStore");
-const profiles = require("../../../../src/stores/raiderProfileStore");
+const stockStore = require("../../../../src/stores/loot/guildBankStockStore");
+const requests = require("../../../../src/stores/loot/guildBankStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../../src/utils/guildbank/guildBankScan");
 const {
     linkGuildBankRequest, verifyGuildBankRequest, reassignGuildBankRequest, searchGuildBankCharacters, getGuildBankHandedOut, getGuildBankRequests, getGuildBankWaitlist, importGuildBankWaitlist,
@@ -219,7 +219,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
 
     // #563: a bank of a hidden version is read only
     it("refuses every write to a bank of a hidden version with 409 version_hidden", async () => {
-        const { getConfig } = require("../../../../src/stores/settingsStore");
+        const { getConfig } = require("../../../../src/stores/settings/settingsStore");
         const entry = imported();
         getConfig.mockReturnValue({ guildId: "g1", mainVersion: "forever", hideOtherVersions: true, discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } });
         try {

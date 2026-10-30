@@ -14,15 +14,15 @@
 // DELETE /api/addon-center   take it down
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
-const store = require("../../../stores/addonCenterStore");
+const { getConfig } = require("../../../stores/settings/configStore");
+const store = require("../../../stores/settings/addonCenterStore");
 const addonCenter = require("../../../services/addons/addonCenter");
 const discord = require("../../../services/discord/discord");
-const guildRoles = require("../../../services/discord/guildRoles");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../../services/versions/mainVersion");
 const { versionLabel } = require("../../../services/versions/versionSettings");
-const { privilegedReason } = require("../../../services/discord/selfRole");
+const { privilegedReason } = require("../../../services/discord/roles/selfRole");
 
 function centerView(center) {
     if (!center) return null;
@@ -63,7 +63,7 @@ function channelsOf(config) {
  * The roles of every configured server (the update role lives on the centre's server),
  * each with `privileged`: it grants bot rights, Discord permissions beyond @everyone or
  * unlocks channels, so the centre hides "Updates abonnieren" for it and the card warns
- * (services/discord/selfRole.js). The officer role pinged on applications
+ * (services/discord/roles/selfRole.js). The officer role pinged on applications
  * (officerRoleId of each server's block, #924) counts as privileged too: a subscriber would read every application.
  */
 function rolesOf(config) {

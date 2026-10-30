@@ -18,9 +18,9 @@
 //     is in no part of the setup, not even "Angemeldet"). The save goes through
 //     setupEditor.saveEventSetup, so checks, reasons, the pool and the version
 //     (a changed lineup turns an approval back into a draft) follow its rules.
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const signupService = require("../signups/signupService");
 const { STATUS_LABELS } = require("../events/eventManage");
 const setupEditor = require("./setupEditor");

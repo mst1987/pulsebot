@@ -13,10 +13,10 @@
 // loot export / Warcraft Logs. So evidence is honest about what it is: a
 // character seen in N evaluations, and the spec those sources resolved.
 
-const { listReports, getReportRoster } = require("../../stores/reportStore");
-const characterStore = require("../../stores/characterStore");
-const raiderCharacters = require("../../stores/raiderCharactersStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
+const characterStore = require("../../stores/roster/characterStore");
+const raiderCharacters = require("../../stores/roster/raiderCharactersStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 
 // How many of the newest evaluations are walked. The roster slice is cached in
 // reportStore, so this is cheap after the first request.

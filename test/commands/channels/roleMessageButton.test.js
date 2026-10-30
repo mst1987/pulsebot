@@ -1,7 +1,7 @@
 // The entry point of the role messages' buttons: everyone may click by default and
-// the click goes to services/discord/roleMessages.handleRoleButton.
+// the click goes to services/discord/roles/roleMessages.handleRoleButton.
 const mockHandle = jest.fn(async () => {});
-jest.mock("../../../src/services/discord/roleMessages", () => ({
+jest.mock("../../../src/services/discord/roles/roleMessages", () => ({
     BUTTON_PREFIX: "rolemsg",
     handleRoleButton: (...args) => mockHandle(...args),
 }));

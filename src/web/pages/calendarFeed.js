@@ -20,9 +20,9 @@
 //
 // Only **own** events appear: a Raid-Helper event has no signup in our store,
 // and its id is not in eventStore either.
-const { listEvents } = require("../../stores/eventStore");
-const { signupsOfUser } = require("../../stores/signupStore");
-const { verifyToken, touchToken } = require("../../stores/calendarTokenStore");
+const { listEvents } = require("../../stores/events/eventStore");
+const { signupsOfUser } = require("../../stores/events/signupStore");
+const { verifyToken, touchToken } = require("../../stores/events/calendarTokenStore");
 const { buildUserCalendar } = require("../../services/events/icsFeed");
 const { versionOfEvent, isVersionVisible, knownVersion } = require("../../services/versions/mainVersion");
 

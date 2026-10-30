@@ -10,18 +10,18 @@ require("./config/env.js").validateEnv();
 const messages = require("./config/messages.js");
 const { card } = require("./utils/discord/card.js");
 const { tr } = require("./utils/i18n/botText.js");
-const userPrefs = require("./stores/userPrefsStore.js");
+const userPrefs = require("./stores/settings/userPrefsStore.js");
 const { langOfInteraction } = require("./services/discord/botLanguage.js");
 const { startWebServer } = require("./web/http/server.js");
 const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
 const { runLogChannelMigration } = require("./services/logcheck/logChannelMigration.js");
-const { cleanForeignRoles } = require("./services/discord/foreignRoleCleanup.js");
+const { cleanForeignRoles } = require("./services/discord/roles/foreignRoleCleanup.js");
 const softresDetect = require("./services/loot/softresDetect.js");
-const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roleSync.js");
+const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roles/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
-const memberActivity = require("./services/discord/memberActivity.js");
-const pugInvites = require("./services/discord/pugInvites.js");
+const memberActivity = require("./services/discord/members/memberActivity.js");
+const pugInvites = require("./services/discord/pug/pugInvites.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
@@ -30,8 +30,8 @@ const { queueItemEmojiSync } = require("./services/guildbank/itemEmojis.js");
 const { redrawPendingCards } = require("./services/signups/guildBank");
 const linkWatch = require("./services/discord/linkWatch.js");
 const discord = require("./services/discord/discord.js");
-const { configuredGuildIds } = require("./services/discord/guildRoles.js");
-const { handleReaction, handleReactionsCleared } = require("./services/discord/roleMessages.js");
+const { configuredGuildIds } = require("./services/discord/roles/guildRoles.js");
+const { handleReaction, handleReactionsCleared } = require("./services/discord/roles/roleMessages.js");
 const { loadCommandModules, kindOf } = require("./commands/loader.js");
 const { startJobs } = require("./web/http/jobs.js");
 const logger = require("./logger.js").child("bot");
@@ -49,11 +49,11 @@ const client = new Client({
         // against event signups (attendance / ping missing raiders). Requires the
         // "Server Members Intent" to be enabled in the Discord Developer Portal.
         GatewayIntentBits.GuildMembers,
-        // the reactions on the role messages (services/discord/roleMessages.js): a reaction
+        // the reactions on the role messages (services/discord/roles/roleMessages.js): a reaction
         // gives its role, taking it back takes the role
         GatewayIntentBits.GuildMessageReactions,
         // not privileged: inviteCreate / inviteDelete speed up the invite check (they only come
-        // with "Kanäle verwalten"; services/discord/pugInvites.js does not rely on them, #905)
+        // with "Kanäle verwalten"; services/discord/pug/pugInvites.js does not rely on them, #905)
         GatewayIntentBits.GuildInvites,
     ],
     // The role messages' reactions must work on messages from before a restart too, which
@@ -126,7 +126,7 @@ client.on("messageCreate", async(message) => {
 
 // Role sync between paired servers (#264, #896): a member whose roles
 // changed, or who just joined one of them, gets the mapped roles on the
-// other server of the pair. Only adds — see src/services/discord/roleSync.js.
+// other server of the pair. Only adds — see src/services/discord/roles/roleSync.js.
 // Rosters (#656): gaining a roster role takes the member into that roster,
 // losing its last role drops them out — see src/services/roster/rosterRoleSync.js.
 client.on("guildMemberUpdate", (oldMember, newMember) => {
@@ -134,7 +134,7 @@ client.on("guildMemberUpdate", (oldMember, newMember) => {
     Promise.resolve(handleMemberUpdate(oldMember, newMember))
         .catch((error) => console.error("guildMemberUpdate handler error:", error.message));
 });
-// Joins and leaves are noted for the Discord overview (services/discord/memberActivity.js).
+// Joins and leaves are noted for the Discord overview (services/discord/members/memberActivity.js).
 client.on("guildMemberAdd", (member) => {
     memberActivity.onMemberAdd(member);
     // through which invite the member came (#905); never throws
@@ -150,7 +150,7 @@ client.on(Events.InviteCreate, (invite) => pugInvites.onInviteCreate(invite));
 client.on(Events.InviteDelete, (invite) => pugInvites.onInviteDelete(invite));
 
 // Role messages: a reaction on one gives its role, removing it takes the role back
-// (services/discord/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle
+// (services/discord/roles/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle
 // rule of `rolemsg` counts as for its button). Cleared reactions: the bot sets its own again.
 client.on(Events.MessageReactionAdd, (reaction, user) => {
     handleReaction(reaction, user, true, { commands: client.commands }).catch((error) => logger.warn("role message reaction failed:", error.message));
@@ -291,7 +291,7 @@ function start() {
     // reliable way to see which version the bot actually runs on after an
     // upgrade. Keep it first, before anything can fail.
     console.log(`PulseBot starting on Node ${process.version} (${runMode()}, ${process.env.EVENTHELPER_ENV_FILE}, NODE_ENV=${process.env.NODE_ENV || "-"})`);
-    require("./stores/settingsMigration").migrateSettings();
+    require("./stores/settings/settingsMigration").migrateSettings();
     // a category switched to another game version closes its roster (#739)
     require("./services/roster/rosterVersionSwitch").registerRosterVersionSwitch();
     loadCommands(path.join(__dirname, "commands"));

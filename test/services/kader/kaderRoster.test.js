@@ -3,7 +3,7 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const kaderStore = require("../../../src/stores/kaderStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
 const kaderRoster = require("../../../src/services/kader/kaderRoster");
 const { rosterPlayers, kaderSummaries, ROSTER_STATES } = kaderRoster;
 

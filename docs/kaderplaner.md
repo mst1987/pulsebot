@@ -28,7 +28,7 @@ profile.
 | `src/services/kader/kaderMigration.js` | the one-time upgrade of the #566 file (see "Umstellung") |
 | `src/services/kader/kaderActivity.js` | Live: what a write changed — revisions and the Kader's activity log (`recordChanges`), the lines after a revision (`changesSince`) |
 | `src/web/kader/kaderPresence.js` | Live: who is in which Kader right now, in memory only |
-| `src/stores/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
+| `src/stores/roster/kaderStore.js` | `data/settings/kader.json`, one planner per Discord server; `liveState` for the poll |
 | `src/web-client/src/pages/kader/` | the page (`KaderPage.tsx`): the overview of all Kader (`KaderOverview.tsx`), header, status bar, the seven views (`CompositionView.tsx` the "Zusammensetzung" with its Planspiel) and the dialogs; live: `useKaderLive.ts` (the poll), `useInterviewDraft.ts` (the interview's draft and its conflicts), `Presence.tsx` (who is here, the conflict banner), `ActivityLog.tsx` (Verlauf, Aktivität) |
 | `src/web-client/src/lib/kader/` | client logic: `model.ts` (names, icons, states, counts, the attendance sum over the Kader's raid categories), `interview.ts` (progress, draft/patch), `filters.ts`, `sort.ts` (the sort keys of the planner's tables), `colors.ts` (the colours of the answers), `setup.ts` (slots, buff hints, Discord text), `composition.ts` (who counts with which spec and role, per class, the buffs they bring, the nearest setup size), `names.ts`, `live.ts` (activity lines as sentences, the toast, presence in words) |
 | `src/web-client/src/styles/kader.css` | the module stylesheet, prefix `kp-` (modifiers too) |
@@ -46,9 +46,9 @@ single-account grant, the CSRF refusal and the lead rule.
 ## Privacy
 
 Wishes, interview answers, notes, votes and comments **never leave the Kaderplaner**: not into the raider profile,
-the roster pages, other APIs or the logs. `src/stores/kaderStore.js` is required only by
-`src/stores/settingsMigration.js`, `src/web/apiRoutes/roster/kader.js` and `src/services/kader/kaderRoster.js` (the roster
-door below; `test/stores/kaderStore.test.js` keeps that list), and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
+the roster pages, other APIs or the logs. `src/stores/roster/kaderStore.js` is required only by
+`src/stores/settings/settingsMigration.js`, `src/web/apiRoutes/roster/kader.js` and `src/services/kader/kaderRoster.js` (the roster
+door below; `test/stores/roster/kaderStore.test.js` keeps that list), and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
 profile leaves `kaderSource.js` as a whitelist (characters, specs, gear, main, tank/heal, raid days, the saved
 name) — never `avoid`, wishes, the note, preferred raids or calendar tokens (`test/web/kader/kaderSource.test.js`).
 
@@ -61,7 +61,7 @@ A raid roster (docs/roster-profile.md "Roster anlegen und einstellen") can be cr
 roster, bench, tentative; `characterName` = the planner's active character), built field by field — never a wish, an
 answer, a note, a vote, a comment, the Verlauf or the activity log; `kaderSummaries(guildId)` gives the create dialog
 and the roster link id, name, two counts and the Kader's `attendanceCategories` (category ids, no person in them). `rosterCreate.js` is the only module outside the Kaderplaner that requires it, and it requires
-nothing else of the planner (`test/stores/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
+nothing else of the planner (`test/stores/roster/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
 roster suites fill every private field with a marker and assert it never reaches the answer or `rosters.json`. The
 roster maps roster → core, bench → bench, tentative → trial; the character is the planner's active one as the profile
 key of the roster's version when the profile has it, else the name as typed, else a profile character of the decided
@@ -105,7 +105,7 @@ character cross, and only through "Ins Roster übernehmen".
 /api/kader/roster/link` `{ kaderId, rosterId }` (area `kader` write + CSRF, full admins, else 403 `admin_only`;
 `rosterId` `""` unlinks; 404 `kader_not_found` / `not_found`, 409 `kader_taken`) moves the link
 (`rosterCreate.linkRosterToKader`: the old roster is unlinked first, a history line on both) and answers the state. The kader route requires `services/roster/rosterCreate.js` and `rosterStore` — never the
-other way round —, so `kaderRoster.js` stays the only door (`test/stores/kaderStore.test.js`); the route test fills an
+other way round —, so `kaderRoster.js` stays the only door (`test/stores/roster/kaderStore.test.js`); the route test fills an
 interview note and a comment with a marker and asserts neither reaches the roster.
 
 ### Übernahme (Kader → Discord, October 2026)
@@ -393,7 +393,7 @@ An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
   tinted), the row tooltip and the drawer's answers (`AnswerChips` in `pages/kader/parts.tsx`) and the editor's
   preview. Only tints, dots, borders and markers carry the colour; the label is always written and stays `--text`
   (contrast holds in both themes, the colour is never the only signal, aria unchanged).
-  `test/web-client/conventions/kaderColors.test.js` keeps client palette, server palette, tokens and mappings in step.
+  `test/web-client/conventions/roster/kaderColors.test.js` keeps client palette, server palette, tokens and mappings in step.
 
 ### Example setups
 
@@ -417,7 +417,7 @@ the Kader (`kader.rev`), an interview (`interview.rev`: wishes, answers, note, i
 server's side (accounts, character data, a Kader created, renamed or deleted). Stamps of one counter only grow, so a
 different revision always means a change in between, also after delete-and-recreate. A write that changes nothing
 raises nothing. Data stored before (no revisions) reads as 0 and is written back unchanged (`kaderModel.normalize*`
-keep a revision only when it is a positive number; `test/stores/kaderStore.test.js`).
+keep a revision only when it is a positive number; `test/stores/roster/kaderStore.test.js`).
 
 **Activity log** (`kader.activity`, the newest 50, oldest first): one line per kind of change of a write,
 `{ rev, at, by, type, playerId?, count?, from?, to?, questionId? }` — types `created`, `added`, `removed`, `state`,
@@ -703,7 +703,7 @@ auf der Bench, z Beispiel-Setup(s))`.
 | accounts, assignments | unchanged |
 
 The character data comes from the planner's own assignments, else the raider profile (`profileCharOf`). The golden
-test `test/stores/settingsMigration.kader.test.js` runs the fixture `test/fixtures/kaderMigration/legacy.json` and
+test `test/stores/settings/settingsMigration.kader.test.js` runs the fixture `test/fixtures/kaderMigration/legacy.json` and
 compares with `golden.json` (`UPDATE_GOLDEN=1` rewrites it).
 
 ### Aufräumen der alten Entscheidungen

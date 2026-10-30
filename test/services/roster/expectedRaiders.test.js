@@ -7,7 +7,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const discord = require("../../../src/services/discord/discord");
 const { expectedRosterIds, hasExpected, listExpectedMembers, EXPECTED_STATUSES } = require("../../../src/services/roster/expectedRaiders");
 

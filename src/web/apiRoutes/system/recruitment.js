@@ -6,9 +6,9 @@ const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
     getConfig,
-} = require("../../../stores/settingsStore");
+} = require("../../../stores/settings/settingsStore");
 const discord = require("../../../services/discord/discord");
-const serverDefaults = require("../../../services/discord/serverDefaults");
+const serverDefaults = require("../../../services/discord/servers/serverDefaults");
 const { SPEC_CATALOG } = require("../../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../../config/gameVersions");

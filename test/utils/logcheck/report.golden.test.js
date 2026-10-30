@@ -19,8 +19,8 @@ jest.mock("../../../src/classes/warcraftlogs.js", () => {
         return mockFakeWcl();
     };
 });
-jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/reportStore.js", () => ({
+jest.mock("../../../src/stores/settings/settingsStore.js", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/loot/reportStore.js", () => ({
     saveReport: (report) => { mockSaved.push(report); return "golden1"; },
     getReport: () => null,
 }));

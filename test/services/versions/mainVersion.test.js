@@ -1,11 +1,11 @@
 // The main game version as a setting (#541): category before global before
 // the default, unknown ids never handed out, an event's own version wins.
 let mockConfig = {};
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 // #737: the versions the Raid-Helper scan stored per snapshot.
 const mockSnapshots = new Map();
 let mockSnapshotError = null;
-jest.mock("../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
     versionOfRaidEvent: (id) => {
         if (mockSnapshotError) throw mockSnapshotError;
         return mockSnapshots.get(id) || "";

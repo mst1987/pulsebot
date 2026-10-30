@@ -170,7 +170,7 @@ input[type=checkbox]:checked::after {
    1fr track never gets narrower than its widest unbreakable child, and that
    child then pushes the whole page sideways. Every flex child of the shell
    below carries min-width: 0 for the same reason, and every row of the topbar
-   wraps. test/web-client/conventions/shellWrap.test.js holds these rules. */
+   wraps. test/web-client/conventions/app/shellWrap.test.js holds these rules. */
 .app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; }
 .side { background: var(--panel); border-right: 1px solid var(--line); display: flex; flex-direction: column; position: sticky; top: 0; height: 100vh; align-self: start; }
 /* A link to the dashboard, styled as the brand block it always was: no link

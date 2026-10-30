@@ -5,7 +5,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { RAID_ITEMS } = require("../../config/data/tbcLootNames");
 const { itemCatalog } = require("../../services/loot/lootStats");
-const { listAll } = require("../../stores/lootStore");
+const { listAll } = require("../../stores/loot/lootStore");
 const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { versionLinks } = require("../../services/versions/versionSettings");

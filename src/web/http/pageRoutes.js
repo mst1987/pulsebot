@@ -15,14 +15,14 @@
 // before /r/cal/<id>.ics, both before the report pages; /r/<id>/p/<n> before
 // /r/<id>. A handler gets { req, res, url, pathname, params, rest }.
 const crypto = require("crypto");
-const { getReport, deleteReport } = require("../../stores/reportStore");
+const { getReport, deleteReport } = require("../../stores/loot/reportStore");
 const { renderReportPage, renderPlayerPage, renderNotFound, renderError } = require("../report/render");
 const { renderEventPage } = require("../pages/eventPublicPage");
 const { renderDocsPage } = require("../pages/docsPage");
 const { buildIcs, icsFileName } = require("../../services/events/icsFeed");
 const calendarFeed = require("../pages/calendarFeed");
-const raidplanStore = require("../../stores/raidplanStore");
-const { getEvent } = require("../../stores/eventStore");
+const raidplanStore = require("../../stores/raidplan/raidplanStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { canWriteSetup } = require("../setup/setupAccess");
 const { pugPageViewer } = require("../../services/signups/pugMembership");

@@ -1,5 +1,5 @@
 const { publicBaseUrl } = require("../../utils/publicUrl");
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { MULTI_BUTTON_ID } = require("../../services/talk/talkOverview");
 const { appEmojiMap, loadAppEmojis } = require("../../services/discord/appEmojis");
 const { characterOptions } = require("../../utils/signup/joinPicker");
@@ -9,8 +9,8 @@ const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
 const { versionShort } = require("../../services/versions/versionTag");
-const guildRoles = require("../../services/discord/guildRoles");
-const { getConfig } = require("../../stores/settingsStore");
+const guildRoles = require("../../services/discord/roles/guildRoles");
+const { getConfig } = require("../../stores/settings/settingsStore");
 
 // "Mehrere Raids wählen …" under a link's raid list (#293):
 // step 1, only for the member — the coming raids of the list's server (nothing

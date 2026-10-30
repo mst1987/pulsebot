@@ -11,8 +11,8 @@
 // it is a dry run — stores. Idempotent per event (specHistoryStore).
 
 const { specKeyFromRaidHelper } = require("../../services/events/eventSources");
-const specHistory = require("../../stores/specHistoryStore");
-const { listRaidEvents } = require("../../stores/raidEventStore");
+const specHistory = require("../../stores/roster/specHistoryStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
 const { signupStatus } = require("../../utils/attendance");
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../../services/discord/discord");

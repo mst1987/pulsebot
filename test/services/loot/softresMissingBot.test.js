@@ -8,7 +8,7 @@ jest.mock("../../../src/services/loot/softresStatus", () => ({
     readStatus: jest.fn(),
     refreshSoftresCard: jest.fn(async () => null),
 }));
-jest.mock("../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => ({ url: "https://softres.it/raid/r1" })),
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => undefined) }));
@@ -20,8 +20,8 @@ jest.mock("../../../src/services/discord/botAccess", () => ({
     eventMemberRoles: jest.fn(),
     serverIds: jest.fn(() => ["g1"]),
 }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/services/discord/serverAccess", () => ({
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/services/discord/servers/serverAccess", () => ({
     configForGuild: jest.fn((cfg, gid) => ({ ...cfg, forGuild: gid })),
     interactionGuildId: jest.fn((i) => String((i && i.guildId) || "home")),
 }));

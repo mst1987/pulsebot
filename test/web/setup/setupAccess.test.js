@@ -8,8 +8,8 @@ jest.mock("../../../src/services/roster/categoryOrga", () => ({
 }));
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockUser) }));
-jest.mock("../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../src/stores/eventStore"),
+jest.mock("../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => (id === "eh-1" ? { id, categoryId: "cat1" } : null)),
 }));
 

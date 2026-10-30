@@ -8,7 +8,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
     bearerFrom: (req) => {
@@ -16,16 +16,16 @@ jest.mock("../../../../src/stores/ingestTokenStore", () => ({
         return h.startsWith("Bearer ") ? h.slice(7) : "";
     },
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     serverIds: jest.fn(() => ["gA", "gB"]),
 }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     resolveUserNames: jest.fn(async () => ({ u1: "Anna" })),
 }));
-jest.mock("../../../../src/services/discord/ingestServers", () => ({
-    ...jest.requireActual("../../../../src/services/discord/ingestServers"),
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/ingestServers"),
     orgaServersOf: jest.fn(async () => []),
     serversOfToken: jest.fn(async () => []),
     describeServers: jest.fn((servers) => servers.map((s) => ({
@@ -34,8 +34,8 @@ jest.mock("../../../../src/services/discord/ingestServers", () => ({
     }))),
 }));
 
-const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
-const { orgaServersOf, serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestTokenStore");
+const { orgaServersOf, serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { resolveUserNames } = require("../../../../src/services/discord/discord");
 const ingest = require("../../../../src/web/apiRoutes/loot/ingest");
 

@@ -63,11 +63,11 @@ function isInside(child, parent) {
 }
 
 /**
- * Every store on jsonStore.js below `root`: [{ rel, readStrict }]. Requires each src/stores/*Store.js first, so a
+ * Every store on jsonStore.js below `root`: [{ rel, readStrict }]. Requires each *Store.js under src/stores (sub folders too) first, so a
  * store the running process has not needed yet is checked as well (in the bot they are all loaded already).
  */
 function storeChecks(root = DATA_DIR) {
-    for (const name of fs.readdirSync(STORES_DIR)) {
+    for (const name of fs.readdirSync(STORES_DIR, { recursive: true })) {
         if (name.endsWith("Store.js")) require(path.join(STORES_DIR, name));
     }
     // Two stores over one file (configStore's raw view next to the normalised one) are both read: their normalize differs.

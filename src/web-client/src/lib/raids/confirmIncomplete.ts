@@ -6,7 +6,7 @@ import { raidIcon } from "./logRaids";
 import { t } from "../../i18n";
 
 // The admin-menu half of the "is this raid actually over?" guard (the rule
-// itself lives in src/utils/logcheck/raidProgress.js).
+// itself lives in src/utils/logcheck/raid/raidProgress.js).
 //
 // An evaluation of a raid whose final boss is still standing is refused rather
 // than silently produced — but it is a question, not a verdict: raids do get

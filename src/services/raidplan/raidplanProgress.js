@@ -9,13 +9,13 @@
 //   as "no data" for the same minute, so a private report or WCL's rate limit is not hammered.
 // - Only inside the raid window (start − 30 min to start + 6 h): outside it no request is made and the
 //   answer is empty, so a plan opened the day after shows nothing of the night before.
-// The derivation itself is pure: utils/logcheck/bossProgress.js.
+// The derivation itself is pure: utils/logcheck/raid/bossProgress.js.
 
-const logStore = require("../../stores/logStore");
-const raidplanStore = require("../../stores/raidplanStore");
+const logStore = require("../../stores/loot/logStore");
+const raidplanStore = require("../../stores/raidplan/raidplanStore");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { eventStartMs } = require("../logcheck/logEventMatch");
-const { deriveProgress } = require("../../utils/logcheck/bossProgress");
+const { deriveProgress } = require("../../utils/logcheck/raid/bossProgress");
 
 const MINUTE_MS = 60 * 1000;
 const WINDOW_BEFORE_MS = 30 * MINUTE_MS;

@@ -6,10 +6,10 @@ const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const retirement = require("../../events/raidhelperRetirement");
 const historyImport = require("../../events/raidhelperHistoryImport");
-const guildRoles = require("../../../services/discord/guildRoles");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
 const raidhelperSync = require("../../../services/events/raidhelperSync");
-const { getConfig } = require("../../../stores/settingsStore");
-const { firstServerId } = require("../../../services/discord/serverOf");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { firstServerId } = require("../../../services/discord/servers/serverOf");
 
 /** The server the page is about (#927: Raid-Helper is set per server): the active one, else the first. */
 const serverOf = (req) => activeGuildFor(req) || firstServerId(getConfig());

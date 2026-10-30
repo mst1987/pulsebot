@@ -7,7 +7,7 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(),
     eventLookbackSince: jest.fn(() => 0),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryRoles: { 900000: ["500000"] } })),
     getNotify: jest.fn(),
     listNotify: jest.fn(() => []),
@@ -27,7 +27,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const discord = require("../../../../src/services/discord/discord");
 const { postPingMissing, postNotify } = require("../../../../src/web/apiRoutes/events/raidDetail");
 

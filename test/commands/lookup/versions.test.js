@@ -1,7 +1,7 @@
 // The lookup commands answer for one game version (#743): the option, else the channel's category, else the main version.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
-jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(() => []), listAll: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listByCharacter: jest.fn(() => []), listAll: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({
     serverContext: () => ({}),
     lootOfGuild: jest.fn((rows, guildId) => (rows || []).filter((r) => !r.guildId || r.guildId === guildId)),
@@ -9,10 +9,10 @@ jest.mock("../../../src/services/loot/lootServer", () => ({
 }));
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn(() => []) }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/versions/storedVersion", () => ({ storedVersionOf: (id) => (String(id).startsWith("f") ? "forever" : "tbc") }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({ categoryVersion: { catF: "forever" } })) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({ categoryVersion: { catF: "forever" } })) }));
 
 const raids = require("../../../src/commands/lookup/raids");
 const raid = require("../../../src/commands/lookup/raid");
@@ -20,10 +20,10 @@ const loot = require("../../../src/commands/lookup/loot");
 const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const { listByCharacter } = require("../../../src/stores/lootStore");
+const { listByCharacter } = require("../../../src/stores/loot/lootStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { myCharacters } = require("../../../src/services/characters/userCharacters");
-const { listReports } = require("../../../src/stores/reportStore");
+const { listReports } = require("../../../src/stores/loot/reportStore");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 
 const now = Math.floor(Date.now() / 1000);
@@ -152,7 +152,7 @@ describe("/council", () => {
 
     // #919: how often an item went out - and the suggestions - from this server's loot only.
     it("counts and suggests from the loot of the server it was used on", async () => {
-        const { listAll } = require("../../../src/stores/lootStore");
+        const { listAll } = require("../../../src/stores/loot/lootStore");
         listAll.mockReturnValue([{ itemId: 7, guildId: "guild-1" }, { itemId: 8, guildId: "guild-2" }]);
         await council.execute(mockInteraction({ channel: inTbc, options: { item: "7", version: "tbc" } }));
         expect(itemCatalog).toHaveBeenLastCalledWith([{ itemId: 7, guildId: "guild-1" }]);

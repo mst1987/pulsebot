@@ -6,11 +6,11 @@
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");
 const discord = require("../discord/discord");
 const { EVENT_LOOKBACK_DAYS } = require("../events/raidEventGroups");
-const { listRaidEvents } = require("../../stores/raidEventStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
 const { ownMatchableEvents, withEraName } = require("../events/eventSources");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { LOG_WINDOW_BEFORE_MS } = require("../events/overview/recentEvents");
-const { guildOfEvent } = require("../discord/serverOf");
+const { guildOfEvent } = require("../discord/servers/serverOf");
 
 // Every row carries its raid's game version (#746): a log is matched only to a
 // raid of its own version (logEventMatch.js) and takes that version when linked.
@@ -53,7 +53,7 @@ async function loadMatchableEvents(guildId, days = EVENT_LOOKBACK_DAYS) {
     const until = Math.floor((Date.now() + LOG_WINDOW_BEFORE_MS) / 1000);
     const persistedById = new Map(listRaidEvents(guildId).map((e) => [e.id, e]));
     // A raid of a closed section of its category keeps the name it had then (#744).
-    const erasConfig = require("../../stores/configStore").getConfig();
+    const erasConfig = require("../../stores/settings/configStore").getConfig();
     // Snapshot rows, shaped like the live ones. Used both to fill gaps in a
     // successful fetch and as the whole answer when the fetch fails.
     const fromPersisted = (e) => withVersion({

@@ -3,7 +3,7 @@ const {
     HOUR_MS,
 } = require("../../../src/services/logcheck/logEventMatch");
 const { event: baseEvent } = require("../../factories/events");
-const { saveConfig } = require("../../../src/stores/configStore");
+const { saveConfig } = require("../../../src/stores/settings/configStore");
 
 // Raid-Helper hands out start times in SECONDS; the logs carry ms timestamps.
 const START = Date.UTC(2026, 6, 24, 18, 0, 0); // Fri 24.07.2026 18:00 UTC

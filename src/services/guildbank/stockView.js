@@ -18,7 +18,7 @@
 //              trade goods: "Fläschchen", "Stoff") — German labels by id
 //              (config/data/itemClassLabels.js), while the item names are English —
 //              "" when Wowhead has not answered yet; autoGroup = Wowhead's alone
-const stockStore = require("../../stores/guildBankStockStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
 const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
 const { featureOn } = require("../versions/versionCapabilities");

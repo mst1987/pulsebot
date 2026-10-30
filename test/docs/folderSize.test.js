@@ -5,9 +5,9 @@
 // under src/, test/ and scripts/. Images, translations and other data are not
 // code and are not counted.
 //
-// The folders that were already too full when the guard came stand in ALLOWED
-// with the issue that splits them. An entry that is no longer needed fails too,
-// so the list only ever shrinks.
+// The folders that were already too full when the guard came stood in ALLOWED
+// with the issue that split them; since Epic #1005 the list is empty. An entry
+// that is no longer needed fails too, so it stays a list of open issues only.
 const fs = require("fs");
 const path = require("path");
 
@@ -16,11 +16,7 @@ const MAX_FILES = 25;
 const CODE = /\.(c|m)?[jt]sx?$/;
 const TEST = /\.test\.(c|m)?[jt]sx?$/;
 
-const ALLOWED = {
-    "src/stores": "#1016",
-    "src/services/discord": "#1015",
-    "src/utils/logcheck": "#1017",
-};
+const ALLOWED = {};
 
 function codeCounts() {
     const counts = {};

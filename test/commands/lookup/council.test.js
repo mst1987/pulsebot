@@ -1,6 +1,6 @@
 // /council links the item on the Wowhead section of the channel's category (#750).
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn() }));
-const { getConfig } = require("../../../src/stores/configStore");
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn() }));
+const { getConfig } = require("../../../src/stores/settings/configStore");
 const { itemLinkFor } = require("../../../src/commands/lookup/council");
 
 beforeEach(() => {

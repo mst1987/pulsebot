@@ -3,9 +3,9 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const eventStore = require("../../../src/stores/eventStore");
-const raidEventStore = require("../../../src/stores/raidEventStore");
-const seriesStore = require("../../../src/stores/eventSeriesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const raidEventStore = require("../../../src/stores/events/raidEventStore");
+const seriesStore = require("../../../src/stores/events/eventSeriesStore");
 const {
     switchPreview, versionSwitches, applySeriesFix, onCategoryVersionSwitch, notifyCategoryVersionSwitch,
 } = require("../../../src/services/categories/categorySwitch");

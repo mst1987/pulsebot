@@ -1,18 +1,18 @@
 // "Neue Version starten" (#745): every item of the checklist open and done,
 // computed from the data (buildChecklist pure, loadChecklist over mocked stores),
 // and the marks of the manual items.
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => mockConfig),
     saveConfig: jest.fn((partial) => { mockConfig = { ...mockConfig, ...partial }; return mockConfig; }),
     listRaidTemplates: jest.fn(() => mockTemplates),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     rosterForCategory: jest.fn((cat, version) => mockRosters[`${cat}|${version}`] || null),
     isClosed: (r) => !!(r && r.closedAt),
 }));
-jest.mock("../../../src/stores/eventSeriesStore", () => ({ listSeries: jest.fn(() => mockSeries) }));
-jest.mock("../../../src/stores/guildBankStockStore", () => ({ listBanks: jest.fn(() => mockBanks) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/stores/events/eventSeriesStore", () => ({ listSeries: jest.fn(() => mockSeries) }));
+jest.mock("../../../src/stores/loot/guildBankStockStore", () => ({ listBanks: jest.fn(() => mockBanks) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "c1", name: "Montag" }, { id: "c2", name: "Mittwoch" }, { id: "c3", name: "PuG" }]),
 }));
@@ -30,7 +30,7 @@ let mockBanks;
 
 const { backupEnabled } = require("../../../src/services/backup/backupConfig");
 const backupStatus = require("../../../src/services/backup/backupStatus");
-const { saveConfig } = require("../../../src/stores/settingsStore");
+const { saveConfig } = require("../../../src/stores/settings/settingsStore");
 const launch = require("../../../src/services/versions/versionLaunch");
 
 const itemOf = (list, id) => list.items.find((i) => i.id === id);

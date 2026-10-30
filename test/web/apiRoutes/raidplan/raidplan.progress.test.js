@@ -9,8 +9,8 @@ jest.mock("../../../../src/services/raidplan/raidplanProgress", () => ({
     progressFor: jest.fn(async () => ({ live: true, killed: ["bt/high-warlord-najentus"], current: null, next: "bt/supremus", updatedAt: 5 })),
 }));
 const mockEvents = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
@@ -18,7 +18,7 @@ jest.mock("../../../../src/stores/eventStore", () => ({
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { ownEvent } = require("../../../factories/events");
-const store = require("../../../../src/stores/raidplanStore");
+const store = require("../../../../src/stores/raidplan/raidplanStore");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const { progressFor } = require("../../../../src/services/raidplan/raidplanProgress");
 const { checkAccess, UNGATED } = require("../../../../src/web/http/apiAccess");

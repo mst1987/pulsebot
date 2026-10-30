@@ -1,7 +1,7 @@
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: jest.fn(() => []) }));
 jest.mock("../../../src/utils/loot/wowhead");
 
-const { listAll } = require("../../../src/stores/lootStore");
+const { listAll } = require("../../../src/stores/loot/lootStore");
 const { previewImport, detectFormat } = require("../../../src/web/loot/lootImportPreview");
 const { EH_FORMAT } = require("../../../src/utils/loot/lootImport");
 

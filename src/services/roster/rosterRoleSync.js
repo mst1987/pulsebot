@@ -41,9 +41,9 @@
 // another game version) is out of all of it: no role is given or taken for it,
 // gaining or losing its roles changes nothing, the reconcile skips it. Whoever
 // holds one of its roles keeps it until the orga removes it in Discord.
-const rosterStore = require("../../stores/rosterStore");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
-const memberRoles = require("../discord/memberRoles");
+const rosterStore = require("../../stores/roster/rosterStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
+const memberRoles = require("../discord/roles/memberRoles");
 const discord = require("../discord/discord");
 const logger = require("../../logger").child("rosterRoles");
 

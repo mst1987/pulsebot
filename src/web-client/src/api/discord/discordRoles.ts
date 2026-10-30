@@ -5,7 +5,7 @@ import { guildQuery } from "./discordOverview";
 // counts of the Discord tabs: the contract is the header of
 // src/web/apiRoutes/discord/discordRoles.js, the overview docs/channels.md.
 
-/** What the bot does with a role (services/discord/selfRole.js roleUses, plus role messages and addon updates). */
+/** What the bot does with a role (services/discord/roles/selfRole.js roleUses, plus role messages and addon updates). */
 export type ServerRoleUse =
     | { code: "admin" | "orga" | "officer" | "addonUpdates" }
     | { code: "rolePermissions"; areas: string[] }

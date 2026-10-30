@@ -12,12 +12,12 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../../src/stores/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../../src/stores/loot/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../../../src/stores/lootInboxStore", () => ({
+jest.mock("../../../../src/stores/loot/lootInboxStore", () => ({
     upsertPending: jest.fn(),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -26,7 +26,7 @@ jest.mock("../../../../src/stores/lootInboxStore", () => ({
     noteAppended: jest.fn(),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -44,8 +44,8 @@ jest.mock("../../../../src/services/characters/characterInfo", () => ({
     resolveMissing: jest.fn(),
 }));
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({
@@ -64,12 +64,12 @@ jest.mock("../../../../src/utils/loot/wowhead", () => ({
     searchItems: jest.fn(async () => []),
 }));
 
-const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
-const { resolutionFor, listPending } = require("../../../../src/stores/lootInboxStore");
-const { eventsWithLoot } = require("../../../../src/stores/lootStore");
+const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestTokenStore");
+const { resolutionFor, listPending } = require("../../../../src/stores/loot/lootInboxStore");
+const { eventsWithLoot } = require("../../../../src/stores/loot/lootStore");
 const { event: baseEvent } = require("../../../factories/events");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { computeRaidStatus } = require("../../../../src/web/apiRoutes/loot/ingest");
 

@@ -15,14 +15,14 @@
 // the panels posted before it in English until somebody changed the
 // language). "in 3 days" needs no redraw: Discord counts a <t:…:R> down itself.
 const crypto = require("crypto");
-const store = require("../../stores/availabilityStore");
+const store = require("../../stores/events/availabilityStore");
 const discord = require("../discord/discord");
-const { eventGuildIds } = require("../discord/guildRoles");
-const settingsStore = require("../../stores/settingsStore");
+const { eventGuildIds } = require("../discord/roles/guildRoles");
+const settingsStore = require("../../stores/settings/settingsStore");
 const { categoryLang } = require("../discord/botLanguage");
 const { organizerPayload } = require("../../utils/signup/organizerPanel");
 const { guildBankChannelId } = require("../../utils/signup/guildBankPost");
-const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
+const { storedCategoryGuilds, firstServerId } = require("../discord/servers/serverOf");
 const { nextRaidSummary } = require("./organizer");
 const { appEmojiMap } = require("../discord/appEmojis");
 const logger = require("../../logger");

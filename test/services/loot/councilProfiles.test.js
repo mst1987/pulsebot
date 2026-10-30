@@ -3,8 +3,8 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
-const profilesStore = require("../../../src/stores/councilProfilesStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const profilesStore = require("../../../src/stores/loot/councilProfilesStore");
 const {
     resolveProfile, profileHead, weightsFor, viewFor, profileInUse, profileUsage, profileShownIn, rosterOfTarget,
 } = require("../../../src/services/loot/councilProfiles");

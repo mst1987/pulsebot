@@ -18,8 +18,8 @@
 //   availability:mbi:<categoryId>:<itemId>  the submitted item modal → checked and posted to the orga;
 //                                    what is not free goes on the item's waiting list (#775)
 const { MessageFlags, SlashCommandBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
-const profiles = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const availability = require("../../services/signups/availability");
 const organizer = require("../../services/signups/organizer");
 const guildBank = require("../../services/signups/guildBank");
@@ -42,7 +42,7 @@ const {
     pickerPayload, listPayload, savedPayload,
 } = require("../../utils/signup/availabilityDialog");
 const { asEphemeral } = require("../../utils/discord/card");
-const availabilityStore = require("../../stores/availabilityStore");
+const availabilityStore = require("../../stores/events/availabilityStore");
 
 /**
  * The section of the raider organizer each step belongs to (availabilityStore.FEATURE_KEYS): the panel

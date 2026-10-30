@@ -36,18 +36,18 @@
 //     word for the recipient: it stays when the confirmation is released.
 //   - free text (no bank data): what was typed, open → done | rejected.
 //
-// Stored in stores/guildBankStore.js, cards built by utils/signup/guildBankPost.js;
+// Stored in stores/loot/guildBankStore.js, cards built by utils/signup/guildBankPost.js;
 // commands/signup/availability.js takes the raider's steps,
 // commands/signup/guildBank.js the orga's buttons. Errors are German (the
 // commands translate them for the raider with serviceText); a Discord failure
 // is logged and returned, never thrown.
-const store = require("../../stores/guildBankStore");
-const stockStore = require("../../stores/guildBankStockStore");
-const settingsStore = require("../../stores/settingsStore");
-const profiles = require("../../stores/raiderProfileStore");
+const store = require("../../stores/loot/guildBankStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const discord = require("../discord/discord");
-const { eventGuildIds } = require("../discord/guildRoles");
-const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
+const { eventGuildIds } = require("../discord/roles/guildRoles");
+const { storedCategoryGuilds, firstServerId } = require("../discord/servers/serverOf");
 const { langOf } = require("../discord/botLanguage");
 const { categoryNameFor } = require("./availabilityPanel");
 const { mainVersionFor } = require("../versions/mainVersion");
@@ -55,7 +55,7 @@ const stockView = require("../guildbank/stockView");
 const waitlist = require("../guildbank/waitlist");
 const linking = require("../guildbank/linking");
 const { seenIndex, characterEvidence } = require("../characters/characterEvidence");
-const characterStore = require("../../stores/characterStore");
+const characterStore = require("../../stores/roster/characterStore");
 const { validateCharacterName } = require("../../utils/signup/characterNames");
 const post = require("../../utils/signup/guildBankPost");
 const logger = require("../../logger");

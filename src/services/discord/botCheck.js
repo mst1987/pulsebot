@@ -10,15 +10,15 @@
 // bot offline or not on the server a check reads "unknown", never "missing".
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
-const { roleBelowBot } = require("./memberRoles");
-const rosterStore = require("../../stores/rosterStore");
-const roleMessageStore = require("../../stores/roleMessageStore");
-const addonCenterStore = require("../../stores/addonCenterStore");
-const eventStore = require("../../stores/eventStore");
-const inviteStore = require("../../stores/discordInviteStore");
-const { serverIds, roleMessageGuild, links } = require("./guildRoles");
-const pugRoleGuard = require("./pugRoleGuard");
-const serverDefaults = require("./serverDefaults");
+const { roleBelowBot } = require("./roles/memberRoles");
+const rosterStore = require("../../stores/roster/rosterStore");
+const roleMessageStore = require("../../stores/discord/roleMessageStore");
+const addonCenterStore = require("../../stores/settings/addonCenterStore");
+const eventStore = require("../../stores/events/eventStore");
+const inviteStore = require("../../stores/discord/discordInviteStore");
+const { serverIds, roleMessageGuild, links } = require("./roles/guildRoles");
+const pugRoleGuard = require("./pug/pugRoleGuard");
+const serverDefaults = require("./servers/serverDefaults");
 const { allLogChannels } = require("../logcheck/logChannelSettings");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

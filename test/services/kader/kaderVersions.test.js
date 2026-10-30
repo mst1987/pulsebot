@@ -2,7 +2,7 @@
 let mockPlanners = {};
 let mockFail = false;
 
-jest.mock("../../../src/stores/kaderStore", () => ({
+jest.mock("../../../src/stores/roster/kaderStore", () => ({
     plannerGuildKeys: () => {
         if (mockFail) throw new Error("unreadable");
         return Object.keys(mockPlanners);

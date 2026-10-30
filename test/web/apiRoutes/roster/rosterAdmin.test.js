@@ -35,14 +35,14 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => []),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
 }));
-jest.mock("../../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
 
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const raiderProfileStore = require("../../../../src/stores/raiderProfileStore");
-const kaderStore = require("../../../../src/stores/kaderStore");
-const configStore = require("../../../../src/stores/configStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const raiderProfileStore = require("../../../../src/stores/roster/raiderProfileStore");
+const kaderStore = require("../../../../src/stores/roster/kaderStore");
+const configStore = require("../../../../src/stores/settings/configStore");
 const discord = require("../../../../src/services/discord/discord");
 const { buildAttendanceContext } = require("../../../../src/services/characters/rosterAttendance");
 const routeModule = require("../../../../src/web/apiRoutes/roster/rosterAdmin");
@@ -293,7 +293,7 @@ describe("POST /api/rosters/update", () => {
 });
 
 describe("POST /api/rosters/update - loot system and Loot-Council profile (#676)", () => {
-    const councilProfilesStore = require("../../../../src/stores/councilProfilesStore");
+    const councilProfilesStore = require("../../../../src/stores/loot/councilProfilesStore");
     let roster;
     afterAll(() => councilProfilesStore.useFile(null));
     beforeEach(() => {

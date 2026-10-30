@@ -3,12 +3,12 @@
 let mockConfig = {};
 const mockEvents = new Map();
 const mockSnapshots = new Map();
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
     versionOfRaidEvent: (id) => mockSnapshots.get(id) || "",
 }));
 

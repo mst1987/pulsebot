@@ -4,7 +4,7 @@
 
 const mockEvents = new Map();
 const mockLog = jest.fn();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventState: (id, patch) => {
@@ -18,8 +18,8 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 const mockSignups = new Map();
 const mockChanged = jest.fn();
-jest.mock("../../../src/stores/signupStore", () => {
-    const actual = jest.requireActual("../../../src/stores/signupStore");
+jest.mock("../../../src/stores/events/signupStore", () => {
+    const actual = jest.requireActual("../../../src/stores/events/signupStore");
     return {
         normalizeSignup: actual.normalizeSignup,
         getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
@@ -35,7 +35,7 @@ jest.mock("../../../src/stores/signupStore", () => {
     };
 });
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
 let mockMembership = null;
 // Discord said "Unknown Member": memberRoleIds answers the caller's absentAs
@@ -48,7 +48,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => mockGuild),
 }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const discord = require("../../../src/services/discord/discord");
 const service = require("../../../src/services/signups/signupService");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -307,7 +307,7 @@ describe("Status je Charakter (Anmelde-Buttons)", () => {
         // „Abgemeldet“ gibt es nur für die ganze Anmeldung: je Charakter gilt dann der Status der Anmeldung
         const odd = await service.submitSignup("eh-kara", ANNA, { characters: [{ ...both[0], status: "absence" }], status: "tentative" }, { now: NOW });
         expect(odd.signup.characters.map((c) => c.status)).toEqual(["tentative"]);
-        expect(require("../../../src/stores/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
+        expect(require("../../../src/stores/events/signupStore").normalizeSignup({ characters: [{ spec: "Mage-Fire", status: "absence" }] }).error).toMatch(/Unbekannter Status/);
     });
 
     it("behält die Status der Charaktere, solange der Status der Anmeldung gleich bleibt", async () => {
@@ -572,7 +572,7 @@ describe("Raider-Rollen der Kategorie", () => {
     });
 
     describe("Anmeldung nur für das Roster (#658)", () => {
-        const rosterStore = require("../../../src/stores/rosterStore");
+        const rosterStore = require("../../../src/stores/roster/rosterStore");
         const ONLY = "Für diesen Raid melden sich nur Mitglieder des Rosters an (Stamm, Probe oder Ersatz). Frag die Raidleitung.";
         let rosterId;
         beforeEach(() => {

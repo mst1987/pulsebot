@@ -27,10 +27,10 @@
 // them — the DM still goes to the raider and says who entered it.
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/settingsStore");
-const profiles = require("../../../stores/raiderProfileStore");
-const availabilityStore = require("../../../stores/availabilityStore");
-const { getSignup } = require("../../../stores/signupStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
+const availabilityStore = require("../../../stores/events/availabilityStore");
+const { getSignup } = require("../../../stores/events/signupStore");
 const availability = require("../../../services/signups/availability");
 const availabilityPanel = require("../../../services/signups/availabilityPanel");
 const { userCanAny, userIsOrga } = require("../../../config/permissions");

@@ -25,11 +25,11 @@ jest.mock("../../../src/services/discord/appEmojis", () => ({ ...jest.requireAct
 
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
 let mockConfig = {};
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
-const store = require("../../../src/stores/addonCenterStore");
+const store = require("../../../src/stores/settings/addonCenterStore");
 const center = require("../../../src/services/addons/addonCenter");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -528,7 +528,7 @@ describe("addonCenter saveSettings", () => {
     });
 
     it("hides the button for a role of a roster", async () => {
-        const rosterStore = require("../../../src/stores/rosterStore");
+        const rosterStore = require("../../../src/stores/roster/rosterStore");
         const spy = jest.spyOn(rosterStore, "listRosters").mockReturnValue([{ id: "main", name: "Main", roleIds: [], trialRoleId: ROLE, managers: { roleIds: [], userIds: [] } }]);
         try {
             store.setSettings({ roleId: ROLE });

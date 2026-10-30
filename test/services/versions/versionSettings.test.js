@@ -8,7 +8,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation((o
 })));
 
 const Blizzard = require("../../../src/classes/blizzard");
-const { normalizeVersionSettings } = require("../../../src/stores/versionSettingsSchema");
+const { normalizeVersionSettings } = require("../../../src/stores/settings/versionSettingsSchema");
 const vs = require("../../../src/services/versions/versionSettings");
 
 const TBC = {

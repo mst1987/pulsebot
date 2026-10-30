@@ -8,8 +8,8 @@ let mockActive = A;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => null), getActiveGuild: jest.fn(() => mockActive) }));
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     // the server list of this test: A and B
     resolveServer: jest.fn(({ guildId = "" } = {}) => {
         const id = String(guildId || "");
@@ -18,8 +18,8 @@ jest.mock("../../../../src/services/discord/guildRoles", () => ({
     }),
 }));
 const mockEvents = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
 }));
@@ -28,9 +28,9 @@ const fs = require("fs");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { ownEvent } = require("../../../factories/events");
-const plans = require("../../../../src/stores/raidplanStore");
-const profiles = require("../../../../src/stores/raidplanProfileStore");
-const templates = require("../../../../src/stores/raidplanTemplateStore");
+const plans = require("../../../../src/stores/raidplan/raidplanStore");
+const profiles = require("../../../../src/stores/raidplan/raidplanProfileStore");
+const templates = require("../../../../src/stores/raidplan/raidplanTemplateStore");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const { mockRes, status, json } = require("../../../helpers/http");
 

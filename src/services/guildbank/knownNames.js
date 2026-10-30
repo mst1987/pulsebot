@@ -14,8 +14,8 @@
 // sources), so the orga may take it as the recipient without a further check.
 // Names that are profile characters of the version are left out — the dialog
 // lists those with their raider already. Pure reads.
-const store = require("../../stores/guildBankStore");
-const profiles = require("../../stores/raiderProfileStore");
+const store = require("../../stores/loot/guildBankStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { seenIndex } = require("../characters/characterEvidence");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const linking = require("./linking");

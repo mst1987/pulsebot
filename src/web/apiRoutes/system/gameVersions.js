@@ -2,7 +2,7 @@ const { ok } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { publicVersions } = require("../../../config/gameVersions");
 const { mainVersionFor, visibleVersions } = require("../../../services/versions/mainVersion");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 
 /**
  * GET /api/game-versions — the rule set of every game version (classes, specs

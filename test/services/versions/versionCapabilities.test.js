@@ -1,7 +1,7 @@
 // What a game version can do and what it does (#761): the one source, the
 // matrix of Einstellungen → Spielversion, and the readers that ask it.
 const { tempStoreFile } = require("../../helpers/tempStore");
-const catalogStore = require("../../../src/stores/raidplanCatalogStore");
+const catalogStore = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const caps = require("../../../src/services/versions/versionCapabilities");
 const logVersion = require("../../../src/services/logcheck/logVersion");
 const { versionLinks, blizzardFor } = require("../../../src/services/versions/versionSettings");

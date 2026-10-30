@@ -12,8 +12,8 @@
 // line. Never into a public channel, a thread or a DM; the person never sees it.
 // No free text and no author of a Vermerk, only level and reasons with counts.
 const discord = require("../discord/discord");
-const { getConfig } = require("../../stores/settingsStore");
-const hubs = require("../../stores/orgaHubStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const hubs = require("../../stores/discord/orgaHubStore");
 const { noteChannelFor, plainText } = require("../signups/signupNotes");
 const { shortFor, levelRank } = require("./vermerkeShort");
 const { card, CARD_TEXT_LIMIT } = require("../../utils/discord/card");

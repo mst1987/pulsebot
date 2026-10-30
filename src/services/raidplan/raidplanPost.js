@@ -8,8 +8,8 @@
 // message and records where it went (raidplanPostStore.js). The raid detail's
 // payload reads `raidplanPostState()` for the cockpit step and the dialog.
 const { fail } = require("../../web/http/apiResult");
-const raidplanStore = require("../../stores/raidplanStore");
-const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplanPostStore");
+const raidplanStore = require("../../stores/raidplan/raidplanStore");
+const { getRaidplanPost, markRaidplanPosted } = require("../../stores/raidplan/raidplanPostStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { serverLang, eventLang } = require("../discord/botLanguage");

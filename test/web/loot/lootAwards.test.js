@@ -1,8 +1,8 @@
 // Filtering and paging behind both "Latest Loot" views (dashboard card and the
 // Historie tab). The stores are mocked; what is exercised is the selection, not
 // the disk.
-jest.mock("../../../src/stores/lootStore", () => {
-    const actual = jest.requireActual("../../../src/stores/lootStore");
+jest.mock("../../../src/stores/loot/lootStore", () => {
+    const actual = jest.requireActual("../../../src/stores/loot/lootStore");
     return {
         listAll: jest.fn(() => []),
         // The trimming itself is real: the row shape is the one the history
@@ -10,19 +10,19 @@ jest.mock("../../../src/stores/lootStore", () => {
         charLootPreview: actual.charLootPreview,
     };
 });
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
 // Own events, for the version filter (#545) — an id starting "eh-" is an own
 // event, everything else (Raid-Helper, manual) counts as TBC.
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     getEvent: jest.fn(() => null),
 }));
 
-const lootStore = require("../../../src/stores/lootStore");
-const settingsStore = require("../../../src/stores/settingsStore");
-const charStore = require("../../../src/stores/characterStore");
-const eventStore = require("../../../src/stores/eventStore");
+const lootStore = require("../../../src/stores/loot/lootStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const charStore = require("../../../src/stores/roster/characterStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { listAwards, topItemCount, PAGE_SIZE, UNKNOWN_CONTENT } = require("../../../src/web/loot/lootAwards");
 
 // Top items live per server and version (#952): a config whose first server

@@ -29,15 +29,15 @@
 //             (eventStore.saveSetupDraft). Nothing is ever approved here, and
 //             nothing happens once the raid has started. Marked in reminderStore
 //             like a reminder (kind "autoSuggest"), so it runs once.
-const guildRoles = require("../../services/discord/guildRoles");
-const reminderStore = require("../../stores/reminderStore");
-const eventStore = require("../../stores/eventStore");
+const guildRoles = require("../../services/discord/roles/guildRoles");
+const reminderStore = require("../../stores/events/reminderStore");
+const eventStore = require("../../stores/events/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");
 const { shadowbannedAmong } = require("../../services/vermerke/vermerkeShort");
 const { inRaidGroup } = require("../../utils/raidGroup");
 const { deliverUserPing } = require("../../services/discord/pingDelivery");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
 const { versionOfEvent, isVersionVisible } = require("../../services/versions/mainVersion");

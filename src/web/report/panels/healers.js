@@ -6,7 +6,7 @@ const { esc } = require("../layout");
 const { expBtn, badge, LINE, barCell, healBar, HEAL_BAR_HOW, hicon, classColorOf, pctTone, classIconName, fmtK, fmtSecs, num } = require("../widgets");
 const { topicTable } = require("../fightTopics");
 
-// ---- Heilung: the healers' topic of a fight (f.healers, utils/logcheck/healers.js) ----
+// ---- Heilung: the healers' topic of a fight (f.healers, utils/logcheck/fights/healers.js) ----
 //   healers[]  { name, type, diedAt, healing: { total, overheal, absorbs, overhealPct, spells[] }, mana: { available, step, values, min, minAt, regen[] }, potionMissing, dispels: { count, avgReactionMs } }
 //   tank       { name, type } · shields[] { key, label, icon, source, bands | stacks, maxStacks, uptimePct, gapCount, fullStacksPct }
 //   dispels    { total, missed: [{ at, ability, icon, target, targetType, durationMs }] }

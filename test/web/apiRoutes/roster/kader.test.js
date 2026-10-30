@@ -42,9 +42,9 @@ jest.mock("../../../../src/web/characters/profileLogs", () => ({
 const auth = require("../../../../src/web/http/auth");
 const discord = require("../../../../src/services/discord/discord");
 const { listStoredEvents } = require("../../../../src/services/events/eventSources");
-const profiles = require("../../../../src/stores/raiderProfileStore");
-const kaderStore = require("../../../../src/stores/kaderStore");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+const kaderStore = require("../../../../src/stores/roster/kaderStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../../src/config/permissions");
 const { get, post, request } = routerClient(require("../../../../src/web/apiRoutes/roster/kader"));
 const put = (pathname, payload) => request("PUT", pathname, payload);
@@ -224,7 +224,7 @@ describe("web/apiRoutes/kader", () => {
     });
 
     describe("one game version per Kader (#741: Forever = Forever characters)", () => {
-        const configStore = require("../../../../src/stores/configStore");
+        const configStore = require("../../../../src/stores/settings/configStore");
         const devi = { id: "d1", name: "Devi", nameStyle: "nick", className: "Priest", specs: [{ spec: "Priest-Holy", main: true }], onlineKey: "devi" };
         const aldric = { id: "a1", name: "Aldric Sturmwind", nameStyle: "forever", className: "Warrior", specs: [], onlineKey: "forever~aldric sturmwind" };
         afterEach(() => configStore.useFile(null));
@@ -269,7 +269,7 @@ describe("web/apiRoutes/kader", () => {
 
     describe("the raid categories attendance counts in", () => {
         const past = (days) => Math.floor(Date.now() / 1000) - days * 86400;
-        const configStore = require("../../../../src/stores/configStore");
+        const configStore = require("../../../../src/stores/settings/configStore");
 
         // Only active categories count (#744): both raid categories are marked for events.
         beforeAll(() => {

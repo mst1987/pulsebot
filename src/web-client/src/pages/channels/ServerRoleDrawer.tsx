@@ -172,7 +172,7 @@ function Channels({ channels }: { channels: ServerRoleChannel[] }) {
 
 function Members({ guildParams, members, total, count }: {
     guildParams: Record<string, string>;
-    /** for @everyone only the first EVERYONE_MEMBERS_MAX (src/services/discord/serverRoles.js) */
+    /** for @everyone only the first EVERYONE_MEMBERS_MAX (src/services/discord/servers/serverRoles.js) */
     members: ServerRoleMember[];
     /** everyone with the role, also those not sent */
     total: number;

@@ -9,24 +9,24 @@ jest.mock("../../../src/services/roster/categoryRoster", () => ({
     isCurrentRoster: jest.fn(() => false),
     currentVersionOf: jest.fn(() => "tbc"),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/signupStore", () => ({ getSignup: jest.fn(() => null) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ getSignup: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn(() => null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => []) }));
 // the rosters of the orga of a category (#729): steered per test
-jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ listRosters: jest.fn(() => []) }));
 
 const categoryRoster = require("../../../src/services/roster/categoryRoster");
-const rosterStore = require("../../../src/stores/rosterStore");
-const memberRoleMemory = require("../../../src/services/discord/memberRoleMemory");
-const settingsStore = require("../../../src/stores/settingsStore");
-const signupStore = require("../../../src/stores/signupStore");
-const { getRaidEvent } = require("../../../src/stores/raidEventStore");
-const { getEvent } = require("../../../src/stores/eventStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const memberRoleMemory = require("../../../src/services/discord/roles/memberRoleMemory");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const { getRaidEvent } = require("../../../src/stores/events/raidEventStore");
+const { getEvent } = require("../../../src/stores/events/eventStore");
 const discord = require("../../../src/services/discord/discord");
 const vis = require("../../../src/services/signups/eventVisibility");
 

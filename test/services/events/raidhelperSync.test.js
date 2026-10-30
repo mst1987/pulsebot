@@ -5,7 +5,7 @@ const C = "333333333333333333";
 const RH_ON = { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } };
 // A and B have Raid-Helper switched on, C has not
 const mockConfig = jest.fn();
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig() }));
 const mockFetchEvents = jest.fn();
 const mockSetAfterWrite = jest.fn();
 const mockCreateClient = jest.fn(({ guildId }) => ({ fetchEvents: (since) => mockFetchEvents(since, guildId) }));
@@ -19,8 +19,8 @@ jest.mock("../../../src/services/events/raidEventScan", () => ({ scanAllGuilds: 
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ EVENT_LOOKBACK_DAYS: 60 }));
 
 const { tempStoreFile } = require("../../helpers/tempStore");
-const eventsStore = require("../../../src/stores/raidhelperEventsStore");
-const budgetStore = require("../../../src/stores/raidhelperBudgetStore");
+const eventsStore = require("../../../src/stores/events/raidhelperEventsStore");
+const budgetStore = require("../../../src/stores/events/raidhelperBudgetStore");
 const sync = require("../../../src/services/events/raidhelperSync");
 
 const NOW = 1_800_000_000_000;

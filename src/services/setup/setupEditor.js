@@ -28,7 +28,7 @@
 //                       kept while a changed draft waits for the next approval
 //   changedSinceApproval  a draft that differs from an earlier approval
 //   explanation         { text, model, at, version } from Claude (explainText.js)
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
 const { specNameFor } = require("../events/eventSources");
 const { evaluateSetup } = require("../../utils/setup/proposal");
@@ -40,7 +40,7 @@ const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor, setupSummary } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
 const { eventLang } = require("../discord/botLanguage");
-const signupStore = require("../../stores/signupStore");
+const signupStore = require("../../stores/events/signupStore");
 const { inRaidGroup, signupEventIdOf } = require("../../utils/raidGroup");
 const { groupEvents, placedElsewhere, groupSummary } = require("../events/raidGroup");
 

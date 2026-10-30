@@ -250,7 +250,7 @@ function webLink(pathname) {
 
 /** The lazily required stores — kept out of the top so discord.js tests need none of them. */
 function ownEvent(eventId) {
-    const eventStore = require("../../stores/eventStore");
+    const eventStore = require("../../stores/events/eventStore");
     const id = str(eventId);
     return id && eventStore.isOwnEventId(id) ? eventStore.getEvent(id) : null;
 }
@@ -276,7 +276,7 @@ function webTarget(kind, eventId) {
         case "signup": return webLink(`/signups?event=${enc}`);
         case "setup": return webLink(`/raids/detail?event=${enc}&tab=setup`);
         case "raidplan": {
-            const plan = require("../../stores/raidplanStore").getPlan(id);
+            const plan = require("../../stores/raidplan/raidplanStore").getPlan(id);
             return plan && plan.status === "published" && plan.publicToken ? webLink(`/p/${plan.publicToken}`) : "";
         }
         default: return "";

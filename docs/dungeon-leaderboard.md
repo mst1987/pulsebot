@@ -21,7 +21,7 @@ Gleiche Anmeldung wie die anderen Ingest-Routen (Bearer-Token aus `ingestTokenSt
 
 ## Speicher
 
-`src/stores/dungeonRunStore.js`, `data/settings/dungeon-runs.json` (siehe [data-storage.md](data-storage.md)). Höchstens 20 000 Läufe, darüber fallen die ältesten heraus.
+`src/stores/roster/dungeonRunStore.js`, `data/settings/dungeon-runs.json` (siehe [data-storage.md](data-storage.md)). Höchstens 20 000 Läufe, darüber fallen die ältesten heraus.
 
 ## Auswertung
 

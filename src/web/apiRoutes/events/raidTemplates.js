@@ -2,7 +2,7 @@ const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const {
     listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate, getConfig,
-} = require("../../../stores/settingsStore");
+} = require("../../../stores/settings/settingsStore");
 const { decorateTemplate } = require("../../../services/events/raidTemplates");
 const { visibleRows, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const discord = require("../../../services/discord/discord");

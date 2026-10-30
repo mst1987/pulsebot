@@ -14,18 +14,18 @@
 // `buildChecklist(inputs)` is pure (tests drive it); `loadChecklist()` gathers
 // the inputs from the stores, Discord and Raid-Helper, each best-effort.
 
-const { getConfig, saveConfig } = require("../../stores/settingsStore");
+const { getConfig, saveConfig } = require("../../stores/settings/settingsStore");
 const { signupSourceFor } = require("../../services/events/eventSources");
 const { raidhelperDisabled, createRaidhelperClient } = require("../../utils/raidhelper/client");
 const { raidhelperSettingOf } = require("../../utils/raidhelper/servers");
-const { serverSetting } = require("../../services/discord/serverSettings");
-const { firstServerId, storedCategoryGuilds } = require("../../services/discord/serverOf");
+const { serverSetting } = require("../../services/discord/servers/serverSettings");
+const { firstServerId, storedCategoryGuilds } = require("../../services/discord/servers/serverOf");
 const { TIMEZONE } = require("../../config/timezone");
 const discord = require("../../services/discord/discord");
-const guildRoles = require("../../services/discord/guildRoles");
+const guildRoles = require("../../services/discord/roles/guildRoles");
 const { listKnownCategories } = require("../../services/categories/categoryNames");
 const appEmojis = require("../../services/discord/appEmojis");
-const specHistory = require("../../stores/specHistoryStore");
+const specHistory = require("../../stores/roster/specHistoryStore");
 
 // Statuses: ok (green), mid (open, yellow), bad (red), unknown (cannot be
 // checked right now), info (nothing to check — a reminder).

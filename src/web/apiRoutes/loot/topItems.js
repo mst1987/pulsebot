@@ -14,8 +14,8 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { getConfig, saveConfig } = require("../../../stores/settingsStore");
-const { TOP_ITEM_NAME_MAX } = require("../../../stores/configSchema");
+const { getConfig, saveConfig } = require("../../../stores/settings/settingsStore");
+const { TOP_ITEM_NAME_MAX } = require("../../../stores/settings/configSchema");
 const { VERSIONS } = require("../../../config/gameVersions");
 const { knownVersion, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { MAX_TOP_ITEMS, topItemListsOf, topItemsOf, withTopItem } = require("../../../services/loot/topItems");

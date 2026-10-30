@@ -5,7 +5,7 @@
 // (dialogs, answers, DMs); messages in a channel are not personal and keep the
 // language of the server or of the raid's category (services/discord/botLanguage.js).
 const { SlashCommandBuilder } = require("discord.js");
-const userPrefs = require("../../stores/userPrefsStore");
+const userPrefs = require("../../stores/settings/userPrefsStore");
 const { langOf, langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { answerPayload } = require("../../utils/signup/signupReply");

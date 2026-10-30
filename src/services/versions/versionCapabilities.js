@@ -40,9 +40,9 @@
 // directly (the same normaliser settingsForVersion uses), not through versionSettings.js.
 const { VERSION_FEATURES, isVersionFeature } = require("../../config/versionFeatures");
 const { VERSIONS, rulesFor, hasSheetLayout } = require("../../config/gameVersions");
-const { normalizeBlock, versionSettingsOf, wclSiteOf } = require("../../stores/versionSettingsSchema");
+const { normalizeBlock, versionSettingsOf, wclSiteOf } = require("../../stores/settings/versionSettingsSchema");
 const { logcheckRules } = require("../../utils/logcheck/rules");
-const catalogStore = require("../../stores/raidplanCatalogStore");
+const catalogStore = require("../../stores/raidplan/raidplanCatalogStore");
 
 // The German name of each feature, for a refusal or hint the server writes.
 const FEATURE_NAMES = Object.freeze({
@@ -69,7 +69,7 @@ const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 function configOf(config) {
     if (config && typeof config === "object") return config;
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }
@@ -150,7 +150,7 @@ const POSSIBLE = {
         // rules not ready AND no site: the matrix names both (`also`), the message stays the first reason
         return cap.reason === "rules_not_ready" && !wclApiSite(id, { config }) ? { ...cap, also: ["no_site"] } : cap;
     },
-    // A version without BiS data of its own uses the orga's hand lists (#760, stores/manualBisStore.js).
+    // A version without BiS data of its own uses the orga's hand lists (#760, stores/loot/manualBisStore.js).
     lootCouncilBis: () => YES,
     simulation: (id) => (councilData(id).sim ? YES : no("no_sim_data", `Für ${labelOf(id)} gibt es keine Simulationsdaten.`)),
     raidSheet: (id) => (hasSheetLayout(id) ? YES : no("no_sheet_layout", `Für ${labelOf(id)} gibt es kein Raidsheet-Layout.`)),
@@ -242,7 +242,7 @@ function capabilityMatrix(opts = {}) {
  * and the tier/raid filter; "Simulation" the simulation. `off` says the BiS data
  * exists but is switched off, so the page can say so instead of "keine Daten".
  * `manualBis` (#760): the version has no BiS data of its own, so its BiS lists
- * are the orga's hand lists (stores/manualBisStore.js) — `bis` stays the data
+ * are the orga's hand lists (stores/loot/manualBisStore.js) — `bis` stays the data
  * lists' flag, so a TBC council never takes this path.
  * @param {string} versionId
  * @param {{ config?: object }} [opts]

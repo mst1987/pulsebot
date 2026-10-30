@@ -3,17 +3,17 @@
 // roles all key on the role id; the name is only what a page shows.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/config/variables", () => ({ logcheckAdminIds: [], adminRoleIds: [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
-jest.mock("../../../src/services/discord/memberRoles", () => ({ giveRole: jest.fn(), takeRole: jest.fn(), recentWrite: jest.fn(() => undefined) }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ getProfile: jest.fn((userId) => ({ userId, characters: [] })), firstCharacter: jest.fn(() => null) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/roles/memberRoles", () => ({ giveRole: jest.fn(), takeRole: jest.fn(), recentWrite: jest.fn(() => undefined) }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ getProfile: jest.fn((userId) => ({ userId, characters: [] })), firstCharacter: jest.fn(() => null) }));
 
 const fs = require("fs");
-const { getConfig } = require("../../../src/stores/settingsStore");
+const { getConfig } = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
-const userAccess = require("../../../src/services/discord/userAccess");
-const { planRoleSync, liteMember } = require("../../../src/services/discord/roleSync");
-const rosterStore = require("../../../src/stores/rosterStore");
+const userAccess = require("../../../src/services/discord/members/userAccess");
+const { planRoleSync, liteMember } = require("../../../src/services/discord/roles/roleSync");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../../src/services/roster/categoryRoles");
 const { makeClient, makeGuild, makeMember } = require("../../helpers/discordClient");

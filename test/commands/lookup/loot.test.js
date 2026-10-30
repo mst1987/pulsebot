@@ -1,4 +1,4 @@
-jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(), listAll: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listByCharacter: jest.fn(), listAll: jest.fn(() => []) }));
 // #919: the command answers with the loot of the server it was used on.
 jest.mock("../../../src/services/loot/lootServer", () => ({
     serverContext: () => ({}),
@@ -11,7 +11,7 @@ jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacte
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/loot");
-const { listByCharacter, listAll } = require("../../../src/stores/lootStore");
+const { listByCharacter, listAll } = require("../../../src/stores/loot/lootStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
 const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
@@ -133,7 +133,7 @@ describe("/loot", () => {
     });
 
     describe("one game version (#741)", () => {
-        const configStore = require("../../../src/stores/configStore");
+        const configStore = require("../../../src/stores/settings/configStore");
         let configSpy;
         beforeEach(() => {
             configSpy = jest.spyOn(configStore, "getConfig").mockReturnValue({ mainVersion: "tbc", categoryVersion: { fcat: "forever" } });

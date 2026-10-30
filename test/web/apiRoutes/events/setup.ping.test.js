@@ -9,8 +9,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn(),
 }));
 jest.mock("../../../../src/services/setup/setupPing", () => ({
@@ -24,7 +24,7 @@ jest.mock("../../../../src/services/setup/setupMessage", () => ({
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { requireCsrf } = require("../../../../src/web/http/apiMiddleware");
-const { getEvent } = require("../../../../src/stores/eventStore");
+const { getEvent } = require("../../../../src/stores/events/eventStore");
 const { setupPingPlan } = require("../../../../src/services/setup/setupPing");
 const { callSetupPing } = require("../../../../src/services/setup/setupMessage");
 const { postPing, routes } = require("../../../../src/web/apiRoutes/events/setup");

@@ -14,10 +14,10 @@
 // Nothing is stored; computed on read. A failed member fetch leaves the two
 // role lists empty and says so in `membersError` (never "everyone lacks the role").
 const discord = require("../discord/discord");
-const { canManageRoles } = require("../discord/roleSync");
-const memberRoles = require("../discord/memberRoles");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
-const rosterHidden = require("../../stores/rosterHiddenStore");
+const { canManageRoles } = require("../discord/roles/roleSync");
+const memberRoles = require("../discord/roles/memberRoles");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
+const rosterHidden = require("../../stores/roster/rosterHiddenStore");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { takeFailedPending } = require("./rosterRoleSync");

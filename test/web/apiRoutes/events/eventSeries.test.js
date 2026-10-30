@@ -6,14 +6,14 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     listRaidTemplates: jest.fn(() => [{ id: "tpl", name: "SSC + TK 25er", instanceIds: ["ssc"], size: 25, extra: "x" }]),
     getConfig: jest.fn(() => mockConfig),
 }));
 // the stored series (by category) and the bot's live channel cache decide a category's server (#925)
 let mockSeries = {};
 let mockLive = {};
-jest.mock("../../../../src/stores/eventSeriesStore", () => ({
+jest.mock("../../../../src/stores/events/eventSeriesStore", () => ({
     getSeries: jest.fn((id) => mockSeries[id] || null),
     deleteSeries: jest.fn(() => true),
     getRuns: jest.fn(() => ({})),
@@ -31,8 +31,8 @@ jest.mock("../../../../src/web/events/eventSeries", () => ({
 jest.mock("../../../../src/services/discord/discord", () => ({
     getClient: () => ({ channels: { cache: { get: (id) => (mockLive[id] ? { id, guildId: mockLive[id] } : null) } } }),
 }));
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map(),
 }));
 // the categories whose current roster the caller manages (#728) - the rule has its own tests
@@ -42,7 +42,7 @@ jest.mock("../../../../src/services/roster/categoryOrga", () => ({
 }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const store = require("../../../../src/stores/eventSeriesStore");
+const store = require("../../../../src/stores/events/eventSeriesStore");
 const service = require("../../../../src/web/events/eventSeries");
 const route = require("../../../../src/web/apiRoutes/events/eventSeries");
 const { checkAccess } = require("../../../../src/web/http/apiAccess");
@@ -93,7 +93,7 @@ describe("handlers", () => {
     });
 
     it("lists only the series and templates of the shown game version (#741)", async () => {
-        const settings = require("../../../../src/stores/settingsStore");
+        const settings = require("../../../../src/stores/settings/settingsStore");
         mockConfig = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
         settings.listRaidTemplates.mockReturnValueOnce([
             { id: "kara", name: "Kara", versionId: "tbc" }, { id: "bd", name: "Barrow Deeps", versionId: "forever" },

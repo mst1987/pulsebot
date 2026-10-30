@@ -19,7 +19,7 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { q } = require("../../http/apiParams");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { VERSIONS } = require("../../../config/gameVersions");
 const { addonCards, addonDetail, addonVersions, publicAddon, resolveDownload, tokenOf } = require("../../../services/addons/addonReleases");

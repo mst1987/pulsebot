@@ -6,7 +6,7 @@ const { esc } = require("../layout");
 const { classCell, badge, barPct, yesNo, hicon, toneCell, naCell } = require("../widgets");
 const { fightOutcome, groupByBoss } = require("../fightTopics");
 
-// ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/raidDebuffs.js) ----
+// ---- Raid-Debuffs: what the raid put on the boss (report.raidDebuffs, utils/logcheck/buffs/raidDebuffs.js) ----
 //
 // The raid summary (one row per debuff: expected?, mean uptime, on how many
 // fights it was missing) comes from `raidDebuffs.rows`; the debuff × boss

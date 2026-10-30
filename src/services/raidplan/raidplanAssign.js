@@ -30,7 +30,7 @@
 // vorschlagen"). They never guess: nobody fits, nothing is suggested.
 
 const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
-const catalog = require("../../stores/raidplanCatalogStore");
+const catalog = require("../../stores/raidplan/raidplanCatalogStore");
 const { catalogEnabled } = require("../versions/versionCapabilities");
 const { str } = require("../../utils/text");
 const { newId } = require("../../utils/ids");

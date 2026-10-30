@@ -19,7 +19,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "700000") }));
 // Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
 // "role-mgr"; cat2 has no roster.
-jest.mock("../../../../src/stores/rosterStore", () => {
+jest.mock("../../../../src/stores/roster/rosterStore", () => {
     const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "700000", managers: { userIds, roleIds }, members: {}, roleIds: [] });
     const rosters = { "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"], ["role-mgr"]) };
     return {
@@ -56,7 +56,7 @@ jest.mock("../../../../src/services/raidplan/raidplanPost", () => ({
 jest.mock("../../../../src/web/events/raidDetailView", () => ({ buildRaidDetail: jest.fn(async ({ eventId, planPost }) => ({ body: { eventId, planPost } })) }));
 // Raid-Helper events: the snapshot (raidEventStore), the event groups and the client - all steered here
 const mockSnapshots = {};
-jest.mock("../../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
 const mockGroups = { list: [] };
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: mockGroups.list, error: null, stale: false })),
@@ -68,13 +68,13 @@ jest.mock("../../../../src/utils/raidhelper/client", () => ({
 }));
 
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const eventStore = require("../../../../src/stores/eventStore");
-const planStore = require("../../../../src/stores/raidplanStore");
-const profileStore = require("../../../../src/stores/raidplanProfileStore");
-const templateStore = require("../../../../src/stores/raidplanTemplateStore");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const planStore = require("../../../../src/stores/raidplan/raidplanStore");
+const profileStore = require("../../../../src/stores/raidplan/raidplanProfileStore");
+const templateStore = require("../../../../src/stores/raidplan/raidplanTemplateStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const rosterSource = require("../../../../src/web/raidplan/raidplanRosterSource");
-const rhEvents = require("../../../../src/stores/raidhelperEventsStore");
+const rhEvents = require("../../../../src/stores/events/raidhelperEventsStore");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const detailRoute = require("../../../../src/web/apiRoutes/events/raidDetail");

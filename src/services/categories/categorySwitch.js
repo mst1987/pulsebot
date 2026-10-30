@@ -18,9 +18,9 @@
 const { rulesFor } = require("../../config/gameVersions");
 const { mainVersionFor, knownVersion, versionOfEvent } = require("../versions/mainVersion");
 const { erasOf, switchEras } = require("./categoryEras");
-const eventStore = require("../../stores/eventStore");
-const { listRaidEvents } = require("../../stores/raidEventStore");
-const seriesStore = require("../../stores/eventSeriesStore");
+const eventStore = require("../../stores/events/eventStore");
+const { listRaidEvents } = require("../../stores/events/raidEventStore");
+const seriesStore = require("../../stores/events/eventSeriesStore");
 
 /** `{ id, label, short, icon }` of a version, for the dialog (the icon: #951). */
 function versionInfo(id) {

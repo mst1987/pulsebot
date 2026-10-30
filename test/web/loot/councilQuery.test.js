@@ -1,9 +1,9 @@
 // The query -> councilRoster() options shared by the council page and the sync endpoint.
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["c1", "c2"] })),
 }));
 const mockGetRoster = jest.fn(() => null);
-jest.mock("../../../src/stores/rosterStore", () => ({ getRoster: (...a) => mockGetRoster(...a) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ getRoster: (...a) => mockGetRoster(...a) }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn(() => [{ id: "c1", name: "SSC/TK Mittwoch" }]),
 }));
@@ -41,7 +41,7 @@ describe("councilOptsFromQuery with a roster (#676)", () => {
 });
 
 describe("councilOptsFromQuery: the council's version without a roster (#748)", () => {
-    const config = require("../../../src/stores/settingsStore").getConfig;
+    const config = require("../../../src/stores/settings/settingsStore").getConfig;
     afterEach(() => config.mockReturnValue({ categoryIds: ["c1", "c2"] }));
 
     it("follows an explicit content switch, but not \"all\"", () => {
@@ -80,7 +80,7 @@ describe("councilOptsFromQuery", () => {
 // The menu's version comes first on the page (#741/#563): a TBC roster or a TBC
 // category is no pick of the Forever council - not in the list, not in the answer.
 describe("version of a pick and the page's options", () => {
-    const { getConfig } = require("../../../src/stores/settingsStore");
+    const { getConfig } = require("../../../src/stores/settings/settingsStore");
     const CONFIG = { categoryIds: ["c1", "c2", "c3"], mainVersion: "forever", categoryVersion: { c1: "tbc", c2: "forever" } };
     beforeEach(() => {
         getConfig.mockReturnValue(CONFIG);

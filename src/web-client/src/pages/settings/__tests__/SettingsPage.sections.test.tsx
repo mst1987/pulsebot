@@ -6,7 +6,7 @@
 //
 // The sections are the page's icon rail (components/ui/layout/SectionRail.tsx) left of
 // the page; below 900 px the same markup is a chip row — that switch is CSS
-// (test/web-client/conventions/sectionNav.test.js).
+// (test/web-client/conventions/ui/sectionNav.test.js).
 //
 // The big panels (permission matrix, category matrix, Discord servers) have
 // their own tests; here they are stand-ins that show which panel is open.

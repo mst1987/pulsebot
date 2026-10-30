@@ -9,9 +9,9 @@
 // are already signed up for. For everybody, the orga included: "Für dich" and
 // "Anmeldungen" are personal; the orga sees every raid on the raid pages, and
 // the "Anmeldungen" page offers it "Alle Kategorien" (`all`).
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { isRaidSibling } = require("../../utils/raidGroup");
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { profileRoles, roleCounts, signupWindow, allowedStatuses, wishPartnersSignedUp } = require("../../services/signups/signupService");
 // "darf sich anmelden": the same rule guards saving a signup (checkRaiderRole)
 const { signupAccess, inEventCategories } = require("../../services/signups/signupAccess");

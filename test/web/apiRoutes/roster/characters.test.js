@@ -5,15 +5,15 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "" }));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/stores/reportStore", () => ({ listReports: () => [], getReportRoster: () => null }));
-jest.mock("../../../../src/stores/characterStore", () => ({ listCharacters: () => [] }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReportRoster: () => null }));
+jest.mock("../../../../src/stores/roster/characterStore", () => ({ listCharacters: () => [] }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 // the follow-up of a rename has its own suite (services/characters/characterEdit.test.js)
 const mockEdit = jest.fn();
 jest.mock("../../../../src/services/characters/characterEdit", () => ({ editProfileCharacter: (...a) => mockEdit(...a) }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const store = require("../../../../src/stores/raiderProfileStore");
+const store = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/roster/characters");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { mockRes, status, json } = require("../../../helpers/http");

@@ -1,12 +1,12 @@
 // Einstellungen → Verbindungen → Discord-Server: the bot's invites per link
-// and where members came from (#905, services/discord/pugInvites.js). Full
+// and where members came from (#905, services/discord/pug/pugInvites.js). Full
 // admins only, like the rest of that section.
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const guildRoles = require("../../../services/discord/guildRoles");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
 const discord = require("../../../services/discord/discord");
-const pugInvites = require("../../../services/discord/pugInvites");
-const inviteStore = require("../../../stores/discordInviteStore");
+const pugInvites = require("../../../services/discord/pug/pugInvites");
+const inviteStore = require("../../../stores/discord/discordInviteStore");
 
 /** How long the page waits for the check against Discord before it answers anyway. */
 const RECONCILE_WAIT_MS = 5000;

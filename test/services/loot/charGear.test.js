@@ -2,7 +2,7 @@
 // and how an armory row is trimmed into a loadout item, not file I/O.
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
     // the slim slice of the same report — the fixtures carry roster/players
@@ -20,7 +20,7 @@ jest.mock("../../../src/services/loot/armoryGear", () => ({
 // Von Hand geladene Logs ebenso: geprüft wird, wann so ein Set gewinnt, nicht
 // wie es geholt wird (das steht in logGearStore.test.js).
 const mockListLogGear = jest.fn(() => []);
-jest.mock("../../../src/stores/logGearStore", () => ({ listLogGear: (...a) => mockListLogGear(...a) }));
+jest.mock("../../../src/stores/loot/logGearStore", () => ({ listLogGear: (...a) => mockListLogGear(...a) }));
 
 const { gearByCharacter, gearFor, itemInSlot, charKey } = require("../../../src/services/loot/charGear");
 
@@ -164,7 +164,7 @@ describe("services/loot/charGear", () => {
         it("prefers what they wore on another boss of the same night", () => {
             // Die beste Auskunft, die es gibt: derselbe Raider, derselbe Abend,
             // einen Boss weiter. Die Auswertung hat das beim Bauen mitgeschrieben
-            // (utils/logcheck/gearVariants.js), also muss der Griff in ältere
+            // (utils/logcheck/gear/gearVariants.js), also muss der Griff in ältere
             // Auswertungen gar nicht erst passieren.
             const withAlternate = casterSet(MOTC);
             withAlternate[12].alternate = {

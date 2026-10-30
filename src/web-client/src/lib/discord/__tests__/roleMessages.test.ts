@@ -41,7 +41,7 @@ describe("roleBlockReason", () => {
 
 describe("reasonText", () => {
     it("has words for every reason the server gives, in German and English", async () => {
-        const src = backendSource("services/discord/selfRole.js");
+        const src = backendSource("services/discord/roles/selfRole.js");
         const reasons = [...src.matchAll(/(?:return|=>) "(the role [^"]+|missing Manage Roles)"/g)].map((m) => m[1]);
         expect(reasons.length).toBeGreaterThan(8);
         for (const r of reasons) expect(reasonText(r), r).not.toBe(r);
@@ -114,7 +114,7 @@ describe("roleMessageErrorText", () => {
     const name = (id: string) => (id === "r9" ? "Orga" : id);
 
     it("has a sentence for every code the server sends, in German and English", async () => {
-        const src = backendSource("services/discord/roleMessages.js") + backendSource("web/apiRoutes/discord/roleMessages.js");
+        const src = backendSource("services/discord/roles/roleMessages.js") + backendSource("web/apiRoutes/discord/roleMessages.js");
         const codes = [...new Set([...src.matchAll(/(?:fail\(|code:\s*)"([a-z_]+)"/g)].map((m) => m[1]))];
         expect(codes.length).toBeGreaterThan(15);
         for (const code of codes) {

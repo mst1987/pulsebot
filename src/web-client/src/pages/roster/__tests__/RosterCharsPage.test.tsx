@@ -1,7 +1,7 @@
 // The roster page (design issue #218): filters, sorting, the remembered view,
 // hiding a character and the gear-problem KPI as the filter switch.
 // Conventions that cannot be rendered (own stylesheet, shared blocks, no glyph
-// icons) stay in test/web-client/conventions/rosterCharakter.test.js.
+// icons) stay in test/web-client/conventions/roster/rosterCharakter.test.js.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

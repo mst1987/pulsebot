@@ -4,7 +4,7 @@ jest.mock("../../../src/services/characters/attendanceLookup", () => {
     return { ...actual, characterAttendance: jest.fn(), knownCharacterNames: jest.fn() };
 });
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: 1 })) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
 
 const { MessageFlags } = require("discord.js");
 const own = require("../../../src/commands/lookup/anwesenheit");
@@ -12,7 +12,7 @@ const other = require("../../../src/commands/lookup/anwesenheitRaider");
 const { myCharacters: charactersForUser } = require("../../../src/services/characters/userCharacters");
 const { characterAttendance, knownCharacterNames } = require("../../../src/services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");
-const configStore = require("../../../src/stores/configStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const { versionNote } = require("../../../src/services/versions/commandVersion");
 const { EMBED_LIMITS } = require("../../../src/utils/discord/botLookup");
 const { embedSize } = require("../../helpers/embed");

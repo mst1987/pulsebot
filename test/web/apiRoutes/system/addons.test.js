@@ -5,7 +5,7 @@
 const { PassThrough } = require("stream");
 
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser }));
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/classes/githubReleases", () => ({ fetchLatestRelease: jest.fn(), openAssetStream: jest.fn() }));
 
 let mockUser = null;

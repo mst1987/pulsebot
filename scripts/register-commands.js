@@ -84,8 +84,8 @@ async function main(argv) {
     const envFile = flags.dev ? ".env.dev" : ".env";
     require("dotenv").config({ path: envFile, quiet: true });
     // Loaded after dotenv: config/variables reads the env at require time.
-    const { getConfig } = require("../src/stores/settingsStore");
-    const { configuredGuildIds } = require("../src/services/discord/guildRoles");
+    const { getConfig } = require("../src/stores/settings/settingsStore");
+    const { configuredGuildIds } = require("../src/services/discord/roles/guildRoles");
 
     const token = process.env.DISCORDJS_BOT_TOKEN;
     const clientId = process.env.CLIENT_ID;

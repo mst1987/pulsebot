@@ -19,8 +19,8 @@
 // second is refused with "single_char_only" (the store would cut it silently).
 // A new member without characters gets the first profile character of the
 // roster's version.
-const rosterStore = require("../../stores/rosterStore");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
 const rosterRoleSync = require("./rosterRoleSync");
 const memberSpec = require("./memberSpec");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../../utils/loot/lootImport");

@@ -260,7 +260,7 @@ export function signupCharactersOf(map: Record<string, number> | undefined, cate
     return Math.min(SIGNUP_CHARACTERS.max, Math.max(SIGNUP_CHARACTERS.min, n));
 }
 
-/** How many last raids a category's attendance quota may count: any whole number in this range (src/stores/configSchema.js, ATTENDANCE_WINDOW_MIN/MAX). */
+/** How many last raids a category's attendance quota may count: any whole number in this range (src/stores/settings/configSchema.js, ATTENDANCE_WINDOW_MIN/MAX). */
 export const ATTENDANCE_WINDOW = { min: 1, max: 50, default: 11 };
 export type CategoryAttendance = { show: boolean; window: number; absences: boolean };
 

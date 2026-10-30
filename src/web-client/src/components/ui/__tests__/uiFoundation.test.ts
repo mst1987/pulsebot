@@ -2,7 +2,7 @@
 // Each block's behaviour is tested next to it (Button, Segment, Expand, PageHead,
 // Tip, Modal, Badge, WowIcon .test.tsx); the rules that span the whole client
 // (no native title, no confirm(), styles in index.css) are in
-// test/web-client/conventions/uiFoundation.test.js.
+// test/web-client/conventions/ui/uiFoundation.test.js.
 import { describe, expect, it } from "vitest";
 import * as ui from "../index";
 import { focusFromNavigation, NAV_FOCUS_WINDOW, NAV_KEYS } from "../overlay/Tip";

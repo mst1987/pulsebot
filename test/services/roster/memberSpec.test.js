@@ -8,9 +8,9 @@ jest.mock("../../../src/services/events/eventSources", () => ({
 
 const fs = require("fs");
 const { ownUpcomingRaw } = require("../../../src/services/events/eventSources");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
-const characterStore = require("../../../src/stores/characterStore");
-const specHistoryStore = require("../../../src/stores/specHistoryStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
+const specHistoryStore = require("../../../src/stores/roster/specHistoryStore");
 const {
     resolveMemberSpec, specContext, specChoices, knownClassOf, specRecord, roleOfSpecRole, SOURCES,
 } = require("../../../src/services/roster/memberSpec");

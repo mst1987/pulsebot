@@ -5,8 +5,8 @@
 let mockUser = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../../src/stores/signupStore", () => ({ getSignup: (eventId) => (eventId === "eh-a" ? { status: "tentative" } : null) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../../src/stores/events/signupStore", () => ({ getSignup: (eventId) => (eventId === "eh-a" ? { status: "tentative" } : null) }));
 jest.mock("../../../../src/services/signups/availability", () => ({
     MAX_DAYS: 180,
     today: () => "2030-03-17",
@@ -47,8 +47,8 @@ jest.mock("../../../../src/web/availability/entryCategories", () => ({
 }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const profiles = require("../../../../src/stores/raiderProfileStore");
-const store = require("../../../../src/stores/availabilityStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+const store = require("../../../../src/stores/events/availabilityStore");
 const availability = require("../../../../src/services/signups/availability");
 const panel = require("../../../../src/services/signups/availabilityPanel");
 const route = require("../../../../src/web/apiRoutes/events/availability");

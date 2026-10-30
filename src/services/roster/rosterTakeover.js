@@ -43,17 +43,17 @@
 // the role is deleted again - nothing is left half made.
 //
 // Only the Kader's own server, and every read or write of the planner goes
-// through services/kader/kaderRoster.js (test/stores/kaderStore.test.js).
+// through services/kader/kaderRoster.js (test/stores/roster/kaderStore.test.js).
 const { ChannelType, PermissionsBitField } = require("discord.js");
 const logger = require("../../logger");
 const discord = require("../discord/discord");
-const memberRoles = require("../discord/memberRoles");
-const { canManageRoles } = require("../discord/roleSync");
+const memberRoles = require("../discord/roles/memberRoles");
+const { canManageRoles } = require("../discord/roles/roleSync");
 const { botCanManageChannels, discordErrorText } = require("../discord/discordChannels");
 const { normalizeChannelName } = require("../../utils/channelNames");
-const rosterStore = require("../../stores/rosterStore");
-const { getConfig } = require("../../stores/settingsStore");
-const { accessSettings, fullAdminRoleIds } = require("../discord/serverAccess");
+const rosterStore = require("../../stores/roster/rosterStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const { accessSettings, fullAdminRoleIds } = require("../discord/servers/serverAccess");
 const { AppError } = require("../../web/http/apiResult");
 const kaderRoster = require("../kader/kaderRoster");
 const rosterMembers = require("./rosterMembers");

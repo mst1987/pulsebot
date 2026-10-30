@@ -48,9 +48,9 @@ export const ALL_PERMISSIONS: string[] = PERMISSION_GROUPS.flatMap((g) => g.keys
 
 /**
  * The permissions that let a role change or harm the server — the same list as
- * SENSITIVE in src/services/discord/roleHygiene.js (the server marks them per role
+ * SENSITIVE in src/services/discord/roles/roleHygiene.js (the server marks them per role
  * and counts them for the overview; this copy highlights them in the full list).
- * test/services/discord/serverRoles.test.js keeps both lists equal.
+ * test/services/discord/servers/serverRoles.test.js keeps both lists equal.
  */
 export const SENSITIVE_PERMISSIONS: ReadonlySet<string> = new Set([
     "Administrator", "ManageGuild", "ManageRoles", "ManageChannels",

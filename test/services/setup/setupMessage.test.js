@@ -3,7 +3,7 @@
 // abgesagte Events.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventSetupPost: jest.fn((id, patch) => {
@@ -27,7 +27,7 @@ jest.mock("@resvg/resvg-js", () => {
     return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
 });
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 // The language: English here (the old assertions), German where a test says so.
@@ -41,7 +41,7 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
 });
 
 const discord = require("../../../src/services/discord/discord");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const smRaw = require("../../../src/services/setup/setupMessage");
 const botLanguage = require("../../../src/services/discord/botLanguage");
