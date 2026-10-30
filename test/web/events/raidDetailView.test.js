@@ -1,5 +1,5 @@
 // The raid detail read (#424): raidDetailView.js builds the payload of
-// GET /api/raids/detail from one builder per part; apiRoutes/raidDetail.js only
+// GET /api/raids/detail from one builder per part; apiRoutes/events/raidDetail.js only
 // sends it. The byte-for-byte comparison against the old handler was done on
 // the dev data before the move (see the PR); these tests pin each part.
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
@@ -58,7 +58,7 @@ const { getEventSoftres } = require("../../../src/stores/eventSoftresStore");
 const logStore = require("../../../src/stores/logStore");
 const { backfillLogTitles } = require("../../../src/services/logcheck/logChannel");
 const { buildRaidDetail, _internal } = require("../../../src/web/events/raidDetailView");
-const { getRaidDetail } = require("../../../src/web/apiRoutes/raidDetail");
+const { getRaidDetail } = require("../../../src/web/apiRoutes/events/raidDetail");
 const { mockRes, status, json } = require("../../helpers/http");
 const { knownChannels } = require("../../helpers/linkCheck");
 const notes = require("../../../src/stores/userNotesStore");

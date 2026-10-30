@@ -18,7 +18,6 @@ const TEST = /\.test\.(c|m)?[jt]sx?$/;
 
 const ALLOWED = {
     "src/stores": "#1016",
-    "src/web/apiRoutes": "#1012",
     "src/web-client/src/api": "#1012",
     "src/web-client/src/components/ui": "#1011",
     "src/web-client/src/pages/kader": "#1011",

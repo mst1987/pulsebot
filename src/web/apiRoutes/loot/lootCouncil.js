@@ -1,0 +1,727 @@
+// The loot council endpoints (casters, healers, tanks, melee and hunters).
+//
+// Two speeds, deliberately split:
+//   GET  /api/lootcouncil             — the whole picture from stored data, one
+//                                       page load, no simulation. `?item=<id>`
+//                                       narrows it to "this just dropped: who?"
+//   GET  /api/lootcouncil/item-search — the picker behind that question, and
+//                                       the lookup "for whom is this BiS?"
+//   GET  /api/lootcouncil/bislists    — the lists themselves, per class and spec
+//   POST /api/lootcouncil/sim         — start the DPS simulation in the background
+//   GET  /api/lootcouncil/sim         — poll it
+//   GET  /api/lootcouncil/views       — the view of every Loot-Council profile
+//                                       and which profile a roster/category uses
+//   POST /api/lootcouncil/view        — store a profile's view (the addon uses it too)
+//   GET  /api/lootcouncil/profiles    — the profiles (#676) and who uses them
+//   GET  /api/lootcouncil/profile     — one profile: weighting (#668) and view
+//   POST /api/lootcouncil/profiles/create|update|delete — manage them (write)
+//
+// Everything the page shows works without the simulation; the sim is what
+// puts a gain next to a candidate at all — the page shows no estimates. That
+// split is the point — the binary is optional (see utils/wowsims/engine.js),
+// and a council looking at last month's loot should never be blocked on a
+// simulator.
+
+const { ok, error: apiError } = require("../../http/apiResponse");
+const { withUser } = require("../../http/apiHandler");
+const { activeGuildFor } = require("../../http/activeGuild");
+const { userCan } = require("../../../config/permissions");
+const { bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../../loot/lootCouncil");
+const { bisLists } = require("../../loot/bisLists");
+const { primeArmoryGear, clearArmoryFor } = require("../../../services/loot/armoryGear");
+const { loadLogGear, clearLogGear, recentLogs } = require("../../../stores/logGearStore");
+const { sourceForItem } = require("../../../config/tbcContent");
+const { startCouncilSim, getJob } = require("../../../stores/simStore");
+const { searchItems } = require("../../../config/wowsims");
+const councilStore = require("../../../stores/councilStore");
+const councilWeights = require("../../../stores/councilWeightsStore");
+const councilProfilesStore = require("../../../stores/councilProfilesStore");
+const { VIEW_DEFAULTS } = require("../../../stores/councilViewSchema");
+const councilProfiles = require("../../../services/loot/councilProfiles");
+const rosterStore = require("../../../stores/rosterStore");
+const { itemFacts, itemClass } = require("../../../services/loot/itemWeights");
+const { gearFor, charKey } = require("../../../services/loot/charGear");
+const { characterMap } = require("../../../stores/characterStore");
+const { specFor, ROLES } = require("../../../config/councilSpecs");
+const engine = require("../../../utils/wowsims/engine");
+const { getConfig } = require("../../../stores/settingsStore");
+const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { councilOptsFromQuery, pageCouncilOpts, categoryOptions, pickVersion } = require("../../loot/councilQuery");
+const { buildCouncilView, councilCategoryIds } = require("../../loot/councilView");
+const { councilHead, councilRosters, councilOverview } = require("../../loot/councilTargets");
+const { councilContent: councilContentFor, featureState } = require("../../../services/events/versionCapabilities");
+const { knownVersion } = require("../../../services/events/mainVersion");
+const {
+    manualIndex, manualItemView, manualCandidateSplit, manualBisGaps, searchManualItems, manualBisSpecsView,
+} = require("../../loot/manualBisCouncil");
+const { wowheadPathOf } = require("../../../services/characters/wishItems");
+const { searchItems: wowheadSearch } = require("../../../utils/loot/wowhead");
+const { versionLinks } = require("../../../services/events/versionSettings");
+
+/**
+ * GET /api/lootcouncil — roster, BiS gaps and filter options.
+ *
+ * Query: roster (#676: a roster of the active server - its category, version,
+ * candidates and profile), role, tiers, contents, category, bisTier, bench
+ * (Ersatz from the roster as candidates), item (candidates for one item)
+ */
+/**
+ * GET /api/lootcouncil/overview?version= — the page's entry (Oct 2026): one tile per
+ * roster with loot system Loot-Council and per category without roster on
+ * Loot-Council, of the menu's version (councilTargets.councilOverview). No gear,
+ * no needs - a tile opens the council itself (GET /api/lootcouncil).
+ */
+const getOverview = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    ok(res, { versionId, ...councilOverview({ guildId: activeGuildFor(req), config, versionId }) });
+});
+
+const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+
+    const guildId = activeGuildFor(req);
+    // The version the council looks at, the character filter and the rest of the
+    // query: see councilQuery.js. A roster or category of another version than
+    // the menu's is dropped there (#741/#563) and named in `council.dropped`.
+    const opts = pageCouncilOpts(url.searchParams, { guildId });
+    const { role, tierIds, contentIds, categoryId, bisTier, versionId, config, mainVersion, charVersion } = opts;
+    // Roster plus the armory step for boss-specific pieces: councilView.js,
+    // shared with the sync tool's endpoint so the game sees the same numbers.
+    const built = await buildCouncilView(opts);
+    const {
+        rows, avgLootCount, avgLootPoints, weights, bisTier: usedBisTier, skipped, categorySources, versions,
+        rosterSource, outsiders, setAside,
+    } = built;
+    const setAsideKeys = new Set(setAside || []);
+    // What content data this version has (#748): without BiS/item table the page
+    // gets no gaps, no drop check, no filter options and no simulation - and says so.
+    const content = councilContentFor(versionId, { config });
+    // What the page gets of it; `off` (#761): the version has BiS data, but it is switched off in Einstellungen → Spielversion.
+    // `manualBis` (#760): no BiS data of its own, the lists are the orga's hand lists;
+    // `manualLists`: the version has at least one (else the page says where to start).
+    const manual = content.manualBis ? manualIndex(versionId) : null;
+    const contentView = {
+        bis: content.bis, sim: content.sim, tiers: content.tiers, itemTable: content.itemTable,
+        ...(manual ? { manualBis: true, manualLists: Object.keys(manual.lists).length > 0 } : {}),
+        ...(content.off ? { off: true } : {}),
+    };
+    const contentFilter = content.tiers ? resolveContentFilter({ tierIds, contentIds }) : null;
+
+    // One named item ("this just dropped") short-circuits the BiS list: the
+    // council wants the candidates for that item, not the whole gap report —
+    // and, next to them, who cannot wear it at all, so a short list is explained.
+    // On hand lists: whoever's list names it and still misses it, by need (#760).
+    const itemId = Number(url.searchParams.get("item") || 0);
+    const focus = itemId > 0 && content.itemTable
+        // Against the tier that was actually used, so "BiS für …" names the same
+        // lists the roster's BiS column is counted against.
+        // the council's version and server: their armory answers, as in the roster (#923)
+        ? { item: itemView(itemId, usedBisTier), ...candidateSplit(itemId, rows, null, { versionId, guildId }) }
+        : itemId > 0 && manual && manual.info.has(itemId)
+            ? { item: manualItemView(manual, itemId), ...manualCandidateSplit(itemId, rows) }
+            : null;
+    const gaps = focus ? [] : content.bis ? bisGaps(rows, { contentIds: contentFilter, versionId, guildId }) : manual ? manualBisGaps(rows) : [];
+
+    ok(res, {
+        roster: rows,
+        // With a roster: who stood there without being in it, folded and unranked (#667).
+        outsiders: outsiders || [],
+        avgLootCount,
+        avgLootPoints,
+        // The weighting the numbers were computed with (#668) — the need bar
+        // is stacked in its shares, the loot points come from its classes.
+        weights,
+        // The bot's newest logs, so the log panel at a raider can offer them
+        // to pick from instead of asking for a link every time.
+        recentLogs: recentLogs(undefined, { guildId }),
+        // Who the council has set aside, so the page can offer them back — and
+        // say why a familiar name is missing instead of looking broken. Only
+        // those this view would otherwise list (`setAside`): the store is one
+        // list for every version and roster, and a TBC raider set aside there
+        // is nobody the Forever council planned without.
+        excluded: Object.entries(councilStore.listExcluded())
+            .filter(([key]) => setAsideKeys.has(key))
+            .map(([key, entry]) => ({ key, ...entry }))
+            .sort((a, b) => (b.at || 0) - (a.at || 0)),
+        gaps,
+        focus,
+        content: contentView,
+        options: { ...filterOptions(contentView), categories: categoryOptions(guildId, { versionId: charVersion, config }) },
+        // Who the page works for (#676): the roster picker, the roster with its
+        // profile and linked Kader, and which links the caller may follow.
+        council: councilHead({ guildId, user, opts, config }),
+        // `bisTier` is what was actually used: the admin's pick, or — when they
+        // made none — the tier derived from the guild's newest loot. The page
+        // says which, so "12/16 BiS" is never read against the wrong list.
+        filter: {
+            role, tierIds, contentIds, categoryId,
+            bisTier: usedBisTier, bisTierDerived: !bisTier,
+            // How many names the filters took out, and on what basis the
+            // category filter knew who belongs. Without this a shrunken list
+            // reads as a bug rather than as the filter doing its job.
+            skipped,
+            categorySources,
+            // The category's roster (#667): name, counts per status, whether
+            // Ersatz is shown, and who it holds without a council spec.
+            roster: rosterSource || null,
+        },
+        sim: {
+            available: content.sim && engine.isAvailable(),
+            version: engine.WOWSIMS_VERSION,
+            // What the page tells the reader when there is no binary: there
+            // is no gain to show at all, because the page shows no estimates.
+            hint: !content.sim
+                ? content.simHint
+                : engine.isAvailable()
+                    ? ""
+                    : "Keine WoWSims-Simulation verfügbar (WOWSIMCLI_PATH nicht gesetzt) — ohne Simulation zeigt die Seite keine Zugewinne, geschätzt wird nichts.",
+        },
+        activeGuildId: guildId,
+        versionId,
+        // Where the page's item links go ("" = no Wowhead links for this version).
+        wowheadPath: versionLinks(versionId, { config }).wowheadPath,
+        // The character version filter (#545): what is shown ("" = all), the
+        // default, and the choices — independent of `versionId` above.
+        version: charVersion,
+        mainVersion,
+        versions,
+    });
+});
+
+/**
+ * POST /api/lootcouncil/sim — start simulating.
+ * Body: { id, subjects: [{key, specKey}], items: [itemId], roster?, category?, version? }
+ *
+ * Running a simulation is work the server does on request, so it takes write
+ * level (`write: "lootcouncil"`) - a read-only council member sees the numbers.
+ *
+ * The version is the council view's (#745): `roster`, `category` and `version`
+ * are read like the page's query (councilOptsFromQuery). Without the feature
+ * "Simulation" for it (#761: no WoWSims data, or switched off in Einstellungen →
+ * Spielversion) the server refuses with 409 - not only the page's button.
+ */
+const postLootCouncilSim = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, req, res }) => {
+    const id = String(body.id || "").trim();
+    if (!id) return apiError(res, 400, "bad_request", "Job-Id fehlt.");
+    const scope = new URLSearchParams();
+    for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
+    const guildId = activeGuildFor(req);
+    const { versionId, config } = pageCouncilOpts(scope, { guildId });
+    const sim = featureState(versionId, "simulation", { config });
+    if (!sim.on) {
+        return sim.reason === "disabled"
+            ? apiError(res, 409, "feature_off", sim.message)
+            : apiError(res, 409, "no_sim_data", "Für diese Spielversion gibt es keine Simulation.");
+    }
+    const subjects = (Array.isArray(body.subjects) ? body.subjects : [])
+        .map((s) => ({ key: String((s && s.key) || "").trim(), specKey: String((s && s.specKey) || "").trim() }))
+        .filter((s) => s.key && s.specKey);
+    if (!subjects.length) return apiError(res, 400, "bad_request", "Keine Raider angegeben.");
+    const items = (Array.isArray(body.items) ? body.items : []).map(Number).filter((n) => n > 0);
+
+    if (!engine.isAvailable()) {
+        return apiError(res, 503, "sim_unavailable", "Keine WoWSims-Simulation verfügbar — WOWSIMCLI_PATH ist nicht gesetzt.");
+    }
+    const started = startCouncilSim(id, subjects, items, { versionId, guildId });
+    ok(res, { ...started, id });
+});
+
+/**
+ * POST /api/lootcouncil/exclude — stop planning with a raider, or resume.
+ * Body: { character, exclude: boolean, reason? }
+ *
+ * A roster built from history keeps everyone who ever raided, and someone who
+ * left the guild wins the "hat am längsten nichts bekommen" ranking simply by
+ * not raiding — their drought grows forever. Excluding is reversible and never
+ * touches the loot history, so the numbers stay whole.
+ */
+const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
+
+    if (body.exclude === false) {
+        const removed = councilStore.include(character);
+        return ok(res, { character, excluded: false, changed: removed });
+    }
+    const entry = councilStore.exclude(character, {
+        reason: String(body.reason || "").trim(),
+        by: user.name || user.id,
+    });
+    if (!entry) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
+    ok(res, { character, excluded: true, entry });
+});
+
+/**
+ * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
+ *
+ * Body: { character, role: "caster" | "healer" | "tank" | "melee" | "ranged" | "" }
+ * (the council roles, ROLES in config/councilSpecs.js)
+ *
+ * Ein Heiler, der heute Offspec spielt, ist für diesen Abend ein DPS — mit
+ * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht
+ * hervor, also ist es eine Festlegung; ein leeres `role` nimmt sie zurück.
+ */
+const postRole = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
+    const role = String(body.role || "").trim();
+    if (role && !ROLES.some((r) => r.id === role)) return apiError(res, 400, "invalid_input", `Unbekannte Rolle: ${role}`);
+
+    const entry = councilStore.setRole(character, role, { by: user.name || user.id });
+    ok(res, { character, role: entry ? entry.role : "", entry });
+});
+
+/**
+ * GET /api/lootcouncil/views — die Ansicht je Loot-Council-Profil (#676: Rolle,
+ * Tiers, Raids, BiS-Liste, Version) und welches Profil für welches Roster bzw.
+ * welche Kategorie gilt (`targets`: "roster:<id>" / "category:<id>" → Profil-Id).
+ * Mit genau dieser Ansicht rechnet auch das Addon im Spiel (GET /api/ingest/council).
+ *
+ * `?version=` (#741/#563): nur Roster und Kategorien dieser Version sind Ziele -
+ * eine alte Auswahl einer anderen Version findet so kein Profil, und die Seite
+ * schreibt die Version des Menüs nie in das Profil eines TBC-Rosters.
+ */
+const getViews = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const guildId = activeGuildFor(req);
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const views = {};
+    for (const p of councilProfilesStore.listProfiles()) {
+        const { role, tiers, contents, bisTier, version } = p.view;
+        views[p.id] = { role, tiers, contents, bisTier, version };
+    }
+    const targets = {};
+    for (const r of rosterStore.listRosters(guildId)) {
+        if (pickVersion({ roster: r }) === versionId) targets[`roster:${r.id}`] = councilProfiles.resolveProfile({ rosterId: r.id }).profile.id;
+    }
+    const categories = categoryOptions(guildId, { versionId, config });
+    for (const c of categories) targets[`category:${c.id}`] = councilProfiles.resolveProfile({ categoryId: c.id }).profile.id;
+    const inVersion = new Set(categories.map((c) => c.id));
+    ok(res, {
+        views,
+        targets,
+        defaultId: councilProfilesStore.defaultProfileId(),
+        defaults: { ...VIEW_DEFAULTS, tiers: [], contents: [] },
+        councilCategories: councilCategoryIds(config).filter((id) => inVersion.has(id)),
+        councilRosters: councilRosters(guildId, config, { versionId }).map((r) => r.id),
+        versionId,
+    });
+});
+
+/** The profile a write names: `profileId`, else the one of `roster`, else of `category`. */
+function profileOfBody(body) {
+    const profileId = String(body.profileId || "").trim();
+    if (profileId) return councilProfilesStore.getProfile(profileId);
+    const rosterId = String(body.roster || "").trim();
+    const category = String(body.category || "").trim();
+    if (!rosterId && !category) return null;
+    return councilProfiles.resolveProfile(rosterId ? { rosterId } : { categoryId: category }).profile;
+}
+
+/**
+ * POST /api/lootcouncil/view — die Ansicht eines Profils speichern (#676).
+ * Body: { profileId | roster | category, role, tiers, contents, bisTier, version }
+ *
+ * Ändert, was das Addon im Spiel für jedes Roster mit diesem Profil zeigt —
+ * deshalb Schreibrecht wie beim Ausplanen und der Rolle.
+ */
+const postView = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const profile = profileOfBody(body);
+    if (!profile) return apiError(res, 400, "bad_request", "Kein Profil angegeben.");
+    const stored = councilProfilesStore.updateProfile(profile.id, { view: body }, { by: user.name || user.id });
+    const { role, tiers, contents, bisTier, version } = stored.view;
+    ok(res, { profileId: stored.id, view: { role, tiers, contents, bisTier, version } });
+});
+
+// A ProfileError's HTTP status; everything else is the caller's input (400).
+const PROFILE_STATUS = { not_found: 404, profile_in_use: 409, profile_default: 409, name_taken: 409, profile_limit: 409 };
+
+function refuseProfile(res, e) {
+    if (e && e.name === "ProfileError") return apiError(res, PROFILE_STATUS[e.code] || 400, e.code, e.message);
+    throw e;
+}
+
+/** The weighting block of a profile as the page edits it (with at/by of the profile). */
+const weightsBlock = (p) => ({ ...p.weights, at: p.at || 0, by: p.by || "" });
+
+/** One profile with everything its editor needs: weights, view, icons of the exceptions, the defaults and limits. */
+function profileAnswer(profile) {
+    // The profile's version (its view; "" = the main one): an exception's item is
+    // one of that version's (#760) - TBC's item table only where the version has it.
+    const versionId = knownVersion(profile.view.version) || mainVersionFor({ config: getConfig() });
+    const content = councilContentFor(versionId);
+    const manual = content.manualBis ? manualIndex(versionId) : null;
+    // What the page shows next to an exception: the item's icon and the class
+    // it would have without the exception ("statt Trinket · 2,0").
+    const itemInfo = {};
+    for (const [id, entry] of Object.entries(profile.weights.items || {})) {
+        const view = content.itemTable ? itemView(Number(id)) : manual && manual.info.has(Number(id)) ? manualItemView(manual, id) : {};
+        itemInfo[id] = {
+            name: view.name || (content.itemTable ? itemFacts(Number(id)).name : "") || (entry && entry.name) || "",
+            iconUrl: view.iconUrl || "",
+            quality: view.quality || null,
+            autoClass: itemClass(Number(id), { items: {} }, { noTable: !content.itemTable }),
+        };
+    }
+    const { role, tiers, contents, bisTier, version } = profile.view;
+    const d = councilWeights.defaults();
+    return {
+        // Where the exceptions' item search looks (#760): this version's items.
+        versionId,
+        profile: {
+            ...councilProfiles.profileHead(profile),
+            weights: weightsBlock(profile),
+            view: { role, tiers, contents, bisTier, version },
+        },
+        itemInfo,
+        defaults: {
+            weights: { classes: d.classes, items: d.items, need: d.need, tenureDays: d.tenureDays },
+            view: { ...VIEW_DEFAULTS, tiers: [], contents: [] },
+        },
+        classIds: councilWeights.CLASS_IDS,
+        needIds: councilWeights.NEED_IDS,
+        limits: councilWeights.LIMITS,
+    };
+}
+
+/**
+ * GET /api/lootcouncil/profiles — every Loot-Council profile (#676) with who
+ * uses it: `rosters` (Loot-Council rosters it applies to, by their own choice,
+ * their category or as the default), `otherRosters` (rosters on another loot
+ * system that still name it), `categories` (categories without roster that
+ * keep it) and `inUse` (named by a roster or category - such a profile cannot
+ * be deleted; the default never can).
+ *
+ * `?version=` (#741/#563): the usage names only rosters and categories of that
+ * version, and a profile only rosters or categories of other versions use is
+ * not listed (councilProfiles.profileShownIn: the default and unused ones always are).
+ */
+const getProfiles = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const guildId = activeGuildFor(req);
+    const config = getConfig();
+    const { versionId } = resolveVersionQuery(url.searchParams.get("version"), { config });
+    const allUsage = councilProfiles.profileUsage({ config, guildId });
+    const usage = councilProfiles.profileUsage({ config, guildId, versionId });
+    const catName = new Map(categoryOptions(guildId).map((c) => [c.id, c.name]));
+    const defaultId = councilProfilesStore.defaultProfileId();
+    ok(res, {
+        defaultId,
+        versionId,
+        profiles: councilProfilesStore.listProfiles().filter((p) => councilProfiles.profileShownIn(p, versionId, { usage, allUsage })).map((p) => {
+            const u = usage.get(p.id) || { rosters: [], otherRosters: [], categories: [] };
+            return {
+                ...councilProfiles.profileHead(p),
+                rosters: u.rosters,
+                otherRosters: u.otherRosters,
+                categories: u.categories.map((id) => ({ id, name: catName.get(id) || id })),
+                inUse: p.id === defaultId || councilProfiles.profileInUse(p.id),
+                at: p.at || 0,
+                by: p.by || "",
+            };
+        }),
+    });
+});
+
+/** GET /api/lootcouncil/profile?id= — one profile for its editor (404 for an unknown one). */
+const getProfile = withUser({}, async ({ user, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const profile = councilProfilesStore.getProfile(String(url.searchParams.get("id") || "").trim());
+    if (!profile) return apiError(res, 404, "not_found", "Profil nicht gefunden.");
+    ok(res, profileAnswer(profile));
+});
+
+/**
+ * POST /api/lootcouncil/profiles/create — a new profile (`lootcouncil` write).
+ * Body: { name, copyFrom? } (copyFrom: weights and view of that profile, else
+ * the defaults). Codes: invalid_name, name_too_long 400; name_taken,
+ * profile_limit 409; not_found 404 (copyFrom).
+ */
+const postProfileCreate = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    try {
+        const profile = councilProfilesStore.createProfile({ name: body.name, copyFrom: String(body.copyFrom || "").trim() }, { by: user.name || user.id });
+        return ok(res, profileAnswer(profile));
+    } catch (e) {
+        return refuseProfile(res, e);
+    }
+});
+
+/**
+ * POST /api/lootcouncil/profiles/update — rename a profile, store its
+ * weighting and/or its view (`lootcouncil` write). Body: { id, name?,
+ * weights?, view? } (weights and view replaced whole). Answer as GET /profile.
+ */
+const postProfileUpdate = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ user, body, res }) => {
+    const id = String(body.id || "").trim();
+    const patch = {};
+    if (body.name !== undefined) patch.name = body.name;
+    for (const key of ["weights", "view"]) {
+        if (body[key] === undefined) continue;
+        if (!body[key] || typeof body[key] !== "object" || Array.isArray(body[key])) return apiError(res, 400, "bad_request", `${key} fehlt.`);
+        patch[key] = body[key];
+    }
+    if (!Object.keys(patch).length) return apiError(res, 400, "bad_request", "Nichts zu ändern.");
+    try {
+        return ok(res, profileAnswer(councilProfilesStore.updateProfile(id, patch, { by: user.name || user.id })));
+    } catch (e) {
+        return refuseProfile(res, e);
+    }
+});
+
+/**
+ * POST /api/lootcouncil/profiles/delete — delete a profile nobody uses
+ * (`lootcouncil` write). Body: { id }. 409 profile_in_use (a roster or a
+ * category names it), 409 profile_default, 404 not_found.
+ */
+const postProfileDelete = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, res }) => {
+    const id = String(body.id || "").trim();
+    try {
+        councilProfilesStore.deleteProfile(id, { inUse: councilProfiles.profileInUse });
+        return ok(res, { id, deleted: true });
+    } catch (e) {
+        return refuseProfile(res, e);
+    }
+});
+
+/**
+ * GET /api/lootcouncil/export?character=… — that raider's loadout as a WoWSims
+ * "From JSON" import, so anyone can paste it into wowsims.com/tbc and
+ * check the number this page shows.
+ *
+ * Built from the same pieces as our own run, so it reproduces our DPS rather
+ * than a different one — an export that quietly differs would make the page
+ * look wrong when it is not.
+ */
+const getExport = withUser({}, async ({ user, req, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+
+    const character = String(url.searchParams.get("character") || "").trim();
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
+    // The spec decides the rotation and the buff set, so it has to be the same
+    // one the page judged them by — and, one step earlier, the same role: the
+    // export has to be built from the set the page compared, not from the
+    // healing gear of whatever raid happens to be the newest.
+    const known = characterMap()[charKey(character)] || {};
+    const knownSpec = specFor(known.className, known.spec);
+    // the council view's version (roster/category/version like the page) and the
+    // active server: its own realm/region decide which armory snapshot counts (#923)
+    const guildId = activeGuildFor(req);
+    const { versionId } = pageCouncilOpts(url.searchParams, { guildId });
+    const gear = gearFor(character, { roleFor: () => (knownSpec ? knownSpec.role : ""), versionId, guildId });
+    if (!gear) return apiError(res, 404, "not_found", `Für ${character} ist kein Gear bekannt — der Charakter taucht in keiner der letzten CLA-Auswertungen auf.`);
+
+    const specEntry = knownSpec || specFor(gear.className, known.spec);
+    if (!specEntry) return apiError(res, 400, "spec_required", `Für ${character} ist keine Council-Spec bekannt.`);
+
+    const built = engine.buildIndividualExport({ gear, specEntry });
+    if (!built.supported) return apiError(res, 400, "unsupported", built.warnings.join(" ") || "Diese Spec lässt sich nicht exportieren.");
+
+    // Whoever checks the number in WoWSims has the raider's armory open next to
+    // it, so every place where this loadout deliberately differs from their last
+    // raid has to be named — otherwise the export looks wrong where it is right.
+    const substitutions = gear.items
+        .filter((it) => it.replacedSituational)
+        .map((it) => `Statt „${it.replacedSituational.itemName}“ (${it.replacedSituational.note}) steht hier „${it.itemName}“ aus einer älteren Auswertung.`);
+    const stillSituational = gear.items
+        .filter((it) => it.situational)
+        .map((it) => `„${it.itemName}“ ${it.situational.note} — keine ältere Auswertung zeigt etwas anderes auf dem Slot.`);
+
+    ok(res, {
+        character: gear.character,
+        spec: specEntry.key,
+        specLabel: specEntry.label,
+        // Where to paste it — the WoWSims import does not switch class itself.
+        simUrl: SIM_URLS[specEntry.key] || SIM_URLS[specEntry.simSpec] || "https://www.wowsims.com/tbc/",
+        seenAt: gear.seenAt,
+        reportTitle: gear.reportTitle,
+        warnings: [...built.warnings, ...substitutions, ...stillSituational],
+        json: JSON.stringify(built.data, null, 2),
+    });
+});
+
+// Which WoWSims page an export belongs on. The individual import reads gear and
+// talents from the JSON but not the class, so pasting a priest export on the
+// mage sim silently produces nonsense.
+//
+// wowsims.com, not the old wowsims.github.io: that one only forwards from
+// inside the loaded page, so every link cost a detour — and its shadow-priest
+// path answers 404 outright. Every address below was checked against the live
+// site; an invented path there answers 200 with a 1.8 KB placeholder rather
+// than an error, so "it loads" is not proof and the pages were told apart by
+// what they actually return.
+const SIM_URLS = {
+    "Priest-Shadow": "https://www.wowsims.com/tbc/priest/dps/",
+    "Mage-Arcane": "https://www.wowsims.com/tbc/mage/dps/",
+    "Mage-Fire": "https://www.wowsims.com/tbc/mage/dps/",
+    "Mage-Frost": "https://www.wowsims.com/tbc/mage/dps/",
+    "Warlock-Destruction": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Warlock-Affliction": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Warlock-Demonology": "https://www.wowsims.com/tbc/warlock/dps/",
+    "Druid-Balance": "https://www.wowsims.com/tbc/druid/balance/",
+    "Shaman-Elemental": "https://www.wowsims.com/tbc/shaman/elemental/",
+};
+
+/**
+ * GET /api/lootcouncil/item-search?q=…&tier=… — items for the "this just
+ * dropped" picker, searched in the generated caster table (config/wowsims).
+ *
+ * Each hit carries whose BiS list it is on, because the same search answers the
+ * other direction too: the BiS-Listen tab looks a piece up to find out *for
+ * whom* it is best in slot. An item on nobody's list comes back with an empty
+ * `bisSpecs` — which is the answer, not a gap.
+ */
+const getItemSearch = withUser({}, async ({ user, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const tier = url.searchParams.get("tier") || "";
+    // The item table is TBC's (#748): another version has nothing to search in.
+    // `v` names the council's version (the page sends it); else the default view's.
+    const versionId = knownVersion(url.searchParams.get("v")) || councilOptsFromQuery(url.searchParams).versionId;
+    const content = councilContentFor(versionId);
+    // On hand lists (#760) the items are those the lists name - by name or id;
+    // with `wowhead=1` (the exceptions of the weighting) Wowhead of the version
+    // adds any other item of the version.
+    if (content.manualBis) {
+        const q = url.searchParams.get("q") || "";
+        const index = manualIndex(versionId);
+        const items = searchManualItems(index, q)
+            .map(({ id, name, iconUrl, quality, ilvl, contentId, boss, bisSpecs }) => ({ id, name, iconUrl, quality, ilvl, contentId, boss, bisSpecs }));
+        const path = url.searchParams.get("wowhead") === "1" ? wowheadPathOf(versionId, { config: getConfig() }) : "";
+        if (path) {
+            for (const hit of await wowheadSearch(String(q).slice(0, 80), { path, limit: 12 })) {
+                if (items.some((it) => it.id === hit.id)) continue;
+                items.push({ id: hit.id, name: hit.name, iconUrl: hit.iconUrl, quality: hit.quality, contentId: "", boss: "", bisSpecs: manualBisSpecsView(index, hit.id) });
+            }
+        }
+        return ok(res, { items });
+    }
+    if (!content.itemTable) return ok(res, { items: [] });
+    const items = searchItems(url.searchParams.get("q") || "").map((it) => {
+        const source = sourceForItem(it.id) || {};
+        return {
+            ...it,
+            contentId: source.content || "",
+            boss: source.boss || "",
+            bisSpecs: bisSpecsView(it.id, tier),
+        };
+    });
+    ok(res, { items });
+});
+
+/**
+ * POST /api/lootcouncil/armory — fetch the current gear of these raiders from
+ * the armory, so the page stops judging them on their last logged raid.
+ *
+ * Deliberately a button and not a page load. It is a call per raider to an API
+ * outside this app: doing it on every view would make the council slow and
+ * would spend somebody else's rate limit on a page nobody is reading. And it is
+ * a decision — "nimm den Stand von jetzt" — which belongs to the reader.
+ */
+const postArmoryRefresh = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ body, req, res }) => {
+    const characters = Array.isArray(body.characters) ? body.characters : [];
+    if (!characters.length) return apiError(res, 400, "bad_request", "Keine Charaktere angegeben.");
+
+    // The council view's version (#923): with `roster`/`version` like the page
+    // (pageCouncilOpts), else the category's as before.
+    const guildId = activeGuildFor(req);
+    const scope = new URLSearchParams();
+    for (const key of ["roster", "category", "version"]) if (body[key]) scope.set(key, String(body[key]).trim());
+    const versionId = scope.has("roster") || scope.has("version")
+        ? pageCouncilOpts(scope, { guildId }).versionId
+        : mainVersionFor({ categoryId: String(body.category || ""), config: getConfig() });
+    // the active server's own realm/region asks its characters (#923)
+    const result = await primeArmoryGear(characters, { full: true, force: true, versionId, guildId });
+    if (!result.configured) {
+        if (result.reason === "feature_off") {
+            return apiError(res, 400, "armory_off", "Der Armory-Abruf ist für diese Spielversion ausgeschaltet (Einstellungen → Spielversion).");
+        }
+        if (result.reason === "version_not_configured") {
+            return apiError(res, 400, "armory_not_configured", "Armory für diese Spielversion nicht eingerichtet (Einstellungen → Spielversion).");
+        }
+        return apiError(res, 400, "armory_not_configured", "Für die Armory fehlen die Battle.net-Zugangsdaten (Einstellungen → Verbindungen).");
+    }
+    ok(res, result);
+});
+
+/**
+ * POST /api/lootcouncil/loggear — load one raider's gear from a Warcraft-Logs
+ * report, or forget a loaded one.
+ * Body: { character, reportId?, link?, clear? }
+ *
+ * Without reportId/link the bot's newest logs are tried in turn. A loaded log
+ * replaces the armory's answer for that raider (it is the newer request), so
+ * the armory cache entry is dropped with it.
+ */
+const postLogGear = withUser({ write: "lootcouncil", csrf: true, body: true }, async ({ req, body, res }) => {
+    const character = String(body.character || "").trim();
+    if (!character) return apiError(res, 400, "bad_request", "Kein Charakter angegeben.");
+    if (body.clear) {
+        // "Zurück zur Auswertung": both hand-picked sources go, the loaded log
+        // and the armory answer, so the evaluations' set is what shows next.
+        const cleared = clearLogGear(character);
+        clearArmoryFor(character);
+        return ok(res, { cleared });
+    }
+    try {
+        const { snapshot, tried } = await loadLogGear(character, { reportId: body.reportId, link: body.link, guildId: activeGuildFor(req) });
+        clearArmoryFor(character);
+        ok(res, {
+            reportId: snapshot.reportId,
+            reportTitle: snapshot.reportTitle,
+            reportStart: snapshot.reportStart,
+            items: snapshot.armory.length,
+            tried,
+        });
+    } catch (e) {
+        if (e && e.logGear) return apiError(res, e.status || 404, "log_gear", e.message);
+        throw e;
+    }
+});
+
+/**
+ * GET /api/lootcouncil/bislists?tier=… — which gear set is BiS for which caster
+ * DPS class and spec, as the matrix the tab draws (see web/loot/bisLists.js).
+ */
+const getBisLists = withUser({}, async ({ user, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    ok(res, bisLists(url.searchParams.get("tier") || ""));
+});
+
+/** GET /api/lootcouncil/sim?id=… — poll a running simulation. */
+const getLootCouncilSim = withUser({}, async ({ user, res, url }) => {
+    if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
+    const job = getJob(url.searchParams.get("id") || "");
+    if (!job) return ok(res, { status: "unknown" });
+    ok(res, job);
+});
+
+/** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
+const routes = [
+    { method: "GET", path: "/api/lootcouncil", handler: getLootCouncil, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/overview", handler: getOverview, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/export", handler: getExport, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/exclude", handler: postExclude, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/item-search", handler: getItemSearch, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/role", handler: postRole, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/views", handler: getViews, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/view", handler: postView, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/profiles", handler: getProfiles, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/profile", handler: getProfile, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/profiles/create", handler: postProfileCreate, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/profiles/update", handler: postProfileUpdate, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/profiles/delete", handler: postProfileDelete, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/armory", handler: postArmoryRefresh, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/bislists", handler: getBisLists, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/sim", handler: getLootCouncilSim, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/sim", handler: postLootCouncilSim, area: "lootcouncil" },
+];
+
+module.exports = {
+    getLootCouncil, getOverview, postLootCouncilSim, getLootCouncilSim,
+    getItemSearch, getBisLists, postExclude, postRole, getExport, postArmoryRefresh, postLogGear,
+    getViews, postView, getProfiles, getProfile, postProfileCreate, postProfileUpdate, postProfileDelete,
+    routes,
+};

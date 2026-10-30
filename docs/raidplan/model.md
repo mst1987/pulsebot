@@ -12,7 +12,7 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 | Tactic profiles (collection store) | `src/stores/raidplanProfileStore.js` |
 | Raid plan templates (collection store) | `src/stores/raidplanTemplateStore.js` |
 | What the editor and the public page are shown | `src/web/raidplan/raidplan.js` |
-| API | `src/web/apiRoutes/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
+| API | `src/web/apiRoutes/events/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
 | Editor (tab of the raid detail) | `src/web-client/src/pages/raid-detail/RaidplanTab.tsx` and `raidplan/` |
 | The working area of a boss, shared by the event editor and the template editor | `raidplan/BoardWorkspace.tsx` (+ `Palette.tsx`, `Inspector.tsx`, `LayerList.tsx`, `MapPanel.tsx`, `ContextMenu.tsx`, `useDraftHistory.ts`) |
@@ -299,7 +299,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
 - Tests: `test/services/raidplan/raidplanDefaultsMigration.test.js` (golden master: a plan built the way the old
   apply built it, edited by hand - a changed copy, a deleted copy, an own row in front, a moved tank; effective
   rows of every section identical before / after; idempotent; backup), `raidplanInherit.test.js` (apply, merge,
-  twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan.test.js` (save, read
+  twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/events/raidplan.test.js` (save, read
   view), `src/web-client/src/lib/raidplan/__tests__/inherit.test.ts` (client twin against the server) and
   `components/raidplan/editor/__tests__/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
   hide / restore, auto tokens and lines of inherited rows).
@@ -334,7 +334,7 @@ globalByWrite: true, write: "raidplan" })`:
   `GET /api/raidplan/link` are `orgaRead` (docs/permissions.md "Kategorie-Orga"), `GET /api/raidplan/progress?event=`
   asks `managesRaid` itself, and the raid detail's `viewer.canPlan` shows the tab. The library's reads stay `raidplan`.
 
-Tests: `test/web/apiRoutes/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
+Tests: `test/web/apiRoutes/events/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
 route against a raid of another category), `test/web/raidplan/raidplanAccess.test.js`, `globalByWrite` in
 `test/web/http/apiHandler.test.js`, `components/raidplan/editor/__tests__/libraryRights.test.tsx`.
 
@@ -368,8 +368,8 @@ turned the Setup tab white (`Cannot read properties of undefined (reading 'buffs
 ## Tests
 
 `test/services/raidplan/raidplanBoard.test.js` (slots, marks, zones, auto-fill), `raidplanTemplateStore.test.js` (templates,
-apply, map order), `apiRoutes/raidplan.templates.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
-`apiRoutes/raidplan.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
+apply, map order), `apiRoutes/events/raidplan.templates.test.js`, `raidplanStore.test.js`, `raidplanProfileStore.test.js`,
+`apiRoutes/events/raidplan.test.js` (gate, editor payload, save/conflict, publish, upload, profiles, public view), the
 routing in `test/web/http/server.test.js`, `readRawBody` in `apiBody.test.js`, and
 `test/web-client/raidplan.<thema>.test.js` (board logic run for real in `boards`, `editing`, `slots`, `tokens`,
 `roleGroups`; structure of the pages and texts in both languages in `pages`).
@@ -469,6 +469,6 @@ production the variable does nothing (`fixtureMode()` checks `NODE_ENV` itself; 
 restart.
 
 Tests: `test/web/raidplan/raidhelperRoster.test.js`, `test/web/raidplan/raidplanTitle.test.js`,
-`test/web/apiRoutes/raidplan.raidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
+`test/web/apiRoutes/events/raidplan.raidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
 Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `src/web-client/src/lib/raidplan/__tests__/raidplanRaidhelper.test.ts`, plus the
 store / board additions.

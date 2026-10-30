@@ -131,7 +131,7 @@ the event.
   server cache and a minute of polling. A report linked to the wrong event shows that raid's kills — correct the link on the event
   page. Only the newest linked log with a report id is read.
 - Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
-  `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/__tests__/useRaidProgress.test.tsx`,
+  `test/web/apiRoutes/events/raidplan.progress.test.js`, `src/web-client/src/hooks/__tests__/useRaidProgress.test.tsx`,
   `lib/raidplan/view/__tests__/progress.test.ts`, `stage/__tests__/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
   `pages/raidplan/__tests__/PlanPublicPage.stage.test.tsx`, `lib/raidplan/view/__tests__/stage.test.ts`.
 
@@ -159,7 +159,7 @@ The read view takes a changed plan without a reload, and a reload lands on the b
   remembered one, then "Allgemein". Only `?section=` pauses following the log; `#boss=` of a reload does not, so a
   reload during the raid still turns to the boss being pulled. The editor (`RaidplanTab`) writes the same hash; its
   router drops it when another tab is chosen.
-- Tests: `test/web/http/apiResponse.test.js`, `test/web/apiRoutes/raidplan.test.js` (ETag / 304),
+- Tests: `test/web/http/apiResponse.test.js`, `test/web/apiRoutes/events/raidplan.test.js` (ETag / 304),
   `lib/raidplan/view/__tests__/sectionUrl.test.ts`, `hooks/__tests__/useVisiblePoll.test.tsx`, `api/__tests__/client.test.ts`,
   `pages/raidplan/__tests__/PlanPublicPage.live.test.tsx`.
 
@@ -167,7 +167,7 @@ The read view takes a changed plan without a reload, and a reload lands on the b
 
 The read link as one message in the event's channel, like "Sheet posten" for the raidsheet:
 
-- **Route:** `POST /api/raids/post-raidplan { event, message? }` (`apiRoutes/raidDetail.js`, area `raidplan`, write — it publishes the plan on the way,
+- **Route:** `POST /api/raids/post-raidplan { event, message? }` (`apiRoutes/events/raidDetail.js`, area `raidplan`, write — it publishes the plan on the way,
   CSRF). The event — channel, title, start — is resolved on the server from its own event list, never taken from
   the body. The work is `postRaidplanLink()` in `src/services/raidplan/raidplanPost.js`.
 - **What it checks:** the event has a plan (an own event always, a Raid-Helper event once switched on — else 409

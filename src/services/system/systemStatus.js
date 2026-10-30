@@ -1,6 +1,6 @@
 // The answer of GET /api/system/status (docs/system-status.md), put together from the monitor, the request
 // statistics, the disk figures and - when asked for - the top processes of the host. No HTTP here; the route in
-// src/web/apiRoutes/system.js only sends it.
+// src/web/apiRoutes/admin/system.js only sends it.
 //
 // The top processes take a second to measure (hostProcesses.js), so the page asks for them only when it opens and
 // on its refresh button (`processes: true`), not on every 15-s poll. The last list is kept for PROC_KEEP_MS and goes

@@ -34,7 +34,7 @@ const notes = require("../../../src/stores/userNotesStore");
 const { shortFor } = require("../../../src/services/vermerke/vermerkeShort");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { effectiveUser } = require("../../../src/web/http/viewAs");
-const route = require("../../../src/web/apiRoutes/vermerke");
+const route = require("../../../src/web/apiRoutes/roster/vermerke");
 const { get, post } = routerClient(route);
 
 const SRC = path.join(__dirname, "..", "..", "..", "src");
@@ -65,12 +65,12 @@ function requireClosure(entry) {
 }
 
 const PERSON_PAGES = [
-    "web/apiRoutes/profile.js",
-    "web/apiRoutes/signups.js",
+    "web/apiRoutes/roster/profile.js",
+    "web/apiRoutes/events/signups.js",
     "web/apiRoutes/dashboard.js",
     "web/dashboard/dashboardPersonal.js",
     "web/pages/eventPublicPage.js",
-    "web/apiRoutes/raidplan.js",
+    "web/apiRoutes/events/raidplan.js",
     "web/http/viewAs.js",
 ];
 // the read side of the hints (#982) and the person search of the dialog (#980) too: the signup pages
@@ -78,7 +78,7 @@ const PERSON_PAGES = [
 // (orgaSignupQueue.js), its read side and post (orgaSignupNotice.js) are the bot's job
 const NOTE_MODULES = [
     "stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "services/vermerke/vermerkePeople.js",
-    "web/apiRoutes/vermerke.js", "services/vermerke/orgaSignupNotice.js",
+    "web/apiRoutes/roster/vermerke.js", "services/vermerke/orgaSignupNotice.js",
 ];
 
 describe("Vermerke never reach the person", () => {
@@ -92,7 +92,7 @@ describe("Vermerke never reach the person", () => {
     // #983: the signup path queues first signups, so the queue is in the raiders' closure -
     // and the queue itself reaches no Vermerk
     it("the signup queue is on the raiders' path and reads no Vermerk", () => {
-        expect(requireClosure("web/apiRoutes/signups.js")).toContain("services/vermerke/orgaSignupQueue.js");
+        expect(requireClosure("web/apiRoutes/events/signups.js")).toContain("services/vermerke/orgaSignupQueue.js");
         const queueClosure = requireClosure("services/vermerke/orgaSignupQueue.js");
         expect(queueClosure.filter((rel) => NOTE_MODULES.includes(rel))).toEqual([]);
     });

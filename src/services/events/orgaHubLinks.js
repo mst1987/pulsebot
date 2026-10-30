@@ -1,5 +1,5 @@
 // The orga links of the Orga-Zentrale, managed in Discord (the web edits the same
-// list: Einstellungen -> Kategorien, apiRoutes/orgaHub.js). All of it hangs off the
+// list: Einstellungen -> Kategorien, apiRoutes/events/orgaHub.js). All of it hangs off the
 // component prefix `orga` (commands/event/orgaHubButton.js):
 //
 //   button  orga:links:<cat>              "Links ..." on the hub: an ephemeral card with

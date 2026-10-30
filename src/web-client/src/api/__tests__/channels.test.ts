@@ -28,7 +28,7 @@ const purpose = (over: Partial<ChannelPurpose>): ChannelPurpose => ({
 
 /** "METHOD /path" of every route the server serves. */
 function serverRoutes(): string[] {
-    const { routes } = requireBackend("web/apiRoutes/channels");
+    const { routes } = requireBackend("web/apiRoutes/discord/channels");
     const list = Array.isArray(routes) ? routes : Object.values(routes);
     return list.map((r: { method: string; path: string }) => `${r.method} ${r.path}`);
 }
@@ -113,7 +113,7 @@ describe("purposes are settings", () => {
     });
 
     it("scopes the same keys per server as the backend", () => {
-        const { SERVER_SCOPED_KEYS: backend } = requireBackend("web/apiRoutes/settings");
+        const { SERVER_SCOPED_KEYS: backend } = requireBackend("web/apiRoutes/admin/settings");
         expect([...SERVER_SCOPED_KEYS].sort()).toEqual([...backend].sort());
     });
 

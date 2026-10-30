@@ -25,7 +25,7 @@ export type SettingsSection = {
     icon: string;
     /**
      * Full admins only. Mirrors what the API enforces (ACCESS_KEYS with
-     * requireFullAdmin in src/web/apiRoutes/settings.js).
+     * requireFullAdmin in src/web/apiRoutes/admin/settings.js).
      */
     adminOnly?: boolean;
     /**

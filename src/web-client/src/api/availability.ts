@@ -2,7 +2,7 @@ import { get, send } from "./client";
 import type { SignupStatus } from "./raidDetail";
 import type { AttendanceOverride, AttendanceStatus } from "./roster";
 
-// ---- Ab- & Anwesenheit (src/web/apiRoutes/availability.js) ----
+// ---- Ab- & Anwesenheit (src/web/apiRoutes/events/availability.js) ----
 // "Away from … to …" signs a raider off from every raid of that period, "there
 // from … to … with this character" signs them up — now and for raids created
 // later. The orga (`raids` write) may enter for another raider via `userId`.

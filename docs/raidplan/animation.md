@@ -187,7 +187,7 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 ## Tests
 
 `test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
-`test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
+`test/web/apiRoutes/events/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
 `src/web-client/src/lib/raidplan/anim/__tests__/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
 `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
 `src/web-client/src/lib/raidplan/anim/__tests__/sceneEdit.test.ts` (editing on the timeline),

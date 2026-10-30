@@ -45,7 +45,7 @@ When A takes `shared` back, B's hide mark stays in the store; should A share the
   hidden: { [guildId]: { [entryId]: { by, at } } } }
 ```
 
-Only three modules read it: the routes (`src/web/apiRoutes/vermerke.js`), the short form
+Only three modules read it: the routes (`src/web/apiRoutes/roster/vermerke.js`), the short form
 (`src/services/vermerke/vermerkeShort.js`) and the hints (`src/services/vermerke/userSignals.js`, see below). Nothing of a note is ever logged. Both are held by
 `test/stores/userNotesStore.test.js`.
 
@@ -259,4 +259,4 @@ without the marker text. The orga answers of #981 are held dynamically as well: 
 
 "Never to the person" means: never to a raider **without orga or Vermerke rights**. Whoever holds the rights (the
 area `vermerke`, or the short form as raid orga / roster manager) also sees the notes on the own account — a
-deliberate exception the user decided, nothing is filtered (`test/web/apiRoutes/vermerke.test.js` holds it).
+deliberate exception the user decided, nothing is filtered (`test/web/apiRoutes/roster/vermerke.test.js` holds it).

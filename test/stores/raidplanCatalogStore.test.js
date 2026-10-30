@@ -10,7 +10,7 @@ const catalog = require("../../src/stores/raidplanCatalogStore");
 const defaults = require("../../src/services/raidplan/raidplanCatalogDefaults");
 const assign = require("../../src/services/raidplan/raidplanAssign");
 const plans = require("../../src/stores/raidplanStore");
-const route = require("../../src/web/apiRoutes/raidplan");
+const route = require("../../src/web/apiRoutes/events/raidplan");
 const { checkAccess } = require("../../src/web/http/apiAccess");
 
 const ORGA = { id: "orga", isAdmin: false, access: { raidplan: { read: true, write: true } } };

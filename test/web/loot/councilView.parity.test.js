@@ -72,7 +72,7 @@ jest.mock("../../../src/stores/ingestTokenStore", () => ({
     bearerFrom: () => "ehl_good",
 }));
 
-const { getLootCouncil } = require("../../../src/web/apiRoutes/lootCouncil");
+const { getLootCouncil } = require("../../../src/web/apiRoutes/loot/lootCouncil");
 const { ingestCouncil } = require("../../../src/web/apiRoutes/ingest");
 const { mockRes, body } = require("../../helpers/http");
 const { lootRow, DAY, now } = require("../../helpers/lootCouncil");

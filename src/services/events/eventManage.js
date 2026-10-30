@@ -1,7 +1,7 @@
 // "Event verwalten" (#288): everything the orga does with an EventHelper event
 // after it was created — move it, close or open the signup, sign raiders up or
 // off, cancel it (and take the cancellation back), delete it. One service for the web
-// (apiRoutes/eventManage.js) and Discord (commands/event/eventManage*.js).
+// (apiRoutes/events/eventManage.js) and Discord (commands/event/eventManage*.js).
 //
 // Three rules hold for every action:
 //   * only an own event of the server the caller works on (a Raid-Helper event

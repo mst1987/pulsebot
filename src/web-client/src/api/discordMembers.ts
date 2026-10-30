@@ -3,7 +3,7 @@ import type { ServerRolesHead } from "./discordRoles";
 import { guildQuery } from "./discordOverview";
 
 // The members of one server of the server list (System › Discord › Mitglieder):
-// the contract is the header of src/web/apiRoutes/discordMembers.js, the
+// the contract is the header of src/web/apiRoutes/discord/discordMembers.js, the
 // overview docs/channels.md. Read only.
 
 /** A role as the members page needs it: highest first, without @everyone. */

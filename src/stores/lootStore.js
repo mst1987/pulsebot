@@ -191,7 +191,7 @@ function charLootPreview(it) {
  * the distinct raid categories (Discord category id, e.g. "Montagsraid",
  * "Pug") each got loot in — the join key for grouping/filtering the
  * "Charaktere" tab by raid type. Category names are resolved from live
- * Discord state by the caller (see apiRoutes/history.js), same as
+ * Discord state by the caller (see apiRoutes/loot/history.js), same as
  * discord.listCategories() elsewhere — this store only ever sees ids.
  *
  * `items` carries each character's loot (newest award first) in the trimmed
@@ -224,7 +224,7 @@ function characters(rows = listAll()) {
  *
  * At import time the category comes from the Raid-Helper event's Discord
  * category — loot imported *without* an event (a manual bucket, see
- * apiRoutes/history.js) has none and is therefore absent from every
+ * apiRoutes/loot/history.js) has none and is therefore absent from every
  * category-grouped overview ("Charaktere", "Loot-Gründe"). This is how such a
  * bucket gets assigned afterwards. Stored on the rows rather than derived,
  * because there is no event to derive it from.

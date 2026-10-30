@@ -14,7 +14,7 @@
 //   - Discord: a permission beyond those of @everyone, or a channel overwrite that allows
 //     the role anything (it unlocks a hidden channel).
 // The button is hidden for such a role, a click or reaction on an old one is refused in
-// both directions, and the web warns (apiRoutes/addonCenter.js and roleMessages.js flag
+// both directions, and the web warns (apiRoutes/admin/addonCenter.js and roleMessages.js flag
 // the role; a role message refuses to save one).
 //
 // `changeSelfRole` is the one way to give or take such a role: it reads the role and the

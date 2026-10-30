@@ -14,8 +14,10 @@ describe("web/http/routeTable", () => {
         expect(now).toEqual([...golden].sort());
     });
 
-    it("collects every module under apiRoutes/ — a new file is not forgotten", () => {
-        const files = fs.readdirSync(path.join(__dirname, "..", "..", "..", "src", "web", "apiRoutes")).filter((f) => f.endsWith(".js")).map((f) => f.replace(/\.js$/, "")).sort();
+    it("collects every module under apiRoutes/ and its subfolders — a new file is not forgotten", () => {
+        const files = fs.readdirSync(path.join(__dirname, "..", "..", "..", "src", "web", "apiRoutes"), { recursive: true })
+            .map((f) => f.split(path.sep).join("/"))
+            .filter((f) => f.endsWith(".js")).map((f) => f.replace(/\.js$/, "")).sort();
         expect([...MODULES].sort()).toEqual(files);
     });
 

@@ -196,7 +196,7 @@ export function saveChannelPurpose(purpose: ChannelPurpose, ids: string[], guild
     });
 }
 
-/** Setting keys stored per Discord server — mirrors SERVER_SCOPED_KEYS in src/web/apiRoutes/settings.js. */
+/** Setting keys stored per Discord server — mirrors SERVER_SCOPED_KEYS in src/web/apiRoutes/admin/settings.js. */
 export const SERVER_SCOPED_KEYS = [
     "logChannels", "raidhelper", "versionOverrides", "categoryIds",
     "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "wclGuilds",

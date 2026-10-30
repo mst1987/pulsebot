@@ -157,7 +157,7 @@ Manches gehört zu einer Person oder ist reiner Text, nicht zu einer Version:
 
 Einstellungen → Spielversion, Karte **„Neue Version starten“** (`pages/settings/versions/VersionLaunchCard.tsx`, Texte und Regeln in `lib/settings/versionLaunch.ts`, CSS `vl-` in `styles/settings.css`). Vorbild ist der Raid-Helper-Umstieg ([raidhelper-retirement.md](raidhelper-retirement.md)), nur ohne Schalter am Ende: Jeder Schritt passiert dort, wo er hingehört; die Karte sagt nur, was noch offen ist.
 
-- **Server:** `services/events/versionLaunch.js`. `buildChecklist(inputs)` ist rein, `loadChecklist(versionId, { config, withBackup })` sammelt die Eingaben (jede best-effort, wirft nie). Route `apiRoutes/versionLaunch.js`: `GET /api/settings/version-launch?version=<id>` (Bereich `settings`, lesen; ohne oder mit unbekannter Version die naheliegende Zielversion `defaultTarget`: eine Version, die eine Kategorie neben der Hauptversion spielt, sonst die neueste andere, also die letzte der Regelsätze) und `POST /api/settings/version-launch { version, item, done }` (schreiben, CSRF; ein berechneter Punkt antwortet 400). Den Sicherungsstand bekommen nur Voll-Admins (`withBackup`), wie die Sicherungs-Aufgabe der Übersicht.
+- **Server:** `services/events/versionLaunch.js`. `buildChecklist(inputs)` ist rein, `loadChecklist(versionId, { config, withBackup })` sammelt die Eingaben (jede best-effort, wirft nie). Route `apiRoutes/admin/versionLaunch.js`: `GET /api/settings/version-launch?version=<id>` (Bereich `settings`, lesen; ohne oder mit unbekannter Version die naheliegende Zielversion `defaultTarget`: eine Version, die eine Kategorie neben der Hauptversion spielt, sonst die neueste andere, also die letzte der Regelsätze) und `POST /api/settings/version-launch { version, item, done }` (schreiben, CSRF; ein berechneter Punkt antwortet 400). Den Sicherungsstand bekommen nur Voll-Admins (`withBackup`), wie die Sicherungs-Aufgabe der Übersicht.
 - **Punkte** (Reihenfolge = Runbook), jeder `{ id, kind: "auto" | "manual", status: "done" | "open", optional, mark, … }`:
 
 | Punkt | Art | Erledigt, wenn |
@@ -176,7 +176,7 @@ Einstellungen → Spielversion, Karte **„Neue Version starten“** (`pages/set
 
 - **Von Hand abhaken:** `config.versionLaunch = { [versionId]: { [itemId]: { at, byName } } }`, normalisiert in `configSchema.normalizeVersionLaunch` (bekannte Versionen, nur die Punkte aus `VERSION_LAUNCH_MANUAL`). Der Schalter („erledigt“, `ui/Switch`) speichert sofort, nicht über die Speicherleiste; die berechneten Punkte haben keinen Schalter. Die Karte liest nach jedem Speichern der Seite neu (sie rechnet mit dem gespeicherten Stand).
 - **Links:** jeder Punkt führt dorthin, wo er erledigt wird: eine Karte weiter oben auf derselben Seite („Hier oben“: `#gv-main`, `#gv-links`), Raid-Vorlagen, Serien, Roster, Verbindungen (Gildenbanken), Discord-Server, Systemstatus oder der CSV-Download.
-- **Tests:** `test/services/events/versionLaunch.test.js` (jeder Punkt offen und erledigt, Felder, Marken), `test/web/apiRoutes/versionLaunch.test.js`, im Client `lib/settings/__tests__/versionLaunch.test.ts` und `pages/settings/versions/__tests__/VersionLaunchCard.test.tsx`.
+- **Tests:** `test/services/events/versionLaunch.test.js` (jeder Punkt offen und erledigt, Felder, Marken), `test/web/apiRoutes/admin/versionLaunch.test.js`, im Client `lib/settings/__tests__/versionLaunch.test.ts` und `pages/settings/versions/__tests__/VersionLaunchCard.test.tsx`.
 
 ## Runbook für den Umstiegstag
 

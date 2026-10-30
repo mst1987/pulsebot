@@ -39,7 +39,7 @@ dialog's spell lists, the suggestions, the section's mobs and the read view only
   their `versionId`).
 - **Templates and tactic profiles** carry a `versionId` too (see below); a template's editor gets its version's catalog
   and its suggestions ask with that version (`POST /api/raidplan/suggest { versionId }` without an event).
-- Tests: `test/stores/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/raidplan.versions.test.js`
+- Tests: `test/stores/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/events/raidplan.versions.test.js`
   (templates, apply, catalog of a Forever plan, suggestions), `src/web-client/src/lib/raidplan/__tests__/versions.test.ts`,
   `RaidplanCatalogPage.versions.test.tsx` (switch, new entry), `RaidplanTab.versions.test.tsx` ("Vorlage anwenden").
 
@@ -226,7 +226,7 @@ catalog and the default maps stay global.
 - **Stores** (`raidplanTemplateStore`, `raidplanProfileStore`): every read and write takes the server first
   (`listTemplates(guildId)`, `getProfile(guildId, id)`, ...). Without a valid server (snowflake) they hold nothing and
   refuse to write (fail closed). An entry of another server is "not found".
-- **Reads** (`GET /api/raidplan/templates`, `GET /api/raidplan/profiles`, `apiRoutes/raidplan.js`
+- **Reads** (`GET /api/raidplan/templates`, `GET /api/raidplan/profiles`, `apiRoutes/events/raidplan.js`
   `libraryReadServer`): the active server of the session; `?guildId=` of another server is 404 - only the full admin
   may name any known server. The answer carries `guildId`. The event editor (`GET /api/raidplan`) shows the library
   of the **event's** server (`planServer(event)`) and names it as `libraryGuildId`.

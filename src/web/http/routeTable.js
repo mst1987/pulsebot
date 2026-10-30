@@ -19,10 +19,10 @@
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
-    "session", "dashboard", "version", "channels", "settings", "topItems", "talkOverview", "pugInvites", "raidhelperRetirement", "wclGuilds", "versionLaunch",
-    "ingest", "kader", "vermerke", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "syncKeys", "characters", "signups", "lootCouncil", "lootCouncilBis",
-    "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
-    "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "dungeons", "addons", "addonCenter", "roleMessages", "discordRoles", "discordMembers", "system", "discordOverview", "pugOnboarding",
+    "session", "dashboard", "version", "discord/channels", "admin/settings", "loot/topItems", "discord/talkOverview", "discord/pugInvites", "admin/raidhelperRetirement", "admin/wclGuilds", "admin/versionLaunch",
+    "ingest", "roster/kader", "roster/vermerke", "discord/botCommands", "roster/raiderCharacters", "roster/roster", "roster/rosters", "roster/rosterRoles", "roster/rosterMembers", "roster/rosterAdmin", "roster/profile", "admin/syncKeys", "roster/characters", "events/signups", "loot/lootCouncil", "loot/lootCouncilBis",
+    "events/raids", "events/raidDetail", "events/setup", "events/raidplan", "events/eventManage", "events/eventSeries", "admin/gameVersions",
+    "events/notifyTemplates", "events/raidTemplates", "recruitment", "loot/history", "cla", "events/availability", "events/orgaHub", "events/attendance", "loot/guildBank", "dungeons", "admin/addons", "admin/addonCenter", "discord/roleMessages", "discord/discordRoles", "discord/discordMembers", "admin/system", "discord/discordOverview", "discord/pugOnboarding",
 ];
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
