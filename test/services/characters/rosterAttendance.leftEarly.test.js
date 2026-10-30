@@ -235,10 +235,10 @@ describe("who builds night-by-night attendance (#990)", () => {
         "services/characters/attendanceLookup.js": "/anwesenheit + /anwesenheit-raider: quota and missed nights only (left early never misses)",
         "services/characters/rosterAttendance.js": "the builder itself",
         "services/setup/setupInput.js": "the setup proposal: the quota (pct) only",
-        "web/apiRoutes/availability.js": "GET /api/attendance: neutral when the caller looks at their own nights; /overview/raider is orga_only",
-        "web/apiRoutes/roster.js": "GET /api/roster/char: orga, or the own player through neutralAttendance",
+        "web/apiRoutes/events/availability.js": "GET /api/attendance: neutral when the caller looks at their own nights; /overview/raider is orga_only",
+        "web/apiRoutes/roster/roster.js": "GET /api/roster/char: orga, or the own player through neutralAttendance",
         "web/availability/raiderAttendance.js": "the builder of the raider view; its callers pass `neutral`",
-        "web/characters/roster.js": "buildRoster (orga_only) and rosterCharacter (filtered in apiRoutes/roster.js)",
+        "web/characters/roster.js": "buildRoster (orga_only) and rosterCharacter (filtered in apiRoutes/roster/roster.js)",
         "web/dashboard/dashboardPersonal.js": "the raider's own dashboard: always neutral",
         "web/kader/kaderSource.js": "the kader planner: admins and the kader area only",
         "web/roster/rosterView.js": "the roster grid: a non-orga caller gets the composition only",
@@ -265,7 +265,7 @@ describe("who builds night-by-night attendance (#990)", () => {
     });
 
     it("the character page filters the own player's view", () => {
-        const route = fs.readFileSync(path.join(SRC, "web/apiRoutes/roster.js"), "utf8");
+        const route = fs.readFileSync(path.join(SRC, "web/apiRoutes/roster/roster.js"), "utf8");
         expect(route).toMatch(/neutralAttendance\(/);
     });
 });

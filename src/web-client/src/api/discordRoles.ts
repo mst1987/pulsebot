@@ -3,7 +3,7 @@ import { guildQuery } from "./discordOverview";
 
 // The roles of one server of the server list (System › Discord › Rollen) and the
 // counts of the Discord tabs: the contract is the header of
-// src/web/apiRoutes/discordRoles.js, the overview docs/channels.md.
+// src/web/apiRoutes/discord/discordRoles.js, the overview docs/channels.md.
 
 /** What the bot does with a role (services/discord/selfRole.js roleUses, plus role messages and addon updates). */
 export type ServerRoleUse =

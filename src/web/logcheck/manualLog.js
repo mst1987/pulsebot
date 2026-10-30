@@ -1,6 +1,6 @@
 // Manually attaching a Warcraft-Logs report to a raid by pasting its URL on the
 // raid detail page — for logs that were never posted in a tracked log channel.
-// Shared by server.js's SSR route and apiRoutes/cla.js's JSON route (same
+// Shared by server.js's SSR route and apiRoutes/system/cla.js's JSON route (same
 // pairing as matchableEvents.js), so both admin UIs behave identically.
 
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");

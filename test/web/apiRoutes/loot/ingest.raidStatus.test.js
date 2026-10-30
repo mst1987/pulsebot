@@ -1,0 +1,335 @@
+// POST /api/ingest/raids — the loot-sync tool's raid-list endpoint. Same
+// token auth as ingestLoot (test/web/ingestRoute.test.js), so only the parts
+// specific to this route are re-tested here: the route wiring/auth is driven
+// through the real router, and computeRaidStatus() (the actual done/ready/
+// empty decision) is also tested directly with plain object literals, since
+// it is pure and needs no mocking at all.
+const { mockRes, status, json, jsonRequest } = require("../../../helpers/http");
+
+jest.mock("../../../../src/web/http/auth", () => ({
+    getUser: jest.fn(() => null),
+    csrfToken: jest.fn(),
+    checkCsrf: jest.fn(() => true),
+    setActiveGuild: jest.fn(),
+}));
+jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+    verifyToken: jest.fn(),
+    touchToken: jest.fn(),
+    bearerFrom: jest.requireActual("../../../../src/stores/ingestTokenStore").bearerFrom,
+}));
+jest.mock("../../../../src/stores/lootInboxStore", () => ({
+    upsertPending: jest.fn(),
+    resolutionFor: jest.fn(() => null),
+    listPending: jest.fn(() => []),
+    getPending: jest.fn(),
+    resolvePending: jest.fn(),
+    noteAppended: jest.fn(),
+    listLinked: jest.fn(() => []),
+}));
+jest.mock("../../../../src/stores/lootStore", () => ({
+    addImport: jest.fn(),
+    listByEvent: jest.fn(() => []),
+    listByCharacter: jest.fn(() => []),
+    listAll: jest.fn(() => []),
+    eventsWithLoot: jest.fn(() => []),
+    clearEvent: jest.fn(),
+    setEventCategory: jest.fn(),
+    removeItems: jest.fn(),
+    repairItemNames: jest.fn(),
+    characters: jest.fn(() => []),
+}));
+jest.mock("../../../../src/services/characters/characterInfo", () => ({
+    rememberFromLoot: jest.fn(),
+    annotatedCharacters: jest.fn(() => []),
+    resolveMissing: jest.fn(),
+}));
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
+jest.mock("../../../../src/services/events/raidEventGroups", () => ({
+    loadEventGroups: jest.fn(async () => ({ groups: [] })),
+    eventLookbackSince: jest.fn(() => 0),
+    EVENT_LOOKBACK_DAYS: 60,
+}));
+jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+// No session behind the token: the first server, never the session's (#919).
+jest.mock("../../../../src/services/loot/lootServer", () => ({
+    ...jest.requireActual("../../../../src/services/loot/lootServer"),
+    serverWithoutSession: jest.fn(() => "gFirst"),
+}));
+jest.mock("../../../../src/utils/loot/wowhead", () => ({
+    lookupItem: jest.fn(async () => null),
+    searchItems: jest.fn(async () => []),
+}));
+
+const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
+const { resolutionFor, listPending } = require("../../../../src/stores/lootInboxStore");
+const { eventsWithLoot } = require("../../../../src/stores/lootStore");
+const { event: baseEvent } = require("../../../factories/events");
+const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
+const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { handle } = require("../../../../src/web/http/apiRouter");
+const { computeRaidStatus } = require("../../../../src/web/apiRoutes/loot/ingest");
+
+async function request(jsonBody, authorization = "Bearer ehl_good") {
+    const req = jsonRequest("POST", "/api/ingest/raids", jsonBody, authorization ? { authorization } : {});
+    const res = mockRes();
+    await handle("/api/ingest/raids", req, res);
+    return res;
+}
+
+const SSC_SESSION = {
+    sessionId: "eh-1784574000-ssc",
+    startedAt: 1784574000000,
+    endedAt: 1784581200000,
+    instance: "Serpentshrine Cavern",
+    items: 42,
+    gargul: 42,
+    rclc: 0,
+    excluded: false,
+};
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    verifyToken.mockReturnValue({ id: "t1", name: "Raidlead-PC" });
+    resolutionFor.mockReturnValue(null);
+    listPending.mockReturnValue([]);
+    eventsWithLoot.mockReturnValue([]);
+    loadEventGroups.mockResolvedValue({ groups: [] });
+});
+
+describe("POST /api/ingest/raids", () => {
+    describe("authentication", () => {
+        it("refuses a request without a token", async () => {
+            const res = await request({ sessions: [] }, null);
+            expect(status(res)).toBe(401);
+            expect(json(res).error.code).toBe("no_token");
+        });
+
+        it("refuses a token the store does not know", async () => {
+            verifyToken.mockReturnValue(null);
+            const res = await request({ sessions: [] });
+            expect(status(res)).toBe(401);
+            expect(json(res).error.code).toBe("bad_token");
+        });
+
+        it("records the use of an accepted token", async () => {
+            await request({ sessions: [] });
+            expect(touchToken).toHaveBeenCalledWith("t1");
+        });
+    });
+
+    it("returns the recent events with per-event status", async () => {
+        loadEventGroups.mockResolvedValue({
+            groups: [{
+                categoryId: "cat1",
+                categoryName: "Raids",
+                events: [{ id: "e1", title: "SSC", startTime: 1784574000, source: "raidhelper" }],
+            }],
+        });
+        const res = await request({ sessions: [SSC_SESSION] });
+        expect(status(res)).toBe(200);
+        expect(json(res).data.raids).toEqual([{
+            eventId: "e1",
+            title: "SSC",
+            startTime: 1784574000,
+            categoryId: "cat1",
+            categoryName: "Raids",
+            guildId: "gFirst",
+            gameVersion: "tbc",
+            source: "raidhelper",
+            status: "ready",
+            matchedSessionId: "eh-1784574000-ssc",
+            itemCount: 42,
+            gargul: 42,
+            rclc: 0,
+            inboxItems: null,
+        }]);
+    });
+
+    it("reads the inbox cards from the store and reports them as pending", async () => {
+        loadEventGroups.mockResolvedValue({
+            groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC", startTime: 1784574000 }] }],
+        });
+        listPending.mockReturnValue([{ sessionId: SSC_SESSION.sessionId, itemCount: 42, match: { suggested: { eventId: "e1" } } }]);
+        const res = await request({ sessions: [SSC_SESSION] });
+        expect(json(res).data.raids[0]).toMatchObject({ status: "pending", inboxItems: 42, matchedSessionId: null });
+    });
+
+    it("treats an event already in the loot history as done, ignoring local sessions", async () => {
+        loadEventGroups.mockResolvedValue({
+            groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "SSC", startTime: 1784574000 }] }],
+        });
+        eventsWithLoot.mockReturnValue([{ eventId: "e1" }]);
+        const res = await request({ sessions: [SSC_SESSION] });
+        expect(json(res).data.raids[0]).toMatchObject({ status: "done", matchedSessionId: null });
+    });
+
+    it("passes the local sessions through to the day-match", async () => {
+        loadEventGroups.mockResolvedValue({ groups: [] });
+        await request({ sessions: [SSC_SESSION] });
+        expect(loadEventGroups).toHaveBeenCalledWith("gFirst", { sinceSeconds: 0 });
+    });
+
+    // #994: a key with a server lists only that server's raids, never the first server's.
+    it("lists the raids of the key's server", async () => {
+        verifyToken.mockReturnValue({ id: "t1", name: "Raidlead-PC", guildId: "gB" });
+        await request({ sessions: [SSC_SESSION] });
+        expect(loadEventGroups).toHaveBeenCalledTimes(1);
+        expect(loadEventGroups).toHaveBeenCalledWith("gB", { sinceSeconds: 0 });
+    });
+
+    // #1000: a personal key whose owner is orga on A, not on B.
+    describe("personal key", () => {
+        const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+        beforeEach(() => verifyToken.mockReturnValue(PERSON));
+
+        it("lists only the raids of its owner's servers", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA"]);
+            await request({ sessions: [SSC_SESSION] });
+            expect(serversOfToken).toHaveBeenCalledWith(PERSON);
+            expect(loadEventGroups.mock.calls.map(([gid]) => gid)).toEqual(["gA"]);
+        });
+
+        it("lists the raids of every server its owner is orga of", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
+            await request({ sessions: [SSC_SESSION] });
+            expect(loadEventGroups.mock.calls.map(([gid]) => gid).sort()).toEqual(["gA", "gC"]);
+        });
+
+        // #1001: the tool sorts the raids under server and version
+        it("tags every raid with its server and game version", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+            loadEventGroups.mockImplementation(async (gid) => ({
+                groups: [{
+                    categoryId: `cat-${gid}`,
+                    categoryName: "Raids",
+                    events: gid === "gA"
+                        ? [{ id: "eA", title: "SSC", startTime: 1784574000 }]
+                        : [{ id: "eB", title: "Karazhan", startTime: 1784660400, versionId: "forever" }],
+                }],
+            }));
+            const res = await request({ sessions: [] });
+            const raids = json(res).data.raids;
+            expect(raids.map((r) => [r.eventId, r.guildId, r.gameVersion]).sort()).toEqual([
+                ["eA", "gA", "tbc"],
+                ["eB", "gB", "forever"],
+            ]);
+        });
+
+        it("answers 403 no_server when its owner is orga nowhere", async () => {
+            serversOfToken.mockResolvedValueOnce([]);
+            const res = await request({ sessions: [SSC_SESSION] });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("no_server");
+            expect(loadEventGroups).not.toHaveBeenCalled();
+        });
+    });
+
+    it("defaults to an empty session list", async () => {
+        const res = await request({});
+        expect(status(res)).toBe(200);
+        expect(json(res).data.raids).toEqual([]);
+    });
+});
+
+// computeRaidStatus() itself: pure, no mocking needed.
+describe("computeRaidStatus", () => {
+    const known = (over = {}) => ({
+        lootedEventIds: new Set(),
+        pending: [],
+        resolutionFor: () => null,
+        ...over,
+    });
+
+    const event = (over = {}) => baseEvent({ title: "SSC", startTime: 1000, source: "raidhelper", categoryId: "c1", categoryName: "Raids", ...over });
+    const session = (over = {}) => ({ sessionId: "s1", startedAt: 1000 * 1000, items: 10, gargul: 10, rclc: 0, excluded: false, ...over });
+
+    it("is 'empty' when nothing matches and nothing is stored", () => {
+        const [raid] = computeRaidStatus([event()], [], known());
+        expect(raid).toMatchObject({ status: "empty", matchedSessionId: null });
+    });
+
+    it("is 'ready' when a local session falls on the event's day", () => {
+        const [raid] = computeRaidStatus([event()], [session()], known());
+        expect(raid).toMatchObject({ status: "ready", matchedSessionId: "s1", itemCount: 10, gargul: 10, rclc: 0 });
+    });
+
+    it("is 'done' when the event already has loot in the history, even with a matching local session", () => {
+        const [raid] = computeRaidStatus([event()], [session()], known({ lootedEventIds: new Set(["e1"]) }));
+        expect(raid).toMatchObject({ status: "done", matchedSessionId: null });
+    });
+
+    it("is 'done' when a local session was already accepted into the event", () => {
+        const [raid] = computeRaidStatus([event()], [session()], known({
+            resolutionFor: (id) => (id === "s1" ? { eventId: "e1", action: "accepted" } : null),
+        }));
+        expect(raid).toMatchObject({ status: "done" });
+    });
+
+    // Used to be "done", and the tool showed "Importiert" for a raid whose loot
+    // page was still empty — the card only waited in the Addon-Inbox.
+    it("is 'pending', not 'done', while the session waits unconfirmed in the inbox", () => {
+        const [raid] = computeRaidStatus([event()], [session()], known({
+            pending: [{ sessionId: "s1", itemCount: 41, match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "pending", matchedSessionId: null, inboxItems: 41 });
+    });
+
+    it("is 'pending' for an inbox card another PC uploaded, too", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            pending: [{ sessionId: "other-pc", items: [{}, {}], match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "pending", inboxItems: 2 });
+    });
+
+    it("prefers 'done' over 'pending' once loot is in the history", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            lootedEventIds: new Set(["e1"]),
+            pending: [{ sessionId: "s2", itemCount: 3, match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "done", inboxItems: null });
+    });
+
+    it("never offers a local session as 'ready' for an event whose card waits in the inbox", () => {
+        const [raid] = computeRaidStatus([event()], [session({ sessionId: "s9" })], known({
+            pending: [{ sessionId: "other", itemCount: 5, match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raid).toMatchObject({ status: "pending", matchedSessionId: null });
+    });
+
+    it("ignores an ambiguous inbox card that suggests no event", () => {
+        const [raid] = computeRaidStatus([event()], [], known({
+            pending: [{ sessionId: "s1", itemCount: 5, match: { ambiguous: true, suggested: null } }],
+        }));
+        expect(raid).toMatchObject({ status: "empty", inboxItems: null });
+    });
+
+    it("ignores an excluded session", () => {
+        const [raid] = computeRaidStatus([event()], [session({ excluded: true })], known());
+        expect(raid).toMatchObject({ status: "empty" });
+    });
+
+    it("never proposes an already-sent session as ready for a different event", () => {
+        const events = [event({ id: "e1", startTime: 1000 }), event({ id: "e2", startTime: 2000 })];
+        const raids = computeRaidStatus(events, [session({ sessionId: "s1", startedAt: 1000 * 1000 })], known({
+            pending: [{ sessionId: "s1", match: { suggested: { eventId: "e1" } } }],
+        }));
+        expect(raids.find((r) => r.eventId === "e1")).toMatchObject({ status: "pending" });
+        expect(raids.find((r) => r.eventId === "e2")).toMatchObject({ status: "empty" });
+    });
+
+    it("leaves two same-day events without a ready match (ambiguous, like bestDayMatch)", () => {
+        const events = [event({ id: "e1", startTime: 1000 }), event({ id: "e2", startTime: 1500 })];
+        const raids = computeRaidStatus(events, [session()], known());
+        expect(raids.every((r) => r.status === "empty")).toBe(true);
+    });
+
+    it("sorts newest event first", () => {
+        const events = [event({ id: "old", startTime: 100 }), event({ id: "new", startTime: 200 })];
+        const raids = computeRaidStatus(events, [], known());
+        expect(raids.map((r) => r.eventId)).toEqual(["new", "old"]);
+    });
+});

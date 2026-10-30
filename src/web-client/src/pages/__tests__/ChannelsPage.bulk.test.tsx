@@ -292,7 +292,7 @@ describe("ChannelsPage — deleting from the channel list", () => {
     });
 
     it("confirms with the same word the server checks", () => {
-        expect(BULK_DELETE_WORD).toBe(requireBackend("web/apiRoutes/channels").BULK_DELETE_WORD);
+        expect(BULK_DELETE_WORD).toBe(requireBackend("web/apiRoutes/discord/channels").BULK_DELETE_WORD);
     });
 });
 

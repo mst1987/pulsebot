@@ -1,4 +1,4 @@
-// Shared by server.js's SSR raid routes and apiRoutes/raids.js: the guild's
+// Shared by server.js's SSR raid routes and apiRoutes/events/raids.js: the guild's
 // events of both sources (Raid-Helper and the EventHelper's own store) grouped
 // by Discord category, in one row shape with a `source` field — eventSources.js.
 const { createRaidhelperClient } = require("../../utils/raidhelper/client");

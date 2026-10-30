@@ -159,7 +159,7 @@ const CONFIG_DEFAULTS = {
     categoryPlanning: {},
     // The default raid template per Discord category: { [categoryId]: templateId }
     // (Einstellungen → Kategorien). A template that is some category's default
-    // cannot be deleted (409 in apiRoutes/raidTemplates.js).
+    // cannot be deleted (409 in apiRoutes/events/raidTemplates.js).
     categoryRaidTemplate: {},
     // The game version the guild plays (#541): what a new event, a new raid
     // template and the profile start with when nobody picked one. A version id

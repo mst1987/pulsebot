@@ -24,7 +24,7 @@ const AREAS = [
     { id: "dashboard", tab: "home", label: "Übersicht", description: "Startseite mit Kennzahlen, kommenden und vergangenen Events." },
     // Member self-service: one's own raider profile and one's own signups. Meant
     // for the base access — every handler behind it works on the caller's own
-    // account only (src/web/apiRoutes/profile.js, apiRoutes/signups.js).
+    // account only (src/web/apiRoutes/roster/profile.js, apiRoutes/events/signups.js).
     { id: "signup", tab: "profile", label: "Profil & Anmeldung", description: "Eigenes Raider-Profil (Charaktere, Specs mit Gear-Stand, Verfügbarkeit, Wünsche) und die eigene Anmeldung zu kommenden Raids. Immer nur das eigene Konto." },
     { id: "recruitment", tab: "recruitment", label: "Recruitment", description: "Bewerbungs-Vorlagen und gepostete Recruitment-Nachrichten." },
     { id: "cla", tab: "cla", label: "CLA / Logcheck", description: "Log-Auswertungen anstoßen, Reports verwalten und zuordnen." },

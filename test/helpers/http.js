@@ -105,7 +105,7 @@ function apiBodyMock({ body: payload = {}, raw = Buffer.alloc(0) } = {}) {
  * the router, for the 404 cases). `handle` stays
  * available for the odd request that must bypass that check.
  *
- *   const { get, post } = routerClient(require("../../../src/web/apiRoutes/history"));
+ *   const { get, post } = routerClient(require("../../../src/web/apiRoutes/loot/history"));
  *   const res = await post("/api/history/clear", { eventId: "e1" });
  *
  * Mutating requests carry `csrf` as their x-csrf-token header; the router is

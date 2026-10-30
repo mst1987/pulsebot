@@ -2,7 +2,7 @@ import { get } from "./client";
 
 // ── Dungeon-Bestzeiten ───────────────────────────────────────────────────────
 // The LevelHelper addon's group runs and achievement points the sync tool
-// uploads (src/web/apiRoutes/dungeons.js, services/dungeons/dungeonBoard.js),
+// uploads (src/web/apiRoutes/system/dungeons.js, services/dungeons/dungeonBoard.js),
 // one game version at a time.
 
 export type DungeonMedal = "gold" | "silver" | "bronze";

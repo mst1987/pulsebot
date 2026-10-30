@@ -1,7 +1,7 @@
 // The area gate for `orgaScoped` routes (#724), through the real router (apiRouter.handle) and the
 // real rule (services/roster/categoryOrga.js): the orga of a category gets past the area gate of such
 // a route, the handler then checks the concrete event. The real routes have their own tests (the
-// setup editor: test/web/apiRoutes/setup.categoryOrga.test.js, #725); here one route module gets test
+// setup editor: test/web/apiRoutes/events/setup.categoryOrga.test.js, #725); here one route module gets test
 // routes built with withUser({ orgaScoped }), to pin the gate itself.
 const { json: sent, status } = require("../../helpers/http");
 const { routerClient } = require("../../helpers/http");
@@ -37,8 +37,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: (...a) => mockMemberRoleIds(...a),
 }));
 const mockHandlerRan = jest.fn();
-jest.mock("../../../src/web/apiRoutes/orgaHub", () => {
-    const actual = jest.requireActual("../../../src/web/apiRoutes/orgaHub");
+jest.mock("../../../src/web/apiRoutes/discord/orgaHub", () => {
+    const actual = jest.requireActual("../../../src/web/apiRoutes/discord/orgaHub");
     const { withUser } = jest.requireActual("../../../src/web/http/apiHandler");
     const scoped = withUser({ orgaScoped: (body) => body.event, write: "raids", csrf: true, body: true }, ({ body, res }) => {
         mockHandlerRan(body.event);

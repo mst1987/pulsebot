@@ -1,7 +1,7 @@
 import { get, send } from "./client";
 
 // Vermerke (docs/vermerke.md, #980): notes the orga keeps on Discord accounts.
-// The contract is the header of src/web/apiRoutes/vermerke.js; everything works
+// The contract is the header of src/web/apiRoutes/roster/vermerke.js; everything works
 // on the caller's active server. Area "vermerke": read = list and notes,
 // write = add, change, archive, hide.
 

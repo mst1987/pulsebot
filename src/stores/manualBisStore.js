@@ -20,7 +20,7 @@
 // ask it; an item Wowhead does not know (yet) is kept with its id alone and the
 // page shows "Item <id>" — never an invented name.
 //
-// The route checks version and spec (apiRoutes/lootCouncilBis.js); the store
+// The route checks version and spec (apiRoutes/loot/lootCouncilBis.js); the store
 // only keeps the shape sound.
 
 const { settingsPath } = require("../config/paths");

@@ -1,6 +1,6 @@
 import { get, send } from "./client";
 
-// ---- Orga-Zentrale (src/web/apiRoutes/orgaHub.js) ----
+// ---- Orga-Zentrale (src/web/apiRoutes/discord/orgaHub.js) ----
 // One Discord message per raid category in a channel only the orga sees: the
 // category's raids of the next four weeks and where each one stands, with a
 // "Raid anlegen" button. Posting again replaces the old message.

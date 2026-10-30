@@ -16,7 +16,7 @@ profile.
 
 | Where | What |
 |---|---|
-| `src/web/apiRoutes/kader.js` | the routes (`GET /api/kader` + the writes below), area `kader` |
+| `src/web/apiRoutes/roster/kader.js` | the routes (`GET /api/kader` + the writes below), area `kader` |
 | `src/web/kader/kaderSource.js` | what the planner reads from the bot: classes/specs/buffs of the version (German and English names), the server's human members with their role ids, the Discord roles somebody holds, whitelisted profiles, log characters, the server's raid categories (`listRaidCategories`) and every account's attendance per raid category |
 | `src/web/kader/kaderView.js` | the pure merge: source + planner → view model (`buildKaderView`), the light answer of a change inside a Kader (`kaderPayload`), the helpers the mutators get (`mutationContext`, `lightContext`, `prefillOf`) |
 | `src/services/kader/kaderModel.js` | the planner's shape, its limits and normalisation; accounts, character data (assignments), Kader (create, rename, leads, delete) |
@@ -40,14 +40,14 @@ have it, everyone else only through Einstellungen → *Berechtigungen*: a role g
 "Einzelne Konten" (see [permissions.md](permissions.md)). `read` shows every page with everything in it but no
 controls (no switches, no drag, no saving, no votes); `write` changes. Every route carries `area: "kader"`; writes use
 `withUser({ write: "kader", csrf: true, body: true })`. **Votes** are a second gate inside `write`: only the leads of
-that Kader vote (403 otherwise). `test/web/apiRoutes/kader.test.js` holds 401/403, read vs. write for a
+that Kader vote (403 otherwise). `test/web/apiRoutes/roster/kader.test.js` holds 401/403, read vs. write for a
 single-account grant, the CSRF refusal and the lead rule.
 
 ## Privacy
 
 Wishes, interview answers, notes, votes and comments **never leave the Kaderplaner**: not into the raider profile,
 the roster pages, other APIs or the logs. `src/stores/kaderStore.js` is required only by
-`src/stores/settingsMigration.js`, `src/web/apiRoutes/kader.js` and `src/services/kader/kaderRoster.js` (the roster
+`src/stores/settingsMigration.js`, `src/web/apiRoutes/roster/kader.js` and `src/services/kader/kaderRoster.js` (the roster
 door below; `test/stores/kaderStore.test.js` keeps that list), and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
 profile leaves `kaderSource.js` as a whitelist (characters, specs, gear, main, tank/heal, raid days, the saved
 name) — never `avoid`, wishes, the note, preferred raids or calendar tokens (`test/web/kader/kaderSource.test.js`).
@@ -214,7 +214,7 @@ The activity log gets `takeover`, `role_given`, `role_removed_kader`, `role_remo
 - **Discord → Kader:** a member who lost every role of the roster in Discord is removed by `rosterRoleSync` (gateway
   event or the reconcile) and `rosterTakeover.onRoleLost` puts the player back to provisional — provisional is still a
   takeover state, so that write drops nobody. `rosterTakeover` registers that handler with
-  `rosterRoleSync.setRoleLostHandler` when it loads (through `web/apiRoutes/kader.js`); a `require` back would be a
+  `rosterRoleSync.setRoleLostHandler` when it loads (through `web/apiRoutes/roster/kader.js`); a `require` back would be a
   require cycle (`test/web/noCycles.test.js` counts lazy requires too).
 - **Role given by hand in Discord:** `rosterRoleSync` adds the member to the roster (as for every roster role) and
   calls the handler of `setRoleGainedHandler` → `rosterTakeover.onRoleGained` → `kaderRoster.roleGainedFromDiscord`:
@@ -409,7 +409,7 @@ one per group, healers and classes with totems spread, melee to a group with a s
 Several people work in the same Kader at the same time; the page shows what the others do without a reload and
 never silently overwrites anything.
 
-**Revisions** (`services/kader/kaderActivity.js`). Every write in `apiRoutes/kader.js` (`kaderWrite`, `fullWrite`)
+**Revisions** (`services/kader/kaderActivity.js`). Every write in `apiRoutes/roster/kader.js` (`kaderWrite`, `fullWrite`)
 compares the planner as stored with the one about to be stored (`recordChanges`) — so no write type can forget it.
 When anything changed, the planner's counter `rev` goes up by one and everything that changed is stamped with it:
 the Kader (`kader.rev`), an interview (`interview.rev`: wishes, answers, note, interviewer or completion), a question

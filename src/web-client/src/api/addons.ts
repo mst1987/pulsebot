@@ -1,7 +1,7 @@
 import { get } from "./client";
 
 // ── Addons (#818) ────────────────────────────────────────────────────────────
-// The guild's own addons with their newest release (src/web/apiRoutes/addons.js),
+// The guild's own addons with their newest release (src/web/apiRoutes/system/addons.js),
 // cached on the server for ten minutes. Every download link points at the
 // server (`/api/addons/download?…`), never at GitHub.
 

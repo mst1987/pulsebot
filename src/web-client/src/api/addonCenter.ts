@@ -1,7 +1,7 @@
 import { get, send } from "./client";
 import type { Role } from "./settings";
 
-// ---- Addon-Downloadzentrale im Discord (src/web/apiRoutes/addonCenter.js) ----
+// ---- Addon-Downloadzentrale im Discord (src/web/apiRoutes/system/addonCenter.js) ----
 // One bot message in a channel: every addon of the channel's game version with a
 // download button and a patch notes link; a set role is pinged on a new version. Full admins only; every
 // change is saved at once (no save bar) and answers the whole view again.

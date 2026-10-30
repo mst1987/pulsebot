@@ -1,6 +1,6 @@
 // Who may edit the raid plan of a raid (#726, docs/raidplan/model.md "Permissions") - one rule for the
-// editor's answer (web/apiRoutes/raidplan.js: `canWrite`, `canWriteLibrary`) and the raid detail's
-// "Einteilungen" step (web/apiRoutes/raidDetail.js). It mirrors the gate of the plan's routes
+// editor's answer (web/apiRoutes/raidplan/raidplan.js: `canWrite`, `canWriteLibrary`) and the raid detail's
+// "Einteilungen" step (web/apiRoutes/events/raidDetail.js). It mirrors the gate of the plan's routes
 // (withUser `orgaScoped` + `globalByWrite`, web/http/apiHandler.js):
 //   - `raidplan` write is the global path: every raid's plan - the area is handed to the people who
 //     write the tactics, orga rank or not (docs/permissions.md),

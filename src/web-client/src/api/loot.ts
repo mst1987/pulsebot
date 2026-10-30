@@ -147,7 +147,7 @@ export function deleteHistoryLog(logId: string): Promise<{ id: string }> {
 
 // `categoryId` only takes effect when the import ends up without a Raid-Helper
 // event (manual title / no match) — an event brings its own Discord category,
-// which always wins. See apiRoutes/history.js's importLoot.
+// which always wins. See apiRoutes/loot/history.js's importLoot.
 export type ImportLootInput = { data: string; tool: string; event: string; manualLabel: string; categoryId?: string };
 
 export function importLoot(

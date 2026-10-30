@@ -155,10 +155,10 @@ const sheetStore = require("../../../src/stores/eventSheetStore");
 const lootSystemStore = require("../../../src/stores/eventLootSystemStore");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const discord = require("../../../src/services/discord/discord");
-const raidsRoutes = require("../../../src/web/apiRoutes/raids");
-const manageRoutes = require("../../../src/web/apiRoutes/eventManage");
-const detailRoutes = require("../../../src/web/apiRoutes/raidDetail");
-const seriesRoutes = require("../../../src/web/apiRoutes/eventSeries");
+const raidsRoutes = require("../../../src/web/apiRoutes/events/raids");
+const manageRoutes = require("../../../src/web/apiRoutes/events/eventManage");
+const detailRoutes = require("../../../src/web/apiRoutes/events/raidDetail");
+const seriesRoutes = require("../../../src/web/apiRoutes/events/eventSeries");
 const { routerClient, status, body } = require("../../helpers/http");
 
 const START = Math.floor(Date.now() / 1000) + 7 * 86400;

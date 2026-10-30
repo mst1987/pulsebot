@@ -21,7 +21,7 @@
 //                           block at all. `dungeonTimes` says whether the
 //                           feature is on.
 //
-// The route is GET /api/profile/raiding (apiRoutes/profile.js, area `signup`).
+// The route is GET /api/profile/raiding (apiRoutes/roster/profile.js, area `signup`).
 const profiles = require("../../stores/raiderProfileStore");
 const rosterStore = require("../../stores/rosterStore");
 const lootStore = require("../../stores/lootStore");

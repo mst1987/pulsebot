@@ -1,5 +1,5 @@
 // The roles of a Discord server as the web shows them (System › Discord › Rollen,
-// web/apiRoutes/discordRoles.js): read-only, nothing here changes a role.
+// web/apiRoutes/discord/discordRoles.js): read-only, nothing here changes a role.
 //
 // - listServerRoles(guildId)     every role of one server of the list (#895), highest first, with
 //                                its members (counted), its Discord permissions (the sensitive ones
