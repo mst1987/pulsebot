@@ -51,6 +51,12 @@ describe("stores/userNotesStore", () => {
         expect(code(() => notes.addEntry("A", U, { ...base, text: "x".repeat(notes.MAX_TEXT) }, by))).toBe("no error");
     });
 
+    // #982: the reason for the hint "left the server" - a Vermerk with it hides that hint
+    it("takes left_server as a reason", () => {
+        expect(notes.REASONS).toContain("left_server");
+        expect(notes.addEntry("A", U, { ...base, reason: "left_server" }, by).reason).toBe("left_server");
+    });
+
     it("keeps at most MAX_ENTRIES entries per person and server", () => {
         for (let i = 0; i < notes.MAX_ENTRIES; i += 1) notes.addEntry("A", U, base, by);
         expect(code(() => notes.addEntry("A", U, base, by))).toBe("400 too_many");

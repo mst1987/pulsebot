@@ -7,8 +7,9 @@
 //   does not count) signed off after the setup (`signoff_after_setup`, the
 //   strongest hint); anybody else signed up before and leaving fewer than
 //   `lateHours` hours before the start signed off late (`late_signoff`).
-// - memberActivity.onMemberRemove: a person with a roster or characters left
-//   the server (`left_server`).
+// - memberActivity.onMemberRemove: a person tied to the raids of the server he
+//   left (an open roster of that server, a signup at one of its raids) left it
+//   (`left_server`).
 //
 // Best-effort: nothing here may fail or slow down a signup, and nothing here
 // goes into the answer a raider gets - the raider sees his signup as before.
@@ -54,6 +55,27 @@ function normalizeThresholds(raw) {
         out[key] = Math.min(max, Math.max(min, Math.round(n)));
     }
     return out;
+}
+
+/**
+ * The thresholds the settings send, checked strictly (the API answers a wrong value with a 400 instead
+ * of quietly moving it into range): `{ value, fields }` - `value` the own values of the server (a known
+ * key left out, null or "" = the default again), `fields` the keys whose value is no whole number in
+ * THRESHOLD_LIMITS, or ["thresholds"] when it is no object. Unknown keys are left out.
+ */
+function validateThresholds(raw) {
+    if (raw === undefined || raw === null) return { value: {}, fields: [] };
+    if (typeof raw !== "object" || Array.isArray(raw)) return { value: {}, fields: ["thresholds"] };
+    const value = {};
+    const fields = [];
+    for (const [key, [min, max]] of Object.entries(THRESHOLD_LIMITS)) {
+        const v = raw[key];
+        if (v === undefined || v === null || v === "") continue;
+        const n = typeof v === "number" || (typeof v === "string" && v.trim() !== "") ? Number(v) : NaN;
+        if (!Number.isInteger(n) || n < min || n > max) fields.push(key);
+        else value[key] = n;
+    }
+    return { value, fields };
 }
 
 /** The thresholds of `guildId`: its own values over DEFAULT_THRESHOLDS. */
@@ -104,8 +126,8 @@ function recordSignoff(event, userId, previous, saved, { now = Date.now(), byOrg
 }
 
 /**
- * Notes that `userId` left `guildId` - the caller checked the person is tied to the raids (a
- * roster or characters). Never throws.
+ * Notes that `userId` left `guildId` - the caller checked the person is tied to the raids of that
+ * server (an open roster of it, a signup at one of its raids). Never throws.
  */
 function recordLeave(guildId, userId, { name = "", now = Date.now() } = {}) {
     try {
@@ -115,4 +137,4 @@ function recordLeave(guildId, userId, { name = "", now = Date.now() } = {}) {
     }
 }
 
-module.exports = { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, thresholdsOf, recordSignoff, recordLeave };
+module.exports = { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, validateThresholds, thresholdsOf, recordSignoff, recordLeave };

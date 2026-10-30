@@ -203,7 +203,7 @@ async function applyOutcome(entry, event, { now, config, members }) {
         // the roster and the event message show it: the event's language (its category's)
         const lang = eventLang(event, config);
         const comment = entry.comment || tr(lang, "Away {from}–{to}", { from: shortDay(entry.from, lang), to: shortDay(entry.to, lang) });
-        const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, now, config, roleCheck: false });
+        const saved = await submitSignup(event.id, entry.userId, { status: "absence", comment }, { byOrga, actorId: entry.createdBy, now, config, roleCheck: false });
         return saved.error ? { ok: false, error: saved.error } : { ok: true };
     }
     if (previous) return { ok: false, skipped: previous.status === "absence" ? "absent" : "already_signed" };
@@ -214,7 +214,7 @@ async function applyOutcome(entry, event, { now, config, members }) {
         status: "signed",
     // an attendance from the web signs up like the web signup does: a PuG raid only for members of its server (#907)
     // `members` (createEntry): the membership asked once per server up front; a server missing there asks itself
-    }, { byOrga, now, config, memberOnly: entry.via === "web", membership: members ? members.get(serverOf(event, config)) : undefined });
+    }, { byOrga, actorId: entry.createdBy, now, config, memberOnly: entry.via === "web", membership: members ? members.get(serverOf(event, config)) : undefined });
     return saved.error ? { ok: false, error: saved.error } : { ok: true };
 }
 

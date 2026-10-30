@@ -98,7 +98,7 @@ describe("services/vermerke/userSignals", () => {
         const out = signalsFor("A", { now: NOW, config: {} });
         expect(out).toEqual([{
             userId: U, name: "Zedchar", kind: "no_show", count: 2, windowDays: 60,
-            // newest first: e2 has no time of its own, so its start counts
+            // newest first, each at the start of its raid (the time of the override does not count)
             events: [{ eventId: "e2", title: "Gruul", startTime: sec(NOW - 3 * DAY) }, { eventId: "e1", title: "Kara", startTime: sec(NOW - 5 * DAY) }],
             lastAt: NOW - 3 * DAY,
         }]);
@@ -113,10 +113,14 @@ describe("services/vermerke/userSignals", () => {
         expect(ignoreSignal("A", U, "signoff_after_setup", { now: NOW - 3 * DAY })).toMatchObject({ userId: U });
         expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
         signoff(U, "e3", NOW - 2 * DAY);
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([expect.objectContaining({ count: 3 })]);
+        expect(ignoreSignal("A", U, "signoff_after_setup", { now: NOW - 2 * DAY + 1 })).toMatchObject({ userId: U });
         expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
         signoff(U, "e4", NOW - DAY);
+        // back - and it counts the whole window, the hidden ones too
         const [hint] = signalsFor("A", { now: NOW, config: {} });
-        expect(hint).toMatchObject({ count: 2, events: [expect.objectContaining({ eventId: "e4" }), expect.objectContaining({ eventId: "e3" })] });
+        expect(hint).toMatchObject({ count: 4, lastAt: NOW - DAY });
+        expect(hint.events.map((e) => e.eventId)).toEqual(["e4", "e3", "e2", "e1"]);
         expect(ignoreSignal("A", U, "behavior")).toBeNull();
     });
 
@@ -126,7 +130,35 @@ describe("services/vermerke/userSignals", () => {
         notes.addEntry("A", U, { level: "warning", reason: "late_signoff" }, { by: "1", byName: "Admin", now: NOW - 3 * DAY });
         expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
         signoff(U, "e3", NOW - 2 * DAY);
-        expect(signalsFor("A", { now: NOW, config: cfg({ signoffAfterSetup: 1 }) })).toEqual([expect.objectContaining({ count: 1 })]);
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([expect.objectContaining({ count: 3 })]);
+    });
+
+    it("hides leaving the server behind a Vermerk with the reason left_server", () => {
+        signals.recordEvent("A", U, { kind: "left_server" }, { now: NOW - 2 * DAY });
+        expect(signalsFor("A", { now: NOW, config: {} })).toHaveLength(1);
+        notes.addEntry("A", U, { level: "hint", reason: "left_server" }, { by: "1", byName: "Admin", now: NOW - DAY });
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
+    });
+
+    it("counts a raid group as one night: an override at a further raid counts for the first, once per person", () => {
+        const start = sec(NOW - 5 * DAY);
+        mockEvents = [
+            { id: "p1", raidGroupId: "p1", title: "SSC 1", startTime: start },
+            { id: "s1", raidGroupId: "p1", title: "SSC 2", startTime: start },
+            { id: "p2", raidGroupId: "p2", title: "TK 1", startTime: sec(NOW - 2 * DAY) },
+            { id: "s2", raidGroupId: "p2", title: "TK 2", startTime: sec(NOW - 2 * DAY) },
+        ];
+        mockOverrides = {
+            p1: { [U]: { status: "noShow", at: NOW } },
+            s1: { [U]: { status: "noShow", at: NOW } },
+            s2: { [U]: { status: "noShow", at: NOW } },
+        };
+        const [hint] = signalsFor("A", { now: NOW, config: {} });
+        expect(hint).toMatchObject({ kind: "no_show", count: 2, lastAt: (start + 3 * 24 * 3600) * 1000 });
+        expect(hint.events).toEqual([
+            { eventId: "p2", title: "TK 1", startTime: sec(NOW - 2 * DAY) },
+            { eventId: "p1", title: "SSC 1", startTime: start },
+        ]);
     });
 
     it("is not held back by a Vermerk with another reason or on another server", () => {

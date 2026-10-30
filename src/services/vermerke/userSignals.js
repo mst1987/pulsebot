@@ -7,11 +7,13 @@
 //   late_signoff         sign-offs fewer than `lateHours` hours before the start
 //   no_show              raid nights the orga set to "Nicht erschienen" (the
 //                        attendance overrides, #677 - computed here, not stored twice)
-//   left_server          left the server with a roster or characters
+//   left_server          left the server while tied to its raids (a roster of the
+//                        server, a signup at one of its raids)
 //
-// What no longer counts: events before the orga's "Ausblenden" of that kind, and
-// events before an active Vermerk with the matching reason (late_signoff for both
-// sign-off kinds, no_show) - a hint comes back only with something new.
+// What hides a hint: the orga's "Ausblenden" of that kind, and an active Vermerk
+// with the matching reason (late_signoff for both sign-off kinds, no_show,
+// left_server). It comes back with the first event after that - and then counts
+// every event inside the window, the older ones too.
 //
 // Only the Vermerke routes load this module (it reads the notes);
 // test/stores/userNotesStore.test.js keeps that list.
@@ -21,6 +23,7 @@ const overrides = require("../../stores/attendanceOverridesStore");
 const eventStore = require("../../stores/eventStore");
 const signupStore = require("../../stores/signupStore");
 const { thresholdsOf } = require("./signalRecorder");
+const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -29,7 +32,7 @@ const KIND_RULES = Object.freeze({
     signoff_after_setup: { threshold: "signoffAfterSetup", reason: "late_signoff" },
     late_signoff: { threshold: "lateSignoff", reason: "late_signoff" },
     no_show: { threshold: "noShow", reason: "no_show" },
-    left_server: { threshold: "leftServer", reason: "" },
+    left_server: { threshold: "leftServer", reason: "left_server" },
 });
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -37,18 +40,25 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 /**
  * The no-shows of `guildId` in raids since `sinceMs`: `{ [userId]: [event] }` from the attendance
  * overrides of the server's own raids (one pass over the overrides, the raids looked up in one list).
+ * A raid group (#811) is one night, as in rosterAttendance.js: an override at a further raid counts
+ * for the group's first raid, and a person counts once per night. `at` is the start of the night.
  */
 function noShowsOf(guildId, sinceMs) {
     const byId = new Map(eventStore.listEvents(guildId, { siblings: true, sinceSeconds: Math.floor(sinceMs / 1000) }).map((e) => [e.id, e]));
     const out = {};
+    const seen = new Set();
     for (const [eventId, people] of Object.entries(overrides.listOverrides())) {
         const event = byId.get(eventId);
         if (!event) continue;
+        const nightId = isRaidSibling(event) ? signupEventIdOf(event) : str(event.id);
+        const night = byId.get(nightId) || event;
+        const startTime = Number(night.startTime) || 0;
         for (const [userId, o] of Object.entries(people || {})) {
             if (!o || o.status !== "noShow") continue;
-            // when the orga set it: a no-show entered after an "Ausblenden" is something new
-            const at = Number(o.at) || (Number(event.startTime) || 0) * 1000;
-            (out[userId] = out[userId] || []).push({ kind: "no_show", eventId, title: str(event.title), startTime: Number(event.startTime) || 0, at });
+            const key = `${userId}\u0000${nightId}`;
+            if (seen.has(key)) continue;
+            seen.add(key);
+            (out[userId] = out[userId] || []).push({ kind: "no_show", eventId: nightId, title: str(night.title), startTime, at: startTime * 1000 });
         }
     }
     return out;
@@ -88,11 +98,12 @@ function signalsFor(guildId, { now = Date.now(), config } = {}) {
         const covers = active[userId] || [];
         for (const [kind, events] of Object.entries(p.kinds)) {
             const rule = KIND_RULES[kind];
-            // only what came after the orga's "Ausblenden" and after a Vermerk with the matching reason
+            // The orga's "Ausblenden" and a Vermerk with the matching reason hide the hint until something
+            // new comes after them; then it counts everything inside the window again.
             let after = Number((ignored[userId] || {})[kind]) || 0;
             for (const n of covers) if (rule.reason && n.reason === rule.reason) after = Math.max(after, Number(n.at) || 0);
-            const counting = events.filter((e) => e.at > after).sort((a, b) => b.at - a.at);
-            if (counting.length < limits[rule.threshold]) continue;
+            const counting = events.slice().sort((a, b) => b.at - a.at);
+            if (counting.length < limits[rule.threshold] || !counting.some((e) => e.at > after)) continue;
             out.push({
                 userId,
                 name: p.name || nameFromSignups(userId, counting),

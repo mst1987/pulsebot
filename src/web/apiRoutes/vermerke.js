@@ -19,7 +19,7 @@
 //
 // /api/vermerke/signals* (#982): the hints from the data - proposals the orga
 // may turn into a Vermerk or hide, and their thresholds per server.
-const { ok, error } = require("../http/apiResponse");
+const { ok, error, sendJson } = require("../http/apiResponse");
 const { withUser, ORGA_ONLY } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
@@ -33,7 +33,7 @@ const discord = require("../../services/discord/discord");
 const { getConfig, saveConfig } = require("../../stores/settingsStore");
 const { IGNORE_KINDS } = require("../../stores/userSignalsStore");
 const { signalsFor, ignoreSignal } = require("../../services/vermerke/userSignals");
-const { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, thresholdsOf } = require("../../services/vermerke/signalRecorder");
+const { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, validateThresholds, thresholdsOf } = require("../../services/vermerke/signalRecorder");
 
 const WRITE = { write: "vermerke", csrf: true, body: true };
 const MAX_SHORT_IDS = 200;
@@ -252,7 +252,8 @@ const getSignalSettings = withUser(async ({ req, res }) => {
 
 /**
  * POST /api/vermerke/signals/settings { thresholds, serverSettingsGuildId } - the server's own
- * thresholds (replaces them; a value left out or empty is the default again).
+ * thresholds (replaces them; a value left out, null or "" is the default again). A value that is no
+ * whole number in its range: 400 `bad_threshold` with `fields` (the keys), nothing saved.
  */
 const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
     const guildId = guildOf(req, res);
@@ -260,7 +261,11 @@ const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
     if (String(body.serverSettingsGuildId || "") !== guildId) {
         return error(res, 409, "server_switched", "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.");
     }
-    saveConfig({ serverSettings: { [guildId]: { vermerkeSignals: normalizeThresholds(body.thresholds) } } });
+    const checked = validateThresholds(body.thresholds);
+    if (checked.fields.length) {
+        return sendJson(res, 400, { error: { code: "bad_threshold", message: "Ungültiger Schwellenwert – jede Zahl muss ganz sein und in ihrem Bereich liegen.", fields: checked.fields } });
+    }
+    saveConfig({ serverSettings: { [guildId]: { vermerkeSignals: checked.value } } });
     return ok(res, thresholdView(guildId, getConfig()));
 });
 

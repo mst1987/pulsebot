@@ -105,7 +105,13 @@ describe("web/apiRoutes/vermerke - hints", () => {
         expect(body(stale).error.code).toBe("server_switched");
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
 
-        const saved = await post("/api/vermerke/signals/settings", { thresholds: { lateHours: 6, noShow: 99, foo: 1 }, serverSettingsGuildId: "A" });
+        // a value out of range or no whole number is refused with its field, not moved into range
+        const bad = await post("/api/vermerke/signals/settings", { thresholds: { lateHours: 6, noShow: 99, windowDays: "x" }, serverSettingsGuildId: "A" });
+        expect(status(bad)).toBe(400);
+        expect(body(bad).error).toMatchObject({ code: "bad_threshold", fields: ["windowDays", "noShow"] });
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+
+        const saved = await post("/api/vermerke/signals/settings", { thresholds: { lateHours: 6, noShow: 20, leftServer: "", foo: 1 }, serverSettingsGuildId: "A" });
         expect(status(saved)).toBe(200);
         expect(settingsStore.saveConfig).toHaveBeenCalledWith({ serverSettings: { A: { vermerkeSignals: { lateHours: 6, noShow: 20 } } } });
         expect(body(saved)).toMatchObject({ own: { lateHours: 6, noShow: 20 }, thresholds: { lateHours: 6, noShow: 20, windowDays: 60 } });

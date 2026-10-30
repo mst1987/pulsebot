@@ -92,6 +92,7 @@ const store = createJsonStore({
 /** Tests point the store at a file of their own; null = the default again. */
 function useFile(file) {
     store.useFile(file);
+    lastPruneAt = 0;
 }
 
 const fresh = (now) => (e) => e.at >= now - RETENTION_DAYS * DAY_MS;
@@ -126,6 +127,9 @@ function recordEvent(guildId, userId, event, { name = "", now = Date.now() } = {
     const uid = str(userId);
     const clean = cleanEvent({ ...event, at: (event && event.at) || now });
     if (!gid || !uid || !clean) return null;
+    // already there: nothing to write (a sign-off noted again on every save would rewrite the file)
+    const known = ((store.peek().guilds[gid] || {})[uid] || { events: [] }).events;
+    if (clean.eventId && known.some((e) => e.kind === clean.kind && e.eventId === clean.eventId)) return null;
     let stored = null;
     store.update((doc) => {
         prune(doc, now);
@@ -141,8 +145,36 @@ function recordEvent(guildId, userId, event, { name = "", now = Date.now() } = {
     return stored;
 }
 
+// When the reading side last dropped what is past RETENTION_DAYS (once a day at most, see pruneDaily).
+let lastPruneAt = 0;
+
+/** Whether `doc` holds anything past the retention (a cheap look, no copy). */
+function hasStale(doc, now) {
+    const cut = now - RETENTION_DAYS * DAY_MS;
+    for (const people of Object.values(doc.guilds)) {
+        for (const p of Object.values(people)) if (p.events.some((e) => e.at < cut)) return true;
+    }
+    for (const people of Object.values(doc.ignored)) {
+        for (const kinds of Object.values(people)) if (Object.values(kinds).some((at) => at < cut)) return true;
+    }
+    return false;
+}
+
+/**
+ * Drops what is past RETENTION_DAYS also when nothing new is written (a quiet server keeps nothing
+ * longer than that): at most once a day, and it writes only when there is something to drop.
+ */
+function pruneDaily(now = Date.now()) {
+    if (now - lastPruneAt < DAY_MS) return false;
+    lastPruneAt = now;
+    if (!hasStale(store.peek(), now)) return false;
+    store.update((doc) => prune(doc, now));
+    return true;
+}
+
 /** Every person with events on `guildId` inside the retention: `{ [userId]: { name, events } }` (a copy). */
 function eventsFor(guildId, { now = Date.now() } = {}) {
+    pruneDaily(now);
     const people = store.peek().guilds[str(guildId)] || {};
     const out = {};
     for (const [userId, p] of Object.entries(people)) {
@@ -175,5 +207,5 @@ function ignoredFor(guildId) {
 
 module.exports = {
     KINDS, IGNORE_KINDS, RETENTION_DAYS,
-    useFile, recordEvent, eventsFor, ignore, ignoredFor,
+    useFile, recordEvent, eventsFor, ignore, ignoredFor, pruneDaily,
 };

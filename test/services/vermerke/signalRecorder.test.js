@@ -51,6 +51,17 @@ describe("services/vermerke/signalRecorder", () => {
             expect(recorder.normalizeThresholds(null)).toEqual({});
             expect(recorder.normalizeThresholds([1])).toEqual({});
         });
+
+        it("are checked strictly for the settings: a wrong value names its field instead of being moved", () => {
+            expect(recorder.validateThresholds({ windowDays: 30, lateHours: "6", noShow: "", leftServer: null, foo: 9 }))
+                .toEqual({ value: { windowDays: 30, lateHours: 6 }, fields: [] });
+            expect(recorder.validateThresholds({ windowDays: 3, lateHours: 6.5, noShow: 21, lateSignoff: "x", signoffAfterSetup: " ", leftServer: 1 }))
+                .toEqual({ value: { leftServer: 1 }, fields: ["windowDays", "signoffAfterSetup", "lateSignoff", "lateHours", "noShow"] });
+            expect(recorder.validateThresholds(undefined)).toEqual({ value: {}, fields: [] });
+            expect(recorder.validateThresholds(null)).toEqual({ value: {}, fields: [] });
+            expect(recorder.validateThresholds([1])).toEqual({ value: {}, fields: ["thresholds"] });
+            expect(recorder.validateThresholds("7")).toEqual({ value: {}, fields: ["thresholds"] });
+        });
     });
 
     describe("recordSignoff", () => {

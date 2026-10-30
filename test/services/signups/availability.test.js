@@ -175,6 +175,27 @@ describe("createEntry – Abwesenheit", () => {
         expect(res.dm).toBe(false);
     });
 
+    // #982: an absence from the panel is a sign-off like any other - a hint only when it comes late
+    it("eine kurzfristige Abwesenheit wird ein Hinweis, eine frühe nicht (#982)", async () => {
+        const signals = require("../../../src/stores/userSignalsStore");
+        signals.useFile(tempStoreFile("eh-availability-signals.json"));
+        try {
+            mockEvents.set("eh-soon", raid("eh-soon", 5 / 24, { guildId: "g1" }));
+            mockEvents.set("eh-a", raid("eh-a", 2, { guildId: "g1" }));
+            const signed = { userId: ANNA, status: "signed", character: "Nerathil", spec: "Mage-Arcane", characters: [{ character: "Nerathil", spec: "Mage-Arcane", status: "signed" }] };
+            mockSignups.set(`eh-soon/${ANNA}`, { ...signed });
+            mockSignups.set(`eh-a/${ANNA}`, { ...signed });
+            await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(3) }, { now: NOW, eventIds: ["eh-soon", "eh-a"] });
+            expect(mockSignups.get(`eh-soon/${ANNA}`).status).toBe("absence");
+            expect(mockSignups.get(`eh-a/${ANNA}`).status).toBe("absence");
+            const events = (signals.eventsFor("g1", { now: NOW })[ANNA] || { events: [] }).events;
+            expect(events).toEqual([expect.objectContaining({ kind: "late_signoff", eventId: "eh-soon" })]);
+            expect(events[0].byOrga).toBeUndefined();
+        } finally {
+            signals.useFile(null);
+        }
+    });
+
     it("die Orga trägt für einen Raider ein: die DM sagt es", async () => {
         const res = await availability.createEntry(ANNA, { kind: "absence", from: today, to: dayPlus(3) }, { now: NOW, by: ORGA });
         expect(res.entry.createdBy).toBe(ORGA);

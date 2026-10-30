@@ -556,6 +556,7 @@ function requestedCharacters(input, previous) {
  */
 async function submitSignup(eventId, userId, input = {}, {
     byOrga = false, offProfile = false, now = Date.now(), roleIds, config, roleCheck = true, memberOnly = false, membership, accountName = "",
+    actorId = "",
 } = {}) {
     const uid = String(userId || "").trim();
     if (!uid) return fail("bad_request", "Kein Nutzer.");
@@ -609,7 +610,10 @@ async function submitSignup(eventId, userId, input = {}, {
     signupNotes.postSignupNote(event, saved.signup, previous, { config: config || settingsStore.getConfig(), byOrga });
     // A sign-off after the setup or shortly before the start is a hint for the orga's Vermerke (#982):
     // noted for the orga only, best-effort - the answer below stays exactly the same.
-    signalRecorder.recordSignoff(event, uid, previous, saved.signup, { now, byOrga, config, name: accountName });
+    // `byOrga` there only when somebody else entered it (`actorId`): an orga signing themselves off is a raider
+    const actor = String(actorId || "").trim();
+    const enteredByOrga = byOrga === true && (!actor || actor !== uid);
+    signalRecorder.recordSignoff(event, uid, previous, saved.signup, { now, byOrga: enteredByOrga, config, name: accountName });
     return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 
@@ -682,7 +686,7 @@ function limitCharacters(fit, previous, max) {
  * `byOrga`: a boolean for every raid, or `(event) => boolean | Promise<boolean>` asked per raid
  * @returns {Promise<{ eventId: string, title: string, startTime: number, ok: boolean, signup?: object, skipped: object[], error?: string, code?: string }[]>}
  */
-async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config, memberOnly = false } = {}) {
+async function submitSignups(userId, entries, { byOrga = false, now = Date.now(), config, memberOnly = false, actorId = "" } = {}) {
     const uid = String(userId || "").trim();
     const cfg = config || settingsStore.getConfig();
     const profile = profiles.getProfile(uid);
@@ -737,7 +741,7 @@ async function submitSignups(userId, entries, { byOrga = false, now = Date.now()
             status,
             canAlso: previous ? previous.canAlso : undefined,
             comment: previous ? previous.comment : "",
-        }, { byOrga: exempt, now, roleIds, config: cfg, memberOnly, membership: memberOnly && !exempt && !holdsSignup(previous) && isOpen(event) ? await membershipOf(event) : undefined });
+        }, { byOrga: exempt, actorId, now, roleIds, config: cfg, memberOnly, membership: memberOnly && !exempt && !holdsSignup(previous) && isOpen(event) ? await membershipOf(event) : undefined });
         if (result.error) {
             const invite = result.inviteUrl !== undefined ? { inviteUrl: result.inviteUrl } : {};
             results.push({ ...base, ok: false, skipped: fit.skipped, code: result.code, error: result.error, ...invite });

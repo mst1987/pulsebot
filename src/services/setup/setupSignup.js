@@ -188,7 +188,7 @@ async function changeSignupFromSetup(eventId, userId, body = {}, { user = null, 
         status,
         canAlso: Array.isArray(before.canAlso) ? before.canAlso : undefined,
         comment: before.comment || "",
-    }, { byOrga: true, offProfile: true, now });
+    }, { byOrga: true, offProfile: true, actorId: str(user && user.id), now });
     if (result.error) return fail(signupService.httpStatusFor(result.code), result.code, result.error);
     const after = result.signup;
     // a typed name is saved as written by the check (capitalised): the log and the setup show that one

@@ -96,6 +96,24 @@ describe("signupService - sign-off hints (#982)", () => {
         });
     });
 
+    it("marks byOrga only when somebody else than the raider entered the sign-off", async () => {
+        mockEvents.set("eh-self", raid("eh-self", { setup: placed(ANNA) }));
+        mockEvents.set("eh-orga", raid("eh-orga", { setup: placed(BERT) }));
+        signUp("eh-self", ANNA, "Nerathil");
+        signUp("eh-orga", BERT, "Bertor");
+        await service.submitSignup("eh-self", ANNA, ABSENCE, { now: NOW, byOrga: true, actorId: ANNA });
+        await service.submitSignup("eh-orga", BERT, ABSENCE, { now: NOW, byOrga: true, actorId: "999000999000999000" });
+        expect(hints()[ANNA].events[0].byOrga).toBeUndefined();
+        expect(hints()[BERT].events[0].byOrga).toBe(true);
+    });
+
+    it("passes the actor on when signing off several raids at once", async () => {
+        mockEvents.set("eh-a", raid("eh-a", { setup: placed(ANNA) }));
+        signUp("eh-a", ANNA, "Nerathil");
+        await service.submitSignups(ANNA, [{ eventId: "eh-a", status: "absence" }], { now: NOW, byOrga: true, actorId: ANNA });
+        expect(hints()[ANNA].events[0].byOrga).toBeUndefined();
+    });
+
     it("notes the sign-off of several raids at once, per raid", async () => {
         mockEvents.set("eh-a", raid("eh-a", { setup: placed(ANNA) }));
         mockEvents.set("eh-b", raid("eh-b", { setup: placed(ANNA), startTime: sec(NOW) + 4 * DAY }));
