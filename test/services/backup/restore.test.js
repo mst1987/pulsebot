@@ -75,6 +75,7 @@ beforeEach(async () => {
 describe("helpers", () => {
     it("counts the notes on people (Vermerke, #979) among the sensitive files", () => {
         expect(SENSITIVE_FILES.has("settings/user-notes.json")).toBe(true);
+        expect(SENSITIVE_FILES.has("settings/user-signals.json")).toBe(true);
     });
 
     it("normalises --only paths and matches files and directories", () => {

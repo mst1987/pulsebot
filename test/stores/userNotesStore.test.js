@@ -51,6 +51,12 @@ describe("stores/userNotesStore", () => {
         expect(code(() => notes.addEntry("A", U, { ...base, text: "x".repeat(notes.MAX_TEXT) }, by))).toBe("no error");
     });
 
+    // #982: the reason for the hint "left the server" - a Vermerk with it hides that hint
+    it("takes left_server as a reason", () => {
+        expect(notes.REASONS).toContain("left_server");
+        expect(notes.addEntry("A", U, { ...base, reason: "left_server" }, by).reason).toBe("left_server");
+    });
+
     it("keeps at most MAX_ENTRIES entries per person and server", () => {
         for (let i = 0; i < notes.MAX_ENTRIES; i += 1) notes.addEntry("A", U, base, by);
         expect(code(() => notes.addEntry("A", U, base, by))).toBe("400 too_many");
@@ -167,13 +173,13 @@ describe("stores/userNotesStore", () => {
         }
 
         // everything else goes through the short form (services/vermerke/vermerkeShort.js): no text out
-        it("is read by the Vermerke routes and the short form alone", () => {
+        it("is read by the Vermerke routes, the short form and the hints alone", () => {
             expect(modulesMatching(/require\(\s*["'][^"']*userNotesStore["']\s*\)/))
-                .toEqual(["services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"]);
+                .toEqual(["services/vermerke/userSignals.js", "services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"]);
         });
 
         it("writes nothing of a note into a log", () => {
-            const own = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"];
+            const own = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"];
             const logging = modulesMatching(/\b(console\.\w+|logger\.\w+)\s*\(|require\(\s*["'][^"']*\/logger["']\s*\)/)
                 .filter((rel) => own.includes(rel));
             expect(logging).toEqual([]);

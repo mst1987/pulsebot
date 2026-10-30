@@ -73,7 +73,8 @@ const PERSON_PAGES = [
     "web/apiRoutes/raidplan.js",
     "web/http/viewAs.js",
 ];
-const NOTE_MODULES = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"];
+// the read side of the hints (#982) too: the signup pages only write events (signalRecorder.js)
+const NOTE_MODULES = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"];
 
 describe("Vermerke never reach the person", () => {
     it.each(PERSON_PAGES)("%s loads neither the store nor the short form", (entry) => {
@@ -104,6 +105,10 @@ describe("Vermerke never reach the person", () => {
             post("/api/vermerke/archive", { userId: U, id: "n_x" }),
             post("/api/vermerke/hide", { id: "n_x" }),
             post("/api/vermerke/delete", { userId: U, id: "n_x" }),
+            get("/api/vermerke/signals"),
+            post("/api/vermerke/signals/ignore", { userId: U, kind: "late_signoff" }),
+            get("/api/vermerke/signals/settings"),
+            post("/api/vermerke/signals/settings", { thresholds: { noShow: 1 } }),
         ];
 
         it("'Ansicht als Raider' is no admin", () => {

@@ -388,7 +388,7 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
     const input = extra
         ? { characters: wanted.map((w) => ({ character: w.character, spec: w.info.key })), status, comment }
         : { character: name, spec: info.key, status, comment };
-    const result = await signupService.submitSignup(found.event.id, uid, input, { byOrga: true });
+    const result = await signupService.submitSignup(found.event.id, uid, input, { byOrga: true, actorId: str(user && user.id) });
     if (result.error) return fail(signupService.httpStatusFor(result.code), result.code, result.error);
     const who = result.signup.character || name;
     log(found.event.id, "add", actorOf(user, byName), `${who} · ${info.label} · ${STATUS_LABELS[status] || status}${profileChanged ? " · ins Profil übernommen" : ""}`);

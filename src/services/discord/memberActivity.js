@@ -15,6 +15,9 @@
 const guildRoles = require("./guildRoles");
 const memberActivityStore = require("../../stores/memberActivityStore");
 const memberRelation = require("./memberRelation");
+const signalRecorder = require("../vermerke/signalRecorder");
+const eventStore = require("../../stores/eventStore");
+const signupStore = require("../../stores/signupStore");
 const logger = require("../../logger").child("memberActivity");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,11 +71,43 @@ function onMemberAdd(member) {
     }
 }
 
+/**
+ * Whether `userId` is tied to the raids of `guildId` - the server he left, not any other: an open
+ * roster of that server, or a signup at one of its raids (Raid-Helper raids are not in the event
+ * store and do not count). Reads the stores once per leave; leaves are rare.
+ */
+function tiedToServer(guildId, userId) {
+    if (!guildId || !userId) return false;
+    if (memberRelation.openRosters().some((r) => r.guildId === guildId && r.members && r.members[userId])) return true;
+    const signedUp = Object.keys(signupStore.signupsOfUser(userId));
+    if (!signedUp.length) return false;
+    const own = new Set(eventStore.listEvents(guildId, { siblings: true }).map((e) => e.id));
+    return signedUp.some((id) => own.has(id));
+}
+
+/**
+ * A person tied to the raids of the server he left (tiedToServer) left it: a hint for the orga's
+ * Vermerke (#982, signalRecorder.js). Best-effort, never throws.
+ */
+function noteLeaveSignal(member) {
+    try {
+        const userId = str(member.id);
+        const guildId = guildIdOf(member);
+        if (!tiedToServer(guildId, userId)) return null;
+        return signalRecorder.recordLeave(guildId, userId, { name: nameOf(member) });
+    } catch (e) {
+        logger.warn("could not note a leave hint:", (e && e.message) || e);
+        return null;
+    }
+}
+
 /** guildMemberRemove: note the leave with the roles the member had. Never throws. */
 function onMemberRemove(member) {
     try {
         if (!relevant(member)) return null;
-        return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+        const entry = recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+        noteLeaveSignal(member);
+        return entry;
     } catch (e) {
         logger.warn("could not note a leave:", (e && e.message) || e);
         return null;
