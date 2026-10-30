@@ -14,6 +14,7 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 const { tempStoreFile } = require("../../helpers/tempStore");
 const eventStore = require("../../../src/stores/events/eventStore");
 const signupStore = require("../../../src/stores/events/signupStore");
+const leaderFlagsStore = require("../../../src/stores/roster/leaderFlagsStore");
 const raidGroup = require("../../../src/services/events/raidGroup");
 const editor = require("../../../src/services/setup/setupEditor");
 const { collectSetupInput } = require("../../../src/services/setup/setupInput");
@@ -219,6 +220,9 @@ describe("one seat per person across the group", () => {
     });
 
     it("a failed second save puts the raider back with the raid's leader choice (#1036)", () => {
+        // the leader rule needs a lead flag on the server: d8 (signed up here) may lead Karazhan
+        leaderFlagsStore.useFile(tempStoreFile("leaderFlags.json"));
+        leaderFlagsStore.setLeads("d8", "tbc", ["kara"], { by: "orga" });
         const sibling = add().event;
         editor.saveEventSetup(sibling.id, { groups: [{ index: 1, slots: [{ userId: "t2", spec: "Paladin-Protection" }] }], bench: [] }, { now: NOW });
         editor.saveEventSetup(primary.id, { groups: [{ index: 1, slots: [{ userId: "t1", spec: "Warrior-Protection" }, { userId: "h1", spec: "Priest-Holy" }] }], bench: [], leaderUserId: "h1" }, { now: NOW });

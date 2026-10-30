@@ -274,13 +274,15 @@ const ROLE_ORDER = Object.fromEntries(ROLES.map((r, i) => [r, i]));
 
 /**
  * The raider who leads event e (#1036), or -1, while placed there: the orga's choice
- * (`leaderUserId`), else the raid lead entered in the event (`raidLeadId`), else -
- * only under a leader rule - the first placed raider who may lead it, by signup
- * order. Without a rule (no leader flag on the server) the orga's choice and the
- * raid lead still lead, there just is no check. Several may lead; exactly one is marked.
+ * (`leaderUserId`), else the raid lead entered in the event (`raidLeadId`), else the
+ * first placed raider who may lead it, by signup order. Only under a leader rule:
+ * without one (no fitting leader flag in reach of the server) nobody is marked - not
+ * the raid lead, not an orga choice - so the setup and its signatures stay exactly as
+ * before #1036. Several may lead; exactly one is marked.
  */
 function leaderOf(model, state, e) {
     const event = model.events[e];
+    if (!event.leaderRule) return -1;
     let chosen = -1;
     let lead = -1;
     let first = -1;
@@ -289,7 +291,7 @@ function leaderOf(model, state, e) {
         if (o < 0 || c.options[o].eventIdx !== e) continue;
         if (event.leaderUserId && c.userId === event.leaderUserId) chosen = c.idx;
         else if (event.raidLeadId && c.userId === event.raidLeadId) lead = c.idx;
-        else if (event.leaderRule && first < 0 && c.leadsIn && c.leadsIn.has(e)) first = c.idx;
+        else if (first < 0 && c.leadsIn && c.leadsIn.has(e)) first = c.idx;
     }
     if (chosen >= 0) return chosen;
     return lead >= 0 ? lead : first;

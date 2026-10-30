@@ -141,6 +141,17 @@ describe("Leader je Raid (#1036)", () => {
         expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.unset")) })).toBeNull();
     });
 
+    it("without a leader rule: no crown, no 'set' and no 'undo' - even with a stored choice", async () => {
+        const user = userEvent.setup();
+        const plain = editorData();
+        page = { ...leaderData(), setup: { ...leaderData({ led: false }).setup!, checks: plain.setup!.checks, leaderUserId: TANK.userId } };
+        await show();
+        expect(document.querySelectorAll(".se-lead-mark")).toHaveLength(0);
+        await user.click(slot("Bruno"));
+        expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.unset")) })).toBeNull();
+        expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.set")) })).toBeNull();
+    });
+
     it("has no undo button when the proposal picked the leader itself", async () => {
         const user = userEvent.setup();
         await show();

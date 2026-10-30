@@ -410,8 +410,10 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     if (taken) return fail("taken", taken);
     const options = mergeOptions(body, prev && prev.options);
     // "Als Leader setzen" (#1036): `leaderUserId` in the body sets ("" clears) the orga's choice,
-    // without it the stored one stays - each only while that raider is placed in this raid
-    const leaderUserId = leaderChoiceIn(checked.value.groups, body.leaderUserId !== undefined ? body.leaderUserId : prev && prev.leaderUserId);
+    // without it the stored one stays - each only while that raider is placed in this raid and
+    // only under a leader rule (`leaders` in the input): without one there is no leader at all
+    const rule = !!input.events[0] && Array.isArray(input.events[0].leaders);
+    const leaderUserId = !rule ? "" : leaderChoiceIn(checked.value.groups, body.leaderUserId !== undefined ? body.leaderUserId : prev && prev.leaderUserId);
     if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
     let result;
     try {

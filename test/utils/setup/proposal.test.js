@@ -38,10 +38,11 @@ function expectHardRules(input, out) {
             }
         }
         expect(total).toBeLessThanOrEqual(event.size);
-        // leader (#1036): at most one per raid, and one as soon as someone who may lead is placed
+        // leader (#1036): only with a leader rule (`leaders` is an array) - then at most one
+        // per raid, and one as soon as someone who may lead is placed; without the rule none
         const slots = ev.groups.flatMap((g) => g.slots);
-        const mayLead = (uid) => uid === event.leaderUserId || uid === event.raidLeadId
-            || (Array.isArray(event.leaders) && event.leaders.includes(uid));
+        const rule = Array.isArray(event.leaders);
+        const mayLead = (uid) => rule && (uid === event.leaderUserId || uid === event.raidLeadId || event.leaders.includes(uid));
         const leaders = slots.filter((x) => x.leader);
         expect(leaders.length).toBeLessThanOrEqual(1);
         for (const l of leaders) expect(mayLead(l.userId)).toBe(true);

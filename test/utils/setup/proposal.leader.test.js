@@ -98,16 +98,16 @@ describe("one leader per raid (#1036)", () => {
         expect(leaderSlots(buildSetupProposal(input).events[0]).map((s) => s.userId)).toEqual(["d2"]);
     });
 
-    it("without a leader rule the placed raid lead still wears the crown, with no check and no score part", () => {
+    it("without a leader rule there is no crown at all: not for the placed raid lead, not for the orga's choice", () => {
         const input = group(1, fifty().slice(0, 30));
         delete input.events[0].leaders;
         input.events[0].raidLeadId = "h1";
         const out = buildSetupProposal(input);
-        expect(leaderSlots(out.events[0]).map((s) => s.userId)).toEqual(["h1"]);
+        expect(placedIn(out.events[0])).toContain("h1");
+        expect(leaderSlots(out.events[0])).toHaveLength(0);
         expect(out.events[0].checks.leader).toBeUndefined();
         expect(out.score.parts.leader).toBeUndefined();
-        // a raid lead who is not placed: no crown at all
-        input.events[0].raidLeadId = "nobody";
+        input.events[0].leaderUserId = "h1";
         expect(leaderSlots(buildSetupProposal(input).events[0])).toHaveLength(0);
     });
 

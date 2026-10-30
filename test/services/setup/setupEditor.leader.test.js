@@ -4,7 +4,7 @@
 const mockEvents = new Map();
 jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
-    listEvents: () => [...mockEvents.values()],
+    listEvents: (guildId) => [...mockEvents.values()].filter((e) => !guildId || e.guildId === guildId),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventSetup: (id, setup, { leaderId = "" } = {}) => {
         if (!mockEvents.has(id)) return null;
@@ -33,6 +33,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
 }));
 
 const editor = require("../../../src/services/setup/setupEditor");
+const { placementsOf, placementSignature } = require("../../../src/services/setup/setupMessage");
 const { su } = require("../../utils/setup/fixtures");
 
 const ID = "eh-kara";
@@ -83,7 +84,10 @@ describe("the leader in the setup editor (#1036)", () => {
     });
 
     it("an approval without a leader leaves the event's leader alone", () => {
-        mockLeads = { frost: { tbc: { instances: ["gruul"], by: "x", at: 1 } } };
+        // the rule holds (a Kara flag holder signed up to an upcoming raid of g1), but nobody placed may lead
+        mockLeads = { outsider: flag };
+        mockEvents.set("eh-other", { id: "eh-other", guildId: "g1", title: "Kara", startTime: 2000000000 });
+        mockSignupsOf = { outsider: { "eh-other": { status: "signed" } } };
         const { setup } = editor.proposeEventSetup(ID);
         expect(setup.checks.leader.ok).toBe(false);
         expect(leaders(setup)).toEqual([]);
@@ -100,21 +104,74 @@ describe("the leader in the setup editor (#1036)", () => {
         expect(mockEvents.get(ID).leaderId).toBe("creator");
     });
 
-    it("without a flag the placed raid lead (event.leaderId) still wears the crown, with no check", () => {
+    it("without a rule there is no crown: not for the placed raid lead (event.leaderId), not for a stored orga choice", () => {
         mockLeads = {};
         mockEvents.set(ID, { ...mockEvents.get(ID), leaderId: "heal1" });
         const { setup } = editor.proposeEventSetup(ID);
         expect(setup.checks.leader).toBeUndefined();
-        expect(leaders(setup)).toEqual(["heal1"]);
+        expect(placed(setup)).toContain("heal1");
+        expect(leaders(setup)).toEqual([]);
+        const saved = editor.saveEventSetup(ID, { ...placementOf(setup), leaderUserId: "heal1" }).setup;
+        expect(leaders(saved)).toEqual([]);
+        expect(saved.leaderUserId).toBeUndefined();
+        expect(mockEvents.get(ID).leaderId).toBe("heal1");
     });
 
-    it("a flag counts for the server when its holder signed up to another event of it, else not", () => {
+    it("an approved setup on a server without flags stays approved after a new computation, signatures unchanged", () => {
+        mockLeads = {};
+        mockEvents.set(ID, { ...mockEvents.get(ID), leaderId: "heal1" });
+        const { setup } = editor.proposeEventSetup(ID);
+        expect(placed(setup)).toContain("heal1");
+        editor.approveEventSetup(ID, { version: setup.version, userId: "orga" });
+        const approved = mockEvents.get(ID).setup;
+        expect(approved.status).toBe("approved");
+        const lineup = editor._internal.lineupSignature(approved);
+        const placement = placementsOf(approved.approved).map(placementSignature);
+        const again = editor.saveEventSetup(ID, placementOf(approved)).setup;
+        expect(again.status).toBe("approved");
+        expect(again.changedSinceApproval).toBeFalsy();
+        expect(editor._internal.lineupSignature(again)).toBe(lineup);
+        expect(lineup).not.toMatch(/leader/);
+        expect(placementsOf(again.approved).map(placementSignature)).toEqual(placement);
+        expect(placement.join()).not.toMatch(/\/lead/);
+        expect(leaders(again)).toEqual([]);
+        expect(approved.approved.groups.flatMap((g) => g.slots).some((s) => s.leader)).toBe(false);
+        expect(mockEvents.get(ID).leaderId).toBe("heal1");
+    });
+
+    it("a flag counts for the server when its holder signed up to an upcoming event of it, else not", () => {
         mockLeads = { outsider: flag };
         expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
-        mockEvents.set("eh-other", { id: "eh-other", guildId: "g1", title: "Gruul" });
+        mockEvents.set("eh-other", { id: "eh-other", guildId: "g1", title: "Gruul", startTime: 2000000000 });
         mockSignupsOf = { outsider: { "eh-other": { status: "signed" } } };
         const ruled = editor.proposeEventSetup(ID).setup;
         expect(ruled.checks.leader).toEqual({ count: 0, ok: false, candidates: [] });
+    });
+
+    it("no rule when the flag holder signed up only to an event of another server", () => {
+        mockLeads = { outsider: flag };
+        mockEvents.set("eh-g2", { id: "eh-g2", guildId: "g2", title: "Kara", startTime: 2000000000 });
+        mockSignupsOf = { outsider: { "eh-g2": { status: "signed" } } };
+        expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
+    });
+
+    it("no rule when the flag holder signed up only to a past event of the server", () => {
+        mockLeads = { outsider: flag };
+        mockEvents.set("eh-past", { id: "eh-past", guildId: "g1", title: "Kara", startTime: 1000000000 });
+        mockSignupsOf = { outsider: { "eh-past": { status: "signed" } } };
+        expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
+    });
+
+    it("no rule when the only flag on the server is for another instance (Gruul flag, Kara raid)", () => {
+        mockLeads = { frost: { tbc: { instances: ["gruul"], by: "x", at: 1 } } };
+        const { setup } = editor.proposeEventSetup(ID);
+        expect(setup.checks.leader).toBeUndefined();
+        expect(leaders(setup)).toEqual([]);
+    });
+
+    it("no rule for an event without a server", () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), guildId: "" });
+        expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
     });
 
     it("the placed raid lead leads before an earlier signed-up flag holder and stays the event's leader", () => {
