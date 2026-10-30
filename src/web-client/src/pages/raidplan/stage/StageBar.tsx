@@ -3,13 +3,13 @@ import { useDismiss } from "../../../hooks/useDismiss";
 import { ChevronDown, ChevronLeft, ChevronRight, ListChecks, RefreshCw } from "lucide-react";
 import type { RaidplanPublicBoss } from "../../../api";
 import type { FollowChip } from "../../../hooks/useRaidProgress";
-import type { StripMode } from "../../../lib/raidplan/sheetLayout";
-import { groupColor, groupMark, inkOn } from "../../../lib/raidplan/groupStyle";
-import { neighbours, sectionPlace } from "../../../lib/raidplan/stage";
+import type { StripMode } from "../../../lib/raidplan/view/sheetLayout";
+import { groupColor, groupMark, inkOn } from "../../../lib/raidplan/board/groupStyle";
+import { neighbours, sectionPlace } from "../../../lib/raidplan/view/stage";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import LangToggle from "../../../components/shell/LangToggle";
 import ThemeToggle from "../../../components/shell/ThemeToggle";
-import AutoFollowToggle from "../../../components/raidplan/editor/AutoFollowToggle";
+import AutoFollowToggle from "../../../components/raidplan/editor/assign/AutoFollowToggle";
 import SectionMenu from "./SectionMenu";
 import { useT } from "../../../i18n";
 

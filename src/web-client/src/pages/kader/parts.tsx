@@ -20,7 +20,7 @@ import {
 } from "../../components/ui/icons";
 import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
-import { ROLE_ICON } from "../../lib/raidplan/assign";
+import { ROLE_ICON } from "../../lib/raidplan/assign/assign";
 import { roleLabel } from "../../lib/wow/wowNames";
 import { avatarOf, classColor, classIconOf, className, dayOf, historyText, nameOf, playerName, specIconOf, specName, wishLabel } from "../../lib/kader/model";
 import { dayShort, isAnswered, isWeekdays, progress, statusOf } from "../../lib/kader/interview";

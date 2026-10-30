@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { Pause, Play, Repeat, SkipBack, SkipForward, UserRound, X } from "lucide-react";
 import type { RaidplanScene } from "../../api";
 import { SPEEDS, type ScenePlayer } from "../../hooks/useScenePlayer";
-import { clock, frameAt } from "../../lib/raidplan/scene";
+import { clock, frameAt } from "../../lib/raidplan/anim/scene";
 import { useT } from "../../i18n";
 
 /**

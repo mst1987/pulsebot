@@ -3,7 +3,7 @@ import { getRaidplanProgress, type RaidplanProgress, type RaidplanProgressWaitin
 
 /** What the section bar's "Automatisch mitgehen" chip shows: a switch (`on`), or with `waiting` a disabled chip saying why. */
 export type FollowChip = { on: boolean; onToggle: () => void; waiting?: RaidplanProgressWaiting | null };
-import { followTarget, inRaidWindow, PROGRESS_POLL_MS } from "../lib/raidplan/progress";
+import { followTarget, inRaidWindow, PROGRESS_POLL_MS } from "../lib/raidplan/view/progress";
 
 /**
  * The raid plan follows the raid (#534): while the raid window is open and the tab is visible, asks the server every minute what the

@@ -1,7 +1,7 @@
 import type { RaidplanBoard, RaidplanBoss, RaidplanProfile } from "../../api";
 import { t } from "../../i18n";
 import { boardOf } from "./model";
-import { objectCount } from "./objects";
+import { objectCount } from "./board/objects";
 
 /** The profiles that fit a boss: made for every boss, for its instance, or for exactly this boss. */
 export function profilesFor(profiles: RaidplanProfile[], bossKey: string): RaidplanProfile[] {

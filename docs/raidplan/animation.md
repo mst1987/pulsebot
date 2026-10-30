@@ -58,7 +58,7 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
 - **Sheet:** `publicView` sends `scenes` of a section with its map (none with "Karte aus"); a reference to an object the
   sheet does not show (hidden, a raider outside the approved setup) simply moves nothing.
 
-## Playing (`src/web-client/src/lib/raidplan/scene.ts`)
+## Playing (`src/web-client/src/lib/raidplan/anim/scene.ts`)
 
 - `boardAt(board, scene, t, autoAt)` - every change of a frame starts at `at + delay` and ends `dur` later; values are
   blended per property; **a change that starts while the one before it still runs takes over from where the object is
@@ -73,7 +73,7 @@ loop   { id, obj, path: [[x, y]], closed, period, from, to, trail }
   to where the marker stands at that moment, marked `away` (never stored): his group's ring then keeps its size instead
   of stretching to him. Where the ring puts a raider without an offset depends on the drawn board, so the caller hands
   it in: `boardAt(…, autoAt, memberAt)` with `memberAt = memberOffsets(board, roster, aspect)`
-  (`lib/raidplan/members.ts`, the same layout `PlanBoard` draws; `aspect` from `PlanBoard`'s `onAspect`). Members can
+  (`lib/raidplan/board/members.ts`, the same layout `PlanBoard` draws; `aspect` from `PlanBoard`'s `onAspect`). Members can
   move, carry a badge, pulse and run a loop; they do not fade, turn or scale.
 - `boardAfter(board, scene, k)` - frame k with everything of frames 0..k arrived and no loops: what the editor edits.
 - `frameAt`, `frameRest`, `frameLength`, `playable` (at least two frames or a loop), `clock`.
@@ -108,15 +108,15 @@ objects - mapping them onto another board (by slot kind and number) is a follow-
 ## In the editor (view "Animation", #711)
 
 The third view of a section next to "Aufgaben | Karte" (`#view=anim` in the address, remembered like the others; Standard
-and Allgemein have none, "Karte aus" shows the note). `components/raidplan/editor/AnimWorkspace.tsx` +
-`AnimPanel.tsx`, the pure editing in `lib/raidplan/sceneEdit.ts`; template editor and event plan alike.
+and Allgemein have none, "Karte aus" shows the note). `components/raidplan/editor/anim/AnimWorkspace.tsx` +
+`AnimPanel.tsx`, the pure editing in `lib/raidplan/anim/sceneEdit.ts`; template editor and event plan alike.
 
 - **No scene yet:** an explanation (what an animation is, the three steps) and "Neue Animation".
 - **Head:** the scenes as chips with their length, "+ Neue Animation" (at most 8), "Vorschau" (plays the scene with the
   sheet's player and caption; editing is off meanwhile).
 Since #722 the view follows **design B "Aktionen als Sätze"** of the canvas "Animation zuweisen": who an action is given
 to is always visible, a frame reads as sentences, and a new action is built Wer → Was → Wohin. The pure parts are in
-`lib/raidplan/sceneActions.ts` (actors, sentences, applying to several) and `lib/raidplan/members.ts` (the ring).
+`lib/raidplan/anim/sceneActions.ts` (actors, sentences, applying to several) and `lib/raidplan/board/members.ts` (the ring).
 
 - **Board:** the board **after the chosen frame** (`boardAfter`). **Picking:** a click on an object picks it; a click
   on a raider of a split group picks **his whole group**, **Alt + click only him** (`member:`), **Shift + click** adds
@@ -188,10 +188,10 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 
 `test/services/raidplan/raidplanScenes.test.js` (validation, limits, the board's cleaning, `reidBoard`),
 `test/web/apiRoutes/raidplan.templates.test.js` (the sheet sends the scenes, none without the map),
-`src/web-client/src/lib/raidplan/__tests__/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
+`src/web-client/src/lib/raidplan/anim/__tests__/scene.test.ts` (easing, blending, take-over, paths, loops, auto objects, frames),
 `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
-`src/web-client/src/lib/raidplan/__tests__/sceneEdit.test.ts` (editing on the timeline),
-`src/web-client/src/lib/raidplan/__tests__/sceneActions.test.ts` (actors, the ring of a group, sentences, directions, one action
+`src/web-client/src/lib/raidplan/anim/__tests__/sceneEdit.test.ts` (editing on the timeline),
+`src/web-client/src/lib/raidplan/anim/__tests__/sceneActions.test.ts` (actors, the ring of a group, sentences, directions, one action
 for several), `test/web-client/conventions/controls.test.js` (a disabled text field carries no dropdown arrow),
 `src/web-client/src/components/raidplan/editor/__tests__/BoardWorkspace.anim.test.tsx` (the editor's view: create, drag and read
 it as a sentence, the assistant for a debuff, walking and a loop, a group vs. a single raider by click, Alt + click and

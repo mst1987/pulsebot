@@ -102,7 +102,7 @@
 .rp-sheet-stage .rp-minimap { left: auto; right: 64px; bottom: 70px; }
 .rp-sheet-stage.is-panel .rp-minimap { right: calc(min(480px, 100%) + 16px); }
 
-/* "Deine Aufgaben": --mx/--my are its share of the free room (lib/raidplan/sheetLayout.ts MinePos, 0 0 = top left, 1 1 = bottom
+/* "Deine Aufgaben": --mx/--my are its share of the free room (lib/raidplan/view/sheetLayout.ts MinePos, 0 0 = top left, 1 1 = bottom
    right); the translate by the card's own size keeps every share inside the stage without measuring the card. 16px margin, 64px on
    the right (--rp-side) so the card never covers the "Alle Aufgaben" tab, nor the panel when it stands beside the map (MineCard.tsx
    counts the same margins) */

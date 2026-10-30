@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import type { RaidplanPublicBoss } from "../../../api";
-import type { StripMode } from "../../../lib/raidplan/sheetLayout";
-import { sectionGroups } from "../../../lib/raidplan/stage";
+import type { StripMode } from "../../../lib/raidplan/view/sheetLayout";
+import { sectionGroups } from "../../../lib/raidplan/view/stage";
 import { useT } from "../../../i18n";
 
 /**

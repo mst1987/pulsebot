@@ -1,8 +1,8 @@
-import { REF_W, boardScale, canvasStyle } from "../../lib/raidplan/boardScale";
-import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, badgeMetrics, effectMetrics, labelMetrics } from "../../lib/raidplan/labelScale";
-import { FIT, type BoardView } from "../../lib/raidplan/boardView";
-import { ringShownFor, selectionDrawn } from "../../lib/raidplan/viewRules";
-import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/groupStyle";
+import { REF_W, boardScale, canvasStyle } from "../../lib/raidplan/board/boardScale";
+import { HIDE_SCREEN_FONT, ICON_NAME_FACTOR, NAME_FACTOR, badgeMetrics, effectMetrics, labelMetrics } from "../../lib/raidplan/board/labelScale";
+import { FIT, type BoardView } from "../../lib/raidplan/board/boardView";
+import { ringShownFor, selectionDrawn } from "../../lib/raidplan/view/viewRules";
+import { groupColor, groupFocusCls, groupMark, inkOn } from "../../lib/raidplan/board/groupStyle";
 import { groupScales, rhNote } from "../../lib/raidplan";
 import { useCallback, useEffect, useState, type CSSProperties, type KeyboardEvent, type MouseEvent, type MutableRefObject, type PointerEvent, type ReactNode, type RefObject } from "react";
 import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
@@ -15,10 +15,10 @@ import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { SIZE_RANGES, autoBadgeGroup, canFace, groupListMembers, ownBadgeGroup, groupChipMode, groupTag, ringShown, badgeShown, groupBadgeLook, GROUP_PLACEHOLDERS, ringCover, iconBoardLabel, iconKeyType, memberId, portraitUrl, ringNameWidth, ringOffsets, ringUnit, roleZoneMetrics, areaStyleOf, arcSpanOf, arcWidthOf, arcPath, arcLayout, calmBadgeAt, areaBadgeMetrics, areaBadgeWidth, chipWidthOf, turnedBox, uprightInner, roleNamesLayout, roleTone, slotBoardLabel, slotTitle, splitMembers, textShown, zoneBoardLabel, type Corner, type ObjectKind, type Selection } from "../../lib/raidplan";
 import { useT } from "../../i18n";
-import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign";
-import { ANY } from "../../lib/raidplan/classRefs";
-import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/autoPlace";
-import type { SceneFx, SceneTrail } from "../../lib/raidplan/scene";
+import { classPlaceNameFor, classRefIcon, facingOf, linkClass, offRole, type AssignLink } from "../../lib/raidplan/assign/assign";
+import { ANY } from "../../lib/raidplan/assign/classRefs";
+import { autoFacing, mobIconNo, type AutoPlan, type AutoTank } from "../../lib/raidplan/assign/autoPlace";
+import type { SceneFx, SceneTrail } from "../../lib/raidplan/anim/scene";
 import "../../styles/raidplan/index.css";
 
 
@@ -126,15 +126,15 @@ type BoardProps = {
     maxHeight?: number;
     /** Shown on the grid when there is no map. */
     emptyText?: string;
-    /** what the tank rows put on the map (lib/raidplan/autoPlace.ts): the mobs and tanks nobody placed by hand */
+    /** what the tank rows put on the map (lib/raidplan/assign/autoPlace.ts): the mobs and tanks nobody placed by hand */
     auto?: AutoPlan;
-    /** an animation's effects on objects ("<kind>:<id>" -> a WoW icon on it, a pulse) and the trails of its loops (lib/raidplan/scene.ts) */
+    /** an animation's effects on objects ("<kind>:<id>" -> a WoW icon on it, a pulse) and the trails of its loops (lib/raidplan/anim/scene.ts) */
     fx?: Record<string, SceneFx>;
     trails?: SceneTrail[];
     /** more to draw on the canvas, in its coordinates (an editor's grips: the points of an animation's way) */
     overlay?: ReactNode;
     /**
-     * The animation editor's picked actors ("<kind>:<id>", lib/raidplan/scene.ts): they light up, everything else steps back (a picked
+     * The animation editor's picked actors ("<kind>:<id>", lib/raidplan/anim/scene.ts): they light up, everything else steps back (a picked
      * group lights all its raiders, a picked raider only himself). Empty or missing = nothing is lit or dimmed.
      */
     lit?: string[];
@@ -223,7 +223,7 @@ export default function PlanBoard({
     } : {});
     const ar = aspect || 16 / 10;
     // ONE coordinate space for everything on the board: the content is laid out at a fixed reference width and the whole canvas is scaled to the
-    // board's real width, so editor, template preview and read view look the same at any size (see lib/raidplan/boardScale.ts)
+    // board's real width, so editor, template preview and read view look the same at any size (see lib/raidplan/board/boardScale.ts)
     const size = outer.w > 0 ? { w: REF_W, h: REF_W / ar } : { w: 0, h: 0 };
     // the canvas's size and pan/zoom as custom properties, read by .rp-canvas (#441)
     const cs = canvasStyle(outer.w, outer.h, ar, view.z, view.ox, view.oy) as { width: number; height: number; transform: string; "--rp-k": string };
@@ -232,11 +232,11 @@ export default function PlanBoard({
     const px = (v: number, of: number) => v * of;
     /** The size of a token-like object on screen, in px. */
     const scaled = (size: number | undefined, def: number) => Math.round((size || def) * objectScale);
-    // the name label follows the icon (lib/raidplan/labelScale.ts): its font is set here in reference units, and it is hidden when legibility would blow it up
+    // the name label follows the icon (lib/raidplan/board/labelScale.ts): its font is set here in reference units, and it is hidden when legibility would blow it up
     const screenScale = boardScale(outer.w) * view.z;
     const factorOf = (def: number) => (def === SIZE_RANGES.icon.def ? ICON_NAME_FACTOR : NAME_FACTOR);
     const labelOf = (px: number, def: number) => labelMetrics(px, factorOf(def), screenScale);
-    /** the group badge at the icon's upper right (lib/raidplan/labelScale.ts badgeMetrics, #511): its diameter, digit and rim as reference-unit variables */
+    /** the group badge at the icon's upper right (lib/raidplan/board/labelScale.ts badgeMetrics, #511): its diameter, digit and rim as reference-unit variables */
     const badgeVars = (px: number, scale = 1) => { const b = badgeMetrics(px, scale); return { "--rp-badge": `${b.size}px`, "--rp-bf": `${b.font}px`, "--rp-bb": `${b.border}px` }; };
     /** the effects round an icon (me ring and glow, selection glow, shadow, outline) as reference-unit variables: shares of the icon's size, like the label */
     const effectVars = (px: number, badgeScale = 1) => { const e = effectMetrics(px); return { "--rp-ring": `${e.ring}px`, "--rp-glow": `${e.glow}px`, "--rp-gsp": `${e.spread}px`, "--rp-sel": `${e.select}px`, "--rp-shd": `${e.shadow}px`, "--rp-out": `${e.outline}px`, ...badgeVars(px, badgeScale) }; };
@@ -274,7 +274,7 @@ export default function PlanBoard({
         }
     }
     const boardLike = { tokens, slots, icons, assignments: assignments || [], places } as unknown as RaidplanBoard;
-    /** An icon's facing: the tank rows' tank of its mob when they know it (auto placement), else the older rule (lib/raidplan/assign.ts facingOf). */
+    /** An icon's facing: the tank rows' tank of its mob when they know it (auto placement), else the older rule (lib/raidplan/assign/assign.ts facingOf). */
     const faceOf = (i: { id: string; x: number; y: number; rotation: number; autoFace?: boolean; mobId?: string; iconKey?: string }) => {
         if (auto && i.autoFace !== false) {
             const a = autoFacing(auto, i.id, i, boardLike, places, ar);
@@ -645,10 +645,10 @@ export default function PlanBoard({
                     const { gs, sp, ts } = groupScales(s);
                     const memberBase = scaled(s.size, SIZE_RANGES.member.def);
                     const memberPx = memberBase * gs * ts;
-                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan/labels.ts ringUnit)
+                    // the ring is laid out for the tokens it really carries: never tighter than their size (lib/raidplan/board/labels.ts ringUnit)
                     const spacePx = ringUnit(memberBase * gs * sp, memberPx);
                     const spread = gs * sp;
-                    // a name under a ring member is never wider than the room to its neighbour (lib/raidplan/labels.ts ringNameWidth): a long one ends in "…"
+                    // a name under a ring member is never wider than the room to its neighbour (lib/raidplan/board/labels.ts ringNameWidth): a long one ends in "…"
                     const nameRoom = ringNameWidth(Math.max(around.length, 1), spacePx, memberPx);
                     const memberSize = (sz: number | undefined) => ({ "--rp-s": `${Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts)}px`, "--rp-nf": `${labelOf(scaled(sz, SIZE_RANGES.member.def) * gs * ts, SIZE_RANGES.member.def).font}px`, "--rp-nw": `${Math.round(nameRoom)}px`, ...effectVars(Math.round(scaled(sz, SIZE_RANGES.member.def) * gs * ts), s.badgeScale) }) as CSSProperties;
                     // the group's own badge switch (#528); the board's "Badges" hides all of them by its class

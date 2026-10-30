@@ -80,7 +80,9 @@ describe("role placeholders", () => {
     const sources = import.meta.glob(
         [
             "../PlanBoard.tsx",
-            "../editor/{Palette,Besetzung,AssignLine,AssignPanel,AssignModal,StepModal,ReadTables,AssignRosterModal}.tsx",
+            "../editor/Palette.tsx",
+            "../editor/assign/{Besetzung,AssignLine,AssignPanel,AssignModal,ReadTables,AssignRosterModal}.tsx",
+            "../editor/steps/StepModal.tsx",
             "../editor/workspace/MapToolRow.tsx",
             "../../../pages/raidplan/RaidplanTemplatesPage.tsx",
         ],

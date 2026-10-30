@@ -1,10 +1,10 @@
-// The row dialog (AssignModal.tsx) wires the class counts and the general tanks; the logic of lib/raidplan/classRefs.ts is tested in
+// The row dialog (AssignModal.tsx) wires the class counts and the general tanks; the logic of lib/raidplan/assign/classRefs.ts is tested in
 // src/web-client/src/lib/classCount.test.ts.
 const fs = require("fs");
 const path = require("path");
 
 describe("the row dialog", () => {
-    const src = fs.readFileSync(path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/AssignModal.tsx"), "utf8");
+    const src = fs.readFileSync(path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/assign/AssignModal.tsx"), "utf8");
     it("shows the general tanks on tanking rows and edits counts through setClassCount", () => {
         expect(src).toMatch(/TANK_TYPES\.indexOf\(type\)/);
         expect(src).toMatch(/TANK_CLASSES\.map/);

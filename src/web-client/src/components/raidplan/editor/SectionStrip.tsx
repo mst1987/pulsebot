@@ -4,8 +4,8 @@ import { boardCount, boardOf, sectionLabel, severalInstances, sheetIncluded, typ
 import { belowStartPlacement } from "../../../lib/ui/popoverPosition";
 import Popover from "../../ui/Popover";
 import { Badge, IconButton } from "../../ui";
-import ContextMenu from "./ContextMenu";
-import AutoFollowToggle from "./AutoFollowToggle";
+import ContextMenu from "./inspector/ContextMenu";
+import AutoFollowToggle from "./assign/AutoFollowToggle";
 import type { FollowChip } from "../../../hooks/useRaidProgress";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { useT } from "../../../i18n";

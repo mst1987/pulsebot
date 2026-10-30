@@ -1,5 +1,5 @@
 import type { MemberCharacter, MemberRole, MemberRoster, ServerMember } from "../../api";
-import { CLASS_COLOR } from "../raidplan/classRefs";
+import { CLASS_COLOR } from "../raidplan/assign/classRefs";
 import { versionLabel } from "../raidplan/versions";
 import { formatWith } from "../format";
 

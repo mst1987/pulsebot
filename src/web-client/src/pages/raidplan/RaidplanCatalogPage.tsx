@@ -15,11 +15,11 @@ import PageHead from "../../components/ui/PageHead";
 import Badge from "../../components/ui/Badge";
 import RaidLoader from "../../components/ui/RaidLoader";
 import WowIcon from "../../components/ui/WowIcon";
-import { MobIcon } from "../../components/raidplan/editor/AssignPanel";
+import { MobIcon } from "../../components/raidplan/editor/assign/AssignPanel";
 import Flyout from "../../components/raidplan/Flyout";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { catalogOfVersion, inVersion, versionChips, versionLabel } from "../../lib/raidplan/versions";
-import { ASSIGN_META } from "../../lib/raidplan/assign";
+import { ASSIGN_META } from "../../lib/raidplan/assign/assign";
 import { useT } from "../../i18n";
 import "../../styles/raidplan/index.css";
 

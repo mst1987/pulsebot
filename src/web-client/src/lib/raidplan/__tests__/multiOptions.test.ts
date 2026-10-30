@@ -1,9 +1,9 @@
 // Two more things of feature/raidplan-13 (docs/raidplan.md): the inspector of a multi-selection shows every option ALL selected objects
-// have (lib/raidplan/multiSelect.ts sharedOptions / optionSummary and the setters), and the editor opens a board with the cutout the sheet opens
-// it with (lib/raidplan/boardView.ts; BoardWorkspace applies board.view like PlanPublicPage).
+// have (lib/raidplan/board/multiSelect.ts sharedOptions / optionSummary and the setters), and the editor opens a board with the cutout the sheet opens
+// it with (lib/raidplan/board/boardView.ts; BoardWorkspace applies board.view like PlanPublicPage).
 import { describe, expect, it } from "vitest";
-import * as ms from "../multiSelect";
-import * as bv from "../boardView";
+import * as ms from "../board/multiSelect";
+import * as bv from "../board/boardView";
 
 const look = { opacity: 1, lock: false, hidden: false };
 const icon = (id, extra = {}) => ({ id, iconKey: "enemy", label: "", x: 0.5, y: 0.5, size: 48, rotation: 0, showLabel: false, mobId: "d:flame", autoFace: true, ...look, ...extra });

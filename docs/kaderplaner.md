@@ -681,7 +681,7 @@ Deleting a Kader and switching the menu's version away from the open one land on
   a label and its control and between list rows, the hint set apart; buttons carry an icon where it helps (Speichern,
   Übernehmen, Löschen, In den Pool) and never get a width that cuts their label.
 - **WoW icons** everywhere a class, spec or role is named (rule set icons, `ROLE_ICON` from
-  `lib/raidplan/assign.ts`), each with its name as label and tooltip (`pages/kader/parts.tsx`).
+  `lib/raidplan/assign/assign.ts`), each with its name as label and tooltip (`pages/kader/parts.tsx`).
 - Remembered per browser: the last Kader, the pool scope and filters, the interview list, the overview grouping and
   filters, the sort column of every table, the setup sources and the variant per Kader, and the composition switch per Kader. The attendance pick is not a
   browser setting: it is stored on the Kader.

@@ -1,5 +1,5 @@
 // The turned role group and the editor on a phone (PlanBoard, BoardWorkspace, the stylesheet); the role group logic of
-// lib/raidplan/assign.ts and lib/raidplan/mineView.ts is tested in src/web-client/src/lib/roleMine.test.ts.
+// lib/raidplan/assign/assign.ts and lib/raidplan/view/mineView.ts is tested in src/web-client/src/lib/roleMine.test.ts.
 const { readWorkspace } = require("../clientSource");
 
 const { read } = require("../clientSource"); // inlines the @imports of a stylesheet (#441)

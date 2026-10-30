@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { parseCollapseSet, parseCollapsed, toggleCollapseId } from "../lib/raidplan/collapse";
+import { parseCollapseSet, parseCollapsed, toggleCollapseId } from "../lib/raidplan/view/collapse";
 
 /**
  * One block of the raid plan editor that folds on its own (Roster slots, Taktik, the mobs bar …): a real boolean under its

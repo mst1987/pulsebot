@@ -1,8 +1,8 @@
 // The one-line summaries of folded blocks (#559): an assignment card ("5 Zeilen, 1 abweichend, 1 offen") and the Besetzung ("25 besetzt, 2 offen").
 import { describe, expect, it } from "vitest";
 import type { RaidplanAssignment } from "../../../api";
-import { cardSummary, slotSummary } from "../assignLine";
-import type { AssignCtx } from "../assign";
+import { cardSummary, slotSummary } from "../assign/assignLine";
+import type { AssignCtx } from "../assign/assign";
 
 const ctx: AssignCtx = { slots: [], players: new Map(), catalog: null, filled: [], groupColors: {}, groupMarks: {}, icons: [] };
 const row = (id: string, origin?: string): RaidplanAssignment => ({ id, type: "heal", assignees: [], targets: [{ kind: "group", ref: "1" }], note: "", title: "", spell: null, suggested: false, ...(origin ? { origin } : {}) } as unknown as RaidplanAssignment);

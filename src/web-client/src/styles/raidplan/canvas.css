@@ -1,6 +1,6 @@
 /* Raidplan, part 5 of 7: the canvas (one coordinate space), group colours and marks, zoom and view options, per-object rings, token sizes as shares of the icon, group healing, the minimap. */
 
-/* one coordinate space: the canvas is laid out at the reference width (lib/raidplan/boardScale.ts) and scaled as a whole to the board's width */
+/* one coordinate space: the canvas is laid out at the reference width (lib/raidplan/board/boardScale.ts) and scaled as a whole to the board's width */
 .rp-canvas { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
 .rp-canvas .rp-handle, .rp-canvas .rp-multi-edge { transform-origin: 50% 50%; }
 .rp-canvas .rp-handle { transform: scale(max(1, calc(1 / var(--rp-k, 1)))); }
@@ -125,7 +125,7 @@
 .rp-canvas .rp-token .rp-ico { border-width: calc(var(--rp-s, 38px) * .079); }
 .rp-canvas .rp-token-me { top: calc(var(--rp-s, 38px) * -.9); padding: calc(var(--rp-s, 38px) * .026) calc(var(--rp-s, 38px) * .18); font-size: calc(var(--rp-s, 38px) * .29); }
 /* the group badge sits at the icon's upper right: the name hangs below the icon, so the two never meet */
-/* the group badge (#511): ONE placement for every token kind - a child of the zero-size anchor, centred near the icon's upper right corner; its size, digit and rim come from lib/raidplan/labelScale.ts badgeMetrics (a share of the icon with floor and ceiling) */
+/* the group badge (#511): ONE placement for every token kind - a child of the zero-size anchor, centred near the icon's upper right corner; its size, digit and rim come from lib/raidplan/board/labelScale.ts badgeMetrics (a share of the icon with floor and ceiling) */
 .rp-canvas .rp-token > .rp-token-gbadge { left: calc(var(--rp-s, 38px) * .42 - var(--rp-badge, 19px) / 2); top: calc(var(--rp-s, 38px) * -.42 - var(--rp-badge, 19px) / 2); right: auto; bottom: auto; min-width: var(--rp-badge, 19px); height: var(--rp-badge, 19px); padding: 0 calc(var(--rp-badge, 19px) * .18); border-radius: calc(var(--rp-badge, 19px) / 2); border-width: var(--rp-bb, 1px); border-color: var(--rp-icon-outline); box-shadow: 0 0 calc(var(--rp-badge, 19px) * .2) var(--rp-text-halo); font-size: var(--rp-bf, 11px); line-height: calc(var(--rp-badge, 19px) - 2 * var(--rp-bb, 1px)); }
 /* the facing wedge grows with its own factor (--rp-ar, "Pfeilgröße", 0.25..3): its width, height and the air to the icon's edge together */
 .rp-canvas .rp-wedge { width: calc(var(--rp-s, 48px) * .46 * var(--rp-ar, 1)); height: calc(var(--rp-s, 48px) * .42 * var(--rp-ar, 1)); left: calc(var(--rp-s, 48px) * -.23 * var(--rp-ar, 1)); top: calc(var(--rp-s, 48px) * -.5 - var(--rp-s, 48px) * .52 * var(--rp-ar, 1)); }
@@ -214,7 +214,7 @@
 .rp-sheetlist { list-style: none; margin: 6px 0; padding: 0; display: grid; gap: 4px; max-height: 220px; overflow-y: auto; }
 .rp-sheetlist label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
 
-/* everything drawn AROUND an icon is a share of the icon's own size (--rp-ring/--rp-glow/... come from lib/raidplan/labelScale.ts effectMetrics, in reference units): the me-glow, the selection glow, shadows and outlines of a small or a big icon look the same at every zoom */
+/* everything drawn AROUND an icon is a share of the icon's own size (--rp-ring/--rp-glow/... come from lib/raidplan/board/labelScale.ts effectMetrics, in reference units): the me-glow, the selection glow, shadows and outlines of a small or a big icon look the same at every zoom */
 .rp-canvas .rp-token.is-me .rp-ico { box-shadow: 0 0 0 var(--rp-ring, 3px) var(--accent), 0 0 var(--rp-glow, 18px) var(--rp-gsp, 4px) var(--accent); }
 @keyframes rp-pulse-s { 0%, 100% { box-shadow: 0 0 0 var(--rp-ring, 3px) var(--accent), 0 0 calc(var(--rp-glow, 18px) * .65) calc(var(--rp-gsp, 4px) * .75) var(--accent); } 50% { box-shadow: 0 0 0 calc(var(--rp-ring, 3px) * 1.6) var(--accent), 0 0 calc(var(--rp-glow, 18px) * 1.3) calc(var(--rp-gsp, 4px) * 2) var(--accent); } }
 .rp-canvas .rp-token.is-me .rp-ico { animation-name: rp-pulse-s; }

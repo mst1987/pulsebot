@@ -4,28 +4,28 @@ import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanBoss, Raidplan
 import PlanBoard, { TokenIcon } from "../PlanBoard";
 import { MarkIcon } from "../MarkIcon";
 import { useBoardView } from "../../../hooks/useBoardView";
-import { viewFromSaved } from "../../../lib/raidplan/boardView";
+import { viewFromSaved } from "../../../lib/raidplan/board/boardView";
 import MiniMap from "../MiniMap";
 import { useViewPrefs } from "../../../hooks/useViewPrefs";
 import { useToast } from "../../shell/Jobs";
 import { inheritedRows, mergeInherited } from "../../../lib/raidplan/inherit";
-import { autoPlaces, deriveAuto } from "../../../lib/raidplan/autoPlace";
-import { addItems, selectionBox, toggleItem, type SelItem } from "../../../lib/raidplan/multiSelect";
+import { autoPlaces, deriveAuto } from "../../../lib/raidplan/assign/autoPlace";
+import { addItems, selectionBox, toggleItem, type SelItem } from "../../../lib/raidplan/board/multiSelect";
 import { useT } from "../../../i18n";
 import { layerList, slotTally, insertObject, objectName, placeSlot, rosterMap, unplaced, type InsertSpec, type Selection } from "../../../lib/raidplan";
-import TargetsPanel from "./TargetsPanel";
-import StepsCard from "./StepsCard";
-import AnimWorkspace from "./AnimWorkspace";
+import TargetsPanel from "./assign/TargetsPanel";
+import StepsCard from "./steps/StepsCard";
+import AnimWorkspace from "./anim/AnimWorkspace";
 import MyTasksPreview from "./MyTasksPreview";
 import Palette from "./Palette";
 import type { MapRow } from "./MapPanel";
-import ContextMenu from "./ContextMenu";
-import AssignPanel from "./AssignPanel";
-import Besetzung from "./Besetzung";
-import MobsBar from "./MobsBar";
-import AssignRosterModal from "./AssignRosterModal";
-import { expandClassRefs } from "../../../lib/raidplan/classRefs";
-import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/raidplan/assign";
+import ContextMenu from "./inspector/ContextMenu";
+import AssignPanel from "./assign/AssignPanel";
+import Besetzung from "./assign/Besetzung";
+import MobsBar from "./assign/MobsBar";
+import AssignRosterModal from "./assign/AssignRosterModal";
+import { expandClassRefs } from "../../../lib/raidplan/assign/classRefs";
+import { assignmentLinks, bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../../lib/raidplan/assign/assign";
 import { NO_AUTO, boardPxOf, toBoardPoint, type Menu } from "./workspace/types";
 import { useMapSize } from "./workspace/useMapSize";
 import { useBoardSelection, useSelectionEdits } from "./workspace/useBoardSelection";
@@ -163,7 +163,7 @@ export default function BoardWorkspace({
     const effective = useMemo(() => (defaultRows && !noBoard ? mergeInherited(defaultRows, board, section) : board.assignments), [defaultRows, noBoard, board, section]);
     // ... with class references resolved: what the lines, the auto tokens, "Meine Aufgaben" and the facing of icons follow
     const filledRows = useMemo(() => expandClassRefs(effective, board.slots, roster, board.roles), [effective, board.slots, board.roles, roster]);
-    // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/raidplan/autoPlace.ts); nothing without a map
+    // what the tank rows put on the map by themselves: the mobs they name and their tanks (lib/raidplan/assign/autoPlace.ts); nothing without a map
     const auto = useMemo(() => (noMap ? NO_AUTO : deriveAuto(filledRows, board, { template: !isEvent, roster })), [noMap, filledRows, board, isEvent, roster]);
     // a raider the tank rows put on the map is placed (not in the list, not in his group ring)
     const missing = useMemo(() => unplaced(roster, { ...board, autoUsers: auto.users }), [roster, board, auto]);

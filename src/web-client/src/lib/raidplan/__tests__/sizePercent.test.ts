@@ -1,7 +1,7 @@
-// Size in percent for every element and a group as a whole (lib/raidplan/, lib/raidplan/multiSelect.ts): 25 % .. 400 % of the default, in reference units.
+// Size in percent for every element and a group as a whole (lib/raidplan/, lib/raidplan/board/multiSelect.ts): 25 % .. 400 % of the default, in reference units.
 import { describe, expect, it } from "vitest";
 import * as lib from "..";
-import * as ms from "../multiSelect";
+import * as ms from "../board/multiSelect";
 
 const group = (id, n, extra = {}) => ({ id, kind: "group", n, userId: "", x: 0.5, y: 0.5, label: "", size: 38, offsets: {}, placed: true, split: true, opacity: 1, lock: false, hidden: false, ...extra });
 const withSlots = (slots) => ({ ...lib.emptyBoard(), slots });

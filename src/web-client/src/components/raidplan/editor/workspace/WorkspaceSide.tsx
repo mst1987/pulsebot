@@ -4,12 +4,12 @@ import { useCollapse } from "../../../../hooks/useCollapse";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../../api";
 import { PlayerName, TokenIcon } from "../../PlanBoard";
 import { useT } from "../../../../i18n";
-import type { AutoPlan } from "../../../../lib/raidplan/autoPlace";
-import type { SelItem } from "../../../../lib/raidplan/multiSelect";
+import type { AutoPlan } from "../../../../lib/raidplan/assign/autoPlace";
+import type { SelItem } from "../../../../lib/raidplan/board/multiSelect";
 import { autoStyleOf, rhNote, type Selection } from "../../../../lib/raidplan";
-import AutoInfo from "../AutoInfo";
-import Inspector, { MapOpacityField, ObjectScaleField } from "../Inspector";
-import LayerList from "../LayerList";
+import AutoInfo from "../assign/AutoInfo";
+import Inspector, { MapOpacityField, ObjectScaleField } from "../inspector/Inspector";
+import LayerList from "../inspector/LayerList";
 import MapPanel, { type MapRow } from "../MapPanel";
 import type { tankRowActions } from "./tankRows";
 

@@ -1,10 +1,10 @@
 // The structure of the row dialog (AssignModal.tsx) and the row container (AssignLine.tsx) and their texts; the logic of
-// lib/raidplan/assignModal.ts and lib/raidplan/assignLine.ts is tested in src/web-client/src/lib/assignModal.test.ts.
+// lib/raidplan/assign/assignModal.ts and lib/raidplan/assign/assignLine.ts is tested in src/web-client/src/lib/assignModal.test.ts.
 const fs = require("fs");
 const path = require("path");
 
 describe("structure and texts", () => {
-    const dir = path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor");
+    const dir = path.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/assign");
     const modal = fs.readFileSync(path.join(dir, "AssignModal.tsx"), "utf8");
     const line = fs.readFileSync(path.join(dir, "AssignLine.tsx"), "utf8");
     const panel = fs.readFileSync(path.join(dir, "AssignPanel.tsx"), "utf8");

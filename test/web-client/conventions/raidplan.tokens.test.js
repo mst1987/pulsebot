@@ -6,11 +6,11 @@ const path = require("path");
 const { readWorkspace, read } = require("../clientSource");
 
 // the compass names as the lib declares them
-const COMPASS_NAMES = JSON.parse(read("lib/raidplan/facing.ts").match(/^export const COMPASS_NAMES = (\[[^\]]*\]);/m)[1]);
+const COMPASS_NAMES = JSON.parse(read("lib/raidplan/board/facing.ts").match(/^export const COMPASS_NAMES = (\[[^\]]*\]);/m)[1]);
 
 describe("facing and board labels", () => {
     it("has the facing UI and its texts", () => {
-        const insp = read("components/raidplan/editor/Inspector.tsx");
+        const insp = read("components/raidplan/editor/inspector/Inspector.tsx");
         expect(insp).toContain("rp-compass");
         const ws = readWorkspace();
         expect(ws).toContain("angleTo(");

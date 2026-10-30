@@ -151,6 +151,21 @@ describe("planMove - tests and checks", () => {
         });
     });
 
+    test("--mirror-tests moves the __tests__ of client modules along", () => {
+        const { moved } = plan({
+            "src/web-client/src/lib/rp/assign.ts": "",
+            "src/web-client/src/lib/rp/__tests__/assign.test.ts": "",
+            "src/web-client/src/lib/rp/__tests__/assign.prio.test.tsx": "",
+            "src/web-client/src/lib/rp/__tests__/assignLine.test.ts": "",
+            "src/web-client/src/lib/rp/__tests__/rp.boards.test.ts": "",
+        }, { "src/web-client/src/lib/rp/assign.ts": "src/web-client/src/lib/rp/assign/" }, { mirrorTests: true });
+        expect(moved).toEqual({
+            "src/web-client/src/lib/rp/assign.ts": "src/web-client/src/lib/rp/assign/assign.ts",
+            "src/web-client/src/lib/rp/__tests__/assign.test.ts": "src/web-client/src/lib/rp/assign/__tests__/assign.test.ts",
+            "src/web-client/src/lib/rp/__tests__/assign.prio.test.tsx": "src/web-client/src/lib/rp/assign/__tests__/assign.prio.test.tsx",
+        });
+    });
+
     test("a target that is taken, or taken twice, is an error", () => {
         expect(() => plan({ "a.js": "", "b.js": "" }, { "a.js": "b.js" })).toThrow(/schon eine Datei/);
         expect(() => plan({ "a/x.js": "", "b/x.js": "" }, { "a/x.js": "c/", "b/x.js": "c/" })).toThrow(/zwei Dateien/);

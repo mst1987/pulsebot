@@ -1,14 +1,14 @@
 import { useMemo, useRef, useState, type CSSProperties, type KeyboardEvent, type PointerEvent } from "react";
 import { ChevronDown, ChevronUp, GripVertical } from "lucide-react";
 import type { RaidplanPlayer, RaidplanPublicBoss } from "../../../api";
-import type { AssignCtx } from "../../../lib/raidplan/assign";
-import { splitMine } from "../../../lib/raidplan/mineView";
-import { groupColor, groupMark, inkOn } from "../../../lib/raidplan/groupStyle";
-import { myPlayer } from "../../../lib/raidplan/stage";
-import { MINE_HOME, dragMinePos, nudgeMinePos, type MinePos } from "../../../lib/raidplan/sheetLayout";
+import type { AssignCtx } from "../../../lib/raidplan/assign/assign";
+import { splitMine } from "../../../lib/raidplan/view/mineView";
+import { groupColor, groupMark, inkOn } from "../../../lib/raidplan/board/groupStyle";
+import { myPlayer } from "../../../lib/raidplan/view/stage";
+import { MINE_HOME, dragMinePos, nudgeMinePos, type MinePos } from "../../../lib/raidplan/view/sheetLayout";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { MineBlocks } from "../../../components/raidplan/editor/ReadTables";
+import { MineBlocks } from "../../../components/raidplan/editor/assign/ReadTables";
 import { useT } from "../../../i18n";
 
 /**
@@ -35,7 +35,7 @@ export default function MineCard({ boss, ctx, roster, meIds, names, loggedIn, lo
     onToggle: () => void;
     /** in the page's flow (a section without a map) instead of floating */
     inline?: boolean;
-    /** where the floating card stands (lib/raidplan/sheetLayout.ts MinePos), null = bottom left */
+    /** where the floating card stands (lib/raidplan/view/sheetLayout.ts MinePos), null = bottom left */
     pos?: MinePos | null;
     /** a new place after a drag or an arrow key, null = back home; without it the card does not move */
     onMove?: (pos: MinePos | null) => void;

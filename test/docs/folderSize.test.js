@@ -1,4 +1,4 @@
-// No code folder holds more than MAX_FILES modules (#1006). A folder with 60
+﻿// No code folder holds more than MAX_FILES modules (#1006). A folder with 60
 // files side by side is one nobody overlooks any more; past this size it gets
 // sub-folders by topic. Counted are code files (.js/.ts/.tsx/...) without tests
 // - a test lives next to its module or in __tests__ and follows its size -
@@ -20,8 +20,6 @@ const ALLOWED = {
     "src/stores": "#1016",
     "src/web/apiRoutes": "#1012",
     "src/web-client/src/api": "#1012",
-    "src/web-client/src/lib/raidplan": "#1008",
-    "src/web-client/src/components/raidplan/editor": "#1009",
     "src/web-client/src/pages/settings": "#1010",
     "src/web-client/src/components/ui": "#1011",
     "src/web-client/src/pages/kader": "#1011",
