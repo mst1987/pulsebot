@@ -184,8 +184,50 @@ nothing; unknown keys are dropped.
 |---|---|---|
 | `GET /api/vermerke/signals` | read | `{ signals: [{ userId, name, kind, count, windowDays, events: [{ eventId, title, startTime }], lastAt }], thresholds }` |
 | `POST /api/vermerke/signals/ignore` | write | `{ userId, kind }` → `{ ignored }`; 400 `bad_user` / `bad_kind` |
-| `GET /api/vermerke/signals/settings` | read | `{ guildId, thresholds, own, defaults, limits }` |
-| `POST /api/vermerke/signals/settings` | write | `{ thresholds, serverSettingsGuildId }` → same + saved; 409 `server_switched` for a stale tab |
+| `GET /api/vermerke/signals/settings` | read | `{ guildId, thresholds, own, defaults, limits, orgaNotice, orgaNoticeLevels }` |
+| `POST /api/vermerke/signals/settings` | write | `{ thresholds, orgaNotice?, serverSettingsGuildId }` → same + saved; 409 `server_switched` for a stale tab; 400 `bad_threshold` / `bad_orga_notice` (with `fields`) saves nothing |
+
+## Hint to the orga at signup (#983)
+
+When somebody with a **warning or a shadowban** signs up for a raid, the orga of that server gets one line in
+Discord. **Off by default**, switched per server in the dialog "Einstellungen" of "Hinweise aus den Daten"
+(`serverSettings[guildId].vermerkeOrgaNotice = { enabled, level }`, `level` `"warning"` = warning or shadowban,
+`"shadowban"` = only shadowbans). The POST without `orgaNotice` keeps the switch as it is (an older client).
+
+**When.** Only the **first signup per person and raid** (a status other than `absence`, through `submitSignup`:
+web, bot, several raids at once, a raid group — one line per night, i.e. per raid of the group the person signs up
+for). A later change of status or role, a sign-off and a new signup bring no second line: the mark in
+`data/settings/orga-signup-notices.json` (`orgaSignupNoticeStore`, `{ events: { [eventId]: { [userId]: at } } }`,
+90 days) is set at **every** first signup — also with the switch off and when the orga entered the person, so
+switching on later or signing off and up again never makes a line. An entry by the orga for somebody else (`byOrga`
+without an `actorId` or with one other than the person) sets the mark but brings no line — the orga knows already. **Raid-Helper** signups never pass
+`submitSignup` and bring none (no extra API calls).
+
+**Gathering.** `src/services/vermerke/orgaSignupQueue.js` (on the raider's path, reads no Vermerk) queues per server
+for **2 minutes** (`BUFFER_MS`), then hands the batch to `orgaSignupNotice.postBatch`, which the bot process registers
+in `src/web/http/jobs.js` (`setFlushHandler`). The queue lives in memory; a restart inside the two minutes loses
+the batch (best-effort, the signup is saved anyway).
+
+**What counts.** The Vermerke **of the raid's server** at flush time (`vermerkeShort.shortFor`: own and shared ones,
+not hidden, not archived, not expired). Below the chosen level: no line. Nobody left: no message.
+
+**The message** (`card()`, kind `warn`, kicker "Vermerke", German like every orga text):
+
+```
+Anmeldung mit Vermerk            (or "3 Anmeldungen mit Vermerk")
+<@id> (Char) · **Raid** <t:…:f> · Warnung · Nicht erschienen ×3 · Verhalten · [Vermerke](<base>/vermerke?user=<id>)
+Nur für die Orga – die Person sieht das nicht.
+```
+
+The name is always the mention plus the character of the signup; without a character the display name (web and bot
+alike). Level as a word, reasons with their count (`×n` from 2 on), **no free text, no author**. Names and titles are
+escaped (no Markdown, no ping besides the mention). **Where:** the category's Orga-Zentrale (`orgaHubStore`) when
+it lives on the raid's server and the bot sees it, otherwise the orga channel (`signupNotes.noteChannelFor`), posted
+with `{ guildId }` of that server. A category's own channel on another server is skipped for the server's default.
+**No channel:** only a log line, nothing else. Everybody who can read that orga channel sees the line — the circle
+can be wider than the one of `maySeeShort`, and that is intended (the orga picks the channel). Never a public channel, a raid
+post, a thread or a DM; a failed post is logged and dropped. The raider's answer is the same with the switch on or
+off (`test/services/signups/signupService.orgaNotice.test.js`).
 
 ## Never to the person
 

@@ -28,6 +28,7 @@ const eventSeries = require("../events/eventSeries");
 const applicationState = require("../../utils/recruitment/applicationState");
 const availabilityPanel = require("../../services/signups/availabilityPanel");
 const orgaHub = require("../../services/events/orgaHub");
+const orgaSignupNotice = require("../../services/vermerke/orgaSignupNotice");
 const raidOverview = require("../../services/events/raidOverview");
 const addonCenter = require("../../services/addons/addonCenter");
 const softresDetect = require("../../services/loot/softresDetect");
@@ -74,6 +75,9 @@ const JOBS = [
     { name: "availabilityPanels", start: () => availabilityPanel.startPanelRefresh(), stop: () => availabilityPanel.stopPanelRefresh() },
     // The Orga-Zentrale per raid category: redrawn on every change of an own event or a signup, and swept every 5 minutes.
     { name: "orgaHubs", start: () => orgaHub.startOrgaHubs(), stop: () => orgaHub.stopOrgaHubs() },
+    // The orga's hint when somebody with a warning or a shadowban signs up (docs/vermerke.md, #983): the signup
+    // path only queues first signups; this registers what checks the Vermerke and posts after two minutes.
+    { name: "orgaSignupNotice", start: () => orgaSignupNotice.startOrgaSignupNotice(), stop: () => orgaSignupNotice.stopOrgaSignupNotice() },
     // The raid overviews /createoverview posted per category: redrawn on every change and swept every 5 minutes; old ones are adopted once.
     { name: "raidOverviews", start: () => raidOverview.startRaidOverviews(), stop: () => raidOverview.stopRaidOverviews() },
     // The addon download centre in Discord (docs/addons.md): new versions checked every 15 minutes, announced and

@@ -213,9 +213,27 @@
         "showLess": "Show less"
     },
     "thresholds": {
-        "open": "Thresholds",
-        "openSub": "From when a hint shows – for this server.",
-        "title": "Thresholds for hints",
+        "open": "Settings",
+        "openSub": "From when a hint shows and whether the orga learns at a signup who has a Vermerk – for this server.",
+        "title": "Settings of the hints",
+        "thresholdsHead": "Thresholds",
+        "orga": {
+            "head": "Hint to the orga at signup",
+            "tip": "When somebody with a Vermerk signs up for a raid for the first time, the bot writes a line into the category's Orga-Zentrale or the orga channel: name, raid, level and reasons with counts. No text, no author; the person sees nothing of it.",
+            "switch": "Tell the orga at signup",
+            "levelLabel": "From which level",
+            "level": {
+                "warning": "From warning",
+                "shadowban": "Shadowban only"
+            },
+            "on": {
+                "warning": "On – from warning",
+                "shadowban": "On – shadowban only"
+            },
+            "off": "Off",
+            "sub": "The Vermerke of this server count, own and shared ones. Several signups within about two minutes come in one message.",
+            "bad": "The setting of the hint to the orga is not valid."
+        },
         "label": {
             "windowDays": "Window",
             "lateHours": "Short notice",
@@ -264,9 +282,9 @@
         "defaultTip": "Back to the default: {value}",
         "isDefault": "Default",
         "readOnly": "View only – changes need write access to Vermerke.",
-        "loadError": "Could not load the thresholds: {message}",
+        "loadError": "Could not load the settings: {message}",
         "badThreshold": "At least one value is outside its allowed range.",
-        "serverSwitched": "You switched the server in the meantime. Reload the page so the thresholds belong to the right server.",
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the settings belong to the right server.",
         "failed": "Saving did not work: {message}"
     },
     "members": {

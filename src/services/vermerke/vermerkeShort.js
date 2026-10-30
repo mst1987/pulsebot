@@ -57,4 +57,4 @@ function shadowbannedAmong(guildId, userIds, { now = Date.now() } = {}) {
         .map(([uid]) => uid);
 }
 
-module.exports = { activeLevelFor, shortOf, shortFor, shadowbannedAmong };
+module.exports = { activeLevelFor, shortOf, shortFor, shadowbannedAmong, levelRank: notes.levelRank };

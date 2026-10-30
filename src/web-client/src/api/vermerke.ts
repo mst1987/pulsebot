@@ -146,7 +146,13 @@ export type SignalSettings = {
     defaults: SignalThresholds;
     /** key -> [min, max] */
     limits: Record<SignalThresholdKey, [number, number]>;
+    /** the hint to the orga when somebody with a Vermerk signs up (#983); off by default */
+    orgaNotice?: OrgaNotice;
+    orgaNoticeLevels?: OrgaNoticeLevel[];
 };
+/** From which level the orga gets a hint at a signup: warning or shadowban, or shadowban only. */
+export type OrgaNoticeLevel = "warning" | "shadowban";
+export type OrgaNotice = { enabled: boolean; level: OrgaNoticeLevel };
 export type SignalList = { signals: VermerkSignal[]; thresholds: SignalThresholds | null };
 
 /**
@@ -167,9 +173,9 @@ export function getSignalSettings(): Promise<SignalSettings> {
     return get("/api/vermerke/signals/settings");
 }
 
-/** Saves the server's own thresholds; null (or a key left out) = back to the default. */
-export function saveSignalSettings(thresholds: Partial<Record<SignalThresholdKey, number | null>>, serverSettingsGuildId: string): Promise<SignalSettings> {
-    return send("POST", "/api/vermerke/signals/settings", { thresholds, serverSettingsGuildId });
+/** Saves the server's own thresholds (null or a key left out = back to the default) and, when given, the orga's hint at signup. */
+export function saveSignalSettings(thresholds: Partial<Record<SignalThresholdKey, number | null>>, serverSettingsGuildId: string, orgaNotice?: OrgaNotice): Promise<SignalSettings> {
+    return send("POST", "/api/vermerke/signals/settings", orgaNotice ? { thresholds, orgaNotice, serverSettingsGuildId } : { thresholds, serverSettingsGuildId });
 }
 
 export function ignoreVermerkSignal(userId: string, kind: SignalKind): Promise<unknown> {

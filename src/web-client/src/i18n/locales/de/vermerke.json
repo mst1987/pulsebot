@@ -213,9 +213,27 @@
         "showLess": "Weniger zeigen"
     },
     "thresholds": {
-        "open": "Schwellen",
-        "openSub": "Ab wann ein Hinweis erscheint – gilt für diesen Server.",
-        "title": "Schwellen für Hinweise",
+        "open": "Einstellungen",
+        "openSub": "Ab wann ein Hinweis erscheint und ob die Orga bei einer Anmeldung erfährt, wer einen Vermerk hat – gilt für diesen Server.",
+        "title": "Einstellungen der Hinweise",
+        "thresholdsHead": "Schwellen",
+        "orga": {
+            "head": "Hinweis an die Orga bei Anmeldung",
+            "tip": "Meldet sich jemand mit Vermerk zum ersten Mal für einen Raid an, schreibt der Bot eine Zeile in die Orga-Zentrale der Kategorie oder den Orga-Kanal: Name, Raid, Stufe und Gründe mit Anzahl. Kein Text, kein Verfasser; die Person sieht davon nichts.",
+            "switch": "Orga bei Anmeldung informieren",
+            "levelLabel": "Ab welcher Stufe",
+            "level": {
+                "warning": "Ab Warnung",
+                "shadowban": "Nur Shadowban"
+            },
+            "on": {
+                "warning": "An – ab Warnung",
+                "shadowban": "An – nur Shadowban"
+            },
+            "off": "Aus",
+            "sub": "Gezählt werden die Vermerke dieses Servers, eigene und geteilte. Mehrere Anmeldungen innerhalb von etwa zwei Minuten kommen in einer Nachricht.",
+            "bad": "Die Einstellung für den Hinweis an die Orga ist ungültig."
+        },
         "label": {
             "windowDays": "Zeitraum",
             "lateHours": "Kurzfristig",
@@ -264,9 +282,9 @@
         "defaultTip": "Zurück zum Standard: {value}",
         "isDefault": "Standard",
         "readOnly": "Nur ansehen – ändern darf, wer bei Vermerke schreiben darf.",
-        "loadError": "Schwellen konnten nicht geladen werden: {message}",
+        "loadError": "Einstellungen konnten nicht geladen werden: {message}",
         "badThreshold": "Mindestens ein Wert liegt außerhalb des erlaubten Bereichs.",
-        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit die Schwellen zum richtigen Server gehören.",
+        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit die Einstellungen zum richtigen Server gehören.",
         "failed": "Speichern hat nicht geklappt: {message}"
     },
     "members": {

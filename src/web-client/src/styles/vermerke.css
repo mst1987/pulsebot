@@ -74,10 +74,11 @@
 .vmk-thr {
     display: grid; grid-column: 1 / -1; grid-template-columns: subgrid; align-items: center; row-gap: 6px;
     padding: 8px 0; border-bottom: 1px solid var(--line-soft);
-    --num-w: 156px;
+    /* in ch of the monospace value font (resolved where it is used): 16 characters plus padding and borders */
+    --num-w: calc(16ch + 18px);
 }
-/* every value as wide as the longest ("unter 48 Stunden"), so the steppers line up */
-.vmk-thr .num-stepper-value { width: var(--num-w); }
+/* every value as wide as the longest ("unter 48 Stunden"), so the steppers line up and no value runs into a button */
+.vmk-thr .num-stepper-value { width: var(--num-w); box-sizing: border-box; }
 .vmk-thr:last-child { border-bottom: 0; }
 .vmk-thr-label { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-weight: 600; white-space: nowrap; }
 .vmk-thr-value { font-variant-numeric: tabular-nums; }
@@ -85,9 +86,18 @@
 .vmk-thr-std { color: var(--muted); font-size: 12.5px; }
 .vmk-thr.vmk-thr-bad .num-stepper { border-color: var(--high); }
 .vmk-thr.vmk-thr-bad .vmk-thr-label { color: var(--high); }
+/* two parts of the dialog: thresholds, then the orga's hint at signup (#983) */
+.vmk-thr-head {
+    display: flex; align-items: center; gap: 6px; margin: 0 0 2px;
+    font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; color: var(--muted);
+}
+.vmk-orga { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); }
+.vmk-orga .vmk-thr-head { margin-bottom: 8px; }
+.vmk-orga-row { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; }
+.vmk-orga-value { margin: 0; font-weight: 600; }
+.vmk-orga-sub { margin: 8px 0 0; color: var(--muted); font-size: 13px; }
 @media (max-width: 520px) {
     .vmk-thr-list { grid-template-columns: minmax(0, 1fr) auto; }
-    .vmk-thr { --num-w: 132px; }
     .vmk-thr-label { grid-column: 1 / -1; white-space: normal; }
 }
 

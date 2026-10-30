@@ -34,6 +34,7 @@ const { getConfig, saveConfig } = require("../../stores/settingsStore");
 const { IGNORE_KINDS } = require("../../stores/userSignalsStore");
 const { signalsFor, ignoreSignal } = require("../../services/vermerke/userSignals");
 const { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, validateThresholds, thresholdsOf } = require("../../services/vermerke/signalRecorder");
+const { NOTICE_LEVELS, orgaNoticeOf, validateOrgaNotice } = require("../../services/vermerke/orgaSignupQueue");
 
 const WRITE = { write: "vermerke", csrf: true, body: true };
 const MAX_SHORT_IDS = 200;
@@ -275,6 +276,9 @@ function thresholdView(guildId, config) {
         own: normalizeThresholds(((config.serverSettings || {})[guildId] || {}).vermerkeSignals),
         defaults: DEFAULT_THRESHOLDS,
         limits: THRESHOLD_LIMITS,
+        // #983 the orga's hint at signup: { enabled, level } and the levels it can take.
+        orgaNotice: orgaNoticeOf(guildId, { config }),
+        orgaNoticeLevels: NOTICE_LEVELS,
     };
 }
 
@@ -286,18 +290,33 @@ const getSignalSettings = withUser(async ({ req, res }) => {
 });
 
 /**
- * POST /api/vermerke/signals/settings { thresholds, serverSettingsGuildId } - the server's own
- * thresholds (replaces them; a value left out, null or "" is the default again). A value that is no
- * whole number in its range: 400 `bad_threshold` with `fields` (the keys), nothing saved.
+ * POST /api/vermerke/signals/settings { thresholds?, orgaNotice?, serverSettingsGuildId } - the
+ * server's own thresholds (replaces them; a value left out, null or "" is the default again) and
+ * the orga's hint at signup (#983: { enabled, level: "warning" | "shadowban" }). Only what is sent
+ * is saved; a body with neither saves the thresholds as before (the defaults). A threshold that is
+ * no whole number in its range: 400 `bad_threshold` with `fields` (the keys); a switch that is not
+ * valid: 400 `bad_orga_notice` with `fields` - nothing saved.
  */
 const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
     const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
-    const checked = validateThresholds(body.thresholds);
-    if (checked.fields.length) {
-        return sendJson(res, 400, { error: { code: "bad_threshold", message: "Ungültiger Schwellenwert – jede Zahl muss ganz sein und in ihrem Bereich liegen.", fields: checked.fields } });
+    const hasNotice = body.orgaNotice !== undefined;
+    const block = {};
+    if (body.thresholds !== undefined || !hasNotice) {
+        const checked = validateThresholds(body.thresholds);
+        if (checked.fields.length) {
+            return sendJson(res, 400, { error: { code: "bad_threshold", message: "Ungültiger Schwellenwert – jede Zahl muss ganz sein und in ihrem Bereich liegen.", fields: checked.fields } });
+        }
+        block.vermerkeSignals = checked.value;
     }
-    saveConfig({ serverSettings: { [guildId]: { vermerkeSignals: checked.value } } });
+    if (hasNotice) {
+        const notice = validateOrgaNotice(body.orgaNotice);
+        if (notice.fields.length) {
+            return sendJson(res, 400, { error: { code: "bad_orga_notice", message: "Ungültige Einstellung für den Hinweis an die Orga.", fields: notice.fields } });
+        }
+        block.vermerkeOrgaNotice = notice.value;
+    }
+    saveConfig({ serverSettings: { [guildId]: block } });
     return ok(res, thresholdView(guildId, getConfig()));
 });
 

@@ -70,6 +70,7 @@ const { checkPugMember, holdsSignup, serverOf } = require("./pugMembership");
 const { planSignupCharacter, addSignupCharacter } = require("./signupNewCharacter");
 const { groupPlaces } = require("../events/raidGroup");
 const signalRecorder = require("../vermerke/signalRecorder");
+const orgaSignupQueue = require("../vermerke/orgaSignupQueue");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -614,6 +615,10 @@ async function submitSignup(eventId, userId, input = {}, {
     const actor = String(actorId || "").trim();
     const enteredByOrga = byOrga === true && (!actor || actor !== uid);
     signalRecorder.recordSignoff(event, uid, previous, saved.signup, { now, byOrga: enteredByOrga, config, name: accountName });
+    // #983 a raider's first signup goes into the orga's two-minute batch; the
+    // Vermerke are only read in the bot process and this answer never changes.
+    // Always called: the first-signup mark is set even when the orga entered it (only the queueing is skipped).
+    orgaSignupQueue.noteSignup(event, uid, previous, saved.signup, { now, config, name: accountName, byOrga: enteredByOrga });
     return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 

@@ -1006,6 +1006,10 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // lateHours?, noShow?, leftServer? }); the rest are the defaults of
     // services/vermerke/signalRecorder.js DEFAULT_THRESHOLDS.
     vermerkeSignals: Object.freeze({}),
+    // #983 the orga's hint when somebody with a Vermerk signs up for a raid:
+    // { enabled?: boolean, level?: "warning" | "shadowban" } - off by default
+    // (services/vermerke/orgaSignupQueue.js normalizeOrgaNotice).
+    vermerkeOrgaNotice: Object.freeze({}),
 });
 
 /**

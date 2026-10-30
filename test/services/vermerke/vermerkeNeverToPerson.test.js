@@ -74,10 +74,11 @@ const PERSON_PAGES = [
     "web/http/viewAs.js",
 ];
 // the read side of the hints (#982) and the person search of the dialog (#980) too: the signup pages
-// only write events (signalRecorder.js)
+// only write events (signalRecorder.js); the orga's hint at signup (#983) only queues there
+// (orgaSignupQueue.js), its read side and post (orgaSignupNotice.js) are the bot's job
 const NOTE_MODULES = [
     "stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "services/vermerke/vermerkePeople.js",
-    "web/apiRoutes/vermerke.js",
+    "web/apiRoutes/vermerke.js", "services/vermerke/orgaSignupNotice.js",
 ];
 
 describe("Vermerke never reach the person", () => {
@@ -86,6 +87,14 @@ describe("Vermerke never reach the person", () => {
         const closure = requireClosure(entry);
         expect(closure.length).toBeGreaterThan(0);
         expect(closure.filter((rel) => NOTE_MODULES.includes(rel))).toEqual([]);
+    });
+
+    // #983: the signup path queues first signups, so the queue is in the raiders' closure -
+    // and the queue itself reaches no Vermerk
+    it("the signup queue is on the raiders' path and reads no Vermerk", () => {
+        expect(requireClosure("web/apiRoutes/signups.js")).toContain("services/vermerke/orgaSignupQueue.js");
+        const queueClosure = requireClosure("services/vermerke/orgaSignupQueue.js");
+        expect(queueClosure.filter((rel) => NOTE_MODULES.includes(rel))).toEqual([]);
     });
 
     describe("with a marker text in the store", () => {

@@ -304,7 +304,7 @@ describe("Vermerke: hints from the data", () => {
         renderPage(<VermerkePage />, { route: "/vermerke" });
         const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
         expect(within(section).getByText("Gerade keine Hinweise.")).toBeInTheDocument();
-        expect(within(section).getByRole("button", { name: "Schwellen" })).toBeInTheDocument();
+        expect(within(section).getByRole("button", { name: "Einstellungen" })).toBeInTheDocument();
     });
 
     it("shows five, the rest on request, ignores one and opens the dialog prefilled", async () => {
@@ -376,7 +376,7 @@ describe("Vermerke: thresholds of the hints", () => {
     async function openThresholds(user: ReturnType<typeof userEvent.setup>, opts: Parameters<typeof renderPage>[1] = { route: "/vermerke" }) {
         renderPage(<VermerkePage />, opts);
         const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
-        await user.click(within(section).getByRole("button", { name: "Schwellen" }));
+        await user.click(within(section).getByRole("button", { name: "Einstellungen" }));
         const dlg = await screen.findByRole("dialog");
         await within(dlg).findByText("60 Tage");
         return dlg;
@@ -442,5 +442,80 @@ describe("Vermerke: thresholds of the hints", () => {
         expect(within(dlg).queryByRole("button", { name: "Mehr" })).not.toBeInTheDocument();
         expect(within(dlg).queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
         expect(within(dlg).getByText(/Nur ansehen/)).toBeInTheDocument();
+    });
+
+    describe("the orga's hint at signup (#983)", () => {
+        const OFF: api.OrgaNotice = { enabled: false, level: "warning" };
+        const withNotice = (orgaNotice: api.OrgaNotice, own: Partial<api.SignalThresholds> = {}): api.SignalSettings => ({
+            ...settings(own), orgaNotice, orgaNoticeLevels: ["warning", "shadowban"],
+        });
+        const sw = (dlg: HTMLElement) => within(dlg).getByRole("switch", { name: "Orga bei Anmeldung informieren" });
+        beforeEach(() => {
+            vi.mocked(api.getSignalSettings).mockResolvedValue(withNotice(OFF, { noShow: 3 }));
+            vi.mocked(api.saveSignalSettings).mockImplementation(async (_th, _g, notice) => withNotice(notice || OFF, { noShow: 3 }));
+        });
+
+        it("is off by default, the level only choosable when on, and saves the switch with the thresholds", async () => {
+            const user = userEvent.setup();
+            const dlg = await openThresholds(user);
+            expect(within(dlg).getByText("Hinweis an die Orga bei Anmeldung")).toBeInTheDocument();
+            expect(sw(dlg)).not.toBeChecked();
+            expect(within(dlg).getByRole("radio", { name: "Ab Warnung" })).toBeDisabled();
+            expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeDisabled();
+
+            await user.click(sw(dlg));
+            expect(sw(dlg)).toBeChecked();
+            expect(within(dlg).getByRole("radio", { name: "Nur Shadowban" })).toBeEnabled();
+            await user.click(within(dlg).getByRole("radio", { name: "Nur Shadowban" }));
+            expect(within(dlg).getByRole("radio", { name: "Nur Shadowban" })).toHaveAttribute("aria-checked", "true");
+            await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+            await waitFor(() => expect(api.saveSignalSettings).toHaveBeenCalled());
+            const [sent, guildId, notice] = vi.mocked(api.saveSignalSettings).mock.calls[0];
+            expect(guildId).toBe("g1");
+            expect(notice).toEqual({ enabled: true, level: "shadowban" });
+            // the thresholds go along unchanged
+            expect(sent).toMatchObject({ noShow: 3, windowDays: null });
+        });
+
+        it("going back to how it was saves nothing; switching off is a change", async () => {
+            vi.mocked(api.getSignalSettings).mockResolvedValue(withNotice({ enabled: true, level: "warning" }));
+            const user = userEvent.setup();
+            const dlg = await openThresholds(user);
+            expect(sw(dlg)).toBeChecked();
+            await user.click(within(dlg).getByRole("radio", { name: "Nur Shadowban" }));
+            expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeEnabled();
+            await user.click(within(dlg).getByRole("radio", { name: "Ab Warnung" }));
+            expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeDisabled();
+            await user.click(sw(dlg));
+            expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeEnabled();
+        });
+
+        it("names an invalid switch", async () => {
+            vi.mocked(api.saveSignalSettings).mockRejectedValueOnce(Object.assign(new Error("bad"), { code: "bad_orga_notice", fields: ["level"] }));
+            const user = userEvent.setup();
+            const dlg = await openThresholds(user);
+            await user.click(sw(dlg));
+            await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+            expect(await within(dlg).findByRole("alert")).toHaveTextContent("Hinweis an die Orga ist ungültig");
+        });
+
+        it("shows a read-only account the state as words, without a switch", async () => {
+            vi.mocked(api.getSignalSettings).mockResolvedValue(withNotice({ enabled: true, level: "shadowban" }));
+            const user = userEvent.setup();
+            const dlg = await openThresholds(user, { route: "/vermerke", user: readOnly() });
+            expect(within(dlg).getByText("An – nur Shadowban")).toBeInTheDocument();
+            expect(within(dlg).queryByRole("switch")).not.toBeInTheDocument();
+        });
+
+        it("shows no switch and sends none when the server does not know it yet", async () => {
+            vi.mocked(api.getSignalSettings).mockResolvedValue(settings());
+            const user = userEvent.setup();
+            const dlg = await openThresholds(user);
+            expect(within(dlg).queryByRole("switch")).not.toBeInTheDocument();
+            await user.click(within(line(dlg, "windowDays")).getByRole("button", { name: "Mehr" }));
+            await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+            await waitFor(() => expect(api.saveSignalSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.saveSignalSettings).mock.calls[0][2]).toBeUndefined();
+        });
     });
 });
