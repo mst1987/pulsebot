@@ -30,6 +30,7 @@ import { assignableRoles } from "../../lib/settings/assignableRoles";
 /** The WoW icon of each area's column — the same icons as the shell's menu. */
 const AREA_ICONS: Record<string, string> = {
     dashboard: "achievement_zone_outland_01",
+    signup: "signups",
     recruitment: "recruitment",
     cla: "logs",
     raids: "raids",
@@ -39,6 +40,7 @@ const AREA_ICONS: Record<string, string> = {
     loot: "loot",
     lootcouncil: "lootcouncil",
     kader: "kader",
+    vermerke: "vermerke",
     channels: "channels",
     settings: "settings",
 };

@@ -99,8 +99,8 @@ describe("one game version per page (#741)", () => {
         for (const r of routes) expect({ page: r.page, file: !!r.file }).toEqual({ page: r.page, file: true });
     });
 
-    it("keeps the one list of neutral pages in menu.json: Discord-Übersicht, Kanäle, Rollen, Mitglieder, Rollen-Nachrichten, Einstellungen (beide), Systemstatus", () => {
-        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "settingsAll", "system"]);
+    it("keeps the one list of neutral pages in menu.json: Discord-Übersicht, Kanäle, Rollen, Mitglieder, Rollen-Nachrichten, Einstellungen (beide), Systemstatus, Vermerke", () => {
+        expect(MENU.filter((e) => e.neutral === true).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "settingsAll", "system", "vermerke"]);
     });
 
     it("lets every other page follow the content switch", () => {

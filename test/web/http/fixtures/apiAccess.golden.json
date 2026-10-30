@@ -2,6 +2,8 @@
   "areaByPath": {
     "/api/vermerke": "vermerke",
     "/api/vermerke/person": "vermerke",
+    "/api/vermerke/people": "vermerke",
+    "/api/vermerke/raids": "vermerke",
     "/api/vermerke/update": "vermerke",
     "/api/vermerke/archive": "vermerke",
     "/api/vermerke/hide": "vermerke",

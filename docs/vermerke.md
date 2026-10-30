@@ -60,8 +60,10 @@ unless it is shared (then read only). Without an active server: 400 `no_server`.
 
 | Route | Right | What |
 |---|---|---|
-| `GET /api/vermerke` | read | `{ people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt }] }`, newest first, no text |
+| `GET /api/vermerke` | read | `{ people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
 | `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, entries: [note + own, originGuildId, originName?, hidden, active] }` |
+| `GET /api/vermerke/people?q=` | read | person search of the dialog: `{ results: [{ userId, name, gone }] }` — members first, then who left (found through earlier signups), at most 25 |
+| `GET /api/vermerke/raids?userId=` | read | `{ raids: [{ eventId, title, startTime, signed }] }` — the raids of the last four weeks on the server, newest first |
 | `POST /api/vermerke` | write | `{ userId, name, level, reason, text?, eventIds?, expiresAt?, shared? }` → 201 `{ entry }` |
 | `POST /api/vermerke/update` | write | `{ userId, id, …fields }` → `{ entry }`; archived: 409 `archived` |
 | `POST /api/vermerke/archive` | write | `{ userId, id, archived = true }` → `{ entry }` |
@@ -71,6 +73,21 @@ unless it is shared (then read only). Without an active server: 400 `no_server`.
 
 Store refusals keep their code: `bad_user`, `bad_level`, `bad_reason`, `text_too_long`, `bad_expiry`, `too_many`
 (400), `not_found` (404), `archived` (409).
+
+## The page (#980)
+
+`/vermerke` in the menu group "Gilde" beside Roster and Kaderplaner, version-neutral (`src/config/menu.json`),
+client `src/web-client/src/pages/vermerke/`. One compact, sortable list (a person per row: level as symbol and word,
+reasons with their count, "Zuletzt"), a level filter and an archive tab; the drawer opens by link (`?user=<id>`) with
+the entries, a shared entry of another server read only (it may only be hidden here). The dialog adds a note: person
+search, level, reason as chips (all seven, `left_server` = "Server verlassen" with a door icon), recent raids, expiry,
+shared. Below the list the section "Hinweise aus den Daten": five hints, then "Alle zeigen"; "Vermerk anlegen"
+prefills the reason (`reasonOfSignal`: both sign-off kinds → `late_signoff`, the others their own), "Ignorieren"
+hides one. Without the hints route (404) the section is gone; with no hints it keeps its head, so the sliders
+button stays reachable: it opens the **thresholds dialog** — one line per key with −/+ and the number with its word
+("60 Tage", "unter 12 Stunden", "ab 2-mal"), "Standard" beside an own value (sends `null`). Everyone with `vermerke`
+read sees the values, only write saves; `bad_threshold` marks the lines of `fields`, `server_switched` asks to
+reload.
 
 ## Short form
 
@@ -159,7 +176,7 @@ another server** with the matching reason holds the hint back as well (it counts
 
 **Thresholds per server** in `serverSettings[guildId].vermerkeSignals` (`DEFAULT_THRESHOLDS` / `THRESHOLD_LIMITS`
 in `signalRecorder.js`): `windowDays` 60 (7–180), `signoffAfterSetup` 2, `lateSignoff` 2, `noShow` 2 (1–20 each),
-`lateHours` 12 (1–72), `leftServer` 1 (1–5). The page comes with #980. Empty, `null` or left out = the default
+`lateHours` 12 (1–72), `leftServer` 1 (1–5). The page sets them in a dialog (#980, see "The page"). Empty, `null` or left out = the default
 again; a value that is no whole number in its range answers 400 `bad_threshold` with `fields` (the keys) and saves
 nothing; unknown keys are dropped.
 

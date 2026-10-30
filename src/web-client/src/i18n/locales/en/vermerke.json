@@ -1,0 +1,272 @@
+{
+    "level": {
+        "hint": "Hint",
+        "warning": "Warning",
+        "shadowban": "Shadowban"
+    },
+    "levelTip": {
+        "hint": "Something to keep in mind, no consequence.",
+        "warning": "A serious note: look closer next time.",
+        "shadowban": "No longer placed by the setup proposal. The person never notices."
+    },
+    "levelNone": "expired",
+    "levelNoneTip": "No note counts any more: all are archived or expired.",
+    "reason": {
+        "late_signoff": "Late signoff",
+        "no_show": "No show",
+        "left_early": "Left early",
+        "left_server": "Left the server",
+        "behavior": "Behaviour",
+        "loot": "Loot",
+        "other": "Other"
+    },
+    "reasonTimes": {
+        "one": "{count} note with this reason",
+        "other": "{count} notes with this reason"
+    },
+    "page": {
+        "kicker": "Guild",
+        "title": "Notes",
+        "add": "Add note",
+        "people": {
+            "one": "{count} person",
+            "other": "{count} people"
+        },
+        "loading": "Loading notes …",
+        "loadError": "Could not load the notes: {message}",
+        "noServer": "No server chosen – notes always belong to one server.",
+        "empty": "No notes on this server yet.",
+        "emptyArchive": "The archive is empty.",
+        "emptyFilter": "Nobody with this level.",
+        "showAll": {
+            "one": "Show {count} more person",
+            "other": "Show {count} more people"
+        },
+        "foot": "Only people with the area “Notes” see notes – never the person they are about."
+    },
+    "tab": {
+        "aria": "Active notes or archive",
+        "active": "Active",
+        "activeTip": "People with at least one note that still counts",
+        "archive": "Archive",
+        "archiveTip": "People whose notes are all archived or expired"
+    },
+    "filter": {
+        "aria": "Filter by level",
+        "all": "All levels"
+    },
+    "col": {
+        "person": "Person",
+        "level": "Level",
+        "reasons": "Reasons",
+        "entries": "Entries",
+        "entriesTip": "Notes that still count",
+        "entriesArchiveTip": "Notes in the archive",
+        "last": "Latest",
+        "lastTip": "Date of the newest note",
+        "state": "Status",
+        "stateTip": "Left the server or shared from another server"
+    },
+    "cell": {
+        "lastBy": "By {name}",
+        "left": "Left the server",
+        "leftSub": "Found through earlier signups.",
+        "shared": {
+            "one": "{count} shared note",
+            "other": "{count} shared notes"
+        },
+        "sharedSub": "Comes from another server and is read only here."
+    },
+    "drawer": {
+        "kicker": "Notes · {guild}",
+        "loading": "Loading notes …",
+        "loadError": "Could not load: {message}",
+        "add": "Add entry",
+        "active": {
+            "one": "{count} entry counts",
+            "other": "{count} entries count"
+        },
+        "noneActive": "No entry counts right now.",
+        "archive": {
+            "one": "Archive · {count} entry",
+            "other": "Archive · {count} entries"
+        },
+        "hiddenSection": {
+            "one": "Hidden · {count} entry",
+            "other": "Hidden · {count} entries"
+        },
+        "by": "{name} · {date}",
+        "shared": "Shared",
+        "sharedOwnSub": "Every server sees this entry.",
+        "fromServer": "From {server}",
+        "otherServer": "another server",
+        "fromServerSub": "Shared by {server}: read only here, only that server can change it.",
+        "expires": "Expires on {date}",
+        "expired": "Expired on {date}",
+        "archivedOn": "Archived on {date}",
+        "noText": "No text.",
+        "raids": {
+            "one": "{count} raid",
+            "other": "{count} raids"
+        },
+        "edit": "Edit",
+        "archiveIt": "Archive",
+        "archiveSub": "It no longer counts but stays in the archive.",
+        "restore": "Restore",
+        "restoreSub": "Brings the entry back from the archive.",
+        "hide": "Hide for this server",
+        "hideSub": "It no longer counts here. The other server keeps it.",
+        "unhide": "Show again",
+        "history": {
+            "one": "History · {count} change",
+            "other": "History · {count} changes"
+        },
+        "action": {
+            "create": "created",
+            "update": "changed",
+            "archive": "archived",
+            "restore": "restored"
+        },
+        "field": {
+            "level": "level",
+            "reason": "reason",
+            "text": "text",
+            "eventIds": "raids",
+            "expiresAt": "expiry",
+            "shared": "sharing"
+        },
+        "failed": "That did not work: {message}",
+        "activeTip": "What counts: this server's own entries and the shared entries of other servers, unless hidden here. Archived and expired ones do not count."
+    },
+    "dialog": {
+        "kickerNew": "New note",
+        "kickerEdit": "Edit note",
+        "titleNew": "Add note",
+        "titleFor": "Note for {name}",
+        "person": "Person",
+        "personTip": "Members of the server and everyone who signed up before",
+        "personSearch": "Search name",
+        "personHint": "At least two letters.",
+        "personNone": "Nobody found.",
+        "personGone": "no longer on the server",
+        "personChange": "Other person",
+        "level": "Level",
+        "reason": "Reason",
+        "expiry": "Expires",
+        "expiryNever": "Never",
+        "expiry30": "30 days",
+        "expiry90": "90 days",
+        "expiryDate": "Date",
+        "expiryDateLabel": "Expiry date",
+        "text": "Note",
+        "textPlaceholder": "What happened? Short and factual.",
+        "textCount": "{count} / {max} characters",
+        "raids": "Raids of the last 4 weeks",
+        "raidsTip": "Tap to attach the raid to the note",
+        "raidsNone": "No raids in the last 4 weeks.",
+        "raidsPick": "Pick a person first.",
+        "raidSigned": "Was signed up",
+        "raidNotSigned": "Was not signed up",
+        "shared": "Show on all servers",
+        "sharedTip": "Every linked server sees the entry with text and history; only this server can change it.",
+        "save": "Save",
+        "create": "Add note",
+        "tooMany": "This person already has {max} notes stored – the archive counts too. A full admin has to delete an old entry for good first.",
+        "failed": "Saving did not work: {message}",
+        "textTooLong": "At most {max} characters.",
+        "raidOlder": "Older raid",
+        "personClear": "Clear search"
+    },
+    "signals": {
+        "title": "Hints from the data",
+        "tip": "Suggestions from signups and logs. None of this is a note until you add one.",
+        "empty": "No hints right now.",
+        "kind": {
+            "late_signoff": "Late signoff",
+            "signoff_after_setup": "Signoff after being placed",
+            "no_show": "No show",
+            "left_early": "Left early",
+            "left_server": "Left the server"
+        },
+        "count": {
+            "one": "{count}× in {days} days",
+            "other": "{count}× in {days} days"
+        },
+        "add": "Add note",
+        "ignore": "Ignore",
+        "ignoreSub": "This hint no longer shows up for this person.",
+        "showAll": {
+            "one": "Show {count} more hint",
+            "other": "Show {count} more hints"
+        },
+        "showLess": "Show less"
+    },
+    "thresholds": {
+        "open": "Thresholds",
+        "openSub": "From when a hint shows – for this server.",
+        "title": "Thresholds for hints",
+        "label": {
+            "windowDays": "Window",
+            "lateHours": "Short notice",
+            "lateSignoff": "Late signoff",
+            "signoffAfterSetup": "Signoff after setup",
+            "noShow": "No show",
+            "leftServer": "Left the server"
+        },
+        "value": {
+            "windowDays": {
+                "one": "{count} day",
+                "other": "{count} days"
+            },
+            "lateHours": {
+                "one": "under {count} hour",
+                "other": "under {count} hours"
+            },
+            "lateSignoff": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "signoffAfterSetup": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "noShow": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "leftServer": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            }
+        },
+        "tip": {
+            "windowDays": "How far back is counted ({min} to {max} days).",
+            "lateHours": "A signoff counts as late when it comes fewer hours before the start ({min} to {max}).",
+            "lateSignoff": "How often someone has to sign off late in the window ({min} to {max}).",
+            "signoffAfterSetup": "How often someone has to sign off after being set in the setup ({min} to {max}).",
+            "noShow": "How often someone has to be a no show in the window ({min} to {max}).",
+            "leftServer": "How often someone has to have left the server in the window ({min} to {max})."
+        },
+        "less": "Less",
+        "more": "More",
+        "default": "Default",
+        "defaultTip": "Back to the default: {value}",
+        "isDefault": "Default",
+        "readOnly": "View only – changes need write access to Vermerke.",
+        "loadError": "Could not load the thresholds: {message}",
+        "badThreshold": "At least one value is outside its allowed range.",
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the thresholds belong to the right server.",
+        "failed": "Saving did not work: {message}"
+    },
+    "members": {
+        "filter": "With note",
+        "filterSub": "Only members with a note that counts.",
+        "add": "Add note",
+        "addSub": "Add a new note for this member",
+        "open": "View notes"
+    },
+    "error": {
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the note belongs to the right server.",
+        "archived": "Archived notes do not change any more. Restore the entry from the archive first."
+    }
+}

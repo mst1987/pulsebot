@@ -112,6 +112,7 @@
     flex: 1 1 auto; min-height: 0; overflow-y: auto;
     padding: 14px 18px 18px; display: flex; flex-direction: column; gap: 18px;
 }
+.dmb-drawer-acts { display: flex; flex-wrap: wrap; gap: 8px; }
 
 .dmb-sec { display: flex; flex-direction: column; gap: 6px; }
 .dmb-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
