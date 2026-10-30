@@ -78,6 +78,8 @@
     "/api/rosters/update": "roster",
     "/api/rosters/delete": "roster",
     "/api/rosters/composition": "roster",
+    "/api/rosters/image": "roster",
+    "/api/rosters/image/info": "roster",
     "/api/profile": "signup",
     "/api/profile/log-characters": "signup",
     "/api/profile/characters": "signup",

@@ -2,7 +2,7 @@
 // fields, role and search filter, sorting by the column heads, the Discord role
 // as a word for a reader (no action), attendance per person, and English. The
 // manager's actions: RosterDetailPage.manage.test.tsx.
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
@@ -17,6 +17,7 @@ vi.mock("../../../api", async (orig) => ({
     getRosterSync: vi.fn(),
     getRosterComposition: vi.fn(),
     deleteRoster: vi.fn(),
+    getRosterImageInfo: vi.fn(),
 }));
 
 const MEMBERS = [
@@ -172,6 +173,18 @@ describe("RosterDetailPage - who sees which tab (epic #723)", () => {
         expect(api.getRosterSync).not.toHaveBeenCalled();
         expect(api.getRosterComposition).toHaveBeenCalledWith("raid-mo-do-abc");
         expect(document.querySelector(".rn-person")).toBeNull();
+    });
+
+    it("gives a raider 'Als Bild' too: the dialog with preview and download, without posting", async () => {
+        vi.mocked(api.getRosterComposition).mockResolvedValue(composition());
+        vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: false, channelId: null, channels: [] });
+        await openPage(detail(MEMBERS, { isOrga: false, canManage: false }));
+        expect(screen.queryByRole("button", { name: "Einstellungen" })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "Als Bild" }));
+        expect(await screen.findByText("Roster als Bild")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Bild herunterladen" })).toBeInTheDocument();
+        await waitFor(() => expect(api.getRosterImageInfo).toHaveBeenCalledWith("raid-mo-do-abc"));
+        expect(screen.queryByRole("button", { name: "In Kanal posten" })).not.toBeInTheDocument();
     });
 
     it("shows the orga all tabs, the people ones inside the orga frame", async () => {

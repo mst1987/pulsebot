@@ -42,7 +42,7 @@ const { suggestSearch } = require("./raidSearch");
 const { eventLang } = require("../discord/botLanguage");
 const signupStore = require("../../stores/events/signupStore");
 const { inRaidGroup, signupEventIdOf } = require("../../utils/raidGroup");
-const { groupEvents, placedElsewhere, groupSummary } = require("../events/raidGroup");
+const { groupEvents, placedElsewhere, groupSummary, suggestedRaidTotal } = require("../events/raidGroup");
 
 
 function fail(code, error) {
@@ -705,6 +705,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     // a raid group (#811): the pool "Angemeldet" is shared — whoever stands in another raid of the group is not in it
     const elsewhere = placedElsewhere(event);
     const lineup = setup ? withoutElsewhere(addUnplacedSignups(decorateLineup(withSetupDefaults(setup, event.size), table, names), signups, table, names), elsewhere) : null;
+    const signupCount = signups.filter((s) => s.status !== "absence").length;
     return {
         ...head,
         setup: lineup ? withCharacters(withBuffInfoAll(lineup, table), signups, table) : null,
@@ -713,7 +714,9 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves
         ...(attendance ? { attendance } : {}),
         groupCount,
-        signupCount: signups.filter((s) => s.status !== "absence").length,
+        signupCount,
+        // "Auf 5 Raids aufteilen" (#1035): raids in total the signups fill, by the raid's size
+        suggestedTotal: suggestedRaidTotal({ active: signupCount, size: event.size }),
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
         pingText: pingTextOf(event, eventLang(event)),
