@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import { getRaidplanLink, setRaidplanLink, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import { CheckIcon } from "../../../components/ui/icons";
+import { CheckIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { linkSizes, linkStart } from "../../../lib/raids/eventManage";
 import { useT } from "../../../i18n";

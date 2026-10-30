@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import type { GameClass, ProfileCharacter } from "../../api";
 import { Badge, WowIcon } from "../../components/ui";
-import Popover from "../../components/ui/Popover";
+import Popover from "../../components/ui/overlay/Popover";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { MoreIcon, PlusIcon } from "../../components/ui/icons";
+import { MoreIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { belowEndPosition, type Placement } from "../../lib/ui/popoverPosition";
 import { classLabel, specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";

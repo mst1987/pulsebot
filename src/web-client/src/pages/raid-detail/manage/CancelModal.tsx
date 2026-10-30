@@ -4,9 +4,9 @@
 import { useEffect, useState } from "react";
 import { cancelRaid, getManageInfo, type ApiError } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import { XIcon } from "../../../components/ui/icons";
+import { XIcon } from "../../../components/ui/icons/icons";
 import Badge from "../../../components/ui/Badge";
 import { SwitchRow } from "../../../components/raid/RaidFields";
 import { useToast } from "../../../components/shell/Jobs";

@@ -10,7 +10,7 @@
 /* ---- WoW icon ---- */
 .wi { display: block; width: 18px; height: 18px; border-radius: 4px; object-fit: cover; flex: 0 0 auto; }
 
-/* ---- the app's own icon set (#951, components/ui/Icon.tsx) ----
+/* ---- the app's own icon set (#951, components/ui/icons/Icon.tsx) ----
    It shares .wi so every size a page gives a WoW icon applies, but the frame of a
    game icon (rounded corner, ring, shadow, desaturation) does not: a glyph stands
    bare in its tone, a brand mark as the brand ships it. */
@@ -60,7 +60,7 @@
 /* ghost: no frame until hovered - a quiet "take away" beside a value */
 .ibtn.ghost { border-color: transparent; background: transparent; }
 
-/* ---- number stepper: − value + as one control (components/ui/NumberStepper.tsx) ---- */
+/* ---- number stepper: − value + as one control (components/ui/form/NumberStepper.tsx) ---- */
 .num-stepper {
     display: inline-flex; align-items: stretch; flex: 0 0 auto; height: var(--ctl-h);
     border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); overflow: hidden;

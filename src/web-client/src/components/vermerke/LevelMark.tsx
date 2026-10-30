@@ -1,4 +1,4 @@
-import Icon from "../ui/Icon";
+import Icon from "../ui/icons/Icon";
 import { useT } from "../../i18n";
 import type { NoteLevel } from "../../api/vermerke";
 

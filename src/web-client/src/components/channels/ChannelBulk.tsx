@@ -8,7 +8,7 @@ import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon } from "../ui/icons/icons";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
 // soon as something is selected, the "only what you change" edit dialog behind

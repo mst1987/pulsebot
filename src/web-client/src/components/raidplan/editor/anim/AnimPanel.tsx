@@ -1,8 +1,8 @@
 import { ChevronLeft, ChevronRight, Plus, Trash2 } from "lucide-react";
 import type { RaidplanBoard, RaidplanLoop, RaidplanScene } from "../../../../api";
-import Switch from "../../../ui/Switch";
+import Switch from "../../../ui/form/Switch";
 import { buttonClass } from "../../../ui/Button";
-import { useConfirm } from "../../../ui/Modal";
+import { useConfirm } from "../../../ui/overlay/Modal";
 import { clock, frameLength } from "../../../../lib/raidplan/anim/scene";
 import { addFrame, moveFrame, removeFrame, removeScene, setCaption, setFrameLength, withScene, SCENE_LIMITS } from "../../../../lib/raidplan/anim/sceneEdit";
 import type { ActionPart, Actor } from "../../../../lib/raidplan/anim/sceneActions";

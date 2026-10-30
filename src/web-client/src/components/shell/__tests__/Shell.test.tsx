@@ -17,7 +17,7 @@ import { MENU, isAllServers } from "../../../lib/app/menu";
 import { adminUser, renderPage } from "../../../test/render";
 import Shell from "../Shell";
 import { JobsProvider } from "../Jobs";
-import { ConfirmProvider } from "../../ui/Modal";
+import { ConfirmProvider } from "../../ui/overlay/Modal";
 import { usePageCrumb } from "../../../hooks/usePageCrumb";
 
 vi.mock("../../../api", async (orig) => ({

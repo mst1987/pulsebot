@@ -13,11 +13,11 @@ import type { ComponentType, CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { KaderEntry, KaderPrefill, KaderQuestion, KaderAnswer, KaderRole, KaderState, KaderView, KaderVote, KaderWish } from "../../api";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { SortLabel, ariaSort } from "../../components/ui/SortTh";
+import { SortLabel, ariaSort } from "../../components/ui/table/SortTh";
 import type { TableSort } from "../../lib/ui/tableSort";
 import {
     BenchIcon, CheckIcon, CircleIcon, CrestIcon, HourglassIcon, ListChecksIcon, RosterIcon, TentativeIcon, XIcon,
-} from "../../components/ui/icons";
+} from "../../components/ui/icons/icons";
 import { BackButton as SharedBackButton, WowIcon } from "../../components/ui";
 import { useT } from "../../i18n";
 import { ROLE_ICON } from "../../lib/raidplan/assign/assign";

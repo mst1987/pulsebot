@@ -44,7 +44,7 @@ export function syncWowheadTooltip(el: HTMLElement): void {
  * Keeps Wowhead's item tooltip above an open modal. A modal <dialog> (ui/Modal,
  * the raider dialog) is drawn in the browser's top layer, above everything in the
  * page however high its z-index — so the tooltip power.js hangs into <body> sat
- * behind the dialog. Same cure as <TipLayer>'s box (components/ui/Tip.tsx): a
+ * behind the dialog. Same cure as <TipLayer>'s box (components/ui/overlay/Tip.tsx): a
  * manual popover, shown afresh on every appearance so it lands above whatever
  * dialog opened since. In the top layer `position: absolute` counts from the
  * document's origin, just like power.js's left/top; styles/ui.css undoes the

@@ -2,7 +2,7 @@ import { useState, type PointerEvent, type ReactNode } from "react";
 import Flyout from "../../Flyout";
 import { Check, ListChecks, MapPin, Minus, Plus, RotateCcw, Split, Users } from "lucide-react";
 import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../../api";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { PlayerName, TokenIcon } from "../../PlanBoard";
 import { classIconOf } from "../../../../lib/raidplan/assign/assign";

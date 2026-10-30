@@ -8,13 +8,13 @@ import { tParts, t as translate, useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Chip from "../../../components/ui/Chip";
-import Segment from "../../../components/ui/Segment";
-import WowIcon from "../../../components/ui/WowIcon";
-import NumberStepper from "../../../components/ui/NumberStepper";
+import Segment from "../../../components/ui/form/Segment";
+import WowIcon from "../../../components/ui/icons/WowIcon";
+import NumberStepper from "../../../components/ui/form/NumberStepper";
 import CategoryField, { CategorySubField } from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
 import OrgaHubRow, { type OrgaHubs } from "./OrgaHubRow";
-import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, RosterIcon, RowsIcon } from "../../../components/ui/icons";
+import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, RosterIcon, RowsIcon } from "../../../components/ui/icons/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
 // "A · Sechs Tabs, jede Einstellung eine Karte": its ~18 settings sorted into six

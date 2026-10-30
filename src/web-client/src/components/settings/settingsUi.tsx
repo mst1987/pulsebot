@@ -1,14 +1,14 @@
 import type { Role, TextChannel } from "../../api";
 import Badge from "../ui/Badge";
-import { LockIcon } from "../ui/icons";
+import { LockIcon } from "../ui/icons/icons";
 import { tParts, useT } from "../../i18n";
 import { assignableRoles } from "../../lib/settings/assignableRoles";
 
 // Small pieces the Einstellungen page shares between its sections: the
 // "Nur Voll-Admins" badge and the channel/role pickers that replace typed
 // Discord ids (design issue #224). Its line icons (pen, warning, check mark)
-// joined the one icon source, ../ui/icons; field labels and the round info
-// button are shared building blocks too: ../ui/Field.
+// joined the one icon source, ../ui/icons/icons; field labels and the round info
+// button are shared building blocks too: ../ui/form/Field.
 
 export function AdminOnlyBadge() {
     const t = useT();

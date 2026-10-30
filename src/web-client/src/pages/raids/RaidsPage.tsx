@@ -7,15 +7,15 @@ import { usePersistedSearchParam, usePersistedState } from "../../lib/ui/persist
 import { knownContents, raidIconName } from "../../lib/wow/raidIcons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { UpcomingRaidList, PastRaidList } from "./RaidList";
-import { MenuRailPage } from "../../components/ui/SectionRail";
+import { MenuRailPage } from "../../components/ui/layout/SectionRail";
 import RaidCreateDialog from "../../components/raid-create/RaidCreateDialog";
-import IconTile from "../../components/ui/IconTile";
+import IconTile from "../../components/ui/icons/IconTile";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { buttonClass } from "../../components/ui/Button";
 import "../../styles/raid-events.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { isAnyOrga, isOrga } from "../../lib/app/orgaArea";
 import { useT } from "../../i18n";
 
@@ -70,7 +70,7 @@ function ViewSwitch({ value, onChange, counts }: { value: View; onChange: (v: Vi
     );
 }
 
-/** The raid list beside the rail of Raid-Events' pages (Raidplan-Vorlagen, -Katalog; components/ui/SectionRail.tsx). */
+/** The raid list beside the rail of Raid-Events' pages (Raidplan-Vorlagen, -Katalog; components/ui/layout/SectionRail.tsx). */
 export default function RaidsPage() {
     const { user } = useOutletContext<ShellContext>();
     return <MenuRailPage user={user} parent="raids"><RaidsList user={user} /></MenuRailPage>;

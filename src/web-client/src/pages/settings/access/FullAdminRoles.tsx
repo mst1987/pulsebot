@@ -2,9 +2,9 @@ import { useState } from "react";
 import type { AdminRole } from "../../../api";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
-import PartHead from "../../../components/ui/PartHead";
-import { PlusIcon, TrashIcon } from "../../../components/ui/icons";
-import { SortTh } from "../../../components/ui/SortTh";
+import PartHead from "../../../components/ui/layout/PartHead";
+import { PlusIcon, TrashIcon } from "../../../components/ui/icons/icons";
+import { SortTh } from "../../../components/ui/table/SortTh";
 import { useTableSort, type Dir } from "../../../lib/ui/tableSort";
 import { AddOwnerModal } from "./RolePermissions";
 

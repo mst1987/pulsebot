@@ -7,7 +7,7 @@ import { searchRosterMembers, type RosterOptionRole, type RosterOptions, type Ro
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { Button, Chip, WowIcon } from "../../components/ui";
-import { PlusIcon, SearchIcon } from "../../components/ui/icons";
+import { PlusIcon, SearchIcon } from "../../components/ui/icons/icons";
 import { errorText } from "../../lib/roster/rosterEdit";
 
 const roleDot = (r: RosterOptionRole) => <i className="rn-chip-dot" style={{ "--rc": r.color || "var(--muted)" } as CSSProperties} aria-hidden="true" />;

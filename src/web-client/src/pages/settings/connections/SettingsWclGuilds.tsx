@@ -5,8 +5,8 @@ import {
 } from "../../../api";
 import { useToast } from "../../../components/shell/Jobs";
 import { Button, IconButton } from "../../../components/ui/Button";
-import { FieldLabel } from "../../../components/ui/Field";
-import { PlusIcon, RefreshIcon, SaveIcon, TrashIcon } from "../../../components/ui/icons";
+import { FieldLabel } from "../../../components/ui/form/Field";
+import { PlusIcon, RefreshIcon, SaveIcon, TrashIcon } from "../../../components/ui/icons/icons";
 import { agoText } from "../../../lib/settings/settingsLogic";
 import { useT } from "../../../i18n";
 

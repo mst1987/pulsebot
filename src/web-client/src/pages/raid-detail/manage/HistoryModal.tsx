@@ -2,7 +2,7 @@
 // line per entry, the action large, who and when small, the detail in muted text.
 import { useEffect, useState } from "react";
 import { getManageInfo, type ApiError, type ManageLogEntry } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import { fmtMs } from "../../../lib/format";
 import { useT } from "../../../i18n";

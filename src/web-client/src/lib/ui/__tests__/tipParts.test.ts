@@ -1,5 +1,5 @@
 // lib/ui/tipParts.ts (#415): how a tooltip text splits into its bold head and its
-// explanation. Moved out of components/ui/Tip.tsx so that file exports
+// explanation. Moved out of components/ui/overlay/Tip.tsx so that file exports
 // components only (react-refresh); the ui barrel still re-exports it.
 import { describe, expect, it } from "vitest";
 import { tipParts } from "../tipParts";

@@ -5,11 +5,11 @@ import {
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Chip, IconButton, Modal, RaidLoader, Segment, WowIcon, useConfirm } from "../../components/ui";
-import DataTable, { type Column } from "../../components/ui/DataTable";
+import DataTable, { type Column } from "../../components/ui/table/DataTable";
 import { useToast } from "../../components/shell/Jobs";
 import { classColorProps } from "../../components/character/ClassSpec";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";
-import { CheckMark, EditIcon, EyeOffIcon, SearchIcon, TrashIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckMark, EditIcon, EyeOffIcon, SearchIcon, TrashIcon, WarnIcon } from "../../components/ui/icons/icons";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { characterRows, editToast, filterRows, replaceRaider, unverified, type CharacterFilter, type CharacterRow } from "../../lib/profile/allCharacters";

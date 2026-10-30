@@ -1,4 +1,4 @@
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { classRefIcon } from "../../lib/raidplan/assign/assign";
 import { ANY } from "../../lib/raidplan/assign/classRefs";
 import RoleGlyph from "./RoleGlyph";

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Emoji, TextChannel } from "../../api";
-import { CrestIcon, ExternalIcon } from "../../components/ui/icons";
+import { CrestIcon, ExternalIcon } from "../../components/ui/icons/icons";
 import { parseDiscordMarkdown, type InlineToken, type MdBlock } from "../../lib/discord/discordMarkdown";
 import { formatTime } from "../../lib/format";
 import { t as translate, useT } from "../../i18n";

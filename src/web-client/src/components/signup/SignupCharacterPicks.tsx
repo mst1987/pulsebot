@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import type { SignupClass, SignupProfile, SignupStatus } from "../../api";
 import { IconButton, WowIcon } from "../ui";
 import { classColorProps } from "../character/ClassSpec";
-import { ChevronDownIcon, XIcon } from "../ui/icons";
+import { ChevronDownIcon, XIcon } from "../ui/icons/icons";
 import { CHARACTER_STATUS_ORDER, GEAR_LABEL, SIGNUP_STATUS } from "../../lib/signups/status";
 import {
     MAX_CHARACTERS, addPick, canAddPick, movePick, removePick, setPickCharacter, setPickSpec, setPickStatus,

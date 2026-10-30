@@ -26,7 +26,7 @@ export type MenuEntry = {
     /**
      * a sub entry: no line of its own in the main menu, but a page of the entry
      * whose href it lies under (Raidplan-Vorlagen under Raid-Events). Those
-     * pages carry the whole family in their icon rail (components/ui/SectionRail.tsx),
+     * pages carry the whole family in their icon rail (components/ui/layout/SectionRail.tsx),
      * and the parent's menu line stays active on all of them.
      */
     sub?: boolean;

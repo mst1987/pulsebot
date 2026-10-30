@@ -4,8 +4,8 @@ import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type Ap
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { currentAbsence, displayName, playsLine } from "../../lib/roster/absences";
 import { dayMs, periodLabel } from "../../lib/signups/availability";

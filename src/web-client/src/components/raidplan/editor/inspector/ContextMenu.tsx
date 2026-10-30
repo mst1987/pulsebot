@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type CSSProperties } from "react";
 import type { MenuItem } from "../../../../lib/raidplan";
 import { pointPlacement, popoverVars } from "../../../../lib/ui/popoverPosition";
-import Popover from "../../../ui/Popover";
+import Popover from "../../../ui/overlay/Popover";
 import { MarkIcon } from "../../MarkIcon";
 import type { RaidplanMarkName } from "../../../../api";
 

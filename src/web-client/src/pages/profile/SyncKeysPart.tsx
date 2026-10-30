@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createSyncKey, deleteSyncKey, type ApiError, type SyncKey, type SyncKeys, type SyncKeyServer } from "../../api";
 import { Badge, Button, DataTable, IconButton, RaidLoader, useConfirm, type Column } from "../../components/ui";
 import { useToast } from "../../components/shell/Jobs";
-import { TrashIcon, CopyIcon, CheckIcon, PlusIcon } from "../../components/ui/icons";
+import { TrashIcon, CopyIcon, CheckIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { formatDate } from "../../lib/format";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { useT, tOr } from "../../i18n";

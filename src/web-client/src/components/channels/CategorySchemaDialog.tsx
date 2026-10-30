@@ -6,7 +6,7 @@ import NamingBadge from "./NamingBadge";
 import ChannelEmojiPicker from "./ChannelEmojiPicker";
 import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
 import { Badge, Button, Modal } from "../ui";
-import { ChannelsIcon, SaveIcon } from "../ui/icons";
+import { ChannelsIcon, SaveIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike, ownSchemaOf } from "../../lib/discord/channels";

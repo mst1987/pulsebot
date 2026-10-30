@@ -1,7 +1,7 @@
 import { Fragment, useState, type KeyboardEvent } from "react";
 import type { SetupCharacter, SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
-import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons";
+import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons/icons";
 import { asCharacter, fitsRole, leadIn } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { specLabel } from "../../../lib/wow/wowNames";

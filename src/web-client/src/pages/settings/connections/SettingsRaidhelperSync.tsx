@@ -3,13 +3,13 @@ import { getRaidhelperSync, refreshRaidhelperSync, type ApiError, type Raidhelpe
 import { useToast } from "../../../components/shell/Jobs";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import IconTile from "../../../components/ui/IconTile";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import IconTile from "../../../components/ui/icons/IconTile";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { AdminOnlyBadge } from "../../../components/settings/settingsUi";
-import { InfoTip } from "../../../components/ui/Field";
+import { InfoTip } from "../../../components/ui/form/Field";
 import { useT } from "../../../i18n";
 import { formatTime as clock } from "../../../lib/format";
-import { CheckMark, WarnIcon } from "../../../components/ui/icons";
+import { CheckMark, WarnIcon } from "../../../components/ui/icons/icons";
 
 // Einstellungen → Verbindungen → "Raid-Helper-Abgleich" (#608). The pages never
 // ask Raid-Helper for the event list; one job fetches it every few minutes. This

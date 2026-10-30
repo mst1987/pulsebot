@@ -11,9 +11,9 @@ import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { IconTile, PageHead, buttonClass } from "../../components/ui";
-import { councilHref } from "./council";
+import { councilHref } from "./model/council";
 import "../../styles/loot-council.css";
 
 function Tile({ tile }: { tile: CouncilOverviewTile }) {

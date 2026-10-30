@@ -1,6 +1,6 @@
 import type { AbsenceHint, AbsenceOverview } from "../../api";
 import { Button } from "../../components/ui";
-import { AbsenceIcon, InfoIcon } from "../../components/ui/icons";
+import { AbsenceIcon, InfoIcon } from "../../components/ui/icons/icons";
 import { namesOf } from "../../lib/roster/absences";
 import { dayMs } from "../../lib/signups/availability";
 import { formatDayDate, formatDayMonth } from "../../lib/format";

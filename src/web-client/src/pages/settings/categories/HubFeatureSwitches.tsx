@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ApiError } from "../../../api";
 import { useToast } from "../../../components/shell/Jobs";
-import Switch from "../../../components/ui/Switch";
+import Switch from "../../../components/ui/form/Switch";
 import { useT } from "../../../i18n";
 
 // The parts of one Discord hub (Raid-Zentrale or Orga-Zentrale) of a raid category,

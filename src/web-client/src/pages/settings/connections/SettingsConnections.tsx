@@ -5,18 +5,18 @@ import {
 } from "../../../api";
 import { fmtMs } from "../../../lib/format";
 import { useTableSort, type Dir } from "../../../lib/ui/tableSort";
-import { SortTh } from "../../../components/ui/SortTh";
+import { SortTh } from "../../../components/ui/table/SortTh";
 import { connectionInputs, connectionPatch, connectionState, visibleConnections, type ConnectionId } from "../../../lib/settings/settingsLogic";
 import { useToast } from "../../../components/shell/Jobs";
-import { useConfirm, Modal } from "../../../components/ui/Modal";
+import { useConfirm, Modal } from "../../../components/ui/overlay/Modal";
 import { Button, IconButton, buttonClass } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import IconTile from "../../../components/ui/IconTile";
-import PartHead from "../../../components/ui/PartHead";
-import { CheckIcon, CheckMark, CopyIcon, ExternalIcon, PenIcon, TrashIcon, WarnIcon, SaveIcon } from "../../../components/ui/icons";
+import IconTile from "../../../components/ui/icons/IconTile";
+import PartHead from "../../../components/ui/layout/PartHead";
+import { CheckIcon, CheckMark, CopyIcon, ExternalIcon, PenIcon, TrashIcon, WarnIcon, SaveIcon } from "../../../components/ui/icons/icons";
 import { AdminOnlyBadge } from "../../../components/settings/settingsUi";
-import { FieldLabel, InfoTip } from "../../../components/ui/Field";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import { FieldLabel, InfoTip } from "../../../components/ui/form/Field";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import GuildBanksCard from "./SettingsGuildBanks";
 import { tParts, t as translate, useT } from "../../../i18n";
 

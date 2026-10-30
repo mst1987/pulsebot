@@ -189,7 +189,7 @@ describe("the pages", () => {
         expect(app).toMatch(/path="raids\/plan-templates" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanTemplatesPage \/><\/Guard>\}/);
         expect(app).toMatch(/path="raids\/plan-catalog" element=\{<Guard user=\{user\} areas=\{\["raidplan"\]\}><RaidplanCatalogPage \/><\/Guard>\}/);
         // sub entries of Raid-Events (coloured like it), no longer a button in the page head: the
-        // pages of the family are linked by the icon rail on all three (components/ui/SectionRail.tsx,
+        // pages of the family are linked by the icon rail on all three (components/ui/layout/SectionRail.tsx,
         // which only offers the pages the account may open — SectionRail.test.tsx)
         expect(read("pages/raids/RaidsPage.tsx")).not.toContain("/raids/plan-templates");
         const menu = require("../../../src/config/menu.json");

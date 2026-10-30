@@ -6,13 +6,13 @@ import {
 import { reminderOff, reminderSummary, remindersPatch } from "../../../lib/settings/settingsLogic";
 import { useT } from "../../../i18n";
 import { useToast } from "../../../components/shell/Jobs";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import PartHead from "../../../components/ui/PartHead";
-import RaidLoader from "../../../components/ui/RaidLoader";
-import Field from "../../../components/ui/Field";
-import { PenIcon, SaveIcon } from "../../../components/ui/icons";
+import PartHead from "../../../components/ui/layout/PartHead";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
+import Field from "../../../components/ui/form/Field";
+import { PenIcon, SaveIcon } from "../../../components/ui/icons/icons";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Erinnerungen" (#264).
 // One line per raid category: its name, what is set as one short line, and a

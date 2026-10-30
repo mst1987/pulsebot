@@ -10,11 +10,11 @@ import {
 import { fmtMs } from "../../../lib/format";
 import { itemQualityProps } from "../../../lib/wow/itemQuality";
 import { useDraftState } from "../../../lib/ui/persistedState";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import Segment from "../../../components/ui/Segment";
-import { SearchIcon } from "../../../components/ui/icons";
+import Segment from "../../../components/ui/form/Segment";
+import { SearchIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";

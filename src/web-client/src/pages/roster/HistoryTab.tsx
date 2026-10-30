@@ -7,7 +7,7 @@ import { getRosterHistory, type ApiError, type RosterHistoryEntry, type RosterHi
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { AsyncView, Button } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { useToast } from "../../components/shell/Jobs";
 import { formatDate, formatTime } from "../../lib/format";
 import { errorText, historyText } from "../../lib/roster/rosterEdit";

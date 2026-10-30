@@ -12,19 +12,19 @@ import {
     boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, sameBosses, startSection, toSave,
 } from "../../lib/raidplan";
 import type { ShellContext } from "../../components/shell/Shell";
-import { MenuRailPage } from "../../components/ui/SectionRail";
+import { MenuRailPage } from "../../components/ui/layout/SectionRail";
 import { useToast } from "../../components/shell/Jobs";
-import { Modal, useConfirm } from "../../components/ui/Modal";
+import { Modal, useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
-import PageHead from "../../components/ui/PageHead";
+import PageHead from "../../components/ui/layout/PageHead";
 import Badge from "../../components/ui/Badge";
-import RaidLoader from "../../components/ui/RaidLoader";
-import WowIcon from "../../components/ui/WowIcon";
-import { InfoTip } from "../../components/ui/Field";
-import Switch from "../../components/ui/Switch";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import WowIcon from "../../components/ui/icons/WowIcon";
+import { InfoTip } from "../../components/ui/form/Field";
+import Switch from "../../components/ui/form/Switch";
 import RoleGlyph from "../../components/raidplan/RoleGlyph";
 import CompositionEditor from "../../components/raid/CompositionEditor";
-import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
+import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons/icons";
 import { InstancePicker, SizePicker } from "../../components/raid/RaidFields";
 import PlanBoard from "../../components/raidplan/PlanBoard";
 import { formatDate } from "../../lib/format";
@@ -86,7 +86,7 @@ export default function RaidplanTemplatesPage() {
     const templates = loaded.data;
     const setTemplates = loaded.setData;
 
-    // The list sits beside the rail of Raid-Events' pages (components/ui/SectionRail.tsx);
+    // The list sits beside the rail of Raid-Events' pages (components/ui/layout/SectionRail.tsx);
     // the editor of one template takes the whole width without it.
     const inRail = (page: ReactNode) => <MenuRailPage user={user} parent="raids">{page}</MenuRailPage>;
     const editing = !!editor.editId && !editor.isNew;

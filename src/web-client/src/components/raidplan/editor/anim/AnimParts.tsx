@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { Minus, Plus, Route, Trash2 } from "lucide-react";
 import type { RaidplanLoop } from "../../../../api";
 import { NumberField } from "../../NumberField";
-import Switch from "../../../ui/Switch";
+import Switch from "../../../ui/form/Switch";
 import { buttonClass } from "../../../ui/Button";
 import { wowIconUrl } from "../../../../lib/wow/wowIcon";
 import { BADGE_PRESETS } from "../../../../lib/raidplan/anim/sceneEdit";

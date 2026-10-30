@@ -1,5 +1,5 @@
 // One way to load what a page shows (#437): hooks/useApi.ts over the pure
-// rules in lib/ui/asyncState.ts, drawn by components/ui/AsyncView.tsx. The race
+// rules in lib/ui/asyncState.ts, drawn by components/ui/layout/AsyncView.tsx. The race
 // protection is what matters most and is tested here without React: a call is
 // numbered when it starts, and only the newest call's answer counts.
 // The rules themselves run in src/web-client/src/lib/ui/__tests__/asyncState.useApi.test.ts (Vitest).
@@ -31,11 +31,11 @@ describe("hooks/useApi.ts", () => {
     });
 
     it("draws error, then loader, then data — the order the pages had by hand", () => {
-        const view = read("components/ui/AsyncView.tsx");
+        const view = read("components/ui/layout/AsyncView.tsx");
         const order = [view.indexOf("if (state.error)"), view.indexOf("if (state.data === null)"), view.indexOf("children(state.data)")];
         expect(order.every((i) => i >= 0)).toBe(true);
         expect(order).toEqual([...order].sort((a, b) => a - b));
-        expect(read("components/ui/index.ts")).toContain("export { default as AsyncView } from \"./AsyncView\";");
+        expect(read("components/ui/index.ts")).toContain("export { default as AsyncView } from \"./layout/AsyncView\";");
     });
 });
 

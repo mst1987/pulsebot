@@ -1,6 +1,6 @@
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { IconButton } from "../ui/Button";
-import { MinusIcon, PlusIcon } from "../ui/icons";
+import { MinusIcon, PlusIcon } from "../ui/icons/icons";
 import { dpsSlots } from "../../lib/raids/raidTemplates";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";

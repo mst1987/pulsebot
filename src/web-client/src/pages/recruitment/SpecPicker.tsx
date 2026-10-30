@@ -4,8 +4,8 @@ import {
     parseWantedBlock, insertSpecLine, removeSpecLine, findGuildEmoji, specEmojiUrl, type SpecCatalogEntry,
 } from "../../lib/discord/recruitmentSpecs";
 import { Button } from "../../components/ui/Button";
-import WowIcon from "../../components/ui/WowIcon";
-import { XIcon } from "../../components/ui/icons";
+import WowIcon from "../../components/ui/icons/WowIcon";
+import { XIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 import { useDismiss } from "../../hooks/useDismiss";
 

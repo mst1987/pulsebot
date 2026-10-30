@@ -5,7 +5,7 @@ import {
     type NoteLevel, type NoteReason, type PersonHit, type RecentRaid, type VermerkEntry,
 } from "../../api/vermerke";
 import { Button, Chip, Field, IconButton, Modal, Segment, Switch } from "../ui";
-import { SearchIcon, XIcon } from "../ui/icons";
+import { SearchIcon, XIcon } from "../ui/icons/icons";
 import { vermerkErrorText } from "./vermerkError";
 import LevelMark from "./LevelMark";
 import ReasonIcon from "./ReasonIcon";

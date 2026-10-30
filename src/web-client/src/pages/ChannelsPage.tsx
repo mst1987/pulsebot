@@ -20,7 +20,7 @@ import { ArchiveSettingsDialog, ArchiveTab, DeleteChannelsDialog } from "../comp
 import { PurposesDialog, PurposeSummaryBadges } from "../components/channels/PurposeList";
 import { BULK_DELETE_WORD, deleteWarnings, pastEventChannels, resultMessage, runInSteps } from "../lib/discord/channels";
 import "../styles/channels.css";
-import RaidLoader from "../components/ui/RaidLoader";
+import RaidLoader from "../components/ui/layout/RaidLoader";
 import { tParts, useT } from "../i18n";
 
 // Kanäle (design #216, reworked as the Discord overview in #259): one list —

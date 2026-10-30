@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { IconButton } from "../../../components/ui/Button";
-import { TrashIcon } from "../../../components/ui/icons";
+import { TrashIcon } from "../../../components/ui/icons/icons";
 import { EMOJI_CHOICES, previewEmoji, type LinkValue } from "../../../lib/discord/buttonEmoji";
 import { useT } from "../../../i18n";
 

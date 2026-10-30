@@ -114,7 +114,7 @@ select:focus { background-image: var(--ctl-arrow-hi); }
    .btn-danger destructive (delete, remove, reset), always behind useConfirm()
    .btn-ghost  neutral: cancel, close, back, details, filters, navigation
    .btn-run    "start this analysis" (CLA/RPB — takes a while, reports through a job toast)
-   Icons come from components/ui/icons.tsx (or a WoW icon for a game meaning) and are
+   Icons come from components/ui/icons/icons.tsx (or a WoW icon for a game meaning) and are
    sized here, so a button never has to hard-code one (and never carries an emoji). */
 .btn {
     display: inline-flex; align-items: center; justify-content: center; gap: 7px;

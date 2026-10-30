@@ -6,15 +6,15 @@ import {
     type ApiError, type CatalogAdmin, type CatalogMob, type CatalogSpell } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
-import { MenuRailPage } from "../../components/ui/SectionRail";
+import { MenuRailPage } from "../../components/ui/layout/SectionRail";
 import { useToast } from "../../components/shell/Jobs";
-import { Modal, useConfirm } from "../../components/ui/Modal";
+import { Modal, useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
-import { SaveIcon } from "../../components/ui/icons";
-import PageHead from "../../components/ui/PageHead";
+import { SaveIcon } from "../../components/ui/icons/icons";
+import PageHead from "../../components/ui/layout/PageHead";
 import Badge from "../../components/ui/Badge";
-import RaidLoader from "../../components/ui/RaidLoader";
-import WowIcon from "../../components/ui/WowIcon";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { MobIcon } from "../../components/raidplan/editor/assign/AssignPanel";
 import Flyout from "../../components/raidplan/Flyout";
 import { useContentVersion } from "../../hooks/useContentVersion";
@@ -37,7 +37,7 @@ type VersionInfo = { id: string; short: string; label: string };
  */
 export default function RaidplanCatalogPage() {
     const { user } = useOutletContext<ShellContext>();
-    // beside the rail of Raid-Events' pages (components/ui/SectionRail.tsx)
+    // beside the rail of Raid-Events' pages (components/ui/layout/SectionRail.tsx)
     return <MenuRailPage user={user} parent="raids"><Catalog user={user} /></MenuRailPage>;
 }
 

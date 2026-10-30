@@ -29,7 +29,7 @@ import {
 import type { ShellContext } from "../../components/shell/Shell";
 import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { Badge, Button, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { PlusIcon, RowsIcon, SheetIcon } from "../../components/ui/icons";
+import { PlusIcon, RowsIcon, SheetIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";

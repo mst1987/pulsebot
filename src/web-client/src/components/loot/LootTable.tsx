@@ -9,10 +9,10 @@ import type { LootItem } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
-import { SortTh } from "../ui/SortTh";
+import { SortTh } from "../ui/table/SortTh";
 import { RaiderBadge, reasonToneClass } from "./LootBadges";
-import { TrashIcon } from "../ui/icons";
-import { useConfirm } from "../ui/Modal";
+import { TrashIcon } from "../ui/icons/icons";
+import { useConfirm } from "../ui/overlay/Modal";
 import { IconButton } from "../ui/Button";
 import { t, useT } from "../../i18n";
 

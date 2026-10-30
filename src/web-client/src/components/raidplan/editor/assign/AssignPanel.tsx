@@ -9,7 +9,7 @@ import { useCollapseSet } from "../../../../hooks/useCollapse";
 import { Copy, RotateCcw, EyeOff, Swords, Users, Plus, Redo2, Trash2, Undo2, X } from "lucide-react";
 import { suggestRaidplan, type ApiError, type RaidplanAssignment, type Catalog, type RaidplanAssignTarget, type RaidplanBoard, type RaidplanMobRef, type RaidplanPlayer } from "../../../../api";
 import { Badge, IconButton, useConfirm, Switch } from "../../../ui";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { useToast } from "../../../shell/Jobs";
 import { MarkIcon } from "../../MarkIcon";

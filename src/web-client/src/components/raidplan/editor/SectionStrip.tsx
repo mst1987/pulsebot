@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { Check, ChevronDown, ChevronLeft, ChevronRight, Eye, EyeOff } from "lucide-react";
 import { boardCount, boardOf, sectionLabel, severalInstances, sheetIncluded, type MenuItem } from "../../../lib/raidplan";
 import { belowStartPlacement } from "../../../lib/ui/popoverPosition";
-import Popover from "../../ui/Popover";
+import Popover from "../../ui/overlay/Popover";
 import { Badge, IconButton } from "../../ui";
 import ContextMenu from "./inspector/ContextMenu";
 import AutoFollowToggle from "./assign/AutoFollowToggle";

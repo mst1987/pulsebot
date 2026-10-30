@@ -1,11 +1,11 @@
 import { ANY } from "../../../../lib/raidplan/assign/classRefs";
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, MoreHorizontal, Pencil, StickyNote, Trash2 } from "lucide-react";
-import Popover from "../../../ui/Popover";
+import Popover from "../../../ui/overlay/Popover";
 import { belowEndPlacement } from "../../../../lib/ui/popoverPosition";
 import { CLASS_COLOR } from "../../../../lib/raidplan/assign/classRefs";
 import type { RaidplanAssignment } from "../../../../api";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import ClassRefIcon from "../../ClassRefIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { MarkIcon } from "../../MarkIcon";

@@ -6,7 +6,7 @@ import { describe, expect, it } from "vitest";
 import type { CouncilWeightsView } from "../../../api";
 import { NeedBar } from "../NeedBar";
 import { LootCount } from "../ItemBits";
-import { NeedWeightsProvider, fmtPoints, lootLabel, needSubject } from "../needWeights";
+import { NeedWeightsProvider, fmtPoints, lootLabel, needSubject } from "../model/needWeights";
 import { t } from "../../../i18n";
 import { councilData } from "../../../test/councilFixtures";
 

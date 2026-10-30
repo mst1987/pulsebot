@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { closeCategory, type ApiError, type CategoryCloseResult, type MissingCategory } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import { seriesWhen } from "../../../lib/settings/categoryLifecycle";
 import { useT } from "../../../i18n";

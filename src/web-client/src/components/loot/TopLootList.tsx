@@ -17,7 +17,7 @@ import { shortDate } from "../../lib/raids/overviewDates";
 import { itemQualityProps, itemQualityColor } from "../../lib/wow/itemQuality";
 import { CharacterLink } from "../character/ClassSpec";
 import { LootResponseBadge } from "./LootTable";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { t as translate, useT } from "../../i18n";
 import "../../styles/dashboard.css";
 

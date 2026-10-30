@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import type { SystemStatus } from "../../api";
 import { useT } from "../../i18n";
-import Segment from "../../components/ui/Segment";
-import Expand from "../../components/ui/Expand";
+import Segment from "../../components/ui/form/Segment";
+import Expand from "../../components/ui/layout/Expand";
 import {
     TILE_LIMITS, bytes, millis, num, pct, seriesOf, sparkPath, toneHigh, toneLow, uptime, within,
     type FigureTone, type Point, type Range,

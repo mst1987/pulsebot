@@ -59,7 +59,7 @@
 /* ---- the loading state, everywhere: a party going at a raid boss ----
    "Lade…" in grey read like a page that had given up. This says the same in
    the game's own vocabulary and is the same scene wherever it appears: a page
-   body or a card (components/ui/RaidLoader.tsx). Decorative only —
+   body or a card (components/ui/layout/RaidLoader.tsx). Decorative only —
    the icons are the ones the menu already mirrors, and nothing moves under
    prefers-reduced-motion. */
 .rl { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 30px 18px; }

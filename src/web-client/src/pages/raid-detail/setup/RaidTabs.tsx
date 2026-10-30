@@ -8,9 +8,9 @@ import { useEffect, useState, type DragEvent } from "react";
 import type { RaidGroup, RaidGroupRaid } from "../../../api";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import Badge from "../../../components/ui/Badge";
-import Field from "../../../components/ui/Field";
+import Field from "../../../components/ui/form/Field";
 
 /** The state word of a raid's setup: empty, draft, approved or posted. */
 function stateOf(raid: RaidGroupRaid): "none" | "draft" | "approved" | "posted" {

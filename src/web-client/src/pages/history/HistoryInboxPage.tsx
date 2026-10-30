@@ -11,13 +11,13 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { useToast } from "../../components/shell/Jobs";
 import { IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
-import { ChevronLeftIcon } from "../../components/ui/icons";
+import WowIcon from "../../components/ui/icons/WowIcon";
+import { ChevronLeftIcon } from "../../components/ui/icons/icons";
 import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/history-loot.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { tParts, useT } from "../../i18n";
 
 export default function HistoryInboxPage() {

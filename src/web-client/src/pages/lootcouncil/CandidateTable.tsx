@@ -1,11 +1,11 @@
 import { useState } from "react";
 import type { CouncilCandidate, SimResult } from "../../api";
 import { Badge, Bar, Expand, IconButton } from "../../components/ui";
-import { RefreshIcon } from "../../components/ui/icons";
-import { SortTh } from "../../components/ui/SortTh";
+import { RefreshIcon } from "../../components/ui/icons/icons";
+import { SortTh } from "../../components/ui/table/SortTh";
 import { useT } from "../../i18n";
 import type { TableSort } from "../../lib/ui/tableSort";
-import { deltaFor, gainFor, raiderHref, simErrorFor, waitedTip, type CandidateSortKey } from "./council";
+import { deltaFor, gainFor, raiderHref, simErrorFor, waitedTip, type CandidateSortKey } from "./model/council";
 import { LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateGearPanel, SlotOptions } from "./GearBadges";
 import { NeedBar } from "./NeedBar";

@@ -5,7 +5,7 @@
 // test/web-client/conventions/uiFoundation.test.js.
 import { describe, expect, it } from "vitest";
 import * as ui from "../index";
-import { focusFromNavigation, NAV_FOCUS_WINDOW, NAV_KEYS } from "../Tip";
+import { focusFromNavigation, NAV_FOCUS_WINDOW, NAV_KEYS } from "../overlay/Tip";
 
 describe("building blocks", () => {
     it("are all reachable from the one index the pages import", () => {

@@ -15,7 +15,7 @@ describe("closing a dialog on its backdrop", () => {
 
     it("is used by the shared Modal and the loot council's own dialog", () => {
         const sources = Object.fromEntries(clientSources());
-        for (const rel of ["components/ui/Modal.tsx", "pages/lootcouncil/RaiderDialog.tsx"]) {
+        for (const rel of ["components/ui/overlay/Modal.tsx", "pages/lootcouncil/RaiderDialog.tsx"]) {
             expect({ rel, uses: sources[rel].includes("{...backdrop}") && sources[rel].includes("useBackdropClose(onClose)") }).toEqual({ rel, uses: true });
         }
     });

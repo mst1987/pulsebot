@@ -9,7 +9,7 @@ import { Button, Field, Modal } from "../../components/ui";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { useT } from "../../i18n";
 import { isDirectItemInput } from "./bankView";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon } from "../../components/ui/icons/icons";
 
 const SEARCH_DELAY_MS = 350;
 
