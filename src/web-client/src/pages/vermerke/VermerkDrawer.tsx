@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import {
     archiveVermerk, getVermerkPerson, hideVermerk,
     type VermerkEntry, type VermerkHistory,
-} from "../../api/vermerke";
+} from "../../api/roster/vermerke";
 import { useApi } from "../../hooks/useApi";
 import { Button, IconButton, InfoTip, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/layout/RaidLoader";

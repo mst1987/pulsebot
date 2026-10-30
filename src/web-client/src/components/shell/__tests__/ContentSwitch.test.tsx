@@ -3,8 +3,8 @@
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import * as session from "../../../api/session";
-import type { ContentInfo } from "../../../api/session";
+import * as session from "../../../api/system/session";
+import type { ContentInfo } from "../../../api/system/session";
 import { t } from "../../../i18n";
 import ContentSwitch from "../ContentSwitch";
 import ContentVersionProvider from "../ContentVersionProvider";

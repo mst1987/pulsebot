@@ -1,6 +1,6 @@
 // The pure rules of the roster pages (#654): which members a filter keeps, how
 // the table groups and sorts them, the stored view read back safely. Names,
-// characters, roles and attendance come from the server (api/roster.ts).
+// characters, roles and attendance come from the server (api/roster/roster.ts).
 import type { RosterMember, RosterRole, RosterStatus } from "../../api";
 import { sortRows, type Dir } from "../ui/tableSort";
 import { ROLE_ORDER } from "./rosterView";

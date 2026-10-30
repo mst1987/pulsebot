@@ -1,4 +1,4 @@
-import type { SessionUser } from "../../api/session";
+import type { SessionUser } from "../../api/system/session";
 
 /** Whether the session user may read (or write) the given area. */
 export function canAccess(user: SessionUser | null, area: string, level: "read" | "write" = "read"): boolean {

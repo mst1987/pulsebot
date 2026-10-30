@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type 
 import { useZone } from "./useZone";
 import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
-import type { VermerkShortMap } from "../../../api/vermerke";
+import type { VermerkShortMap } from "../../../api/roster/vermerke";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
 import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";

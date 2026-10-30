@@ -41,7 +41,7 @@ async function buildCouncilView(opts) {
 
 /**
  * The query the page sends for this stored view of a category - built the way
- * api/lootcouncil.ts' getLootCouncil() builds it, so both go through the very
+ * api/loot/lootcouncil.ts' getLootCouncil() builds it, so both go through the very
  * same councilOptsFromQuery().
  */
 function viewQuery(categoryId, view) {

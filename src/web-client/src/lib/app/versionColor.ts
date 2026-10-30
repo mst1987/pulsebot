@@ -15,7 +15,7 @@
 // They are written to the root as --vc-<id>-dark / -light / -ink-dark / -ink-light,
 // which tokens.css reads with the default as fallback. The version in use is
 // marked by <html data-version="<id>"> (a version-neutral page leaves it off).
-import type { ContentVersionRef } from "../../api/session";
+import type { ContentVersionRef } from "../../api/system/session";
 
 export const DARK_BG = "#30353f";   // the lightest dark panel (--panel3)
 export const LIGHT_BG = "#e2e6ee";  // the darkest light panel (--panel3)

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getServerMembers, type MemberRole, type ServerMember, type ServerMembers } from "../../api";
-import { getVermerke, type VermerkPerson } from "../../api/vermerke";
+import { getVermerke, type VermerkPerson } from "../../api/roster/vermerke";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, Switch } from "../../components/ui";

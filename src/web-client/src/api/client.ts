@@ -5,7 +5,7 @@
 // Each area of the API has its own file next to this one; index.ts re-exports
 // them all, so pages keep importing from "../api".
 
-import type { ClaRaid } from "./cla";
+import type { ClaRaid } from "./system/cla";
 import { t } from "../i18n";
 import { getCsrfToken, mutatingHeaders } from "./csrf";
 

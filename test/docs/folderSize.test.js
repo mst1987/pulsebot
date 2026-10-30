@@ -18,7 +18,6 @@ const TEST = /\.test\.(c|m)?[jt]sx?$/;
 
 const ALLOWED = {
     "src/stores": "#1016",
-    "src/web-client/src/api": "#1012",
     "src/services/events": "#1014",
     "src/services/discord": "#1015",
     "src/config": "#1013",

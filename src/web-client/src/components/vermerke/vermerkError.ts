@@ -1,5 +1,5 @@
 import type { ApiError } from "../../api/client";
-import { MAX_NOTES } from "../../api/vermerke";
+import { MAX_NOTES } from "../../api/roster/vermerke";
 import type { useT } from "../../i18n";
 
 /**

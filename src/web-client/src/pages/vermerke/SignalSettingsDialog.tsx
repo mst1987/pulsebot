@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import {
     getSignalSettings, saveSignalSettings, SIGNAL_THRESHOLD_KEYS,
     type OrgaNotice, type OrgaNoticeLevel, type SignalSettings, type SignalThresholdKey,
-} from "../../api/vermerke";
+} from "../../api/roster/vermerke";
 import type { ApiError } from "../../api/client";
 import { Button, InfoTip, Modal, NumberStepper, Segment, Switch } from "../../components/ui";
 import { SaveIcon } from "../../components/ui/icons/icons";

@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { getVermerke, NOTE_LEVELS, type NoteLevel, type VermerkPerson } from "../../api/vermerke";
+import { getVermerke, NOTE_LEVELS, type NoteLevel, type VermerkPerson } from "../../api/roster/vermerke";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, Segment } from "../../components/ui";

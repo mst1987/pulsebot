@@ -5,14 +5,14 @@
 // The token store itself runs in src/web-client/src/api/__tests__/csrf.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
-const { CLIENT, read, sourceFiles } = require("../clientSource");
+const { CLIENT, read, sourceFiles, clientSources } = require("../clientSource");
 
 // every .ts/.tsx of the app (the client's own tests left out)
 const walk = (dir) => sourceFiles(path.relative(CLIENT, dir));
 
 describe("client.ts uses it for every mutating request", () => {
     const client = read("api/client.ts");
-    const session = read("api/session.ts");
+    const session = read("api/system/session.ts");
 
     it("send() and sendRaw() take no token and build their headers from the stored one", () => {
         expect(client).toMatch(/^export async function send<T>\(method: string, path: string, jsonBody\?: unknown\): Promise<T> \{/m);
@@ -28,7 +28,7 @@ describe("client.ts uses it for every mutating request", () => {
 
 describe("no csrfToken is handed around any more", () => {
     it("appears in no source outside api/csrf.ts and the Session type", () => {
-        const allowed = new Set(["api/csrf.ts", "api/session.ts"]);
+        const allowed = new Set(["api/csrf.ts", "api/system/session.ts"]);
         const hits = [];
         for (const file of walk(CLIENT)) {
             const rel = path.relative(CLIENT, file).split(path.sep).join("/");
@@ -40,8 +40,7 @@ describe("no csrfToken is handed around any more", () => {
     });
 
     it("is not a parameter of any api function", () => {
-        for (const file of fs.readdirSync(path.join(CLIENT, "api"))) {
-            const src = read(`api/${file}`);
+        for (const [file, src] of clientSources("api")) {
             expect({ file, param: /\(\s*csrfToken\b/.test(src) }).toEqual({ file, param: false });
         }
     });

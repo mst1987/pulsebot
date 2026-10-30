@@ -11,7 +11,7 @@ import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
 import { SigBadge } from "./Board";
 import { Link } from "react-router-dom";
-import type { VermerkShort } from "../../../api/vermerke";
+import type { VermerkShort } from "../../../api/roster/vermerke";
 import LevelMark from "../../../components/vermerke/LevelMark";
 import { reasonSummary, vermerkeHref } from "../../../components/vermerke/markText";
 

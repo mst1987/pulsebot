@@ -9,7 +9,7 @@
 //   * a remembered version that is no longer offered (hidden, or without data)
 //     falls back to the main version;
 //   * with "Andere Versionen ausblenden" on there is nothing to pick.
-import type { ContentInfo, ContentVersionRef } from "../../api/session";
+import type { ContentInfo, ContentVersionRef } from "../../api/system/session";
 
 export const CONTENT_VERSION_KEY = "eh-content-version";
 

@@ -5,7 +5,7 @@ import {
     CONTENT_VERSION_KEY, LAST_VERSION_KEY, canSwitch, followStep, otherUpcoming, readLastVersion, readStoredVersion, resolveContentVersion,
     versionRef, writeLastVersion, writeStoredVersion,
 } from "../contentVersion";
-import type { ContentInfo } from "../../../api/session";
+import type { ContentInfo } from "../../../api/system/session";
 
 const INFO: ContentInfo = {
     mainVersion: "forever", hideOtherVersions: false,
