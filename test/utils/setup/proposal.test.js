@@ -444,6 +444,59 @@ describe("buildSetupProposal", () => {
         });
     });
 
+    describe("shadowban (Vermerke, #981)", () => {
+        it("never places a shadowbanned raider, who stays in the pool", () => {
+            const signups = [su("t", "Warrior-Protection"), su("h", "Priest-Holy"), su("x", "Mage-Fire", { at: 0 }), su("m", "Rogue-Combat")];
+            const input = { events: [{ id: "e", size: 10, composition: { tank: 1, healer: 1 } }], signups, shadowbanned: ["x"] };
+            const out = buildSetupProposal(input);
+            expect(placedIds(out)).not.toContain("x");
+            expect(out.pool.map((p) => p.userId)).toContain("x");
+            expect(placedIds(out).sort()).toEqual(["h", "m", "t"]);
+            expect(JSON.stringify(out)).not.toMatch(/shadowban/i);
+            expectHardRules(input, out);
+        });
+
+        it("keeps the only tank out even when the raid lacks one", () => {
+            const signups = [su("t", "Druid-Guardian"), su("m", "Mage-Fire")];
+            const out = buildSetupProposal({ events: [{ id: "e", size: 5, composition: { tank: 1, healer: 0 } }], signups, shadowbanned: ["t"] });
+            expect(placedIds(out)).toEqual(["m"]);
+            expect(out.pool.map((p) => p.userId)).toContain("t");
+        });
+
+        it("places everyone without a shadowban as before", () => {
+            const signups = roster(10);
+            const input = { events: [{ id: "e", size: 10, composition: { tank: 1, healer: 2 } }], signups };
+            const plain = buildSetupProposal(input);
+            expect(buildSetupProposal({ ...input, shadowbanned: [] })).toEqual(plain);
+            expect(buildSetupProposal({ ...input, shadowbanned: ["someone-else"] })).toEqual(plain);
+        });
+
+        it("keeps a raider the orga placed by hand", () => {
+            const signups = [su("x", "Mage-Fire"), su("m", "Rogue-Combat")];
+            const input = { events: [{ id: "e", size: 5, composition: {} }], signups, fixed: [{ userId: "x", eventId: "e", group: 1 }], shadowbanned: ["x"] };
+            const out = buildSetupProposal(input);
+            expect(slotOf(out, "x")).toMatchObject({ group: 1, locked: true });
+            expect(placedIds(out).sort()).toEqual(["m", "x"]);
+        });
+
+        it("keeps shadowbans out of every raid of a parallel evening (raid groups)", () => {
+            const events = [
+                { id: "g1", title: "Gruppe 1", size: 10, composition: { tank: 2, healer: 3 } },
+                { id: "g2", title: "Gruppe 2", size: 10, composition: { tank: 2, healer: 3 } },
+            ];
+            const base = roster(26);
+            const signups = [];
+            for (const s of base) for (const e of events) signups.push({ ...s, eventId: e.id });
+            const banned = base.filter((s, i) => i % 5 === 0).map((s) => s.userId);
+            const input = { events, signups, shadowbanned: banned };
+            const out = buildSetupProposal(input);
+            for (const id of banned) expect(placedIds(out)).not.toContain(id);
+            const pool = out.pool.map((p) => p.userId);
+            for (const id of banned) expect(pool).toContain(id);
+            expectHardRules(input, out);
+        });
+    });
+
     describe("parallel events", () => {
         it("distributes the raiders over both raids, nobody twice", () => {
             const events = [

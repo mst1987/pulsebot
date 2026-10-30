@@ -61,6 +61,8 @@ const { buildRaidDetail, _internal } = require("../../../src/web/events/raidDeta
 const { getRaidDetail } = require("../../../src/web/apiRoutes/raidDetail");
 const { mockRes, status, json } = require("../../helpers/http");
 const { knownChannels } = require("../../helpers/linkCheck");
+const notes = require("../../../src/stores/userNotesStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
 beforeEach(() => knownChannels("c1", "c2", "c"));
@@ -113,7 +115,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "roleTargets", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
-            "orga", "viewer", "progress", "steps", "playerSummaries",
+            "orga", "viewer", "progress", "steps", "playerSummaries", "vermerke",
         ]);
         // no rights handed in (an older caller): the orga's view counts as the orga's rights
         expect(body.viewer).toEqual({ canOrga: true, canPlan: true, canSwitchPlan: true });
@@ -570,6 +572,33 @@ describe("the orga of the raid's category", () => {
         expect(d.orga).toBe(false);
         expect(d.viewer).toEqual({ canOrga: false, canPlan: false, canSwitchPlan: false });
         expect(d.roles).toEqual([]);
+    });
+
+    it("gives the orga the Vermerke short form of the signed-up people, the raider never (#981)", async () => {
+        const MARKER = "VERMERK-MARKER-981";
+        notes.useFile(tempStoreFile("user-notes.json"));
+        try {
+            notes.addEntry("g1", "u7", { level: "shadowban", reason: "behavior", text: MARKER }, { by: "x", byName: MARKER, name: "Arms" });
+            notes.addEntry("g1", "m1", { level: "warning", reason: "no_show", text: MARKER }, { by: "x", byName: MARKER, name: "Mgr" });
+            notes.addEntry("g1", "u-other", { level: "hint", reason: "loot" }, { by: "x", byName: "x", name: "Other" });
+            loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+            const orga = (await read(MANAGER, "eh-1")).body.data;
+            expect(orga.orga).toBe(true);
+            // only who is signed up, never the text or the author
+            expect(orga.vermerke).toEqual({ u7: { level: "shadowban", reasons: { behavior: 1 } } });
+            expect(JSON.stringify(orga)).not.toContain(MARKER);
+
+            // the raider's view of a raid of another category, the noted raider signed up himself
+            const foreign = ownEvent({ id: "eh-2", signUps: [{ userId: "m1", status: "signed" }, { userId: "u7", status: "signed" }] });
+            loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "cat2", categoryName: "Andere", events: [foreign] }], error: null, stale: false });
+            const raider = (await read(MANAGER, "eh-2")).body.data;
+            expect(raider.orga).toBe(false);
+            expect(raider).not.toHaveProperty("vermerke");
+            expect(JSON.stringify(raider)).not.toContain(MARKER);
+            expect(JSON.stringify(raider)).not.toMatch(/shadowban|no_show/);
+        } finally {
+            notes.useFile(null);
+        }
     });
 
     it("gives a full admin who manages the roster no orga view in \"So sieht es ein Raider\"", async () => {

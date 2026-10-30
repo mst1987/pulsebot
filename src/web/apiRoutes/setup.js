@@ -64,6 +64,7 @@ const setupPresence = require("../../services/setup/setupPresence");
 const { approvedSetupOf, confirmationsFor } = require("../../services/setup/setupCore");
 const raidGroup = require("../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../utils/raidGroup");
+const { shortFor, shadowbannedAmong } = require("../../services/vermerke/vermerkeShort");
 
 // The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
 // of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
@@ -120,11 +121,43 @@ async function view(event, user, { names = true, req = null } = {}) {
         // no setup stored yet: the empty start (every signup under "Angemeldet") instead of "no setup"
         blank: true,
     });
-    if (write) out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
+    if (write) {
+        out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
+        Object.assign(out, vermerkeOf(fresh, signups, out.setup));
+    }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
     out.canEditEvent = write;
     return out;
+}
+
+/** Everybody the editor shows: the signups, and who stands in a group, on the bench or in the pool. */
+function personIdsOf(signups, setup) {
+    const ids = new Set(signups.map((s) => String(s.userId)));
+    const parts = setup ? [setup, ...(Array.isArray(setup.events) ? setup.events : [])] : [];
+    for (const part of parts) {
+        for (const g of part.groups || []) for (const slot of (g && g.slots) || []) if (slot && slot.userId) ids.add(String(slot.userId));
+        for (const p of [...(part.bench || []), ...(part.pool || [])]) if (p && p.userId) ids.add(String(p.userId));
+    }
+    ids.delete("");
+    return [...ids];
+}
+
+/**
+ * The orga's part of the Vermerke (#981), one store read: `vermerke` the short form
+ * `{ [userId]: { level, reasons } }` of the persons on the page, and `skippedShadowban`
+ * `[{ userId, name }]` - who of the pool the proposal held back for a shadowban
+ * (proposal.js never places them by itself). Only once a setup is stored, a
+ * proposal ran over it. Never in a raider's answer (vermerkeNeverToPerson.test.js).
+ */
+function vermerkeOf(event, signups, setup) {
+    const vermerke = shortFor(event.guildId, personIdsOf(signups, setup));
+    const skippedShadowban = event.setup && setup
+        ? (setup.pool || [])
+            .filter((p) => p && vermerke[String(p.userId)] && vermerke[String(p.userId)].level === "shadowban")
+            .map((p) => ({ userId: String(p.userId), name: p.name || p.character || String(p.userId) }))
+        : [];
+    return { vermerke, skippedShadowban };
 }
 
 /** The event channel's current name, else the stored one. */
@@ -233,7 +266,8 @@ async function followLive(result, user) {
 const postPropose = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
-    const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id });
+    // a shadowban on the raid's server (Vermerke, #981) keeps the raider in the pool
+    const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id, shadowbannedOf: shadowbannedAmong });
     if (!result.error) {
         const count = placedCount(result.setup) - (body.keep === "placed" ? placedCount(before.setup) : 0);
         setupPresence.recordNote(before.id, body.keep === "placed" ? "fill" : "propose", { ...actor(user), count: Math.max(0, count) });

@@ -43,6 +43,7 @@ const rosterTakeover = require("../../services/roster/rosterTakeover");
 const { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion } = require("../kader/kaderSource");
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 const presence = require("../kader/kaderPresence");
+const { shortFor } = require("../../services/vermerke/vermerkeShort");
 
 const str = (body, key) => q.str(body, key);
 const WRITE = { write: "kader", csrf: true, body: true };
@@ -144,7 +145,9 @@ const getKader = withUser({}, async ({ req, res, query }) => {
     const shown = shownVersion(query);
     const before = kaderStore.readPlanner(guildId);
     const source = await sourceFor(guildId, before, versionFor(before, kaderId, shown));
-    ok(res, buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId, versionId: shown }));
+    const view = buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId, versionId: shown });
+    // Vermerke (#981): the short form of the planner's pool - area `kader` is in no base access, the orga's only
+    ok(res, { ...view, vermerke: shortFor(guildId, view.players.map((p) => p.userId)) });
 });
 
 /** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries of its version (a change inside it, seen live). */

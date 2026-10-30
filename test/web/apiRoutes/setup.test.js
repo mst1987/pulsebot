@@ -537,3 +537,66 @@ describe("explanation", () => {
         expect(mockEvents.get(ID).setup.status).toBe("draft");
     });
 });
+
+describe("Vermerke in the editor (#981)", () => {
+    const notes = require("../../../src/stores/userNotesStore");
+    const { tempStoreFile } = require("../../helpers/tempStore");
+    const by = { by: "boss", byName: "Boss", name: "x" };
+
+    beforeEach(() => notes.useFile(tempStoreFile("user-notes.json")));
+    afterAll(() => notes.useFile(null));
+
+    it("keeps a shadowbanned signup out of the proposal and names the person for the orga only", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior", text: "SECRET-TEXT" }, by);
+        notes.addEntry("g1", "rogue", { level: "warning", reason: "no_show", text: "SECRET-TEXT" }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        const placed = view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId));
+        expect(placed).not.toContain("mage");
+        expect(placed).toContain("rogue");
+        expect(view.setup.pool.map((p) => p.userId)).toContain("mage");
+        expect(view.skippedShadowban).toEqual([{ userId: "mage", name: "Mage" }]);
+        expect(view.vermerke).toEqual({
+            mage: { level: "shadowban", reasons: { behavior: 1 } },
+            rogue: { level: "warning", reasons: { no_show: 1 } },
+        });
+        // stored is only the setup, never the hint
+        expect(JSON.stringify(mockEvents.get(ID).setup)).not.toMatch(/skippedShadowban|shadowban/);
+        expect(JSON.stringify(view)).not.toMatch(/SECRET-TEXT/);
+
+        const again = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(again.skippedShadowban).toEqual([{ userId: "mage", name: "Mage" }]);
+
+        const reader = body(await call(route.getSetup, READER, null, `event=${ID}`));
+        expect(reader).not.toHaveProperty("vermerke");
+        expect(reader).not.toHaveProperty("skippedShadowban");
+    });
+
+    it("lets the orga place a shadowbanned raider by hand, without asking", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+        await call(route.postPropose, ORGA, { event: ID });
+        const version = mockEvents.get(ID).setup.version;
+        const saved = await call(route.putSetup, ORGA, { event: ID, version, groups: [{ index: 1, slots: [{ userId: "mage", spec: "Mage-Fire" }] }], bench: [] });
+        expect(status(saved)).toBe(200);
+        expect(body(saved).setup.groups[0].slots.map((s) => s.userId)).toContain("mage");
+        expect(body(saved).skippedShadowban).toEqual([]);
+    });
+
+    it("leaves a warning, a hint, an expired and a hidden shadowban out of it", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior", expiresAt: 1 }, by);
+        const shared = notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
+        notes.hideShared("g1", shared.id, { by: "boss" });
+        notes.addEntry("g1", "lock", { level: "hint", reason: "loot" }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.skippedShadowban).toEqual([]);
+        // the expired and the hidden one are gone, the hint stays a hint
+        expect(view.vermerke).toEqual({ lock: { level: "hint", reasons: { loot: 1 } } });
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toEqual(expect.arrayContaining(["rogue", "lock"]));
+    });
+
+    it("lets a shared shadowban of another server count", async () => {
+        notes.addEntry("g9", "mage", { level: "shadowban", reason: "behavior", shared: true }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).not.toContain("mage");
+        expect(view.skippedShadowban.map((p) => p.userId)).toEqual(["mage"]);
+    });
+});

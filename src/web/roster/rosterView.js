@@ -53,6 +53,7 @@ const { trialEnding } = require("../../services/roster/rosterTrials");
 const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
+const { shortFor } = require("../../services/vermerke/vermerkeShort");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -504,6 +505,9 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
         roster: { ...head, kader: linkedKader(roster) },
         members,
         isOrga: true,
+        // Vermerke (#981): the short form of the members, for the roster's orga only - the branch above
+        // (anybody else) never gets it (vermerkeNeverToPerson.test.js)
+        vermerke: shortFor(roster.guildId || guildId, rows.map((r) => r.userId)),
         window,
         // the attendance grid's columns (#677): the counted nights of the category, newest first
         nights: roster.categoryId ? attempt(() => categoryNights(ctx, roster.categoryId, { window }), []) : [],

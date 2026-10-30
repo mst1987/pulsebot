@@ -81,13 +81,34 @@ open at the gate (`auth: "menu"`) and lets in: `vermerke` read, the global raid 
 **active server** (`categoryOrga.isAnyCategoryManager(user, { guildId })`). Everyone else: 403 `orga_only`.
 `shortFor` reads the store **once** for all ids (`activeEntriesMany`), so a raid with 40 signups is one read.
 
+### In the answers of the orga (#981)
+
+The short form rides along in the answers the orga plans with — **only in their orga branch**, only for the people
+of that answer, one `shortFor` read each:
+
+| Answer | Field | People |
+|---|---|---|
+| `GET /api/raids/setup` and every setup write answer (`canWrite` only) | `vermerke`, `skippedShadowban` | signups + everyone in groups, bench, pool (all raids of a group) |
+| `GET /api/raids/detail` (`buildRaidDetail`, `orga` only) | `vermerke` | signups (Raid-Helper and own) |
+| `GET /api/rosters/roster` (manager / orga branch of `buildRosterDetail`) | `vermerke` | the roster's rows |
+| `GET /api/kader` (orga only) | `vermerke` | the Kader's players |
+
+`vermerke` is `{ [userId]: { level, reasons: { [reason]: count } } }` (nobody without an active note is listed).
+`skippedShadowban` is `[{ userId, name }]`: who stands in the pool of the **stored** setup with a shadowban — the
+client shows "1 Person nicht vorgeschlagen (Shadowban) · Dranok" with the name linking to `/vermerke?user=<id>`.
+It is computed live per answer and **never stored** in the setup (`saveSetupDraft` keeps the rest of the view).
+The proposal itself skips shadowbans (docs/setup.md "Shadowban"); placing by hand stays allowed. A roster manager
+gets the short form for every person of the server, a shared note shows everything on every server.
+
 ## Never to the person
 
 A note is never shown to the person it is about, nor to a raider at all: not in the profile, `/api/signups`, the
 dashboard "Für dich", `/e/<id>`, `/p/<token>`, nor in "Ansicht als Raider" (an admin in that view is no admin and
 has no `vermerke` right). `test/services/vermerke/vermerkeNeverToPerson.test.js` holds it twice: none of these pages
 loads the store or the short form (whole require closure), and a raider / the raider view gets 403 on every route
-without the marker text.
+without the marker text. The orga answers of #981 are held dynamically as well: the setup editor's GET in
+`vermerkeNeverToPerson.routes.test.js` (raider, the noted raider, "Ansicht als Raider": no `vermerke`, no
+`skippedShadowban`, no marker), the raid detail in `test/web/events/raidDetailView.test.js`.
 
 "Never to the person" means: never to a raider **without orga or Vermerke rights**. Whoever holds the rights (the
 area `vermerke`, or the short form as raid orga / roster manager) also sees the notes on the own account — a

@@ -57,6 +57,7 @@ const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 const { eventShown } = require("../../services/signups/eventVisibility");
 const { guildOfEvent } = require("../../services/discord/serverOf");
+const { shortFor } = require("../../services/vermerke/vermerkeShort");
 
 /**
  * The version of the event on this page and its settings (#542): an own event
@@ -506,7 +507,18 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
     // (#319, #502). Raid-Helper events keep exactly today's view: steps stays null.
     payload.steps = isOwn(found) ? eventSteps(payload, { plan: planPost }) : null;
     payload.playerSummaries = playerSummariesPart(guildId, found, { setup: setupInfo.setup, attendance: attendanceInfo.attendance });
+    // Vermerke (#981): the short form of the raid's signed-up persons, for the orga only - a raider's
+    // answer left above (forRaider) and never reaches this line (vermerkeNeverToPerson.test.js)
+    payload.vermerke = shortFor(guildId, signedUpIds(found, own));
     return { body: payload };
+}
+
+/** The user ids signed up to the raid: Raid-Helper's signups and an own event's (a raid group's from its first raid). */
+function signedUpIds(found, own) {
+    const ids = new Set();
+    for (const s of Array.isArray(found.e.signUps) ? found.e.signUps : []) if (s && s.userId) ids.add(String(s.userId));
+    for (const s of Array.isArray(own.ownSignups) ? own.ownSignups : []) if (s && s.userId) ids.add(String(s.userId));
+    return [...ids];
 }
 
 module.exports = {
