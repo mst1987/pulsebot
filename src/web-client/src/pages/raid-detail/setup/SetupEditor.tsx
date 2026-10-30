@@ -32,7 +32,7 @@
 // and "Freie Plätze füllen" run over every raid; approving and posting stay per raid.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
+import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, asCharacter, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
@@ -56,7 +56,7 @@ import Popover from "../../../components/ui/overlay/Popover";
 import { besidePlacement } from "../../../lib/ui/popoverPosition";
 import { Summary, SummaryLine } from "./Summary";
 import { roleFigures, summaryOptions } from "./summaryFigures";
-import { SlotTip, type SlotActions } from "./SlotTip";
+import { SlotTip, type SlotActions, type SlotLead } from "./SlotTip";
 import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
@@ -652,6 +652,35 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         }
     };
 
+    // leader flags (#1034): the crown and, for the orga, the instances as chips; a click saves at once
+    const [leadBusy, setLeadBusy] = useState("");
+    const leadOf = (userId: string, edit: boolean): SlotLead | undefined => {
+        const leaders = data?.leaders;
+        if (!leaders) return undefined;
+        const ids = leaders.byUser[userId] || [];
+        // only for whom and what the server takes: signed up or in the roster, the raid's instances
+        const editable = leaders.editable || [];
+        const switchable = !leaders.switchable || leaders.switchable.includes(userId);
+        if (!edit || !switchable || !editable.length) return { instances: leaders.instances, ids };
+        return { instances: leaders.instances, ids, editable, busy: leadBusy === userId, onChange: (next) => void saveLead(userId, next) };
+    };
+    const saveLead = async (userId: string, instances: string[]) => {
+        setLeadBusy(userId);
+        try {
+            const next = await setLeads({ event: eventId, userId, instances });
+            setData((prev) => {
+                if (!prev?.leaders) return prev;
+                const byUser = { ...prev.leaders.byUser };
+                if (next.leads.length) byUser[userId] = next.leads; else delete byUser[userId];
+                return { ...prev, leaders: { ...prev.leaders, byUser } };
+            });
+        } catch (e) {
+            jobs.notify(t("roster.leaders.saveError", { message: (e as ApiError).message }), "err");
+        } finally {
+            setLeadBusy("");
+        }
+    };
+
     /**
      * The orga changes a raider's signup (#521). Waits for the moves still on
      * their way, then the server saves the signup and the setup follows (place
@@ -966,6 +995,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         onCharacter={busy || inspectedInPool ? undefined : (c) => switchTo(inspectedPerson.userId, c)}
                         actions={actions} pinned={selected === shownId}
                         vermerk={data.vermerke?.[inspectedPerson.userId]} canOpenVermerke={canAccess(ctx.user ?? null, "vermerke", "read")}
+                        lead={leadOf(inspectedPerson.userId, true)}
                     />
                 </div>
             )}
@@ -977,7 +1007,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         p={peekPerson} attendance={data.attendance ? data.attendance[peekPerson.userId] : undefined}
                         extra={(data.extraRoles || {})[peekPerson.userId] || []} peek
                         removable={!(setup.pool || []).some((x) => x.userId === peekPerson.userId)}
-                        vermerk={data.vermerke?.[peekPerson.userId]}
+                        vermerk={data.vermerke?.[peekPerson.userId]} lead={leadOf(peekPerson.userId, false)}
                     />
                 </Popover>
             )}

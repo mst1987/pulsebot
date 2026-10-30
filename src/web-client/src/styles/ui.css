@@ -421,3 +421,10 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .nm-reason .uic { flex: none; }
 .nm-reason-word { font-size: 13px; color: var(--text); }
 .nm-reason-n { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }
+
+/* leader flags (#1034, components/roster/LeadChips): the crown beside a name and the instance chips.
+   The crown takes the accent, never gold; its tooltip names the instances. */
+.lead-mark { display: inline-flex; flex: none; align-items: center; margin-left: 4px; vertical-align: -2px; color: var(--accent); line-height: 1; cursor: default; }
+.lead-mark svg { width: 15px; height: 15px; }
+.lead-chips { margin-bottom: 0; }
+.lead-elsewhere { align-self: center; color: var(--muted); font-size: 12px; cursor: help; }

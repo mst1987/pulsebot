@@ -374,5 +374,7 @@
   "GET /api/ingest/me",
   "GET /api/profile/sync-keys",
   "POST /api/profile/sync-keys",
-  "POST /api/profile/sync-keys/delete"
+  "POST /api/profile/sync-keys/delete",
+  "PUT /api/profile/leads",
+  "PUT /api/leads"
 ]

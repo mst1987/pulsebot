@@ -375,3 +375,8 @@
 .pf-all-spec.pf-gear-ready { outline-color: var(--good); }
 .pf-all-spec.pf-gear-none { opacity: .5; }
 .pf-all-actions { flex-wrap: nowrap; gap: 6px; }
+
+/* "Raids leiten" (#1034, pages/profile/LeadsPart.tsx): one line of instance chips per version */
+.pf-leads { display: flex; flex-direction: column; gap: 10px; }
+.pf-leads-row { display: flex; flex-direction: column; gap: 4px; }
+.pf-leads-version { padding-left: 2px; }

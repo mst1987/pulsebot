@@ -313,7 +313,9 @@
     "/api/addons/detail": ["signup", "history"],
     "/api/addons/download": ["signup", "history"],
     "/api/profile/sync-keys": "signup",
-    "/api/profile/sync-keys/delete": "signup"
+    "/api/profile/sync-keys/delete": "signup",
+    "/api/profile/leads": "signup",
+    "/api/leads": "raids"
   },
   "ungated": [
     "/api/session",
@@ -402,6 +404,7 @@
     "POST /api/raids/setup/search/text",
     "POST /api/raids/softres",
     "POST /api/raids/softres/link",
+    "PUT /api/leads",
     "PUT /api/raidplan",
     "PUT /api/raids/series",
     "PUT /api/raids/setup",

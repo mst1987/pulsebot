@@ -380,6 +380,15 @@ export function UnlockIcon() {
     );
 }
 
+/** A raid leader (#1034): somebody who can lead raids of an instance. */
+export function CrownIcon() {
+    return (
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M3 8l4.5 4L12 5l4.5 7L21 8l-2 11H5z" />
+        </svg>
+    );
+}
+
 /** Add an entry (a role, a server, a mapping); the composition editor draws it (and its minus) a little bolder. */
 export function PlusIcon({ strokeWidth = 2.2 }: { strokeWidth?: number }) {
     return (

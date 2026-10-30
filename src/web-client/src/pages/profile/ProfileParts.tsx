@@ -12,7 +12,7 @@ import { useT } from "../../i18n";
 // roster, loot and dungeon runs), every part folded to one line until it is
 // opened. Every change saves itself; there is no form to submit.
 
-export type Fold = "attendance" | "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "syncKeys" | "roster" | "loot" | "dungeons" | "professions" | "wishItems" | "";
+export type Fold = "attendance" | "leads" | "days" | "raids" | "wishes" | "avoid" | "note" | "calendar" | "syncKeys" | "roster" | "loot" | "dungeons" | "professions" | "wishItems" | "";
 
 /**
  * "Nicht mit X raiden": off until the raider switches it on — past a question

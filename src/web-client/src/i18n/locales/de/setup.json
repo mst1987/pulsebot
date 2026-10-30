@@ -21,6 +21,8 @@
             "linkManual": "Char-Zuordnung bestätigt",
             "linkAuto": "Automatisch zugeordnet, nicht bestätigt",
             "autoBadge": "Auto",
+            "leads": "Leitet",
+            "leadsSub": "Welche Instanzen diese Person leiten kann. Gilt sofort für alle Raids.",
             "brings": "Bringt",
             "bringsGroup": "für die Gruppe ({count} profitieren)",
             "bringsGroupShort": "Gruppe · {count}",

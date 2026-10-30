@@ -32,6 +32,7 @@
     },
     "gearAria": "Gear-Stand {spec}",
     "fold": {
+        "leads": "Raids leiten",
         "days": "Wann ich kann",
         "daysNone": "nichts angegeben",
         "raids": "Bevorzugte Raids",
@@ -309,6 +310,15 @@
             "other": "+ {count} weitere Kategorien"
         },
         "open": "Zur Anwesenheit"
+    },
+    "leads": {
+        "none": "keine",
+        "sum": {
+            "one": "{count} Instanz · {versions}",
+            "other": "{count} Instanzen · {versions}"
+        },
+        "noVersion": "Noch keine Spielversion – sobald du einen Charakter hast, kannst du hier Instanzen wählen.",
+        "chipsAria": "Instanzen, die du in {version} leiten kannst"
     },
     "roster": {
         "sumOther": "mit einem anderen Charakter im Roster",
