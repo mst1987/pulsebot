@@ -8,7 +8,7 @@ import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { EditIcon, ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { currentAbsence, displayName, playsLine } from "../../lib/roster/absences";
-import { dayMs, entryCharacters, periodLabel } from "../../lib/signups/availability";
+import { dayMs, entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
 import { formatDayDate } from "../../lib/format";
 import { useT } from "../../i18n";
 import { AbSpec, ClassName } from "./parts";
@@ -172,7 +172,7 @@ function EntryRow({ entry, canEdit, onEdit, onRemoved }: { entry: Entry; canEdit
                 <div className="ab-entry-sub">
                     <span>{t(`absences.kind.${entry.kind}`)}</span>
                     {entry.comment && <span>{t("common.quoted", { text: entry.comment })}</span>}
-                    {entry.categoryName && <span>{t("absences.onlyCategory", { name: entry.categoryName })}</span>}
+                    <span className="ab-entry-scope">{scopeLabel(entry)}</span>
                     {entry.byOrga && <span>{t("absences.drawer.byOrga")}</span>}
                 </div>
                 {chars.length > 0 && <div className="ab-entry-sub ab-entry-chars">{chars.map((c) => <span key={c}>{c}</span>)}</div>}

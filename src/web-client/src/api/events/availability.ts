@@ -306,7 +306,12 @@ export type AbsenceOverview = {
 export type AbsenceHistoryStatus = "in" | "off" | "none" | "other";
 
 export type AbsenceRaiderDetail = AbsenceIdentity & {
-    entries: (AbsencePeriod & { done: number; character: string; spec: string; characters?: { character: string; spec: string; versionId: string; specLabel?: string }[] })[];
+    entries: (AbsencePeriod & {
+        done: number; character: string; spec: string;
+        /** Servers and categories it covers ([] = every raid), as on /signups. */
+        scope?: AvailabilityEntryScope[];
+        characters?: { character: string; spec: string; versionId: string; specLabel?: string }[];
+    })[];
     /** The last raids of their categories, oldest first. */
     history: { eventId: string; day: string; title: string; status: AbsenceHistoryStatus }[];
     counts: Record<AbsenceHistoryStatus, number>;

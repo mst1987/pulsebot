@@ -335,6 +335,38 @@ describe("Abwesenheiten: Raider", () => {
         expect(gets("/api/availability/overview?")).toHaveLength(2);
     });
 
+    it("shows where an entry holds and every character of an attendance, as on /signups", async () => {
+        const user = userEvent.setup();
+        const detail: AbsenceRaiderDetail = {
+            ...DETAIL,
+            entries: [
+                {
+                    ...period("p2", "2026-10-12", "2026-10-18", 7, { kind: "presence" }), done: 0, character: "Tankadin", spec: "Paladin-Protection",
+                    scope: [{ guildId: "g1", name: "Pulse", categories: [{ id: "mon", name: "TBC Montag" }, { id: "wed", name: "TBC Mittwoch" }] }, { guildId: "g2", name: "PuGs", categories: [] }],
+                    characters: [
+                        { character: "Tankadin", spec: "Paladin-Protection", versionId: "tbc", specLabel: "Schutz" },
+                        { character: "Heilbot", spec: "Priest-Holy", versionId: "tbc", specLabel: "Heilig" },
+                    ],
+                },
+                { ...period("p3", "2026-10-20", "2026-10-21", 2), done: 0, character: "", spec: "", scope: [] },
+            ],
+        };
+        vi.mocked(client.get).mockImplementation((path: string) => {
+            if (path.startsWith("/api/availability/overview/raider?")) return Promise.resolve(detail);
+            if (path.startsWith("/api/availability/overview?")) return Promise.resolve(data);
+            if (path.startsWith("/api/availability")) return Promise.resolve(OWN);
+            return Promise.reject({ code: "not_mocked", message: path });
+        });
+        await show();
+        await user.click(row("Tankadin"));
+        const drawer = await screen.findByRole("complementary", { name: t("absences.drawer.aria") });
+        await within(drawer).findByText(t("absences.drawer.entries"));
+        const scopes = [...drawer.querySelectorAll(".ab-entry-scope")].map((n) => n.textContent);
+        expect(scopes).toEqual([`Pulse · TBC Montag, TBC Mittwoch / PuGs · ${t("signups.availability.dialog.allOfServer")}`, t("signups.availability.everywhere")]);
+        const chars = [...drawer.querySelectorAll(".ab-entry-chars span")].map((n) => n.textContent);
+        expect(chars).toEqual(["Tankadin · Schutz", "Heilbot · Heilig"]);
+    });
+
     it("edits a planned entry of the raider from the drawer, with the raider's data", async () => {
         const user = userEvent.setup();
         vi.mocked(client.get).mockImplementation((path: string) => {

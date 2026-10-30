@@ -207,6 +207,8 @@
             "noCharacterCategory": "The profile has no fitting character with a spec for {category}.",
             "raids": "Raids in this period",
             "picked": "{picked} of {total} selected",
+            "raidsDone": "{done} done",
+            "raidsPickedDone": "{picked} selected · {done} done",
             "noRaids": "No raid in this period yet.",
             "searching": "Looking for raids …",
             "raidAria": "Include {title}",

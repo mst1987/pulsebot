@@ -207,6 +207,8 @@
             "noCharacterCategory": "Für {category} steht kein passender Charakter mit Spec im Profil.",
             "raids": "Raids im Zeitraum",
             "picked": "{picked} von {total} gewählt",
+            "raidsDone": "{done} erledigt",
+            "raidsPickedDone": "{picked} gewählt · {done} erledigt",
             "noRaids": "Im Zeitraum steht noch kein Raid an.",
             "searching": "Raids werden gesucht …",
             "raidAria": "{title} einbeziehen",

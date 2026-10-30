@@ -5,7 +5,7 @@ import { t } from "../../../i18n";
 import { switchLang } from "../../../test/i18n";
 import {
     characterGroups, charactersInput, charsFromEntry, countResults, dayMs, effectiveChars, entryCharacters, firstSpec, initialScope,
-    categoryNames, nextTo, periodLabel, pickedVersions, raidFixed, resultSummary, scopeFromEntry, scopeLabel, scopeParts, setCharSpec, skipReason,
+    categoryNames, nextTo, periodLabel, pickedVersions, raidCountLabel, raidFixed, resultSummary, scopeFromEntry, scopeLabel, scopeParts, setCharSpec, skipReason,
     staysAsIs, toggleCategory, toggleChar, toggleServer,
 } from "../availability";
 import { formatDayDate } from "../../format";
@@ -86,6 +86,19 @@ describe("availability rules", () => {
         expect(raidFixed("presence", { status: "", absent: true })).toBe(true);
         expect(raidFixed("absence", { status: "", absent: true })).toBe(false);
         expect(raidFixed("absence", { status: "signed" })).toBe(false);
+    });
+
+    it("counts raids already done as done, not as left out", async () => {
+        const r = (id: string, applied = false) => ({ id, status: "", applied });
+        const four = [r("a"), r("b"), r("c"), r("d")];
+        expect(raidCountLabel("absence", four, new Set(["d"]))).toBe("3 von 4 gewählt");
+        expect(raidCountLabel("absence", four.map((x) => ({ ...x, applied: true })), new Set())).toBe("4 erledigt");
+        expect(raidCountLabel("absence", [r("a"), r("b"), r("c", true), r("d", true)], new Set())).toBe("2 gewählt · 2 erledigt");
+        // a raid left out that is done anyway does not count twice
+        expect(raidCountLabel("absence", [r("a"), r("b", true)], new Set(["a", "b"]))).toBe("0 gewählt · 1 erledigt");
+        await switchLang("en");
+        expect(raidCountLabel("absence", four.map((x) => ({ ...x, applied: true })), new Set())).toBe("4 done");
+        expect(raidCountLabel("presence", [r("a"), { id: "b", status: "", absent: true }], new Set())).toBe("1 selected · 1 done");
     });
 });
 

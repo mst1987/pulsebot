@@ -59,6 +59,18 @@ export function raidFixed(kind: AvailabilityKind, raid: Pick<AvailabilityRaid, "
     return staysAsIs(kind, raid.status) || !!raid.applied || (kind === "presence" && !!raid.absent);
 }
 
+/**
+ * The count after "Raids im Zeitraum": "2 von 4 gewählt" while every raid can be picked; raids the dialog
+ * leaves alone (raidFixed) count as done, not as left out — "2 gewählt · 2 erledigt", or "4 erledigt".
+ */
+export function raidCountLabel(kind: AvailabilityKind, raids: Pick<AvailabilityRaid, "id" | "status" | "applied" | "absent">[], off: Set<string>): string {
+    const done = raids.filter((r) => raidFixed(kind, r)).length;
+    const picked = raids.filter((r) => !raidFixed(kind, r) && !off.has(r.id)).length;
+    if (!done) return t("signups.availability.dialog.picked", { picked, total: raids.length });
+    if (done === raids.length) return t("signups.availability.dialog.raidsDone", { done });
+    return t("signups.availability.dialog.raidsPickedDone", { picked, done });
+}
+
 // ---- where an entry holds: servers and their categories ----
 
 /** The dialog's pick per server: "all" its categories, or only these; a server not in it is not picked. */

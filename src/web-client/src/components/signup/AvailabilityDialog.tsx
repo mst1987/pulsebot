@@ -14,7 +14,7 @@ import type { ShellContext } from "../shell/Shell";
 import { CharacterRows, RaidChecklist, RaiderPick, ResultList, ScopePicker } from "./AvailabilityParts";
 import {
     characterGroups, charactersInput, charsFromEntry, countResults, effectiveChars, initialScope, nextTo, pickedVersions,
-    raidFixed, resultSummary, scopeFromEntry, scopeParts, setCharSpec, toggleCategory, toggleChar, toggleServer,
+    raidCountLabel, raidFixed, resultSummary, scopeFromEntry, scopeParts, setCharSpec, toggleCategory, toggleChar, toggleServer,
     type CharPick, type ScopePick,
 } from "../../lib/signups/availability";
 import { versionLabel } from "../../lib/raidplan/versions";
@@ -295,7 +295,7 @@ function AvailabilityForm({ initialKind, own, initialTarget, initialCategory, ac
                     <div className="field">
                         <span className="an-label">
                             {t("signups.availability.dialog.raids")}
-                            {raids.length > 0 && <span className="an-opt"> · {t("signups.availability.dialog.picked", { picked: picked.length, total: raids.length })}</span>}
+                            {raids.length > 0 && <span className="an-opt"> · {raidCountLabel(kind, raids, off)}</span>}
                         </span>
                         {problem ? <p className="an-av-problem" role="alert">{problem}</p>
                             : !complete ? null
