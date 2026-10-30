@@ -157,15 +157,14 @@ function bestPlacementIn(s, c, e) {
 }
 
 /**
- * Leaders are scarce: the raid with the fewest free leaders goes first and
- * takes the free leader who could lead the fewest other raids. Each gets their
- * best place in that raid; whoever leads stays a normal raider on a role seat.
+ * One leader per raid, in the raids' order (#1036): the first raid of a group
+ * takes its leader first, so too few leaders leave the last raids without one.
+ * Each raid takes the free leader who could lead the fewest other raids, on their
+ * best place there; whoever leads stays a normal raider on a role seat.
  */
 function greedyLeaders(s) {
     const open = s.events.filter((e) => e.leaderRule && !hasLeader(s, e.idx)).map((e) => e.idx);
-    while (open.length) {
-        open.sort((a, b) => freeLeaders(s, a).length - freeLeaders(s, b).length || a - b);
-        const e = open.shift();
+    for (const e of open) {
         const pool = freeLeaders(s, e).sort((a, b) => s.cands[a].leadsIn.size - s.cands[b].leadsIn.size || a - b);
         for (const c of pool) {
             const best = bestPlacementIn(s, c, e);

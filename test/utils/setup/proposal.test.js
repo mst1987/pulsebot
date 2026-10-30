@@ -38,6 +38,14 @@ function expectHardRules(input, out) {
             }
         }
         expect(total).toBeLessThanOrEqual(event.size);
+        // leader (#1036): at most one per raid, and one as soon as someone who may lead is placed
+        const slots = ev.groups.flatMap((g) => g.slots);
+        const mayLead = (uid) => uid === event.leaderUserId || uid === event.raidLeadId
+            || (Array.isArray(event.leaders) && event.leaders.includes(uid));
+        const leaders = slots.filter((x) => x.leader);
+        expect(leaders.length).toBeLessThanOrEqual(1);
+        for (const l of leaders) expect(mayLead(l.userId)).toBe(true);
+        if (slots.some((x) => mayLead(x.userId))) expect(leaders).toHaveLength(1);
         const comp = event.composition;
         expect(counts.tank).toBeLessThanOrEqual(Math.max(comp.tank, lockedCounts.tank));
         expect(counts.healer).toBeLessThanOrEqual(Math.max(comp.healer, lockedCounts.healer));

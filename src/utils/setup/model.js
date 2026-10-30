@@ -62,6 +62,8 @@ function normalizeEvents(input) {
             leaders: new Set((Array.isArray(e.leaders) ? e.leaders : []).map(str).filter(Boolean)),
             // the orga chose this raider as the leader (after a question when they hold no flag)
             leaderUserId: str(e.leaderUserId),
+            // the raid lead entered in the event (`event.leaderId`): leads the raid once placed there, flag or not
+            raidLeadId: str(e.raidLeadId),
             // the instances short, for the reason "Leitet diesen Raid (Kara)"
             instanceShort: str(e.instanceShort),
         });
@@ -521,13 +523,14 @@ function indexOptions(cands, specInfo, specData) {
 
 /**
  * `leadsIn` on every candidate: the events (idx) they may lead - their flag covers
- * the raid, or the orga chose them there (#1036). Empty without a leader rule.
+ * the raid, the orga chose them there, or they are its entered raid lead (#1036).
+ * Empty without a leader rule.
  */
 function markLeaders(events, cands) {
     for (const c of cands) {
         c.leadsIn = new Set();
         for (const e of events) {
-            if (e.leaderRule && (e.leaders.has(c.userId) || e.leaderUserId === c.userId)) c.leadsIn.add(e.idx);
+            if (e.leaderRule && (e.leaders.has(c.userId) || e.leaderUserId === c.userId || e.raidLeadId === c.userId)) c.leadsIn.add(e.idx);
         }
     }
 }

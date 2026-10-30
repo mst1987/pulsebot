@@ -18,7 +18,8 @@
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
 //   leaders     per event the signed-up user ids whose leader flags (#1034) cover the raid's
-//               version and instances, plus the orga's choice `setup.leaderUserId` (#1036)
+//               version and instances - only while the server has a flag for the version at all -
+//               plus the orga's choice `setup.leaderUserId` and the raid lead `event.leaderId` (#1036)
 //   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
 //               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
 //
@@ -37,7 +38,7 @@ const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
-const { canLead, instanceChoices } = require("../roster/leaderFlags");
+const { canLead, leadInstances, instanceChoices } = require("../roster/leaderFlags");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -150,25 +151,50 @@ function compositionLimits(event) {
 }
 
 /**
+ * Whether the raid's server has at least one leader flag for `versionId` (#1036): an account
+ * with a flag for the version that raids in this server's context - signed up to these raids,
+ * in the roster of their category (`known`), or signed up to any own event of the server
+ * (a raid group's raids live on its first raid's server). The flags themselves are global per
+ * account; no Discord member fetch (it hangs without the GuildMembers intent). Cheap: nobody
+ * flagged for the version = no store read; the answer is cached per version for one collect.
+ */
+function serverHasLeaders(guildId, versionId, allLeads, known, cache) {
+    if (cache.has(versionId)) return cache.get(versionId);
+    const flagged = Object.keys(allLeads).filter((u) => leadInstances(allLeads[u], versionId).length);
+    let has = flagged.some((u) => known.has(u));
+    if (!has && flagged.length) {
+        const own = new Set(eventStore.listEvents(guildId, { siblings: true }).map((e) => String(e.id)));
+        has = flagged.some((u) => Object.keys(signupStore.signupsOfUser(u)).some((id) => own.has(id)));
+    }
+    cache.set(versionId, has);
+    return has;
+}
+
+/**
+ * The leader facts of a raid (#1036): who of `userIds` may lead it (flags covering its version
+ * and instances) - only while the server has a leader flag for the version at all (else the
+ * key stays out and the proposal knows no leader rule, as before #1036) - the instances' short
+ * names for the reason text, the orga's choice and the raid lead entered in the event
+ * (`event.leaderId`, leads its raid once placed there, flag or not).
+ */
+function leaderFacts(event, userIds, allLeads, { config, guildId, known, cache }) {
+    const versionId = versionOfEvent(event, { config });
+    const instanceIds = Array.isArray(event.instanceIds) ? event.instanceIds.map(String) : [];
+    const shorts = instanceChoices(versionId).filter((i) => instanceIds.includes(i.id)).map((i) => i.short);
+    const rule = serverHasLeaders(guildId, versionId, allLeads, known, cache);
+    return {
+        ...(rule ? { leaders: [...userIds].filter((u) => canLead(allLeads[u], versionId, instanceIds)) } : {}),
+        instanceShort: shorts.join("/"),
+        leaderUserId: (event.setup && event.setup.leaderUserId) ? String(event.setup.leaderUserId) : "",
+        raidLeadId: event.leaderId ? String(event.leaderId) : "",
+    };
+}
+
+/**
  * Everything buildSetupProposal() needs for these own events (several = they
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
  * none is left.
  */
-/**
- * The leader rule of a raid (#1036): who of `userIds` may lead it (flags covering its version
- * and instances), the instances' short names for the reason text, and the orga's choice.
- */
-function leaderFacts(event, userIds, allLeads, config) {
-    const versionId = versionOfEvent(event, { config });
-    const instanceIds = Array.isArray(event.instanceIds) ? event.instanceIds.map(String) : [];
-    const shorts = instanceChoices(versionId).filter((i) => instanceIds.includes(i.id)).map((i) => i.short);
-    return {
-        leaders: [...userIds].filter((u) => canLead(allLeads[u], versionId, instanceIds)),
-        instanceShort: shorts.join("/"),
-        leaderUserId: (event.setup && event.setup.leaderUserId) ? String(event.setup.leaderUserId) : "",
-    };
-}
-
 function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, shadowbannedOf = null } = {}) {
     const events = [...new Set((Array.isArray(eventIds) ? eventIds : [eventIds]).map(String))]
         .map((id) => eventStore.getEvent(id))
@@ -201,6 +227,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
     const { history, source: historySource } = benchHistory(events, { guildId, now });
     const rosterStatus = rosterStatusFor(events);
     const allLeads = leaderFlagsStore.allLeads();
+    const leaderCtx = { config, guildId, known: new Set([...userIds, ...Object.keys(rosterStatus)]), cache: new Map() };
     return {
         versionId: events[0].versionId,
         events: events.map((e) => ({
@@ -211,7 +238,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
             requiredBuffs: requiredBuffsFor(e, config),
             fairness: e.fairness,
             wishes: e.wishes,
-            ...leaderFacts(e, userIds, allLeads, config),
+            ...leaderFacts(e, userIds, allLeads, leaderCtx),
         })),
         signups,
         profiles,

@@ -72,6 +72,45 @@ describe("one leader per raid (#1036)", () => {
         for (const ev of out.events) expect(placedIn(ev).filter((u) => leaders.includes(u)).length).toBeLessThanOrEqual(1);
     });
 
+    it("5 raids, 4 leaders: the first raid gets its leader first, the last one stays red", () => {
+        const leaders = ["d3", "h7", "d11", "d19"];
+        const input = group(5, fifty(), () => leaders);
+        const out = buildSetupProposal(input);
+        expect(out.events.map((e) => e.checks.leader.ok)).toEqual([true, true, true, true, false]);
+        expect(leaderSlots(out.events[0])).toHaveLength(1);
+        expect(leaderSlots(out.events[4])).toHaveLength(0);
+        // the same every time, also with the signups in another order
+        const again = buildSetupProposal({ ...input, signups: input.signups.slice().reverse() });
+        expect(again.events.map((e) => e.checks.leader.ok)).toEqual([true, true, true, true, false]);
+    });
+
+    it("5 raids, 3 leaders: the last two raids are the red ones", () => {
+        const out = buildSetupProposal(group(5, fifty(), () => ["d3", "h7", "d11"]));
+        expect(out.events.map((e) => e.checks.leader.ok)).toEqual([true, true, true, false, false]);
+    });
+
+    it("the raid lead (raidLeadId) leads its raid once placed - before a flag holder, after the orga's choice", () => {
+        const input = group(1, fifty().slice(0, 30), () => ["d0"]);
+        input.events[0].raidLeadId = "h1";
+        expect(leaderSlots(buildSetupProposal(input).events[0]).map((s) => s.userId)).toEqual(["h1"]);
+        input.events[0].leaderUserId = "d2";
+        input.fixed = [{ userId: "d2", eventId: "kara1", group: null, spec: "Warlock-Destruction" }];
+        expect(leaderSlots(buildSetupProposal(input).events[0]).map((s) => s.userId)).toEqual(["d2"]);
+    });
+
+    it("without a leader rule the placed raid lead still wears the crown, with no check and no score part", () => {
+        const input = group(1, fifty().slice(0, 30));
+        delete input.events[0].leaders;
+        input.events[0].raidLeadId = "h1";
+        const out = buildSetupProposal(input);
+        expect(leaderSlots(out.events[0]).map((s) => s.userId)).toEqual(["h1"]);
+        expect(out.events[0].checks.leader).toBeUndefined();
+        expect(out.score.parts.leader).toBeUndefined();
+        // a raid lead who is not placed: no crown at all
+        input.events[0].raidLeadId = "nobody";
+        expect(leaderSlots(buildSetupProposal(input).events[0])).toHaveLength(0);
+    });
+
     it("a flag for another instance does not count (the input lists only who covers the raid)", () => {
         // collectSetupInput hands in only those whose flag covers the raid's instances; d3 leads Gruul only
         const input = group(1, fifty().slice(0, 30), () => []);

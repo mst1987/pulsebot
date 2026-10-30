@@ -122,4 +122,53 @@ describe("Leader je Raid (#1036)", () => {
         await user.click(slot("Schatten"));
         expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.set")) })).toBeNull();
     });
+
+    it("undoes the orga's leader choice with leaderUserId '' - only on the leader the orga picked", async () => {
+        const user = userEvent.setup();
+        page = { ...leaderData(), setup: { ...leaderData().setup!, leaderUserId: TANK.userId } };
+        await show();
+        await user.click(slot("Bruno"));
+        await user.click(within(panel()).getByRole("button", { name: new RegExp(t("setup.leader.unset")) }));
+        await waitFor(() => expect(puts()).toHaveLength(1));
+        expect((puts()[0][2] as SetupPlacementInput).leaderUserId).toBe("");
+    });
+
+    it("has no undo button on anybody else", async () => {
+        const user = userEvent.setup();
+        page = { ...leaderData(), setup: { ...leaderData().setup!, leaderUserId: TANK.userId } };
+        await show();
+        await user.click(slot("Ignis"));
+        expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.unset")) })).toBeNull();
+    });
+
+    it("has no undo button when the proposal picked the leader itself", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Bruno"));
+        expect(within(panel()).queryByRole("button", { name: new RegExp(t("setup.leader.unset")) })).toBeNull();
+    });
+
+    it("shows the crown in the panel head for who leads this raid", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Bruno"));
+        expect(panel().querySelector(".se-tip-lead")).not.toBeNull();
+    });
+
+    it("shows no crown in the panel head for a raider who does not lead this raid", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Ignis"));
+        expect(panel().querySelector(".se-tip-lead")).toBeNull();
+    });
+
+    it("fills the names into the question - no raw placeholder", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Ignis"));
+        await user.click(within(panel()).getByRole("button", { name: new RegExp(t("setup.leader.set")) }));
+        const text = screen.getByRole("dialog").textContent || "";
+        expect(text).toContain("Ignis");
+        expect(text).not.toMatch(/[{}]/);
+    });
 });

@@ -20,7 +20,8 @@ jest.mock("../../../src/stores/events/eventStore", () => ({
 }));
 let mockSignups = [];
 let mockLeads = {};
-jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => mockSignups }));
+let mockSignupsOf = {};
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => mockSignups, signupsOfUser: (uid) => mockSignupsOf[uid] || {} }));
 jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../src/stores/roster/leaderFlagsStore", () => ({ allLeads: () => mockLeads }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
@@ -52,6 +53,7 @@ beforeEach(() => {
     ];
     // "rogue" may lead Karazhan, "frost" only Gruul
     mockLeads = { rogue: flag, frost: { tbc: { instances: ["gruul"], by: "x", at: 1 } } };
+    mockSignupsOf = {};
 });
 
 const leaders = (setup) => setup.groups.flatMap((g) => g.slots.filter((s) => s.leader)).map((s) => s.userId);
@@ -81,11 +83,99 @@ describe("the leader in the setup editor (#1036)", () => {
     });
 
     it("an approval without a leader leaves the event's leader alone", () => {
-        mockLeads = {};
+        mockLeads = { frost: { tbc: { instances: ["gruul"], by: "x", at: 1 } } };
         const { setup } = editor.proposeEventSetup(ID);
         expect(setup.checks.leader.ok).toBe(false);
+        expect(leaders(setup)).toEqual([]);
         editor.approveEventSetup(ID, { version: setup.version });
         expect(mockEvents.get(ID).leaderId).toBe("creator");
+    });
+
+    it("without any leader flag on the server: no leader rule, all as before #1036", () => {
+        mockLeads = {};
+        const { setup } = editor.proposeEventSetup(ID);
+        expect(setup.checks.leader).toBeUndefined();
+        expect(leaders(setup)).toEqual([]);
+        editor.approveEventSetup(ID, { version: setup.version });
+        expect(mockEvents.get(ID).leaderId).toBe("creator");
+    });
+
+    it("without a flag the placed raid lead (event.leaderId) still wears the crown, with no check", () => {
+        mockLeads = {};
+        mockEvents.set(ID, { ...mockEvents.get(ID), leaderId: "heal1" });
+        const { setup } = editor.proposeEventSetup(ID);
+        expect(setup.checks.leader).toBeUndefined();
+        expect(leaders(setup)).toEqual(["heal1"]);
+    });
+
+    it("a flag counts for the server when its holder signed up to another event of it, else not", () => {
+        mockLeads = { outsider: flag };
+        expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
+        mockEvents.set("eh-other", { id: "eh-other", guildId: "g1", title: "Gruul" });
+        mockSignupsOf = { outsider: { "eh-other": { status: "signed" } } };
+        const ruled = editor.proposeEventSetup(ID).setup;
+        expect(ruled.checks.leader).toEqual({ count: 0, ok: false, candidates: [] });
+    });
+
+    it("the placed raid lead leads before an earlier signed-up flag holder and stays the event's leader", () => {
+        mockSignups = [su("creator", "Warrior-Protection"), ...mockSignups.filter((s) => s.userId !== "tank")];
+        mockSignups.unshift(mockSignups.splice(mockSignups.findIndex((s) => s.userId === "rogue"), 1)[0]);
+        const { setup } = editor.proposeEventSetup(ID);
+        expect(placed(setup)).toEqual(expect.arrayContaining(["creator", "rogue"]));
+        expect(leaders(setup)).toEqual(["creator"]);
+        editor.approveEventSetup(ID, { version: setup.version });
+        expect(mockEvents.get(ID).leaderId).toBe("creator");
+    });
+
+    it("a live save does not reset a raid lead changed in the event edit", () => {
+        const { setup } = editor.proposeEventSetup(ID);
+        editor.approveEventSetup(ID, { version: setup.version });
+        expect(mockEvents.get(ID).leaderId).toBe("rogue");
+        // posted, then the orga changes the raid lead in the event edit
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c1", messageId: "m1" }, leaderId: "heal1" });
+        const saved = editor.saveEventSetup(ID, placementOf(mockEvents.get(ID).setup));
+        expect(saved.live).toBe(true);
+        expect(mockEvents.get(ID).leaderId).toBe("heal1");
+        expect(leaders(saved.setup)).toEqual(["heal1"]);
+    });
+
+    it("leaderIdFor: the orga's choice wins, a raid lead in the raid stays, an absent one is replaced", () => {
+        const { leaderIdFor } = editor._internal;
+        const groups = [{ index: 1, slots: [{ userId: "a" }, { userId: "b", leader: true }] }];
+        expect(leaderIdFor({ leaderId: "a" }, { groups })).toBe("");
+        expect(leaderIdFor({ leaderId: "a" }, { groups, leaderUserId: "b" })).toBe("b");
+        expect(leaderIdFor({ leaderId: "gone" }, { groups })).toBe("b");
+        expect(leaderIdFor({}, { groups })).toBe("b");
+        expect(leaderIdFor({ leaderId: "a" }, { groups: [{ index: 1, slots: [{ userId: "a" }] }] })).toBe("");
+    });
+
+    it("the orga's choice holds for the run but never turns into a lock, not even after a change of leader", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const [a, b] = placed(first).filter((u) => !["rogue", "tank", "heal1", "heal2"].includes(u));
+        editor.saveEventSetup(ID, { ...placementOf(first), leaderUserId: a });
+        const slotOf = (setup, uid) => setup.groups.flatMap((g) => g.slots).find((s) => s.userId === uid);
+        const again = editor.proposeEventSetup(ID).setup;
+        expect(slotOf(again, a)).toMatchObject({ leader: true, locked: false });
+        expect(slotOf(again, a).reasons).not.toContain("Von der Orga fixiert");
+        editor.saveEventSetup(ID, { ...placementOf(again), leaderUserId: b });
+        const third = editor.proposeEventSetup(ID).setup;
+        expect(leaders(third)).toEqual([b]);
+        const old = slotOf(third, a);
+        if (old) {
+            expect(old.locked).toBe(false);
+            expect(old.reasons).not.toContain("Von der Orga fixiert");
+        }
+        expect(slotOf(third, b).locked).toBe(false);
+    });
+
+    it("a lock the orga set itself stays when that raider is also the chosen leader", () => {
+        const first = editor.proposeEventSetup(ID).setup;
+        const a = placed(first).find((u) => !["rogue", "tank", "heal1", "heal2"].includes(u));
+        const body = placementOf(first);
+        body.groups.forEach((g) => g.slots.forEach((s) => { if (s.userId === a) s.locked = true; }));
+        editor.saveEventSetup(ID, { ...body, leaderUserId: a });
+        const again = editor.proposeEventSetup(ID).setup;
+        expect(again.groups.flatMap((g) => g.slots).find((s) => s.userId === a)).toMatchObject({ leader: true, locked: true });
     });
 
     it("the orga's choice (even without a flag) leads, stays through new proposals and filling, and leaderId follows", () => {

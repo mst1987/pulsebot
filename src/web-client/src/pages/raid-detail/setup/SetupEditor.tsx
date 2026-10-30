@@ -793,6 +793,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         // "Als Leader setzen" (#1036): only in a group of a raid with a leader rule
         leader: !!inspectedPerson.leader,
         onLeader: inspectedInGroup && setup.checks.leader ? act(() => void makeLeader(inspectedPerson.userId, inspectedPerson.character)) : undefined,
+        // "Leader-Wahl aufheben" (#1036): only on the leader the orga picked; the proposal picks again
+        onUnlead: inspectedInGroup && inspectedPerson.leader && setup.leaderUserId === inspectedPerson.userId
+            ? act(() => void save({ ...toInput(current.current?.setup || setup), leaderUserId: "" })) : undefined,
     } : {};
     // who in the groups has no answer yet — "Alle bestätigen" is there only while somebody is left
     const placed = setup.groups.reduce((n, g) => n + g.slots.length, 0);

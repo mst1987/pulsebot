@@ -7,7 +7,9 @@
 //   FILL          per placed raider — a free place is always worse than a filled one
 //   ROLE_MIN      per raider a role is short of its target or minimum
 //   LEADER_MIN    per raid without a raider who may lead it (#1036) - only when the
-//                 input names who may lead (event.leaderRule); a second leader adds nothing
+//                 input names who may lead (event.leaderRule); a second leader adds nothing.
+//                 Plus LEADER_ORDER per later raid of the run: too few leaders go to the
+//                 first raids, the last ones stay without
 //   BENCH_STATUS  subtracted per placed raider who signed up as "Ersatzbank":
 //                 still better than an empty place, never better than anyone else
 //   weights.*     the soft goals, adjustable per run (see DEFAULT_WEIGHTS)
@@ -25,6 +27,10 @@ const ROLE_MIN = 30000;
 // One leader per raid (#1036) weighs like a missing role: a raid without anybody
 // who may lead it is worse than any lineup that has one.
 const LEADER_MIN = 30000;
+// A leader missing in an earlier raid weighs a little more (below FILL, far above any weight):
+// raid 1 of a group gets its leader first, a missing one shows in the last raids.
+const LEADER_ORDER = 1000;
+const LEADER_ORDER_MAX = 9;
 const BENCH_STATUS = 7000;
 const MAX_WEIGHT = 500;
 // A party buff everybody wants (Blood Pact, Healing Stream) is worth having, but
@@ -229,8 +235,9 @@ function makeScorer(model) {
                 if (detail) parts.roles -= short * ROLE_MIN;
             }
             if (event.leaderRule && s.leaders === 0) {
-                total -= LEADER_MIN;
-                if (detail) parts.leader -= LEADER_MIN;
+                const missing = LEADER_MIN + Math.min(events.length - 1 - e, LEADER_ORDER_MAX) * LEADER_ORDER;
+                total -= missing;
+                if (detail) parts.leader -= missing;
             }
             let raid = 0;
             for (const v of s.raid) raid += v;

@@ -218,6 +218,31 @@ describe("one seat per person across the group", () => {
         expect(editor.moveToRaid(primary.id, { target: other.id, userId: "d2" }, { now: NOW }).code).toBe("invalid");
     });
 
+    it("a failed second save puts the raider back with the raid's leader choice (#1036)", () => {
+        const sibling = add().event;
+        editor.saveEventSetup(sibling.id, { groups: [{ index: 1, slots: [{ userId: "t2", spec: "Paladin-Protection" }] }], bench: [] }, { now: NOW });
+        editor.saveEventSetup(primary.id, { groups: [{ index: 1, slots: [{ userId: "t1", spec: "Warrior-Protection" }, { userId: "h1", spec: "Priest-Holy" }] }], bench: [], leaderUserId: "h1" }, { now: NOW });
+        expect(eventStore.getEvent(primary.id).setup.leaderUserId).toBe("h1");
+        // somebody else saves the other raid in between: its save fails on the version
+        const real = eventStore.setEventSetup;
+        let bumped = false;
+        const spy = jest.spyOn(eventStore, "setEventSetup").mockImplementation((id, setup, opts) => {
+            const out = real(id, setup, opts);
+            if (id === primary.id && !bumped) {
+                bumped = true;
+                const other = eventStore.getEvent(sibling.id).setup;
+                real(sibling.id, { ...other, version: other.version + 1 });
+            }
+            return out;
+        });
+        const moved = editor.moveToRaid(primary.id, { target: sibling.id, userId: "h1" }, { userId: "orga", now: NOW });
+        spy.mockRestore();
+        expect(moved.code).toBe("conflict");
+        const back = eventStore.getEvent(primary.id).setup;
+        expect(placed(back).sort()).toEqual(["h1", "t1"]);
+        expect(back.leaderUserId).toBe("h1");
+    });
+
     it("refuses a move into a full raid", () => {
         const sibling = add().event;
         const ten = ROSTER.slice(0, 10).map(([userId, spec]) => ({ userId, spec }));
