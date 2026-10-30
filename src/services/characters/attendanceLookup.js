@@ -4,14 +4,14 @@
 // single answer. Always within one game version (#740): the caller names it
 // (the command: the channel's category's version, or the one picked).
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
-const { mainVersionFor } = require("../events/mainVersion");
-const { isCategoryActive } = require("../events/categoryLifecycle");
+const { mainVersionFor } = require("../versions/mainVersion");
+const { isCategoryActive } = require("../categories/categoryLifecycle");
 const { listAllAssignments } = require("../../stores/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
 const { listAll } = require("../../stores/lootStore");
 const { lootOfGuild } = require("../loot/lootServer");
 const { buildVersionContext, versionsOfCharacter } = require("./characterVersions");
-const { listKnownCategories } = require("../discord/categoryNames");
+const { listKnownCategories } = require("../categories/categoryNames");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 
 /**

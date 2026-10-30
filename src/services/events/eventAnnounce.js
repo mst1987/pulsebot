@@ -25,7 +25,7 @@ const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { shortWhen } = require("../../utils/time");
 const { expectedRoleIds } = require("../roster/categoryRoles");
-const { versionOfEvent } = require("./mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 
 /**
  * The category's announcement setting (#306), or the caller's own choice.

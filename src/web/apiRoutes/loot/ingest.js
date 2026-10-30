@@ -28,12 +28,12 @@ const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilS
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../../loot/councilView");
 const { getConfig } = require("../../../stores/settingsStore");
 const { serverIds, serverLabel } = require("../../../services/discord/guildRoles");
-const { versionOfEvent, mainVersionFor } = require("../../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { wclGuildsOf } = require("../../../services/logcheck/wclGuildSettings");
 const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/ingestServers");
 const discord = require("../../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../../services/loot/lootServer");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { ingestScan } = require("../../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../services/guildbank/itemEmojis");

@@ -1,7 +1,7 @@
 // The boss icon each raid is shown with — the achievement of its final boss,
 // the one thing every raider recognises at a glance. Keyed by the instance ids of
 // the rule sets (src/config/gameVersions), which the server hands out per event
-// (src/services/events/raidListing.js). Names checked against the zamimg CDN: Archimonde's
+// (src/services/events/overview/raidListing.js). Names checked against the zamimg CDN: Archimonde's
 // only exists with the trailing "-", Kael'thas' with the apostrophe (WowIcon
 // encodes it).
 import { t } from "../../i18n";

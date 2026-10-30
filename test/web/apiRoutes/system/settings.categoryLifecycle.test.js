@@ -18,7 +18,7 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.
 jest.mock("../../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 jest.mock("../../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../../src/stores/rosterStore", () => ({ ...jest.requireActual("../../../../src/stores/rosterStore"), listRosters: jest.fn(() => []) }));
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "mon", name: "Montag" }, { id: "gone", name: "TBC Montag" }]),
 }));
 jest.mock("../../../../src/services/discord/discord", () => require("../../../helpers/discordMock").withClientHelpers({
@@ -28,7 +28,7 @@ jest.mock("../../../../src/services/discord/discord", () => require("../../../he
     listRoles: jest.fn(() => []), listTextChannels: jest.fn(() => []), listVoiceChannels: jest.fn(() => []), listGuilds: jest.fn(() => [{ id: "g1" }]),
     resolveUserNames: jest.fn(async () => ({})),
 }));
-jest.mock("../../../../src/services/events/contentVersions", () => ({
+jest.mock("../../../../src/services/versions/contentVersions", () => ({
     upcomingByVersion: jest.fn(() => ({})), versionsWithData: jest.fn(() => new Set()), archiveExport: jest.fn(), archiveCsv: jest.fn(),
 }));
 jest.mock("../../../../src/stores/eventSeriesStore", () => ({

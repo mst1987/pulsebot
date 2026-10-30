@@ -14,8 +14,8 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../../src/stores/settingsStore"),
     getConfig: jest.fn(() => ({ mainVersion: "forever" })),
 }));
-jest.mock("../../../../src/services/events/storedVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/storedVersion"),
+jest.mock("../../../../src/services/versions/storedVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/storedVersion"),
     storedVersionOf: (id) => ({ ev_tbc: "tbc", ev_forever: "forever" })[id] || "",
 }));
 

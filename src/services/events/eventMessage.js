@@ -75,7 +75,7 @@ const discord = require("../discord/discord");
 // The counting rule lives in the signup service, so the page and the message agree.
 const { rosterCounts, allowedStatuses, signupWindow } = require("../signups/signupService");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { rulesForEvent, versionOfEvent } = require("./mainVersion");
+const { rulesForEvent, versionOfEvent } = require("../versions/mainVersion");
 const {
     appEmojiMap, loadAppEmojis, emojiText, emojiOption,
     specEmojiName, classEmojiName, roleUiEmojiName, statusEmojiName, uiEmojiName, tileEmojiName, roleEmojiName, emojiStyleOf,
@@ -92,7 +92,7 @@ const { signedUpText } = require("../../utils/signup/capacity");
 const { tr, specLabel, classLabel, normalizeLang } = require("../../utils/i18n/botText");
 const { eventLang } = require("../discord/botLanguage");
 const { hasExpected } = require("../roster/expectedRaiders");
-const { eventVersionTag } = require("./versionTag");
+const { eventVersionTag } = require("../versions/versionTag");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 const { groupSummary } = require("./raidGroup");
 

@@ -44,8 +44,8 @@ const linkCheck = require("../discord/linkCheck");
 const guildRoles = require("../discord/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
-const { versionOfEvent, isVersionVisible } = require("../events/mainVersion");
-const { versionShort } = require("../events/versionTag");
+const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
+const { versionShort } = require("../versions/versionTag");
 const { VERSIONS, instanceById } = require("../../config/gameVersions");
 const { entryForSpec } = require("../../config/data/classlist");
 const { onSignupsChanged } = require("../../stores/signupStore");
@@ -716,7 +716,7 @@ function stopTalkOverview() {
 module.exports = {
     SELECT_ID, MULTI_BUTTON_ID, RAIDHELPER_CREATE_DELAY_MS, CHANNEL_MISSING, currentPayload, syncOverview, overviewStatus,
     scheduleOverviewSync, startTalkOverview, stopTalkOverview,
-    // the counter the category overviews (events/raidOverview.js) show as well
+    // the counter the category overviews (events/overview/raidOverview.js) show as well
     attendingCount,
     // only for the tests (#424): not part of the module's API
     _internal: {

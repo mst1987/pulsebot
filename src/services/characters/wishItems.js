@@ -16,7 +16,7 @@
 //     orga's views); not in "Drop prüfen" and not in the addon format yet.
 const rosterStore = require("../../stores/rosterStore");
 const { rosterLootSystem } = require("../loot/lootSystem");
-const { versionLinks } = require("../events/versionSettings");
+const { versionLinks } = require("../versions/versionSettings");
 const wowhead = require("../../utils/loot/wowhead");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { MAX_WISH_ITEMS } = require("../../stores/raiderProfileStore");

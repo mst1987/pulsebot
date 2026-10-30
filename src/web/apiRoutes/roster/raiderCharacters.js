@@ -9,7 +9,7 @@ const { getCategoryAssignments, setCategoryAssignments } = require("../../../sto
 const { listCharacters } = require("../../../stores/characterStore");
 const discord = require("../../../services/discord/discord");
 const { expectedRoleIds } = require("../../../services/roster/categoryRoles");
-const { mainVersionFor } = require("../../../services/events/mainVersion");
+const { mainVersionFor } = require("../../../services/versions/mainVersion");
 const { buildVersionContext, versionsOfCharacter } = require("../../../services/characters/characterVersions");
 
 /**

@@ -17,10 +17,10 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { getConfig, saveConfig } = require("../../../stores/settingsStore");
 const { TOP_ITEM_NAME_MAX } = require("../../../stores/configSchema");
 const { VERSIONS } = require("../../../config/gameVersions");
-const { knownVersion, mainVersionFor } = require("../../../services/events/mainVersion");
+const { knownVersion, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { MAX_TOP_ITEMS, topItemListsOf, topItemsOf, withTopItem } = require("../../../services/loot/topItems");
 const { lootCatalog } = require("../../loot/lootCatalog");
-const { settingsForVersion } = require("../../../services/events/versionSettings");
+const { settingsForVersion } = require("../../../services/versions/versionSettings");
 
 /**
  * The loot table of a version, raid by raid and boss by boss in the order the

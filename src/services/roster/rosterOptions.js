@@ -7,10 +7,10 @@
 const discord = require("../discord/discord");
 const { canManageRoles } = require("../discord/roleSync");
 const { roleBelowBot } = require("../discord/memberRoles");
-const { listKnownCategories } = require("../discord/categoryNames");
+const { listKnownCategories } = require("../categories/categoryNames");
 const { listStoredEvents } = require("../events/eventSources");
-const { isCategoryActive } = require("../events/categoryLifecycle");
-const { mainVersionFor, visibleVersions } = require("../events/mainVersion");
+const { isCategoryActive } = require("../categories/categoryLifecycle");
+const { mainVersionFor, visibleVersions } = require("../versions/mainVersion");
 const { publicVersions } = require("../../config/gameVersions");
 const { getRaidTemplate } = require("../../stores/raidTemplateStore");
 const rosterStore = require("../../stores/rosterStore");

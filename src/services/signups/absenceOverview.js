@@ -31,7 +31,7 @@ const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
-const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;

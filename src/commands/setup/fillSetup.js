@@ -6,8 +6,8 @@ const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../stores/eventStore");
 const { ownEventInChannel } = require("../../services/events/eventSources");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
-const { sheetVersionRefusal } = require("../../services/events/versionCapabilities");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { sheetVersionRefusal } = require("../../services/versions/versionCapabilities");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 
 /**
  * The own EventHelper event the command is about (#291): an `eh-` id given as

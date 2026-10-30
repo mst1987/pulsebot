@@ -7,7 +7,7 @@
 // in through `input`; setupInput.js is what reads it from the stores.
 
 const { rulesFor, ROLES } = require("../../config/gameVersions");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { characterKeyOf } = require("../loot/lootImport");
 const { str } = require("../text");
 

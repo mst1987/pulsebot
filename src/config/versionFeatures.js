@@ -2,7 +2,7 @@
 // matrix (Einstellungen → Spielversion → "Funktionen je Version") lists them.
 // Pure data: the ids and the one normaliser of the setting. Whether a feature
 // is possible for a version and whether it is switched on is decided in one
-// place, services/events/versionCapabilities.js.
+// place, services/versions/versionCapabilities.js.
 //
 //   logcheck         the log check of Warcraft-Logs reports (rules ready + log site)
 //   lootCouncilBis   the loot council's content data: BiS lists, item table, tier filter

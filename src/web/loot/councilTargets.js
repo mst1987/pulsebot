@@ -15,7 +15,7 @@ const { rosterLootSystem, categoryLootSystem } = require("../../services/loot/lo
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { currentRoster } = require("../../services/roster/categoryRoster");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
-const { versionLabel } = require("../../services/events/versionSettings");
+const { versionLabel } = require("../../services/versions/versionSettings");
 const { categoryOptions, pickVersion } = require("./councilQuery");
 
 /**

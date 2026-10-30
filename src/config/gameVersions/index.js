@@ -16,7 +16,7 @@ const forever = require("./forever");
 
 const VERSIONS = [tbc, classic, forever];
 // The main version of an install whose settings name none (#541). Which version
-// the guild plays is a setting — services/events/mainVersion.js' mainVersionFor()
+// the guild plays is a setting — services/versions/mainVersion.js' mainVersionFor()
 // reads it; this constant is only its last fallback and the default parameter
 // of the pure lookups below (every caller hands them a version).
 const DEFAULT_VERSION = "tbc";

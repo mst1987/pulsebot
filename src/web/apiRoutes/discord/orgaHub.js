@@ -1,5 +1,5 @@
 // Einstellungen → Kategorien → Details → „Setup & Planung“: the Orga-Zentrale
-// of a raid category (services/events/orgaHub.js) — one Discord message per
+// of a raid category (services/orgaHub/orgaHub.js) — one Discord message per
 // category in a channel only the orga sees. Gated like the raider's Raid-Zentrale
 // (apiRoutes/events/availability.js panels): area `settings`.
 //
@@ -12,7 +12,7 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const orgaHubStore = require("../../../stores/orgaHubStore");
-const orgaHub = require("../../../services/events/orgaHub");
+const orgaHub = require("../../../services/orgaHub/orgaHub");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const settingsStore = require("../../../stores/settingsStore");

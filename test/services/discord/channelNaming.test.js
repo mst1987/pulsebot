@@ -4,7 +4,7 @@
 jest.mock("../../../src/services/discord/discord", () => ({ listAllChannels: jest.fn(() => []) }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn(() => ({ schemas: {} })) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/events/raidListing", () => ({
+jest.mock("../../../src/services/events/overview/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /hyjal/i.test(title || "") ? ["hyjal", "bt"] : /ssc/i.test(title || "") ? ["ssc", "tk"] : [] }),
 }));
 

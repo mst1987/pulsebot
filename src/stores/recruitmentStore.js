@@ -11,7 +11,7 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { LEGACY_VERSION } = require("../config/gameVersions");
-const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
+const { knownVersion, mainVersionFor } = require("../services/versions/mainVersion");
 
 const templatesStore = createJsonStore({ file: settingsPath("recruitment.json"), defaults: { templates: [] } });
 const postsStore = createJsonStore({ file: settingsPath("recruitment-posts.json"), defaults: { posts: [] } });

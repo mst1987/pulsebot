@@ -103,7 +103,7 @@ module.exports = {
     // The version's colour in the web admin (#742, dark theme); see tbc.js.
     color: "#4da3ff",
     characterNames: { lastName: true },
-    // Dungeon best times (feature "dungeonTimes", services/events/versionCapabilities.js):
+    // Dungeon best times (feature "dungeonTimes", services/versions/versionCapabilities.js):
     // the LevelHelper addon runs on this client and reports group runs and
     // achievement points (docs/dungeon-leaderboard.md); "Mein Profil" shows them
     // per character only for a version that has this.

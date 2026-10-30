@@ -13,7 +13,7 @@ jest.mock("../../../src/stores/eventSoftresStore", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({ postMissingPing: jest.fn(async () => undefined) }));
 jest.mock("../../../src/services/discord/botLanguage", () => ({ eventLang: jest.fn(() => "de") }));
-jest.mock("../../../src/services/events/versionTag", () => ({ eventVersionTag: jest.fn(() => "") }));
+jest.mock("../../../src/services/versions/versionTag", () => ({ eventVersionTag: jest.fn(() => "") }));
 jest.mock("../../../src/services/discord/botAccess", () => ({
     ruleFor: jest.fn(),
     resolveBotAccess: jest.fn(),

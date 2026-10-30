@@ -43,7 +43,7 @@ jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 1),
 }));
-jest.mock("../../../src/services/events/raidListing", () => ({
+jest.mock("../../../src/services/events/overview/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /kara/i.test(title || "") ? ["kara"] : [], sources: [] }),
 }));
 

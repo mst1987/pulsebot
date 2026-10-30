@@ -22,9 +22,9 @@ const { gearByCharacter } = require("../../services/loot/charGear");
 const { countsAsLoot } = require("../../utils/loot/lootReasons");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/versions/versionSettings");
 const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { rosterCandidates } = require("./councilRosterSource");
 const { listStoredEvents } = require("../../services/events/eventSources");
@@ -37,7 +37,7 @@ const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
 const bisSource = require("../../config/data/bisSets");
 const { wearCheck } = require("../../config/data/wearable");
-const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
+const { councilContent: councilContentFor } = require("../../services/versions/versionCapabilities");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,

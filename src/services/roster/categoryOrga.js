@@ -1,6 +1,6 @@
 // Who is the orga of a raid category (epic #723, #724) - the one rule the web
 // (the `orgaScoped` gate, web/http/apiHandler.js + apiAccess.js), the
-// Orga-Zentrale in Discord (services/events/orgaHubBot.js, orgaHubLinks.js) and
+// Orga-Zentrale in Discord (services/orgaHub/orgaHubBot.js, orgaHubLinks.js) and
 // the attendance overrides (services/characters/attendanceAccess.js) share:
 //
 //   - the global orga (permissions.userIsOrga: a full admin or an orga role) is

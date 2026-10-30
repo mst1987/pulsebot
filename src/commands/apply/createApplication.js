@@ -1,7 +1,7 @@
 const { MessageFlags, ActionRowBuilder, ButtonBuilder, ButtonStyle, SlashCommandBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { applyButtonId } = require("../../utils/recruitment/applyVersion");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
 
 // Accepts a full message link or a bare message id (then read from the given fallback channel).
 function parseMessageRef(input, fallbackChannelId) {

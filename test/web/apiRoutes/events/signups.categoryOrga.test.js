@@ -25,8 +25,8 @@ jest.mock("../../../../src/stores/rosterStore", () => {
         isClosed: jest.fn(() => false),
     };
 });
-jest.mock("../../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/mainVersion"),
+jest.mock("../../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),

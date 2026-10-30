@@ -67,7 +67,7 @@
 // moves no roster. Read without one it is LEGACY_VERSION (TBC).
 //
 // One roster per category and version (#739): switching a category to another
-// version (services/events/categorySwitch.js) closes the roster of the old
+// version (services/categories/categorySwitch.js) closes the roster of the old
 // version (closeRoster, `closedReason: "version_switch"`) and may start one for
 // the new version. `rosterForCategory(categoryId, versionId)` therefore always
 // names the version — the raid's, the view's, or the one the category plays
@@ -78,7 +78,7 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore, readJsonFile } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { characterKeyOf, VERSION_KEY_SEP } = require("../utils/loot/lootImport");
-const { knownVersion, mainVersionFor } = require("../services/events/mainVersion");
+const { knownVersion, mainVersionFor } = require("../services/versions/mainVersion");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../config/gameVersions");
 const { normalizeLootSystem } = require("../services/loot/lootSystem");
 const logger = require("../logger").child("rosterStore");

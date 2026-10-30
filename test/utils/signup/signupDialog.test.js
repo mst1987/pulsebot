@@ -6,8 +6,8 @@ jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signup
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 // The main version (#541) — empty = TBC, as before the setting existed.
 let mockConfig = {};
-jest.mock("../../../src/services/events/mainVersion", () => {
-    const actual = jest.requireActual("../../../src/services/events/mainVersion");
+jest.mock("../../../src/services/versions/mainVersion", () => {
+    const actual = jest.requireActual("../../../src/services/versions/mainVersion");
     const withConfig = (fn) => (a, opts = {}) => fn(a, { config: mockConfig, ...opts });
     return {
         ...actual,

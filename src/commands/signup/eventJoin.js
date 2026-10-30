@@ -1,7 +1,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { submitSignup, allowedStatuses, checkRaiderRole, signupWindow, defaultCanAlso } = require("../../services/signups/signupService");
 const { JOIN_SELECT_PREFIX, STATUS_OPTIONS } = require("../../services/events/eventMessage");

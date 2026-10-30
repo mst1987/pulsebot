@@ -13,7 +13,7 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({
     listAllAssignments: () => ({ fcat: { u1: "Elesham" } }),
 }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: () => [] }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: () => [{ id: "fcat", name: "Donnerstag" }] }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: () => [{ id: "fcat", name: "Donnerstag" }] }));
 // loot in a raid nobody stored a version for is TBC: the character raided TBC before the category was switched
 jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: () => [{ eventId: "t1" }], listAll: () => [] }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: () => [{ character: "Elesham", categoryIds: ["fcat"] }] }));
@@ -21,7 +21,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: () => 
 
 const configStore = require("../../../src/stores/configStore");
 const own = require("../../../src/commands/lookup/anwesenheit");
-const { versionNote } = require("../../../src/services/events/commandVersion");
+const { versionNote } = require("../../../src/services/versions/commandVersion");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 
 const DAY = 86400;

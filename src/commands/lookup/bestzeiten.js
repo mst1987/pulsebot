@@ -7,7 +7,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { dungeonBoard, dungeonNames } = require("../../services/dungeons/dungeonBoard");
 const { dungeonCard, overallCard } = require("../../services/dungeons/dungeonCards");
-const { addVersionOption, versionOfCommand } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand } = require("../../services/versions/commandVersion");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { respondChoices } = require("../../utils/discord/botLookup");
 

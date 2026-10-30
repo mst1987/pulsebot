@@ -58,10 +58,10 @@ const UI_ICONS = [
     "tank", "healer", "melee", "swords", "ranged",
     // the voice channel and the raid's end in the message head (#305)
     "voice", "end",
-    // the raid statuses of the Orga-Zentrale (services/events/orgaStatus.js): each its own
+    // the raid statuses of the Orga-Zentrale (services/orgaHub/orgaStatus.js): each its own
     // shape AND colour (COLOR_OVERRIDES of scripts/render-ui-emojis.js), so they read apart at a glance
     "orgasignup", "orgaopen", "orgadraft", "orgaapproved", "orgaposted", "orgachanged", "orgacancelled",
-    // the fill bar of the raid overview (events/raidOverviewPanel.js): a segment green (places free),
+    // the fill bar of the raid overview (events/overview/raidOverviewPanel.js): a segment green (places free),
     // orange (full), grey (few signups) or empty
     "barg", "baro", "barn", "bare",
 ];

@@ -18,7 +18,7 @@
 // logs know. Nothing here is ever the only source of a raider's gear.
 
 const { getConfig } = require("../../stores/settingsStore");
-const { blizzardFor, settingsForVersion } = require("../events/versionSettings");
+const { blizzardFor, settingsForVersion } = require("../versions/versionSettings");
 const { situationalItem } = require("../../config/data/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../../config/wowsims");

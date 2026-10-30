@@ -1,7 +1,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup, migrateSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");

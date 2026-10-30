@@ -29,7 +29,7 @@ const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { getPlan } = require("../../stores/raidplanStore");
 const { listLogsForEvent } = require("../../stores/logStore");
 const { getReportHints } = require("../../stores/reportStore");
-const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor } = require("../../services/versions/mainVersion");
 const { zoneFor } = require("./dashboardOverview");
 
 const UPCOMING = 4;

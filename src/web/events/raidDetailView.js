@@ -16,9 +16,9 @@ const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
 } = require("../../stores/settingsStore");
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { archiveOf } = require("../../services/events/eventArchive");
-const { settingsForVersion, versionLinks } = require("../../services/events/versionSettings");
+const { settingsForVersion, versionLinks } = require("../../services/versions/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
 const {
     computeAttendance, buildSpecHistory, withSpecProfiles, withCharacterAssignments,
@@ -51,7 +51,7 @@ const linkCheck = require("../../services/discord/linkCheck");
 const { setupSummary } = require("../../services/setup/setupEditor");
 const setupPresence = require("../../services/setup/setupPresence");
 const { planningOf } = require("../../services/events/planning");
-const { featureState, sheetOffered } = require("../../services/events/versionCapabilities");
+const { featureState, sheetOffered } = require("../../services/versions/versionCapabilities");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");

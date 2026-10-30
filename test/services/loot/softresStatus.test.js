@@ -21,7 +21,7 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({
     charactersOfVersion: jest.fn((profile, versionId) => ((profile && profile.characters) || []).filter((c) => !versionId || c.versionId === versionId)),
 }));
 jest.mock("../../../src/services/events/eventSources", () => ({ getStoredEvent: jest.fn(() => null) }));
-jest.mock("../../../src/services/events/mainVersion", () => ({ versionOfEvent: jest.fn(() => "tbc") }));
+jest.mock("../../../src/services/versions/mainVersion", () => ({ versionOfEvent: jest.fn(() => "tbc") }));
 jest.mock("../../../src/services/setup/setupCore", () => ({
     approvedSetupOf: (event) => (event && event.setup && event.setup.approved) || null,
 }));

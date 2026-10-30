@@ -3,7 +3,7 @@ import { get, send } from "../client";
 // ---- Neue Version starten (#745) -------------------------------------------
 // Einstellungen → Spielversion: the checklist for the day a guild starts a
 // new game version, computed by the server from the real data
-// (services/events/versionLaunch.js). Only the manual items carry a mark.
+// (services/versions/versionLaunch.js). Only the manual items carry a mark.
 
 export type LaunchStatus = "done" | "open";
 export type LaunchMark = { at: number; byName: string };

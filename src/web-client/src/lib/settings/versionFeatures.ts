@@ -1,5 +1,5 @@
 // "Funktionen je Version" (#761) on the client: the matrix the server sends with
-// GET /api/settings (`versionCapabilities`, src/services/events/versionCapabilities.js)
+// GET /api/settings (`versionCapabilities`, src/services/versions/versionCapabilities.js)
 // and the page draft's switches. The server decides what is POSSIBLE (data,
 // rules, settings); the page only switches a possible feature on or off, saved
 // as `versionSettings[<id>].disabled` with the save bar. The feature list is the

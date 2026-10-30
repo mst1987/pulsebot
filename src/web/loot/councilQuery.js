@@ -4,7 +4,7 @@
 const { getConfig } = require("../../stores/settingsStore");
 const discord = require("../../services/discord/discord");
 const { getRoster } = require("../../stores/rosterStore");
-const { mainVersionFor, resolveVersionQuery, knownVersion } = require("../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery, knownVersion } = require("../../services/versions/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** Comma-separated query params ("t5,t6") as a clean array. */

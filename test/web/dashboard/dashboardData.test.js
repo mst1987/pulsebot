@@ -30,7 +30,7 @@ jest.mock("../../../src/services/events/raidEventScan", () => ({ scanRaidEvents:
 jest.mock("../../../src/stores/eventSheetStore", () => ({ getEventSheet: jest.fn(() => null) }));
 jest.mock("../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/services/events/recentEvents", () => ({
+jest.mock("../../../src/services/events/overview/recentEvents", () => ({
     buildRecentEvents: jest.fn(() => []),
     matchLogsForEvent: jest.fn(() => []),
     pendingLogsForEvent: jest.fn(() => []),
@@ -661,7 +661,7 @@ describe("web/dashboard/dashboardData loadTrialEndings (#658)", () => {
 
 describe("web/dashboard/dashboardData logs of the active server only (#920)", () => {
     const { listLogs } = require("../../../src/stores/logStore");
-    const { buildRecentEvents, matchLogsForEvent } = require("../../../src/services/events/recentEvents");
+    const { buildRecentEvents, matchLogsForEvent } = require("../../../src/services/events/overview/recentEvents");
     const { loadRecentEvents, annotateUpcomingExtras } = require("../../../src/web/dashboard/dashboardData");
     const logs = [
         { id: "a", guildId: "gA" },

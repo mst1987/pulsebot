@@ -14,7 +14,7 @@ const { computeAttendance, hasStarted } = require("../../utils/attendance");
 const { deliverUserPing, dmSummary } = require("../discord/pingDelivery");
 const { fail } = require("../../web/http/apiResult");
 const { hasExpected, listExpectedMembers } = require("../roster/expectedRaiders");
-const { versionOfEvent, isVersionVisible } = require("./mainVersion");
+const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
 
 /**
  * Who of the expected raiders has not reacted to the event yet: the core and

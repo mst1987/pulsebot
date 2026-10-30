@@ -3,7 +3,7 @@ const { analyzeConsumables } = require("./consumables");
 const { analyzePotions } = require("./potions");
 
 const { LEGACY_VERSION } = require("../../config/gameVersions");
-const { settingsForVersion, versionLinks } = require("../../services/events/versionSettings");
+const { settingsForVersion, versionLinks } = require("../../services/versions/versionSettings");
 
 // Where an applicant's parses are looked up (#553): the realm, region and
 // Warcraft Logs site of the application's game version (Einstellungen →

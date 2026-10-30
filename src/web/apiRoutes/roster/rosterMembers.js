@@ -16,7 +16,7 @@ const { canManageRosterLive } = require("../../../services/roster/rosterAccess")
 const rosterMembers = require("../../../services/roster/rosterMembers");
 const { searchMembers } = require("../../../services/roster/rosterMemberSearch");
 const { activeRoster } = require("../../roster/activeRoster");
-const { resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

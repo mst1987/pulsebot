@@ -28,7 +28,7 @@
 // hooks it in once at start (src/bot.js). switchRosterPreview() tells the
 // dialog what will happen.
 const rosterStore = require("../../stores/rosterStore");
-const { onCategoryVersionSwitch } = require("../events/categorySwitch");
+const { onCategoryVersionSwitch } = require("../categories/categorySwitch");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const logger = require("../../logger").child("rosterSwitch");
 

@@ -66,7 +66,7 @@ const CONFIG_DEFAULTS = {
         clientId: blizzardClientId || "",
         clientSecret: blizzardClientSecret || "",
     },
-    // Per game version (#542, services/events/versionSettings.js): Battle.net
+    // Per game version (#542, services/versions/versionSettings.js): Battle.net
     // realm, armory and Warcraft Logs templates, Wowhead path, softres edition
     // and default raidsheet as { [versionId]: block }. Every known version is
     // present, an empty field means "not there for this version". A config
@@ -173,7 +173,7 @@ const CONFIG_DEFAULTS = {
     // The sections of a category (#738): { [categoryId]: [{ versionId, from, name }] },
     // oldest first. Switching a category to another version starts a new one
     // (`from` = ms of the switch, `name` = the Discord category name then); a
-    // category never switched has none (services/events/categoryEras.js).
+    // category never switched has none (services/categories/categoryEras.js).
     categoryEras: {},
     // "Andere Versionen ausblenden" (#563): true = every list, selection list
     // and the menu's content switch show only the main version; a direct link
@@ -183,11 +183,11 @@ const CONFIG_DEFAULTS = {
     // "Neue Version starten" (#745, Einstellungen → Spielversion): the items of
     // the checklist that cannot be computed and were marked done by hand, per
     // target version: { [versionId]: { [itemId]: { at, byName } } } — item ids
-    // of VERSION_LAUNCH_MANUAL only (services/events/versionLaunch.js).
+    // of VERSION_LAUNCH_MANUAL only (services/versions/versionLaunch.js).
     versionLaunch: {},
     // Drawn pictures in bot messages (a test, Oct 2026; Einstellungen -> Raid-Standardwerte
     // -> "Bilder in Bot-Nachrichten"): the raid overview's week strip
-    // (services/events/raidWeekStrip.js), the setup as a graphic (services/setup/setupImage.js)
+    // (services/events/overview/raidWeekStrip.js), the setup as a graphic (services/setup/setupImage.js)
     // and the raid's picture as the cover of the Discord server event (discordEventCover.js).
     // On unless switched off; off, the message is drawn as before at its next redraw.
     discordVisuals: { ...DISCORD_VISUALS_DEFAULT },

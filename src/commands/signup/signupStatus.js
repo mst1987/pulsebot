@@ -1,7 +1,7 @@
 const { getEvent } = require("../../stores/eventStore");
 const { getSignup } = require("../../stores/signupStore");
 const profiles = require("../../stores/raiderProfileStore");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { submitSignup, allowedStatuses, checkRaiderRole } = require("../../services/signups/signupService");
 const {
     STATUS_PREFIX, parseStatusId, resolveState, classLabel, buildSignupDialog, buildCharacterModal,

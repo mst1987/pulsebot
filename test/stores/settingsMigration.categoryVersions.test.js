@@ -7,7 +7,7 @@ const fs = require("fs");
 const { settingsPath } = require("../../src/config/paths");
 const { migrateSettings, migrateCategoryVersions } = require("../../src/stores/settingsMigration");
 const configStore = require("../../src/stores/configStore");
-const { mainVersionFor } = require("../../src/services/events/mainVersion");
+const { mainVersionFor } = require("../../src/services/versions/mainVersion");
 
 const CONFIG_FILE = settingsPath("config.json");
 const stored = () => JSON.parse(fs.__store.get(CONFIG_FILE));

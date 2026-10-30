@@ -28,7 +28,7 @@ const eventStore = require("../../stores/eventStore");
 const { card } = require("../../utils/discord/card");
 const { findMissingRaiders, pingMissingRaiders } = require("./missingPing");
 const { MISSING_PREFIX } = require("./eventMessage");
-const { eventVersionTag } = require("./versionTag");
+const { eventVersionTag } = require("../versions/versionTag");
 const { dmSummary } = require("../discord/pingDelivery");
 
 const EVENT_ID = /^eh-[a-z0-9]{1,40}$/;

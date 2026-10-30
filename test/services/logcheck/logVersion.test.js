@@ -8,7 +8,7 @@ jest.mock("../../../src/classes/warcraftlogs", () => jest.fn().mockImplementatio
 }));
 
 // The stored version of a raid (storedVersion.js has its own test): two raids, one per version.
-jest.mock("../../../src/services/events/storedVersion", () => ({
+jest.mock("../../../src/services/versions/storedVersion", () => ({
     versionOfLog: (log) => ({ "raid-tbc": "tbc", "raid-forever": "forever" })[log && log.eventId] || "",
 }));
 

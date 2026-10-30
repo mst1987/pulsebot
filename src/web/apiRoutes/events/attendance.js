@@ -18,7 +18,7 @@ const { withUser } = require("../../http/apiHandler");
 const overridesStore = require("../../../stores/attendanceOverridesStore");
 const { getStoredEvent } = require("../../../services/events/eventSources");
 const { canEditAttendance } = require("../../../services/characters/attendanceAccess");
-const { versionOfEvent } = require("../../../services/events/mainVersion");
+const { versionOfEvent } = require("../../../services/versions/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

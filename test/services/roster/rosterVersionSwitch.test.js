@@ -5,7 +5,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const rosterStore = require("../../../src/stores/rosterStore");
 const configStore = require("../../../src/stores/configStore");
-const { notifyCategoryVersionSwitch } = require("../../../src/services/events/categorySwitch");
+const { notifyCategoryVersionSwitch } = require("../../../src/services/categories/categorySwitch");
 const {
     applyRosterSwitch, switchRosterPreview, rostersAfterSwitches, registerRosterVersionSwitch, cleanChoice,
 } = require("../../../src/services/roster/rosterVersionSwitch");

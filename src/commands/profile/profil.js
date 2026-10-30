@@ -10,8 +10,8 @@
 // order) — the other characters are switched on the web page.
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, SlashCommandBuilder } = require("discord.js");
 const profiles = require("../../stores/raiderProfileStore");
-const { mainVersionFor, visibleRows } = require("../../services/events/mainVersion");
-const { versionShort } = require("../../services/events/versionTag");
+const { mainVersionFor, visibleRows } = require("../../services/versions/mainVersion");
+const { versionShort } = require("../../services/versions/versionTag");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { getConfig } = require("../../stores/settingsStore");
 const { publicBaseUrl } = require("../../utils/publicUrl");

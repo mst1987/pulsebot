@@ -30,9 +30,9 @@
 // only accent, the green "go" button the only coloured control.
 const { rosterEntries, classesOf, messagePhase } = require("../../services/events/eventMessage");
 const { roleCounts } = require("../../services/signups/signupService");
-const { versionOfEvent } = require("../../services/events/mainVersion");
-const { categoryNameAt } = require("../../services/events/categoryEras");
-const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
+const { categoryNameAt } = require("../../services/categories/categoryEras");
+const { listKnownCategories } = require("../../services/categories/categoryNames");
 const log = require("../../logger").child("eventPublicPage");
 const { approvedSetupOf, benchPosted } = require("../../services/setup/setupCore");
 const { getEvent } = require("../../stores/eventStore");

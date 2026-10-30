@@ -10,7 +10,7 @@ const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { webUrl, discordTime, clip } = require("../../utils/discord/botLookup");
 const { tr } = require("../../utils/i18n/botText");
-const { versionLabel } = require("../events/versionSettings");
+const { versionLabel } = require("../versions/versionSettings");
 const { formatSeconds } = require("./dungeonBoard");
 
 /** The web page of the dungeon times. */

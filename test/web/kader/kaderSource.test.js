@@ -6,7 +6,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listHumanMembers: jest.fn(async () => ({ members: [], error: null })),
     listRoles: jest.fn(() => []),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: [] })) }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
@@ -20,7 +20,7 @@ const profiles = require("../../../src/stores/raiderProfileStore");
 const discord = require("../../../src/services/discord/discord");
 const raiderCharacters = require("../../../src/stores/raiderCharactersStore");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const { getConfig } = require("../../../src/stores/configStore");
 const { logIndex } = require("../../../src/web/characters/profileLogs");
 const { loadKaderSource, loadKaderRules, listRaidCategories, groupByVersion, plannerVersion } = require("../../../src/web/kader/kaderSource");

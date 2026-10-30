@@ -12,7 +12,7 @@
 // the next fetch window starts) and `lastResult` ({ found, error, at }) are
 // written by the job only, never by a settings PATCH.
 const { serverSetting } = require("../discord/serverSettings");
-const { knownVersion } = require("../events/mainVersion");
+const { knownVersion } = require("../versions/mainVersion");
 
 /** The minutes an entry may wait between two fetches; 0 = never on its own. */
 const INTERVALS = Object.freeze([0, 15, 30, 60, 180, 360, 1440]);

@@ -104,7 +104,7 @@
 //     had its own). From then on the main version is only the default for
 //     something new; a category changes its version only by a deliberate
 //     switch in Einstellungen → Spielversion, which starts a new section
-//     (config.categoryEras, services/events/categoryEras.js). Runs after the
+//     (config.categoryEras, services/categories/categoryEras.js). Runs after the
 //     stored versions of #737, which read the same map.
 //
 //   - role-messages.json (#895): a role message saved before #895 names its
@@ -158,7 +158,7 @@ const {
 } = require("./configSchema");
 const { versionSettingsOf, versionsWithDefaults, fillDefaults } = require("./versionSettingsSchema");
 const { LEGACY_VERSION } = require("../config/gameVersions");
-const { mainVersionFor } = require("../services/events/mainVersion");
+const { mainVersionFor } = require("../services/versions/mainVersion");
 const configStore = require("./configStore");
 const raidTemplateStore = require("./raidTemplateStore");
 const eventStore = require("./eventStore");
@@ -601,7 +601,7 @@ function migrateCategoryPlanning() {
     return [`config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - ${set.join(", ")}`];
 }
 
-/** The category name snapshot of services/discord/categoryNames.js (guildId -> { categoryId: name }), read here without Discord. */
+/** The category name snapshot of services/categories/categoryNames.js (guildId -> { categoryId: name }), read here without Discord. */
 function categoryNameSnapshot() {
     const data = readJsonFile(settingsPath("category-names.json"), {});
     return (data && typeof data.guilds === "object" && data.guilds) || {};

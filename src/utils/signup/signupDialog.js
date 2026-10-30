@@ -22,7 +22,7 @@ const {
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
-const { rulesForEvent, versionOfEvent } = require("../../services/events/mainVersion");
+const { rulesForEvent, versionOfEvent } = require("../../services/versions/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
 const { ROLES } = require("../../config/gameVersions/classes");
 const { tr, serviceText, specLabel: specLabelOf, classLabel: classLabelOf } = require("../i18n/botText");

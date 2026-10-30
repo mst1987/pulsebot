@@ -128,7 +128,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 
 ## Projektfallen (Checkliste für den reviewer)
 
-1. Alles mit Spielinhalt liest die Version über `versionOfEvent` (`services/events/mainVersion.js`);
+1. Alles mit Spielinhalt liest die Version über `versionOfEvent` (`services/versions/mainVersion.js`);
    eine Seite zeigt nur eine Version, kein „all", leere Versionseinstellung ist nie ein TBC-Ersatz.
 2. Kein „Main-Charakter" — nur die Reihenfolge je Version (`raiderProfileStore.firstCharacter`).
 3. Raid-Helper (1000 Anfragen/24 h, Key mit Prod geteilt) nur über den Sync-Job/Snapshot
@@ -173,7 +173,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
 19. Realm/Region je Server (#923): Spielwerte eines Raiders laufen über
-    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/events/versionSettings.js`:
+    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/versions/versionSettings.js`:
     Standard der Version + `serverSettings[guildId].versionOverrides`). Eine abweichende Region
     zieht den Blizzard-Namespace mit (`profile-classicann-eu` → `-us`), nie den Standard-Namespace
     mit fremder Region kombinieren. Caches von Blizzard-/Armory-Antworten brauchen Region, Realm und

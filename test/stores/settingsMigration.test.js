@@ -223,7 +223,7 @@ describe("stores/settingsMigration standard values and recruitment versions (#55
         // Forever gets its Wowhead section (#750), realm, armory and logs stay empty
         expect(config.versionSettings.forever).toEqual({ ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever" });
         // the links work with the TBC realm, and stay out for Classic without one
-        const { versionLinks } = require("../../src/services/events/versionSettings");
+        const { versionLinks } = require("../../src/services/versions/versionSettings");
         expect(versionLinks("tbc").wcl("Nera")).toBe("https://fresh.warcraftlogs.com/character/eu/thunderstrike/Nera");
         expect(versionLinks("classic").wcl("Nera")).toBe("");
 

@@ -22,12 +22,12 @@ const softres = require("../../../utils/loot/softres");
 const { setEventLootSystem, lootSystemOf } = require("../../../stores/eventLootSystemStore");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
 const wowhead = require("../../../utils/loot/wowhead");
-const { mainVersionFor, versionOfEvent } = require("../../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent } = require("../../../services/versions/mainVersion");
 
 // Every write here changes one event: an archived one (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
-const { settingsForVersion } = require("../../../services/events/versionSettings");
-const { featureState, sheetVersionRefusal } = require("../../../services/events/versionCapabilities");
+const { settingsForVersion } = require("../../../services/versions/versionSettings");
+const { featureState, sheetVersionRefusal } = require("../../../services/versions/versionCapabilities");
 const { createRaidhelperClient } = require("../../../utils/raidhelper/client");
 const Drive = require("../../../classes/drive");
 const SheetsClient = require("../../../classes/sheets");

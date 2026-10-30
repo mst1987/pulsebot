@@ -16,7 +16,7 @@ const profilesStore = require("../../stores/councilProfilesStore");
 const rosterStore = require("../../stores/rosterStore");
 const { rosterLootSystem } = require("./lootSystem");
 const { rosterOfCategory } = require("../roster/categoryRoster");
-const { mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../versions/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();

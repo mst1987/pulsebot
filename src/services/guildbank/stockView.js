@@ -21,8 +21,8 @@
 const stockStore = require("../../stores/guildBankStockStore");
 const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("./reservations");
 const { wowheadPathFor } = require("./itemMeta");
-const { featureOn } = require("../events/versionCapabilities");
-const { visibleRows } = require("../events/mainVersion");
+const { featureOn } = require("../versions/versionCapabilities");
+const { visibleRows } = require("../versions/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
 const { classLabel, subclassLabel } = require("../../config/data/itemClassLabels");
 

@@ -17,8 +17,8 @@
 
 const { getConfig } = require("../../stores/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
-const { blizzardFor } = require("../../services/events/versionSettings");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { blizzardFor } = require("../../services/versions/versionSettings");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
 const profiles = require("../../stores/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
 const { characterEvidence, seenIndex } = require("../../services/characters/characterEvidence");

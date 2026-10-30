@@ -10,7 +10,7 @@
 // System > Einstellungen > <Server> > Top-Items: a switch per boss item of the
 // version's loot table, plus a Wowhead search for items no boss drops.
 const { serverSetting } = require("../discord/serverSettings");
-const { knownVersion } = require("../events/mainVersion");
+const { knownVersion } = require("../versions/mainVersion");
 const { normalizeTopItems } = require("../../stores/configSchema");
 
 /** How many top items one version of one server may hold. */

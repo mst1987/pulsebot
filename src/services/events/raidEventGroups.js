@@ -6,7 +6,7 @@ const discord = require("../discord/discord");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const { signupStatus } = require("../../utils/attendance");
 const { ownEventGroupRows } = require("./eventSources");
-const { categoryNameAt } = require("./categoryEras");
+const { categoryNameAt } = require("../categories/categoryEras");
 
 /** The stored config the section names come from, read once per load (best-effort). */
 function configForEras() {

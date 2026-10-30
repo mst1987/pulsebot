@@ -1,4 +1,4 @@
-// The "Orga-Zentrale" messages (services/events/orgaHub.js): one per raid
+// The "Orga-Zentrale" messages (services/orgaHub/orgaHub.js): one per raid
 // category at most, posted by the orga into a channel only the orga sees.
 //
 // `data/settings/orga-hubs.json` = { hubs: [hub], links: { [categoryId]: [{ label, url, emoji? }] } }

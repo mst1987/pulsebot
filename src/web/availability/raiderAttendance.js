@@ -24,7 +24,7 @@ const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts, categoryInfo, neutralNight, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
-const { versionOfEvent, mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../../services/versions/mainVersion");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

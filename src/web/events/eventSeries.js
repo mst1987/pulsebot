@@ -41,8 +41,8 @@ const { parseClockTime } = require("../../utils/time");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { createEvent } = require("../../services/events/eventCreate");
-const { templateVersionProblem } = require("../../services/events/categoryEras");
-const { isCategoryActive } = require("../../services/events/categoryLifecycle");
+const { templateVersionProblem } = require("../../services/categories/categoryEras");
+const { isCategoryActive } = require("../../services/categories/categoryLifecycle");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;

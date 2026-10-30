@@ -14,7 +14,7 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const categoryOrga = require("../../../services/roster/categoryOrga");
 const { listRaidTemplates, getConfig } = require("../../../stores/settingsStore");
-const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const store = require("../../../stores/eventSeriesStore");
 const series = require("../../events/eventSeries");
 

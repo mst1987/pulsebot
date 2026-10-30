@@ -33,9 +33,9 @@ const { previewImport } = require("../../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../../characters/charLinks");
 const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion } = require("../../../services/characters/characterVersions");
-const { versionLinks, blizzardFor } = require("../../../services/events/versionSettings");
-const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../../services/events/mainVersion");
-const { storedVersionOf } = require("../../../services/events/storedVersion");
+const { versionLinks, blizzardFor } = require("../../../services/versions/versionSettings");
+const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../../services/versions/mainVersion");
+const { storedVersionOf } = require("../../../services/versions/storedVersion");
 const { serverContext, lootOfGuild, lootInGuild, eventInGuild, sessionInGuild, guildOfLootEvent } = require("../../../services/loot/lootServer");
 const { firstServerId } = require("../../../services/discord/serverOf");
 const { linkItemsForImport, enrichForImport } = require("../../../services/loot/lootVersion");
@@ -43,7 +43,7 @@ const { inVersionList } = require("../../../services/logcheck/logVersion");
 const { userCan } = require("../../../config/permissions");
 const discord = require("../../../services/discord/discord");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");

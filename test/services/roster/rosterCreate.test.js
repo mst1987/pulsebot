@@ -11,7 +11,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => ({ id: "g1" })),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "700000000000000001", name: "Donnerstag Raid" }]),
 }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn() }));

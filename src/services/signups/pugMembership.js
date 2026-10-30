@@ -19,7 +19,7 @@ const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
 const { generalInviteUrl } = require("../discord/pugInvites");
 const { accessRule } = require("./signupAccess");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 
 const PUG_MEMBERS_ERROR = "Nur für Mitglieder des PuG-Servers.";
 

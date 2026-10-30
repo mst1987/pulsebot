@@ -17,9 +17,9 @@ const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../service
 const serverDefaults = require("../../../services/discord/serverDefaults");
 const { serverLang, defaultLang } = require("../../../services/discord/botLanguage");
 const { isSnowflake } = require("../../../utils/ids");
-const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../../services/events/categorySwitch");
-const categoryLifecycle = require("../../../services/events/categoryLifecycle");
-const categoryGuild = require("../../../services/events/categoryGuild");
+const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../../services/categories/categorySwitch");
+const categoryLifecycle = require("../../../services/categories/categoryLifecycle");
+const categoryGuild = require("../../../services/categories/categoryGuild");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
     assignTokenGuild: assignIngestTokenGuild,
@@ -30,8 +30,8 @@ const roleSync = require("../../../services/discord/roleSync");
 const pugRoleGuard = require("../../../services/discord/pugRoleGuard");
 const languageChange = require("../../../services/discord/languageChange");
 const availabilityPanel = require("../../../services/signups/availabilityPanel");
-const raidOverview = require("../../../services/events/raidOverview");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
+const raidOverview = require("../../../services/events/overview/raidOverview");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
 const { lastReminderRun } = require("../../events/reminders");
 const wowhead = require("../../../utils/loot/wowhead");
@@ -41,15 +41,15 @@ const {
 const { normalizeBotCommandAccess } = require("../../../config/botCommands");
 const { normalizeAddonList, defaultAddons } = require("../../../services/addons/addonConfig");
 const { VERSIONS } = require("../../../config/gameVersions");
-const versionSettings = require("../../../services/events/versionSettings");
-const { capabilityMatrix } = require("../../../services/events/versionCapabilities");
+const versionSettings = require("../../../services/versions/versionSettings");
+const { capabilityMatrix } = require("../../../services/versions/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../../config/versionFeatures");
-const { mainVersionFor, knownVersion } = require("../../../services/events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../../../services/versions/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../../services/logcheck/logChannelSettings");
 const { wclGuildsOf, wclGuildsFromBody } = require("../../../services/logcheck/wclGuildSettings");
 const { normalizeCategoryPlanning } = require("../../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../../services/signups/signupCharacters");
-const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/events/contentVersions");
+const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/versionSettingsSchema");

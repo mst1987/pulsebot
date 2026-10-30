@@ -24,7 +24,7 @@
 // via a Wowhead lookup; call it once at import time, not on every read, since
 // the same item ids repeat across a raid's loot.
 
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/versions/versionSettings");
 
 // Wowhead links of a game version (#542: its Wowhead path, "" when it has
 // none). Item names resolve in the tooltip even when an export (Gargul) only

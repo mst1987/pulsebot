@@ -1,11 +1,11 @@
 // Einstellungen → Spielversion → "Neue Version starten" (#745): the checklist
-// for the switch day, computed from the real data (services/events/versionLaunch.js),
+// for the switch day, computed from the real data (services/versions/versionLaunch.js),
 // and the marks of the items nothing can check. Area `settings` (read for the
 // list, write for a mark); the backup state only for full admins, like the
 // overview's backup task.
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const versionLaunch = require("../../../services/events/versionLaunch");
+const versionLaunch = require("../../../services/versions/versionLaunch");
 
 /** GET /api/settings/version-launch?version=<id> — the checklist of a target version (none = the likely one). */
 const getVersionLaunch = withUser({}, async ({ user, res, url }) => {

@@ -21,8 +21,8 @@ jest.mock("../../../src/stores/rosterStore", () => {
     const roster = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: ["role-mgr"] } };
     return { ...actual, listRosters: jest.fn(() => [roster]), rosterForCategory: jest.fn((cat) => (cat === "cat1" ? roster : null)) };
 });
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn(() => "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),

@@ -3,7 +3,7 @@ jest.mock("../../../src/classes/warcraftlogs.js", () =>
 );
 jest.mock("../../../src/utils/logcheck/applicant.js");
 // The links of the application's version (#553): Classic's point at the vanilla sites.
-jest.mock("../../../src/services/events/versionSettings.js", () => ({
+jest.mock("../../../src/services/versions/versionSettings.js", () => ({
     versionLabel: (id) => ({ tbc: "TBC Anniversary", classic: "Classic Era" }[id] || id),
     versionLinks: (id) => {
         const versionId = id || "tbc";
