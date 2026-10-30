@@ -6,18 +6,25 @@
 //
 //   FILL          per placed raider — a free place is always worse than a filled one
 //   ROLE_MIN      per raider a role is short of its target or minimum
+//   LEADER_MIN    per raid without a raider who may lead it (#1036) - only when the
+//                 input names who may lead (event.leaderRule); a second leader adds nothing
 //   BENCH_STATUS  subtracted per placed raider who signed up as "Ersatzbank":
 //                 still better than an empty place, never better than anyone else
 //   weights.*     the soft goals, adjustable per run (see DEFAULT_WEIGHTS)
 //
-// The three constants sit orders of magnitude above the weights, so no weight
-// setting can trade a missing healer for a nicer group.
+// These constants are the minimum rules: they sit orders of magnitude above the
+// weights, so no weight setting can trade a missing healer or a missing leader for
+// a nicer group. Every weight added later (#1037, #1038) stays at most MAX_WEIGHT
+// per unit and so below every minimum rule - keep it that way.
 
 const { ROLES } = require("../../config/gameVersions");
 const { GROUP_SIZE, STATUS_FACTOR, GEAR_FACTOR, ROSTER_FACTOR } = require("./model");
 
 const FILL = 10000;
 const ROLE_MIN = 30000;
+// One leader per raid (#1036) weighs like a missing role: a raid without anybody
+// who may lead it is worse than any lineup that has one.
+const LEADER_MIN = 30000;
 const BENCH_STATUS = 7000;
 const MAX_WEIGHT = 500;
 // A party buff everybody wants (Blood Pact, Healing Stream) is worth having, but
@@ -184,9 +191,12 @@ function makeScorer(model) {
 
     function run(opt, grp, detail) {
         const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roster: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0, avoid: 0 } : null;
+        // the part shows up only where a leader rule applies - older inputs keep their shape
+        if (detail && events.some((e) => e.leaderRule)) parts.leader = 0;
         let total = 0;
         const ev = events.map((e) => ({
             count: 0,
+            leaders: 0,
             roles: [0, 0, 0, 0],
             groups: Array.from({ length: e.groupCount }, () => []),
             raid: new Uint8Array(model.raidBuffs.length),
@@ -201,6 +211,7 @@ function makeScorer(model) {
             if (detail) for (const [k, v] of Object.entries(option.parts)) parts[k] += v;
             s.count++;
             s.roles[option.roleIdx]++;
+            if (cands[c].leadsIn && cands[c].leadsIn.has(option.eventIdx)) s.leaders++;
             s.groups[grp[c]].push({ cand: cands[c], opt: option });
             for (const b of option.data.raid) s.raid[b] = 1;
             for (const b of option.data.party) s.party[b] = 1;
@@ -216,6 +227,10 @@ function makeScorer(model) {
                 const short = Math.max(0, event.limits[ROLES[r]].min - s.roles[r]);
                 total -= short * ROLE_MIN;
                 if (detail) parts.roles -= short * ROLE_MIN;
+            }
+            if (event.leaderRule && s.leaders === 0) {
+                total -= LEADER_MIN;
+                if (detail) parts.leader -= LEADER_MIN;
             }
             let raid = 0;
             for (const v of s.raid) raid += v;
@@ -267,6 +282,6 @@ function makeScorer(model) {
 }
 
 module.exports = {
-    DEFAULT_WEIGHTS, MAX_WEIGHT, FILL, ROLE_MIN, BENCH_STATUS,
+    DEFAULT_WEIGHTS, MAX_WEIGHT, FILL, ROLE_MIN, LEADER_MIN, BENCH_STATUS,
     resolveWeights, staticParts, moreAvailableThanFirst, groupBuffValue, makeScorer,
 };

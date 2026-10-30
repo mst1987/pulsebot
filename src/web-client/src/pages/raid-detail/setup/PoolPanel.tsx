@@ -1,7 +1,7 @@
 import { Fragment, useState, type KeyboardEvent } from "react";
 import type { SetupCharacter, SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
-import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons/icons";
+import { ChevronDownIcon, CrownIcon, SearchIcon } from "../../../components/ui/icons/icons";
 import { asCharacter, fitsRole, leadIn } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { specLabel } from "../../../lib/wow/wowNames";
@@ -123,11 +123,20 @@ function PoolCard({ p, lead, ui }: { p: SetupPerson; lead: SetupCharacter | unde
     );
 }
 
-export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: Interaction; absent?: number }) {
+/**
+ * `leaders` (#1036): who may lead this raid (`checks.leader.candidates`) — a "Leader" chip filters to them;
+ * without a leader rule (undefined) there is no chip.
+ */
+export function PoolPanel({ pool, ui, absent = 0, leaders }: { pool: SetupPerson[]; ui: Interaction; absent?: number; leaders?: string[] }) {
     const t = useT();
     const [query, setQuery] = useState("");
     const [filter, setFilter] = useState<Filter>("all");
     const [status, setStatus] = useState<MarkedStatus | null>(null);
+    const [leadOnly, setLeadOnly] = useState(false);
+    const leadSet = new Set(leaders || []);
+    const leadCount = pool.filter((p) => leadSet.has(p.userId)).length;
+    // the chip only while somebody in the pool may lead; switched on it stays (the count may drop to 0)
+    const leadChip = !!leaders && (leadCount > 0 || leadOnly);
     const [collapsed, setCollapsed] = useState(false);
     const zone = useZone({ pool: true }, ui);
     const canTake = ui.editable && !!ui.selected && !pool.some((p) => p.userId === ui.selected);
@@ -137,7 +146,7 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
     const statusCount = (s: MarkedStatus) => pool.filter((p) => hasStatus(p, s)).length;
     // a state chip only while somebody signed up so; a chip switched on stays (its count may drop to 0 after a move)
     const statusChips = MARKED_STATUSES.filter((s) => statusCount(s) > 0 || status === s);
-    const shown = pool.filter((p) => inFilter(p, filter) && hasStatus(p, status) && matchesQuery(p, query));
+    const shown = pool.filter((p) => inFilter(p, filter) && hasStatus(p, status) && matchesQuery(p, query) && (!leadOnly || leadSet.has(p.userId)));
     // a person stands in every block one of their characters fits, led there by that character;
     // a role nobody signed up for is no section; anything unknown goes with the ranged.
     // Inside a block: plain signups first, then late, tentative, bench (stable, the server's order within each)
@@ -190,6 +199,17 @@ export function PoolPanel({ pool, ui, absent = 0 }: { pool: SetupPerson[]; ui: I
                                     </button>
                                 ))}
                             </div>
+                            {leadChip && (
+                                <div className="se-pp-filters" role="group" aria-label={t("setup.leader.filterAria")}>
+                                    <button
+                                        type="button" className={`se-pp-chip${leadOnly ? " is-on" : ""}`} aria-pressed={leadOnly}
+                                        data-tip={t("setup.leader.filter")} data-tip-sub={t("setup.leader.filterSub")}
+                                        onClick={() => setLeadOnly((on) => !on)}
+                                    >
+                                        <CrownIcon />{t("setup.leader.filter")} <small>{leadCount}</small>
+                                    </button>
+                                </div>
+                            )}
                             {statusChips.length > 0 && (
                                 <div className="se-pp-filters se-pp-stfilters" role="group" aria-label={t("setup.poolPanel.statusFilter")}>
                                     {statusChips.map((s) => {

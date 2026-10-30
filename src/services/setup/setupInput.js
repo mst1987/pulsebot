@@ -17,6 +17,8 @@
 //   rosterStatus  the roster of the event's category and version (#658, #739): `{ userId: status }`
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
+//   leaders     per event the signed-up user ids whose leader flags (#1034) cover the raid's
+//               version and instances, plus the orga's choice `setup.leaderUserId` (#1036)
 //   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
 //               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
 //
@@ -34,6 +36,8 @@ const { versionOfEvent } = require("../versions/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
+const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
+const { canLead, instanceChoices } = require("../roster/leaderFlags");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -105,7 +109,9 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
     const out = [];
     for (const g of Array.isArray(setup.groups) ? setup.groups : []) {
         for (const slot of Array.isArray(g.slots) ? g.slots : []) {
-            if (slot && (slot.locked || keepPlaced) && slot.userId) {
+            // the orga's leader (#1036) keeps its place like a locked one
+            const leads = !!setup.leaderUserId && slot && String(slot.userId) === String(setup.leaderUserId);
+            if (slot && (slot.locked || keepPlaced || leads) && slot.userId) {
                 out.push({ userId: String(slot.userId), eventId: event.id, group: Number(g.index) || null, spec: slot.spec || "", role: slot.role || "", character: slot.character || "" });
             }
         }
@@ -148,6 +154,21 @@ function compositionLimits(event) {
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
  * none is left.
  */
+/**
+ * The leader rule of a raid (#1036): who of `userIds` may lead it (flags covering its version
+ * and instances), the instances' short names for the reason text, and the orga's choice.
+ */
+function leaderFacts(event, userIds, allLeads, config) {
+    const versionId = versionOfEvent(event, { config });
+    const instanceIds = Array.isArray(event.instanceIds) ? event.instanceIds.map(String) : [];
+    const shorts = instanceChoices(versionId).filter((i) => instanceIds.includes(i.id)).map((i) => i.short);
+    return {
+        leaders: [...userIds].filter((u) => canLead(allLeads[u], versionId, instanceIds)),
+        instanceShort: shorts.join("/"),
+        leaderUserId: (event.setup && event.setup.leaderUserId) ? String(event.setup.leaderUserId) : "",
+    };
+}
+
 function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, shadowbannedOf = null } = {}) {
     const events = [...new Set((Array.isArray(eventIds) ? eventIds : [eventIds]).map(String))]
         .map((id) => eventStore.getEvent(id))
@@ -179,6 +200,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
 
     const { history, source: historySource } = benchHistory(events, { guildId, now });
     const rosterStatus = rosterStatusFor(events);
+    const allLeads = leaderFlagsStore.allLeads();
     return {
         versionId: events[0].versionId,
         events: events.map((e) => ({
@@ -189,6 +211,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
             requiredBuffs: requiredBuffsFor(e, config),
             fairness: e.fairness,
             wishes: e.wishes,
+            ...leaderFacts(e, userIds, allLeads, config),
         })),
         signups,
         profiles,

@@ -28,6 +28,10 @@
 //                       kept while a changed draft waits for the next approval
 //   changedSinceApproval  a draft that differs from an earlier approval
 //   explanation         { text, model, at, version } from Claude (explainText.js)
+//   leaderUserId        the orga's choice of the raid's leader (#1036, "Als Leader setzen"): kept
+//                       placed through every proposal like a locked place; gone once they are not
+//                       placed any more. The proposal marks the leader's slot `leader: true`; the
+//                       approval writes that raider to `event.leaderId`.
 const eventStore = require("../../stores/events/eventStore");
 const { collectSetupInput, proposeSetup } = require("./setupInput");
 const { specNameFor } = require("../events/eventSources");
@@ -113,12 +117,30 @@ function lineupSignature(setup) {
     // #517: the bench is an explicit, posted list — moving somebody onto it or off it is a change
     // with the character that waits there (#293): the orga may switch it, and a posted bench names it
     const bench = benchAndPool(setup).bench.map((b) => `${String(b.userId)}/${String(b.character || "").toLowerCase()}`).sort();
-    return bench.length ? `${groups.join("|")}|bench:${bench.join(",")}` : groups.join("|");
+    const lineup = bench.length ? `${groups.join("|")}|bench:${bench.join(",")}` : groups.join("|");
+    // #1036: raiders see who leads (crown, DM) and the approval sets event.leaderId - a new leader is a change
+    const leader = leaderIdOf(setup);
+    return leader ? `${lineup}|leader:${leader}` : lineup;
+}
+
+/** The user id of the slot marked as the raid's leader (#1036), "" without one. */
+function leaderIdOf(setup) {
+    for (const g of (setup && setup.groups) || []) {
+        const slot = (g.slots || []).find((s) => s && s.leader);
+        if (slot) return str(slot.userId);
+    }
+    return "";
+}
+
+/** The orga's leader choice while that raider stands in one of `groups`, else "". */
+function leaderChoiceIn(groups, userId) {
+    const id = str(userId);
+    return id && (groups || []).some((g) => (g.slots || []).some((s) => str(s.userId) === id)) ? id : "";
 }
 
 /** The frozen, raider-facing copy of a lineup: names, specs, groups — no reasons, no wishes. */
 function snapshotOf(setup, { at, by }) {
-    const person = (x) => ({ userId: String(x.userId), character: x.character || "", classId: x.classId || "", spec: x.spec || "", role: x.role || "", ...(x.pos ? { pos: x.pos } : {}) });
+    const person = (x) => ({ userId: String(x.userId), character: x.character || "", classId: x.classId || "", spec: x.spec || "", role: x.role || "", ...(x.pos ? { pos: x.pos } : {}), ...(x.leader ? { leader: true } : {}) });
     return {
         version: setup.version,
         approvedAt: at,
@@ -155,6 +177,10 @@ function nextSetup(prev, result, { origin, options, userId, now }) {
         updatedAt: now,
         updatedBy: str(userId),
     };
+    // the orga's leader (#1036): a manual save hands its choice in, a proposal keeps the stored one
+    const leader = leaderChoiceIn(result.groups, result.leaderUserId !== undefined ? result.leaderUserId : prev && prev.leaderUserId);
+    if (leader) base.leaderUserId = leader;
+    else delete base.leaderUserId;
     if (!changed) {
         // Same lineup (a lock, a weight, fairness switched): an approval stands.
         return { ...base, origin: prev.origin || origin, version: prev.version || 1 };
@@ -206,7 +232,7 @@ function postedLive(event) {
 function storeSetup(event, setup, { userId, now }) {
     // an empty lineup is never approved, live or not (approveEventSetup's "no_setup")
     const live = setup.status !== "approved" && postedLive(event) && (setup.groups || []).some((g) => (g.slots || []).length);
-    const saved = eventStore.setEventSetup(event.id, live ? approvedVersionOf(setup, { userId, now }) : setup);
+    const saved = eventStore.setEventSetup(event.id, live ? approvedVersionOf(setup, { userId, now }) : setup, live ? { leaderId: leaderIdOf(setup) } : {});
     return live ? { setup: saved.setup, event: saved, live: true } : { setup: saved.setup, event: saved };
 }
 
@@ -352,6 +378,10 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const taken = takenElsewhere(event, checked.value);
     if (taken) return fail("taken", taken);
     const options = mergeOptions(body, prev && prev.options);
+    // "Als Leader setzen" (#1036): `leaderUserId` in the body sets ("" clears) the orga's choice,
+    // without it the stored one stays - each only while that raider is placed in this raid
+    const leaderUserId = leaderChoiceIn(checked.value.groups, body.leaderUserId !== undefined ? body.leaderUserId : prev && prev.leaderUserId);
+    if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
     let result;
     try {
         result = evaluateSetup(input, checked.value, runOptions(options));
@@ -363,7 +393,7 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
     const groups = inPlacedOrder(result.groups, checked.value.groups);
-    const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource }, { origin: "manual", options, userId, now });
+    const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
     return storeSetup(event, setup, { userId, now });
 }
 
@@ -380,7 +410,8 @@ function approveEventSetup(eventId, { version, userId = "", now = Date.now() } =
         return fail("conflict", "Das Setup wurde inzwischen geändert – bitte neu laden und erneut prüfen.");
     }
     if (setup.status === "approved") return { setup, event, already: true };
-    const saved = eventStore.setEventSetup(event.id, approvedVersionOf(setup, { userId, now }));
+    // the raid's leader (#1036) follows the approved setup
+    const saved = eventStore.setEventSetup(event.id, approvedVersionOf(setup, { userId, now }), { leaderId: leaderIdOf(setup) });
     return { setup: saved.setup, event: saved };
 }
 
@@ -867,6 +898,6 @@ module.exports = {
     avoidPairCount,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        withSetupDefaults, addUnplacedSignups, blankSetup,
+        withSetupDefaults, addUnplacedSignups, blankSetup, lineupSignature,
     },
 };

@@ -413,6 +413,20 @@
         "dmsPending": "{count} DMs offen",
         "liveSub": "Änderungen am Setup aktualisieren die Nachricht sofort – ohne Ping und ohne DMs. „Setup posten“ schickt offene DMs."
     },
+    "leader": {
+        "set": "Als Leader setzen",
+        "setSub": "Diese Person leitet den Raid. Bleibt bei „Neu vorschlagen“ und „Freie Plätze füllen“ erhalten.",
+        "is": "Leitet den Raid",
+        "isSub": "Genau einer je Raid. Wird beim Posten als Raidleitung übernommen.",
+        "askTitle": "Ohne Leader-Recht als Leader setzen?",
+        "askText": "{{name}} hat für diese Instanz kein Leader-Recht. Trotzdem als Leader dieses Raids setzen?",
+        "figure": "Leader",
+        "figureOk": "Der Raid hat einen Leader.",
+        "figureMissing": "Kein Leader im Raid. Unter den Angemeldeten dürfen {{count}} leiten.",
+        "filter": "Leader",
+        "filterSub": "Nur, wer diese Instanz leiten darf.",
+        "filterAria": "Nach Leader filtern"
+    },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",
         "short": "Anmeldung",

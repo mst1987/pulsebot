@@ -9,7 +9,8 @@
 // How: model.js indexes the input, score.js values a state (hard rules are
 // walls, soft goals weighted), and the search here runs
 //   1. fixed places first,
-//   2. a greedy start — scarce roles first (the role with the fewest spare
+//   2. a greedy start — one leader per raid first (#1036: leaders are the
+//      scarcest resource of a raid group), then scarce roles (the role with the fewest spare
 //      candidates, and within it the raider with the fewest alternatives),
 //      then every free place with whoever adds the most,
 //   3. a local search — add, replace, switch role, move and swap between
@@ -129,7 +130,55 @@ function placeFixed(s) {
     }
 }
 
-// 2a. greedy: scarce roles first ---------------------------------------------
+// 2a. greedy: one leader per raid (#1036) -----------------------------------
+
+/** Whether event e already has a placed raider who may lead it. */
+function hasLeader(s, e) {
+    for (let c = 0; c < s.n; c++) {
+        if (s.opt[c] >= 0 && eventOf(s, c) === e && s.cands[c].leadsIn && s.cands[c].leadsIn.has(e)) return true;
+    }
+    return false;
+}
+
+/** The free candidates who may lead event e, by index. */
+function freeLeaders(s, e) {
+    return s.cands.filter((c) => isFree(s, c.idx) && c.leadsIn && c.leadsIn.has(e)).map((c) => c.idx);
+}
+
+/** c's best place in event e over all of c's options there, or null. */
+function bestPlacementIn(s, c, e) {
+    let best = null;
+    for (const o of s.cands[c].options) {
+        if (o.eventIdx !== e) continue;
+        const place = bestPlacement(s, c, o.idx);
+        if (place && (!best || place.score > best.score + EPS)) best = { o: o.idx, g: place.g, score: place.score };
+    }
+    return best;
+}
+
+/**
+ * Leaders are scarce: the raid with the fewest free leaders goes first and
+ * takes the free leader who could lead the fewest other raids. Each gets their
+ * best place in that raid; whoever leads stays a normal raider on a role seat.
+ */
+function greedyLeaders(s) {
+    const open = s.events.filter((e) => e.leaderRule && !hasLeader(s, e.idx)).map((e) => e.idx);
+    while (open.length) {
+        open.sort((a, b) => freeLeaders(s, a).length - freeLeaders(s, b).length || a - b);
+        const e = open.shift();
+        const pool = freeLeaders(s, e).sort((a, b) => s.cands[a].leadsIn.size - s.cands[b].leadsIn.size || a - b);
+        for (const c of pool) {
+            const best = bestPlacementIn(s, c, e);
+            if (!best) continue;
+            s.opt[c] = best.o;
+            s.grp[c] = best.g;
+            s.current = best.score;
+            break;
+        }
+    }
+}
+
+// 2b. greedy: scarce roles first ---------------------------------------------
 
 /** The roles an event asks a minimum of, the one with the fewest spare candidates first. */
 function roleNeeds(s, event) {
@@ -176,7 +225,7 @@ function greedyScarceRoles(s) {
     }
 }
 
-// 2b. greedy: every free place with whoever adds the most -------------------
+// 2c. greedy: every free place with whoever adds the most -------------------
 
 /** The emptiest group of event e (cheap stand-in for the best one). */
 function emptiestGroup(s, e) {
@@ -400,6 +449,7 @@ function search(model, scorer) {
     const s = newSearchState(model, scorer);
     placeFixed(s);
     s.current = scorer.evaluate(s.opt, s.grp);
+    greedyLeaders(s);
     greedyScarceRoles(s);
     greedyFill(s);
     for (let pass = 0; pass < MAX_PASSES; pass++) {

@@ -9,7 +9,7 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/icons/WowIcon";
-import { BenchIcon, CheckIcon, ClockIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons/icons";
+import { BenchIcon, CheckIcon, ClockIcon, CrownIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { markedStatus, specText, statusWord } from "./setupText";
@@ -183,6 +183,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
             {sig && <SigBadge status={sig} small className="se-sig-end" />}
             {/* a fixed place only shows it — the panel's button changes it */}
             {p.locked && !inPool && <span className="se-lock-mark" role="img" aria-label={t("setup.slot.locked")}><LockIcon /></span>}
+            {/* #1036: the raid's leader — exactly one slot of a raid with a leader rule */}
+            {p.leader && !inPool && <span className="se-lead-mark" role="img" aria-label={t("setup.leader.is")} data-tip={t("setup.leader.is")} data-tip-sub={t("setup.leader.isSub")}><CrownIcon /></span>}
             {/* who holds or just moved this raider */}
             {who && (
                 <span className="se-who-tag">

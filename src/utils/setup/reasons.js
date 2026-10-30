@@ -258,16 +258,57 @@ function eventChecks(model, facts, state, e) {
             .map((b) => ({ key: b.key, label: b.label, icon: b.icon, groups: [...credited.get(b.key)].sort((x, y) => x - y) })),
     };
     const wishes = wishCheck(model, state, e);
+    // one leader per raid (#1036), only where the input names who may lead
+    const leader = event.leaderRule ? leaderCheck(model, state, e) : null;
     return {
-        ok: size.ok && Object.values(roles).every((r) => r.ok) && buffs.ok,
+        ok: size.ok && Object.values(roles).every((r) => r.ok) && buffs.ok && (!leader || leader.ok),
         size,
         roles,
         buffs,
         wishes,
+        ...(leader ? { leader } : {}),
     };
 }
 
 const ROLE_ORDER = Object.fromEntries(ROLES.map((r, i) => [r, i]));
+
+/**
+ * The raider who leads event e (#1036), or -1: the orga's choice
+ * (`leaderUserId`) while they are placed there, else the first placed raider
+ * who may lead it, by signup order. Several may lead; exactly one is marked.
+ */
+function leaderOf(model, state, e) {
+    const event = model.events[e];
+    if (!event.leaderRule) return -1;
+    let first = -1;
+    for (const c of model.cands) {
+        const o = state.opt[c.idx];
+        if (o < 0 || c.options[o].eventIdx !== e || !c.leadsIn || !c.leadsIn.has(e)) continue;
+        if (event.leaderUserId && c.userId === event.leaderUserId) return c.idx;
+        if (first < 0) first = c.idx;
+    }
+    return first;
+}
+
+/** The leader check of event e: placed leaders, ok with at least one, and who of the signups may lead. */
+function leaderCheck(model, state, e) {
+    let count = 0;
+    const candidates = [];
+    for (const c of model.cands) {
+        if (!c.leadsIn || !c.leadsIn.has(e)) continue;
+        candidates.push(c.userId);
+        const o = state.opt[c.idx];
+        if (o >= 0 && c.options[o].eventIdx === e) count++;
+    }
+    return { count, ok: count >= 1, candidates };
+}
+
+/** The leader's slot: `leader: true` and the reason right after a fixed place. */
+function markLeader(slot, event) {
+    const reason = `Leitet diesen Raid (${event.instanceShort || event.title || event.id})`;
+    const at = slot.reasons[0] === "Von der Orga fixiert" ? 1 : 0;
+    return { ...slot, leader: true, reasons: [...slot.reasons.slice(0, at), reason, ...slot.reasons.slice(at)] };
+}
 
 /** Turn the searched state into the serializable proposal. */
 function buildOutput(model, scorer, state, { version, weights }) {
@@ -275,12 +316,16 @@ function buildOutput(model, scorer, state, { version, weights }) {
     const facts = scorer.breakdown(state.opt, state.grp);
     const events = model.events.map((event, e) => {
         const ev = facts.events[e];
+        const leader = leaderOf(model, state, e);
         const groups = ev.groups.map((members, g) => ({
             index: g + 1,
             slots: members
                 .slice()
                 .sort((a, b) => ROLE_ORDER[a.opt.role] - ROLE_ORDER[b.opt.role] || a.cand.idx - b.cand.idx)
-                .map((m) => slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits))),
+                .map((m) => {
+                    const slot = slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits));
+                    return m.cand.idx === leader ? markLeader(slot, event) : slot;
+                }),
         }));
         const { bench, pool } = unplacedOf(model, facts, state, (c) => c.options.some((o) => o.eventIdx === e) || (c.signedIn.has(e) && !c.absentIn.has(e)));
         return {

@@ -25,6 +25,9 @@ module.exports = {
     "This time on the **bench**{who} – next time you have priority.": "Diesmal auf der **Bank**{who} – nächstes Mal hast du Vorrang.",
     "This time on the **bench**{who}.": "Diesmal auf der **Bank**{who}.",
     "Go to the setup": "Zum Setup",
+    // the raid's leader (#1036)
+    "Raid lead": "Raidleitung",
+    "You lead this raid": "Du leitest diesen Raid",
     // "Ping everyone" without a text of the orga
     "📋 The setup is up — you're in!": "📋 Das Setup steht – du bist dabei!",
     // "Ping unconfirmed": the reminder for who has not answered yet

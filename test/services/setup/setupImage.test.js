@@ -119,6 +119,16 @@ describe("services/setup/setupImage", () => {
         expect(setupImageSvg({ groups: [group(1, [{ userId: "9" }])] }).svg).toContain(">Raider<");
     });
 
+    it("crowns the raid's leader (#1036) in a group, nobody else and never on the bench", () => {
+        const a = approved();
+        a.groups[0].slots[1].leader = true;
+        a.bench[0].leader = true;
+        const { svg } = setupImageSvg(a, { bench: true, lang: "en" });
+        expect(count(svg, "class=\"leader-crown\"")).toBe(1);
+        expect(count(setupImageSvg(approved(), { bench: true }).svg, "leader-crown")).toBe(0);
+        expect(() => renderPng(svg)).not.toThrow();
+    });
+
     it("renders to a PNG of its size, the icons included", () => {
         const out = setupImageSvg(approved(), { bench: true, confirmations: { 1: "confirmed", 2: "declined" } });
         const png = renderPng(out.svg);

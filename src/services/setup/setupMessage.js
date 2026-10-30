@@ -116,7 +116,8 @@ function embedLength(embed) {
 /** "<spec icon> **Name**", without icons "**Name** · Holy". */
 function personText(p, emojis, { icons = true, bold = true, lang = "de" } = {}) {
     const icon = icons ? emojiText(emojis, specEmojiName(p.spec)) : "";
-    const name = bold ? `**${nameOf(p)}**` : nameOf(p);
+    // The raid's leader (#1036) carries a small crown after the name.
+    const name = `${bold ? `**${nameOf(p)}**` : nameOf(p)}${p.leader ? " 👑" : ""}`;
     if (icon) return `${icon} ${name}`;
     const label = specLabel(p.spec, lang);
     return `${name}${label ? ` · ${label}` : ""}`;
@@ -360,7 +361,14 @@ function placementsOf(approved, { bench = false } = {}) {
 
 /** What a raider is told — a new DM goes out only when this changes. */
 function placementSignature(p) {
-    return p.bench ? `bench/${p.spec}` : `g${p.group}/${p.spec}/${p.role}`;
+    // "/lead" only for the leader (#1036): older signatures stay the same.
+    return p.bench ? `bench/${p.spec}` : `g${p.group}/${p.spec}/${p.role}${p.leader ? "/lead" : ""}`;
+}
+
+/** The character name of the approved lineup's leader (#1036), "" without one. */
+function leaderNameOf(approved) {
+    const slot = placementsOf(approved).find((p) => p.leader);
+    return slot ? escapeMd(slot.character) || `<@${slot.userId}>` : "";
 }
 
 /** Whether the category sends setup DMs — the default of every event in it. */
@@ -395,11 +403,13 @@ function fairnessOn(event) {
 /**
  * The DM for one raider in their language — pure.
  */
-function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de", raidOf = null } = {}) {
+function buildSetupDm(event, placement, { messageUrl = "", reasons = [], fairness = false, lang = "de", raidOf = null, leader = "" } = {}) {
     const start = Number(event.startTime) || 0;
     const name = [escapeMd(placement.character), specLabel(placement.spec, lang)].filter(Boolean).join(" · ");
     const who = name ? ` (${name})` : "";
     const facts = start ? [[tr(lang, "Start"), `<t:${start}:d> <t:${start}:t>`]] : [];
+    // Who leads this raid (#1036) — the leader is told "you", everyone else the name.
+    if (leader) facts.push([tr(lang, "Raid lead"), placement.leader ? tr(lang, "You lead this raid") : leader]);
     const buttons = messageUrl ? [new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Go to the setup")).setURL(messageUrl)] : [];
     const base = { kind: "raid", color: embedColor(event), kicker: [tr(lang, "Setup for {title}", { title: escapeMd(event.title || "Raid") }), raidOf && raidOf.count > 1 ? tr(lang, "Raid {index} of {count}", { index: raidOf.index, count: raidOf.count }) : "", eventVersionTag(event)].filter(Boolean).join(" · "), facts, buttons };
     if (placement.bench) {
@@ -456,10 +466,11 @@ async function sendSetupDms(eventId, { config = getConfig(), delayMs = DM_DELAY_
         if (event.setupPost && event.setupPost.messageId) await linkCheck.checkMessage(event.guildId, event.setupPost.channelId, event.setupPost.messageId);
         const messageUrl = messageUrlOf(event);
         const raidOf = raidOfEvent(event);
+        const leader = leaderNameOf(approved);
         for (let i = 0; i < todo.length; i++) {
             const p = todo[i];
             if (i && delayMs > 0) await sleep(delayMs);
-            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [], lang: langOf(p.userId, { config }), raidOf });
+            const payload = buildSetupDm(event, p, { messageUrl, fairness, reasons: p.bench ? benchReasons(event, p.userId) : [], lang: langOf(p.userId, { config }), raidOf, leader });
             let result;
             try {
                 result = await discord.sendDirectMessage(p.userId, payload);

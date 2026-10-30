@@ -5,7 +5,7 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/icons/WowIcon";
-import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons/icons";
+import { BenchIcon, CheckIcon, CrownIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
@@ -78,11 +78,15 @@ export type SlotActions = {
     onLock?: () => void;
     /** "Anmeldung bearbeiten" (#521) */
     onEdit?: () => void;
+    /** leads this raid (#1036) */
+    leader?: boolean;
+    /** "Als Leader setzen" (#1036): a group place of a raid with a leader rule only */
+    onLeader?: () => void;
 };
 
 function ActionRow({ a }: { a: SlotActions }) {
     const t = useT();
-    if (!a.onConfirm && !a.onLock && !a.onEdit) return null;
+    if (!a.onConfirm && !a.onLock && !a.onEdit && !a.onLeader) return null;
     const confirmed = a.confirmation === "confirmed";
     return (
         <div className="se-tip-acts">
@@ -107,6 +111,17 @@ function ActionRow({ a }: { a: SlotActions }) {
                 >
                     {a.locked ? <LockIcon /> : <UnlockIcon />}
                     {a.locked ? t("setup.slot.locked") : t("setup.slot.lock")}
+                </button>
+            )}
+            {a.onLeader && (
+                <button
+                    type="button" className={`se-tip-act${a.leader ? " is-on" : ""}`} aria-pressed={!!a.leader}
+                    data-tip={a.leader ? t("setup.leader.is") : t("setup.leader.set")}
+                    data-tip-sub={a.leader ? t("setup.leader.isSub") : t("setup.leader.setSub")}
+                    onClick={a.leader ? undefined : a.onLeader}
+                >
+                    <CrownIcon />
+                    {a.leader ? t("setup.leader.is") : t("setup.leader.set")}
                 </button>
             )}
             {a.onEdit && (
