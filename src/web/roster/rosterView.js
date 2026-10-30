@@ -53,6 +53,8 @@ const { trialEnding } = require("../../services/roster/rosterTrials");
 const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
+const { shortFor } = require("../../services/vermerke/vermerkeShort");
+const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -500,10 +502,16 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     }
     const members = rows;
     const window = roster.categoryId ? categoryAttendanceFor(config, roster.categoryId).window : null;
+    // Vermerke (#981): the short form of the members only past the one rule of every short form
+    // (services/vermerke/vermerkeAccess.js) - the roster's orga branch alone is not enough, and the branch
+    // above (anybody else) never gets it (vermerkeNeverToPerson.test.js)
+    const shortGuild = roster.guildId || guildId;
+    const short = await maySeeShort(user, shortGuild).catch(() => false);
     return {
         roster: { ...head, kader: linkedKader(roster) },
         members,
         isOrga: true,
+        ...(short ? { vermerke: shortFor(shortGuild, rows.map((r) => r.userId)) } : {}),
         window,
         // the attendance grid's columns (#677): the counted nights of the category, newest first
         nights: roster.categoryId ? attempt(() => categoryNights(ctx, roster.categoryId, { window }), []) : [],

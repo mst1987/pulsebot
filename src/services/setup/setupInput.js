@@ -17,6 +17,8 @@
 //   rosterStatus  the roster of the event's category and version (#658, #739): `{ userId: status }`
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
+//   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
+//               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
 //
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
@@ -146,7 +148,7 @@ function compositionLimits(event) {
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
  * none is left.
  */
-function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = {}) {
+function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, shadowbannedOf = null } = {}) {
     const events = [...new Set((Array.isArray(eventIds) ? eventIds : [eventIds]).map(String))]
         .map((id) => eventStore.getEvent(id))
         .filter(Boolean);
@@ -195,6 +197,11 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false } = 
         historySource,
         fixed: events.flatMap((e) => fixedFromSetup(e, { keepPlaced })),
         rosterStatus,
+        // Vermerke (#981): who has an active shadowban on the raid's server - a raid group's raids
+        // all live on the first raid's server. Handed in by the orga's caller (`shadowbannedOf`,
+        // services/vermerke/vermerkeShort.shadowbannedAmong): this module is loaded by pages a
+        // raider reads, which must never load the Vermerke (vermerkeNeverToPerson.test.js).
+        shadowbanned: typeof shadowbannedOf === "function" ? (shadowbannedOf(guildId, [...userIds], { now }) || []).map(String) : [],
     };
 }
 

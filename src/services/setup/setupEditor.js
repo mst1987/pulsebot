@@ -235,15 +235,17 @@ function keptAsPlaced(result, prev) {
  * draft (setupInput.fixedFromSetup). Stored as a draft.
  * `body.keep === "placed"` ("Freie Plätze füllen"): everybody already in a group
  * stays where they are, only the free places and the bench are filled.
+ * `shadowbannedOf` (vermerkeShort.shadowbannedAmong, handed in by the orga's route): whom the proposal
+ * keeps in the pool for a shadowban (#981) - this module stays free of the Vermerke.
  * @returns {{ setup?: object, event?: object, error?: string, code?: string }}
  */
-function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = {}) {
+function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now(), shadowbannedOf = null } = {}) {
     const { event, failed } = ownEvent(eventId);
     if (failed) return failed;
-    if (inRaidGroup(event) && groupEvents(event).length > 1) return proposeGroupSetup(event, body, { userId, now });
+    if (inRaidGroup(event) && groupEvents(event).length > 1) return proposeGroupSetup(event, body, { userId, now, shadowbannedOf });
     const options = mergeOptions(body, event.setup && event.setup.options);
     const keepPlaced = body.keep === "placed" && !!event.setup;
-    const proposed = proposeSetup([event.id], runOptions(options, { now, keepPlaced }));
+    const proposed = proposeSetup([event.id], runOptions(options, { now, keepPlaced, shadowbannedOf }));
     if (!proposed) return fail("not_found", "Event nicht gefunden.");
     const result = keepPlaced ? keptAsPlaced(proposed, event.setup) : proposed;
     const setup = nextSetup(event.setup, result, { origin: "proposal", options, userId, now });
@@ -260,11 +262,11 @@ function proposeEventSetup(eventId, body = {}, { userId = "", now = Date.now() }
  * Answers the asked raid's result plus `others` (the other raids' results, each
  * maybe `live`).
  */
-function proposeGroupSetup(event, body, { userId, now }) {
+function proposeGroupSetup(event, body, { userId, now, shadowbannedOf }) {
     const raids = groupEvents(event);
     const options = mergeOptions(body, event.setup && event.setup.options);
     const keepPlaced = body.keep === "placed";
-    const proposed = proposeSetup(raids.map((e) => e.id), runOptions(options, { now, keepPlaced }));
+    const proposed = proposeSetup(raids.map((e) => e.id), runOptions(options, { now, keepPlaced, shadowbannedOf }));
     if (!proposed) return fail("not_found", "Event nicht gefunden.");
     const benchOwner = new Map();
     for (const e of raids) for (const b of benchAndPool(e.setup || {}).bench) benchOwner.set(String(b.userId), e.id);
