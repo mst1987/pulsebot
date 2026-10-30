@@ -11,7 +11,7 @@
 // viewed role may open is where App.tsx lands anyway.
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { getViewAsRoles, setViewAs, type ApiError, type SessionUser, type ViewAsRole } from "../../api";
-import { Modal } from "../ui/Modal";
+import { Modal } from "../ui/overlay/Modal";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
 import { useToast } from "./Jobs";

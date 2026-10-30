@@ -1,4 +1,4 @@
-// components/ui/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
+// components/ui/overlay/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
 // floating boxes that belong to an element — menus, rich tooltips, hover
 // panels, the raid plan's right-click menu.
 // The placements run in src/web-client/src/lib/ui/__tests__/popoverPosition.popover.test.ts (Vitest);
@@ -6,7 +6,7 @@
 const { read } = require("../clientSource");
 
 describe("ui/Popover", () => {
-    const src = read("components/ui/Popover.tsx");
+    const src = read("components/ui/overlay/Popover.tsx");
 
     it("portals, places, follows and dismisses", () => {
         expect(src).toContain("createPortal(");
@@ -19,12 +19,12 @@ describe("ui/Popover", () => {
     });
 
     it("is exported with the other building blocks", () => {
-        expect(read("components/ui/index.ts")).toContain("export { default as Popover } from \"./Popover\";");
+        expect(read("components/ui/index.ts")).toContain("export { default as Popover } from \"./overlay/Popover\";");
     });
 
     it.each([
-        ["components/ui/RichTip.tsx", "tipPlacement()"],
-        ["components/ui/HoverPanel.tsx", "panelPlacement("],
+        ["components/ui/overlay/RichTip.tsx", "tipPlacement()"],
+        ["components/ui/overlay/HoverPanel.tsx", "panelPlacement("],
         ["pages/raid-detail/manage/ManageMenu.tsx", "belowEndPlacement()"],
         ["components/raidplan/editor/inspector/ContextMenu.tsx", "pointPlacement(x, y)"],
     ])("%s is built on it", (file, placement) => {
@@ -35,6 +35,6 @@ describe("ui/Popover", () => {
     });
 
     it("the shared tooltip layer borrows the same placement", () => {
-        expect(read("components/ui/Tip.tsx")).toContain("tipPosition(t.getBoundingClientRect()");
+        expect(read("components/ui/overlay/Tip.tsx")).toContain("tipPosition(t.getBoundingClientRect()");
     });
 });

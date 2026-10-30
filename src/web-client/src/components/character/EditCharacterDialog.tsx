@@ -5,7 +5,7 @@ import { classColorProps } from "./ClassSpec";
 import { LogList } from "./AddCharacterDialog";
 import { classLabel, specLabel as specName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
-import { SaveIcon } from "../ui/icons";
+import { SaveIcon } from "../ui/icons/icons";
 
 // "Charakter bearbeiten" — who a character is. The raider's own (Mein Profil)
 // and the orga's (Alle Charaktere) use the same dialog; only `onSave` and

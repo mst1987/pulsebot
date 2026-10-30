@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { RoleMessageEmojiOption, RoleMessageRole } from "../../api";
-import { CrestIcon } from "../../components/ui/icons";
+import { CrestIcon } from "../../components/ui/icons/icons";
 import { parseDiscordMarkdown, type InlineToken, type MdBlock } from "../../lib/discord/discordMarkdown";
 import { previewEmoji } from "../../lib/discord/buttonEmoji";
 import { buttonRows } from "../../lib/discord/roleMessages";

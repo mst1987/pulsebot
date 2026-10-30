@@ -1,7 +1,7 @@
 import { Button } from "../../../components/ui/Button";
-import { FieldLabel } from "../../../components/ui/Field";
-import OwnValue from "../../../components/ui/OwnValue";
-import Segment from "../../../components/ui/Segment";
+import { FieldLabel } from "../../../components/ui/form/Field";
+import OwnValue from "../../../components/ui/form/OwnValue";
+import Segment from "../../../components/ui/form/Segment";
 import { useT } from "../../../i18n";
 
 type BotLang = "de" | "en";

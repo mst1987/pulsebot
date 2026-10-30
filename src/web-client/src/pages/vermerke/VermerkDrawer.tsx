@@ -5,8 +5,8 @@ import {
 } from "../../api/vermerke";
 import { useApi } from "../../hooks/useApi";
 import { Button, IconButton, InfoTip, useConfirm } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { ChevronDownIcon, EditIcon, EyeIcon, EyeOffIcon, LockIcon, PlusIcon, RefreshIcon, XIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { ChevronDownIcon, EditIcon, EyeIcon, EyeOffIcon, LockIcon, PlusIcon, RefreshIcon, XIcon } from "../../components/ui/icons/icons";
 import LevelMark from "../../components/vermerke/LevelMark";
 import ReasonIcon from "../../components/vermerke/ReasonIcon";
 import type { VermerkDialogPerson } from "../../components/vermerke/VermerkDialog";

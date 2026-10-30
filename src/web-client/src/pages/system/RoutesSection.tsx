@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { SystemRoute, SystemStatus } from "../../api";
 import { useT } from "../../i18n";
-import { PartHead } from "../../components/ui/PartHead";
-import DataTable, { type Column } from "../../components/ui/DataTable";
-import Segment from "../../components/ui/Segment";
-import Expand from "../../components/ui/Expand";
+import { PartHead } from "../../components/ui/layout/PartHead";
+import DataTable, { type Column } from "../../components/ui/table/DataTable";
+import Segment from "../../components/ui/form/Segment";
+import Expand from "../../components/ui/layout/Expand";
 import Badge from "../../components/ui/Badge";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { usePersistedState } from "../../lib/ui/persistedState";

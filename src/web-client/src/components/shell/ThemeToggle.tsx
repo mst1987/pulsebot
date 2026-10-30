@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { SunIcon, MoonIcon } from "../ui/icons";
+import { SunIcon, MoonIcon } from "../ui/icons/icons";
 import { IconButton } from "../ui/Button";
 import { useT } from "../../i18n";
 

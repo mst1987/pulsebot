@@ -8,8 +8,8 @@ import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../..
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
-import WowIcon from "../../../components/ui/WowIcon";
-import { BenchIcon, CheckIcon, ClockIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons";
+import WowIcon from "../../../components/ui/icons/WowIcon";
+import { BenchIcon, CheckIcon, ClockIcon, LockIcon, SignedIcon, TentativeIcon, XIcon } from "../../../components/ui/icons/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { markedStatus, specText, statusWord } from "./setupText";

@@ -3,10 +3,10 @@
 import { Link } from "react-router-dom";
 import { fmtMs } from "../../../lib/format";
 import { itemQualityProps } from "../../../lib/wow/itemQuality";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button, buttonClass } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import WowIcon from "../../../components/ui/WowIcon";
+import WowIcon from "../../../components/ui/icons/WowIcon";
 import { reasonToneClass } from "../../../components/loot/LootBadges";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import { ROLE_META, SIGNUP_META, type PlayerRef, type RaidCtx } from "../meta";

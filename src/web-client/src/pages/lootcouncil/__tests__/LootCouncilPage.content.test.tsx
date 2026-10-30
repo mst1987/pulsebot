@@ -7,7 +7,7 @@ import * as api from "../../../api";
 import { bisListsData, councilData } from "../../../test/councilFixtures";
 import { renderPage } from "../../../test/render";
 import LootCouncilPage from "../LootCouncilPage";
-import { councilContent } from "../council";
+import { councilContent } from "../model/council";
 
 vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),

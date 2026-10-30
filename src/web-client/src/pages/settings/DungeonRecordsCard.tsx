@@ -1,6 +1,6 @@
 import type { TextChannel } from "../../api";
-import { FieldLabel } from "../../components/ui/Field";
-import Switch from "../../components/ui/Switch";
+import { FieldLabel } from "../../components/ui/form/Field";
+import Switch from "../../components/ui/form/Switch";
 import { ChannelPicker } from "../../components/settings/settingsUi";
 import { useT } from "../../i18n";
 

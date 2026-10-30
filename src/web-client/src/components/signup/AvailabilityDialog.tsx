@@ -7,7 +7,7 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { Button, Modal, Segment, WowIcon } from "../ui";
 import Chip from "../ui/Chip";
-import { AbsenceIcon, CheckIcon, CheckMark, SignedIcon, XIcon } from "../ui/icons";
+import { AbsenceIcon, CheckIcon, CheckMark, SignedIcon, XIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import { RaidChecklist, RaiderPick, ResultList } from "./AvailabilityParts";
 import { countResults, firstSpec, nextTo, resultSummary, staysAsIs } from "../../lib/signups/availability";

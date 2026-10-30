@@ -8,14 +8,14 @@ import {
     disabledSince, headLook, importSummary, itemTip, statusLook, switchState, unmappedText,
 } from "../../../lib/settings/raidhelperRetirement";
 import { useToast } from "../../../components/shell/Jobs";
-import { Modal, useConfirm } from "../../../components/ui/Modal";
+import { Modal, useConfirm } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import IconTile from "../../../components/ui/IconTile";
-import RaidLoader from "../../../components/ui/RaidLoader";
-import { CheckMark, ChevronRightIcon, WarnIcon, DownloadIcon } from "../../../components/ui/icons";
+import IconTile from "../../../components/ui/icons/IconTile";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
+import { CheckMark, ChevronRightIcon, WarnIcon, DownloadIcon } from "../../../components/ui/icons/icons";
 import { AdminOnlyBadge } from "../../../components/settings/settingsUi";
-import { InfoTip } from "../../../components/ui/Field";
+import { InfoTip } from "../../../components/ui/form/Field";
 import { tParts, useT } from "../../../i18n";
 
 // Einstellungen → Verbindungen → "Umstieg von Raid-Helper" (#291). One compact

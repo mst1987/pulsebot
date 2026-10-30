@@ -11,7 +11,7 @@ import type { ReactElement } from "react";
 import { render, type RenderResult } from "@testing-library/react";
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom";
 import { JobsProvider } from "../components/shell/Jobs";
-import { ConfirmProvider } from "../components/ui/Modal";
+import { ConfirmProvider } from "../components/ui/overlay/Modal";
 import type { ContentInfo, SessionUser } from "../api";
 import ContentVersionProvider from "../components/shell/ContentVersionProvider";
 import ContentSwitch from "../components/shell/ContentSwitch";

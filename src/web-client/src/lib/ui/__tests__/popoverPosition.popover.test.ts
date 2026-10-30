@@ -1,4 +1,4 @@
-// components/ui/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
+// components/ui/overlay/Popover.tsx and lib/ui/popoverPosition.ts (#439): one base for the
 // floating boxes that belong to an element — menus, rich tooltips, hover
 // panels, the raid plan's right-click menu.
 // The placements are pure and run here; the component and its users are

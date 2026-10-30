@@ -2,7 +2,7 @@ import { useState } from "react";
 import { saveOrgaLinks, type ApiError, type OrgaLink } from "../../../api";
 import { useToast } from "../../../components/shell/Jobs";
 import { Button } from "../../../components/ui/Button";
-import { PlusIcon, SaveIcon } from "../../../components/ui/icons";
+import { PlusIcon, SaveIcon } from "../../../components/ui/icons/icons";
 import { useT } from "../../../i18n";
 import LinkRow from "./LinkRow";
 import { cleanLinks } from "../../../lib/discord/buttonEmoji";

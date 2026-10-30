@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { canAccess, notifyRaid, type ApiError } from "../../../api";
 import { channelHint } from "../../../lib/settings/settingsLogic";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";

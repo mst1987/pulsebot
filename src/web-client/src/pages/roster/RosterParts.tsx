@@ -7,7 +7,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import type { RosterHead, RosterMember, RosterRoleResult, RosterStatus } from "../../api";
 import { useT } from "../../i18n";
-import { InfoIcon, MinusIcon, PlusIcon } from "../../components/ui/icons";
+import { InfoIcon, MinusIcon, PlusIcon } from "../../components/ui/icons/icons";
 import Badge from "../../components/ui/Badge";
 import { formatDate } from "../../lib/format";
 import { STATUS_ORDER, initialOf } from "../../lib/roster/rosters";

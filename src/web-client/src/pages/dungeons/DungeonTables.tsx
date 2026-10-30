@@ -2,7 +2,7 @@
 // the overall medal ranking and the achievement points. Every table sorts by
 // every labelled column (components/ui/DataTable + useTableSort).
 import type { DungeonCharacter, DungeonPlayer, DungeonRun, DungeonTable } from "../../api";
-import DataTable, { type Column } from "../../components/ui/DataTable";
+import DataTable, { type Column } from "../../components/ui/table/DataTable";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDate } from "../../lib/format";
 import { locale, useT } from "../../i18n";

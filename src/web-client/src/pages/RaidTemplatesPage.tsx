@@ -10,16 +10,16 @@ import {
 import { AppearanceFields, BuffPicker, TipLabel, InstancePicker, NumberInput, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../components/raid/RaidFields";
 import type { ShellContext } from "../components/shell/Shell";
 import { useToast } from "../components/shell/Jobs";
-import { Modal, useConfirm } from "../components/ui/Modal";
+import { Modal, useConfirm } from "../components/ui/overlay/Modal";
 import { Button, IconButton } from "../components/ui/Button";
-import PageHead from "../components/ui/PageHead";
-import Segment from "../components/ui/Segment";
+import PageHead from "../components/ui/layout/PageHead";
+import Segment from "../components/ui/form/Segment";
 import { useContentVersion } from "../hooks/useContentVersion";
 import Badge from "../components/ui/Badge";
-import WowIcon from "../components/ui/WowIcon";
-import RaidLoader from "../components/ui/RaidLoader";
+import WowIcon from "../components/ui/icons/WowIcon";
+import RaidLoader from "../components/ui/layout/RaidLoader";
 import CompositionEditor from "../components/raid/CompositionEditor";
-import { RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons";
+import { RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons/icons";
 import "../styles/raid-templates.css";
 import { tParts, useT } from "../i18n";
 

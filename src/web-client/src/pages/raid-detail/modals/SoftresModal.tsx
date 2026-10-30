@@ -9,13 +9,13 @@ import {
 import { useDraftState } from "../../../lib/ui/persistedState";
 import { itemQualityProps } from "../../../lib/wow/itemQuality";
 import { messageLink } from "../../../lib/discord/discordLinks";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import Segment from "../../../components/ui/Segment";
-import WowIcon from "../../../components/ui/WowIcon";
+import Segment from "../../../components/ui/form/Segment";
+import WowIcon from "../../../components/ui/icons/WowIcon";
 import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
-import { ExternalIcon, SaveIcon, XIcon } from "../../../components/ui/icons";
+import { ExternalIcon, SaveIcon, XIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { INSTANCE_ICONS, type RaidCtx } from "../meta";

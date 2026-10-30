@@ -6,7 +6,7 @@ import AssignPanel from "../AssignPanel";
 import { emptyBoard } from "../../../../../lib/raidplan/model";
 import { addRowOfType } from "../../../../../lib/raidplan/assign/assign";
 import { JobsProvider } from "../../../../shell/Jobs";
-import { ConfirmProvider } from "../../../../ui/Modal";
+import { ConfirmProvider } from "../../../../ui/overlay/Modal";
 import type { RaidplanBoard } from "../../../../../api";
 
 function setup(board: RaidplanBoard = emptyBoard()) {

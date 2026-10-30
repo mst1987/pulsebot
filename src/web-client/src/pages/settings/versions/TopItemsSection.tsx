@@ -4,10 +4,10 @@ import { canAccess, getTopItems, putTopItem, searchSettingsItems, type ApiError,
 import { useApi } from "../../../hooks/useApi";
 import type { ShellContext } from "../../../components/shell/Shell";
 import { useToast } from "../../../components/shell/Jobs";
-import Segment from "../../../components/ui/Segment";
-import Switch from "../../../components/ui/Switch";
+import Segment from "../../../components/ui/form/Segment";
+import Switch from "../../../components/ui/form/Switch";
 import ItemSearchPicker from "../../../components/loot/ItemSearchPicker";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { itemQualityColor, itemQualityProps } from "../../../lib/wow/itemQuality";
 import { wowheadItemUrl } from "../../../lib/wow/wowheadItems";
 import { refreshWowheadLinks } from "../../../lib/wow/wowheadTooltips";

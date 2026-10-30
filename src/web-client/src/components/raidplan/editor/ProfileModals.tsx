@@ -5,7 +5,7 @@ import {
     type ApiError, type RaidplanBoard, type RaidplanBoss, type RaidplanProfile, type RaidplanProfileInput,
 } from "../../../api";
 import { Button, Modal, useConfirm } from "../../ui";
-import { CheckIcon, SaveIcon, TrashIcon } from "../../ui/icons";
+import { CheckIcon, SaveIcon, TrashIcon } from "../../ui/icons/icons";
 import { useToast } from "../../shell/Jobs";
 import { ActionIcon } from "../ActionIcon";
 import { groupProfiles, profilesFor } from "../../../lib/raidplan";

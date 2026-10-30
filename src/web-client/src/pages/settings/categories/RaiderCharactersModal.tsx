@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
 import { getRaiderCharacters, saveRaiderCharacters, type ApiError, type RaiderCharactersData } from "../../../api";
 import { useToast } from "../../../components/shell/Jobs";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { tParts, useT } from "../../../i18n";
-import { SaveIcon } from "../../../components/ui/icons";
+import { SaveIcon } from "../../../components/ui/icons/icons";
 
 // Raider → Charakter for exactly one category (see raiderCharactersStore.js):
 // which character a raider plays on that raid day. Overrides the automatic

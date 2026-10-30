@@ -1,9 +1,9 @@
 import { useState } from "react";
-import Segment from "../../../components/ui/Segment";
-import { FieldLabel } from "../../../components/ui/Field";
-import OwnValue from "../../../components/ui/OwnValue";
+import Segment from "../../../components/ui/form/Segment";
+import { FieldLabel } from "../../../components/ui/form/Field";
+import OwnValue from "../../../components/ui/form/OwnValue";
 import { Button } from "../../../components/ui/Button";
-import { SaveIcon } from "../../../components/ui/icons";
+import { SaveIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { saveVersionOverrides, type AdminConfig, type ApiError } from "../../../api";

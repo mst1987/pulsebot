@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Eraser, Wand2 } from "lucide-react";
 import type { RaidplanBoard, RaidplanPlayer, RaidplanSlot } from "../../../../api";
 import { Button, Modal } from "../../../ui";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { PlayerName, TokenIcon } from "../../PlanBoard";
 import { CLASS_IDS, classIconOf } from "../../../../lib/raidplan/assign/assign";

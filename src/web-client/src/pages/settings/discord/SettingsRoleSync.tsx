@@ -9,16 +9,16 @@ import {
 } from "../../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../../i18n";
 import { useToast } from "../../../components/shell/Jobs";
-import { PenIcon, PlusIcon, TrashIcon, WarnIcon, SaveIcon } from "../../../components/ui/icons";
-import { Modal, useConfirm } from "../../../components/ui/Modal";
+import { PenIcon, PlusIcon, TrashIcon, WarnIcon, SaveIcon } from "../../../components/ui/icons/icons";
+import { Modal, useConfirm } from "../../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import Expand from "../../../components/ui/Expand";
-import PartHead from "../../../components/ui/PartHead";
-import RaidLoader from "../../../components/ui/RaidLoader";
-import Segment from "../../../components/ui/Segment";
+import Expand from "../../../components/ui/layout/Expand";
+import PartHead from "../../../components/ui/layout/PartHead";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
+import Segment from "../../../components/ui/form/Segment";
 import { AdminOnlyBadge, RolePicker } from "../../../components/settings/settingsUi";
-import { FieldLabel } from "../../../components/ui/Field";
+import { FieldLabel } from "../../../components/ui/form/Field";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Rollen-Abgleich" (#264).
 // One line per role pair between two servers of the list (#896); add and edit

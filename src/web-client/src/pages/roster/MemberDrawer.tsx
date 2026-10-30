@@ -14,8 +14,8 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { Button, IconButton, useConfirm } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { TrashIcon, XIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { TrashIcon, XIcon } from "../../components/ui/icons/icons";
 import { changedRoleLines, statusSince } from "../../lib/roster/rosterEdit";
 import { HistoryLines } from "./HistoryTab";
 import { AttendanceSection, CharsSection, DrawerSection, NoteSection, RolesSection, SpecSection, TrialUntil } from "./MemberDrawerParts";

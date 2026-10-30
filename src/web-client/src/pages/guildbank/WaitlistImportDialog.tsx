@@ -18,7 +18,7 @@ import {
     type ApiError, type GuildBankCharacterChoice, type GuildBankImportLinks, type GuildBankImportRow, type GuildBankWaitlist,
 } from "../../api";
 import { Button, Chip, Field, Modal, WowIcon } from "../../components/ui";
-import { LinkIcon, CheckIcon } from "../../components/ui/icons";
+import { LinkIcon, CheckIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useDraftState } from "../../lib/ui/persistedState";
 import { classLabel } from "../../lib/wow/wowNames";

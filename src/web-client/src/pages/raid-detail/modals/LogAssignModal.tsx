@@ -3,10 +3,10 @@
 import { useState } from "react";
 import { linkLog, linkLogUrl, type ApiError } from "../../../api";
 import { useDraftState } from "../../../lib/ui/persistedState";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import { CheckIcon } from "../../../components/ui/icons";
-import Segment from "../../../components/ui/Segment";
+import { CheckIcon } from "../../../components/ui/icons/icons";
+import Segment from "../../../components/ui/form/Segment";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import type { RaidCtx } from "../meta";

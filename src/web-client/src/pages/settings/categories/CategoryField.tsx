@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { IconButton } from "../../../components/ui/Button";
-import { InfoMarkIcon } from "../../../components/ui/icons";
+import { InfoMarkIcon } from "../../../components/ui/icons/icons";
 import { useT } from "../../../i18n";
 
 // One setting of a raid category in its expanded card (Einstellungen → Kategorien),

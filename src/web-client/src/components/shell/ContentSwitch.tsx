@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { canSwitch, versionRef } from "../../lib/app/contentVersion";
 import { useT } from "../../i18n";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 
 // The content switch in the top bar (#563, design "Content-Umschalter"): one
 // segment "Forever | TBC" next to the server select, each version with its

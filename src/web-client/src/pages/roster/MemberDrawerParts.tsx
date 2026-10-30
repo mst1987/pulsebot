@@ -8,7 +8,7 @@ import { useState, type CSSProperties, type ReactNode } from "react";
 import type { RosterDetail, RosterMember, RosterMemberChar } from "../../api";
 import { useLang, useT } from "../../i18n";
 import { Button, Chip, IconButton, Switch } from "../../components/ui";
-import { ChevronDownIcon, PlusIcon, XIcon, SaveIcon } from "../../components/ui/icons";
+import { ChevronDownIcon, PlusIcon, XIcon, SaveIcon } from "../../components/ui/icons/icons";
 import { formatDate } from "../../lib/format";
 import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { classLabel, specLabel } from "../../lib/wow/wowNames";

@@ -2,7 +2,7 @@ import { ANY } from "../../../../lib/raidplan/assign/classRefs";
 import { useMemo, useState, type ReactNode } from "react";
 import { ArrowRight, ListChecks, Users } from "lucide-react";
 import type { RaidplanAssignment } from "../../../../api";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { MarkIcon } from "../../MarkIcon";
 import { PlayerName, TokenIcon } from "../../PlanBoard";

@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { RichTip, WowIcon } from "../../components/ui";
 import { tParts, useT } from "../../i18n";
 import type { NeedParts } from "../../api";
-import { fmtPoints, pct, useNeedWeights } from "./needWeights";
+import { fmtPoints, pct, useNeedWeights } from "./model/needWeights";
 
 /** Everything the need bar needs, from a roster row or a candidate alike. */
 export type NeedSubject = {

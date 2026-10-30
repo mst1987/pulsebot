@@ -1,6 +1,6 @@
-import { FieldLabel } from "../../../components/ui/Field";
+import { FieldLabel } from "../../../components/ui/form/Field";
 import { buttonClass } from "../../../components/ui/Button";
-import { DownloadIcon } from "../../../components/ui/icons";
+import { DownloadIcon } from "../../../components/ui/icons/icons";
 import { VersionDot } from "../../../components/shell/ContentSwitch";
 import { otherUpcoming, type UpcomingRaidRef } from "../../../lib/app/contentVersion";
 import { formatDayDate } from "../../../lib/format";

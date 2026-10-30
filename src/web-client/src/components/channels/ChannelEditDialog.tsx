@@ -9,7 +9,7 @@ import { instanceIdsOfTag } from "../../lib/raids/raidEmojis";
 import { changedFields, isTextLike, rightsStatus, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
 import { normalizeForType } from "../../lib/discord/channelNames";
 import { useT } from "../../i18n";
-import { SaveIcon } from "../ui/icons";
+import { SaveIcon } from "../ui/icons/icons";
 
 // The full edit of one channel (issue #259): name, topic, category, slowmode,
 // what the rights look like, and the way into the archive. Saves only what

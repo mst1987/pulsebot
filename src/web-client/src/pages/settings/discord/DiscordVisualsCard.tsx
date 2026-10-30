@@ -1,6 +1,6 @@
-import { FieldLabel } from "../../../components/ui/Field";
-import OwnValue from "../../../components/ui/OwnValue";
-import Switch from "../../../components/ui/Switch";
+import { FieldLabel } from "../../../components/ui/form/Field";
+import OwnValue from "../../../components/ui/form/OwnValue";
+import Switch from "../../../components/ui/form/Switch";
 import { DISCORD_VISUAL_KEYS, type DiscordVisualKey } from "../../../lib/settings/settingsLogic";
 import { useT } from "../../../i18n";
 

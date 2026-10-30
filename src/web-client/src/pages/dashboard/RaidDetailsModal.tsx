@@ -5,11 +5,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getNextRaidDetails, type ApiError, type NextRaidDetails } from "../../api";
-import { Modal } from "../../components/ui/Modal";
+import { Modal } from "../../components/ui/overlay/Modal";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import IconTile from "../../components/ui/IconTile";
-import WowIcon from "../../components/ui/WowIcon";
+import IconTile from "../../components/ui/icons/IconTile";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { dayDate, clock, fetchedAt } from "../../lib/raids/overviewDates";

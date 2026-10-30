@@ -206,7 +206,7 @@ nav.menu::-webkit-scrollbar { display: none; }
 .nav-item.active .wi { filter: none; }
 .nav-item .nav-n { margin-left: auto; }
 
-/* ===== the icon rail of a page with sub sections (components/ui/SectionRail.tsx,
+/* ===== the icon rail of a page with sub sections (components/ui/layout/SectionRail.tsx,
    design "C · Schmale Icon-Leiste"): Einstellungen's sections, Raid-Events'
    pages. A 64 px column flush against the sidebar, left of the page; one
    44 px button per section, a thin line between groups, the name as the

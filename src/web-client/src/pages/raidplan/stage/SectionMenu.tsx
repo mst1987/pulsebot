@@ -3,7 +3,7 @@ import type { RaidplanPublicBoss } from "../../../api";
 import { sectionGroups } from "../../../lib/raidplan/view/stage";
 import { STRIP_MODES, type StripMode } from "../../../lib/raidplan/view/sheetLayout";
 import { useT } from "../../../i18n";
-import Switch from "../../../components/ui/Switch";
+import Switch from "../../../components/ui/form/Switch";
 
 const STRIP_LABEL: Record<StripMode, string> = { off: "raidBoard.stage.stripOff", top: "raidBoard.stage.stripTop", left: "raidBoard.stage.stripLeft" };
 

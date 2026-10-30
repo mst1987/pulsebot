@@ -4,12 +4,12 @@ import { getDiscordOverview, type BotMessage, type DiscordOverview, type MemberA
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, buttonClass } from "../../components/ui";
-import { SortTh } from "../../components/ui/SortTh";
-import { CheckIcon, ChevronRightIcon, ExternalIcon, RefreshIcon } from "../../components/ui/icons";
+import { SortTh } from "../../components/ui/table/SortTh";
+import { CheckIcon, ChevronRightIcon, ExternalIcon, RefreshIcon } from "../../components/ui/icons/icons";
 import DiscordTabs from "../../components/channels/DiscordTabs";
 import ServerPicker from "../../components/channels/ServerPicker";
 import { pickSearch, useServerPick } from "../../hooks/useServerPick";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDateTime } from "../../lib/format";
 import {

@@ -14,7 +14,7 @@ import { useOutletContext } from "react-router-dom";
 import { getDungeonBoard, type DungeonBoardData } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, PageHead, RaidLoader, WowIcon } from "../../components/ui";
-import { MenuRailPage } from "../../components/ui/SectionRail";
+import { MenuRailPage } from "../../components/ui/layout/SectionRail";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";

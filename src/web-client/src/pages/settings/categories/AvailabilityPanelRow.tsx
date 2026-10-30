@@ -2,12 +2,12 @@ import { useState } from "react";
 import { postAvailabilityPanel, removeAvailabilityPanel, saveAvailabilityFeatures, saveAvailabilityLinks, type ApiError, type AvailabilityLink, type AvailabilityPanel } from "../../../api";
 import { useToast } from "../../../components/shell/Jobs";
 import { Button, buttonClass } from "../../../components/ui/Button";
-import { useConfirm } from "../../../components/ui/Modal";
+import { useConfirm } from "../../../components/ui/overlay/Modal";
 import CategoryField from "./CategoryField";
 import LinkRow from "./LinkRow";
 import HubFeatureSwitches from "./HubFeatureSwitches";
 import { cleanLinks } from "../../../lib/discord/buttonEmoji";
-import { ExternalIcon, PlusIcon, SendIcon, TrashIcon, SaveIcon } from "../../../components/ui/icons";
+import { ExternalIcon, PlusIcon, SendIcon, TrashIcon, SaveIcon } from "../../../components/ui/icons/icons";
 import { formatDate } from "../../../lib/format";
 import { useT } from "../../../i18n";
 

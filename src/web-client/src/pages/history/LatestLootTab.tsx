@@ -18,14 +18,14 @@ import { fmtMs } from "../../lib/format";
 import { itemQualityProps, itemQualityColor } from "../../lib/wow/itemQuality";
 import { contentName } from "../../lib/wow/wowNames";
 import { shortDate } from "../../lib/raids/overviewDates";
-import { SortTh } from "../../components/ui/SortTh";
+import { SortTh } from "../../components/ui/table/SortTh";
 import { CharacterLink } from "../../components/character/ClassSpec";
-import Pager from "../../components/ui/Pager";
+import Pager from "../../components/ui/table/Pager";
 import { LootResponseBadge } from "../../components/loot/LootTable";
 import { contentIcon } from "../../components/loot/LootBadges";
 import { ActiveFilters, FilterPopover, ListCount, RaidSelect, SearchBox, SwitchRow, type ActiveFilter } from "../../components/loot/LootFilters";
-import RaidLoader from "../../components/ui/RaidLoader";
-import WowIcon from "../../components/ui/WowIcon";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { tParts, useT } from "../../i18n";
 

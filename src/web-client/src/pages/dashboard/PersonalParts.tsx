@@ -12,10 +12,10 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import { getRaidplanPublic, type DashboardPersonal, type PersonalNight, type PersonalRaid } from "../../api";
-import { PartHead } from "../../components/ui/PartHead";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import { buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import PugBadge from "../../components/signup/PugBadge";
 import { specLabel } from "../../lib/wow/wowNames";
 import { bossesWithMine } from "../../lib/raidplan/view/bossMine";

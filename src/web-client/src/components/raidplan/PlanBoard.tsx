@@ -9,7 +9,7 @@ import { AlertTriangle, Crosshair, Swords, Users } from "lucide-react";
 import type { RaidplanAssignment, RaidplanBoard, RaidplanIcon, RaidplanLine, RaidplanMark, RaidplanPlayer, RaidplanSlot, RaidplanText, RaidplanToken, RaidplanZone } from "../../api";
 import { classColorProps } from "../character/ClassSpec";
 import Mentions from "./Mentions";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import RoleGlyph from "./RoleGlyph";
 import { MarkIcon } from "./MarkIcon";
 import { wowIconUrl } from "../../lib/wow/wowIcon";

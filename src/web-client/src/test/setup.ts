@@ -6,7 +6,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach } from "vitest";
 
-// jsdom has <dialog> but not its methods; components/ui/Modal.tsx opens every
+// jsdom has <dialog> but not its methods; components/ui/overlay/Modal.tsx opens every
 // dialog with showModal(). Open/close just toggle the attribute, and Escape in
 // an open modal fires a cancelable "cancel" (then closes), like a browser.
 if (typeof HTMLDialogElement !== "undefined" && !HTMLDialogElement.prototype.showModal) {

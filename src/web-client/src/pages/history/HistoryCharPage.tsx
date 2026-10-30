@@ -14,7 +14,7 @@ import { getHistoryChar, getRosterChar, deleteLootItems, canAccess, type ApiErro
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useFollowVersion } from "../../hooks/useFollowVersion";
-import AsyncView from "../../components/ui/AsyncView";
+import AsyncView from "../../components/ui/layout/AsyncView";
 import { usePersistedSearchParam } from "../../lib/ui/persistedState";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { LootTable } from "../../components/loot/LootTable";
@@ -23,7 +23,7 @@ import { useToast } from "../../components/shell/Jobs";
 import { combineAttendance } from "../../lib/roster/rosterView";
 import { PartHead, WowIcon } from "../../components/ui";
 import "../../styles/roster-character.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { CharHero } from "./CharHero";
 import { GearSection } from "./GearSection";
 import { AttendanceSection } from "./AttendanceSection";

@@ -1,5 +1,5 @@
 /* =====================================================================
-   What only the orga sees (components/ui/OrgaZone.tsx, design canvas Oct 2026):
+   What only the orga sees (components/ui/layout/OrgaZone.tsx, design canvas Oct 2026):
    the teal chip in the top bar of an orga page (E) and the tinted dashed zone around the orga's
    part of a page everybody sees (B). Teal (--orga-teal, its own token: it does not follow the version colour, #742), not
    the orange of "mid": orange already says "warning" all over the menu. Design C kept this mark

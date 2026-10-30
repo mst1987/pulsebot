@@ -1,4 +1,4 @@
-// The bosses the loading scene (components/ui/RaidLoader.tsx) goes at, per
+// The bosses the loading scene (components/ui/layout/RaidLoader.tsx) goes at, per
 // game version: the Forever part shows no Lady Vashj or Gruul.
 import { RAID_CONTENTS } from "./raidIcons";
 

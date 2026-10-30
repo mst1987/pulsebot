@@ -1,6 +1,6 @@
 import { useState } from "react";
-import Segment from "../../../components/ui/Segment";
-import Field, { FieldLabel } from "../../../components/ui/Field";
+import Segment from "../../../components/ui/form/Segment";
+import Field, { FieldLabel } from "../../../components/ui/form/Field";
 import Badge from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { VersionDot } from "../../../components/shell/ContentSwitch";

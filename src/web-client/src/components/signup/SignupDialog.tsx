@@ -5,7 +5,7 @@ import {
     type SignupError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal, WowIcon, buttonClass } from "../ui";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import NewCharacterPick from "./NewCharacterPick";

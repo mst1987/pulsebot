@@ -1,5 +1,5 @@
 // One way to load what a page shows (#437): hooks/useApi.ts over the pure
-// rules in lib/ui/asyncState.ts, drawn by components/ui/AsyncView.tsx. The race
+// rules in lib/ui/asyncState.ts, drawn by components/ui/layout/AsyncView.tsx. The race
 // protection is what matters most and is tested here without React: a call is
 // numbered when it starts, and only the newest call's answer counts.
 // The hook, the view and the pages are checked by source in test/web-client/useApi.test.js.
