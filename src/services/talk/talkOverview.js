@@ -41,7 +41,7 @@ const {
 const { embedAccentColor } = require("../../config/variables");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
-const guildRoles = require("../discord/guildRoles");
+const guildRoles = require("../discord/roles/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");

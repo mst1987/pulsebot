@@ -5,8 +5,8 @@
 // the slots a category's raid template suggests, and the Loot-Council profiles
 // with the loot systems (#676: names and ids only).
 const discord = require("../discord/discord");
-const { canManageRoles } = require("../discord/roleSync");
-const { roleBelowBot } = require("../discord/memberRoles");
+const { canManageRoles } = require("../discord/roles/roleSync");
+const { roleBelowBot } = require("../discord/roles/memberRoles");
 const { listKnownCategories } = require("../categories/categoryNames");
 const { listStoredEvents } = require("../events/eventSources");
 const { isCategoryActive } = require("../categories/categoryLifecycle");

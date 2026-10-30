@@ -35,7 +35,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => []),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
 }));
-jest.mock("../../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
 
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");

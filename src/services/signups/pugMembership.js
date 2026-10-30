@@ -17,7 +17,7 @@ const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");
 const eventStore = require("../../stores/eventStore");
 const discord = require("../discord/discord");
-const { generalInviteUrl } = require("../discord/pugInvites");
+const { generalInviteUrl } = require("../discord/pug/pugInvites");
 const { accessRule } = require("./signupAccess");
 const { versionOfEvent } = require("../versions/mainVersion");
 

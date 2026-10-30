@@ -19,7 +19,7 @@
 // is for the next start. Idempotent: without logChannelIds nothing happens.
 const configStore = require("../../stores/configStore");
 const { serverSettingGuildIds, mergeServerSettings } = require("../../stores/configSchema");
-const { firstServerId } = require("../discord/serverOf");
+const { firstServerId } = require("../discord/servers/serverOf");
 const { mainVersionFor } = require("../versions/mainVersion");
 const { normalizeLogChannels } = require("./logChannelSettings");
 

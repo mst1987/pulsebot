@@ -9,7 +9,7 @@ jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/sign
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/services/events/eventSources", () => ({ getStoredEvent: jest.fn() }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ SELECT_ID: "talk-signup" }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");

@@ -14,7 +14,7 @@ const { listByCharacter } = require("../../stores/lootStore");
 const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { serverIds } = require("../../services/discord/roles/guildRoles");
 const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 
 /** The game version a lookup counts: the picked `version` option, else the channel's category's, else the main version. */

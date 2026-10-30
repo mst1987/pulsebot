@@ -20,8 +20,8 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "gA", name: "A" }, { id: "gB", name: "B" }]),
     listCategories: jest.fn(() => []),
 }));
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     // The category-name snapshot: cat-b is a category of server B.
     storedCategoryGuilds: () => new Map([["cat-a", "gA"], ["cat-b", "gB"]]),
 }));

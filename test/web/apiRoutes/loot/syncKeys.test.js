@@ -12,7 +12,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     sessionGuildAccess: jest.fn(() => null),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1"), pickActiveGuild: jest.fn(async () => "g1") }));
-jest.mock("../../../../src/services/discord/ingestServers", () => ({
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => ({
     orgaServersOf: jest.fn(async () => []),
     describeServers: jest.fn((servers) => servers.map((s) => ({ ...s, name: `Server ${s.guildId}`, label: "", versions: [] }))),
 }));
@@ -21,7 +21,7 @@ const { tempStoreFile } = require("../../../helpers/tempStore");
 const { routerClient, status, json } = require("../../../helpers/http");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const tokens = require("../../../../src/stores/ingestTokenStore");
-const { orgaServersOf } = require("../../../../src/services/discord/ingestServers");
+const { orgaServersOf } = require("../../../../src/services/discord/servers/ingestServers");
 const { sessionGuildAccess } = require("../../../../src/web/http/auth");
 const route = require("../../../../src/web/apiRoutes/loot/syncKeys");
 

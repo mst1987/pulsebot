@@ -22,11 +22,11 @@ jest.mock("../../../src/stores/eventStore", () => ({
 }));
 const mockSnapshots = {};
 jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null) }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn(async () => ({ isAdmin: false, access: {} })) }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn(async () => ({ isAdmin: false, access: {} })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => null) }));
 
 const orga = require("../../../src/services/roster/categoryOrga");
-const { resolveAccess } = require("../../../src/services/discord/userAccess");
+const { resolveAccess } = require("../../../src/services/discord/members/userAccess");
 const categoryRoster = require("../../../src/services/roster/categoryRoster");
 
 const admin = { id: "a", isAdmin: true, access: {} };

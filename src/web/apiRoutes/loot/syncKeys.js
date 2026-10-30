@@ -1,7 +1,7 @@
 // "Mein Profil › Meine Infos › Sync-App" (#1000, epic #999): a person's own keys for the sync app.
 //
 // A personal key belongs to its owner (the Discord id) and counts for every server the owner is
-// orga of right now (services/discord/ingestServers.js). Only the orga mints keys: a raider without
+// orga of right now (services/discord/servers/ingestServers.js). Only the orga mints keys: a raider without
 // an orga role, a managed category or full admin rights gets `allowed: false` (403 `orga_only`).
 // One's own keys always show and can be revoked, also once the person is orga nowhere any more (they
 // then count for no server). Revoking: one's own keys, or any personal key as a full admin. The
@@ -13,7 +13,7 @@ const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { sessionGuildAccess } = require("../../http/auth");
 const tokens = require("../../../stores/ingestTokenStore");
-const { orgaServersOf, describeServers } = require("../../../services/discord/ingestServers");
+const { orgaServersOf, describeServers } = require("../../../services/discord/servers/ingestServers");
 const { userIsOrga } = require("../../../config/permissions");
 
 // One key per device: a handful is plenty, and a cap keeps a stuck client from filling the store.

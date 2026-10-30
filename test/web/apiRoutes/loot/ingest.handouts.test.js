@@ -21,13 +21,13 @@ jest.mock("../../../../src/services/guildbank/handouts", () => {
 });
 
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 
 const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const handouts = require("../../../../src/services/guildbank/handouts");
 const ingest = require("../../../../src/web/apiRoutes/loot/ingest");
 

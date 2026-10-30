@@ -9,7 +9,7 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () =>
 jest.mock("../../../../src/stores/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000003" }], links: [] } }),
 }));
-jest.mock("../../../../src/services/discord/pugOnboarding", () => {
+jest.mock("../../../../src/services/discord/pug/pugOnboarding", () => {
     class PugOnboardingError extends Error {
         constructor(status, code, message) {
             super(message);
@@ -25,7 +25,7 @@ jest.mock("../../../../src/services/discord/pugOnboarding", () => {
     };
 });
 
-const svc = require("../../../../src/services/discord/pugOnboarding");
+const svc = require("../../../../src/services/discord/pug/pugOnboarding");
 const route = require("../../../../src/web/apiRoutes/discord/pugOnboarding");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { routerClient, status, body, json } = require("../../../helpers/http");

@@ -3,7 +3,7 @@ const { requireFullAdmin } = require("../../http/apiMiddleware");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../../utils/raidhelper/servers");
-const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/servers/serverOf");
 const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
@@ -12,9 +12,9 @@ const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, MAX_SERVERS,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../../stores/configSchema");
-const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/serverAccess");
-const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../services/discord/serverSettings");
-const serverDefaults = require("../../../services/discord/serverDefaults");
+const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
+const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../services/discord/servers/serverSettings");
+const serverDefaults = require("../../../services/discord/servers/serverDefaults");
 const { serverLang, defaultLang } = require("../../../services/discord/botLanguage");
 const { isSnowflake } = require("../../../utils/ids");
 const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../../services/categories/categorySwitch");
@@ -25,9 +25,9 @@ const {
     assignTokenGuild: assignIngestTokenGuild,
 } = require("../../../stores/ingestTokenStore");
 const discord = require("../../../services/discord/discord");
-const guildRoles = require("../../../services/discord/guildRoles");
-const roleSync = require("../../../services/discord/roleSync");
-const pugRoleGuard = require("../../../services/discord/pugRoleGuard");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
+const roleSync = require("../../../services/discord/roles/roleSync");
+const pugRoleGuard = require("../../../services/discord/pug/pugRoleGuard");
 const languageChange = require("../../../services/discord/languageChange");
 const availabilityPanel = require("../../../services/signups/availabilityPanel");
 const raidOverview = require("../../../services/events/overview/raidOverview");

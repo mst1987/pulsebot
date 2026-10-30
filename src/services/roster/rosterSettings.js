@@ -39,7 +39,7 @@ const councilProfilesStore = require("../../stores/councilProfilesStore");
 const settingsStore = require("../../stores/settingsStore");
 const { knownVersion, isVersionVisible } = require("../versions/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
-const pugRoleGuard = require("../discord/pugRoleGuard");
+const pugRoleGuard = require("../discord/pug/pugRoleGuard");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
 const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];

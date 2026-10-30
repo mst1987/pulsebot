@@ -19,7 +19,7 @@ const eventStore = require("../../stores/eventStore");
 const raidEventStore = require("../../stores/raidEventStore");
 const raidhelperEventsStore = require("../../stores/raidhelperEventsStore");
 const eventSeriesStore = require("../../stores/eventSeriesStore");
-const { storedCategoryGuilds } = require("../discord/serverOf");
+const { storedCategoryGuilds } = require("../discord/servers/serverOf");
 
 const str = (value) => String(value === undefined || value === null ? "" : value).trim();
 

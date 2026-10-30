@@ -19,8 +19,8 @@
 const signals = require("../../stores/userSignalsStore");
 const { groupEvents } = require("../events/raidGroup");
 const { approvedSetupOf } = require("../setup/setupCore");
-const { guildOfEvent } = require("../discord/serverOf");
-const { serverSetting } = require("../discord/serverSettings");
+const { guildOfEvent } = require("../discord/servers/serverOf");
+const { serverSetting } = require("../discord/servers/serverSettings");
 
 const HOUR_MS = 60 * 60 * 1000;
 

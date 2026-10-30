@@ -3,8 +3,8 @@ jest.mock("../../../src/stores/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settingsStore"),
     getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "gA" }, { guildId: "gB" }] } })),
 }));
-jest.mock("../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../src/services/discord/serverOf"),
+jest.mock("../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map([["cat-b", "gB"]]),
 }));
 

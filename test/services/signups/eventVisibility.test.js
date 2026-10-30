@@ -22,7 +22,7 @@ jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() =>
 
 const categoryRoster = require("../../../src/services/roster/categoryRoster");
 const rosterStore = require("../../../src/stores/rosterStore");
-const memberRoleMemory = require("../../../src/services/discord/memberRoleMemory");
+const memberRoleMemory = require("../../../src/services/discord/roles/memberRoleMemory");
 const settingsStore = require("../../../src/stores/settingsStore");
 const signupStore = require("../../../src/stores/signupStore");
 const { getRaidEvent } = require("../../../src/stores/raidEventStore");

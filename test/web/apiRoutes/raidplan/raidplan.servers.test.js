@@ -8,8 +8,8 @@ let mockActive = A;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => null), getActiveGuild: jest.fn(() => mockActive) }));
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     // the server list of this test: A and B
     resolveServer: jest.fn(({ guildId = "" } = {}) => {
         const id = String(guildId || "");

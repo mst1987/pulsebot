@@ -1,14 +1,14 @@
 // categoryGuild (#926): the server of a raid category and whether it is proven gone.
 jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), isGuildAvailable: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => []) }));
-jest.mock("../../../src/services/discord/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "A") }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/servers/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "A") }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []) }));
 
 const discord = require("../../../src/services/discord/discord");
-const guildRoles = require("../../../src/services/discord/guildRoles");
-const serverOf = require("../../../src/services/discord/serverOf");
+const guildRoles = require("../../../src/services/discord/roles/guildRoles");
+const serverOf = require("../../../src/services/discord/servers/serverOf");
 const eventStore = require("../../../src/stores/eventStore");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");
 const rosterStore = require("../../../src/stores/rosterStore");

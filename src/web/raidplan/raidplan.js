@@ -24,7 +24,7 @@ const catalogStore = require("../../stores/raidplanCatalogStore");
 const { catalogEnabled } = require("../../services/versions/versionCapabilities");
 const { versionColor } = require("../../services/versions/versionSettings");
 const { serverOfEntry } = require("../../services/events/eventServer");
-const { firstServerId } = require("../../services/discord/serverOf");
+const { firstServerId } = require("../../services/discord/servers/serverOf");
 const { getConfig } = require("../../stores/configStore");
 
 /**

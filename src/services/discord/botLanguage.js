@@ -26,8 +26,8 @@
 const userPrefs = require("../../stores/userPrefsStore");
 const settingsStore = require("../../stores/settingsStore");
 const { normalizeLang } = require("../../utils/i18n/botText");
-const { serverSetting } = require("./serverSettings");
-const { guildOfEvent, storedCategoryGuilds } = require("./serverOf");
+const { serverSetting } = require("./servers/serverSettings");
+const { guildOfEvent, storedCategoryGuilds } = require("./servers/serverOf");
 
 /** The global default every server without its own language speaks (#924); German when none is set. */
 function defaultLang(config) {

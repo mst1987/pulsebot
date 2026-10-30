@@ -1,8 +1,8 @@
 // categoryLifecycle (#744): active, deactivated, deleted in Discord and closed.
 // #926: "deleted" only with a proven, configured, reachable server (categoryGuild.js, real here).
 jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn(), listCategories: jest.fn(), listGuilds: jest.fn() }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
-jest.mock("../../../src/services/discord/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "g1") }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/servers/serverOf", () => ({ storedCategoryGuilds: jest.fn(() => new Map()), firstServerId: jest.fn(() => "g1") }));
 jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: jest.fn(), listSeries: jest.fn(() => ({})), deleteSeries: jest.fn(() => true) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
@@ -18,8 +18,8 @@ jest.mock("../../../src/stores/configStore", () => ({ dropCategoryEntries: jest.
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../../src/services/discord/discord");
-const guildRoles = require("../../../src/services/discord/guildRoles");
-const serverOf = require("../../../src/services/discord/serverOf");
+const guildRoles = require("../../../src/services/discord/roles/guildRoles");
+const serverOf = require("../../../src/services/discord/servers/serverOf");
 const seriesStore = require("../../../src/stores/eventSeriesStore");
 const eventStore = require("../../../src/stores/eventStore");
 const { listRaidEvents } = require("../../../src/stores/raidEventStore");

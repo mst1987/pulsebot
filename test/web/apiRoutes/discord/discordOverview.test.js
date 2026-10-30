@@ -14,12 +14,12 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     isOnline: () => true,
     getGuild: (id) => (id === "900000000000000001" ? { id, name: "Gilde", iconURL: () => "https://cdn/icon.png" } : null),
 }));
-jest.mock("../../../../src/services/discord/memberActivity", () => ({ recentActivity: jest.fn(() => [{ kind: "join" }]) }));
+jest.mock("../../../../src/services/discord/members/memberActivity", () => ({ recentActivity: jest.fn(() => [{ kind: "join" }]) }));
 jest.mock("../../../../src/services/discord/botCheck", () => ({ botCheck: jest.fn(() => ({ known: true })) }));
 jest.mock("../../../../src/services/discord/botMessages", () => ({ botMessages: jest.fn(async () => [{ status: "ok" }]) }));
-jest.mock("../../../../src/services/discord/roleHygiene", () => ({ roleHygiene: jest.fn(() => ({ known: true, empty: 1 })) }));
+jest.mock("../../../../src/services/discord/roles/roleHygiene", () => ({ roleHygiene: jest.fn(() => ({ known: true, empty: 1 })) }));
 
-const { recentActivity } = require("../../../../src/services/discord/memberActivity");
+const { recentActivity } = require("../../../../src/services/discord/members/memberActivity");
 const { botCheck } = require("../../../../src/services/discord/botCheck");
 const { botMessages } = require("../../../../src/services/discord/botMessages");
 const route = require("../../../../src/web/apiRoutes/discord/discordOverview");

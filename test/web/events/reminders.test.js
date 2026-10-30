@@ -12,7 +12,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
 jest.mock("../../../src/services/setup/setupInput", () => ({ proposeSetup: jest.fn() }));
@@ -35,7 +35,7 @@ beforeEach(() => {
     jest.resetAllMocks();
     reminderStore.useFile(tempStoreFile("reminders-sent.json"));
     reminders._resetForTests();
-    require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue(["100000"]);
+    require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue(["100000"]);
     discord.listMembersWithRoles.mockResolvedValue({ members: [{ id: "1" }, { id: "2" }, { id: "3" }], error: null });
     deliverUserPing.mockResolvedValue({});
 });
@@ -211,14 +211,14 @@ describe("runReminders", () => {
     });
 
     it("reports 'no server' when no event server is configured at all", async () => {
-        require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue([]);
+        require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue([]);
         const r = await reminders.runReminders({ now: NOW, config });
         expect(r).toEqual({ sent: 0, failed: 0, skipped: 0, error: "Kein Server eingestellt." });
         expect(loadEventGroups).not.toHaveBeenCalled();
     });
 
     it("sweeps every configured event server (#361), each with its own raids", async () => {
-        require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
+        require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
         loadEventGroups.mockImplementation(async (guildId) => (guildId === "100000" ? groups([soon]) : groups([{ ...soon, id: "e2" }])));
         const r = await reminders.runReminders({ now: NOW, config });
         expect(r.sent).toBe(4); // 2 reminders × 2 guilds
@@ -228,7 +228,7 @@ describe("runReminders", () => {
     });
 
     it("a guild whose events fail to load does not stop the sweep on another", async () => {
-        require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
+        require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
         loadEventGroups.mockImplementation(async (guildId) => (guildId === "100000"
             ? { groups: [], error: "Raid-Helper down" }
             : groups([soon])));
@@ -238,7 +238,7 @@ describe("runReminders", () => {
     });
 
     it("errors only when every configured guild fails to load", async () => {
-        require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
+        require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue(["100000", "200000"]);
         loadEventGroups.mockResolvedValue({ groups: [], error: "Raid-Helper down" });
         const r = await reminders.runReminders({ now: NOW, config });
         expect(r.error).toBe("Raid-Helper down");

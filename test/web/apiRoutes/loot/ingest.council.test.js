@@ -25,13 +25,13 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "gA", name: "Pulse" }, { id: "gB", name: "Pulse Forever" }]),
 }));
 // Category c2 lives on server gB (the category-name snapshot, #919).
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: jest.fn(() => new Map([["c2", "gB"]])),
 }));
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 jest.mock("../../../../src/web/loot/lootCouncil", () => ({
@@ -43,8 +43,8 @@ const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenS
 const { councilRoster } = require("../../../../src/web/loot/lootCouncil");
 const { getConfig } = require("../../../../src/stores/settingsStore");
 const { listCategories } = require("../../../../src/services/discord/discord");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
-const { storedCategoryGuilds } = require("../../../../src/services/discord/serverOf");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
+const { storedCategoryGuilds } = require("../../../../src/services/discord/servers/serverOf");
 const ingest = require("../../../../src/web/apiRoutes/loot/ingest");
 
 const { get, handle, urlFor } = routerClient(ingest);

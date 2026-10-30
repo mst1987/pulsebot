@@ -1,6 +1,6 @@
 const auth = require("../../http/auth");
 const discord = require("../../../services/discord/discord");
-const { guildRole, serverLabel } = require("../../../services/discord/guildRoles");
+const { guildRole, serverLabel } = require("../../../services/discord/roles/guildRoles");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { ok, error } = require("../../http/apiResponse");
 const { requireCsrf } = require("../../http/apiMiddleware");
@@ -10,7 +10,7 @@ const userPrefs = require("../../../stores/userPrefsStore");
 const { AREAS, emptyAccess, fullAccess, userHasMenuAccess, userIsOrga, can } = require("../../../config/permissions");
 const { getConfig } = require("../../../stores/settingsStore");
 const { guildId: envGuildId } = require("../../../config/variables");
-const { configForGuild, accessSettings, fullAdminRoleIds } = require("../../../services/discord/serverAccess");
+const { configForGuild, accessSettings, fullAdminRoleIds } = require("../../../services/discord/servers/serverAccess");
 const { normalizeRoleIds, MAX_ROLES } = require("../../http/viewAs");
 const { contentVersions } = require("../../../services/versions/contentVersions");
 const { areaAudience, orgaRoleNames } = require("../../http/areaAudience");

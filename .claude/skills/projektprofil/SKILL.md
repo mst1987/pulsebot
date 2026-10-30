@@ -155,7 +155,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     (adminRoleIds/ADMIN_ROLE_IDS, orgaRoleIds, officerRoleId, rolePermissions, botCommandAccess[*].roleIds,
     categoryRoles, Roster roleIds/trialRoleId/managers.roleIds, roleSync beide Seiten), keine
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
-    (`services/discord/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
+    (`services/discord/roles/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
     Freigaben) muss auch in `selfRole.configReason` — sonst kann sich jemand die Rolle selbst holen.
     Rollenfelder entstehen auch als **Nebenwirkung**: der Versionswechsel einer Kategorie legt mit
     `categorySwitchFixes[*].roster.roleIds` ein Roster an (`rosterVersionSwitch`) und

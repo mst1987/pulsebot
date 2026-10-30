@@ -7,7 +7,7 @@ import { buttonRows } from "../../lib/discord/roleMessages";
 import { formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 
-// How a role message will look in Discord, the way src/services/discord/roleMessages.js
+// How a role message will look in Discord, the way src/services/discord/roles/roleMessages.js
 // builds it: one card with the accent bar on the left, "## title" and the text,
 // the picture, a line, then a grey button per role in rows of five — and the
 // bot's reactions under the message. A pure renderer: it fetches nothing.

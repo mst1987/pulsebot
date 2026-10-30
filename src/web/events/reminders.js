@@ -29,7 +29,7 @@
 //             (eventStore.saveSetupDraft). Nothing is ever approved here, and
 //             nothing happens once the raid has started. Marked in reminderStore
 //             like a reminder (kind "autoSuggest"), so it runs once.
-const guildRoles = require("../../services/discord/guildRoles");
+const guildRoles = require("../../services/discord/roles/guildRoles");
 const reminderStore = require("../../stores/reminderStore");
 const eventStore = require("../../stores/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");

@@ -12,7 +12,7 @@ jest.mock("../../../src/stores/rosterStore", () => ({
 }));
 jest.mock("../../../src/stores/eventSeriesStore", () => ({ listSeries: jest.fn(() => mockSeries) }));
 jest.mock("../../../src/stores/guildBankStockStore", () => ({ listBanks: jest.fn(() => mockBanks) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "c1", name: "Montag" }, { id: "c2", name: "Mittwoch" }, { id: "c3", name: "PuG" }]),
 }));

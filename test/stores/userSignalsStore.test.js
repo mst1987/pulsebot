@@ -142,6 +142,6 @@ describe("userSignalsStore - who loads it", () => {
     // web/roster/rosterView.js only reads the threshold "leftEarlyBosses" (thresholdsOf) for the log's suggestion (#990)
     it("its recorder is required by the signup save, leaving a server, the read side, the roster view and the routes alone", () => {
         expect(modulesMatching(/require\(\s*["'][^"']*signalRecorder["']\s*\)/))
-            .toEqual(["services/discord/memberActivity.js", "services/signups/signupService.js", "services/vermerke/userSignals.js", "web/apiRoutes/roster/vermerke.js", "web/roster/rosterView.js"]);
+            .toEqual(["services/discord/members/memberActivity.js", "services/signups/signupService.js", "services/vermerke/userSignals.js", "web/apiRoutes/roster/vermerke.js", "web/roster/rosterView.js"]);
     });
 });

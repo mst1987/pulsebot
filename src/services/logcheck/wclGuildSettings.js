@@ -11,7 +11,7 @@
 // the next one is due), `lastSuccessAt` (ms, only a fetch WCL answered: where
 // the next fetch window starts) and `lastResult` ({ found, error, at }) are
 // written by the job only, never by a settings PATCH.
-const { serverSetting } = require("../discord/serverSettings");
+const { serverSetting } = require("../discord/servers/serverSettings");
 const { knownVersion } = require("../versions/mainVersion");
 
 /** The minutes an entry may wait between two fetches; 0 = never on its own. */

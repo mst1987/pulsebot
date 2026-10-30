@@ -11,7 +11,7 @@ let mockConfig = {};
 let mockBase = "https://eh.example";
 
 jest.mock("../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn(async () => mockAccess) }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn(async () => mockAccess) }));
 let mockLang = "de";
 jest.mock("../../../src/services/discord/botLanguage", () => ({ langOfInteraction: () => mockLang }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));

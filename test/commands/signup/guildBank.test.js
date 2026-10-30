@@ -11,7 +11,7 @@ const said = (fn, ephemeral = false) => {
     return cardText(sent);
 };
 
-jest.mock("../../../src/services/discord/userAccess", () => ({ userMayAny: jest.fn(async () => true) }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ userMayAny: jest.fn(async () => true) }));
 jest.mock("../../../src/services/signups/guildBank", () => ({
     resolveRequest: jest.fn(async () => ({ request: { status: "done", userName: "Anna" }, posted: true, dm: true })),
     redrawPost: jest.fn(async () => true),
@@ -22,7 +22,7 @@ jest.mock("../../../src/services/signups/guildBank", () => ({
     releaseRequest: jest.fn(async () => ({ request: { status: "open", userName: "Anna" }, posted: false, dm: false })),
 }));
 
-const { userMayAny } = require("../../../src/services/discord/userAccess");
+const { userMayAny } = require("../../../src/services/discord/members/userAccess");
 const guildBank = require("../../../src/services/signups/guildBank");
 const store = require("../../../src/stores/guildBankStore");
 const command = require("../../../src/commands/signup/guildBank");

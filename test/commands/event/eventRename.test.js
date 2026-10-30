@@ -1,17 +1,17 @@
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn() }));
 jest.mock("../../../src/services/discord/discordChannels", () => ({ editChannel: jest.fn(), discordErrorText: (e) => (e && e.message) || "Fehler" }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ userMayAny: jest.fn() }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ userMayAny: jest.fn() }));
 jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const discord = require("../../../src/services/discord/discord");
 const discordChannels = require("../../../src/services/discord/discordChannels");
-const { userMayAny } = require("../../../src/services/discord/userAccess");
+const { userMayAny } = require("../../../src/services/discord/members/userAccess");
 const settings = require("../../../src/stores/settingsStore");
 const renameCommand = require("../../../src/commands/event/eventRename");
 const { channelIdOf, renameModal } = require("../../../src/services/events/eventChannelRename");

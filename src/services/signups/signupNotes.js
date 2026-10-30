@@ -26,8 +26,8 @@ const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
-const serverDefaults = require("../discord/serverDefaults");
-const { guildOfEvent, firstServerId } = require("../discord/serverOf");
+const serverDefaults = require("../discord/servers/serverDefaults");
+const { guildOfEvent, firstServerId } = require("../discord/servers/serverOf");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];

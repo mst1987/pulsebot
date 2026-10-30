@@ -17,12 +17,12 @@
 const crypto = require("crypto");
 const store = require("../../stores/availabilityStore");
 const discord = require("../discord/discord");
-const { eventGuildIds } = require("../discord/guildRoles");
+const { eventGuildIds } = require("../discord/roles/guildRoles");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryLang } = require("../discord/botLanguage");
 const { organizerPayload } = require("../../utils/signup/organizerPanel");
 const { guildBankChannelId } = require("../../utils/signup/guildBankPost");
-const { storedCategoryGuilds, firstServerId } = require("../discord/serverOf");
+const { storedCategoryGuilds, firstServerId } = require("../discord/servers/serverOf");
 const { nextRaidSummary } = require("./organizer");
 const { appEmojiMap } = require("../discord/appEmojis");
 const logger = require("../../logger");

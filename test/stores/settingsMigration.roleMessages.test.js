@@ -8,7 +8,7 @@ const fs = require("fs");
 const { settingsPath } = require("../../src/config/paths");
 const { migrateSettings, migrateRoleMessageGuilds } = require("../../src/stores/settingsMigration");
 const roleMessageStore = require("../../src/stores/roleMessageStore");
-const { roleMessageGuild } = require("../../src/services/discord/guildRoles");
+const { roleMessageGuild } = require("../../src/services/discord/roles/guildRoles");
 const { getConfig } = require("../../src/stores/configStore");
 
 const CONFIG_FILE = settingsPath("config.json");

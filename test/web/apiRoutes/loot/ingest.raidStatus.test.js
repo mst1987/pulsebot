@@ -44,8 +44,8 @@ jest.mock("../../../../src/services/characters/characterInfo", () => ({
     resolveMissing: jest.fn(),
 }));
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({
@@ -69,7 +69,7 @@ const { resolutionFor, listPending } = require("../../../../src/stores/lootInbox
 const { eventsWithLoot } = require("../../../../src/stores/lootStore");
 const { event: baseEvent } = require("../../../factories/events");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { computeRaidStatus } = require("../../../../src/web/apiRoutes/loot/ingest");
 

@@ -5,7 +5,7 @@ jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles
 jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn() }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["100000"]) }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []), saveSetupDraft: jest.fn() }));
 
@@ -22,7 +22,7 @@ beforeEach(() => {
     jest.resetAllMocks();
     reminderStore.useFile(tempStoreFile("reminders-versions.json"));
     reminders._resetForTests();
-    require("../../../src/services/discord/guildRoles").eventGuildIds.mockReturnValue(["100000"]);
+    require("../../../src/services/discord/roles/guildRoles").eventGuildIds.mockReturnValue(["100000"]);
     deliverUserPing.mockResolvedValue({});
 });
 

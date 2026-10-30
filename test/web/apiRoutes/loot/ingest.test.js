@@ -48,13 +48,13 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // Two configured servers: the upload has no session, so the match searches both (#919).
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     serverIds: jest.fn(() => ["gA", "gB"]),
 }));
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 // Import-time item enrichment must never hit the network.
@@ -67,7 +67,7 @@ const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenS
 const { upsertPending, resolutionFor } = require("../../../../src/stores/lootInboxStore");
 const { addImport } = require("../../../../src/stores/lootStore");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../../src/utils/loot/lootImport");
 

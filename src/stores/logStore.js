@@ -2,7 +2,7 @@ const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 const { LEGACY_VERSION } = require("../config/gameVersions");
-const { postGuildOf, firstServerId } = require("../services/discord/serverOf");
+const { postGuildOf, firstServerId } = require("../services/discord/servers/serverOf");
 
 // Every log knows its game version (#746, services/logcheck/logVersion.js):
 //   host           the Warcraft-Logs host of its link ("fresh.warcraftlogs.com")
@@ -15,7 +15,7 @@ const { postGuildOf, firstServerId } = require("../services/discord/serverOf");
 //                  (`versionFrom`: "event" | "channel" | "host" | "default")
 // A log stored before #746 has none of them and counts as TBC.
 //
-// Every log knows its Discord server (#917, services/discord/serverOf.js):
+// Every log knows its Discord server (#917, services/discord/servers/serverOf.js):
 //   guildId      the server it belongs to: its raid's, else its origin server, else the first server
 //   guildFrom    which rule gave it: "event" | "channel" (the origin server) | "first"
 //   postGuildId  its origin server: the server it was posted in or added on

@@ -11,7 +11,7 @@
 //   addonhub:unsub                    "Abo beenden" under the confirmation
 //
 // The button never touches a role with rights (bot rights or Discord permissions,
-// services/discord/selfRole.js), in neither direction. Otherwise the bot may hand out the role only
+// services/discord/roles/selfRole.js), in neither direction. Otherwise the bot may hand out the role only
 // with Manage Roles, when the role sits below its highest role and belongs to no
 // integration; else (and when the role is gone) the member gets one clear line and
 // the log a warning saying why.
@@ -28,8 +28,8 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { getConfig } = require("../../stores/configStore");
 const store = require("../../stores/addonCenterStore");
-const { resolveAccess } = require("../discord/userAccess");
-const { interactionGuildId } = require("../discord/serverAccess");
+const { resolveAccess } = require("../discord/members/userAccess");
+const { interactionGuildId } = require("../discord/servers/serverAccess");
 const { langOfInteraction } = require("../discord/botLanguage");
 const { userCanAny, userIsOrga } = require("../../config/permissions");
 const { enabledAddons, releaseFor, resolveDownload } = require("./addonReleases");
@@ -39,7 +39,7 @@ const { openAssetStream } = require("../../classes/githubReleases");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const { tr } = require("../../utils/i18n/botText");
 const { parseCenterId, fileId, UNSUBSCRIBE_ID } = require("./addonCenterPanel");
-const { changeSelfRole, roleProblem } = require("../discord/selfRole");
+const { changeSelfRole, roleProblem } = require("../discord/roles/selfRole");
 const log = require("../../logger").child("addons");
 
 /** The areas whose holders may download (the web's rule). */

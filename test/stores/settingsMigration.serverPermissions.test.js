@@ -10,7 +10,7 @@ const { settingsPath } = require("../../src/config/paths");
 const { migrateSettings, migrateServerPermissions } = require("../../src/stores/settingsMigration");
 const configStore = require("../../src/stores/configStore");
 const { CONFIG_DEFAULTS } = require("../../src/stores/configSchema");
-const { accessSettings } = require("../../src/services/discord/serverAccess");
+const { accessSettings } = require("../../src/services/discord/servers/serverAccess");
 const {
     accessForRoles, accessForUser, baseAccessMap, normalizeRolePermissions, normalizeUserPermissions,
 } = require("../../src/config/permissions");

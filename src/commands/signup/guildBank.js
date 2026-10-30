@@ -20,7 +20,7 @@
 // item's waiting list up (services/signups/guildBank.advanceWaitlist, #775).
 //
 // Only the orga with write access to `raids` may — the same rights model as
-// the web menu (config/permissions.js), resolved by services/discord/userAccess.js
+// the web menu (config/permissions.js), resolved by services/discord/members/userAccess.js
 // from the member's roles on the configured servers. The bot gate (botAccess.js)
 // lets every click through (`defaultAccess: "everyone"`): the channel is the
 // orga's, and the real check is the area right below, not a role list of its
@@ -29,8 +29,8 @@ const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const store = require("../../stores/guildBankStore");
 const guildBank = require("../../services/signups/guildBank");
-const { userMayAny } = require("../../services/discord/userAccess");
-const { interactionGuildId } = require("../../services/discord/serverAccess");
+const { userMayAny } = require("../../services/discord/members/userAccess");
+const { interactionGuildId } = require("../../services/discord/servers/serverAccess");
 const { PREFIX, parseOrgaId, rejectModal, renameModal, plain, recipientName } = require("../../utils/signup/guildBankPost");
 
 const NO_RIGHTS = "Das darf nur die Orga mit Raid-Rechten.";

@@ -124,7 +124,7 @@
 //
 //   - logs.json (#917): every log knows its server. `guildId` follows the rule
 //     linked raid -> channel of the post -> first server
-//     (services/discord/serverOf.js); `guildFrom` names the rule, `postGuildId`
+//     (services/discord/servers/serverOf.js); `guildFrom` names the rule, `postGuildId`
 //     keeps the server of the post (before #917 `guildId` was exactly that for
 //     every log with a channel). Runs on every start after the federation step,
 //     so a log linked or unlinked since is set right again; the server list
@@ -187,7 +187,7 @@ const roleMessageStore = require("./roleMessageStore");
 const logStore = require("./logStore");
 const reportStore = require("./reportStore");
 const migrationMarkStore = require("./migrationMarkStore");
-const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/serverOf");
+const { firstServerId, guildOfEvent, logGuild, categoryGuildIndex } = require("../services/discord/servers/serverOf");
 
 /**
  * The event-server list an old single-server block stands for: its

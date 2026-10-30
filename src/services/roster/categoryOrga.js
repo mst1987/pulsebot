@@ -15,7 +15,7 @@
 // every question of one request (`cache`, see requestCache) and limited in time
 // (ROLE_FETCH_MS) - an unknown member or a slow Discord counts as no role.
 const discord = require("../discord/discord");
-const { resolveAccess } = require("../discord/userAccess");
+const { resolveAccess } = require("../discord/members/userAccess");
 const { userIsOrga } = require("../../config/permissions");
 const { canManageRoster, canManageRosterLive } = require("./rosterAccess");
 const categoryRoster = require("./categoryRoster");

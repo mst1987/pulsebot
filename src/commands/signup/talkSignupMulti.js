@@ -9,7 +9,7 @@ const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
 const { versionShort } = require("../../services/versions/versionTag");
-const guildRoles = require("../../services/discord/guildRoles");
+const guildRoles = require("../../services/discord/roles/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 
 // "Mehrere Raids wählen …" under a link's raid list (#293):

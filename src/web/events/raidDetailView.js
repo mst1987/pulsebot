@@ -56,7 +56,7 @@ const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { openToAll } = require("../../services/signups/signupAccess");
 const { expectedRosterIds, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 const { eventShown } = require("../../services/signups/eventVisibility");
-const { guildOfEvent } = require("../../services/discord/serverOf");
+const { guildOfEvent } = require("../../services/discord/servers/serverOf");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
 
 /**

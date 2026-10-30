@@ -10,8 +10,8 @@ jest.mock("../../../../src/services/discord/linkCheck", () => ({ messageLink: (g
 jest.mock("../../../../src/stores/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
-jest.mock("../../../../src/services/discord/roleMessages", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/roleMessages");
+jest.mock("../../../../src/services/discord/roles/roleMessages", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/roles/roleMessages");
     return {
         LIMITS: actual.LIMITS,
         guildIdOf: actual.guildIdOf,
@@ -22,7 +22,7 @@ jest.mock("../../../../src/services/discord/roleMessages", () => {
     };
 });
 
-const svc = require("../../../../src/services/discord/roleMessages");
+const svc = require("../../../../src/services/discord/roles/roleMessages");
 const store = require("../../../../src/stores/roleMessageStore");
 const route = require("../../../../src/web/apiRoutes/discord/roleMessages");
 const { emptyAccess } = require("../../../../src/config/permissions");
