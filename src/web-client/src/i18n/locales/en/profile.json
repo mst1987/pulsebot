@@ -32,6 +32,7 @@
     },
     "gearAria": "Gear level {spec}",
     "fold": {
+        "leads": "Lead raids",
         "days": "When I can raid",
         "daysNone": "nothing set",
         "raids": "Preferred raids",
@@ -309,6 +310,15 @@
             "other": "+ {count} more categories"
         },
         "open": "Open attendance"
+    },
+    "leads": {
+        "none": "none",
+        "sum": {
+            "one": "{count} instance · {versions}",
+            "other": "{count} instances · {versions}"
+        },
+        "noVersion": "No game version yet – once you have a character you can pick instances here.",
+        "chipsAria": "Instances you can lead in {version}"
     },
     "roster": {
         "sumOther": "in the roster with another character",

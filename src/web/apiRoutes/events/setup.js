@@ -30,7 +30,8 @@
 //   POST /api/raids/setup/move-raid           raids write: a raider into another raid of the
 //                                              event's raid group (#811)
 //   POST /api/raids/setup/raid-add            raids write: "Weiteren Raid hinzufügen" — a further
-//                                              raid of the group, same evening, shared signup (#811)
+//                                              raid of the group, same evening, shared signup (#811);
+//                                              `count` adds several at once (#1035)
 //   POST /api/raids/setup/raid-remove         raids write: dissolve a further raid without an
 //                                              approved setup; its raiders fall back into the pool
 //
@@ -66,6 +67,8 @@ const raidGroup = require("../../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../../utils/raidGroup");
 const { shortFor, shadowbannedAmong } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
+const { leadsForVersion, instanceChoices, eventLeadContext } = require("../../../services/roster/leaderFlags");
+const { rosterOfEvent } = require("../../../services/roster/categoryRoster");
 
 // The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
 // of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
@@ -126,11 +129,31 @@ async function view(event, user, { names = true, req = null } = {}) {
         out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
         // the short form only through the one rule (vermerkeAccess.js) - the setup's own write right is not enough
         if (await maySeeShort(user, fresh.guildId, { req })) Object.assign(out, await vermerkeOf(fresh, signups, out.setup));
+        out.leaders = leadersOf(fresh, signups, out.setup);
     }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
     out.canEditEvent = write;
     return out;
+}
+
+/**
+ * The leader flags (#1034) of everybody in the editor, for the raider panel: the
+ * raid's version, its instances, `{ [userId]: instanceIds }`, the instances the
+ * orga may switch here (`editable`, the raid's context - PUT /api/leads refuses
+ * the rest) and for whom (`switchable`: signed up for the raid or a member of its
+ * roster - somebody only on the bench or in the pool is not).
+ */
+function leadersOf(event, signups, setup) {
+    const config = getConfig();
+    const { versionId, instances: editable } = eventLeadContext(event, { config });
+    const roster = rosterOfEvent(event, { config });
+    const allowed = new Set([...signups.map((s) => String(s.userId)), ...Object.keys((roster && roster.members) || {})]);
+    const ids = personIdsOf(signups, setup);
+    return {
+        versionId, instances: instanceChoices(versionId), byUser: leadsForVersion(ids, versionId),
+        editable, switchable: ids.filter((id) => allowed.has(id)),
+    };
 }
 
 /** Everybody the editor shows: the signups, and who stands in a group, on the bench or in the pool. */
@@ -514,18 +537,26 @@ const postMoveRaid = withUser({ orgaScoped: SOURCE_AND_TARGET, write: "raids", c
 });
 
 /**
- * POST /api/raids/setup/raid-add — body `{ event, title? }`: "Weiteren Raid hinzufügen" (#811).
- * Answers `{ event: <new raid id>, raidGroup, message }`; the editor then switches to the new tab.
+ * POST /api/raids/setup/raid-add — body `{ event, title?, count? }`: "Weiteren Raid hinzufügen" (#811),
+ * with `count` > 1 several at once ("Auf 5 Raids aufteilen" sends the 4 new ones, #1035, titled "<Titel> <n>"; the
+ * group stays at most 8 raids — 400 too_many beyond). Answers `{ event: <first new raid id>,
+ * events: [ids], title, raidGroup, message }`; the signup message is redrawn once.
  */
 const postRaidAdd = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const event = eventOf(res, body.event);
     if (!event) return;
     const guildId = activeGuildFor(req);
     if (guildId && event.guildId && event.guildId !== String(guildId)) return error(res, 404, "not_found", "Event nicht gefunden.");
-    const result = raidGroup.addRaid(event.id, { title: typeof body.title === "string" ? body.title : "", user });
+    const count = body.count === undefined || body.count === null ? 1 : Number(body.count);
+    if (!Number.isInteger(count) || count < 1) return error(res, 400, "invalid", "Anzahl der Raids ist ungültig.");
+    const result = raidGroup.addRaids(event.id, { count, titles: typeof body.title === "string" ? [body.title] : [], user });
     if (result.error) return error(res, result.status || 400, result.code || "failed", result.error);
     refreshGroupMessage(result.primary);
-    ok(res, { event: result.event.id, title: result.event.title, raidGroup: raidGroup.groupSummary(result.event), message: `${result.event.title} angelegt – zieh Angemeldete hinüber oder lass „Freie Plätze füllen“ verteilen.` });
+    const first = result.events[0];
+    const message = result.events.length > 1
+        ? `${result.events.length} Raids angelegt (${result.events.map((e) => e.title).join(", ")}).`
+        : `${first.title} angelegt – zieh Angemeldete hinüber oder lass „Freie Plätze füllen“ verteilen.`;
+    ok(res, { event: first.id, events: result.events.map((e) => e.id), title: first.title, raidGroup: raidGroup.groupSummary(first), message });
 });
 
 /**

@@ -4,7 +4,7 @@ import type { ShellContext } from "../../components/shell/Shell";
 import {
     canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
     removeProfileCharacter, getCalendarTokens, getSyncKeys,
-    type ApiError, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
+    type ApiError, type LeadVersion, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
@@ -106,6 +106,13 @@ export default function ProfilePage() {
     if (!data || !profile) return <RaidLoader text={t("profile.loading")} />;
 
     const setProfile = (next: RaiderProfile) => setData((d) => (d ? { ...d, profile: next, isNew: false } : d));
+    // "Raids leiten" (#1034): the part shows the menu's version only, so an answer replaces the versions it names
+    const setLeadVersions = (next: LeadVersion[]) => setData((d) => {
+        if (!d) return d;
+        const old = d.leadVersions || [];
+        const merged = old.map((v) => next.find((n) => n.id === v.id) || v);
+        return { ...d, leadVersions: [...merged, ...next.filter((n) => !old.some((v) => v.id === n.id))] };
+    });
     /**
      * Take `next` from another save (a profession, a weekday …) - while wish item saves are still under way the
      * wish items the page shows stay (they are not confirmed yet; the wish queue's own answer settles them).
@@ -257,6 +264,8 @@ export default function ProfilePage() {
                         onSyncKeys={syncKeys.setData}
                         attendance={attendance.data}
                         attendanceFailed={!!attendance.error && !attendance.data}
+                        leadVersions={(data.leadVersions || []).filter((v) => !shownVersion || v.id === shownVersion)}
+                        onLeads={setLeadVersions}
                     />
                 </>
             )}

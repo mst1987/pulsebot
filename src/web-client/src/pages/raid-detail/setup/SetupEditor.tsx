@@ -32,7 +32,7 @@
 // and "Freie Plätze füllen" run over every raid; approving and posting stay per raid.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
+import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, asCharacter, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
@@ -56,7 +56,7 @@ import Popover from "../../../components/ui/overlay/Popover";
 import { besidePlacement } from "../../../lib/ui/popoverPosition";
 import { Summary, SummaryLine } from "./Summary";
 import { roleFigures, summaryOptions } from "./summaryFigures";
-import { SlotTip, type SlotActions } from "./SlotTip";
+import { SlotTip, type SlotActions, type SlotLead } from "./SlotTip";
 import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
@@ -345,21 +345,31 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         }
     };
 
-    /** "Weiteren Raid hinzufügen" (#811): the new raid is created and the editor switches to its tab. */
-    const addRaid = async (title: string) => {
+    /**
+     * "Weiteren Raid hinzufügen" (#811): `count` new raids at once (#1035). With
+     * `fill` a proposal runs right after over the whole group (raiders already
+     * placed stay) and the editor stays here - its answer refreshes every tab;
+     * without, the editor switches to the (first) new raid.
+     */
+    const addRaid = async (title: string, count = 1, fill = false) => {
         setGrouping(true);
+        let out: Awaited<ReturnType<typeof addGroupRaid>> | null = null;
         try {
             await chain.current;
-            const out = await addGroupRaid(eventId, title);
+            out = await addGroupRaid(eventId, title, count);
             setDialog(null);
-            ctx.onChanged(out.message || t("setup.raidGroup.created", { title: out.title }));
-            if (onSwitchRaid) onSwitchRaid(out.event);
-            else load();
+            ctx.onChanged(out.message || (count > 1 ? t("setup.raidGroup.createdMany", { count }) : t("setup.raidGroup.created", { title: out.title })));
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.raidGroup.addFailed"), "err");
         } finally {
             setGrouping(false);
         }
+        if (!out) return;
+        if (fill) {
+            const anyPlaced = (out.raidGroup?.raids || []).some((r) => r.placed > 0);
+            await propose(undefined, anyPlaced ? "placed" : undefined);
+        } else if (onSwitchRaid) onSwitchRaid(out.event);
+        else load();
     };
 
     /** Dissolve this further raid (#811) — asked first; its raiders fall back into "Angemeldet". */
@@ -642,6 +652,35 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         }
     };
 
+    // leader flags (#1034): the crown and, for the orga, the instances as chips; a click saves at once
+    const [leadBusy, setLeadBusy] = useState("");
+    const leadOf = (userId: string, edit: boolean): SlotLead | undefined => {
+        const leaders = data?.leaders;
+        if (!leaders) return undefined;
+        const ids = leaders.byUser[userId] || [];
+        // only for whom and what the server takes: signed up or in the roster, the raid's instances
+        const editable = leaders.editable || [];
+        const switchable = !leaders.switchable || leaders.switchable.includes(userId);
+        if (!edit || !switchable || !editable.length) return { instances: leaders.instances, ids };
+        return { instances: leaders.instances, ids, editable, busy: leadBusy === userId, onChange: (next) => void saveLead(userId, next) };
+    };
+    const saveLead = async (userId: string, instances: string[]) => {
+        setLeadBusy(userId);
+        try {
+            const next = await setLeads({ event: eventId, userId, instances });
+            setData((prev) => {
+                if (!prev?.leaders) return prev;
+                const byUser = { ...prev.leaders.byUser };
+                if (next.leads.length) byUser[userId] = next.leads; else delete byUser[userId];
+                return { ...prev, leaders: { ...prev.leaders, byUser } };
+            });
+        } catch (e) {
+            jobs.notify(t("roster.leaders.saveError", { message: (e as ApiError).message }), "err");
+        } finally {
+            setLeadBusy("");
+        }
+    };
+
     /**
      * The orga changes a raider's signup (#521). Waits for the moves still on
      * their way, then the server saves the signup and the setup follows (place
@@ -781,6 +820,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const isFurther = !!thisRaid && thisRaid.index > 1;
     const nextIndex = group ? Math.max(...group.raids.map((r) => r.index)) + 1 : 2;
     const primaryTitle = group ? (group.raids.find((r) => r.index === 1)?.title || data.event.title) : data.event.title;
+    // #1035: "Auf 5 Raids aufteilen" — the raids in total the signups fill (8 at most, as raidGroup.MAX_RAIDS); the server gets the new ones
+    const MAX_GROUP_RAIDS = 8;
+    const raidCount = group ? group.count : 1;
+    const suggestedTotal = Math.min(MAX_GROUP_RAIDS, Math.max(0, data.suggestedTotal || 0));
+    const splitTotal = suggestedTotal > raidCount ? suggestedTotal : 0;
     const groupItems: (MoreItem | "sep")[] = cancelled ? [] : [
         ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
         ...(isFurther ? [{
@@ -899,7 +943,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
                         onClick={() => setDialog("addRaid")}
                     >
-                        {t("setup.raidGroup.add")}
+                        {splitTotal ? t("setup.raidGroup.split", { count: splitTotal }) : t("setup.raidGroup.add")}
                     </Button>
                 </div>
             )}
@@ -951,6 +995,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         onCharacter={busy || inspectedInPool ? undefined : (c) => switchTo(inspectedPerson.userId, c)}
                         actions={actions} pinned={selected === shownId}
                         vermerk={data.vermerke?.[inspectedPerson.userId]} canOpenVermerke={canAccess(ctx.user ?? null, "vermerke", "read")}
+                        lead={leadOf(inspectedPerson.userId, true)}
                     />
                 </div>
             )}
@@ -962,7 +1007,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         p={peekPerson} attendance={data.attendance ? data.attendance[peekPerson.userId] : undefined}
                         extra={(data.extraRoles || {})[peekPerson.userId] || []} peek
                         removable={!(setup.pool || []).some((x) => x.userId === peekPerson.userId)}
-                        vermerk={data.vermerke?.[peekPerson.userId]}
+                        vermerk={data.vermerke?.[peekPerson.userId]} lead={leadOf(peekPerson.userId, false)}
                     />
                 </Popover>
             )}
@@ -984,7 +1029,10 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             <FillModal open={dialog === "fill"} onClose={() => setDialog(null)} placed={placed} free={Math.max(0, (data.event.size || 0) - placed)} onFill={(keepPlaced) => void propose(undefined, keepPlaced ? "placed" : undefined)} />
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={raidCtx} search={data.search} />
-            <AddRaidModal open={dialog === "addRaid"} onClose={() => setDialog(null)} suggested={`${primaryTitle} ${nextIndex}`} running={grouping} onCreate={(title) => void addRaid(title)} />
+            <AddRaidModal open={dialog === "addRaid"} onClose={() => setDialog(null)} suggested={`${primaryTitle} ${nextIndex}`} primaryTitle={primaryTitle} nextIndex={nextIndex}
+                current={raidCount} initialTotal={splitTotal || raidCount + 1} max={MAX_GROUP_RAIDS} running={grouping}
+                onCreate={(title, count, fill) => void addRaid(title, count, fill)}
+            />
             {editPerson && <SignupEditModal key={editPerson.userId} eventId={eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}
             <ExplainModal open={dialog === "explain"} onClose={() => setDialog(null)} ctx={raidCtx} data={data} setup={setup} onDone={load} />
         </div>

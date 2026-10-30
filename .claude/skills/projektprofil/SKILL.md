@@ -206,7 +206,9 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
     fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
     Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
-    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
+    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A. Eine `rosterId` immer über
+    `activeRoster(req, rosterId)` holen, auch wenn `orgaScoped` über `{ categoryId }` prüft — ein
+    Roster ohne Kategorie umgeht sonst die Server-Prüfung (#1034).
 24. Kanal-IDs aus dem Body (#925): Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
     Quell-Event aus dem Request nimmt und darüber postet, klont oder anlegt, prüft jede davon per
     `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der

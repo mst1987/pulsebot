@@ -1,6 +1,7 @@
 // One raid roster (#654, editing #655-#657, epic "Roster je Kategorie"): its
-// head (version and raids, main role, places, attendance, "Einstellungen" and
-// "Mitglied hinzufügen" for whoever may manage it) and its tabs, each its own
+// head (version and raids, main role, places, attendance, "Als Bild" for every
+// reader, "Einstellungen" and "Mitglied hinzufügen" for whoever may manage it)
+// and its tabs, each its own
 // address (/roster/r/<id>/<tab>): Mitglieder (MembersTab), Komposition,
 // Anwesenheit (the grid of members x raids, #677), Abgleich mit Discord (with
 // "n offen") and Verlauf. A member opens in the
@@ -15,7 +16,7 @@ import { usePageCrumb } from "../../hooks/usePageCrumb";
 import { tParts, useT } from "../../i18n";
 import { BackButton, Badge, Button, IconTile, WowIcon, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
-import { PlusIcon, SettingsIcon, TrashIcon } from "../../components/ui/icons/icons";
+import { ImageIcon, PlusIcon, SettingsIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { OrgaZone } from "../../components/ui/layout/OrgaZone";
 import type { ShellContext } from "../../components/shell/Shell";
 import { changedRoleLines, syncOpenCount } from "../../lib/roster/rosterEdit";
@@ -26,6 +27,7 @@ import HistoryTab from "./HistoryTab";
 import MemberDrawer from "./MemberDrawer";
 import MembersTab from "./MembersTab";
 import RosterFormDialog from "./RosterFormDialog";
+import RosterImageDialog from "./RosterImageDialog";
 import SyncTab from "./SyncTab";
 import { ClosedBadge, ClosedNotice, RoleChip, VersionLine } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
@@ -64,7 +66,7 @@ function DeleteClosedButton({ data }: { data: RosterDetail }) {
     return <Button variant="danger" icon={<TrashIcon />} running={busy === "delete"} onClick={remove}>{t("roster.form.delete")}</Button>;
 }
 
-function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: RosterDetail; tab: TabId; open: number | null; orga: boolean; onSettings: () => void; onAdd: () => void }) {
+function RosterHeadBlock({ data, tab, open, orga, onImage, onSettings, onAdd }: { data: RosterDetail; tab: TabId; open: number | null; orga: boolean; onImage: () => void; onSettings: () => void; onAdd: () => void }) {
     const t = useT();
     const r = data.roster;
     const line = [
@@ -85,12 +87,12 @@ function RosterHeadBlock({ data, tab, open, orga, onSettings, onAdd }: { data: R
                         <span className="rn-sub">{line.join(" · ")}</span>
                     </div>
                 </div>
-                {data.canManage && (
-                    <div className="rn-head-actions">
-                        <Button variant="ghost" icon={<SettingsIcon />} onClick={onSettings}>{t("roster.detail.settings")}</Button>
-                        {tab === "members" && <Button icon={<PlusIcon />} onClick={onAdd}>{t("roster.detail.add")}</Button>}
-                    </div>
-                )}
+                {/* "Als Bild" for every reader; settings and adding for the roster's managers */}
+                <div className="rn-head-actions">
+                    <Button variant="ghost" icon={<ImageIcon />} onClick={onImage}>{t("roster.detail.asImage")}</Button>
+                    {data.canManage && <Button variant="ghost" icon={<SettingsIcon />} onClick={onSettings}>{t("roster.detail.settings")}</Button>}
+                    {data.canManage && tab === "members" && <Button icon={<PlusIcon />} onClick={onAdd}>{t("roster.detail.add")}</Button>}
+                </div>
                 {r.closed && data.isAdmin && <div className="rn-head-actions"><DeleteClosedButton data={data} /></div>}
             </div>
             {r.closed && <ClosedNotice roster={r} />}
@@ -132,6 +134,7 @@ export default function RosterDetailPage() {
     const [drawer, setDrawer] = useState("");
     const [adding, setAdding] = useState<{ prefill: AddPrefill | null } | null>(null);
     const [settings, setSettings] = useState(false);
+    const [picture, setPicture] = useState(false);
     const [reloadKey, setReloadKey] = useState(0);
     const { run, busy } = useRosterAction();
     usePageCrumb(state.data?.roster.name ?? null);
@@ -176,11 +179,12 @@ export default function RosterDetailPage() {
     return (
         <div className="rn-page">
             {back}
-            <RosterHeadBlock data={data} tab={tab} orga={orga} open={sync.data ? syncOpenCount(sync.data) : null} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
+            <RosterHeadBlock data={data} tab={tab} orga={orga} open={sync.data ? syncOpenCount(sync.data) : null} onImage={() => setPicture(true)} onSettings={() => setSettings(true)} onAdd={() => setAdding({ prefill: null })} />
             {tab === "composition" && <CompositionTab data={data} user={user} reloadKey={reloadKey} onOpen={orga ? setDrawer : undefined} onSettings={data.canManage ? () => setSettings(true) : undefined} />}
             {ORGA_TABS.includes(tab) && <OrgaPart user={user}>{orgaTab}</OrgaPart>}
             {orga && drawer && <MemberDrawer key={drawer} data={data} userId={drawer} onClose={() => setDrawer("")} onChanged={reloadAll} />}
             {adding && <AddMemberDialog data={data} prefill={adding.prefill} onClose={() => setAdding(null)} onDone={reloadAll} />}
+            {picture && <RosterImageDialog data={data} onClose={() => setPicture(false)} />}
             {settings && <RosterFormDialog mode="settings" data={data} onClose={() => setSettings(false)} onSaved={() => { void reloadAll(); }} />}
         </div>
     );

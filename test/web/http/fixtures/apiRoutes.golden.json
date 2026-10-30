@@ -101,6 +101,8 @@
   "GET /api/rosters",
   "GET /api/rosters/composition",
   "GET /api/rosters/history",
+  "GET /api/rosters/image",
+  "GET /api/rosters/image/info",
   "GET /api/rosters/member-search",
   "GET /api/rosters/options",
   "GET /api/rosters/roster",
@@ -297,6 +299,7 @@
   "POST /api/roster/hide",
   "POST /api/rosters/create",
   "POST /api/rosters/delete",
+  "POST /api/rosters/image",
   "POST /api/rosters/members",
   "POST /api/rosters/members/remove",
   "POST /api/rosters/roles",
@@ -372,5 +375,7 @@
   "GET /api/ingest/me",
   "GET /api/profile/sync-keys",
   "POST /api/profile/sync-keys",
-  "POST /api/profile/sync-keys/delete"
+  "POST /api/profile/sync-keys/delete",
+  "PUT /api/profile/leads",
+  "PUT /api/leads"
 ]

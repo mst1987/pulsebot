@@ -20,7 +20,7 @@
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
     "system/session", "system/dashboard", "system/version", "discord/channels", "system/settings", "loot/topItems", "discord/talkOverview", "discord/pugInvites", "system/raidhelperRetirement", "system/wclGuilds", "system/versionLaunch",
-    "loot/ingest", "roster/kader", "roster/vermerke", "discord/botCommands", "roster/raiderCharacters", "roster/roster", "roster/rosters", "roster/rosterRoles", "roster/rosterMembers", "roster/rosterAdmin", "roster/profile", "loot/syncKeys", "roster/characters", "events/signups", "loot/lootCouncil", "loot/lootCouncilBis",
+    "loot/ingest", "roster/kader", "roster/vermerke", "discord/botCommands", "roster/raiderCharacters", "roster/roster", "roster/rosters", "roster/rosterRoles", "roster/rosterMembers", "roster/rosterImage", "roster/rosterAdmin", "roster/profile", "roster/leaderFlags", "loot/syncKeys", "roster/characters", "events/signups", "loot/lootCouncil", "loot/lootCouncilBis",
     "events/raids", "events/raidDetail", "events/setup", "raidplan/raidplan", "events/eventManage", "events/eventSeries", "system/gameVersions",
     "events/notifyTemplates", "events/raidTemplates", "system/recruitment", "loot/history", "system/cla", "events/availability", "discord/orgaHub", "events/attendance", "loot/guildBank", "system/dungeons", "system/addons", "system/addonCenter", "discord/roleMessages", "discord/discordRoles", "discord/discordMembers", "system/system", "discord/discordOverview", "discord/pugOnboarding",
 ];
