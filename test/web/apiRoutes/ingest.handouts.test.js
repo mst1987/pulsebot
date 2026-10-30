@@ -20,7 +20,14 @@ jest.mock("../../../src/services/guildbank/handouts", () => {
     return { ...actual, handoutList: jest.fn(), reportHandouts: jest.fn() };
 });
 
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
+
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const handouts = require("../../../src/services/guildbank/handouts");
 const ingest = require("../../../src/web/apiRoutes/ingest");
 
@@ -68,7 +75,7 @@ describe("GET /api/ingest/guildbank/handouts", () => {
         const res = await get();
         expect(status(res)).toBe(200);
         expect(json(res).data).toEqual(LIST);
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, bankKey: "" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, servers: null, bankKey: "" });
         expect(touchToken).toHaveBeenCalledWith("t1");
     });
 
@@ -77,14 +84,36 @@ describe("GET /api/ingest/guildbank/handouts", () => {
         const own = { ...TOKEN, guildId: "g2" };
         verifyToken.mockReturnValue(own);
         await get();
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: own, bankKey: "" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: own, servers: ["g2"], bankKey: "" });
         await post({ done: ["r1"] });
-        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: own });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: own, servers: ["g2"] });
+    });
+
+    // #1000: a personal key hands on its owner's orga servers, never more.
+    it("hands a personal key's servers on to the list and the report", async () => {
+        const person = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+        verifyToken.mockReturnValue(person);
+        serversOfToken.mockResolvedValueOnce(["gA"]).mockResolvedValueOnce(["gA"]);
+        await get();
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: person, servers: ["gA"], bankKey: "" });
+        await post({ done: ["r1"] });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: person, servers: ["gA"] });
+    });
+
+    it("refuses a personal key whose owner is orga nowhere with 403 no_server", async () => {
+        verifyToken.mockReturnValue({ id: "p1", name: "Laptop", ownerId: "u1", guildId: "" });
+        serversOfToken.mockResolvedValueOnce([]).mockResolvedValueOnce([]);
+        const res = await get();
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("no_server");
+        expect(status(await post({ done: ["r1"] }))).toBe(403);
+        expect(handouts.handoutList).not.toHaveBeenCalled();
+        expect(handouts.reportHandouts).not.toHaveBeenCalled();
     });
 
     it("passes the bank filter through", async () => {
         await get({ bank: "tbc:spineshatter:die gilde" });
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, bankKey: "tbc:spineshatter:die gilde" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, servers: null, bankKey: "tbc:spineshatter:die gilde" });
     });
 });
 
@@ -99,7 +128,7 @@ describe("POST /api/ingest/guildbank/handouts", () => {
         const res = await post({ done: ["r1"] });
         expect(status(res)).toBe(200);
         expect(json(res).data).toEqual(REPORT);
-        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: TOKEN });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: TOKEN, servers: null });
         expect(touchToken).toHaveBeenCalledWith("t1");
     });
 

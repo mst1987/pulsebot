@@ -416,6 +416,11 @@ function serverName(servers: IngestTokenServer[], guildId: string): string {
     return (s && (s.label || s.name)) || guildId;
 }
 
+/** Whose personal key (#1000) a token is: the owner's Discord name, else the id. */
+function ownerOf(tok: IngestToken): string {
+    return tok.ownerName || tok.ownerId || "";
+}
+
 /**
  * Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm.
  * Each token works on one Discord server (#994); the table lists every server's
@@ -487,7 +492,7 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
         switch (key) {
             case "name": return tok.name.toLowerCase();
             // a token without a server first: that is the one still to assign
-            case "server": return tok.guildId ? serverName(servers, tok.guildId).toLowerCase() : "";
+            case "server": return tok.ownerId ? `~${ownerOf(tok).toLowerCase()}` : tok.guildId ? serverName(servers, tok.guildId).toLowerCase() : "";
             case "created": return tok.createdAt || 0;
             case "uses": return tok.uses || 0;
             default: return tok.lastUsedAt || 0;
@@ -536,7 +541,7 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
                 {!tokens ? <RaidLoader compact text={t("settings.tokens.loading")} /> : !tokens.length ? (
                     <div className="empty">{t("settings.tokens.empty")}</div>
                 ) : (
-                    <div className="table-scroll">
+                    <div className="table-scroll conn-tok">
                         <table className="idx">
                             <thead>
                                 <tr>
@@ -552,10 +557,14 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
                             <tbody>
                                 {sorted.map((tok) => (
                                     <tr key={tok.id}>
-                                        <td><strong>{tok.name}</strong></td>
-                                        <td className="mono">ehl_…{tok.hint}</td>
-                                        <td className="small">
-                                            {tok.guildId ? serverName(servers, tok.guildId) : (
+                                        <td className="conn-tok-name"><strong data-tip={tok.name}>{tok.name}</strong></td>
+                                        <td className="mono conn-tok-hint" data-label={t("settings.tokens.colToken")}>ehl_…{tok.hint}</td>
+                                        <td className="small conn-tok-srv" data-label={t("settings.tokens.colServer")}>
+                                            {tok.ownerId ? (
+                                                <span data-testid="token-owner" data-tip={t("settings.tokens.personalTip", { name: ownerOf(tok) })}>
+                                                    {t("settings.tokens.personal", { name: ownerOf(tok) })}
+                                                </span>
+                                            ) : tok.guildId ? serverName(servers, tok.guildId) : (
                                                 <select
                                                     className="gbs-select"
                                                     aria-label={t("settings.tokens.assignAria", { name: tok.name })}
@@ -569,10 +578,10 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
                                                 </select>
                                             )}
                                         </td>
-                                        <td className="small" data-tip={tok.createdBy ? t("settings.tokens.createdBy", { name: tok.createdBy }) : undefined}>{fmtMs(tok.createdAt)}</td>
-                                        <td className="small">{tok.lastUsedAt ? fmtMs(tok.lastUsedAt) : t("settings.tokens.never")}</td>
-                                        <td className="mono">{tok.uses || 0}</td>
-                                        <td className="cell-act">
+                                        <td className="small conn-tok-date" data-label={t("settings.tokens.colCreated")} data-tip={tok.createdBy ? t("settings.tokens.createdBy", { name: tok.createdBy }) : undefined}>{fmtMs(tok.createdAt)}</td>
+                                        <td className="small conn-tok-date" data-label={t("settings.tokens.colLastUsed")}>{tok.lastUsedAt ? fmtMs(tok.lastUsedAt) : t("settings.tokens.never")}</td>
+                                        <td className="mono" data-label={t("settings.tokens.colUploads")}>{tok.uses || 0}</td>
+                                        <td className="cell-act conn-tok-act">
                                             <IconButton icon={<TrashIcon />} tip={t("settings.tokens.revokeTip")} size="sm" tone="danger" onClick={() => revoke(tok)} />
                                         </td>
                                     </tr>

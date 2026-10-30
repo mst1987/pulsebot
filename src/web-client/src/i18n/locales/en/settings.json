@@ -801,6 +801,8 @@
         "noServer": "no server – assign",
         "noServerTip": "Created before the server split: the token still sees every server. Assign it to a server and it sees only that server's data.",
         "assignAria": "Server for {name}",
+        "personal": "personal: {name}",
+        "personalTip": "Personal key from “My profile”: counts for every server {name} is orga of right now. {name} or a full admin can revoke it.",
         "assigned": "Token “{name}” now belongs to {server}.",
         "forServer": "The new token works for {server}.",
         "noActiveServer": "No active Discord server selected – pick a server at the top, then a token can be created."

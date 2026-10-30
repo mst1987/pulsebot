@@ -183,6 +183,11 @@ describe("handoutList", () => {
         stockStore.assignBank(OTHER, "g2");
         expect(handouts.handoutList().banks.map((b) => b.key).sort()).toEqual([KEY, OTHER].sort());
         expect(handouts.handoutList({ token: { guildId: "g2" } }).banks.map((b) => b.key)).toEqual([OTHER]);
+        // #1000: a personal key sees the banks of every server it counts for, none of another
+        const person = { ownerId: "u1" };
+        expect(handouts.handoutList({ token: person, servers: ["g2"] }).banks.map((b) => b.key)).toEqual([OTHER]);
+        expect(handouts.handoutList({ token: person, servers: [stockStore.getBank(KEY).guildId, "g2"] }).banks.map((b) => b.key).sort()).toEqual([KEY, OTHER].sort());
+        expect(handouts.handoutList({ token: person, servers: ["g9"] }).banks).toEqual([]);
     });
 });
 
@@ -257,6 +262,15 @@ describe("reportHandouts", () => {
         const out = await handouts.reportHandouts({ done: [r.id] }, { token: { ...TOKEN, guildId: "g2" }, now: NOW });
         expect(out.unknown).toEqual([r.id]);
         expect(store.getRequest(r.id).status).toBe("confirmed");
+    });
+
+    it("lets a personal key report only for the banks of its servers", async () => {
+        const r = confirmed();
+        const person = { ...TOKEN, ownerId: "u9" };
+        const foreign = await handouts.reportHandouts({ done: [r.id] }, { token: person, servers: ["g2"], now: NOW });
+        expect(foreign.unknown).toEqual([r.id]);
+        const mine = await handouts.reportHandouts({ done: [r.id] }, { token: person, servers: ["g2", stockStore.getBank(KEY).guildId], now: NOW });
+        expect(mine.ok).toEqual([r.id]);
     });
 
     it("takes the time of the hand-out only when it is plausible", async () => {

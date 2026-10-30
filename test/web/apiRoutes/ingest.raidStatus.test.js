@@ -43,6 +43,11 @@ jest.mock("../../../src/services/characters/characterInfo", () => ({
     annotatedCharacters: jest.fn(() => []),
     resolveMissing: jest.fn(),
 }));
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [] })),
     eventLookbackSince: jest.fn(() => 0),
@@ -64,6 +69,7 @@ const { resolutionFor, listPending } = require("../../../src/stores/lootInboxSto
 const { eventsWithLoot } = require("../../../src/stores/lootStore");
 const { event: baseEvent } = require("../../factories/events");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { computeRaidStatus } = require("../../../src/web/apiRoutes/ingest");
 
@@ -171,6 +177,33 @@ describe("POST /api/ingest/raids", () => {
         await request({ sessions: [SSC_SESSION] });
         expect(loadEventGroups).toHaveBeenCalledTimes(1);
         expect(loadEventGroups).toHaveBeenCalledWith("gB", { sinceSeconds: 0 });
+    });
+
+    // #1000: a personal key whose owner is orga on A, not on B.
+    describe("personal key", () => {
+        const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+        beforeEach(() => verifyToken.mockReturnValue(PERSON));
+
+        it("lists only the raids of its owner's servers", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA"]);
+            await request({ sessions: [SSC_SESSION] });
+            expect(serversOfToken).toHaveBeenCalledWith(PERSON);
+            expect(loadEventGroups.mock.calls.map(([gid]) => gid)).toEqual(["gA"]);
+        });
+
+        it("lists the raids of every server its owner is orga of", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
+            await request({ sessions: [SSC_SESSION] });
+            expect(loadEventGroups.mock.calls.map(([gid]) => gid).sort()).toEqual(["gA", "gC"]);
+        });
+
+        it("answers 403 no_server when its owner is orga nowhere", async () => {
+            serversOfToken.mockResolvedValueOnce([]);
+            const res = await request({ sessions: [SSC_SESSION] });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("no_server");
+            expect(loadEventGroups).not.toHaveBeenCalled();
+        });
     });
 
     it("defaults to an empty session list", async () => {

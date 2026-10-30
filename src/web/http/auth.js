@@ -222,6 +222,18 @@ function getUser(req) {
 }
 
 /**
+ * The per-server rights the session holds (`computeGuildAccess()` from the login or the last
+ * re-check), never looked up anew - for what has to know every server of the caller without a
+ * Discord round trip on each page view (the sync keys of "Mein Profil", #1000). A session
+ * without them yet gives `{ isAdmin, guilds: {} }`: the base access of each server.
+ */
+function sessionGuildAccess(req) {
+    const s = sessionFor(req);
+    if (!s) return null;
+    return s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
+}
+
+/**
  * The logged-in user with their own rights, ignoring an active "Ansicht als
  * Rolle" — only for starting and stopping that view.
  */
@@ -337,7 +349,7 @@ function destroy(sid) {
 
 module.exports = {
     configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
-    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess,
+    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, sessionGuildAccess,
     // services/discord/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,
 };

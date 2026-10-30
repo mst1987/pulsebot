@@ -26,12 +26,19 @@ jest.mock("../../../src/services/discord/botCheck", () => ({
     raidServerIds: jest.fn(() => ["g1", "g2"]),
 }));
 
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
+
 const { raidServerIds } = require("../../../src/services/discord/botCheck");
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { queueLookups } = require("../../../src/services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../src/services/guildbank/itemEmojis");
 const store = require("../../../src/stores/guildBankStockStore");
 const requests = require("../../../src/stores/guildBankStore");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -170,6 +177,50 @@ describe("POST /api/ingest/guildbank", () => {
         expect(json(forever).data).toMatchObject({ status: "created", gameVersion: "forever", pending: false });
         expect(store.getBank(KEY).guildId).toBe("g2");
         expect(store.getBank("forever:spineshatter:die gilde").guildId).toBe("g2");
+    });
+
+    // #1000: a personal key whose owner is orga on A, not on B.
+    describe("personal key", () => {
+        const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+
+        it("gives a new bank to its owner's only server", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA"]);
+            const res = await upload(scan());
+            expect(status(res)).toBe(201);
+            expect(serversOfToken).toHaveBeenCalledWith(PERSON);
+            expect(store.getBank(KEY)).toMatchObject({ guildId: "gA", pending: false });
+        });
+
+        it("leaves a new bank waiting when its owner is orga on several servers", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
+            await upload(scan());
+            expect(store.getBank(KEY).pending).toBe(true);
+        });
+
+        it("never writes into a bank of a server its owner is not orga of", async () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gB" });
+            await upload(scan());
+            const before = store.getBank(KEY);
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA"]);
+            const res = await upload(scan({ scannedAt: 1791003600, money: 1 }));
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+            expect(store.getBank(KEY)).toEqual(before);
+            warn.mockRestore();
+        });
+
+        it("refuses a key whose owner is orga nowhere with 403 no_server, nothing stored", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce([]);
+            const res = await upload(scan());
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("no_server");
+            expect(store.listBanks()).toEqual([]);
+        });
     });
 
     it("answers a late upload of an older scan as stale and changes nothing", async () => {

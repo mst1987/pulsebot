@@ -16,9 +16,16 @@ jest.mock("../../../src/stores/ingestTokenStore", () => ({
 }));
 jest.mock("../../../src/services/dungeons/dungeonRecords", () => ({ postNewRecords: jest.fn(async () => 0) }));
 
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
+
 const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStore");
 const { postNewRecords } = require("../../../src/services/dungeons/dungeonRecords");
 const store = require("../../../src/stores/dungeonRunStore");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -59,6 +66,27 @@ describe("POST /api/ingest/levelhelper", () => {
         expect(status(res)).toBe(401);
         expect(json(res).error.code).toBe("bad_token");
         expect(store.listRuns()).toEqual([]);
+    });
+
+    // #1000: a personal key whose owner is orga nowhere uploads nothing.
+    it("refuses a personal key whose owner is orga nowhere with 403 no_server", async () => {
+        const person = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+        verifyToken.mockReturnValue(person);
+        serversOfToken.mockResolvedValueOnce([]);
+        const res = await upload(payload());
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("no_server");
+        expect(serversOfToken).toHaveBeenCalledWith(person);
+        expect(store.listRuns()).toEqual([]);
+        expect(touchToken).not.toHaveBeenCalled();
+    });
+
+    it("takes the runs of a personal key whose owner is orga somewhere", async () => {
+        verifyToken.mockReturnValue({ id: "p1", name: "Laptop", ownerId: "u1", guildId: "" });
+        serversOfToken.mockResolvedValueOnce(["gA"]);
+        const res = await upload(payload());
+        expect(status(res)).toBeLessThan(300);
+        expect(store.listRuns()).toHaveLength(1);
     });
 
     it("stores the runs and characters and answers the contract's counts", async () => {

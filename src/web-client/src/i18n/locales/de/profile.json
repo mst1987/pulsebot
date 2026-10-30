@@ -61,7 +61,13 @@
         "loading": "wird geladen",
         "loadError": "ließ sich nicht laden",
         "professions": "Berufe",
-        "wishItems": "Wunsch-Items"
+        "wishItems": "Wunsch-Items",
+        "syncKeys": "Sync-App",
+        "syncKeysNone": "kein Schlüssel",
+        "syncKeysActive": {
+            "one": "{count} Schlüssel aktiv",
+            "other": "{count} Schlüssel aktiv"
+        }
     },
     "days": {
         "tagFrom": "{day} ab {time}",
@@ -398,5 +404,42 @@
         "removeSub": "Etwa ein vertippter zweiter Eintrag. Logs, Loot und Anmeldungen bleiben.",
         "noHit": "Kein Charakter passt zur Suche.",
         "none": "Noch hat kein Raider einen Charakter im Profil."
+    },
+    "sync": {
+        "loading": "Schlüssel werden geladen",
+        "intro": "Mit einem Schlüssel lädt die Sync-App Loot, Gildenbank und Raids hoch – für jeden Server, auf dem du gerade Orga bist. Verlierst du die Orga-Rolle, fällt der Server sofort weg.",
+        "secret": "Der Schlüssel ist geheim:",
+        "secretText": "wer ihn hat, lädt in deinem Namen hoch. Nur in die App eintragen, nicht weitergeben.",
+        "onlyNow": "nur jetzt sichtbar",
+        "copy": "Schlüssel kopieren",
+        "copied": "Kopiert",
+        "device": "Gerätename",
+        "devicePlaceholder": "z. B. Laptop",
+        "create": "Schlüssel anlegen",
+        "creating": "Wird angelegt…",
+        "max": "Höchstens {count} Schlüssel – widerrufe zuerst einen alten.",
+        "colName": "Name",
+        "colServers": "Gilt für",
+        "colCreated": "Angelegt",
+        "colLastUsed": "Zuletzt benutzt",
+        "colRevoke": "Widerrufen",
+        "hint": "…{hint}",
+        "never": "noch nie",
+        "uses": {
+            "one": "{count} Abruf",
+            "other": "{count} Abrufe"
+        },
+        "noServer": "zurzeit kein Server",
+        "notOrga": "Deine Schlüssel gelten derzeit für keinen Server – du bist nirgends Orga. Neue Schlüssel legt nur die Orga an; widerrufen kannst du deine jederzeit.",
+        "empty": "Noch kein Schlüssel – lege einen für das Gerät an, auf dem die Sync-App läuft.",
+        "role": {
+            "admin": "als Admin",
+            "orga": "als Orga",
+            "category": "als Kategorie-Orga"
+        },
+        "revoke": "Widerrufen",
+        "revokeTitle": "Schlüssel widerrufen?",
+        "revokeText": "Die Sync-App auf „{name}“ kann sofort nichts mehr hochladen.",
+        "revoked": "Schlüssel widerrufen."
     }
 }

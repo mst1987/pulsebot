@@ -3,7 +3,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
 import {
     canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
-    removeProfileCharacter, getCalendarTokens,
+    removeProfileCharacter, getCalendarTokens, getSyncKeys,
     type ApiError, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -60,6 +60,10 @@ export default function ProfilePage() {
     const calendar = useApi(() => getCalendarTokens(), []);
     const cal = calendar.error ? null : calendar.data;
     const setCal = calendar.setData;
+    // Sync-App keys (#1000): the server says whether the part shows (orga of at least one server);
+    // a failed load hides it, as for a raider.
+    const syncKeys = useApi(() => getSyncKeys(), []);
+    const sync = syncKeys.error ? null : syncKeys.data;
 
     const profile = data?.profile || null;
     // One version at a time (#741): the page shows the characters of the menu's
@@ -249,6 +253,8 @@ export default function ProfilePage() {
                         ask={ask}
                         calendar={cal}
                         onCalendar={setCal}
+                        syncKeys={sync}
+                        onSyncKeys={syncKeys.setData}
                         attendance={attendance.data}
                         attendanceFailed={!!attendance.error && !attendance.data}
                     />

@@ -367,5 +367,9 @@
   "GET /api/vermerke/signals/settings",
   "POST /api/vermerke/signals/settings",
   "GET /api/vermerke/people",
-  "GET /api/vermerke/raids"
+  "GET /api/vermerke/raids",
+  "GET /api/ingest/me",
+  "GET /api/profile/sync-keys",
+  "POST /api/profile/sync-keys",
+  "POST /api/profile/sync-keys/delete"
 ]

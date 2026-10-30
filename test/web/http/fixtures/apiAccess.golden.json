@@ -309,7 +309,9 @@
     "/api/guildbank/waitlist/import": "raids",
     "/api/addons": ["signup", "history"],
     "/api/addons/detail": ["signup", "history"],
-    "/api/addons/download": ["signup", "history"]
+    "/api/addons/download": ["signup", "history"],
+    "/api/profile/sync-keys": "signup",
+    "/api/profile/sync-keys/delete": "signup"
   },
   "ungated": [
     "/api/session",
@@ -329,7 +331,8 @@
     "/api/ingest/council",
     "/api/ingest/guildbank",
     "/api/ingest/guildbank/handouts",
-    "/api/ingest/levelhelper"
+    "/api/ingest/levelhelper",
+    "/api/ingest/me"
   ],
   "adminOnly": [
     "/api/addon-center",

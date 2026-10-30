@@ -324,3 +324,32 @@ export function createCalendarToken(): Promise<CalendarTokens & { token: string;
 export function revokeCalendarToken(id: string): Promise<CalendarTokens & { revoked: boolean }> {
     return send("POST", "/api/profile/calendar", { revoke: id });
 }
+
+// ---- Sync app keys (#1000) ----
+// A personal key of the sync app counts for every server its owner is orga of at
+// the time of the request; the plaintext comes back once, in the creating answer.
+
+export type SyncKey = {
+    id: string;
+    name: string;
+    hint: string;
+    createdAt: number;
+    lastUsedAt: number;
+    uses: number;
+};
+
+export type SyncKeyServer = { guildId: string; name: string; label: string; role: string };
+
+export type SyncKeys = { allowed: boolean; servers: SyncKeyServer[]; keys: SyncKey[]; max: number };
+
+export function getSyncKeys(): Promise<SyncKeys> {
+    return get("/api/profile/sync-keys");
+}
+
+export function createSyncKey(name: string): Promise<SyncKeys & { token: string; record: SyncKey }> {
+    return send("POST", "/api/profile/sync-keys", { name });
+}
+
+export function deleteSyncKey(id: string): Promise<SyncKeys> {
+    return send("POST", "/api/profile/sync-keys/delete", { id });
+}

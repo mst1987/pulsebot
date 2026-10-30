@@ -28,7 +28,7 @@ const stockView = require("./stockView");
 const linking = require("./linking");
 const { seenIndex } = require("../characters/characterEvidence");
 const guildBank = require("../signups/guildBank");
-const { serverOfToken } = require("./guildBankStock");
+const { serverListOf } = require("./guildBankStock");
 
 const FORMAT = "eventhelper-guildbank-handouts";
 const VERSION = 1;
@@ -100,13 +100,14 @@ function handoutView(request, bank) {
 /**
  * The banks a token may see: every bank assigned to a Discord server (a token
  * minted before #994 has no server), or only its server's when it has one
- * (guildBankStock.serverOfToken). `bankKey` narrows to one bank.
+ * (guildBankStock.serverOfToken), or those of the given servers (`servers`, a personal key: its
+ * owner's orga servers, #1000). `bankKey` narrows to one bank.
  */
-function banksFor(token, bankKey = "") {
-    const server = serverOfToken(token);
+function banksFor(token, bankKey = "", servers) {
+    const list = serverListOf(token, servers);
     const key = str(bankKey).toLowerCase();
     return stockStore.listBanks()
-        .filter((b) => b.guildId && (!server || b.guildId === server) && (!key || b.key === key))
+        .filter((b) => b.guildId && (!list || list.includes(b.guildId)) && (!key || b.key === key))
         .map((b) => stockStore.getBank(b.key))
         .filter(Boolean);
 }
@@ -118,9 +119,9 @@ function banksFor(token, bankKey = "") {
  * `handouts: []`, so the addon can clear its list.
  * @param {{ token?: object, bankKey?: string, now?: number }} [o]
  */
-function handoutList({ token = {}, bankKey = "", now = Date.now() } = {}) {
+function handoutList({ token = {}, servers, bankKey = "", now = Date.now() } = {}) {
     const confirmed = store.listRequests({ status: "confirmed" }).filter((r) => r.itemId > 0 && r.bankKey);
-    const banks = banksFor(token, bankKey).map((bank) => {
+    const banks = banksFor(token, bankKey, servers).map((bank) => {
         const own = confirmed.filter((r) => r.bankKey === bank.key);
         // a confirmed request whose character is no (longer a) confirmed one stays out (linking.linkState)
         const index = seenIndex();
@@ -196,11 +197,11 @@ function handedOutAt(at, request, now) {
 }
 
 /** Whether a request belongs to a bank the token may report for. */
-function inScope(request, token) {
-    const server = serverOfToken(token);
-    if (!server) return true;
+function inScope(request, token, servers) {
+    const list = serverListOf(token, servers);
+    if (!list) return true;
     const bank = stockStore.getBank(request.bankKey);
-    return !!bank && bank.guildId === server;
+    return !!bank && list.includes(bank.guildId);
 }
 
 /**
@@ -213,13 +214,13 @@ function inScope(request, token) {
  * `invalid` counts the entries that were no id at all.
  * @throws {HandoutReportError} for a body without a `done` list or with too many entries
  */
-async function reportHandouts(body, { token = {}, now = Date.now(), config } = {}) {
+async function reportHandouts(body, { token = {}, servers, now = Date.now(), config } = {}) {
     const { entries, invalid } = parseReport(body);
     const result = { format: FORMAT, version: VERSION, ok: [], duplicate: [], notConfirmed: [], unknown: [], invalid };
     const tokenName = str(token && token.name);
     for (const { id, via, by, at } of entries) {
         const request = store.getRequest(id);
-        if (!request || !request.itemId || !inScope(request, token)) {
+        if (!request || !request.itemId || !inScope(request, token, servers)) {
             result.unknown.push(id);
             continue;
         }

@@ -92,6 +92,31 @@ describe("services/guildbank/guildBankStock", () => {
         expect(again.bank).toMatchObject({ guildId: "", pending: true });
     });
 
+    // #1000: a personal key counts for its owner's orga servers (the route passes `servers`).
+    it("gives a new bank of a personal key a server only when the key counts for exactly one", () => {
+        const person = { id: "p1", ownerId: "u1" };
+        const one = stock.ingestScan(body(), { token: person, servers: ["22222"], now: NOW, config: CONFIG });
+        expect(one.bank).toMatchObject({ guildId: "22222", pending: false });
+        const two = stock.ingestScan(body({ client: { project: "forever" } }), { token: person, servers: ["11111", "22222"], now: NOW, config: CONFIG });
+        expect(two.bank).toMatchObject({ guildId: "", pending: true });
+    });
+
+    it("lets a personal key scan known banks of its servers and refuses one of another", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const person = { id: "p1", ownerId: "u1" };
+        stock.ingestScan(body(), { token: { id: "t1", guildId: "22222" }, now: NOW, config: CONFIG });
+        const mine = stock.ingestScan(body({ scannedAt: 1791003600 }), { token: person, servers: ["11111", "22222"], now: NOW + 1, config: CONFIG });
+        expect(mine).toMatchObject({ status: "updated", bank: { guildId: "22222" } });
+        const foreign = stock.ingestScan(body({ scannedAt: 1791007200 }), { token: person, servers: ["11111"], now: NOW + 2, config: CONFIG });
+        expect(foreign).toMatchObject({ code: "other_server" });
+        expect(stock.serverListOf({ guildId: "22222" })).toEqual(["22222"]);
+        expect(stock.serverListOf({})).toBeNull();
+        // fail closed: a personal key without its list gets no server, never every one
+        expect(stock.serverListOf(person)).toEqual([]);
+        expect(stock.serverListOf({ ownerId: "u1", guildId: "22222" })).toEqual([]);
+        warn.mockRestore();
+    });
+
     // One server has a bank per game version (key version:realm:guild).
     it("gives two new banks of different versions to the same server key", () => {
         const token = { id: "t1", guildId: "22222" };

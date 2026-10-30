@@ -61,7 +61,13 @@
         "loading": "loading",
         "loadError": "could not be loaded",
         "professions": "Professions",
-        "wishItems": "Wish items"
+        "wishItems": "Wish items",
+        "syncKeys": "Sync app",
+        "syncKeysNone": "no key",
+        "syncKeysActive": {
+            "one": "{count} key active",
+            "other": "{count} keys active"
+        }
     },
     "days": {
         "tagFrom": "{day} from {time}",
@@ -398,5 +404,42 @@
         "removeSub": "Say, a mistyped second entry. Logs, loot and signups stay.",
         "noHit": "No character matches the search.",
         "none": "No raider has a character in their profile yet."
+    },
+    "sync": {
+        "loading": "Loading keys",
+        "intro": "With a key the sync app uploads loot, guild bank and raids – for every server you are orga of right now. Lose the orga role and that server drops out at once.",
+        "secret": "The key is secret:",
+        "secretText": "whoever has it uploads in your name. Only enter it in the app, never share it.",
+        "onlyNow": "visible only now",
+        "copy": "Copy key",
+        "copied": "Copied",
+        "device": "Device name",
+        "devicePlaceholder": "e.g. Laptop",
+        "create": "Create key",
+        "creating": "Creating…",
+        "max": "At most {count} keys – revoke an old one first.",
+        "colName": "Name",
+        "colServers": "Counts for",
+        "colCreated": "Created",
+        "colLastUsed": "Last used",
+        "colRevoke": "Revoke",
+        "hint": "…{hint}",
+        "never": "never",
+        "uses": {
+            "one": "{count} request",
+            "other": "{count} requests"
+        },
+        "noServer": "no server right now",
+        "notOrga": "Your keys currently count for no server – you are orga nowhere. Only the orga creates new keys; you can revoke yours at any time.",
+        "empty": "No key yet – create one for the device the sync app runs on.",
+        "role": {
+            "admin": "as admin",
+            "orga": "as orga",
+            "category": "as category orga"
+        },
+        "revoke": "Revoke",
+        "revokeTitle": "Revoke key?",
+        "revokeText": "The sync app on “{name}” can no longer upload anything, effective immediately.",
+        "revoked": "Key revoked."
     }
 }
