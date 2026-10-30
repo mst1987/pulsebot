@@ -201,6 +201,55 @@ describe("POST /api/ingest/loot", () => {
             expect(noteAppended).toHaveBeenCalledWith(expect.any(String), 1);
         });
 
+        // #994: a key with a server never appends to another server's raid.
+        it("A does not append to B's accepted session", async () => {
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gB" });
+            const res = await upload(payload());
+            expect(addImport).not.toHaveBeenCalled();
+            expect(upsertPending).not.toHaveBeenCalled();
+            expect(json(res).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+        });
+
+        it("appends to an accepted session of the key's own server", async () => {
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gA" });
+            const res = await upload(payload());
+            expect(addImport).toHaveBeenCalledWith("e1", expect.any(Array), { categoryId: "cat1", eventLabel: "SSC", guildId: "gA" });
+            expect(json(res).data.results[0]).toMatchObject({ status: "appended", added: 1 });
+        });
+
+        // #994: a re-upload with the same session id never takes over B's open card.
+        it("A does not take over B's open card of the same session", async () => {
+            const { listPending } = require("../../../src/stores/lootInboxStore");
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            listPending.mockReturnValueOnce([{ id: "card-b", sessionId: "eh-1784574000-ssc", guildId: "gB", match: null }]);
+            const res = await upload(payload());
+            expect(upsertPending).not.toHaveBeenCalled();
+            expect(json(res).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+
+            // the same with a card whose suggested raid is on B
+            listPending.mockReturnValueOnce([{
+                id: "card-b", sessionId: "eh-1784574000-ssc", guildId: "",
+                match: { suggested: { eventId: "eh-b", guildId: "gB" }, candidates: [] },
+            }]);
+            const again = await upload(payload());
+            expect(upsertPending).not.toHaveBeenCalled();
+            expect(json(again).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+        });
+
+        it("updates the key's own open card and a card of a key without server", async () => {
+            const { listPending } = require("../../../src/stores/lootInboxStore");
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            upsertPending.mockReturnValue({ entry: { id: "card-a", itemCount: 2 }, added: 1, created: false });
+            listPending.mockReturnValueOnce([{ id: "card-a", sessionId: "eh-1784574000-ssc", guildId: "gA", match: null }]);
+            const res = await upload(payload());
+            expect(json(res).data.results[0]).toMatchObject({ status: "updated", inboxId: "card-a" });
+            listPending.mockReturnValueOnce([{ id: "card-old", sessionId: "eh-1784574000-ssc", guildId: "", match: null }]);
+            await upload(payload());
+            expect(upsertPending).toHaveBeenCalledTimes(2);
+        });
+
         it("silently drops a session that was dismissed", async () => {
             resolutionFor.mockReturnValue({ action: "dismissed" });
             const res = await upload(payload());
@@ -250,6 +299,25 @@ describe("POST /api/ingest/loot", () => {
             expect(loadEventGroups.mock.calls.map((c) => c[0])).toEqual(["gA", "gB"]);
             const [, meta] = upsertPending.mock.calls[0];
             expect(meta.match.suggested).toMatchObject({ eventId: "eh-b", categoryId: "catB", guildId: "gB" });
+        });
+
+        // #994: a key with a server matches only that server's raids, and its
+        // card carries the server so it never shows on another one.
+        it("searches only the raids of the key's server", async () => {
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            loadEventGroups.mockImplementation(async (guildId) => (guildId === "gB" ? {
+                groups: [{ categoryId: "catB", categoryName: "Donnerstag", events: [{ id: "eh-b", source: "eventhelper", title: "BT", startTime: 1784574000 }] }],
+            } : { groups: [] }));
+            await upload(payload());
+            expect(loadEventGroups.mock.calls.map((c) => c[0])).toEqual(["gA"]);
+            const [, meta] = upsertPending.mock.calls[0];
+            expect(meta.match.suggested).toBeNull();
+            expect(meta.guildId).toBe("gA");
+        });
+
+        it("stores no server for a key minted without one", async () => {
+            await upload(payload());
+            expect(upsertPending.mock.calls[0][1].guildId).toBe("");
         });
 
         it("flags two raids on the same day as ambiguous instead of guessing", async () => {

@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listTokens, createToken, revokeToken, verifyToken, touchToken, bearerFrom, TOKEN_PREFIX,
+    listTokens, createToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom, TOKEN_PREFIX,
 } = require("../../src/stores/ingestTokenStore.js");
 
 beforeEach(() => {
@@ -33,6 +33,40 @@ describe("stores/ingestTokenStore", () => {
 
         it("mints a different secret every time", () => {
             expect(createToken("a").token).not.toBe(createToken("b").token);
+        });
+
+        // #994: every token works on one Discord server.
+        it("stores the server the token belongs to", () => {
+            const { token, record } = createToken("PC", "Admin", "gA");
+            expect(record.guildId).toBe("gA");
+            expect(verifyToken(token).guildId).toBe("gA");
+        });
+
+        it("leaves the server empty when none is given", () => {
+            expect(createToken("PC").record.guildId).toBe("");
+        });
+    });
+
+    describe("assignTokenGuild", () => {
+        it("gives a token without a server one", () => {
+            const { token, record } = createToken("PC");
+            expect(assignTokenGuild(record.id, "gB")).toMatchObject({ id: record.id, guildId: "gB" });
+            expect(verifyToken(token).guildId).toBe("gB");
+            expect(stored().tokens[0]).not.toHaveProperty("token");
+        });
+
+        it("returns null for an unknown id", () => {
+            createToken("PC");
+            expect(assignTokenGuild("nope", "gB")).toBeNull();
+            expect(listTokens()[0].guildId).toBe("");
+        });
+
+        it("reads an old record without the field as no server", () => {
+            createToken("PC");
+            const data = stored();
+            delete data.tokens[0].guildId;
+            fs.__store.set([...fs.__store.keys()][0], JSON.stringify(data));
+            expect(listTokens()[0].guildId).toBe("");
         });
     });
 

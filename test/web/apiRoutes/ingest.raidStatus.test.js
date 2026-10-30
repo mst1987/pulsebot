@@ -165,6 +165,14 @@ describe("POST /api/ingest/raids", () => {
         expect(loadEventGroups).toHaveBeenCalledWith("gFirst", { sinceSeconds: 0 });
     });
 
+    // #994: a key with a server lists only that server's raids, never the first server's.
+    it("lists the raids of the key's server", async () => {
+        verifyToken.mockReturnValue({ id: "t1", name: "Raidlead-PC", guildId: "gB" });
+        await request({ sessions: [SSC_SESSION] });
+        expect(loadEventGroups).toHaveBeenCalledTimes(1);
+        expect(loadEventGroups).toHaveBeenCalledWith("gB", { sinceSeconds: 0 });
+    });
+
     it("defaults to an empty session list", async () => {
         const res = await request({});
         expect(status(res)).toBe(200);

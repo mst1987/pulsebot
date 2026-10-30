@@ -36,6 +36,18 @@ describe("stores/lootInboxStore", () => {
             expect(listPending().length).toBe(1);
         });
 
+        // #994: the card remembers the server of the upload key.
+        it("stores the upload key's server, empty for a key without one", () => {
+            expect(upsertPending(session(), { guildId: "gA" }).entry.guildId).toBe("gA");
+            expect(upsertPending(session({ sessionId: "s2" })).entry.guildId).toBe("");
+        });
+
+        it("fills the server in on a re-upload once the key has one", () => {
+            upsertPending(session());
+            expect(upsertPending(session(), { guildId: "gB" }).entry.guildId).toBe("gB");
+            expect(upsertPending(session()).entry.guildId).toBe("gB");
+        });
+
         // The sync tool re-uploads the whole raid on every flush, so this is the
         // normal case, not an edge case.
         it("merges a re-upload into the same entry instead of adding a second card", () => {

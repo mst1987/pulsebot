@@ -164,6 +164,7 @@ jest.mock("../../../src/stores/ingestTokenStore", () => ({
     listTokens: jest.fn(() => []),
     createToken: jest.fn(),
     revokeToken: jest.fn(),
+    assignTokenGuild: jest.fn(() => null),
 }));
 // The content switch (#563): the warning list and the archive export, steered per test.
 jest.mock("../../../src/services/events/contentVersions", () => ({
@@ -256,6 +257,108 @@ describe("web/apiRoutes/settings", () => {
                 const res = mockRes();
                 await handle("/api/settings/discord-servers", { method: "GET" }, res);
                 expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            });
+        });
+
+        // #994: every upload key works on one Discord server.
+        describe("ingest tokens per server", () => {
+            const ingestTokens = require("../../../src/stores/ingestTokenStore");
+            const fullAdmin = () => auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            const limited = () => auth.getUser.mockReturnValue({
+                id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } },
+            });
+
+            beforeEach(() => {
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.getConfig.mockReturnValue(knownServers("gA", "gB"));
+                discord.getGuild.mockImplementation((id) => (id === "gA" ? { name: "Events" } : null));
+            });
+            afterEach(() => {
+                settingsStore.getConfig.mockReturnValue({});
+                discord.getGuild.mockReset().mockReturnValue(null);
+            });
+
+            it("lists the tokens with the servers to assign them to", async () => {
+                fullAdmin();
+                ingestTokens.listTokens.mockReturnValueOnce([{ id: "t1", name: "PC", guildId: "" }]);
+                const res = await get("/api/settings/ingest-tokens");
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(json(res).data).toEqual({
+                    tokens: [{ id: "t1", name: "PC", guildId: "" }],
+                    servers: [{ guildId: "gA", name: "Events", label: "" }, { guildId: "gB", name: "", label: "" }],
+                });
+            });
+
+            it("mints a token for the active server", async () => {
+                fullAdmin();
+                activeGuildFor.mockReturnValue("gB");
+                ingestTokens.createToken.mockReturnValueOnce({ token: "x", record: { id: "t2", guildId: "gB" } });
+                const res = await post("/api/settings/ingest-tokens", { name: "PC" });
+                expect(res.writeHead).toHaveBeenCalledWith(201, expect.any(Object));
+                expect(ingestTokens.createToken).toHaveBeenLastCalledWith("PC", "Admin", "gB");
+            });
+
+            it("mints no token without a server: no active one, or one not configured", async () => {
+                fullAdmin();
+                for (const active of ["", "gX"]) {
+                    activeGuildFor.mockReturnValue(active);
+                    const res = await post("/api/settings/ingest-tokens", { name: "PC" });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error.code).toBe("unknown_server");
+                }
+                expect(ingestTokens.createToken).not.toHaveBeenCalled();
+                activeGuildFor.mockReturnValue("");
+            });
+
+            it("lets a full admin assign a token without a server", async () => {
+                fullAdmin();
+                ingestTokens.listTokens.mockReturnValueOnce([{ id: "t1", name: "PC", guildId: "" }]);
+                ingestTokens.assignTokenGuild.mockReturnValueOnce({ id: "t1", guildId: "gB" });
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gB" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(ingestTokens.assignTokenGuild).toHaveBeenLastCalledWith("t1", "gB");
+                expect(json(res).data.record).toEqual({ id: "t1", guildId: "gB" });
+            });
+
+            it("refuses a server that is not configured", async () => {
+                fullAdmin();
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gX" });
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(json(res).error.code).toBe("unknown_server");
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            it("answers 404 for an unknown token", async () => {
+                fullAdmin();
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "nope", guildId: "gA" });
+                expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
+                expect(json(res).error.code).toBe("not_found");
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            // user decision: a token keeps its server; to move, mint a new one
+            it("refuses to move a token that already has a server", async () => {
+                fullAdmin();
+                ingestTokens.listTokens.mockReturnValueOnce([{ id: "t1", name: "PC", guildId: "gA" }]);
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gB" });
+                expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                expect(json(res).error.code).toBe("already_assigned");
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            it("refuses an assignment without CSRF", async () => {
+                fullAdmin();
+                auth.checkCsrf.mockReturnValue(false);
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gA" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            it("refuses a limited settings user", async () => {
+                limited();
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gA" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
             });
         });
 

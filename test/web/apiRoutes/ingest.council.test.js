@@ -150,4 +150,43 @@ describe("GET /api/ingest/council", () => {
         expect(councilRoster).toHaveBeenCalledWith(expect.objectContaining({ categoryId: "c1", role: "healer", tierIds: [], bisTier: "" }));
         expect(body(res).filter).toMatchObject({ category: "c1", categoryName: "SSC/TK Mittwoch", role: "healer" });
     });
+
+    // #994: a key with a server sees only the categories of that server.
+    describe("key with a server", () => {
+        const TWO_SERVERS = {
+            categoryIds: ["c1", "c2"],
+            discordServers: { servers: [{ guildId: "gA" }, { guildId: "gB" }] },
+            categoryLootSystem: { c1: "lootcouncil", c2: "lootcouncil" },
+        };
+
+        beforeEach(() => {
+            getConfig.mockReturnValue(TWO_SERVERS);
+        });
+
+        it("lists only its server's categories in v2 and v3", async () => {
+            verifyToken.mockReturnValue({ id: "t1", name: "PC", guildId: "gB" });
+            expect(body(await authed("/api/ingest/council", { v: "2" })).categories.map((c) => c.id)).toEqual(["c2"]);
+            expect(body(await authed("/api/ingest/council", { v: "3" })).categories.map((c) => c.id)).toEqual(["c2"]);
+            expect(councilRoster.mock.calls.every(([opts]) => opts.categoryId === "c2")).toBe(true);
+        });
+
+        it("never reads a category of another server in v1", async () => {
+            verifyToken.mockReturnValue({ id: "t1", name: "PC", guildId: "gA" });
+            const res = await authed("/api/ingest/council", { category: "c2" });
+            expect(status(res)).toBe(200);
+            expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "", guildId: "gA" });
+            expect(body(res).categories.map((c) => c.id)).toEqual(["c1"]);
+        });
+
+        it("reads its own category in v1", async () => {
+            verifyToken.mockReturnValue({ id: "t1", name: "PC", guildId: "gB" });
+            const res = await authed("/api/ingest/council", { category: "c2" });
+            expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2", guildId: "gB" });
+            expect(body(res).categories.map((c) => c.id)).toEqual(["c2"]);
+        });
+
+        it("keeps every server's categories for a key without a server", async () => {
+            expect(body(await authed("/api/ingest/council", { v: "3" })).categories.map((c) => c.id)).toEqual(["c1", "c2"]);
+        });
+    });
 });

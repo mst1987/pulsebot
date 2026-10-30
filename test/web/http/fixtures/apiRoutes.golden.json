@@ -308,6 +308,7 @@
   "POST /api/settings/guild-banks/assign",
   "POST /api/settings/guild-banks/delete",
   "POST /api/settings/ingest-tokens",
+  "POST /api/settings/ingest-tokens/assign",
   "POST /api/settings/ingest-tokens/delete",
   "POST /api/settings/pug-invites",
   "POST /api/settings/pug-invites/channel",

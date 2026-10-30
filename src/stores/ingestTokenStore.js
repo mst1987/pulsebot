@@ -13,6 +13,11 @@
 //     never read or change anything else (see apiAccess.js's TOKEN_AUTH).
 //
 // Revoking is immediate: every upload re-checks the store.
+//
+// Each token belongs to one Discord server (`guildId`, #994): every
+// /api/ingest/* route then works only on that server. A token minted before
+// #994 has none and keeps the old behaviour (first server / every server)
+// until a full admin assigns it one.
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
@@ -52,6 +57,7 @@ function publicView(t) {
         createdBy: t.createdBy || "",
         lastUsedAt: t.lastUsedAt || 0,
         uses: t.uses || 0,
+        guildId: t.guildId || "",
     };
 }
 
@@ -67,7 +73,7 @@ function listTokens() {
  * stored, so it cannot be shown again later.
  * @returns {{ token: string, record: object }}
  */
-function createToken(name, createdBy = "") {
+function createToken(name, createdBy = "", guildId = "") {
     const raw = TOKEN_PREFIX + crypto.randomBytes(TOKEN_BYTES).toString("hex");
     const record = {
         id: crypto.randomBytes(6).toString("hex"),
@@ -80,11 +86,26 @@ function createToken(name, createdBy = "") {
         createdBy: String(createdBy || ""),
         lastUsedAt: 0,
         uses: 0,
+        guildId: String(guildId || "").trim(),
     };
     const tokens = readAll();
     tokens.push(record);
     writeAll(tokens);
     return { token: raw, record: publicView(record) };
+}
+
+/**
+ * Assign a token to a Discord server (#994: for tokens minted without one).
+ * The caller checks that the server is configured. Returns the public record,
+ * or null for an unknown id.
+ */
+function assignTokenGuild(id, guildId) {
+    const tokens = readAll();
+    const match = tokens.find((t) => t.id === String(id || ""));
+    if (!match) return null;
+    match.guildId = String(guildId || "").trim();
+    writeAll(tokens);
+    return publicView(match);
 }
 
 /** Delete a token by id. Returns true if one was removed. */
@@ -137,6 +158,6 @@ function bearerFrom(req) {
 }
 
 module.exports = {
-    listTokens, createToken, revokeToken, verifyToken, touchToken, bearerFrom,
+    listTokens, createToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom,
     TOKEN_PREFIX, useFile: store.useFile,
 };

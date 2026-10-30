@@ -70,6 +70,41 @@ describe("services/guildbank/guildBankStock", () => {
         expect(stock.serverOfToken(null)).toBe("");
     });
 
+    // #994: a server key never writes into another server's bank.
+    it("refuses a scan of a server key for a bank of another server, the stock unchanged", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        const { bank } = stock.ingestScan(body(), { token: { id: "t1", guildId: "22222" }, now: NOW, config: CONFIG });
+        const before = store.getBank(bank.key);
+        const result = stock.ingestScan(body({ scannedAt: 1791003600, money: 999 }), { token: { id: "t2", guildId: "11111" }, now: NOW + 1, config: CONFIG });
+        expect(result).toMatchObject({ code: "other_server" });
+        expect(result.bank).toBeUndefined();
+        expect(store.getBank(bank.key)).toEqual(before);
+        expect(warn).toHaveBeenCalledWith(expect.stringContaining("anderen Server"));
+        warn.mockRestore();
+    });
+
+    it("keeps a known bank without server without one on a scan of a server key", () => {
+        mockEvents = [{ guildId: "22222", categoryId: "c2" }];
+        const { bank } = stock.ingestScan(body(), { now: NOW, config: CONFIG });
+        expect(bank).toMatchObject({ guildId: "", pending: true });
+        const again = stock.ingestScan(body({ scannedAt: 1791003600 }), { token: { id: "t1", guildId: "22222" }, now: NOW + 1, config: CONFIG });
+        expect(again.status).toBe("updated");
+        expect(again.bank).toMatchObject({ guildId: "", pending: true });
+    });
+
+    // One server has a bank per game version (key version:realm:guild).
+    it("gives two new banks of different versions to the same server key", () => {
+        const token = { id: "t1", guildId: "22222" };
+        const tbc = stock.ingestScan(body(), { token, now: NOW, config: CONFIG });
+        const forever = stock.ingestScan(body({ client: { project: "forever" } }), { token, now: NOW, config: CONFIG });
+        const other = stock.ingestScan(body({ client: { project: "forever" }, guild: { name: "Zweite Gilde", realm: "Everlook" } }), { token, now: NOW, config: CONFIG });
+        for (const r of [tbc, forever, other]) expect(r).toMatchObject({ status: "created", bank: { guildId: "22222", pending: false } });
+        expect(store.listBanks().map((b) => b.key).sort()).toEqual(["forever:everlook:zweite gilde", "forever:spineshatter:die gilde", "tbc:spineshatter:die gilde"]);
+        // the own server's bank of the other version is no conflict on the next scan
+        const again = stock.ingestScan(body({ scannedAt: 1791003600 }), { token, now: NOW + 1, config: CONFIG });
+        expect(again).toMatchObject({ status: "updated", bank: { guildId: "22222" } });
+    });
+
     it("gives a new bank to the one event server when exactly one is configured", () => {
         const single = { ...CONFIG, discordServers: { eventGuilds: [{ guildId: "11111", label: "PvE" }] } };
         const result = stock.ingestScan(body(), { now: NOW, config: single });

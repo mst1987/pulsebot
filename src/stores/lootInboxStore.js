@@ -117,6 +117,8 @@ function upsertPending(session, meta = {}) {
         // The match is recomputed on every upload: an event created *after* the
         // first upload should still be found.
         if (meta.match !== undefined) existing.match = meta.match;
+        // The server of the upload key (#994); a key assigned later fills it in.
+        if (meta.guildId) existing.guildId = String(meta.guildId);
         writeState(state);
         return { entry: existing, added: existing.items.length - before, created: false };
     }
@@ -136,6 +138,8 @@ function upsertPending(session, meta = {}) {
         addonVersion: meta.addonVersion || "",
         tokenId: meta.tokenId || "",
         tokenName: meta.tokenName || "",
+        // The server of the upload key (#994), "" for a key without one.
+        guildId: meta.guildId ? String(meta.guildId) : "",
         match: meta.match || null,
     };
     state.pending.push(entry);

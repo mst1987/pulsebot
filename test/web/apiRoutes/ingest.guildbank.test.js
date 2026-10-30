@@ -139,6 +139,39 @@ describe("POST /api/ingest/guildbank", () => {
         expect(requests.listRequests().map((r) => [r.status, r.amount])).toEqual([["open", 40], ["waiting", 10]]);
     });
 
+    // #994: a server key never writes into another server's bank.
+    it("refuses a server key's scan for another server's bank with 403, nothing moves", async () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        verifyToken.mockReturnValue({ ...TOKEN, guildId: "g2" });
+        await upload(scan());
+        expect(store.getBank(KEY)).toMatchObject({ guildId: "g2", pending: false });
+        store.setItemSettings(KEY, 22854, { status: "give" });
+        requests.addWaiting({ userId: "", characterName: "Whapap", bankKey: KEY, itemId: 22854, item: "Flask", amount: 50, addedBy: "web" });
+        const before = store.getBank(KEY);
+        queueLookups.mockClear();
+        queueItemEmojiSync.mockClear();
+
+        verifyToken.mockReturnValue({ ...TOKEN, guildId: "g1" });
+        const res = await upload(scan({ scannedAt: 1791003600, money: 1 }));
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("other_server");
+        expect(store.getBank(KEY)).toEqual(before);
+        expect(requests.listRequests().map((r) => r.status)).toEqual(["waiting"]);
+        expect(queueLookups).not.toHaveBeenCalled();
+        expect(queueItemEmojiSync).not.toHaveBeenCalled();
+        warn.mockRestore();
+    });
+
+    it("gives a server key's new banks of two versions to its server", async () => {
+        verifyToken.mockReturnValue({ ...TOKEN, guildId: "g2" });
+        const tbc = await upload(scan());
+        const forever = await upload(scan({ client: { project: "forever" } }));
+        expect([status(tbc), status(forever)]).toEqual([201, 201]);
+        expect(json(forever).data).toMatchObject({ status: "created", gameVersion: "forever", pending: false });
+        expect(store.getBank(KEY).guildId).toBe("g2");
+        expect(store.getBank("forever:spineshatter:die gilde").guildId).toBe("g2");
+    });
+
     it("answers a late upload of an older scan as stale and changes nothing", async () => {
         await upload(scan({ scannedAt: 1791003600 }));
         queueLookups.mockClear();

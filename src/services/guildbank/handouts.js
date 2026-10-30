@@ -98,8 +98,8 @@ function handoutView(request, bank) {
 }
 
 /**
- * The banks a token may see: every bank assigned to a Discord server (tokens
- * carry no server today), or only its server's when it has one
+ * The banks a token may see: every bank assigned to a Discord server (a token
+ * minted before #994 has no server), or only its server's when it has one
  * (guildBankStock.serverOfToken). `bankKey` narrows to one bank.
  */
 function banksFor(token, bankKey = "") {

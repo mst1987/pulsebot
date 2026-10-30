@@ -28,7 +28,7 @@ const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = requi
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
 const { serverIds } = require("../../services/discord/guildRoles");
-const { serverWithoutSession } = require("../../services/loot/lootServer");
+const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
@@ -68,16 +68,17 @@ function sessionTime(session) {
 /**
  * The Raid-Helper event a session most likely belongs to, as a *suggestion* only
  * — the admin confirms it in the inbox. The upload has no session and the addon
- * does not know the Discord server, so the raids of every server are searched;
- * the match carries its server and the card shows there (#919). Best-effort: if Raid-Helper is
+ * does not know the Discord server: a key with a server searches only that
+ * server's raids (#994), one without the raids of every server; the match
+ * carries its server and the card shows there (#919). Best-effort: if Raid-Helper is
  * unreachable the upload still succeeds without a suggestion, because losing the
  * raid's loot to a failed API call would be far worse than losing the convenience.
  */
-async function suggestMatch(session) {
+async function suggestMatch(session, token) {
     const at = sessionTime(session);
     if (!at) return null;
     try {
-        const all = await eventsOfAllServers();
+        const all = await eventsOfServers(tokenServers(token));
         const { match, candidates, ambiguous } = bestDayMatch(at, all.map((x) => x.ev));
         const shape = (ev) => {
             const found = all.find((x) => x.ev === ev);
@@ -101,11 +102,25 @@ async function suggestMatch(session) {
     }
 }
 
-/** The raids of every configured server, each with its group and server; a raid listed twice counts once. */
-async function eventsOfAllServers() {
+/**
+ * The server of an upload key (#994), or "" for a key minted before #994: such
+ * a key keeps the old rules (first server, or every server).
+ */
+function tokenGuild(token) {
+    return String((token && token.guildId) || "").trim();
+}
+
+/** The servers a key searches: its own, else every configured one. */
+function tokenServers(token) {
+    const own = tokenGuild(token);
+    return own ? [own] : serverIds(getConfig());
+}
+
+/** The raids of the given servers, each with its group and server; a raid listed twice counts once. */
+async function eventsOfServers(guildIds) {
     const seen = new Set();
     const all = [];
-    for (const guildId of serverIds(getConfig())) {
+    for (const guildId of guildIds) {
         const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
         for (const g of groups) {
             for (const ev of g.events) {
@@ -116,6 +131,19 @@ async function eventsOfAllServers() {
         }
     }
     return all;
+}
+
+/**
+ * The server an open inbox card belongs to: its suggested raid's (the stored
+ * server, else the raid's own rule), else the server of the key that sent it;
+ * "" for no card or a card of a key without server (it shows on every server).
+ */
+function cardServer(ctx, entry) {
+    if (!entry) return "";
+    const suggested = entry.match && entry.match.suggested;
+    if (suggested && String(suggested.guildId || "").trim()) return String(suggested.guildId).trim();
+    if (suggested && suggested.eventId) return guildOfLootEvent(ctx, suggested.eventId, suggested.categoryId || "");
+    return String(entry.guildId || "").trim();
 }
 
 async function ingestLoot(req, res) {
@@ -132,6 +160,8 @@ async function ingestLoot(req, res) {
     touchToken(token.id);
 
     const { meta, sessions } = parsed;
+    const own = tokenGuild(token);
+    const ctx = serverContext();
     const results = [];
     for (const session of sessions) {
         if (!session.items.length) {
@@ -142,6 +172,17 @@ async function ingestLoot(req, res) {
         if (prior && prior.action === "dismissed") {
             results.push({ sessionId: session.sessionId, status: "dismissed", added: 0 });
             continue;
+        }
+        // A key with a server (#994) never touches another server's loot: not the
+        // raid a session was accepted into, not an open card of the same session.
+        if (own) {
+            const owner = prior && prior.action === "accepted" && prior.eventId
+                ? guildOfLootEvent(ctx, prior.eventId, prior.categoryId, prior.guildId)
+                : cardServer(ctx, listPending().find((p) => p.sessionId === String(session.sessionId || "")));
+            if (owner && owner !== own) {
+                results.push({ sessionId: session.sessionId, status: "other_server", added: 0 });
+                continue;
+            }
         }
         // A confirmed session asks the Wowhead section of its event's version;
         // a pending one has no event yet and asks the main version's (#750).
@@ -173,13 +214,15 @@ async function ingestLoot(req, res) {
             continue;
         }
 
-        const match = await suggestMatch(session);
+        const match = await suggestMatch(session, token);
         const { entry, added, created } = upsertPending(session, {
             realm: meta.realm,
             reporter: meta.reporter,
             addonVersion: meta.addonVersion,
             tokenId: token.id,
             tokenName: token.name,
+            // without a suggestion the card shows only on the key's server (#994)
+            guildId: tokenGuild(token),
             match,
         });
         results.push({
@@ -289,8 +332,8 @@ async function ingestRaidStatus(req, res) {
     const body = await readJsonBody(req);
     const sessions = Array.isArray(body.sessions) ? body.sessions : [];
 
-    // No session behind the token: the first server (#919), never a guess.
-    const { groups } = await loadEventGroups(serverWithoutSession(), { sinceSeconds: eventLookbackSince() });
+    // No session behind the token: the key's server (#994), else the first server (#919), never a guess.
+    const { groups } = await loadEventGroups(tokenGuild(token) || serverWithoutSession(), { sinceSeconds: eventLookbackSince() });
     const events = groups.flatMap((g) => g.events.map((ev) => ({
         ...ev,
         categoryId: g.categoryId || "",
@@ -330,16 +373,20 @@ async function ingestCouncil(req, res, url) {
     touchToken(token.id);
 
     const params = url ? url.searchParams : new URLSearchParams();
+    const own = tokenGuild(token);
     if (!params.has("category") && Number(params.get("v")) >= 3) {
-        return ok(res, councilSyncPayloadV3(await councilEntries()));
+        return ok(res, councilSyncPayloadV3(await councilEntries(own)));
     }
     if (!params.has("category") && (params.get("v") === "2" || params.get("categories") === "council")) {
-        return ok(res, councilSyncPayloadV2(await councilEntries()));
+        return ok(res, councilSyncPayloadV2(await councilEntries(own)));
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
-    // No session: the asked category's server, else the first server (#919).
-    const category = params.get("category") || "";
-    const guildId = serverWithoutSession(category);
+    // No session: the key's server (#994), else the asked category's server, else the
+    // first server (#919). A key with a server never reads a category of another one.
+    const ctx = serverContext();
+    const asked = params.get("category") || "";
+    const category = own && asked && serverWithoutSession(asked, ctx) !== own ? "" : asked;
+    const guildId = own || serverWithoutSession(category, ctx);
     const opts = councilOptsFromQuery(new URLSearchParams({
         category,
         role: params.get("role") || "",
@@ -347,7 +394,9 @@ async function ingestCouncil(req, res, url) {
     const built = councilRoster(opts);
     ok(res, councilSyncPayload(built, {
         categoryId: opts.categoryId,
-        categories: categoryOptions(guildId),
+        categories: own
+            ? categoryOptions(guildId).filter((c) => serverWithoutSession(c.id, ctx) === own)
+            : categoryOptions(guildId),
         role: opts.role,
         bisTierDerived: !opts.bisTier,
     }));
@@ -364,18 +413,23 @@ async function ingestCouncil(req, res, url) {
  * from the roster's profile (categoryCouncil). A roster WITHOUT category is
  * left out: the addon picks a council by the raid's instances, and such a
  * roster has no raid template to name them (docs/loot-import.md).
+ *
+ * `guildId` (the upload key's server, #994): only the categories of that
+ * server (the same rule categoryCouncil() places them by); "" = every server.
  */
-async function councilEntries() {
+async function councilEntries(guildId = "") {
     const config = getConfig();
     // Live names first, else the ones seen earlier (categoryNames.js). The token
     // request has no session and the categories span every server (#919): each
     // name comes from the server that has the category.
     const names = new Map();
-    for (const guildId of serverIds(config)) {
-        for (const c of listKnownCategories(guildId)) if (c.name && !names.has(c.id)) names.set(c.id, c.name);
+    for (const gid of guildId ? [guildId] : serverIds(config)) {
+        for (const c of listKnownCategories(gid)) if (c.name && !names.has(c.id)) names.set(c.id, c.name);
     }
+    const ctx = serverContext();
+    const ids = councilCategoryIds(config).filter((id) => !guildId || serverWithoutSession(id, ctx) === guildId);
     const entries = [];
-    for (const id of councilCategoryIds(config)) {
+    for (const id of ids) {
         const { opts, built, profile, roster } = await categoryCouncil(id);
         entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id), profile, roster });
     }
@@ -402,6 +456,8 @@ async function ingestGuildBank(req, res) {
         throw e;
     }
     touchToken(token.id);
+    // another server's bank (#994): nothing stored, no waiting list, no DMs
+    if (result.code) return error(res, 403, result.code, result.error);
 
     const { scan, status, bank, newItems, lookups } = result;
     ok(res, {
