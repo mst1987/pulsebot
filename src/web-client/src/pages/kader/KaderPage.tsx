@@ -59,9 +59,10 @@ function merge(prev: KaderView | null, result: unknown): KaderView | null {
     if (Array.isArray(r.players)) {
         // a whole view that lost the open Kader (an answer without `kaderId`) must not blank the page
         if (!r.kader && prev.kader && Array.isArray(r.kaders) && r.kaders.some((k) => k.id === prev.kader?.id)) {
-            return { ...(r as KaderView), kader: prev.kader };
+            return { ...(r as KaderView), kader: prev.kader, vermerke: (r as KaderView).vermerke ?? prev.vermerke };
         }
-        return r as KaderView;
+        // a write answer carries no notes' short forms (#981): keep those of the last GET
+        return { ...(r as KaderView), vermerke: (r as KaderView).vermerke ?? prev.vermerke };
     }
     if (!Array.isArray(r.kaders)) return prev;
     const kaders = r.kaders;

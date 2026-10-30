@@ -405,6 +405,11 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .nm-level-shadowban .nm-level-word { color: var(--high); }
 .nm-level-none { font-weight: 500; color: var(--muted); }
 .nm-level-icon { gap: 0; }
+/* the mark right after a name where the orga plans (#981): the symbol only, never pushes the name - the name ellipsizes first */
+.vm-mark { display: inline-flex; flex: none; align-items: center; margin-left: 4px; vertical-align: -2px; line-height: 1; }
+.vm-mark-link { text-decoration: none; border-radius: 4px; }
+.vm-mark-link:hover .uic { filter: brightness(1.15); }
+.vm-mark-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 /* a reason is a grey line icon, the word in the tooltip; "×2" follows small */
 .nm-reasons { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .nm-reason { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); white-space: nowrap; }

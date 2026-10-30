@@ -61,6 +61,8 @@ import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModa
 import { SearchModal } from "./SearchModal";
 import { SignupEditModal } from "./SignupEditModal";
 import { AddRaidModal, RaidTabs } from "./RaidTabs";
+import { ShadowbanPoolLine } from "./ShadowbanPoolLine";
+import { canAccess } from "../../../lib/app/access";
 
 /**
  * `raidId`: which raid of the event's raid group (#811) the editor shows (the
@@ -707,7 +709,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         const h = held[userId];
         if (h) jobs.notify(t(h.kind === "edit" ? "setup.live.editsMsg" : "setup.live.holdsMsg", { name: h.name, character: characters.get(userId) || "?" }));
     };
-    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: peekAt, onLeave: unpeek, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId };
+    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: peekAt, onLeave: unpeek, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId, vermerke: data.vermerke };
     const closeDrawer = () => {
         setPinned(null);
         setSelected(null);
@@ -902,6 +904,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 </div>
             )}
 
+            {/* Vermerke (#981): who in "Angemeldet" has a shadowban - only in an answer past maySeeShort */}
+            <ShadowbanPoolLine people={data.shadowbanInPool} canOpen={canAccess(ctx.user ?? null, "vermerke", "read")} />
+
             {/* a container of its own: "Angemeldet" lies under the setup, or — where too narrow — docks at the bottom (setup-editor.css) */}
             <div className="se-stage">
                 {/* the groups right under the bar, the bench as a row under them, "Angemeldet" (#517) under the setup — never
@@ -945,6 +950,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         onSpec={busy || inspectedIsBench ? undefined : (key) => respec(inspectedPerson.userId, key)}
                         onCharacter={busy || inspectedInPool ? undefined : (c) => switchTo(inspectedPerson.userId, c)}
                         actions={actions} pinned={selected === shownId}
+                        vermerk={data.vermerke?.[inspectedPerson.userId]} canOpenVermerke={canAccess(ctx.user ?? null, "vermerke", "read")}
                     />
                 </div>
             )}
@@ -956,6 +962,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         p={peekPerson} attendance={data.attendance ? data.attendance[peekPerson.userId] : undefined}
                         extra={(data.extraRoles || {})[peekPerson.userId] || []} peek
                         removable={!(setup.pool || []).some((x) => x.userId === peekPerson.userId)}
+                        vermerk={data.vermerke?.[peekPerson.userId]}
                     />
                 </Popover>
             )}

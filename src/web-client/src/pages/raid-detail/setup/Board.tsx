@@ -2,6 +2,8 @@ import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type 
 import { useZone } from "./useZone";
 import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
+import type { VermerkShortMap } from "../../../api/vermerke";
+import VermerkMark from "../../../components/vermerke/VermerkMark";
 import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
@@ -76,6 +78,8 @@ export type Interaction = {
     flash?: Record<string, { name: string; color: string }>;
     /** A click or drop on a raider somebody else holds. */
     onHeld?: (userId: string) => void;
+    /** Vermerke (#981): the short form by user id - only in an answer past maySeeShort, else absent and no mark drawn. */
+    vermerke?: VermerkShortMap;
 };
 
 /** A raider's order number for one of their characters (#293): 1 = their choice, 2 and up (as many as the category allows, at most 8) = "kann auch mit". */
@@ -154,7 +158,12 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                 )}
             </span>
             <span className="se-slot-text">
-                <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                {/* the note's mark (#981) right after the name - the line is a button, so the symbol only;
+                    the link to the notes is in the drawer (SlotTip) */}
+                <span className="se-nameline">
+                    <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                    <VermerkMark short={ui.vermerke?.[p.userId]} userId={p.userId} link={false} size={13} />
+                </span>
                 <span className="se-sub">
                     {/* their order number (#293), first: which of their characters this is */}
                     {order !== undefined && <CharacterNumber order={order} />}
@@ -309,7 +318,7 @@ export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction
 export function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {} };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, vermerke: data.vermerke };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (

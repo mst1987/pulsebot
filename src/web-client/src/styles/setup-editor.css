@@ -208,6 +208,10 @@
 .se-readonly .se-slot { cursor: default; }
 .se-slot-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.2; }
 .se-name { font-weight: 700; font-size: 14.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* the name and its note mark (#981): the name gives way, the mark stays */
+.se-nameline { display: flex; align-items: center; min-width: 0; }
+.se-nameline .se-name { min-width: 0; }
+.se-nameline .vm-mark { margin-left: 5px; }
 .se-sub { font-size: var(--fs-label); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-offrole { color: var(--medium); font-weight: 700; }
 /* a fixed place: a small lock in the corner, only a sign — the raider panel's button changes it; it takes no width from the name */
@@ -255,6 +259,12 @@
 .se-overbooked .wi { border-radius: 5px; }
 .se-overbooked-text { color: var(--text); font-weight: 600; }
 .se-overbooked-sep { color: var(--muted); }
+/* shadowbans in the pool (#981): one plain text line, no frame - the symbol carries the colour */
+.se-banline { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 8px; margin: -4px 0 0; padding: 2px 2px; color: var(--muted); font-size: 13.5px; }
+.se-banline-text { color: var(--text); font-weight: 600; }
+.se-banline-names { min-width: 0; overflow-wrap: anywhere; }
+.se-banline-names a { color: var(--text); text-decoration: underline; text-decoration-color: var(--line); text-underline-offset: 2px; }
+.se-banline-names a:hover { text-decoration-color: currentColor; }
 .se-overbooked .btn { min-height: 32px; font-size: 13.5px; }
 .se-overbooked .btn[class*="ghost"] { background: var(--panel2); border: 1px solid color-mix(in srgb, var(--text) 26%, transparent); color: var(--text); }
 .se-overbooked .btn[class*="ghost"]:hover:not(:disabled) { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 14%, var(--panel2)); }
@@ -549,6 +559,11 @@
 .se-more-sep { height: 1px; margin: 4px 6px; background: var(--line-soft); }
 /* a picked raider holds the panel: a small pin next to the name says so */
 .se-tip-nameline { display: flex; align-items: baseline; gap: 10px; min-width: 0; }
+/* the note in the drawer (#981): level, reasons, the link to the notes */
+.se-tip-vermerk-line { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; font-size: 13.5px; }
+.se-tip-vermerk-reasons { color: var(--muted); }
+.se-tip-vermerk-open { color: var(--accent); font-weight: 600; text-decoration: none; }
+.se-tip-vermerk-open:hover { text-decoration: underline; }
 .se-tip-pin { flex: 0 0 auto; padding: 1px 0; border-radius: 0; background: none; color: var(--accent); font-size: var(--fs-label); font-weight: 700; }
 .se-tip.se-tip-pinned { box-shadow: 0 0 0 2px var(--accent-soft); }
 

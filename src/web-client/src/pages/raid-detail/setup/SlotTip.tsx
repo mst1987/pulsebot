@@ -10,6 +10,10 @@ import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
 import { SigBadge } from "./Board";
+import { Link } from "react-router-dom";
+import type { VermerkShort } from "../../../api/vermerke";
+import LevelMark from "../../../components/vermerke/LevelMark";
+import { reasonSummary, vermerkeHref } from "../../../components/vermerke/markText";
 
 /** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
 function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
@@ -124,12 +128,14 @@ function ActionRow({ a }: { a: SlotActions }) {
  * focus is on (SetupEditor.tsx' peek) — no actions, a short hint that a click
  * holds it with them (`removable`: in a group or on the bench, a double click takes them out).
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false }: {
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
     /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
     onCharacter?: (c: SetupCharacter) => void;
     actions?: SlotActions; pinned?: boolean; peek?: boolean; removable?: boolean;
+    /** the person's note in short (#981) - only in an answer past maySeeShort; the link to /vermerke with read access, never in the peek */
+    vermerk?: VermerkShort; canOpenVermerke?: boolean;
 }) {
     const t = useT();
     // the other characters they signed up with, in their order
@@ -141,6 +147,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     const brings = p.brings || [];
     // the state is the field in the header — a reason that only names it is dropped (tipReasons)
     const reasons = [...new Set(tipReasons(p.reasons))];
+    const noteReasons = vermerk ? reasonSummary(t, vermerk.reasons || {}) : "";
     return (
         <aside
             className={`se-tip${pinned ? " se-tip-pinned" : ""}${peek ? " se-tip-peek" : ""}`}
@@ -186,6 +193,16 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                 )}
             </div>
             <div className="se-tip-col">
+                {vermerk?.level && (
+                    <div className="se-tip-body se-tip-vermerk">
+                        <span className="se-tip-k">{t("vermerke.mark.slotHead")}</span>
+                        <span className="se-tip-vermerk-line">
+                            <LevelMark level={vermerk.level} size={15} tipSub={noteReasons || undefined} />
+                            {noteReasons && <span className="se-tip-vermerk-reasons">{noteReasons}</span>}
+                            {canOpenVermerke && !peek && <Link className="se-tip-vermerk-open" to={vermerkeHref(p.userId)}>{t("vermerke.mark.open")}</Link>}
+                        </span>
+                    </div>
+                )}
                 {reasons.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.why")}</span>

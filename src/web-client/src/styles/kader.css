@@ -340,6 +340,8 @@
 }
 .kp-cell-name { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .kp-cell-name.kp-namerowcell { flex-direction: row; align-items: center; gap: 6px; }
+.kp-nameline { display: flex; align-items: center; min-width: 0; }
+.kp-nameline .vm-mark, .kp-namerowcell .vm-mark { margin-left: 0; }
 /* avatar plus name: the player's Discord picture, like the roster's member list */
 .kp-cell-who { display: flex; align-items: center; gap: 10px; min-width: 0; }
 .kp-pava {

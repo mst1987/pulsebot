@@ -24,6 +24,17 @@
         "one": "{count} note with this reason",
         "other": "{count} notes with this reason"
     },
+    "mark": {
+        "aria": "Note: {summary}",
+        "open": "Open notes",
+        "openAria": "Open notes – {summary}",
+        "slotHead": "Note"
+    },
+    "poolLine": {
+        "one": "{count} person with a shadowban in the pool",
+        "other": "{count} people with a shadowban in the pool"
+    },
+    "poolLineTip": "The setup proposal does not place them. The person does not notice.",
     "page": {
         "kicker": "Guild",
         "title": "Notes",

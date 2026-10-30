@@ -7,6 +7,7 @@ import type { LootItem } from "./history";
 import type { EventSignupEntry } from "./signups";
 import type { RaidGroup } from "./setup";
 import type { GameRole } from "./raidTemplates";
+import type { VermerkShortMap } from "./vermerke";
 
 /** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
 export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
@@ -242,6 +243,8 @@ export type RaidDetailData = {
      * parts (logs, attendance, other people's comments, steps, dialog data). Missing on an older server.
      */
     orga?: boolean;
+    /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
+    vermerke?: VermerkShortMap;
     /**
      * What the caller may do on this raid, each the gate of the route its buttons call (#729): `canOrga` the
      * raid's actions (steps, Event verwalten, Aufruf, Ping, Invite, Raider eintragen, sheet, softres, loot

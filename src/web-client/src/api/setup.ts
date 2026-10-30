@@ -1,6 +1,7 @@
 import { get, send } from "./client";
 import type { SignupStatus } from "./raidDetail";
 import type { GameRole } from "./raidTemplates";
+import type { VermerkShortMap } from "./vermerke";
 
 // ---- Setup editor of an own event (#263) — src/web/setupEditor.js, apiRoutes/setup.js ----
 
@@ -155,6 +156,10 @@ export type SetupEditorData = {
     raidGroup?: RaidGroup | null;
     /** Orga only (#811): how many signed-up raiders the other raids of the group hold (left out of "Angemeldet"). */
     placedElsewhere?: number;
+    /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
+    vermerke?: VermerkShortMap;
+    /** Vermerke (#981): the persons with a shadowban among "Angemeldet" (the pool) - same gate as `vermerke`. */
+    shadowbanInPool?: { userId: string; name: string }[];
     message?: string;
 };
 
