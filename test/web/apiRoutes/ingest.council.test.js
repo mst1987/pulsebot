@@ -314,6 +314,40 @@ describe("GET /api/ingest/council", () => {
             expect(shape(await v4()).map(([gid]) => gid)).toEqual(["gA", "gB", "gC"]);
         });
 
+        // Review #1001: an old key gets every category of v3, even one whose server is missing
+        // from discordServers.servers (the prod case of #926).
+        it("gives an old key the category of a server missing from the server list", async () => {
+            storedCategoryGuilds.mockReturnValue(new Map([["c1", "gA"], ["c2", "gB"], ["c3", "gC"], ["c4", "gFresh"]]));
+            const four = await v4();
+            expect(shape(four)).toEqual([
+                ["gA", [["tbc", ["c1"]]]],
+                ["gB", [["forever", ["c2"]]]],
+                ["gC", [["tbc", ["c3"]]]],
+                ["gFresh", [["forever", ["c4"]]]],
+            ]);
+            const three = body(await authed("/api/ingest/council", { v: "3" }));
+            const grouped = four.servers.flatMap((s) => s.versions.flatMap((v) => v.categories)).map((c) => c.id);
+            expect(grouped.sort()).toEqual(three.categories.map((c) => c.id).sort());
+        });
+
+        it("gives an old key every category even with no server configured", async () => {
+            getConfig.mockReturnValue({ ...THREE_SERVERS, discordServers: { servers: [] } });
+            storedCategoryGuilds.mockReturnValue(new Map());
+            const four = await v4();
+            const three = body(await authed("/api/ingest/council", { v: "3" }));
+            expect(four.servers.length).toBeGreaterThan(0);
+            const grouped = four.servers.flatMap((s) => s.versions.flatMap((v) => v.categories)).map((c) => c.id);
+            expect(grouped.sort()).toEqual(three.categories.map((c) => c.id).sort());
+            expect(grouped.sort()).toEqual(["c1", "c2", "c3", "c4"]);
+        });
+
+        it("keeps a personal key to its servers even when a category sits on another one", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA"]);
+            storedCategoryGuilds.mockReturnValue(new Map([["c1", "gA"], ["c4", "gFresh"]]));
+            expect(shape(await v4()).map(([gid]) => gid)).toEqual(["gA"]);
+        });
+
         it("answers 403 no_server when the owner is orga nowhere", async () => {
             verifyToken.mockReturnValue(PERSON);
             serversOfToken.mockResolvedValueOnce([]);

@@ -29,10 +29,8 @@ const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../l
 const { getConfig } = require("../../stores/settingsStore");
 const { serverIds, serverLabel } = require("../../services/discord/guildRoles");
 const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
-const { settingsForVersion } = require("../../services/events/versionSettings");
 const { wclGuildsOf } = require("../../services/logcheck/wclGuildSettings");
-const { rulesFor } = require("../../config/gameVersions");
-const { serversOfToken, orgaServersOf, isPersonToken, describeServers } = require("../../services/discord/ingestServers");
+const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../services/discord/ingestServers");
 const discord = require("../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
@@ -489,11 +487,15 @@ async function councilServers(guildIds = null) {
     const ctx = serverContext();
     const entries = await councilEntries(guildIds);
     const names = new Map((discord.listGuilds() || []).map((g) => [String(g.id), String(g.name || "")]));
-    const ids = Array.isArray(guildIds) ? guildIds : serverIds(config);
+    const serverOf = new Map(entries.map((entry) => [entry.id, String(serverWithoutSession(entry.id, ctx) || "")]));
+    // An old key (null) gets every category, as in v3: besides the configured servers also the
+    // server of a category that is missing from discordServers.servers (#926) - or "" when no
+    // server is configured at all.
+    const ids = Array.isArray(guildIds) ? guildIds : [...new Set([...serverIds(config), ...serverOf.values()])];
     return ids.map((guildId) => {
         const byVersion = new Map();
         for (const entry of entries) {
-            if (serverWithoutSession(entry.id, ctx) !== guildId) continue;
+            if (serverOf.get(entry.id) !== guildId) continue;
             const versionId = mainVersionFor({ categoryId: entry.id, config });
             if (!byVersion.has(versionId)) byVersion.set(versionId, []);
             byVersion.get(versionId).push(entry);
@@ -503,17 +505,12 @@ async function councilServers(guildIds = null) {
             guildId,
             name: names.get(guildId) || "",
             label: serverLabel(guildId, config),
-            versions: [...byVersion].map(([id, list]) => {
-                const rules = rulesFor(id) || {};
-                return {
-                    id,
-                    short: rules.short || rules.label || id,
-                    realm: settingsForVersion(id, { config, guildId }).blizzardRealmSlug || "",
-                    guilds: guilds.filter((g) => g.versionId === id)
-                        .map((g) => ({ name: g.guildName, realm: g.realm, region: g.region })),
-                    entries: list,
-                };
-            }),
+            versions: [...byVersion].map(([id, list]) => ({
+                ...versionHead(id, guildId, config),
+                guilds: guilds.filter((g) => g.versionId === id)
+                    .map((g) => ({ name: g.guildName, realm: g.realm, region: g.region })),
+                entries: list,
+            })),
         };
     });
 }

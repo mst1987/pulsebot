@@ -129,9 +129,10 @@ Form (innerhalb von `{ "data": … }`, gekürzt — ein Raider, drei Item-Klasse
 
 `GET /api/ingest/council?v=4` (oder höher) **ohne** `category` liefert **Version 4**: dieselben Kategorien wie Version 3 (jede Kategorie Feld für Feld wie dort, `categoryV3()` in `web/loot/councilSync.js`), aber gegliedert **nach Discord-Server und darunter nach Spielversion** — ein Personen-Schlüssel (#1000) mit Orga auf mehreren Servern bekommt jeden getrennt statt einer gemischten Liste. Gebaut von `councilServers()` in `apiRoutes/ingest.js` und `councilSyncPayloadV4()`. Mit `category` bleibt es Version 1; `?v=2`/`?v=3` sind byte-gleich wie vorher (sie mischen also weiter alle Server des Schlüssels).
 
-- **Welche Server:** die des Schlüssels (`serversOfToken`): Personen-Schlüssel = seine Orga-Server, Server-Schlüssel = sein Server, alter Schlüssel ohne Server = alle Server. Ein Server des Schlüssels ohne Loot-Council-Kategorie steht mit `versions: []` da (das Tool kann ihn leeren); ein Server, auf dem die Person nicht Orga ist, fehlt ganz. Ohne Orga 403 `no_server`.
+- **Welche Server:** die des Schlüssels (`serversOfToken`): Personen-Schlüssel = seine Orga-Server, Server-Schlüssel = sein Server, alter Schlüssel ohne Server = alle Server — die konfigurierten und dazu jeder Server, auf dem eine Kategorie liegt (`serverWithoutSession`), auch wenn er in `discordServers.servers` fehlt (#926; ohne jeden konfigurierten Server ein Eintrag mit `guildId: ""`). So liefert ein alter Schlüssel in Version 4 genau die Kategorien von Version 3. Ein Server des Schlüssels ohne Loot-Council-Kategorie steht mit `versions: []` da (das Tool kann ihn leeren); ein Server, auf dem die Person nicht Orga ist, fehlt ganz. Ohne Orga 403 `no_server`.
 - **Je Server:** `guildId`, `name` (Discord-Name, `""` wenn der Bot ihn nicht kennt), `label` (Kurzname aus den Server-Einstellungen, `""` ohne).
-- **Je Version:** `id` (Versions-ID der Kategorie, `mainVersionFor`), `short` (Kürzel, z. B. `TBC`, `Forever`), `realm` (Blizzard-Realm-Slug aus den Versions-Einstellungen, `""` unbekannt), `guilds` (die WoW-Gilden des Servers in dieser Version aus den WCL-Einstellungen: `{ name, realm, region }`), `categories` (wie Version 3). Eine Version ohne Kategorie fehlt.
+- **Je Version:** `id` (Versions-ID der Kategorie, `mainVersionFor`), `short` (Kürzel, z. B. `TBC`, `Forever`), `realm` (Blizzard-Realm-Slug aus den Versions-Einstellungen dieses Servers, `""` unbekannt), `guilds` (die WoW-Gilden des Servers in dieser Version aus den WCL-Einstellungen: `{ name, realm, region }`), `categories` (wie Version 3). Eine Version ohne Kategorie fehlt. `id`/`short`/`realm` baut `versionHead()` (`services/discord/ingestServers.js`), dieselbe Quelle wie `GET /api/ingest/me`.
+- **Zwei Realm-Schreibweisen:** `versions[].realm` ist der Slug (`thunderstrike`), `guilds[].realm` der WCL-Realm-Name (`Thunderstrike`), `guilds[].region` in Großbuchstaben (`EU`). Das Tool vergleicht deshalb ohne Groß-/Kleinschreibung und ohne Leer- und Sonderzeichen.
 - **Top-level `weights`** = die der ersten Kategorie überhaupt (sonst „Standard“), wie in Version 3.
 - **Für das Sync-Tool (eventhelper-addon#51):** `?v=4` anfragen und bei einer Antwort mit `version` < 4 auf das v3-Lesen zurückfallen. Den Server wählt das Tool über die Gilde/den Realm der Spielfigur (`versions[].guilds`, sonst `versions[].realm`), die Kategorie darunter wie bisher über `instances`. Ins Addon (`CouncilData.lua`) kann es weiter das v3-Kategorienformat schreiben.
 
@@ -146,7 +147,7 @@ Form (innerhalb von `{ "data": … }`, gekürzt — ein Raider, drei Item-Klasse
       "guildId": "111", "name": "Pulse", "label": "Pulse",
       "versions": [
         { "id": "tbc", "short": "TBC", "realm": "thunderstrike",
-          "guilds": [{ "name": "Pulse", "realm": "Thunderstrike", "region": "eu" }],
+          "guilds": [{ "name": "Pulse", "realm": "Thunderstrike", "region": "EU" }],
           "categories": [{ "id": "c1", "name": "SSC/TK Mittwoch", "lootSystem": "lootcouncil", "raiders": [] }] },
         { "id": "forever", "short": "Forever", "realm": "",
           "guilds": [],
