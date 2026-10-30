@@ -139,8 +139,9 @@ describe("userSignalsStore - who loads it", () => {
             .toEqual(["services/vermerke/signalRecorder.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"]);
     });
 
-    it("its recorder is required by the signup save, leaving a server, the read side and the routes alone", () => {
+    // web/roster/rosterView.js only reads the threshold "leftEarlyBosses" (thresholdsOf) for the log's suggestion (#990)
+    it("its recorder is required by the signup save, leaving a server, the read side, the roster view and the routes alone", () => {
         expect(modulesMatching(/require\(\s*["'][^"']*signalRecorder["']\s*\)/))
-            .toEqual(["services/discord/memberActivity.js", "services/signups/signupService.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"]);
+            .toEqual(["services/discord/memberActivity.js", "services/signups/signupService.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js", "web/roster/rosterView.js"]);
     });
 });

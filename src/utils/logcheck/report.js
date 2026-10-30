@@ -19,6 +19,7 @@ const { buildRecommendations } = require("./recommendations");
 const { analyzeRpb, rpbSummaryLines } = require("./rpb");
 const { selectPlayers } = require("./common");
 const { analyzeRaidProgress, progressSummary } = require("./raidProgress");
+const { buildKillRoster } = require("./killRoster");
 const { resolveSituationalGear } = require("./gearVariants");
 const { logcheckRules, RPB_ANALYZER } = require("./rules");
 const { saveReport, getReport } = require("../../stores/reportStore");
@@ -178,6 +179,8 @@ async function buildReportForId(reportId, sections, mergeIntoId, force, { host, 
         ...cla,
         rpb,
         roster,
+        // who stood in which boss kill (#990): the attendance reads it to suggest "left early"
+        kills: buildKillRoster(fights),
         icons: collectIcons(cla),
     };
     return finishReport(report, sections, mergeIntoId, guildId);
@@ -343,7 +346,7 @@ function finishReport(fresh, sections, mergeIntoId, guildId = "") {
 function mergeReports(existing, fresh, sections) {
     const merged = { ...existing };
     // shared meta always follows the newer run
-    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "players"]) {
+    for (const key of ["title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "players", "kills"]) {
         if (fresh[key] !== undefined && fresh[key] !== null) merged[key] = fresh[key];
     }
     merged.roster = mergeRoster(existing.roster, fresh.roster, sections);

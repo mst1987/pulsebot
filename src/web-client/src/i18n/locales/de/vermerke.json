@@ -240,6 +240,8 @@
             "lateSignoff": "Späte Abmeldung",
             "signoffAfterSetup": "Abmeldung nach Setzung",
             "noShow": "Nicht erschienen",
+            "leftEarly": "Früh gegangen",
+            "leftEarlyBosses": "Früh gegangen: Kills",
             "leftServer": "Server verlassen"
         },
         "value": {
@@ -263,6 +265,14 @@
                 "one": "ab {count}-mal",
                 "other": "ab {count}-mal"
             },
+            "leftEarly": {
+                "one": "ab {count}-mal",
+                "other": "ab {count}-mal"
+            },
+            "leftEarlyBosses": {
+                "one": "letzter Kill fehlt",
+                "other": "letzte {count} Kills fehlen"
+            },
             "leftServer": {
                 "one": "ab {count}-mal",
                 "other": "ab {count}-mal"
@@ -274,6 +284,8 @@
             "lateSignoff": "So oft muss sich jemand im Zeitraum spät abmelden ({min} bis {max}).",
             "signoffAfterSetup": "So oft muss sich jemand im Zeitraum abmelden, nachdem er im Setup stand ({min} bis {max}).",
             "noShow": "So oft muss jemand im Zeitraum nicht erschienen sein ({min} bis {max}).",
+            "leftEarly": "So oft muss die Orga im Zeitraum „Früh gegangen“ bestätigt oder gesetzt haben ({min} bis {max}).",
+            "leftEarlyBosses": "Das Log schlägt „Früh gegangen“ vor, wenn jemand bei so vielen der letzten Kills fehlt und keinen anderen Charakter im Raid hat ({min} bis {max}). Die Orga bestätigt in der Anwesenheit.",
             "leftServer": "So oft muss jemand im Zeitraum den Server verlassen haben ({min} bis {max})."
         },
         "less": "Weniger",

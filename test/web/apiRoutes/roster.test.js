@@ -414,6 +414,47 @@ describe("web/apiRoutes/roster", () => {
             expect(json(await get("/api/roster/char", { name: "Nobody" })).data.attendanceVisible).toBe(true);
         });
 
+        it("shows the own player every night neutral (#990), the orga every override and suggestion", async () => {
+            const profiles = require("../../../src/stores/raiderProfileStore");
+            const { LEFT_EARLY_DISMISSED } = require("../../../src/stores/attendanceOverridesStore");
+            const rosterCharacter = require("../../../src/web/characters/roster").rosterCharacter;
+            const night = (eventId, extra) => ({ eventId, title: "Kara", startTime: 1, attended: true, status: "present", detail: "inLog", reason: "", ...extra });
+            const raids = [
+                night("e1", { status: "leftEarly", detail: "override", override: { status: "leftEarly", reason: "ging nach Boss 3", by: "Orga" } }),
+                night("e2", { override: { status: "present", reason: LEFT_EARLY_DISMISSED, by: "Orga" } }),
+                night("e3", { suggestion: { kind: "leftEarly", missedKills: 2, bosses: ["A", "B"] } }),
+                night("e4", { attended: false, status: "noShow", detail: "notInLog" }),
+            ];
+            const missed = [{ eventId: "e4", title: "Kara", startTime: 1, status: "noShow", detail: "notInLog", reason: "" }];
+            const facts = { character: "Nobody", role: "dps", categories: [{ id: "c1", name: "Kara" }], attendance: { c1: { attended: 3, total: 4, pct: 75, raids, missed } } };
+            rosterCharacter.mockImplementation(() => facts);
+            const spy = jest.spyOn(profiles, "getProfile").mockReturnValue({ characters: [{ key: "nobody", name: "Nobody", versionId: "tbc" }] });
+            const findSpy = jest.spyOn(profiles, "findCharacter").mockReturnValue({ key: "nobody" });
+            try {
+                auth.getUser.mockReturnValue(RAIDER);
+                const own = json(await get("/api/roster/char", { name: "Nobody" })).data.attendance.c1;
+                expect(own).toMatchObject({ attended: 3, total: 4, pct: 75 });
+                for (const n of own.raids) {
+                    expect(n).not.toHaveProperty("override");
+                    expect(n).not.toHaveProperty("suggestion");
+                }
+                expect(own.raids.slice(0, 3).map((n) => [n.status, n.attended])).toEqual([["present", true], ["present", true], ["present", true]]);
+                expect(own.raids[3]).toMatchObject({ status: "noShow", attended: false });
+                expect(own.missed).toEqual(missed);
+
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                const orga = json(await get("/api/roster/char", { name: "Nobody" })).data.attendance.c1;
+                expect(orga.raids[0].override).toMatchObject({ status: "leftEarly" });
+                expect(orga.raids[0].status).toBe("leftEarly");
+                expect(orga.raids[1].override.reason).toBe(LEFT_EARLY_DISMISSED);
+                expect(orga.raids[2].suggestion).toMatchObject({ kind: "leftEarly" });
+            } finally {
+                spy.mockRestore();
+                findSpy.mockRestore();
+                rosterCharacter.mockImplementation(jest.requireActual("../../../src/web/characters/roster").rosterCharacter);
+            }
+        });
+
         it("describes each worn item once: drop source and BiS specs", async () => {
             // 28453 drops from Attumen in Karazhan (config/tbcContent.js)
             const res = await get("/api/roster/char", { name: "Nobody", items: "28453, 28453,abc,-4,0" });

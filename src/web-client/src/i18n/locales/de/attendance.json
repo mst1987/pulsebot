@@ -1,6 +1,7 @@
 {
     "status": {
         "present": "Dabei",
+        "leftEarly": "Früh gegangen",
         "bench": "Bench",
         "vacation": "Urlaub",
         "absence": "Abgemeldet",
@@ -10,6 +11,7 @@
     },
     "letter": {
         "present": "D",
+        "leftEarly": "F",
         "bench": "B",
         "vacation": "U",
         "absence": "A",
@@ -19,6 +21,7 @@
     },
     "hint": {
         "present": "Im Log, oder ohne Log angemeldet. Zählt.",
+        "leftEarly": "Vor Raid-Ende gegangen, laut Log bestätigt oder von Hand gesetzt. Zählt als dabei.",
         "bench": "Auf der Ersatzbank eingeteilt oder so angemeldet. Zählt wie dabei.",
         "vacation": "Eine eingetragene Abwesenheit deckt den Raid. Entschuldigt, zählt aber als gefehlt.",
         "absence": "Für diesen Raid abgemeldet.",
@@ -85,5 +88,24 @@
         "legend": "Legende",
         "nightTip": "{date} · {title}",
         "pause": "Pause"
+    },
+    "suggest": {
+        "title": "Laut Log früh gegangen",
+        "missed": {
+            "one": "Fehlt beim letzten Kill: {bosses}",
+            "other": "Fehlt bei den letzten {count} Kills: {bosses}"
+        },
+        "cellTip": "Vorschlag aus dem Log: früh gegangen",
+        "confirm": "Bestätigen",
+        "dismiss": "Verwerfen",
+        "confirmHint": "Setzt den Abend auf „Früh gegangen“. Zählt weiter als dabei, kann aber einen Hinweis bei den Vermerken auslösen.",
+        "dismissHint": "Der Abend bleibt „Dabei“, der Vorschlag verschwindet.",
+        "confirmed": "{name}: {date} als früh gegangen bestätigt",
+        "dismissed": "{name}: Vorschlag für {date} verworfen",
+        "count": {
+            "one": "{count} Vorschlag aus dem Log",
+            "other": "{count} Vorschläge aus dem Log"
+        },
+        "countHint": "Gestrichelt umrandete Felder: Laut Log früh gegangen. Klick aufs Feld bestätigt oder verwirft."
     }
 }

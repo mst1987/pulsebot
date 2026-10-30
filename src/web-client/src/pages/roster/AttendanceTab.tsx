@@ -31,12 +31,20 @@ export default function AttendanceTab({ data, onOpen, onChanged }: {
     if (!rows.length) return <p className="rn-empty">{t("attendance.grid.noMembers")}</p>;
     if (!columns.length) return <p className="rn-empty">{t("attendance.grid.noNights")}</p>;
     const canEdit = !!data.canEditAttendance;
+    // the log's open "left early" suggestions (#990) - only orga answers carry them
+    const suggested = rows.reduce((n, r) => n + r.cells.filter((c) => c?.suggestion?.kind === "leftEarly").length, 0);
     return (
         <section className="rn-att" aria-label={t("roster.detail.tabAttendance")}>
             <div className="rn-att-top">
                 <p className="rn-sub">
                     {t("attendance.grid.readHint", { count: columns.length })}
                     {canEdit ? ` ${t("attendance.grid.editHint")}` : ""}
+                    {suggested > 0 && (
+                        <>
+                            {" "}
+                            <b className="rn-att-suggested" data-tip={t("attendance.suggest.countHint")}>{t("attendance.suggest.count", { count: suggested })}</b>
+                        </>
+                    )}
                 </p>
                 <ul className="rn-att-legend" aria-label={t("attendance.grid.legend")}>
                     {EDIT_ORDER.map((s) => (

@@ -2,8 +2,9 @@
 // how every page words and colours them — the roster tooltip, the attendance grid, the
 // member drawer, "Meine Anwesenheit", the Kaderplaner and the character page.
 //
-// Six statuses: "present" (in the log, or signed up without a log) and "bench" (on the
-// setup's bench or signed up as bench) count for the quota; "vacation" (an absence entry
+// The statuses: "present" (in the log, or signed up without a log), "leftEarly" (#990: left
+// before the end - only ever set by the orga, confirming the log's suggestion or by hand) and
+// "bench" (on the setup's bench or signed up as bench) count for the quota; "vacation" (an absence entry
 // covers the raid), "absence" (signed off), "noSignup" and "noShow" are missed. The
 // colours are the tokens --att-<status> (styles/tokens.css); a cell carries a letter too,
 // so the status never rests on hue alone.
@@ -12,10 +13,10 @@ import { t } from "../../i18n";
 import { formatDayMonth } from "../format";
 
 /** The order the tooltip groups the nights in (issue #677). */
-export const STATUS_ORDER: AttendanceStatus[] = ["present", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
+export const STATUS_ORDER: AttendanceStatus[] = ["present", "leftEarly", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
 
 /** The order the edit menu offers them in. */
-export const EDIT_ORDER: AttendanceStatus[] = ["present", "bench", "vacation", "absence", "noSignup", "noShow"];
+export const EDIT_ORDER: AttendanceStatus[] = ["present", "leftEarly", "bench", "vacation", "absence", "noSignup", "noShow"];
 
 /** The statuses that count for the quota. */
 /** Whether a night counts for the quota at all: a "maybe" the setup left out (tentative) does not (Oct 2026). */
@@ -25,7 +26,7 @@ export function countsForQuota(status: AttendanceStatus): boolean {
 
 /** Whether a night counts as there; "tentative" (not set up) counts neither way - see countsForQuota. */
 export function countsAsPresent(status: AttendanceStatus): boolean {
-    return status === "present" || status === "bench";
+    return status === "present" || status === "leftEarly" || status === "bench";
 }
 
 // The server's German words of older answers ("nicht im Log" …), matched without their accents ("spater"),

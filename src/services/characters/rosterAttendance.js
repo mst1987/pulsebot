@@ -31,8 +31,13 @@
 // placed or benched in any of their setups.
 //   - no log and no raider assigned to the character        -> not counted at all:
 //     without a Discord account behind the name there is nothing to compare.
-// "present" and "bench" count for the quota (`attended`), "tentative" not at all
-// (not in `total`), the other four are missed. Each night also carries a `detail` code (why: inLog, signed, late,
+// "present", "bench" and "leftEarly" count for the quota (`attended`), "tentative" not at all
+// (not in `total`), the other four are missed.
+// "leftEarly" (#990) is never decided automatically: the log only suggests it (a
+// raider in the log who is missing from the night's last N boss kills, with no
+// other character of theirs in them - `suggestLeftEarly`), the orga confirms it
+// as an override or sets it by hand. It counts as attended; only the orga's
+// Vermerk hints (userSignals.js) look at it. Each night also carries a `detail` code (why: inLog, signed, late,
 // benchSetup, notInLog, ...) and `reason`, the same in German words - kept for
 // the bot's /anwesenheit lines, which read it as they always did.
 // The window is the category's last RAID_WINDOW nights that carry any evidence
@@ -77,9 +82,9 @@ const RAID_WINDOW = 11;
 const MAX_REPORTS = 40;
 
 /** The status codes of a night, in the order the tooltip lists them. */
-const STATUSES = ["present", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
-/** The statuses that count for the quota. */
-const ATTENDED = new Set(["present", "bench"]);
+const STATUSES = ["present", "leftEarly", "bench", "noSignup", "absence", "vacation", "noShow", "tentative"];
+/** The statuses that count for the quota ("leftEarly": there, but gone before the last bosses, #990). */
+const ATTENDED = new Set(["present", "leftEarly", "bench"]);
 /** Whether a night counts at all: "tentative" (not placed) is shown, but neither attended nor missed. */
 const counts = (night) => night.status !== "tentative";
 
@@ -102,7 +107,7 @@ const DETAIL_WORDS = {
 };
 const STATUS_WORDS = {
     present: "dabei", bench: "Ersatzbank", vacation: "Urlaub", absence: "abgemeldet", noSignup: "nicht angemeldet", noShow: "nicht erschienen",
-    tentative: "vorläufig (zählt nicht)",
+    tentative: "vorläufig (zählt nicht)", leftEarly: "früh gegangen",
 };
 
 /** One night's verdict from a status and the detail that explains it. */
@@ -235,7 +240,15 @@ function condenseReport(meta) {
         else if (role === "Healer") roles[key] = "healer";
     }
     for (const key of keys) if (!roles[key]) roles[key] = "dps";
-    const condensed = { id: meta.id, zone: meta.zone || report.zone || "", keys, classes, roles };
+    // who stood in which boss kill (#990, report.kills); a report evaluated before has none -> no suggestion
+    const kills = Array.isArray(report.kills)
+        ? report.kills.map((k) => ({
+            at: Number(k && k.at) || 0,
+            boss: String((k && k.boss) || ""),
+            keys: new Set(((k && k.players) || []).map((name) => characterKeyOf(name)).filter(Boolean)),
+        }))
+        : null;
+    const condensed = { id: meta.id, zone: meta.zone || report.zone || "", keys, classes, roles, kills };
     condensedCache.set(cacheKey, condensed);
     return condensed;
 }
@@ -262,6 +275,50 @@ function requiredVersion(versionId) {
     if (process.env.NODE_ENV !== "production") throw new Error(message);
     logger.warn(`${message} - es zählt die Hauptversion`);
     return mainVersionFor();
+}
+
+// Two logs of one raid can record the same kill (two raiders logging): a kill of
+// the same boss starting within this span is one kill, its players merged.
+const SAME_KILL_MS = 2 * 60 * 1000;
+
+/**
+ * The boss kills of one raid from all its logs, oldest first, with duplicate
+ * recordings merged - or null when one of its logs was evaluated before the
+ * kills were kept (#990): then nothing can be said about who left early.
+ */
+function mergedKills(reps) {
+    if (!reps.length || reps.some((r) => !Array.isArray(r.kills))) return null;
+    const all = reps.flatMap((r) => r.kills).sort((a, b) => a.at - b.at);
+    const out = [];
+    for (const k of all) {
+        const same = out.find((o) => o.boss === k.boss && Math.abs(o.at - k.at) <= SAME_KILL_MS);
+        if (same) for (const key of k.keys) same.keys.add(key);
+        else out.push({ at: k.at, boss: k.boss, keys: new Set(k.keys) });
+    }
+    return out;
+}
+
+/** A night's kill tracks (#990): one per raid of the night (a raid group has several), each with its merged kills or null. */
+function killTracksOf(tracks) {
+    return [...(tracks || new Map()).values()].map(mergedKills);
+}
+
+/**
+ * The log's "left early" suggestion for one account and night (#990), or null:
+ * of the raid(s) the account stood in a boss kill of, it is missing from the last
+ * `n` kills - with any of its characters (a twink in the kill counts as there).
+ * Nobody in no kill at all left early; a night with an old evaluation suggests nothing.
+ */
+function leftEarlySuggestion(raid, keys, n) {
+    const tracks = raid.killTracks || [];
+    if (!tracks.length || tracks.some((t) => t === null)) return null;
+    const inKill = (k) => keys.some((key) => k.keys.has(key));
+    // the raid(s) of a group the account actually raided in, their kills in order
+    const kills = tracks.filter((t) => t.some(inKill)).flat().sort((a, b) => a.at - b.at);
+    if (!kills.length) return null;
+    const last = kills.slice(-n);
+    if (last.some(inKill)) return null;
+    return { kind: "leftEarly", missedKills: n, bosses: last.map((k) => k.boss).filter(Boolean) };
 }
 
 /**
@@ -302,6 +359,8 @@ function buildAttendanceContext(guildId, opts = {}) {
 
     // event id -> the evaluations of its logs (a further raid's count for its group's night, #811)
     const reportsByEvent = new Map();
+    // night -> raid id of the group -> its evaluations (#990: each raid of a group is a kill track of its own)
+    const tracksByNight = new Map();
     for (const log of listLogs()) {
         if (!log || !log.eventId || !log.reportRefId) continue;
         const rep = reportById.get(String(log.reportRefId));
@@ -310,6 +369,9 @@ function buildAttendanceContext(guildId, opts = {}) {
         const list = reportsByEvent.get(night) || [];
         list.push(rep);
         reportsByEvent.set(night, list);
+        const tracks = tracksByNight.get(night) || new Map();
+        tracks.set(String(log.eventId), [...(tracks.get(String(log.eventId)) || []), rep]);
+        tracksByNight.set(night, tracks);
     }
     const absences = attempt(() => availabilityStore.listEntries(), []).filter((e) => e && e.kind === "absence" && e.userId);
     const overrides = attempt(() => overridesStore.listOverrides(), {});
@@ -334,6 +396,8 @@ function buildAttendanceContext(guildId, opts = {}) {
             : setupPlaces(setupById.get(String(ev.id)));
         list.push({
             id: String(ev.id), title: ev.title || "", startTime: ev.startTime, signUps, logs,
+            // the boss kills per raid of the night (#990), for the "left early" suggestion
+            killTracks: killTracksOf(tracksByNight.get(String(ev.id))),
             // the night's stored version (#737): its zones and title are named with that version's content
             versionId: evVersion,
             bench: places.bench,
@@ -403,6 +467,38 @@ function nightEntry(raid, st) {
         eventId: raid.id, title: raid.title, startTime: raid.startTime,
         attended: st.attended, status: st.status, detail: st.detail, reason: st.reason,
         ...(st.override ? { override: st.override } : {}),
+        ...(st.suggestion ? { suggestion: st.suggestion } : {}),
+    };
+}
+
+/**
+ * A night as the raider's own views show it (#990): a night the orga set to "left early", or whose
+ * log suggestion it dismissed, reads as plainly present - the raider never sees either, nor a suggestion.
+ */
+function neutralNight(night) {
+    if (!night) return night;
+    const o = night.override;
+    const hidden = o && (o.status === "leftEarly" || (o.status === "present" && o.reason === overridesStore.LEFT_EARLY_DISMISSED));
+    if (!hidden && !night.suggestion) return night;
+    const rest = { ...night };
+    delete rest.suggestion;
+    if (hidden) {
+        delete rest.override;
+        return { ...rest, ...verdict("present", "inLog") };
+    }
+    return rest;
+}
+
+/**
+ * An attendanceFor summary as the raider's own views show it (#990): every night, in `raids` and
+ * `missed`, through neutralNight. The quota stays - a night left early counts as attended either way.
+ */
+function neutralAttendance(summary) {
+    if (!summary) return summary;
+    return {
+        ...summary,
+        raids: (summary.raids || []).map(neutralNight),
+        missed: (summary.missed || []).map(neutralNight),
     };
 }
 
@@ -475,7 +571,12 @@ function countedNights(ctx, categoryId, opts) {
  * `window` (Einstellungen › Kategorien, categoryAttendance): how many of the category's last nights count
  * instead of RAID_WINDOW.
  *
- * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean, window?: number }} [opts]
+ * `suggestLeftEarly` (#990, the orga's roster view only): a night the log counts as present carries
+ * `suggestion: { kind: "leftEarly", missedKills, bosses }` when the account is missing from that many of
+ * the night's last boss kills (leftEarlySuggestion). The raider's own views never ask for it.
+ *
+ * @param {{ comparable?: (raid: {id, title, startTime, signUps, logs}) => boolean, nights?: boolean, window?: number,
+ *           suggestLeftEarly?: number }} [opts]
  * @returns {Map<string, {attended: number, total: number, pct: number|null, link: "manual"|"auto",
  *            inferred: number, missed: {eventId, title, startTime, status, detail, reason, override?}[],
  *            raids?: {eventId, title, startTime, attended, status, detail, reason, override?}[]}>}
@@ -511,6 +612,13 @@ function withAssigned(account, assigned) {
     return { ...account, chars };
 }
 
+/** #990: only the orga's view asks (n > 0), only for a night the log decided - never over an override. */
+function withSuggestion(hit, raid, keys, n) {
+    if (!hit || !(n > 0) || hit.status !== "present" || hit.detail !== "inLog") return hit;
+    const suggestion = leftEarlySuggestion(raid, keys, n);
+    return suggestion ? { ...hit, suggestion } : hit;
+}
+
 /** The character keys an account's own signup names for one night (several in priority order, or one). */
 function signupKeys(raid, userId) {
     const signUp = [...(raid.signUps || [])].reverse().find((s) => s && String(s.userId) === userId);
@@ -527,6 +635,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
     const classOf = (a) => String((a.chars.find((c) => c.className) || {}).className || "").toLowerCase();
     // only an automatic "not in the log" may be explained by a class match - never a sign-off, a bench place or the orga's word
     const notInLog = (r) => r && !r.attended && r.detail === "notInLog";
+    const leftEarlyN = Math.max(0, Math.floor(Number(opts.suggestLeftEarly) || 0));
     for (const raid of countedNights(ctx, categoryId, opts)) {
         const results = new Map();
         for (const a of list) {
@@ -534,7 +643,7 @@ function attendanceForAccounts(ctx, categoryId, accounts, opts = {}) {
             const keys = [...new Set([...a.chars.map((c) => characterKeyOf(c.name)), ...signupKeys(raid, String(a.userId))])];
             const nights = keys.map((key) => nightStatus(raid, key, [String(a.userId)])).filter(Boolean);
             // a character in the log wins over another one's bench (signed up, not in the log), which wins over the rest
-            const hit = nights.find((n) => n.status === "present") || nights.find((n) => n.attended) || nights[0];
+            const hit = withSuggestion(nights.find((n) => n.status === "present") || nights.find((n) => n.attended) || nights[0], raid, keys, leftEarlyN);
             if (hit) results.set(String(a.userId), hit);
         }
         // class guess: unclaimed log players by class against the accounts still missing
@@ -614,5 +723,6 @@ function categoryNights(ctx, categoryId, opts = {}) {
 
 module.exports = {
     buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, categoryNights, nightStatus, roleFor, roleFromSpec,
+    leftEarlySuggestion, neutralNight, neutralAttendance,
     RAID_WINDOW, CONTENT_ICONS, STATUSES,
 };

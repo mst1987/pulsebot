@@ -17,10 +17,18 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
-/** The attendance codes a night can be set to — the same as the automatic ones. */
-const STATUSES = ["present", "bench", "vacation", "absence", "noSignup", "noShow"];
+/**
+ * The attendance codes a night can be set to — the automatic ones, plus "leftEarly"
+ * (#990), which only ever comes from the orga (confirming the log's suggestion or by hand).
+ */
+const STATUSES = ["present", "leftEarly", "bench", "vacation", "absence", "noSignup", "noShow"];
 const REASON_MAX = 200;
 const NAME_MAX = 80;
+/**
+ * The reason of a "present" override that dismissed the log's "left early" suggestion (#990):
+ * the override ends the suggestion, the raider's own views show the night as plainly present.
+ */
+const LEFT_EARLY_DISMISSED = "Log-Vorschlag verworfen: nicht früh gegangen";
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isObject = (v) => !!v && typeof v === "object" && !Array.isArray(v);
@@ -104,7 +112,7 @@ function clearOverride(eventId, userId) {
 }
 
 module.exports = {
-    STATUSES, REASON_MAX,
+    STATUSES, REASON_MAX, LEFT_EARLY_DISMISSED,
     listOverrides, overridesForEvent, getOverride, setOverride, clearOverride,
     useFile: store.useFile,
 };

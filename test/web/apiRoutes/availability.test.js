@@ -360,7 +360,8 @@ describe("Meine Anwesenheit", () => {
     it("answers a raider their own attendance, never somebody else's", async () => {
         const res = await call("GET", "/api/availability/attendance", ANNA);
         expect(status(res)).toBe(200);
-        expect(raiderAttendance).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.any(Object) }));
+        // #990: the own view is neutral - "left early" reads as present
+        expect(raiderAttendance).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.any(Object), neutral: true }));
         expect(json(res).data).toMatchObject({ userId: ANNA.id, own: true, orga: false, categories: [{ id: "cat1", pct: 80 }] });
         expect(status(await call("GET", "/api/availability/attendance", ANNA, { query: "userId=999" }))).toBe(403);
     });
@@ -368,6 +369,8 @@ describe("Meine Anwesenheit", () => {
     it("lets the orga look at any raider", async () => {
         const res = await call("GET", "/api/availability/attendance", ORGA, { query: "userId=u1" });
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", own: false, orga: true });
+        // the orga sees the night as set ("left early"), not neutralised
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ neutral: false }));
     });
 });
 

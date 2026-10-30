@@ -49,7 +49,33 @@ afterAll(() => {
 
 describe("services/vermerke/userSignals", () => {
     it("knows every kind it shows", () => {
-        expect(Object.keys(KIND_RULES)).toEqual(["signoff_after_setup", "late_signoff", "no_show", "left_server"]);
+        expect(Object.keys(KIND_RULES)).toEqual(["signoff_after_setup", "late_signoff", "no_show", "left_early", "left_server"]);
+    });
+
+    it("computes nights left early from the confirmed overrides, with their own threshold (#990)", () => {
+        mockEvents = [
+            { id: "e1", title: "Kara", startTime: sec(NOW - 5 * DAY) },
+            { id: "e2", title: "Gruul", startTime: sec(NOW - 3 * DAY) },
+            { id: "e3", title: "Maggi", startTime: sec(NOW - 2 * DAY) },
+        ];
+        mockOverrides = {
+            e1: { [U]: { status: "leftEarly" } },
+            e2: { [U]: { status: "noShow" } },
+            // a dismissed suggestion is present - no hint
+            e3: { [U]: { status: "present", reason: "Log-Vorschlag verworfen: nicht früh gegangen" } },
+        };
+        // one night left early stays below the default threshold of two, and does not mix with no_show
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
+        mockOverrides.e3 = { [U]: { status: "leftEarly" } };
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([expect.objectContaining({
+            userId: U, kind: "left_early", count: 2,
+            events: [{ eventId: "e3", title: "Maggi", startTime: sec(NOW - 2 * DAY) }, { eventId: "e1", title: "Kara", startTime: sec(NOW - 5 * DAY) }],
+        })]);
+        // the server's own threshold
+        expect(signalsFor("A", { now: NOW, config: cfg({ leftEarly: 3 }) })).toEqual([]);
+        // a Vermerk with the reason left_early covers it
+        notes.addEntry("A", U, { level: "hint", reason: "left_early" }, { by: "1", byName: "Admin", now: NOW - DAY });
+        expect(signalsFor("A", { now: NOW, config: {} })).toEqual([]);
     });
 
     it("shows a person from the threshold on, with the raids, newest first", () => {
