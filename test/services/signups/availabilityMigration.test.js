@@ -189,6 +189,39 @@ describe("services/signups/availabilityMigration migrateAvailabilityServers", ()
         expect(membership.mock.calls).toEqual([[B, "u1"]]);
     });
 
+    it("keeps a raider open (no fallback, no mark) while a server is unreachable, assigns the others", async () => {
+        seed([entry("e1", "u1"), entry("e1b", "u1"), entry("e2", "u2")]);
+        // u1 only on A, which the bot does not reach; u2 on B
+        const membership = membershipFrom({ u1: { [A]: true, [B]: false, [C]: false }, u2: { [B]: true } });
+        const lines = await migrateAvailabilityServers({ membership, config, reachable: (g) => g !== A });
+
+        expect(byId("e1").scope).toBeUndefined();
+        expect(byId("e1b").scope).toBeUndefined();
+        expect(byId("e2").scope).toEqual([{ guildId: B, categoryIds: [] }]);
+        expect(migrationMarkStore.isDone(MARK)).toBe(false);
+        expect(lines[0]).toContain("1 Ab-/Anwesenheit(en)");
+        expect(lines[0]).toContain("davon 0 ");
+        expect(lines[0]).toContain("2 offen geblieben");
+
+        // next start, A reachable again: only the open raider is asked
+        const next = membershipFrom({ u1: { [A]: true } });
+        const again = await migrateAvailabilityServers({ membership: next, config });
+        expect(next.mock.calls).toEqual([[A, "u1"]]);
+        expect(byId("e1").scope).toEqual([{ guildId: A, categoryIds: [] }]);
+        expect(byId("e1b").scope).toEqual([{ guildId: A, categoryIds: [] }]);
+        expect(migrationMarkStore.isDone(MARK)).toBe(true);
+        expect(again[0]).not.toContain("offen geblieben");
+    });
+
+    it("does not fall back while a server is unreachable, even if the raider is a member nowhere reachable", async () => {
+        seed([entry("e1", "u1")]);
+        const membership = membershipFrom({ u1: { [B]: false, [C]: null } });
+        await migrateAvailabilityServers({ membership, config, reachable: (g) => g !== C });
+
+        expect(byId("e1").scope).toBeUndefined();
+        expect(migrationMarkStore.isDone(MARK)).toBe(false);
+    });
+
     it("warns and waits without any configured server", async () => {
         seed([entry("e1", "u1")]);
         const lines = await migrateAvailabilityServers({ membership: membershipFrom({}), config: {} });

@@ -11,7 +11,10 @@
 //     stopping at the first "member" (never one per entry), one raider after
 //     the other (1 vCPU);
 //   - no server answers "member" for sure (not a member anywhere, unknown) ->
-//     the first server (firstServerId), counted as a fallback in the log line;
+//     the first server (firstServerId), counted as a fallback in the log line -
+//     but only when every configured server was reachable; otherwise the
+//     raider's entries stay without server (hold everywhere), the mark is not
+//     set and the next start asks again for just those entries;
 //   - expired entries (kept KEEP_DAYS for the attendance) are moved as well;
 //     entries with a category stay as they are;
 //   - none of the configured servers reachable (bot not on them yet), no server
@@ -82,16 +85,30 @@ async function migrateAvailabilityServers({ membership, reachable = () => true, 
 
     // The web server already runs while the queries wait: the store is read again
     // (assignServers) and only entries that still hold everywhere change.
+    // The fallback only when every configured server answered: a raider who may be
+    // a member of an unreachable server stays without server (holds everywhere)
+    // and is asked again on the next start.
+    const allReachable = open.length === order.length;
     const assignments = {};
     let fallback = 0;
+    let left = 0;
     for (const e of availabilityStore.listUnscoped()) {
         const found = serverOfUser.has(e.userId) ? serverOfUser.get(e.userId) : "";
-        assignments[e.id] = found || first;
-        if (!found) fallback += 1;
+        if (found) {
+            assignments[e.id] = found;
+        } else if (allReachable && serverOfUser.has(e.userId)) {
+            assignments[e.id] = first;
+            fallback += 1;
+        } else {
+            left += 1;
+        }
     }
     const moved = availabilityStore.assignServers(assignments);
-    migrationMarkStore.markDone(MARK);
-    return [`availability.json: ${moved} Ab-/Anwesenheit(en) ohne Server dem ersten Server des Raiders zugeordnet, davon ${fallback} ohne sichere Mitgliedschaft dem ersten Server ${first} (Fallback)`];
+    if (!left) migrationMarkStore.markDone(MARK);
+    const line = `availability.json: ${moved} Ab-/Anwesenheit(en) ohne Server dem ersten Server des Raiders zugeordnet, davon ${fallback} ohne sichere Mitgliedschaft dem ersten Server ${first} (Fallback)`;
+    return [left
+        ? `${line}; ${left} offen geblieben (nicht jeder Server erreichbar oder neu angelegt) - nächster Start versucht es erneut`
+        : line];
 }
 
 /**
