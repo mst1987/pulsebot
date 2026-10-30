@@ -3,8 +3,8 @@
 // The three columns the report shows (Destruction / Haste / Mana) are aggregates;
 // underneath, every consumable is counted by its own type so the report can show
 // *which* mana source a raider actually drank. The types themselves (spell ids,
-// items, icons) are TBC data in config/logcheckTables.js (#747).
-const { POTION_TYPES } = require("../../config/logcheckTables");
+// items, icons) are TBC data in config/data/logcheckTables.js (#747).
+const { POTION_TYPES } = require("../../config/data/logcheckTables");
 
 /** spell id -> type, built once. */
 const TYPE_BY_ID = new Map();

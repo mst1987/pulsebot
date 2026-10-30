@@ -3,7 +3,7 @@
 // dialog with every award (who, when, from which raid, why).
 //
 // Filterable by raid (Gruul, SSC, TK, …) and by tier, both resolved from the item
-// id on the server (config/tbcContent.js), so a Gargul export — which carries
+// id on the server (config/data/tbcContent.js), so a Gargul export — which carries
 // nothing but that id — filters exactly like an RCLootcouncil one, and by raid
 // category (Mainraid, Twinkraid, …) like the Gründe view. What was only ever
 // sharded is out of the table by default (see DISENCHANT).

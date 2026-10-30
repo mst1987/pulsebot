@@ -456,7 +456,7 @@ describe("web/apiRoutes/roster", () => {
         });
 
         it("describes each worn item once: drop source and BiS specs", async () => {
-            // 28453 drops from Attumen in Karazhan (config/tbcContent.js)
+            // 28453 drops from Attumen in Karazhan (config/data/tbcContent.js)
             const res = await get("/api/roster/char", { name: "Nobody", items: "28453, 28453,abc,-4,0" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;

@@ -1,11 +1,11 @@
-// Golden master for the classlist consolidation (#428): before config/classlist.js
+// Golden master for the classlist consolidation (#428): before config/data/classlist.js
 // became an alias table over gameVersions/classes.js, every consumer's answer
 // was recorded for all 66 Raid-Helper names, every Raid-Helper spec name and an
 // unknown one (test/fixtures/golden/classlistConsumers.json, with
 // Math.random pinned to 0). The consumers must answer the same, except
 // for the changes listed below — each one on purpose.
 const golden = require("../fixtures/golden/classlistConsumers.json");
-const classlist = require("../../src/config/classlist");
+const classlist = require("../../src/config/data/classlist");
 const setupView = require("../../src/utils/setup/setupView");
 const reply = require("../../src/utils/discord/reply");
 const format = require("../../src/utils/format");

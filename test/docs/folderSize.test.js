@@ -20,7 +20,6 @@ const ALLOWED = {
     "src/stores": "#1016",
     "src/services/events": "#1014",
     "src/services/discord": "#1015",
-    "src/config": "#1013",
     "src/utils/logcheck": "#1017",
 };
 

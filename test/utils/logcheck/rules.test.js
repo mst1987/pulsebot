@@ -2,12 +2,12 @@
 // unchanged, Forever is a Classic-derived set that is not ready yet.
 const rules = require("../../../src/utils/logcheck/rules");
 const { CLA_ANALYZERS } = require("../../../src/utils/logcheck/report");
-const claData = require("../../../src/config/claData");
-const rpbData = require("../../../src/config/rpbData");
-const raidBuffs = require("../../../src/config/raidBuffs");
-const raidDebuffs = require("../../../src/config/raidDebuffs");
-const totems = require("../../../src/config/totems");
-const healerSpells = require("../../../src/config/healerSpells");
+const claData = require("../../../src/config/data/claData");
+const rpbData = require("../../../src/config/data/rpbData");
+const raidBuffs = require("../../../src/config/data/raidBuffs");
+const raidDebuffs = require("../../../src/config/data/raidDebuffs");
+const totems = require("../../../src/config/data/totems");
+const healerSpells = require("../../../src/config/data/healerSpells");
 const { POTION_TYPES } = require("../../../src/utils/logcheck/potions");
 const { DRUM_TYPE } = require("../../../src/utils/logcheck/drums");
 const { LUST_IDS, LUST_MS } = require("../../../src/utils/logcheck/cooldownTimeline");

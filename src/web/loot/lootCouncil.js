@@ -30,18 +30,18 @@ const { rosterCandidates } = require("./councilRosterSource");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { listLogs } = require("../../stores/logStore");
 const { listReports, getReportRoster } = require("../../stores/reportStore");
-const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../../config/tbcContent");
+const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../../config/data/tbcContent");
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
 const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
-const bisSource = require("../../config/bisSets");
-const { wearCheck } = require("../../config/wearable");
+const bisSource = require("../../config/data/bisSets");
+const { wearCheck } = require("../../config/data/wearable");
 const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
-} = require("../../config/councilSpecs");
+} = require("../../config/data/councilSpecs");
 const councilWeights = require("../../stores/councilWeightsStore");
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { itemWeight } = require("../../services/loot/itemWeights");
@@ -866,7 +866,7 @@ function rosterContent(opts) {
 
 /**
  * The council roster: every raider with a council spec (caster, healer, tank,
- * melee, hunter — config/councilSpecs.js) and loot history or known gear —
+ * melee, hunter — config/data/councilSpecs.js) and loot history or known gear —
  * or, for a category with a roster (#667), the roster's Stamm and Probe
  * (plus Ersatz with `showBench`), with or without loot and gear.
  *
@@ -1096,7 +1096,7 @@ function rosterGear(roster, { versionId, guildId } = {}) {
  * ⚠️ A raider who cannot equip the item is never a candidate: a warlock's tier
  * helm is not "a downgrade" for a mage, it is not theirs to take, and offering
  * it would let a council hand it out. `unwearable` names them with the reason
- * (config/wearable.js), so a shorter list is explained rather than puzzling.
+ * (config/data/wearable.js), so a shorter list is explained rather than puzzling.
  *
  * `value` is the stat-weight ordering and nothing more — the page shows no
  * estimated gain, only a simulated one — but it still decides which candidate

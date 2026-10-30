@@ -89,7 +89,7 @@ function include(character) {
 // Eine Entscheidung des Raidleads also, kein Rateschluss — und damit die zweite
 // Sache, die der Council selbst über einen Raider festhält. Sie überschreibt
 // nur die *Rolle*; welche Spec das ist, folgt daraus (specForRole in
-// config/councilSpecs.js).
+// config/data/councilSpecs.js).
 
 const ROLES_FILE = settingsPath("council-roles.json");
 
@@ -123,7 +123,7 @@ function plannedRoles() {
 
 /**
  * Plan this character in a council role (caster, healer, tank, melee, ranged —
- * ROLES in config/councilSpecs.js; the route checks it). An empty role takes
+ * ROLES in config/data/councilSpecs.js; the route checks it). An empty role takes
  * the decision back, and the page falls to what the data says again.
  */
 function setRole(character, role, { by = "" } = {}) {

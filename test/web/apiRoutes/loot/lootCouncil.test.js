@@ -24,7 +24,7 @@ jest.mock("../../../../src/stores/logGearStore", () => ({
     clearLogGear: jest.fn(() => true),
     recentLogs: jest.fn(() => [{ id: "rep1" }]),
 }));
-jest.mock("../../../../src/config/tbcContent", () => ({ ...jest.requireActual("../../../../src/config/tbcContent"), sourceForItem: jest.fn(() => null) }));
+jest.mock("../../../../src/config/data/tbcContent", () => ({ ...jest.requireActual("../../../../src/config/data/tbcContent"), sourceForItem: jest.fn(() => null) }));
 jest.mock("../../../../src/stores/simStore", () => ({
     startCouncilSim: jest.fn(() => ({ started: true, status: "running" })),
     getJob: jest.fn(() => null),
@@ -44,8 +44,8 @@ jest.mock("../../../../src/services/loot/charGear", () => ({
     charKey: jest.fn((name) => String(name).toLowerCase()),
 }));
 jest.mock("../../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
-jest.mock("../../../../src/config/councilSpecs", () => ({
-    ...jest.requireActual("../../../../src/config/councilSpecs"),
+jest.mock("../../../../src/config/data/councilSpecs", () => ({
+    ...jest.requireActual("../../../../src/config/data/councilSpecs"),
     specFor: jest.fn(() => null),
 }));
 jest.mock("../../../../src/utils/wowsims/engine", () => ({
@@ -64,13 +64,13 @@ const lc = require("../../../../src/web/loot/lootCouncil");
 const { bisLists } = require("../../../../src/web/loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../../src/services/loot/armoryGear");
 const { loadLogGear, clearLogGear, recentLogs } = require("../../../../src/stores/logGearStore");
-const { sourceForItem } = require("../../../../src/config/tbcContent");
+const { sourceForItem } = require("../../../../src/config/data/tbcContent");
 const { startCouncilSim, getJob } = require("../../../../src/stores/simStore");
 const { searchItems } = require("../../../../src/config/wowsims");
 const councilStore = require("../../../../src/stores/councilStore");
 const { gearFor } = require("../../../../src/services/loot/charGear");
 const { characterMap } = require("../../../../src/stores/characterStore");
-const { specFor } = require("../../../../src/config/councilSpecs");
+const { specFor } = require("../../../../src/config/data/councilSpecs");
 const engine = require("../../../../src/utils/wowsims/engine");
 const discord = require("../../../../src/services/discord/discord");
 const { getConfig } = require("../../../../src/stores/settingsStore");

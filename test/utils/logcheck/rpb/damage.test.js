@@ -5,7 +5,7 @@ const {
     REFLECT_EXCLUDED_IDS,
     MAX_ABILITIES,
 } = require("../../../../src/utils/logcheck/rpb/damage");
-const rpbData = require("../../../../src/config/rpbData");
+const rpbData = require("../../../../src/config/data/rpbData");
 const { makeWcl: wclDouble } = require("../../../factories/wcl");
 
 const fights = {

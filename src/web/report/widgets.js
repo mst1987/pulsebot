@@ -7,7 +7,7 @@ const { reportGuild } = require("../../services/logcheck/reportGuild");
 const logStore = require("../../stores/logStore");
 const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
-const rpbData = require("../../config/rpbData");
+const rpbData = require("../../config/data/rpbData");
 const { esc, setPageVersion } = require("./layout");
 
 function iconUrl(icon) {

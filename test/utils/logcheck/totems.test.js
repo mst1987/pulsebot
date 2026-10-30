@@ -1,7 +1,7 @@
 const {
     analyzeTotems, analyzeShamanFight, summarize, twistCycles, presenceBands, windfuryBands, downtimesBetween, roleFor,
 } = require("../../../src/utils/logcheck/totems");
-const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../../src/config/totems");
+const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../../src/config/data/totems");
 
 const def = (key) => TOTEMS.find((d) => d.key === key);
 const castId = (key) => def(key).castIds[def(key).castIds.length - 1];

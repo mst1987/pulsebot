@@ -83,7 +83,7 @@ describe("services/loot/gearProfile", () => {
     // physical set must be told apart from each other and from the caster sets.
     describe("tank and physical sets", () => {
         const { TANK_MIN } = require("../../../src/services/loot/gearProfile");
-        const bisSet = (spec, tier) => gearOf(require("../../../src/config/bisSets").bisFor(spec, tier).items.map((e) => e.id));
+        const bisSet = (spec, tier) => gearOf(require("../../../src/config/data/bisSets").bisFor(spec, tier).items.map((e) => e.id));
 
         it("reads every WoWSims tank list as a tank set", () => {
             for (const spec of ["Warrior-Protection", "Paladin-Protection", "Druid-Guardian"]) {

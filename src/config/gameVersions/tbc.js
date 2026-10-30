@@ -1,13 +1,13 @@
 // The TBC Anniversary rule set.
 //
 // The instances are not listed here a second time: ids, names, boss order and
-// final bosses all come from config/tbcContent.js, which the loot import, the
+// final bosses all come from config/data/tbcContent.js, which the loot import, the
 // raid list and the logcheck guard already read. This file only adds what a
 // raid *plan* needs on top — the raid size and a suggested number of tanks and
 // healers — and the boss icon the menu shows (the same one as
 // src/web-client/src/lib/wow/raidIcons.ts).
 
-const { CONTENTS, encountersFor, finalBossesFor } = require("../tbcContent");
+const { CONTENTS, encountersFor, finalBossesFor } = require("../data/tbcContent");
 const { buildClasses } = require("./classes");
 const { buildBuffs } = require("./buffs");
 const { TBC_PROFESSIONS } = require("./professions");

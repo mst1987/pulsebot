@@ -138,7 +138,7 @@ describe("services/loot/charGear", () => {
     });
 
     // A piece that only pays off against certain bosses reads as an empty slot
-    // in every comparison (see config/situationalItems.js), which would credit
+    // in every comparison (see config/data/situationalItems.js), which would credit
     // its wearer the full worth of any drop for that slot. So the newest raid
     // is not the last word on such a slot.
     describe("boss-specific pieces", () => {

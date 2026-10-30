@@ -11,7 +11,7 @@
 // colour unless one is given, every text clipped to Discord's limits (one text
 // too long would make Discord refuse the whole reply).
 const { MessageFlags, EmbedBuilder } = require("discord.js");
-const { entryFor } = require("../../config/classlist.js");
+const { entryFor } = require("../../config/data/classlist.js");
 const { card, cardFromEmbed } = require("./card");
 const {
     defaultTimeout,

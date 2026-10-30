@@ -448,7 +448,7 @@ const previewLootImport = withUser({ csrf: true, body: true }, async ({ body, re
  * form offers: the raid drop tables to pick an item from, which raid(s) this
  * event was, the award reasons, and the raiders already known by name.
  *
- * The catalogue is static (config/tbcContent.js + tbcLootNames.js) and comes
+ * The catalogue is static (config/data/tbcContent.js + tbcLootNames.js) and comes
  * over in full: a raid is 30-200 items, and having them client-side is what
  * lets the picker filter as you type without a round trip per keystroke.
  */

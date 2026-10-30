@@ -4,7 +4,7 @@
 // seen in a raid*. For almost everything that is the better source: it carries
 // gems and enchants, and it is the gear the raider actually fought in. For one
 // case it is the worse source — a piece that goes on for a single boss (Mark of
-// the Champion and its like, config/situationalItems.js). The log may well have
+// the Champion and its like, config/data/situationalItems.js). The log may well have
 // caught exactly that fight, and the armory knows what is on the character now.
 //
 // Deliberately only those slots, and deliberately only trinkets-and-the-like:
@@ -19,7 +19,7 @@
 
 const { getConfig } = require("../../stores/settingsStore");
 const { blizzardFor, settingsForVersion } = require("../events/versionSettings");
-const { situationalItem } = require("../../config/situationalItems");
+const { situationalItem } = require("../../config/data/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../../config/wowsims");
 const { characterKeyOf } = require("../../utils/loot/lootImport");

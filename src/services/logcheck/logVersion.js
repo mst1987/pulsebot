@@ -26,7 +26,7 @@ const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
 const { versionLinks, versionLabel } = require("../events/versionSettings");
 const { versionOfLog } = require("../events/storedVersion");
-const { contentsForText, versionsOfContent } = require("../../config/raidContent");
+const { contentsForText, versionsOfContent } = require("../../config/data/raidContent");
 
 const capabilities = require("../events/versionCapabilities");
 

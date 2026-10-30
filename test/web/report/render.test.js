@@ -4,7 +4,7 @@ const {
     renderNotFound,
     renderError,
 } = require("../../../src/web/report/render.js");
-const rpbData = require("../../../src/config/rpbData.js");
+const rpbData = require("../../../src/config/data/rpbData.js");
 
 function sampleReport() {
     return {

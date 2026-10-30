@@ -391,7 +391,7 @@ abgeschaltet – Aufstellung nur aus gespeichertem Stand", and the plan keeps wo
 carries them in `link`: `{ source: "raidhelper", enabled, instanceIds, versionId, size, composition, title,
 guildId, startTime, changedAt, changedBy }` (`raidplanStore.setLink` / `normalizeLink`). The activation dialog
 pre-fills them from the event title — `src/web/raidplan/raidplanTitle.js` `instancesFromTitle(title, versionId)`: the
-softres.it title keywords (`config/softresInstances.js`) **minus the unsafe ones** ("gl", "mag", "aman",
+softres.it title keywords (`config/data/softresInstances.js`) **minus the unsafe ones** ("gl", "mag", "aman",
 "plateau", "serpent", "tempest", "mh"), matched as whole words; the size from "10er" / "25 man" / "(25)", else
 the largest default of the instances; TBC only so far (another version is chosen by hand). The orga corrects
 the chips and the size before activating. `raidplanRosterSource.planEventFor()` builds from `link` the event

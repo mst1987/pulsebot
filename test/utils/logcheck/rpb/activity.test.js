@@ -3,7 +3,7 @@ const {
     sumCastSection,
     hasteSecondsFromBuffs,
 } = require("../../../../src/utils/logcheck/rpb/activity");
-const rpbData = require("../../../../src/config/rpbData");
+const rpbData = require("../../../../src/config/data/rpbData");
 
 const fights = {
     end: 10000,

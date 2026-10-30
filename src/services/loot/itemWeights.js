@@ -23,7 +23,7 @@
 //   5. "weapon"    — any other weapon. Shields, held-in-off-hand items and
 //                    relics carry no damage and are not weapons.
 //   6. "set"       — a tier token ("Helm of the Forgotten Conqueror", matched by
-//                    name with config/tbcContent.js's tokenTier(), English and
+//                    name with config/data/tbcContent.js's tokenTier(), English and
 //                    German) or a piece of an item set (`setName` in the
 //                    generated WoWSims table)
 //   7. "normal"    — everything else, including every item no table knows.
@@ -32,8 +32,8 @@
 // per award with that raider's BiS ids. Everything else about an item is fixed
 // and computed once per id (itemFacts).
 const wowsims = require("../../config/wowsims");
-const { RAID_LOOT, NON_BOSSES, tokenTier } = require("../../config/tbcContent");
-const { itemName: lootTableName } = require("../../config/tbcLootNames");
+const { RAID_LOOT, NON_BOSSES, tokenTier } = require("../../config/data/tbcContent");
+const { itemName: lootTableName } = require("../../config/data/tbcLootNames");
 
 const TRINKET_SLOTS = new Set([12, 13]);
 

@@ -1,5 +1,5 @@
 const { lootCatalog, itemsForContent, suggestedContents } = require("../../../src/web/loot/lootCatalog");
-const { CONTENTS, RAID_LOOT } = require("../../../src/config/tbcContent");
+const { CONTENTS, RAID_LOOT } = require("../../../src/config/data/tbcContent");
 
 /** The bosses of one raid in the order the pick list offers them. */
 function bossSequence(contentId) {

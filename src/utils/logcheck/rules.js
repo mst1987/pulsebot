@@ -22,15 +22,15 @@
 // This module requires config (and logLinks, which requires nothing) only, never an analyzer (common.js and
 // rpb/common.js require it): the tables the analyzers used to keep inside
 // themselves (potions, drums, Bloodlust, the shadow resistance enchants, the
-// RPB zone tags) now live in config/logcheckTables.js.
+// RPB zone tags) now live in config/data/logcheckTables.js.
 const gameVersions = require("../../config/gameVersions");
-const tables = require("../../config/logcheckTables");
-const claData = require("../../config/claData");
-const rpbData = require("../../config/rpbData");
-const raidBuffs = require("../../config/raidBuffs");
-const raidDebuffs = require("../../config/raidDebuffs");
-const totems = require("../../config/totems");
-const healerSpells = require("../../config/healerSpells");
+const tables = require("../../config/data/logcheckTables");
+const claData = require("../../config/data/claData");
+const rpbData = require("../../config/data/rpbData");
+const raidBuffs = require("../../config/data/raidBuffs");
+const raidDebuffs = require("../../config/data/raidDebuffs");
+const totems = require("../../config/data/totems");
+const healerSpells = require("../../config/data/healerSpells");
 const { WCL_LEGACY_SITE } = require("./logLinks");
 
 // The CLA analyzers in the order report.js runs them (its CLA_ANALYZERS carry

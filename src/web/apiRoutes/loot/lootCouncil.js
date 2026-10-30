@@ -30,7 +30,7 @@ const { bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, 
 const { bisLists } = require("../../loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../services/loot/armoryGear");
 const { loadLogGear, clearLogGear, recentLogs } = require("../../../stores/logGearStore");
-const { sourceForItem } = require("../../../config/tbcContent");
+const { sourceForItem } = require("../../../config/data/tbcContent");
 const { startCouncilSim, getJob } = require("../../../stores/simStore");
 const { searchItems } = require("../../../config/wowsims");
 const councilStore = require("../../../stores/councilStore");
@@ -42,7 +42,7 @@ const rosterStore = require("../../../stores/rosterStore");
 const { itemFacts, itemClass } = require("../../../services/loot/itemWeights");
 const { gearFor, charKey } = require("../../../services/loot/charGear");
 const { characterMap } = require("../../../stores/characterStore");
-const { specFor, ROLES } = require("../../../config/councilSpecs");
+const { specFor, ROLES } = require("../../../config/data/councilSpecs");
 const engine = require("../../../utils/wowsims/engine");
 const { getConfig } = require("../../../stores/settingsStore");
 const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
@@ -257,7 +257,7 @@ const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, a
  * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
  *
  * Body: { character, role: "caster" | "healer" | "tank" | "melee" | "ranged" | "" }
- * (the council roles, ROLES in config/councilSpecs.js)
+ * (the council roles, ROLES in config/data/councilSpecs.js)
  *
  * Ein Heiler, der heute Offspec spielt, ist für diesen Abend ein DPS — mit
  * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht

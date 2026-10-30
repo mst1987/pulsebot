@@ -13,7 +13,7 @@ const { mayUseServer } = require("../../http/serverQuery");
 const { listReports, deleteReport, getReport, saveReport } = require("../../../stores/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../../services/logcheck/reportList");
 const { deleteLogKeepingReportGuild, reportGuild } = require("../../../services/logcheck/reportGuild");
-const { contentsForText } = require("../../../config/tbcContent");
+const { contentsForText } = require("../../../config/data/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,

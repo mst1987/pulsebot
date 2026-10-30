@@ -11,7 +11,7 @@
 // setLeadEmoji): the pick replaces the emoji the name starts with and keeps its
 // separator; a name without one gets the emoji and the category's usual separator.
 
-const { raidEmojiSuggestions } = require("../../config/raidEmojis");
+const { raidEmojiSuggestions } = require("../../config/data/raidEmojis");
 const { leadEmojiOf, setLeadEmoji, stripLeadEmoji, emojiStyleOf, emojiKey } = require("../../utils/leadEmoji");
 const { normalizeChannelName } = require("../../utils/channelNames");
 

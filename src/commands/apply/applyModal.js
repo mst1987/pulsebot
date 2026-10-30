@@ -7,7 +7,7 @@ const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { VERSION_FIELD, versionFieldValue } = require("../../utils/recruitment/applyVersion");
 // The application channel + officer role of the server /apply ran on (#924, per server).
 const serverDefaults = require("../../services/discord/serverDefaults");
-const { getClass } = require("../../config/applyClasses");
+const { getClass } = require("../../config/data/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant, applicantSource } = require("../../utils/logcheck/applicant");
 

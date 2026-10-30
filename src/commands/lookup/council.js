@@ -3,7 +3,7 @@
 // reply; the bot answers with what the item is and how often it went out, and
 // the link.
 const { SlashCommandBuilder } = require("discord.js");
-const { RAID_ITEMS } = require("../../config/tbcLootNames");
+const { RAID_ITEMS } = require("../../config/data/tbcLootNames");
 const { itemCatalog } = require("../../services/loot/lootStats");
 const { listAll } = require("../../stores/lootStore");
 const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");

@@ -18,12 +18,12 @@
 // Run it after regenerating RAID_LOOT (new raid, AtlasLoot correction):
 //   node scripts/fetch-tbc-loot.js && node scripts/fetch-tbc-loot-names.js
 // It rewrites src/config/generated/tbcLootNames.json (read by
-// src/config/tbcLootNames.js); ids it cannot resolve keep whatever name the
+// src/config/data/tbcLootNames.js); ids it cannot resolve keep whatever name the
 // file already had, so a Wowhead hiccup never empties the table.
 
 const fs = require("fs");
 const path = require("path");
-const { RAID_LOOT } = require("../src/config/tbcContent");
+const { RAID_LOOT } = require("../src/config/data/tbcContent");
 const { lookupItem } = require("../src/utils/loot/wowhead");
 const { GENERATED_DIR, writeGeneratedJson } = require("./lib/generatedJson");
 

@@ -12,7 +12,7 @@
 const eventStore = require("../../stores/eventStore");
 const settingsStore = require("../../stores/settingsStore");
 const { CONTENT_ICONS } = require("../../services/characters/rosterAttendance");
-const { contentsForText } = require("../../config/raidContent");
+const { contentsForText } = require("../../config/data/raidContent");
 const { mainVersionFor } = require("../../services/events/mainVersion");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

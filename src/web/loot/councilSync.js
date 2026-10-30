@@ -18,7 +18,7 @@
 // tables for the item classes, which are fixed data.)
 const { NEED_WEIGHTS, DROUGHT_DAYS, droughtCounter } = require("./lootCouncil");
 const { itemClass, itemFacts } = require("../../services/loot/itemWeights");
-const { RAID_LOOT } = require("../../config/tbcContent");
+const { RAID_LOOT } = require("../../config/data/tbcContent");
 const councilWeights = require("../../stores/councilWeightsStore");
 const councilProfiles = require("../../services/loot/councilProfiles");
 

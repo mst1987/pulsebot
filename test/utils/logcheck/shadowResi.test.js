@@ -3,7 +3,7 @@
 const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi");
 const { fight, fights } = require("../../factories/wcl");
 
-// 1168 carries 10 base SR, 8367 carries 12 (config/claData.js SHADOW_RESISTANCE).
+// 1168 carries 10 base SR, 8367 carries 12 (config/data/claData.js SHADOW_RESISTANCE).
 const SHAHRAZ = fight({ id: 7, boss: 100607, name: "Mother Shahraz" });
 const withShahraz = { end: 0, fights: [...fights(2).fights, SHAHRAZ] };
 

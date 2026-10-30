@@ -28,7 +28,7 @@ const path = require("path");
 
 const { presetFor, encounter } = require("./presets");
 const { playerFor } = require("./loadout");
-const { aplForSpec, isSimSupported } = require("../../config/councilSpecs");
+const { aplForSpec, isSimSupported } = require("../../config/data/councilSpecs");
 
 const REPO = "wowsims/tbc-new";
 const WOWSIMS_VERSION = "v0.0.97";

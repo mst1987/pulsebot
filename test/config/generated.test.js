@@ -63,13 +63,13 @@ describe("src/config/generated", () => {
 });
 
 describe("golden master: the loaders answer what the old tables answered", () => {
-    const names = require("../../src/config/tbcLootNames");
-    const tbc = require("../../src/config/tbcContent");
-    const cla = require("../../src/config/claData");
-    const rpb = require("../../src/config/rpbData");
-    const bosses = require("../../src/config/bosses");
+    const names = require("../../src/config/data/tbcLootNames");
+    const tbc = require("../../src/config/data/tbcContent");
+    const cla = require("../../src/config/data/claData");
+    const rpb = require("../../src/config/data/rpbData");
+    const bosses = require("../../src/config/data/bosses");
     const wowsims = require("../../src/config/wowsims");
-    const bis = require("../../src/config/bisSets");
+    const bis = require("../../src/config/data/bisSets");
     const ids = Object.keys(golden.itemMeta);
 
     it("tbcLootNames: itemMeta/itemName per sample id, same table", () => {

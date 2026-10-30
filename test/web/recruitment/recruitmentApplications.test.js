@@ -1,7 +1,7 @@
 const {
     NEW_APPLICATION_DAYS, SPEC_ICONS, splitClassSpec, applicationStatus, annotateApplication,
 } = require("../../../src/web/recruitment/recruitmentApplications");
-const { CLASSES } = require("../../../src/config/applyClasses");
+const { CLASSES } = require("../../../src/config/data/applyClasses");
 
 const DAY = 24 * 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 8, 14, 12);

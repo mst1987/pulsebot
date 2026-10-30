@@ -5,7 +5,7 @@
 // This is the RPB counterpart to the CLA analyzers that already live one level up
 // (gearIssues, consumables, drums, ...). The two do not overlap: the CLA covers
 // gear and consumables, the RPB covers performance.
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { ROLES, EXCLUDE_KALECGOS, collectFromSummaries, roleForClass, bossFights, totalFightTime } = require("./common");
 const { analyzeDamage } = require("./damage");
 const { analyzeActivity } = require("./activity");

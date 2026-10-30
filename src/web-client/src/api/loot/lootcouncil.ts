@@ -232,7 +232,7 @@ export type CouncilFocus = {
 };
 
 /**
- * The council's roles (config/councilSpecs.js ROLES). Ranged damage is split by
+ * The council's roles (config/data/councilSpecs.js ROLES). Ranged damage is split by
  * what it scales with: a shadow priest is a "caster", a hunter "ranged".
  */
 export type CouncilRole = "caster" | "healer" | "tank" | "melee" | "ranged";

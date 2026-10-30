@@ -5,7 +5,7 @@
 const axios = require("axios");
 const httpsAgent = require("../httpAgent");
 // Anniversary re-issues Wowhead does not know link and resolve as the original.
-const { wowheadItemId } = require("../../config/wowheadItemAliases");
+const { wowheadItemId } = require("../../config/data/wowheadItemAliases");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons/large";
 
@@ -135,7 +135,7 @@ function xmlId(xml, tag) {
  * Wowhead's item class and subclass (ids plus Wowhead's text in that locale,
  * "Consumable" / "Flask") — what the guild bank stock shows and groups by
  * (services/guildbank/itemMeta.js; the German group labels come from the ids,
- * config/itemClassLabels.js).
+ * config/data/itemClassLabels.js).
  *
  * Asks Wowhead's item XML first, the one answer that carries the class; when
  * that fails, the tooltip endpoint (name, icon, quality, no class). Not cached

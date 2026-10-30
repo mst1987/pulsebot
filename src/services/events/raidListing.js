@@ -4,7 +4,7 @@
 // content(s) it is (for the boss icon), the raid size the signup bar is measured
 // against, and for a past raid its logs and loot as counts plus the few names a
 // tooltip shows. Derived on every read, never stored.
-const { contentsForText } = require("../../config/raidContent");
+const { contentsForText } = require("../../config/data/raidContent");
 const { instanceById, VERSIONS } = require("../../config/gameVersions");
 const { listStoredEvents, cancelFields } = require("./eventSources");
 const { scanRaidEvents } = require("./raidEventScan");

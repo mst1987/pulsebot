@@ -37,7 +37,7 @@ export function slotLabel(slot: number, fallback = ""): string {
 }
 
 /**
- * A loot content (src/config/tbcContent.js) by its id: in German the server's
+ * A loot content (src/config/data/tbcContent.js) by its id: in German the server's
  * own label stays ("Festung der Stürme — Das Auge", which is longer than the
  * instance name), in English the instance's name ("Tempest Keep").
  */

@@ -47,7 +47,7 @@ export type LootLog = {
 // derived from the addon's free-text `response` (see utils/lootReasons.js) — the
 // tone picks the badge colour, the raw response stays visible on hover.
 // `contentId` is the raid the item drops in, resolved by item id
-// (config/tbcContent.js) and therefore also present for Gargul rows, which carry
+// (config/data/tbcContent.js) and therefore also present for Gargul rows, which carry
 // no instance at all.
 export type LootItem = {
     /** Id of the stored row — the handle deleteLootItems() removes it by. */
@@ -83,7 +83,7 @@ export type LootItem = {
 };
 
 // A loot character with its resolved WoW class/spec (or blank if unresolved
-// yet). classColor/iconUrl are computed server-side from config/classlist.js
+// yet). classColor/iconUrl are computed server-side from config/data/classlist.js
 // — never duplicated client-side, same rule as lib/discord/recruitmentSpecs.ts's
 // specCatalog. categoryIds are the Discord raid categories (e.g. "Montagsraid",
 // "Pug") the character got loot in — names are resolved client-side against

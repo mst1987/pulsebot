@@ -3,7 +3,7 @@
 // Ported from the RPB Apps Script (scripts/data-sources/rpb/appsscript/). The original is one
 // 4.6k-line function that writes straight into a spreadsheet; here the analysis is
 // split per topic and returns plain data.
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { logcheckRules } = require("../rules");
 
 const { EXCLUDED_ENCOUNTER_ID, HASTE_RATING_PER_PERCENT } = rpbData;
