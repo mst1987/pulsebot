@@ -3,7 +3,7 @@
 // and nothing without the field - a raider's answer never carries it.
 import { screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import type { EventSignupEntry, RaidDetailData } from "../../api";
+import type { AttendancePerson, EventSignupEntry, RaidDetailData } from "../../api";
 import { t } from "../../i18n";
 import { renderPage } from "../../test/render";
 import type { RaidCtx } from "./meta";
@@ -21,7 +21,7 @@ const SIGNUPS: EventSignupEntry[] = [
     entry({ userId: "u2", name: "war_dc", character: "Zibbowar", role: "tank", specLabel: "Protection" }),
 ];
 
-function show(vermerke?: RaidDetailData["vermerke"]) {
+function show(vermerke?: RaidDetailData["vermerke"], missing: AttendancePerson[] = [], orga = false) {
     const data = {
         event: { id: "eh-kara", title: "Karazhan", channelId: "c1", channelName: "kara", signupsKnown: true, isPast: false, status: "active" },
         categoryName: "T4",
@@ -29,12 +29,12 @@ function show(vermerke?: RaidDetailData["vermerke"]) {
         membersError: null,
         setup: null,
         setupError: null,
-        attendance: { responded: [], missing: [] },
+        attendance: { responded: [], missing },
         ownSignups: SIGNUPS,
         roleTargets: null,
         vermerke,
     } as unknown as RaidDetailData;
-    const ctx: RaidCtx = { data, eventId: "eh-kara", onChanged: vi.fn(), openModal: vi.fn(), openPlayer: vi.fn() };
+    const ctx: RaidCtx = { data, eventId: "eh-kara", onChanged: vi.fn(), openModal: vi.fn(), openPlayer: vi.fn(), orga };
     renderPage(<RosterTab ctx={ctx} />);
 }
 
@@ -51,5 +51,16 @@ describe("Raid detail roster with notes (#981)", () => {
         show();
         expect(screen.getByText("Zibbo")).toBeInTheDocument();
         expect(document.querySelector(".vm-mark")).toBeNull();
+    });
+
+    it("marks a person chip in \"no reaction\" too, a plain symbol inside the chip button", () => {
+        const silent: AttendancePerson = { id: "u9", displayName: "quiet_dc", character: "Quietus", profile: null };
+        show({ u9: { level: "warning", reasons: { late_signoff: 2 } } }, [silent], true);
+        const chip = screen.getByRole("button", { name: /Quietus/ });
+        expect(chip).toHaveClass("rd-chip");
+        const mark = chip.querySelector(".vm-mark");
+        expect(mark).not.toBeNull();
+        expect(mark?.closest("a")).toBeNull();
+        expect(chip.querySelector("a")).toBeNull();
     });
 });

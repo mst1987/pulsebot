@@ -20,7 +20,7 @@ function useCanOpenVermerke(): boolean {
     return canAccess(ctx?.user ?? null, "vermerke", "read");
 }
 
-export default function VermerkMark({ short, userId, link = true, canOpen, size = 14 }: {
+export default function VermerkMark({ short, userId, link = true, canOpen, size = 14, className }: {
     short?: VermerkShort | null;
     userId: string;
     /** false inside a row that is a button itself: the symbol and its tooltip only */
@@ -28,6 +28,8 @@ export default function VermerkMark({ short, userId, link = true, canOpen, size 
     /** the caller knows the user's access (outside the shell's outlet); else read from the shell */
     canOpen?: boolean;
     size?: number;
+    /** the module's own class for its spacing (module stylesheets never style .vm-mark) */
+    className?: string;
 }) {
     const t = useT();
     const shellCanOpen = useCanOpenVermerke();
@@ -37,9 +39,10 @@ export default function VermerkMark({ short, userId, link = true, canOpen, size 
     const summary = reasons ? `${word} · ${reasons}` : word;
     const mark = <LevelMark level={short.level} iconOnly size={size} tipSub={reasons || undefined} label={t("vermerke.mark.aria", { summary })} />;
     const mayOpen = canOpen ?? shellCanOpen;
-    if (!link || !mayOpen || !userId) return <span className="vm-mark">{mark}</span>;
+    const cls = className ? `vm-mark ${className}` : "vm-mark";
+    if (!link || !mayOpen || !userId) return <span className={cls}>{mark}</span>;
     return (
-        <Link className="vm-mark vm-mark-link" to={vermerkeHref(userId)} aria-label={t("vermerke.mark.openAria", { summary })}>
+        <Link className={`${cls} vm-mark-link`} to={vermerkeHref(userId)} aria-label={t("vermerke.mark.openAria", { summary })}>
             {mark}
         </Link>
     );

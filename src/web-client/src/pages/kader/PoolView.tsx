@@ -77,7 +77,7 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
                     {/* the note's mark (#981) beside the name - only in an answer past maySeeShort */}
                     <span className="kp-nameline">
                         <PlayerPeek userId={userId} entry={entry} />
-                        <VermerkMark short={view.vermerke?.[userId]} userId={userId} />
+                        <VermerkMark short={view.vermerke?.[userId]} userId={userId} className="kp-vmark" />
                     </span>
                     {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
                 </span>

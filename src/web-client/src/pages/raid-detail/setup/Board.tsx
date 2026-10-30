@@ -162,7 +162,7 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                     the link to the notes is in the drawer (SlotTip) */}
                 <span className="se-nameline">
                     <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
-                    <VermerkMark short={ui.vermerke?.[p.userId]} userId={p.userId} link={false} size={13} />
+                    <VermerkMark short={ui.vermerke?.[p.userId]} userId={p.userId} link={false} size={13} className="se-vmark" />
                 </span>
                 <span className="se-sub">
                     {/* their order number (#293), first: which of their characters this is */}

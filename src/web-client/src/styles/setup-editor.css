@@ -211,7 +211,7 @@
 /* the name and its note mark (#981): the name gives way, the mark stays */
 .se-nameline { display: flex; align-items: center; min-width: 0; }
 .se-nameline .se-name { min-width: 0; }
-.se-nameline .vm-mark { margin-left: 5px; }
+.se-nameline .se-vmark { margin-left: 5px; }
 .se-sub { font-size: var(--fs-label); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-offrole { color: var(--medium); font-weight: 700; }
 /* a fixed place: a small lock in the corner, only a sign — the raider panel's button changes it; it takes no width from the name */
