@@ -28,6 +28,7 @@
         "setup:wowsimcli": "node scripts/fetch-wowsimcli.js",
         "dev:seed": "node scripts/seed-test-raid.js",
         "check:main": "node scripts/check-main-clean.js",
+        "move": "node scripts/move-files.js",
         "backup:snapshot": "node scripts/backup/snapshot.js",
         "backup:list": "node scripts/backup/list.js",
         "backup:restore": "node scripts/backup/restore.js",

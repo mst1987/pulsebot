@@ -20,6 +20,8 @@ Eine Route-Suite fährt ihre Anfragen durch den echten Router (`routerClient` au
 
 **Jedes Backend-Modul wird von mindestens einem Test geladen.** `test/docs/testMirror.test.js` liest alle Dateien unter `test/` und sucht für jedes `src/**/*.js` (ohne `src/web-client/` und `src/bot.js`) ein `require(...)` oder `jest.requireActual(...)` mit festem relativem Pfad; ein `jest.mock(...)`-Pfad zählt nicht. Ausnahmen stehen dort in `ALLOWED`, jede mit Grund: reine Datentabellen (`config/profanity.js`, `config/softresInstances.js`, …), die ein Test des lesenden Moduls schon abdeckt, und Dateien, die ein Test über einen berechneten Pfad lädt (`web/static/report.js`). Ein Eintrag, der nicht mehr nötig ist, lässt den Test ebenfalls scheitern. Ein neues Modul bekommt also seinen Test gleich mit, sonst ist die Suite rot.
 
+**Höchstens 25 Module je Ordner (#1006).** `test/docs/folderSize.test.js` zählt die Code-Dateien ohne Tests je Ordner unter `src/`, `test/` und `scripts/`; wird ein Ordner voller, bekommt er Unterordner nach Thema. Verschieben mit `npm run move -- <mapping.json> [--mirror-tests] [--dry]` (`scripts/move-files.js`): das Skript zieht relative Importe, `jest.mock`/`vi.mock`, Markdown-Links, volle Repo-Pfade und eindeutige Pfad-Enden mit, `--mirror-tests` verschiebt die Tests der Backend-Module gleich mit. Ordner, die beim Einführen schon zu voll waren, stehen mit ihrem Issue in `ALLOWED` (Epic #1005) und fallen dort heraus, sobald sie geteilt sind.
+
 Die Generator-Skripte unter `scripts/` exportieren ihre Parse-Funktionen und starten `main()` nur bei `require.main === module`; getestet werden sie unter `test/scripts/` mit kleinen Fixtures (`test/fixtures/scripts/`).
 
 ## Was jede Suite automatisch bekommt (`test/setup/`)
