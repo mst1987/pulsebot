@@ -32,13 +32,13 @@ jest.mock("../../../../src/services/discord/discordImage", () => {
 });
 jest.mock("../../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
 jest.mock("../../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const raiderProfileStore = require("../../../../src/stores/raiderProfileStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const raiderProfileStore = require("../../../../src/stores/roster/raiderProfileStore");
 const discord = require("../../../../src/services/discord/discord");
 const discordImage = require("../../../../src/services/discord/discordImage");
 const routeModule = require("../../../../src/web/apiRoutes/roster/rosterImage");

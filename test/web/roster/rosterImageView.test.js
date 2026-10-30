@@ -9,12 +9,12 @@ jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "cat1", name: "Raid Mo / Do" }]),
 }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 
-const rosterStore = require("../../../src/stores/rosterStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const characterStore = require("../../../src/stores/characterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { modelFromDetail, rosterImageModel, rosterPicture } = require("../../../src/web/roster/rosterImageView");
 
