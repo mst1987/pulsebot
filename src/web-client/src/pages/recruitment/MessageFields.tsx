@@ -28,12 +28,16 @@ function applyFormat(el: HTMLTextAreaElement | null, value: string, kind: "bold"
     return { next, start: start + mark.length, end: end + mark.length };
 }
 
-export function MessageFields({ data, content, setContent, buttonLabel, setButtonLabel, children }: {
+export function MessageFields({ data, content, setContent, buttonLabel, setButtonLabel, buttonKind = "apply", forumTitle, children }: {
     data: RecruitmentData;
     content: string;
     setContent: (v: string) => void;
     buttonLabel: string;
     setButtonLabel: (v: string) => void;
+    /** "link": the label is the link button's (a post with an invite instead of the apply button). */
+    buttonKind?: "apply" | "link";
+    /** A forum post's title, for the preview. */
+    forumTitle?: string;
     /** Fields above the specs (the template's name). */
     children?: ReactNode;
 }) {
@@ -80,9 +84,11 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
                     />
                 </div>
                 <div className="field is-last">
-                    <TipLabel label={t("recruitment.fields.button")} htmlFor="rc-button" tip={t("recruitment.fields.button")} tipSub={t("recruitment.fields.buttonSub")} />
+                    {buttonKind === "link"
+                        ? <TipLabel label={t("recruitment.postDialog.linkLabel")} htmlFor="rc-button" tip={t("recruitment.postDialog.linkLabel")} tipSub={t("recruitment.postDialog.linkLabelSub")} />
+                        : <TipLabel label={t("recruitment.fields.button")} htmlFor="rc-button" tip={t("recruitment.fields.button")} tipSub={t("recruitment.fields.buttonSub")} />}
                     {/* The placeholder is the bot's default label (German in the posted message), not UI text. */}
-                    <input id="rc-button" type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder="Jetzt bewerben" />
+                    <input id="rc-button" type="text" maxLength={80} value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder={buttonKind === "link" ? (data.defaultLinkLabel || "Server beitreten") : "Jetzt bewerben"} />
                 </div>
             </div>
             <div className="rc-preview">
@@ -90,7 +96,7 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
                     {t("recruitment.fields.preview")}
                     <Badge tone="ok" tip={t("recruitment.fields.liveTip")} tipSub={t("recruitment.fields.liveSub")}>{t("recruitment.fields.live")}</Badge>
                 </div>
-                <DiscordPreview content={content} buttonLabel={buttonLabel} emojis={data.emojis} channels={data.channels} />
+                <DiscordPreview content={content} buttonLabel={buttonLabel} buttonKind={buttonKind} forumTitle={forumTitle} emojis={data.emojis} channels={data.channels} />
             </div>
         </div>
     );
