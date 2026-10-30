@@ -13,6 +13,13 @@ const { SPEC_CATALOG } = require("../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../config/gameVersions");
 const { cleanInviteUrl } = require("../../utils/recruitment/inviteLink");
+const { serverLang } = require("../../services/discord/botLanguage");
+const { tr } = require("../../utils/i18n/botText");
+
+/** At most `max` characters, counted in code points: an emoji is never cut in half. */
+function cut(text, max) {
+    return Array.from(text).slice(0, max).join("");
+}
 const { mainVersionFor, visibleRows, visibleVersions, resolveVersionQuery } = require("../../services/events/mainVersion");
 
 /**
@@ -37,7 +44,7 @@ function inviteServersFor(user, req) {
  */
 function buttonOf(body, fallback = {}) {
     const kind = body.buttonKind === "link" || body.buttonKind === "apply" ? body.buttonKind : (fallback.buttonKind || "apply");
-    const label = String(body.buttonLabel !== undefined ? body.buttonLabel : (fallback.buttonLabel || "")).trim().slice(0, 80);
+    const label = cut(String(body.buttonLabel !== undefined ? body.buttonLabel : (fallback.buttonLabel || "")).trim(), 80);
     if (kind === "apply") return { buttonKind: "apply", linkUrl: "", buttonLabel: label };
     const linkUrl = cleanInviteUrl(body.linkUrl !== undefined ? body.linkUrl : fallback.linkUrl);
     if (!linkUrl) return { error: "Nur Discord-Einladungen (discord.gg/…, discord.com/invite/…) oder Discord-Kanal-Links sind erlaubt." };
@@ -45,7 +52,10 @@ function buttonOf(body, fallback = {}) {
 }
 
 const FORUM_TITLE_MAX = 100;
-const titleOf = (value) => String(value || "").trim().slice(0, FORUM_TITLE_MAX);
+const titleOf = (value) => cut(String(value || "").trim(), FORUM_TITLE_MAX);
+
+/** The default label of a new link button: "Server beitreten" / "Join server" in the language of the server it goes on. */
+const defaultLinkLabel = (guildId) => tr(serverLang(getConfig(), guildId), "Join server");
 
 /**
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
@@ -88,6 +98,8 @@ const getRecruitmentData = withUser({}, async ({ user, req, res, url }) => {
         // Servers the bot may make an invite on for a link button: only those the caller may act on (#925) -
         // for any other server (a partner guild's) the link is pasted by hand.
         inviteServers: inviteServersFor(user, req),
+        // the label a new link button gets when none is typed: in the language of the active server (posts go there)
+        defaultLinkLabel: defaultLinkLabel(guildId),
         emojis: discord.listEmojis(guildId),
         specCatalog: SPEC_CATALOG,
         applications: ofPage(visibleRows(applications, (a) => a.versionId || "tbc")),
@@ -122,6 +134,8 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ us
     if (!mayUseChannel(user, req, channelId)) return error(res, 403, "other_server", OTHER_SERVER);
     const button = buttonOf(body, template);
     if (button.error) return error(res, 400, "invalid_link", button.error);
+    // a new link button without a typed label gets the default in the server's language; a typed one stays as it is
+    if (button.buttonKind === "link" && !button.buttonLabel) button.buttonLabel = defaultLinkLabel(guildOfChannel(channelId) || activeGuildFor(req));
     const forumTitle = titleOf(body.forumTitle);
     const message = { ...template, ...button, forumTitle };
     try {
@@ -157,7 +171,7 @@ const postRecruitmentTemplate = withUser({ csrf: true, body: true }, async ({ us
 });
 
 /**
- * POST /api/recruitment/invite — a permanent invite for a link button. Body: { guildId, channelId }.
+ * POST /api/recruitment/invite — a permanent invite for a link button. Body: { guildId, channelId, fresh? }.
  * Only on a server the caller may act on (#925: a full admin every server, everybody else the active one) and only into a
  * channel of that server; a partner guild's link is pasted by hand instead.
  */
@@ -168,7 +182,9 @@ const createRecruitmentInviteHandler = withUser({ csrf: true, body: true }, asyn
     if (!mayUseServer(user, req, guildId)) return error(res, 403, "other_server", OTHER_SERVER);
     if (guildOfChannel(channelId) !== guildId) return error(res, 400, "wrong_guild", "Der Kanal liegt nicht auf diesem Server.");
     try {
-        const invite = await discord.createRecruitmentInvite(channelId, `Recruitment-Link (${user.username || user.id || "Web"})`);
+        // the bot's permanent invite there is reused; `fresh` ("Neu erzeugen") makes a new one
+        const invite = await discord.createRecruitmentInvite(channelId, `Recruitment-Link (${user.username || user.id || "Web"})`,
+            { fresh: body.fresh === true });
         ok(res, invite, 201);
     } catch (e) {
         if (e && e.code === "invite_permission") return error(res, 400, "invite_permission", e.message);
@@ -187,7 +203,9 @@ function ownPost(id, user, req) {
 
 /**
  * POST /api/recruitment/post-update — edit an already-posted message. Body: { id, content, buttonLabel, linkUrl?, forumTitle? }.
- * The kind of button stays (an apply post stays one); a link post may get a new link, a forum post a new title.
+ * The kind of button stays (an apply post stays one); a link post may get a new link, a forum post a new title. A title
+ * Discord refuses for now (2 renames per 10 minutes) does not fail the edit: the answer carries `notice:
+ * "title_rate_limited"` (or "title_failed") and the stored title stays the old one.
  */
 const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const post = ownPost(String(body.id || "").trim(), user, req);
@@ -198,10 +216,13 @@ const updateRecruitmentPost = withUser({ csrf: true, body: true }, async ({ user
     // The button keeps the version of the post (#553) — an edit changes the text, not whose applications it collects.
     const template = { content: body.content || "", title: "", body: "", ...button, versionId: post.versionId, forumTitle };
     try {
-        await discord.editRecruitment(post.channelId, post.messageId, template);
-        const saved = saveRecruitmentPost({ id: post.id, ...template });
-        ok(res, saved);
+        const edited = await discord.editRecruitment(post.channelId, post.messageId, template);
+        // the text is saved even when Discord refused the new title for now: the post keeps its old title, `notice` says so
+        const notice = (edited && edited.notice) || "";
+        const saved = saveRecruitmentPost({ id: post.id, ...template, ...(notice ? { forumTitle: post.forumTitle || "" } : {}) });
+        ok(res, { ...saved, notice });
     } catch (e) {
+        if (e && e.code === "thread_locked") return error(res, 400, "thread_locked", e.message);
         error(res, 400, "update_failed", e.message || "Aktualisieren fehlgeschlagen.");
     }
 });

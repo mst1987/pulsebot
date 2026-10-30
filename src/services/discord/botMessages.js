@@ -52,6 +52,8 @@ function entry(kind, raw, extra = {}) {
         messageId: str(raw.messageId),
         // a raid overview of every raid category of the server (`/createoverview scope:server`), shown as "All categories"
         ...(raw.scope === "server" ? { scope: "server" } : {}),
+        // a forum post (recruitment): channelId is its thread, this its forum
+        ...(str(raw.parentChannelId) ? { parentChannelId: str(raw.parentChannelId) } : {}),
     };
 }
 
@@ -101,10 +103,32 @@ function statusOfError(e) {
  * message cache or one fetch. A standing message is reported to linkCheck so
  * its link works again everywhere.
  */
+/**
+ * The thread of a forum post that is not in the cache (Discord archives quiet posts and the cache drops them): the forum
+ * decides. Forum gone = "channel_missing"; forum there = the thread fetched once; anything else `{ status: "unknown" }`.
+ */
+async function forumThreadOf(m, guild) {
+    const forum = guild && guild.channels && guild.channels.cache ? guild.channels.cache.get(m.parentChannelId) : null;
+    if (!forum) return { status: linkCheck.channelState(m.guildId, m.parentChannelId) === "missing" ? "channel_missing" : "unknown" };
+    const client = discord.getClient();
+    if (!client || !client.channels || typeof client.channels.fetch !== "function") return { status: "unknown" };
+    try {
+        const thread = await client.channels.fetch(m.channelId);
+        return thread ? { thread } : { status: "channel_missing" };
+    } catch (e) {
+        return { status: statusOfError(e) };
+    }
+}
+
 async function statusOf(m, online) {
     if (!online) return "unknown";
     const guild = discord.getGuild(m.guildId);
-    const channel = guild && guild.channels && guild.channels.cache ? guild.channels.cache.get(m.channelId) : null;
+    let channel = guild && guild.channels && guild.channels.cache ? guild.channels.cache.get(m.channelId) : null;
+    if (!channel && m.parentChannelId) {
+        const found = await forumThreadOf(m, guild);
+        if (!found.thread) return found.status;
+        channel = found.thread;
+    }
     if (!channel) return linkCheck.channelState(m.guildId, m.channelId) === "missing" ? "channel_missing" : "unknown";
     const me = guild.members ? guild.members.me : null;
     if (!me || typeof channel.permissionsFor !== "function") return "unknown";

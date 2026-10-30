@@ -48,6 +48,8 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
         [data.targets, data.channels],
     );
     const servers = data.inviteServers ?? [];
+    // The invite starts on the server an existing recruitment post is on, else the active one.
+    const preferredGuildId = data.posts.find((p) => p.guildId)?.guildId || data.activeGuildId;
     const byCategory = useMemo(() => {
         const groups = new Map<string, RecruitmentTarget[]>();
         for (const c of targets) {
@@ -69,7 +71,7 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
         // A forum post has no apply flow of its own: it points to a server, so the link is the default.
         if (next?.kind === "forum") {
             p.buttonKind = "link";
-            if (!draft.forumTitle.trim()) p.forumTitle = (template?.name || "").slice(0, FORUM_TITLE_MAX);
+            if (!draft.forumTitle.trim()) p.forumTitle = Array.from(template?.name || "").slice(0, FORUM_TITLE_MAX).join("");
         }
         patch(p);
     };
@@ -88,6 +90,9 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
                 ...(kind === "link" ? { buttonKind: "link" as const, linkUrl: link, buttonLabel: draft.linkLabel.trim() } : {}),
                 ...(isForum ? { forumTitle: title } : {}),
             });
+            // The next post starts fresh: no title, link or label left over; template and channel stay, and so does the
+            // button kind a forum starts with (the link).
+            patch({ ...EMPTY_LINK, buttonKind: isForum ? "link" : "apply", forumTitle: "" });
             onPosted(t("recruitment.postDialog.posted"));
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -140,7 +145,7 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
                             <TipLabel
                                 label={t("recruitment.postDialog.forumTitle")} htmlFor="rc-forum-title"
                                 tip={t("recruitment.postDialog.forumTitle")} tipSub={t("recruitment.postDialog.forumTitleSub")}
-                                extra={<span className="rc-kind">{t("recruitment.postDialog.titleCount", { count: draft.forumTitle.length, max: FORUM_TITLE_MAX })}</span>}
+                                extra={<span className="rc-kind">{t("recruitment.postDialog.titleCount", { count: Array.from(draft.forumTitle).length, max: FORUM_TITLE_MAX })}</span>}
                             />
                             <input
                                 id="rc-forum-title" type="text" maxLength={FORUM_TITLE_MAX} value={draft.forumTitle} required aria-invalid={!title}
@@ -160,7 +165,12 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
                                 ]}
                             />
                         </div>
-                        {kind === "link" && <LinkButtonFields servers={servers} draft={draft} patch={patch} />}
+                        {kind === "link" && (
+                            <LinkButtonFields
+                                servers={servers} draft={draft} patch={patch}
+                                preferredGuildId={preferredGuildId} defaultLabel={data.defaultLinkLabel}
+                            />
+                        )}
                     </div>
                     {template && (
                         <div className="rc-postdlg-meta">
@@ -175,7 +185,7 @@ export function PostDialog({ data, presetTemplateId, onPosted, onClose }: {
                         <DiscordPreview
                             content={template.content}
                             buttonKind={kind}
-                            buttonLabel={kind === "link" ? draft.linkLabel : template.buttonLabel}
+                            buttonLabel={kind === "link" ? (draft.linkLabel.trim() || data.defaultLinkLabel || "") : template.buttonLabel}
                             forumTitle={isForum ? draft.forumTitle : undefined}
                             emojis={data.emojis} channels={data.channels}
                         />

@@ -625,14 +625,22 @@ function listRecruitmentTargets(guildId) {
 
 /**
  * Channels of a guild an invite may lead into (text and announcement channels), with whether the bot may create one
- * there (`canInvite`) — a missing right shows in the dialog instead of failing on the click.
+ * there (`canInvite`) — a missing right shows in the dialog instead of failing on the click. Only channels @everyone may
+ * see: a newcomer lands there, an invite into a hidden channel shows them nothing.
  */
 function listInviteChannels(guildId) {
     const guild = getGuild(guildId);
     if (!guild) return [];
     const me = guild.members.me;
+    const everyone = guild.roles && guild.roles.everyone;
+    const publicView = (c) => {
+        if (!everyone || typeof c.permissionsFor !== "function") return true;
+        const perms = c.permissionsFor(everyone);
+        return !!perms && perms.has(PermissionsBitField.Flags.ViewChannel);
+    };
     return [...guild.channels.cache.values()]
         .filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))
+        .filter(publicView)
         .sort((a, b) => (a.rawPosition || 0) - (b.rawPosition || 0))
         .map((c) => ({
             id: c.id, name: c.name, category: c.parent ? c.parent.name : "",
@@ -753,6 +761,21 @@ async function duplicateChannel(channelId, newName) {
     return { id: cloned.id, name: cloned.name };
 }
 
+// The hidden mark of a recruitment card: the container's component id (Components V2 lets every component carry an
+// integer id, which Discord never shows). A link button alone says nothing - other bot messages have link buttons too
+// (PuG invites, raid plans) - so "Server durchsuchen" knows a link post only by this mark.
+const RECRUITMENT_MARK = 7291;
+
+/** Put the hidden recruitment mark on a card payload (its container). */
+function markRecruitment(payload) {
+    if (payload.components && payload.components[0]) payload.components[0].id = RECRUITMENT_MARK;
+    return payload;
+}
+
+/** Whether a message carries the recruitment mark (discord.js component or API JSON). */
+const hasRecruitmentMark = (msg) => (msg.components || [])
+    .some((c) => c && (c.id === RECRUITMENT_MARK || (c.data && c.data.id === RECRUITMENT_MARK)));
+
 /**
  * A recruitment message from a template: one card (utils/discord/card.js) with the template's text (emojis and all) and the
  * apply button inside it. Editing an older text or embed post turns it into the card (`content: ""`, `embeds: []`).
@@ -764,18 +787,19 @@ function buildRecruitmentMessage(template) {
             .setURL(template.linkUrl)
             .setLabel(template.buttonLabel || "Server beitreten")
             .setStyle(ButtonStyle.Link);
-        return card({ text: template.content || "", buttons: [link] });
+        return markRecruitment(card({ text: template.content || "", buttons: [link] }));
     }
     const apply = new ButtonBuilder()
         .setCustomId(applyButtonId(template.versionId))
         .setLabel(template.buttonLabel || "Jetzt bewerben")
         .setStyle(ButtonStyle.Success);
-    return card({ text: template.content || "", buttons: [apply] });
+    return markRecruitment(card({ text: template.content || "", buttons: [apply] }));
 }
 
 // A forum post's title: Discord takes at most 100 characters.
 const FORUM_TITLE_MAX = 100;
-const forumTitleOf = (value) => String(value || "").trim().slice(0, FORUM_TITLE_MAX);
+// cut by code points, never inside an emoji's surrogate pair
+const forumTitleOf = (value) => Array.from(String(value || "").trim()).slice(0, FORUM_TITLE_MAX).join("");
 
 /**
  * Post a recruitment template to a channel. Returns { guildId, channelId, messageId, url, parentChannelId }.
@@ -796,29 +820,120 @@ async function postRecruitment(channelId, template) {
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url, parentChannelId: "" };
 }
 
+// Renaming a thread is limited to 2 per 10 minutes; on the 429 discord.js would wait silently for minutes. A rename of a
+// recruitment post fails fast instead: while its channel id is in this set, the REST manager rejects its rate limit.
+const renamingChannels = new Set();
+const guardedRests = new WeakSet();
+const RENAME_TIMEOUT_MS = 10000;
+// Discord's codes for an edit in an archived (50083) or locked (160005) thread
+const THREAD_CLOSED_CODES = [50083, 160005];
+
+/** Hook the scoped "reject this rate limit" check into the client's REST manager, keeping any option set before. */
+function guardRenameRateLimit(c) {
+    const rest = c && c.rest;
+    if (!rest || !rest.options || guardedRests.has(rest)) return;
+    guardedRests.add(rest);
+    const previous = rest.options.rejectOnRateLimit;
+    rest.options.rejectOnRateLimit = async (data) => {
+        const url = String((data && data.url) || "").split("?")[0];
+        if ([...renamingChannels].some((id) => url.endsWith(`/channels/${id}`))) return true;
+        if (typeof previous === "function") return previous(data);
+        return Array.isArray(previous) && previous.some((route) => String((data && data.route) || "").startsWith(route.toLowerCase()));
+    };
+}
+
+const isRateLimitError = (e) => !!e && (String(e.name || "").startsWith("RateLimitError") || e.code === "rename_timeout");
+
 /**
- * Edit an already-posted recruitment message in place. A forum post is woken up first (Discord archives quiet posts and
- * refuses edits there) and renamed when `template.forumTitle` differs from its title.
+ * Rename a recruitment thread without hanging: a rate limit or no answer within RENAME_TIMEOUT_MS gives
+ * "title_rate_limited", any other failure "title_failed"; "" when the title is set.
+ */
+async function renameThread(channel, name) {
+    guardRenameRateLimit(client);
+    renamingChannels.add(channel.id);
+    let timer = null;
+    const renaming = channel.setName(name, "Recruitment-Beitrag bearbeitet");
+    renaming.catch(() => {});
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error("rename timeout"), { code: "rename_timeout" })), RENAME_TIMEOUT_MS);
+    });
+    try {
+        await Promise.race([renaming, timeout]);
+        return "";
+    } catch (e) {
+        if (isRateLimitError(e)) return "title_rate_limited";
+        logger.warn(`Recruitment: Titel von ${channel.id} nicht geändert: ${e && e.message}`);
+        return "title_failed";
+    } finally {
+        clearTimeout(timer);
+        renamingChannels.delete(channel.id);
+    }
+}
+
+/** Whether the bot may reopen a locked thread (Threads verwalten). Unknown rights count as allowed - Discord decides. */
+function mayManageThread(channel) {
+    const me = channel.guild && channel.guild.members && channel.guild.members.me;
+    const perms = me && typeof channel.permissionsFor === "function" ? channel.permissionsFor(me) : null;
+    return !perms || perms.has(PermissionsBitField.Flags.ManageThreads);
+}
+
+/** Edit the message; an archived thread is reopened once and the edit tried again, a locked one needs Threads verwalten. */
+async function editInThread(channel, message, payload) {
+    try {
+        await message.edit(payload);
+        return;
+    } catch (e) {
+        const isThread = typeof channel.isThread === "function" && channel.isThread();
+        if (!isThread || !THREAD_CLOSED_CODES.includes(e && e.code)) throw e;
+    }
+    if (channel.locked && !mayManageThread(channel)) {
+        throw Object.assign(new Error("Der Forum-Beitrag ist gesperrt. Gib dem Bot dort das Recht „Threads verwalten“ oder entsperre den Beitrag in Discord."),
+            { code: "thread_locked" });
+    }
+    if (channel.archived) await channel.setArchived(false, "Recruitment-Beitrag bearbeitet");
+    await message.edit(payload);
+}
+
+/**
+ * Edit an already-posted recruitment message in place. The text comes first: a quiet forum post (archived by Discord) is
+ * reopened for it. Then a forum post is renamed when `template.forumTitle` differs from its title - that may be refused for
+ * a while (2 renames per 10 minutes), which does not undo the text: `notice` then says "title_rate_limited" (or
+ * "title_failed"), "" when everything went through.
  */
 async function editRecruitment(channelId, messageId, template) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
-    if (typeof channel.isThread === "function" && channel.isThread()) {
-        if (channel.archived) await channel.setArchived(false, "Recruitment-Beitrag bearbeitet");
-        const name = forumTitleOf(template.forumTitle);
-        if (name && name !== channel.name) await channel.setName(name, "Recruitment-Beitrag bearbeitet");
-    }
     const message = await channel.messages.fetch(messageId);
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
-    await message.edit(buildRecruitmentMessage(template));
-    return { channelId, messageId, url: message.url };
+    await editInThread(channel, message, buildRecruitmentMessage(template));
+    let notice = "";
+    if (typeof channel.isThread === "function" && channel.isThread()) {
+        const name = forumTitleOf(template.forumTitle);
+        if (name && name !== channel.name) notice = await renameThread(channel, name);
+    }
+    return { channelId, messageId, url: message.url, notice };
 }
 
 /**
- * A permanent invite into `channelId` for a recruitment link button: never expires, no use limit, its own code (the
- * pattern of pugInvites.ensureInvite). Throws code "invite_permission" when the bot lacks "Einladung erstellen" there.
+ * A permanent invite the bot made earlier into this channel (never expires, no use limit), or null. Listing the invites
+ * needs "Kanäle verwalten"; without it nothing is reused.
  */
-async function createRecruitmentInvite(channelId, reason = "Recruitment-Link") {
+async function ownPermanentInvite(channel) {
+    if (typeof channel.fetchInvites !== "function") return null;
+    const invites = await channel.fetchInvites().catch(() => null);
+    if (!invites) return null;
+    const botId = client && client.user ? client.user.id : "";
+    return [...invites.values()].find((i) => !i.maxAge && !i.maxUses && !i.temporary
+        && botId && (i.inviterId || (i.inviter && i.inviter.id)) === botId) || null;
+}
+
+/**
+ * A permanent invite into `channelId` for a recruitment link button: never expires, no use limit (the pattern of
+ * pugInvites.ensureInvite). The bot's own permanent invite there is reused, so every click does not leave a new one -
+ * `fresh` makes a new one anyway ("Neu erzeugen"). `reused` says which happened. Throws code "invite_permission" when the
+ * bot lacks "Einladung erstellen" there.
+ */
+async function createRecruitmentInvite(channelId, reason = "Recruitment-Link", { fresh = false } = {}) {
     const channel = await fetchTextChannel(channelId, "Kanal nicht gefunden.");
     const me = channel.guild && channel.guild.members && channel.guild.members.me;
     const perms = me && typeof channel.permissionsFor === "function" ? channel.permissionsFor(me) : null;
@@ -826,8 +941,10 @@ async function createRecruitmentInvite(channelId, reason = "Recruitment-Link") {
         throw Object.assign(new Error("Dem Bot fehlt dort das Recht „Einladung erstellen“. Gib das Recht frei oder füge einen Link selbst ein."),
             { code: "invite_permission" });
     }
+    const known = fresh ? null : await ownPermanentInvite(channel);
+    if (known) return { code: known.code, url: known.url || `https://discord.gg/${known.code}`, reused: true };
     const invite = await channel.createInvite({ maxAge: 0, maxUses: 0, unique: true, reason });
-    return { code: invite.code, url: invite.url || `https://discord.gg/${invite.code}` };
+    return { code: invite.code, url: invite.url || `https://discord.gg/${invite.code}`, reused: false };
 }
 
 /** Try to delete a posted message (best-effort). */
@@ -860,21 +977,33 @@ function allComponents(list) {
 
 const customIdOf = (comp) => comp.customId || comp.custom_id || (comp.data && comp.data.custom_id) || "";
 
+/** A bot message with the apply button, or one with the recruitment mark (a link post has no apply button). */
 function isRecruitmentMessage(msg) {
-    if (!client || msg.author.id !== client.user.id) return false;
-    return allComponents(msg.components).some((comp) => isApplyButtonId(customIdOf(comp)));
+    if (!client || !msg || !msg.author || msg.author.id !== client.user.id) return false;
+    return hasRecruitmentMark(msg) || allComponents(msg.components).some((comp) => isApplyButtonId(customIdOf(comp)));
 }
+
+const LINK_STYLE = 5;
+const propOf = (comp, key) => comp[key] || (comp.data && comp.data[key]) || "";
 
 function extractTemplate(msg) {
     const embed = msg.embeds && msg.embeds[0];
     let buttonLabel = "";
     let versionId = "";
+    let linkUrl = "";
     const all = allComponents(msg.components);
     for (const comp of all) {
         if (isApplyButtonId(customIdOf(comp))) {
-            buttonLabel = comp.label || (comp.data && comp.data.label) || "";
+            buttonLabel = propOf(comp, "label");
             versionId = versionOfApplyButton(customIdOf(comp));
         }
+    }
+    // a marked card without an apply button is a link post: its link button's URL and label
+    const link = !buttonLabel && hasRecruitmentMark(msg)
+        ? all.find((comp) => propOf(comp, "style") === LINK_STYLE && propOf(comp, "url")) : null;
+    if (link) {
+        buttonLabel = propOf(link, "label");
+        linkUrl = propOf(link, "url");
     }
     // a card keeps the template's text in its text display (type 10), an older post in `content`
     const cardText = all.filter((c) => (c.type === 10 || (c.data && c.data.type === 10)) && (c.content || (c.data && c.data.content)))
@@ -885,22 +1014,65 @@ function extractTemplate(msg) {
         body: (embed && embed.description) || "",
         buttonLabel,
         versionId,
+        buttonKind: linkUrl ? "link" : "apply",
+        linkUrl: linkUrl || "",
     };
 }
 
 /**
- * Scan a guild's text channels for bot-posted recruitment messages (with the
- * apply button). Returns candidates: { guildId, channelId, channelName, messageId, url, title, body, buttonLabel }.
+ * The recruitment posts the bot opened in the guild's forums: the active threads (one call for the whole guild) and
+ * each forum's archived ones (at most `archivedLimit`), only threads the bot started, newest first and at most
+ * `maxThreads` - so at most that many starter messages are fetched (the server has one vCPU).
  */
-async function scanRecruitment(guildId, { perChannel = 50 } = {}) {
+async function scanForumPosts(guild, forums, { archivedLimit = 50, maxThreads = 50 } = {}) {
+    if (!forums.length) return [];
+    const forumOf = new Map(forums.map((f) => [f.id, f]));
+    const threads = new Map();
+    const active = await guild.channels.fetchActiveThreads().catch(() => null);
+    for (const t of active ? active.threads.values() : []) if (forumOf.has(t.parentId)) threads.set(t.id, t);
+    for (const forum of forums) {
+        const archived = await forum.threads.fetchArchived({ limit: archivedLimit }).catch(() => null);
+        for (const t of archived ? archived.threads.values() : []) if (!threads.has(t.id)) threads.set(t.id, t);
+    }
+    const botId = client.user && client.user.id;
+    const own = [...threads.values()]
+        .filter((t) => botId && t.ownerId === botId)
+        .sort((a, b) => (b.createdTimestamp || 0) - (a.createdTimestamp || 0))
+        .slice(0, maxThreads);
+    const found = [];
+    for (const thread of own) {
+        const msg = await thread.fetchStarterMessage().catch(() => null);
+        if (!msg || !isRecruitmentMessage(msg)) continue;
+        const forum = forumOf.get(thread.parentId);
+        found.push({
+            guildId: guild.id,
+            channelId: thread.id,
+            channelName: forum.name,
+            messageId: msg.id,
+            url: msg.url,
+            parentChannelId: forum.id,
+            forumTitle: thread.name,
+            ...extractTemplate(msg),
+        });
+    }
+    return found;
+}
+
+/**
+ * Scan a guild for bot-posted recruitment messages: the last `perChannel` messages of each text channel and the posts
+ * the bot opened in its forums (scanForumPosts). A message counts with the apply button or the recruitment mark (a
+ * link post). Returns candidates: { guildId, channelId, channelName, messageId, url, title, body, buttonLabel,
+ * buttonKind, linkUrl }, a forum post also with parentChannelId and forumTitle.
+ */
+async function scanRecruitment(guildId, { perChannel = 50, archivedLimit = 50, maxThreads = 50 } = {}) {
     const guild = getGuild(guildId);
     if (!guild) return [];
     const me = guild.members.me;
     const found = [];
     const channels = [...guild.channels.cache.values()]
-        .filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))
         .filter((c) => !me || c.permissionsFor(me).has(PermissionsBitField.Flags.ViewChannel));
-    for (const channel of channels) {
+    const forums = channels.filter((c) => c.type === ChannelType.GuildForum);
+    for (const channel of channels.filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))) {
         try {
             const messages = await channel.messages.fetch({ limit: perChannel });
             for (const msg of messages.values()) {
@@ -918,6 +1090,7 @@ async function scanRecruitment(guildId, { perChannel = 50 } = {}) {
             // no access / rate-limited on this channel — skip
         }
     }
+    found.push(...await scanForumPosts(guild, forums, { archivedLimit, maxThreads }));
     return found;
 }
 

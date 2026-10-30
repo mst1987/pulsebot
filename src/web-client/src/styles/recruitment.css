@@ -12,7 +12,7 @@
     :root:not([data-theme="dark"]) .rc-page {
         --dc-bg: var(--discord-light-bg); --dc-text: var(--discord-light-text); --dc-strong: var(--discord-light-strong); --dc-muted: var(--discord-light-muted);
         --dc-code: var(--discord-light-code); --dc-mention: var(--discord-light-mention); --dc-mention-text: var(--discord-light-mention-text); --dc-quote: var(--discord-light-quote);
-    --dc-secondary: var(--discord-light-secondary);
+        --dc-secondary: var(--discord-light-secondary);
     }
 }
 :root[data-theme="light"] .rc-page {

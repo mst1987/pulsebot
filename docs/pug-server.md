@@ -104,8 +104,8 @@ Recruitment › „Nachricht posten“: Ziel = das Forum (markiert mit „Forum�
 Link erzeugt entweder der Bot als dauerhafte Einladung (Server und Channel wählen; nur auf Servern mit dem Bot, die
 man im Web bedienen darf, und nur mit dem Recht „Einladung erstellen“) oder man fügt die Einladung der Partnergilde
 ein (nur `discord.gg/…`, `discord.com/invite/…`, `discord.com/channels/…`). Titel und Link lassen sich später unter
-„Gepostete Nachrichten“ ändern; „Server durchsuchen“ findet solche Beiträge nicht, sie müssen über das Web gepostet
-sein. Bot-Rechte im Forum: *Nachrichten senden* und *Nachrichten in Threads senden*. Technik: docs/web-admin.md.
+„Gepostete Nachrichten“ ändern (Discord erlaubt nur zwei Umbenennungen je 10 Minuten; der Text wird trotzdem
+gespeichert). „Server durchsuchen“ findet auch Forum-Beiträge mit Link-Knopf, wenn der Bot sie gepostet hat. Bot-Rechte im Forum: *Nachrichten senden* und *Nachrichten in Threads senden*. Technik: docs/web-admin.md.
 
 ## Offen
 

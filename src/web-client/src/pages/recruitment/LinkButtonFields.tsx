@@ -15,17 +15,22 @@ import { linkSourceOf, type LinkDraft, type LinkSource } from "./linkDraft";
 // guild's invite). Only Discord invites and channel links are taken; the server
 // checks that again. The draft and its helpers live in linkDraft.ts.
 
-export function LinkButtonFields({ servers, draft, patch }: {
+export function LinkButtonFields({ servers, draft, patch, preferredGuildId = "", defaultLabel = "" }: {
     servers: InviteServer[];
     draft: LinkDraft;
     patch: (p: Partial<LinkDraft>) => void;
+    /** The server the invite starts on: the one of an existing recruitment post, else the active server. */
+    preferredGuildId?: string;
+    /** The label a post gets when none is typed (the server's language). */
+    defaultLabel?: string;
 }) {
     const t = useT();
     const toast = useToast();
     const [creating, setCreating] = useState(false);
     const [refused, setRefused] = useState("");
     const source = linkSourceOf(draft, servers);
-    const server = servers.find((s) => s.id === draft.inviteGuildId) || servers[0] || null;
+    const server = servers.find((s) => s.id === draft.inviteGuildId)
+        || servers.find((s) => s.id === preferredGuildId) || servers[0] || null;
     const channels = useMemo(() => server?.channels ?? [], [server]);
     const channelId = channels.some((c) => c.id === draft.inviteChannelId) ? draft.inviteChannelId : (server?.suggestedChannelId || "");
     const channel = channels.find((c) => c.id === channelId) || null;
@@ -45,7 +50,7 @@ export function LinkButtonFields({ servers, draft, patch }: {
         setCreating(true);
         setRefused("");
         try {
-            const invite = await createRecruitmentInvite({ guildId: server.id, channelId: channel.id });
+            const invite = await createRecruitmentInvite({ guildId: server.id, channelId: channel.id, fresh: !!draft.inviteUrl });
             patch({ inviteGuildId: server.id, inviteChannelId: channel.id, inviteUrl: invite.url });
         } catch (err) {
             const e = err as ApiError;
@@ -132,7 +137,7 @@ export function LinkButtonFields({ servers, draft, patch }: {
             )}
             <div className="field">
                 <TipLabel label={t("recruitment.postDialog.linkLabel")} htmlFor="rc-link-label" tip={t("recruitment.postDialog.linkLabel")} tipSub={t("recruitment.postDialog.linkLabelSub")} />
-                <input id="rc-link-label" type="text" maxLength={80} value={draft.linkLabel} onChange={(e) => patch({ linkLabel: e.target.value })} placeholder="Server beitreten" />
+                <input id="rc-link-label" type="text" maxLength={80} value={draft.linkLabel} onChange={(e) => patch({ linkLabel: e.target.value })} placeholder={defaultLabel || "Server beitreten"} />
             </div>
         </>
     );

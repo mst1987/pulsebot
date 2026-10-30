@@ -302,7 +302,40 @@ describe("web/apiRoutes/recruitment", () => {
             const sent = { content: "new", title: "", body: "", buttonLabel: "Bewerben", buttonKind: "apply", linkUrl: "", forumTitle: "", versionId: undefined };
             expect(discord.editRecruitment).toHaveBeenCalledWith("c1", "m1", sent);
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith({ id: "p1", ...sent });
-            expect(json(res)).toEqual({ data: { id: "p1", content: "new" } });
+            expect(json(res)).toEqual({ data: { id: "p1", content: "new", notice: "" } });
+        });
+
+        it("saves the text but keeps the old title when Discord refuses the rename for now", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getRecruitmentPost.mockReturnValue({ id: "p1", channelId: "t1", messageId: "t1", parentChannelId: "f1", forumTitle: "Alt" });
+            settingsStore.saveRecruitmentPost.mockImplementation((p) => p);
+            discord.editRecruitment.mockResolvedValueOnce({ notice: "title_rate_limited" });
+
+            const res = await post("/api/recruitment/post-update", { id: "p1", content: "neu", forumTitle: "Neu" });
+
+            expect(status(res)).toBe(200);
+            expect(discord.editRecruitment).toHaveBeenLastCalledWith("t1", "t1", expect.objectContaining({ forumTitle: "Neu" }));
+            expect(settingsStore.saveRecruitmentPost).toHaveBeenLastCalledWith(expect.objectContaining({ content: "neu", forumTitle: "Alt" }));
+            expect(json(res).data).toMatchObject({ notice: "title_rate_limited", forumTitle: "Alt" });
+            settingsStore.saveRecruitmentPost.mockReset();
+        });
+
+        it("answers thread_locked and update_failed without saving", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            settingsStore.getRecruitmentPost.mockReturnValue({ id: "p1", channelId: "c1", messageId: "m1" });
+            settingsStore.saveRecruitmentPost.mockClear();
+
+            discord.editRecruitment.mockRejectedValueOnce(Object.assign(new Error("Beitrag gesperrt"), { code: "thread_locked" }));
+            const locked = await post("/api/recruitment/post-update", { id: "p1", content: "x" });
+            expect(status(locked)).toBe(400);
+            expect(json(locked).error).toEqual({ code: "thread_locked", message: "Beitrag gesperrt" });
+
+            discord.editRecruitment.mockRejectedValueOnce(new Error("Unknown Message"));
+            const failed = await post("/api/recruitment/post-update", { id: "p1", content: "x" });
+            expect(json(failed).error).toEqual({ code: "update_failed", message: "Unknown Message" });
+            expect(settingsStore.saveRecruitmentPost).not.toHaveBeenCalled();
         });
 
         it("renames a forum post and keeps its link, or takes a new valid one", async () => {
@@ -372,6 +405,66 @@ describe("web/apiRoutes/recruitment", () => {
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledTimes(2);
             expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({ channelId: "c1", source: "scan" }));
             expect(json(res)).toEqual({ data: { count: 2 } });
+        });
+
+        it("keeps a found forum link post's forum, title and link", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.saveRecruitmentPost.mockClear();
+            discord.scanRecruitment.mockResolvedValue([{
+                guildId: "guild-1", channelId: "t1", messageId: "t1", channelName: "recruitment", parentChannelId: "f1",
+                forumTitle: "Wir suchen", buttonKind: "link", linkUrl: "https://discord.gg/abc", buttonLabel: "Komm rein",
+            }]);
+
+            await post("/api/recruitment/scan", {});
+
+            expect(settingsStore.saveRecruitmentPost).toHaveBeenCalledWith(expect.objectContaining({
+                channelId: "t1", parentChannelId: "f1", forumTitle: "Wir suchen", buttonKind: "link",
+                linkUrl: "https://discord.gg/abc", buttonLabel: "Komm rein", source: "scan",
+            }));
+        });
+
+        it("answers scan_failed when Discord fails", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-1");
+            discord.scanRecruitment.mockRejectedValueOnce(new Error("Missing Access"));
+            const res = await post("/api/recruitment/scan", {});
+            expect(status(res)).toBe(400);
+            expect(json(res).error).toEqual({ code: "scan_failed", message: "Missing Access" });
+        });
+    });
+
+    describe("default label of a link button", () => {
+        beforeEach(() => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            auth.checkCsrf.mockReturnValue(true);
+        });
+        afterEach(() => {
+            settingsStore.getConfig.mockReturnValue({});
+            activeGuildFor.mockReturnValue("");
+        });
+
+        it("follows the language of the active server", async () => {
+            activeGuildFor.mockReturnValue("g-en");
+            settingsStore.getConfig.mockReturnValue({ serverSettings: { "g-en": { botLanguage: "en" } } });
+            expect(json(await get("/api/recruitment")).data.defaultLinkLabel).toBe("Join server");
+            activeGuildFor.mockReturnValue("g-de");
+            expect(json(await get("/api/recruitment")).data.defaultLinkLabel).toBe("Server beitreten");
+        });
+
+        it("labels a posted link button without a typed text in that language, a typed one stays", async () => {
+            activeGuildFor.mockReturnValue("g-en");
+            settingsStore.getConfig.mockReturnValue({ serverSettings: { "g-en": { botLanguage: "en" } } });
+            settingsStore.getRecruitment.mockReturnValue({ id: "t1", content: "hi", buttonLabel: "" });
+            discord.postRecruitment.mockResolvedValue({ guildId: "g-en", channelId: "c1", messageId: "m1" });
+
+            await post("/api/recruitment/post", { templateId: "t1", channelId: "c1", buttonKind: "link", linkUrl: "https://discord.gg/abc" });
+            expect(discord.postRecruitment).toHaveBeenLastCalledWith("c1", expect.objectContaining({ buttonLabel: "Join server" }));
+
+            await post("/api/recruitment/post", { templateId: "t1", channelId: "c1", buttonKind: "link", linkUrl: "https://discord.gg/abc", buttonLabel: "Hop in" });
+            expect(discord.postRecruitment).toHaveBeenLastCalledWith("c1", expect.objectContaining({ buttonLabel: "Hop in" }));
         });
     });
 });
@@ -444,7 +537,18 @@ describe("web/apiRoutes/recruitment - rights per server (#925)", () => {
         const res = await post("/api/recruitment/invite", { guildId: "B", channelId: "cB" });
         expect(status(res)).toBe(201);
         expect(json(res).data).toEqual({ code: "abc", url: "https://discord.gg/abc" });
-        expect(discord.createRecruitmentInvite).toHaveBeenCalledWith("cB", expect.stringContaining("Recruitment-Link"));
+        // the bot's permanent invite is reused unless "Neu erzeugen" asks for a fresh one
+        expect(discord.createRecruitmentInvite).toHaveBeenCalledWith("cB", expect.stringContaining("Recruitment-Link"), { fresh: false });
+        await post("/api/recruitment/invite", { guildId: "B", channelId: "cB", fresh: true });
+        expect(discord.createRecruitmentInvite).toHaveBeenLastCalledWith("cB", expect.any(String), { fresh: true });
+    });
+
+    it("answers invite_failed for any other error", async () => {
+        auth.getUser.mockReturnValue(orgaOfB);
+        discord.createRecruitmentInvite.mockRejectedValueOnce(new Error("Maximum number of invites reached"));
+        const res = await post("/api/recruitment/invite", { guildId: "B", channelId: "cB" });
+        expect(status(res)).toBe(400);
+        expect(json(res).error).toEqual({ code: "invite_failed", message: "Maximum number of invites reached" });
     });
 
     it("says so when the bot may not create an invite there", async () => {

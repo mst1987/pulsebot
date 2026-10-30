@@ -103,6 +103,8 @@ export type RecruitmentData = {
     gameVersions: { id: string; label: string; short: string }[];
     /** What an unfiltered page shows and a new template starts with. */
     mainVersion: string;
+    /** The link button label a new post starts with, in the active server's language. */
+    defaultLinkLabel?: string;
 };
 
 /** `version`: the lists of that game version only (the menu's content version, #741); an opened editor's entry stays. */
@@ -133,13 +135,13 @@ export function postRecruitmentTemplate(
 }
 
 /** A permanent invite into a channel of a server the caller may act on, for a link button. */
-export function createRecruitmentInvite(input: { guildId: string; channelId: string }): Promise<{ code: string; url: string }> {
+export function createRecruitmentInvite(input: { guildId: string; channelId: string; fresh?: boolean }): Promise<{ code: string; url: string; reused?: boolean }> {
     return send("POST", "/api/recruitment/invite", input);
 }
 
 export function updateRecruitmentPost(
     input: { id: string; content: string; buttonLabel: string; linkUrl?: string; forumTitle?: string },
-): Promise<RecruitmentPost> {
+): Promise<RecruitmentPost & { notice?: "" | "title_rate_limited" | "title_failed" }> {
     return send("POST", "/api/recruitment/post-update", input);
 }
 

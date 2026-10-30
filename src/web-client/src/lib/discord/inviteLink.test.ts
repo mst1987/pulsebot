@@ -11,6 +11,12 @@ describe("isDiscordInviteUrl", () => {
         expect(isDiscordInviteUrl("https://discord.com/channels/1139509316387344395/1139509316387344396/1139509316387344397")).toBe(true);
     });
 
+    it("takes an upper-case scheme and host like the server", () => {
+        expect(isDiscordInviteUrl("HTTPS://Discord.GG/AbC123")).toBe(true);
+        expect(isDiscordInviteUrl("https://WWW.DISCORD.COM/invite/abc")).toBe(true);
+        expect(isDiscordInviteUrl("HTTPS://DISCORD.GG.EVIL.EXAMPLE/abc")).toBe(false);
+    });
+
     it("refuses everything else", () => {
         for (const bad of [
             "", "   ", "discord.gg/abc", "http://discord.gg/abc", "https://discord.gg/a", "https://discord.gg/abc?x=1",

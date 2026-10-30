@@ -70,7 +70,7 @@
         "tip": "Messages posted by the bot",
         "tipSub": "Editing changes the message directly in Discord. Removing only takes it out of the list – the Discord message stays.",
         "scan": "Scan server",
-        "scanDetail": "Looks for bot messages with an apply button",
+        "scanDetail": "Looks for bot messages with an apply button in channels and bot posts in forums",
         "scanDone": "{count} message(s) found or updated.",
         "removeTitle": "Remove from the list?",
         "removeText": "The message in #{channel} stays in Discord — it is just no longer tracked here.",
@@ -132,6 +132,8 @@
         "nameTipSub": "Only for picking it in the list — not part of the posted message.",
         "namePlaceholder": "e.g. Healers for Hyjal & BT",
         "postUpdated": "Message updated in Discord.",
+        "titleRateLimited": "The title could not be changed right now (Discord allows 2 renames per 10 minutes), please save again later.",
+        "titleFailed": "The title could not be changed; the text is saved.",
         "editPost": "Edit posted message",
         "saveAndUpdate": "Save & update in Discord"
     },

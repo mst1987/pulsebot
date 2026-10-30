@@ -110,10 +110,15 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                             <td data-tip={name} data-tip-sub={where || undefined}>
                                                 <div className="cname rc-name-tag">
                                                     <span className="rc-name-text">{name}</span>
-                                                    {p.buttonKind === "link" && <span className="rc-kind" data-tip={t("recruitment.posts.linkKind")} data-tip-sub={t("recruitment.posts.linkKindSub")}>{t("recruitment.postDialog.kindLink")}</span>}
                                                     <VersionTag versionId={p.versionId} data={data} />
                                                 </div>
-                                                {where && <div className="csub">{where}</div>}
+                                                {/* The link mark sits in the second line, so it never takes room from the name. */}
+                                                {(where || p.buttonKind === "link") && (
+                                                    <div className="csub">
+                                                        {where}
+                                                        {p.buttonKind === "link" && <span className="rc-kind" data-tip={t("recruitment.posts.linkKind")} data-tip-sub={t("recruitment.posts.linkKindSub")}>{t("recruitment.postDialog.kindLink")}</span>}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td><WantedIcons content={p.content} data={data} /></td>
                                             <td>{tpl ? <div className="cell-cut" data-tip={tpl}>{tpl}</div> : <span className="csub">—</span>}</td>

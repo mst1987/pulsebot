@@ -88,7 +88,7 @@ export function MessageFields({ data, content, setContent, buttonLabel, setButto
                         ? <TipLabel label={t("recruitment.postDialog.linkLabel")} htmlFor="rc-button" tip={t("recruitment.postDialog.linkLabel")} tipSub={t("recruitment.postDialog.linkLabelSub")} />
                         : <TipLabel label={t("recruitment.fields.button")} htmlFor="rc-button" tip={t("recruitment.fields.button")} tipSub={t("recruitment.fields.buttonSub")} />}
                     {/* The placeholder is the bot's default label (German in the posted message), not UI text. */}
-                    <input id="rc-button" type="text" value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder={buttonKind === "link" ? "Server beitreten" : "Jetzt bewerben"} />
+                    <input id="rc-button" type="text" maxLength={80} value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} placeholder={buttonKind === "link" ? (data.defaultLinkLabel || "Server beitreten") : "Jetzt bewerben"} />
                 </div>
             </div>
             <div className="rc-preview">

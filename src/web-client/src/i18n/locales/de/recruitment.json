@@ -70,7 +70,7 @@
         "tip": "Vom Bot gepostete Nachrichten",
         "tipSub": "Bearbeiten ändert die Nachricht direkt in Discord. Entfernen nimmt sie nur aus der Verwaltung – die Discord-Nachricht bleibt.",
         "scan": "Server durchsuchen",
-        "scanDetail": "Sucht Bot-Nachrichten mit Bewerben-Button",
+        "scanDetail": "Sucht Bot-Nachrichten mit Bewerben-Button in Kanälen und Bot-Beiträge in Foren",
         "scanDone": "{count} Nachricht(en) gefunden oder aktualisiert.",
         "removeTitle": "Aus der Verwaltung entfernen?",
         "removeText": "Die Nachricht in #{channel} bleibt in Discord bestehen — sie wird hier nur nicht mehr geführt.",
@@ -132,6 +132,8 @@
         "nameTipSub": "Nur zur Auswahl in der Verwaltung — nicht Teil der geposteten Nachricht.",
         "namePlaceholder": "z.B. Heiler für Hyjal & BT",
         "postUpdated": "Nachricht in Discord aktualisiert.",
+        "titleRateLimited": "Titel konnte gerade nicht geändert werden (Discord erlaubt 2 Umbenennungen je 10 Minuten), bitte später erneut speichern.",
+        "titleFailed": "Titel konnte nicht geändert werden, der Text ist gespeichert.",
         "editPost": "Gepostete Nachricht bearbeiten",
         "saveAndUpdate": "Speichern & in Discord aktualisieren"
     },

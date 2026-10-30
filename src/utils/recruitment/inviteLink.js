@@ -8,9 +8,12 @@ const PATTERNS = [
     /^https:\/\/(?:www\.)?discord\.com\/channels\/\d{5,25}(?:\/\d{5,25}){0,2}\/?$/,
 ];
 
-/** The trimmed link when it is a Discord invite or channel link, else "". */
+// Scheme and host are case-insensitive (HTTPS://Discord.GG/...), the invite code is not: only the front is lowercased.
+const lowerHost = (url) => url.replace(/^[a-z][a-z0-9+.-]*:[/][/][^/?#]*/i, (front) => front.toLowerCase());
+
+/** The trimmed link (scheme and host lowercased) when it is a Discord invite or channel link, else "". */
 function cleanInviteUrl(value) {
-    const url = String(value ?? "").trim();
+    const url = lowerHost(String(value ?? "").trim());
     if (!url || url.length > MAX_LENGTH) return "";
     return PATTERNS.some((re) => re.test(url)) ? url : "";
 }

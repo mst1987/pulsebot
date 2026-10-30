@@ -11,7 +11,7 @@ const mockData = {};
 jest.mock("../../../src/services/discord/discord", () => ({
     isOnline: () => mockOnline,
     getGuild: () => mockGuild,
-    getClient: () => ({ channels: { cache: new Map([["300000000000000001", { name: "orga" }]]) } }),
+    getClient: () => ({ channels: { cache: new Map([["300000000000000001", { name: "orga" }]]), ...(mockData.fetchChannel ? { fetch: mockData.fetchChannel } : {}) } }),
 }));
 jest.mock("../../../src/services/discord/linkCheck", () => ({
     channelState: (g, c) => (mockMissingChannels.has(c) ? "missing" : "ok"),
@@ -236,6 +236,42 @@ describe("botMessages", () => {
         const again = await botMessages(EVENT, {}, { now: now + 1, checkMs: 20 });
         expect(again.map((m) => m.status)).toEqual(["ok", "ok"]);
         expect(ch.messages.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    // a forum post whose thread Discord archived drops out of the cache: the forum decides, the thread is fetched once
+    describe("forum post (recruitment)", () => {
+        const FORUM = "300000000000000007";
+        const THREAD = "300000000000000008";
+        const post = { guildId: EVENT, channelId: THREAD, parentChannelId: FORUM, messageId: msg(1), title: "Wir suchen" };
+
+        it("fetches an archived thread through the forum and reads ok, not channel missing", async () => {
+            const thread = channel();
+            mockGuild = guild({ [FORUM]: { name: "bewerbung" } });
+            mockData.recruitment = [post];
+            mockData.fetchChannel = jest.fn(() => Promise.resolve(thread));
+            mockMissingChannels.add(THREAD);
+            expect((await botMessages(EVENT, {}))[0].status).toBe("ok");
+            expect(mockData.fetchChannel).toHaveBeenCalledWith(THREAD);
+            expect(thread.messages.fetch).toHaveBeenCalledWith(msg(1));
+        });
+
+        it("reads unknown when the client cannot fetch, and channel missing when the thread is gone", async () => {
+            mockGuild = guild({ [FORUM]: { name: "bewerbung" } });
+            mockData.recruitment = [post];
+            expect((await botMessages(EVENT, {}))[0].status).toBe("unknown");
+            mockData.fetchChannel = jest.fn(() => Promise.reject({ code: 10003 }));
+            expect((await botMessages(EVENT, {}, { fresh: true }))[0].status).toBe("channel_missing");
+        });
+
+        it("reads channel missing only when the forum itself is gone", async () => {
+            mockGuild = guild({});
+            mockData.recruitment = [post];
+            mockData.fetchChannel = jest.fn();
+            expect((await botMessages(EVENT, {}))[0].status).toBe("unknown");
+            mockMissingChannels.add(FORUM);
+            expect((await botMessages(EVENT, {}, { fresh: true }))[0].status).toBe("channel_missing");
+            expect(mockData.fetchChannel).not.toHaveBeenCalled();
+        });
     });
 
     it("reads unknown when the own member is not known", async () => {

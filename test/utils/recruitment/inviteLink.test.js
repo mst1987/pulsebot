@@ -30,6 +30,12 @@ describe("utils/recruitment/inviteLink", () => {
         expect(cleanInviteUrl(url)).toBe("");
     });
 
+    it("takes an upper-case scheme and host, keeping the invite code's case", () => {
+        expect(cleanInviteUrl("HTTPS://Discord.GG/AbC123")).toBe("https://discord.gg/AbC123");
+        expect(cleanInviteUrl("https://WWW.Discord.com/invite/XyZ")).toBe("https://www.discord.com/invite/XyZ");
+        expect(cleanInviteUrl("HTTPS://DISCORD.GG.EVIL.EXAMPLE/abc")).toBe("");
+    });
+
     it("refuses non-strings", () => {
         expect(cleanInviteUrl(undefined)).toBe("");
         expect(cleanInviteUrl(null)).toBe("");

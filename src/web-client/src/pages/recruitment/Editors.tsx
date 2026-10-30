@@ -119,12 +119,15 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
         e.preventDefault();
         setBusy(true);
         try {
-            await updateRecruitmentPost({
+            const saved = await updateRecruitmentPost({
                 id: post.id, content: draft.content, buttonLabel: draft.buttonLabel,
                 ...(isLink ? { linkUrl: linkUrl.trim() } : {}),
                 ...(isForum ? { forumTitle: forumTitle.trim() } : {}),
             });
             clearDraft();
+            // The text is saved; only the forum post's title could not change (Discord: 2 renames per 10 minutes).
+            if (saved?.notice === "title_rate_limited") toast(t("recruitment.editor.titleRateLimited"), "warn");
+            else if (saved?.notice === "title_failed") toast(t("recruitment.editor.titleFailed"), "warn");
             onSaved(t("recruitment.editor.postUpdated"));
         } catch (err) {
             toast((err as ApiError).message, "err");
@@ -163,7 +166,7 @@ export function PostEditor({ data, post, templateName, onSaved, onClose }: {
                             <TipLabel
                                 label={t("recruitment.postDialog.forumTitle")} htmlFor="rc-forum-title"
                                 tip={t("recruitment.postDialog.forumTitle")} tipSub={t("recruitment.postDialog.forumTitleSub")}
-                                extra={<span className="rc-kind">{t("recruitment.postDialog.titleCount", { count: forumTitle.length, max: FORUM_TITLE_MAX })}</span>}
+                                extra={<span className="rc-kind">{t("recruitment.postDialog.titleCount", { count: Array.from(forumTitle).length, max: FORUM_TITLE_MAX })}</span>}
                             />
                             <input
                                 id="rc-forum-title" type="text" maxLength={FORUM_TITLE_MAX} value={forumTitle} required aria-invalid={titleBad}
