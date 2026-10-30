@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
-const { raidSummary } = require("../../utils/logcheck/raidProgress");
-const { applyReview } = require("../../utils/logcheck/recommendations");
+const { raidSummary } = require("../../utils/logcheck/raid/raidProgress");
+const { applyReview } = require("../../utils/logcheck/recommendations/recommendations");
 const { newId } = require("../../utils/ids");
 const { dataPath } = require("../../config/paths");
 const { writeJsonAtomic, readJsonFile } = require("../jsonStore");

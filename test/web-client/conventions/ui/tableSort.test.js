@@ -1,0 +1,124 @@
+// Guards for the admin client's table sorting across every table
+// (src/web-client/src/lib/ui/tableSort.ts, components/ui/table/SortTh.tsx and their users;
+// #435: the structural half of the former test/web-client/tableSort.test.js —
+// the comparator and the remembered sort are tested in lib/ui/__tests__/tableSort.test.ts,
+// the header in components/ui/table/__tests__/SortTh.test.tsx):
+//   * every column header is sortable — a plain <th> is only allowed for the
+//     documented exceptions (button/link columns and the permission matrix),
+//   * nobody re-implements the sort header or the comparator locally again
+//     (there used to be five copies of both),
+//   * every remembered sort has its own storage key, so two tables can't
+//     overwrite each other's column.
+const shared = require("../../clientSource");
+
+const { namespaces } = shared;
+
+// A translated header (`<th>{t("ns.key")}</th>`) is checked by its German text,
+// looked up in the German dictionary files.
+const DE = namespaces("de");
+const german = (key) => key.split(".").reduce((node, part) => (node && typeof node === "object" ? node[part] : undefined), DE);
+const headerText = (label) => {
+    const key = label.match(/^\{t\("([^"]+)"\)\}$/);
+    if (!key) return label;
+    const text = german(key[1]);
+    return typeof text === "string" ? text : label;
+};
+
+// Every page/component file of the client, as [name, source] — tests are not the app.
+function clientSources() {
+    return shared.pageSources();
+}
+
+// Column headers that stay unsorted on purpose, with the reason. Everything
+// else has to be a <SortTh>.
+//
+//   * "Links"/"WCL"  — the cell is the same one or two links on every row,
+//   * "Token"        — the loot-sync token column is "ehl_…" plus four
+//     characters of an otherwise unreadable secret; there is nothing in it an
+//     order could be about,
+//   * "Wer" — the permission matrix: rows grouped by owner (admins, base
+//     access, roles, accounts), columns in the order of config/permissions.js;
+//     sorting would make a row jump away under the cursor as a cell is toggled,
+//   * "Slot" — the BiS-Listen matrix runs in character-sheet order (Kopf, Hals,
+//     Schultern, …). That order is the point: it is how a raider reads their own
+//     gear, and it is what lets the eye find a gap. Alphabetical would read
+//     "Beine, Brust, Füße" and mean nothing.
+//   * "Item" — the corner of the Loot-Vergleich matrix, same reason: its rows
+//     are grouped by raid and run in character-sheet order inside each.
+//   * "Mitglied · Quote" — the corner of the roster's attendance grid (#677):
+//     the rows run in the members tab's status groups (core, trial, bench,
+//     pause), the columns are the raid nights in time order; it is a matrix
+//     to read across, not a list to rank.
+//   * "Funktion" — the corner of "Funktionen je Version" (#761, Einstellungen →
+//     Spielversion): eight fixed features as rows, the versions as columns, a
+//     switch in each cell; sorting would move a row away under the cursor.
+const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "Item", "Mitglied · Quote", "Funktion"]);
+
+// Whole tables that are an edit form, one input per cell, so none of their
+// headers is a sort control:
+//   * the Warcraft-Logs guilds of a server (#922, Einstellungen → Log-Auswertung):
+//     each row is a draft being typed into, a new row is still empty, and the
+//     inputs are labelled "Gilde von Zeile n"; sorting would move a row away
+//     under the cursor and renumber the rows mid-edit. The row order is the
+//     entry order on purpose (an edit form, not a list to read).
+// Only for such edit forms - a table people read stays sortable (SortTh).
+const EDIT_FORM_TABLES = new Set(["pages/settings/connections/SettingsWclGuilds.tsx"]);
+
+describe("table sorting", () => {
+    it("reads a translated header by its German text", () => {
+        expect(headerText("{t(\"raids.table.links\")}")).toBe("Links");
+        expect(headerText("Wer")).toBe("Wer");
+    });
+
+    it("sorts every column that isn't a button or link column", () => {
+        for (const [name, src] of clientSources()) {
+            if (EDIT_FORM_TABLES.has(name)) continue;
+            // <th>Label</th> — an empty <th /> is the actions column and fine.
+            // A <th scope="row"> is skipped: it labels its own row (the slot in
+            // the BiS matrix), so it is not a column header and can never be a
+            // sort control.
+            const labels = [...src.matchAll(/<th([^>]*)>([^<]+)<\/th>/g)]
+                .filter((m) => !/scope=("row"|\{"row"\})/.test(m[1]))
+                .map((m) => headerText(m[2].trim()))
+                .filter((label) => label && !ALLOWED_PLAIN_HEADERS.has(label));
+            expect({ file: name, unsortable: labels }).toEqual({ file: name, unsortable: [] });
+        }
+    });
+
+    it("has exactly one sort header component", () => {
+        // The button carries the .sort-link class; finding it anywhere but in
+        // SortTh.tsx means a table grew its own header again.
+        const offenders = clientSources()
+            .filter(([name, src]) => name !== "components/ui/table/SortTh.tsx" && src.includes("sort-link"))
+            .map(([name]) => name);
+        expect(offenders).toEqual([]);
+    });
+
+    it("sorts through the shared comparator instead of a local one", () => {
+        // A hand-rolled `[...rows].sort()` in a table file is the copy this
+        // module replaced — the filter/option lists it does not cover sort
+        // plain arrays of strings and stay allowed.
+        for (const [name, src] of clientSources()) {
+            const offenders = src.match(/\[\.\.\.\w+\]\.sort\(\(a, b\) => \{/g) || [];
+            expect({ file: name, offenders }).toEqual({ file: name, offenders: [] });
+        }
+    });
+
+    it("never reuses a sort storage key across two tables", () => {
+        const seen = new Map();
+        for (const [name, src] of clientSources()) {
+            for (const [, key] of src.matchAll(/useTableSort(?:<[^>]*>)?\(\s*"([^"]+)"/g)) {
+                expect(seen.has(key) ? `${key} also in ${seen.get(key)}` : key).toBe(key);
+                seen.set(key, name);
+            }
+            // RaidTable takes its key as a prop, since the same table is shown
+            // more than once on a page (upcoming vs. past raids).
+            for (const [, key] of src.matchAll(/sortKey="([^"]+-sort)"/g)) {
+                expect(seen.has(key) ? `${key} also in ${seen.get(key)}` : key).toBe(key);
+                seen.set(key, name);
+            }
+        }
+        // Sanity: the scan found the tables at all.
+        expect(seen.size).toBeGreaterThan(8);
+    });
+});

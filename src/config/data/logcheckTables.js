@@ -4,7 +4,7 @@
 // hand them out without requiring the analyzers — the analyzers read them from
 // here and still export them under their old names. Contents unchanged.
 
-// Combat potions per player (utils/logcheck/potions.js).
+// Combat potions per player (utils/logcheck/consumables/potions.js).
 //
 // The three columns the report shows (Destruction / Haste / Mana) are aggregates;
 // underneath, every consumable is counted by its own type so the report can show
@@ -36,7 +36,7 @@ const POTION_TYPES = [
     { key: "manaInfusion", group: "mana", label: "Manainfusion", ids: ["28760"], spellId: 28760, icon: "trade_engineering" },
 ];
 
-// Drum ability GUIDs -> category (utils/logcheck/drums.js). Covers TBC and the "fresh" re-issues.
+// Drum ability GUIDs -> category (utils/logcheck/consumables/drums.js). Covers TBC and the "fresh" re-issues.
 const DRUM_TYPE = {
     35476: "Battle", 351355: "Battle",
     35475: "War", 351360: "War",
@@ -44,11 +44,11 @@ const DRUM_TYPE = {
     35477: "Speed", 351359: "Speed",
 };
 
-// Bloodlust / Heroism and how long its window lasts (utils/logcheck/cooldownTimeline.js).
+// Bloodlust / Heroism and how long its window lasts (utils/logcheck/fights/cooldownTimeline.js).
 const LUST_IDS = new Set(["2825", "32182"]);
 const LUST_MS = 40000;
 
-// Shadow resistance granted by enchants / gems (utils/logcheck/shadowResi.js, ported from ShadowResistance.js)
+// Shadow resistance granted by enchants / gems (utils/logcheck/consumables/shadowResi.js, ported from ShadowResistance.js)
 const SR_ENCHANT = { 804: 10, 1888: 5, 2984: 8, 3009: 20, 2998: 7, 2664: 7, 1441: 15, 2683: 10 };
 const SR_GEM = { 22459: 4, 22460: 3 };
 

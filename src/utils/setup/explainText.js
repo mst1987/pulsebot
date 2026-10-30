@@ -6,10 +6,10 @@
 // It only *explains*. The answer is plain text stored next to the setup; it
 // never moves a raider, never approves anything, and nothing of it reaches a
 // raider. Same client, model setting and call shape as the recommendation
-// phrasing (utils/logcheck/recommendationText.js); without an Anthropic key
+// phrasing (utils/logcheck/recommendations/recommendationText.js); without an Anthropic key
 // (Einstellungen → Verbindungen) the route refuses before this is called.
 const { createAnthropicClient } = require("../../classes/anthropic");
-const { DEFAULT_MODEL } = require("../logcheck/recommendationText");
+const { DEFAULT_MODEL } = require("../logcheck/recommendations/recommendationText");
 const { ROLE_LABELS } = require("../../config/gameVersions/classes");
 
 const SYSTEM = `Du erklärst der Raidleitung einer World-of-Warcraft-Gilde einen Setup-Vorschlag für einen Raidabend. Du bekommst die Gruppen mit den eingeteilten Raidern (Spec, Rolle und die Gründe, die der Algorithmus genannt hat), die Ersatzbank mit Gründen, die Prüfungen (Rollen, Buffs, Wünsche) und die Kommentare, die Raider bei der Anmeldung geschrieben haben.

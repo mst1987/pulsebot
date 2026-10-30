@@ -14,7 +14,7 @@ jest.mock("../../../../src/stores/loot/reportStore.js", () => ({
 }));
 jest.mock("../../../../src/web/http/apiMiddleware.js", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody.js", () => require("../../../helpers/http").apiBodyMock({ body: () => mockBody }));
-jest.mock("../../../../src/utils/logcheck/recommendationText.js", () => ({ phraseReport: (...a) => mockPhraseReport(...a) }));
+jest.mock("../../../../src/utils/logcheck/recommendations/recommendationText.js", () => ({ phraseReport: (...a) => mockPhraseReport(...a) }));
 jest.mock("../../../../src/web/logcheck/evalJobs.js", () => ({ startJob: (...a) => mockStartJob(...a), getJob: (...a) => mockGetJob(...a) }));
 jest.mock("../../../../src/stores/settings/settingsStore.js", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/web/logcheck/recommendationSend.js", () => ({ sendApproved: jest.fn(), sendStatus: jest.fn() }));

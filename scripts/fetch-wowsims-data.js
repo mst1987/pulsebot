@@ -221,7 +221,7 @@ const HAND_TYPE = { 1: "main", 2: "one", 3: "off", 4: "two" };
 
 // WoWSims ItemType (proto/common.proto) -> the WCL equip-slot indices it can go
 // in. WCL numbers the slots the way the game does (see SLOT_NAMES in
-// utils/logcheck/gearIssues.js); the doubled slots (rings, trinkets) list both,
+// utils/logcheck/gear/gearIssues.js); the doubled slots (rings, trinkets) list both,
 // and a weapon lists main hand and off hand for the same reason.
 const TYPE_TO_SLOTS = {
     1: [0],       // Head

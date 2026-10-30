@@ -8,10 +8,10 @@ const raidBuffs = require("../../../src/config/data/raidBuffs");
 const raidDebuffs = require("../../../src/config/data/raidDebuffs");
 const totems = require("../../../src/config/data/totems");
 const healerSpells = require("../../../src/config/data/healerSpells");
-const { POTION_TYPES } = require("../../../src/utils/logcheck/potions");
-const { DRUM_TYPE } = require("../../../src/utils/logcheck/drums");
-const { LUST_IDS, LUST_MS } = require("../../../src/utils/logcheck/cooldownTimeline");
-const { SR_ENCHANT, SR_GEM } = require("../../../src/utils/logcheck/shadowResi");
+const { POTION_TYPES } = require("../../../src/utils/logcheck/consumables/potions");
+const { DRUM_TYPE } = require("../../../src/utils/logcheck/consumables/drums");
+const { LUST_IDS, LUST_MS } = require("../../../src/utils/logcheck/fights/cooldownTimeline");
+const { SR_ENCHANT, SR_GEM } = require("../../../src/utils/logcheck/consumables/shadowResi");
 const { ZONE_TAGS } = require("../../../src/utils/logcheck/rpb/validate");
 const gameVersions = require("../../../src/config/gameVersions");
 

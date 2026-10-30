@@ -87,7 +87,7 @@ lines and open slots stay as they are. `.rp-gdim` only sets `--rp-gf: var(--rp-g
 !important`, `styles/raidplan/objects.css`). An opacity on `.rp-groupwrap` itself does nothing - it is
 `display: contents` - which is why the chips had no effect before (since the bar exists, also on 6449f731; not
 a regression). The editor shares it through the inspector's group focus (`BoardWorkspace`).
-Tests: `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/groupFocus.test.js`.
+Tests: `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/raidplan/groupFocus.test.js`.
 
 **Sections marked where the visitor is assigned (#503):** in the section menu every section where the visitor is
 **personally** assigned says "Aufgabe für dich" (`raidBoard.stage.tagMine`, in `--accent`), and "Deine Aufgaben"
@@ -130,7 +130,7 @@ the event.
 - **Limits:** the log is only as fresh as the logger's upload (live logging sends every minute or two), plus up to a minute of
   server cache and a minute of polling. A report linked to the wrong event shows that raid's kills — correct the link on the event
   page. Only the newest linked log with a report id is read.
-- Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
+- Tests: `test/utils/logcheck/raid/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
   `test/web/apiRoutes/raidplan/raidplan.progress.test.js`, `src/web-client/src/hooks/__tests__/useRaidProgress.test.tsx`,
   `lib/raidplan/view/__tests__/progress.test.ts`, `stage/__tests__/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
   `pages/raidplan/__tests__/PlanPublicPage.stage.test.tsx`, `lib/raidplan/view/__tests__/stage.test.ts`.

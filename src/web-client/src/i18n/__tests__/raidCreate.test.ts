@@ -1,7 +1,7 @@
 // The "Neues Raid-Event" dialog and the shared raid-plan fields in two
 // languages (namespaces raidCreate + raidPlan), with the real `t` (#435:
 // formerly test/web-client/i18n-raidCreate.test.js; the source rules are in
-// test/web-client/conventions/i18n-raidCreate.test.js).
+// test/web-client/conventions/i18n/i18n-raidCreate.test.js).
 import { describe, expect, it } from "vitest";
 import { t } from "..";
 import { inLang } from "../../test/i18n";

@@ -1,6 +1,6 @@
-const { analyzePlayerGear } = require("./gearIssues");
-const { analyzeConsumables } = require("./consumables");
-const { analyzePotions } = require("./potions");
+const { analyzePlayerGear } = require("./gear/gearIssues");
+const { analyzeConsumables } = require("./consumables/consumables");
+const { analyzePotions } = require("./consumables/potions");
 
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { settingsForVersion, versionLinks } = require("../../services/versions/versionSettings");

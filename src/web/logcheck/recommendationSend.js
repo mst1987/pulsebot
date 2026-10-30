@@ -9,7 +9,7 @@
 // click sends nothing twice unless the approved set changed.
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { applyReview } = require("../../utils/logcheck/recommendations");
+const { applyReview } = require("../../utils/logcheck/recommendations/recommendations");
 const { publicBaseUrl } = require("../../config/variables");
 
 /**

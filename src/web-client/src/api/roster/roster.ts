@@ -32,7 +32,7 @@ export function saveRaiderCharacters(
 // icons and links are computed server-side, same rule as AnnotatedCharacter.
 
 // One gear finding from a CLA evaluation ("kein Item", "keine Verzauberung",
-// "leerer Sockel", …) — mirrors utils/logcheck/gearIssues.js's issue objects.
+// "leerer Sockel", …) — mirrors utils/logcheck/gear/gearIssues.js's issue objects.
 // High findings come first (see charGearIssues.js), so a capped list always
 // leads with what actually costs the raid something.
 export type GearIssue = {

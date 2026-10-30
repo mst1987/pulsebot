@@ -30,7 +30,7 @@ type Section = "gear" | "bis" | "loot";
 type LogPick = { reportId?: string; link?: string };
 
 // The slot groups a character sheet reads in (slot ids from
-// utils/logcheck/gearIssues.js): armour top to bottom, rings and trinkets, weapons.
+// utils/logcheck/gear/gearIssues.js): armour top to bottom, rings and trinkets, weapons.
 // The group names are keys (lootcouncil.dialog.sheet.*), translated at render.
 const GEAR_GROUPS: { id: string; slots: number[] }[] = [
     { id: "armour", slots: [0, 1, 2, 14, 4, 8, 9, 5, 6, 7] },

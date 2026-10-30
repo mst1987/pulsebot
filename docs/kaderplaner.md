@@ -393,7 +393,7 @@ An answer is recognised at a glance before it is read (`lib/kader/colors.ts`):
   tinted), the row tooltip and the drawer's answers (`AnswerChips` in `pages/kader/parts.tsx`) and the editor's
   preview. Only tints, dots, borders and markers carry the colour; the label is always written and stays `--text`
   (contrast holds in both themes, the colour is never the only signal, aria unchanged).
-  `test/web-client/conventions/kaderColors.test.js` keeps client palette, server palette, tokens and mappings in step.
+  `test/web-client/conventions/roster/kaderColors.test.js` keeps client palette, server palette, tokens and mappings in step.
 
 ### Example setups
 

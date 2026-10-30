@@ -56,7 +56,7 @@ reachable, it only moved. Designs: canvas boards `Plan` and `PlanKarte` (notes `
 - The public read view `/p/<token>` is unchanged (it never used these parts; `AssignLine`'s new chip is editor-only).
 - Tests: `BoardWorkspace.views.test.tsx` (both views, the tool row and its menus with the keyboard, the dock, the folded list,
   the dialog from the map, Allgemein), `SectionStrip.test.tsx`, `planView.test.ts`, `Besetzung.test.tsx`, the board tests
-  start in "Karte" (`BoardWorkspace.test.tsx`, `EventStandard.test.tsx`), `test/web-client/conventions/raidplanViews.test.js`
+  start in "Karte" (`BoardWorkspace.test.tsx`, `EventStandard.test.tsx`), `test/web-client/conventions/raidplan/raidplanViews.test.js`
   (the stylesheet: hover-only buttons, two columns, the slim column).
 
 ## Layout, flyout pickers, cards, chips (Sept 2026)

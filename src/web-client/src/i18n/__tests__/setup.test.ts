@@ -1,6 +1,6 @@
 // The setup editor in two languages (namespace "setup"), with the real `t`
 // (#435: formerly test/web-client/i18n-setup.test.js; the source rules are in
-// test/web-client/conventions/i18n-setup.test.js).
+// test/web-client/conventions/i18n/i18n-setup.test.js).
 import { describe, expect, it } from "vitest";
 import { t } from "..";
 import { inLang } from "../../test/i18n";
