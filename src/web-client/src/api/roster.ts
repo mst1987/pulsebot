@@ -1,6 +1,7 @@
 import { get, send } from "./client";
 import type { Category } from "./channels";
 import type { CharLootPreview } from "./history";
+import type { VermerkShortMap } from "./vermerke";
 
 // Manual raider->character-per-category assignments (see raiderCharactersStore.js
 // on the backend). Used to enrich the Raid-Detail attendance tab's "missing" list
@@ -355,6 +356,8 @@ export type RosterDetail = {
     membersKnown: boolean;
     /** The caller is the roster's orga (admin, orga role, manager); false = the Komposition's slice only (epic #723). */
     isOrga?: boolean;
+    /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
+    vermerke?: VermerkShortMap;
     canManage: boolean;
     isAdmin: boolean;
     /** What the settings dialog starts from; null for a caller who may not manage the roster. */

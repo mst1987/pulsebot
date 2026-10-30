@@ -8,11 +8,15 @@ import type { NoteLevel } from "../../api/vermerke";
 // The colours are the result tones (--medium / --high), defined for both themes.
 const ICON = { hint: "noteHint", warning: "noteWarning", shadowban: "noteShadowban" } as const;
 
-export default function LevelMark({ level, iconOnly = false, size = 16 }: {
+export default function LevelMark({ level, iconOnly = false, size = 16, tipSub, label }: {
     level: NoteLevel | null;
     /** only the symbol, the word as the tooltip (tight spots like the member list) */
     iconOnly?: boolean;
     size?: number;
+    /** the tooltip's second line in place of the level's explanation (the reasons beside a name, #981) */
+    tipSub?: string;
+    /** the symbol's name in place of the bare word (iconOnly) */
+    label?: string;
 }) {
     const t = useT();
     if (!level) {
@@ -28,8 +32,8 @@ export default function LevelMark({ level, iconOnly = false, size = 16 }: {
             className={`nm-level nm-level-${level}${iconOnly ? " nm-level-icon" : ""}`}
             data-level={level}
             data-tip={word}
-            data-tip-sub={t(`vermerke.levelTip.${level}`)}
-            {...(iconOnly ? { role: "img", "aria-label": word } : {})}
+            data-tip-sub={tipSub || t(`vermerke.levelTip.${level}`)}
+            {...(iconOnly ? { role: "img", "aria-label": label || word } : {})}
         >
             <Icon name={ICON[level]} size={size} />
             {!iconOnly && <span className="nm-level-word">{word}</span>}

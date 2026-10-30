@@ -1,5 +1,6 @@
 import { get, getKeepalive, send, type ApiError } from "./client";
 import type { AttendanceStatus } from "./roster";
+import type { VermerkShortMap } from "./vermerke";
 
 // ===== Kaderplaner (docs/kaderplaner.md) =====
 // Raid rosters for WoW Forever, area "kader". Several Kader per server; every
@@ -249,6 +250,8 @@ export type KaderView = {
     warnings: string[];
     /** The revision of the last change on the server's side (accounts, character data, Kader created/renamed/deleted). */
     sharedRev?: number;
+    /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
+    vermerke?: VermerkShortMap;
 };
 
 /** What a change inside one Kader answers, plus what the change adds (a created id, counts). */

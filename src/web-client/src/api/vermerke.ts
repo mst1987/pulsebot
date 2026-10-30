@@ -15,6 +15,15 @@ export const MAX_NOTES = 50;
 /** Characters of a note's text (the store's MAX_TEXT). */
 export const MAX_NOTE_TEXT = 1000;
 
+/**
+ * The short form beside a name where the orga plans (#981): the highest active level and the
+ * reasons with their counts, no text. Only in answers for a caller past maySeeShort - a raider's
+ * view never carries it (src/services/vermerke/vermerkeAccess.js).
+ */
+export type VermerkShort = { level: NoteLevel; reasons: Partial<Record<NoteReason, number>> };
+/** The short forms of the persons on a page, by Discord user id; persons without one are absent. */
+export type VermerkShortMap = Record<string, VermerkShort>;
+
 /** One person of the list: no text, the reasons with their counts. */
 export type VermerkPerson = {
     userId: string;

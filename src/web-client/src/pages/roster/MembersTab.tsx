@@ -20,6 +20,7 @@ import {
     type MemberRoleFilter, type MemberSortKey, type MemberView,
 } from "../../lib/roster/rosters";
 import { CharChip, MemberAvatar } from "./RosterParts";
+import VermerkMark from "../../components/vermerke/VermerkMark";
 
 type RowActions = {
     canManage: boolean;
@@ -62,10 +63,14 @@ function MemberRow({ member, data, actions }: { member: RosterMember; data: Rost
     return (
         <tr>
             <td>
-                <button type="button" className="rn-person rn-person-btn" onClick={() => actions.onOpen(member.userId)} data-tip={t("roster.detail.openTip")}>
-                    <MemberAvatar member={member} />
-                    <b>{member.displayName}</b>
-                </button>
+                {/* the note's mark (#981) beside the name button - a link of its own with read access to "vermerke" */}
+                <span className="rn-person-cell">
+                    <button type="button" className="rn-person rn-person-btn" onClick={() => actions.onOpen(member.userId)} data-tip={t("roster.detail.openTip")}>
+                        <MemberAvatar member={member} />
+                        <b>{member.displayName}</b>
+                    </button>
+                    <VermerkMark short={data.vermerke?.[member.userId]} userId={member.userId} />
+                </span>
             </td>
             <td>
                 <div className="rn-chars">

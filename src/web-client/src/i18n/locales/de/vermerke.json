@@ -24,6 +24,17 @@
         "one": "{count} Vermerk mit diesem Grund",
         "other": "{count} Vermerke mit diesem Grund"
     },
+    "mark": {
+        "aria": "Vermerk: {summary}",
+        "open": "Vermerke öffnen",
+        "openAria": "Vermerke öffnen – {summary}",
+        "slotHead": "Vermerk"
+    },
+    "poolLine": {
+        "one": "{count} Person mit Shadowban im Pool",
+        "other": "{count} Personen mit Shadowban im Pool"
+    },
+    "poolLineTip": "Der Setup-Vorschlag setzt sie nicht. Die Person merkt davon nichts.",
     "page": {
         "kicker": "Gilde",
         "title": "Vermerke",

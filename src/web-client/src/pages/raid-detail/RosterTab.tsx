@@ -21,6 +21,8 @@ import {
     type RaidCtx,
 } from "./meta";
 import SpecTile from "./SpecTile";
+import type { VermerkShortMap } from "../../api/vermerke";
+import VermerkMark from "../../components/vermerke/VermerkMark";
 import { OrgaZone } from "../../components/ui/OrgaZone";
 import { t, useT } from "../../i18n";
 
@@ -37,7 +39,7 @@ function classSpread(players: SetupPlayer[]): string {
 }
 
 /** One person as a chip: spec tile + name, or the Discord name when no character is known. */
-function PersonChip({ p, status, onOpen }: { p: AttendancePerson; status?: SignupStatus; onOpen: () => void }) {
+function PersonChip({ p, status, onOpen, vermerke }: { p: AttendancePerson; status?: SignupStatus; onOpen: () => void; vermerke?: VermerkShortMap }) {
     const t = useT();
     const prof = p.profile;
     const discordName = p.displayName || p.id;
@@ -47,6 +49,8 @@ function PersonChip({ p, status, onOpen }: { p: AttendancePerson; status?: Signu
         <button type="button" className="rd-chip" data-tip={label} data-tip-sub={tipSub || undefined} onClick={onOpen}>
             {prof ? <SpecTile iconUrl={prof.iconUrl} classColor={prof.classColor} size="sm" /> : null}
             <span {...classColorProps(prof?.classColor)}>{p.character ? label : `@${discordName}`}</span>
+            {/* the note's mark (#981): the chip is a button, so the symbol and its tooltip only */}
+            <VermerkMark short={vermerke?.[p.id]} userId={p.id} link={false} size={13} />
             {!p.character && <Badge>{t("raidDetail.roster.noCharacter")}</Badge>}
             {status && status !== "signed" && <Badge tone={SIGNUP_META[status].tone}>{SIGNUP_META[status].label}</Badge>}
         </button>
@@ -71,8 +75,10 @@ function PlayerRow({ onOpen, tip, tipSub, children }: { onOpen?: () => void; tip
  * they "can also" do and their comment sit in the tooltip, never in the row.
  * The sign-offs are one badge with the names in its tooltip.
  */
-function OwnSignupGroups({ signups, target, roleTargets, openPlayer }: {
+function OwnSignupGroups({ signups, target, roleTargets, openPlayer, vermerke }: {
     signups: EventSignupEntry[]; target?: number; roleTargets?: Partial<Record<GameRole, number>> | null; openPlayer: RaidCtx["openPlayer"];
+    /** Vermerke (#981): only in the orga's answer past maySeeShort */
+    vermerke?: VermerkShortMap;
 }) {
     const t = useT();
     const coming = signups.filter((s) => s.status !== "absence");
@@ -130,7 +136,10 @@ function OwnSignupGroups({ signups, target, roleTargets, openPlayer }: {
                                         >
                                             <SpecTile iconUrl={s.specIcon ? wowIconUrl(s.specIcon, 36) : undefined} classColor={s.classColor} />
                                             <span className="rd-pl-text">
-                                                <span className={`rd-pname ${color.className || ""}`} style={color.style}>{s.character || s.name}</span>
+                                                <span className="rd-pnameline">
+                                                    <span className={`rd-pname ${color.className || ""}`} style={color.style}>{s.character || s.name}</span>
+                                                    <VermerkMark short={vermerke?.[s.userId]} userId={s.userId} link={false} size={13} />
+                                                </span>
                                                 <span className="rd-pspec">{s.specLabel}</span>
                                             </span>
                                             <span className="rd-own-marks">
@@ -307,7 +316,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                         </div>
                         {missingOpen && missing.length > 0 && (
                             <div className="rd-chips">
-                                {missing.map((p) => <PersonChip key={p.id} p={p} onOpen={() => openPlayer?.(personRef(p, "missing"))} />)}
+                                {missing.map((p) => <PersonChip key={p.id} p={p} vermerke={data.vermerke} onOpen={() => openPlayer?.(personRef(p, "missing"))} />)}
                             </div>
                         )}
                         <div className={`rd-grp${asideOpen && notInSetup.length ? " open" : ""}`}>
@@ -319,7 +328,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
                         </div>
                         {asideOpen && notInSetup.length > 0 && (
                             <div className="rd-chips">
-                                {notInSetup.map((p) => <PersonChip key={p.id} p={p} status={p.status || "signed"} onOpen={() => openPlayer?.(personRef(p))} />)}
+                                {notInSetup.map((p) => <PersonChip key={p.id} p={p} status={p.status || "signed"} vermerke={data.vermerke} onOpen={() => openPlayer?.(personRef(p))} />)}
                             </div>
                         )}
                     </div>
@@ -353,7 +362,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
             )}
 
             {data.ownSignups
-                ? <OwnSignupGroups signups={data.ownSignups} target={data.signupTarget} roleTargets={data.roleTargets} openPlayer={openPlayer} />
+                ? <OwnSignupGroups signups={data.ownSignups} target={data.signupTarget} roleTargets={data.roleTargets} openPlayer={openPlayer} vermerke={data.vermerke} />
                 : !setup?.total
                 ? !setupError && <p className="rd-empty">{t("raidDetail.roster.noPlan")}</p>
                 : (

@@ -24,6 +24,7 @@ import { BatchBar } from "./BatchBar";
 import { AttendanceSource, AttendanceValue } from "./Attendance";
 import { BackButton, EmptyState, PlayerAvatar, PlayerName, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "./parts";
 import { useKader } from "./kaderContext";
+import VermerkMark from "../../components/vermerke/VermerkMark";
 
 type Scope = "all" | "pool" | "selected";
 type Row = { userId: string; entry: KaderEntry };
@@ -73,7 +74,11 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
             <span role="cell" className="kp-cell-who">
                 <PlayerAvatar userId={userId} entry={entry} />
                 <span className="kp-cell-name">
-                    <PlayerPeek userId={userId} entry={entry} />
+                    {/* the note's mark (#981) beside the name - only in an answer past maySeeShort */}
+                    <span className="kp-nameline">
+                        <PlayerPeek userId={userId} entry={entry} />
+                        <VermerkMark short={view.vermerke?.[userId]} userId={userId} className="kp-vmark" />
+                    </span>
                     {p && !p.onServer && <span className="kp-sub">{t("kader.pool.notOnServer")}</span>}
                 </span>
             </span>

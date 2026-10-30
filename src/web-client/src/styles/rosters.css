@@ -108,6 +108,8 @@ a.rn-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-roster); }
 /* ---- editing (#655-#657): head actions, row actions ---- */
 .rn-head-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; align-self: flex-start; }
 .rn-person-btn { border: 0; background: none; padding: 0; color: inherit; font: inherit; cursor: pointer; text-align: left; }
+/* the name button and its note mark (#981) on one line */
+.rn-person-cell { display: flex; align-items: center; gap: 2px; min-width: 0; }
 .rn-person-btn:hover b, .rn-person-btn:focus-visible b { color: var(--accent); text-decoration: underline; }
 .rn-person-btn:focus-visible { outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
 .rn-tbl .rn-person b { overflow-wrap: normal; white-space: nowrap; }
