@@ -11,7 +11,7 @@ let mockConfig = {};
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const rosterAttendance = require("../../../src/services/characters/rosterAttendance");
-const { entryCategories, entryCategoryIds } = require("../../../src/web/availability/entryCategories");
+const { entryCategories, entryCategoryIds, eventCategoryNames } = require("../../../src/web/availability/entryCategories");
 
 const { CONTENT_ICONS } = rosterAttendance;
 
@@ -78,5 +78,23 @@ describe("entryCategories", () => {
         mockEvents.push({ id: "a", categoryId: "mon", title: "Karazhan", startTime: sec("2030-03-25T19:00Z") });
         const list = entryCategories({ now: NOW, config: { categoryIds: ["123456789012345678", "mon"], mainVersion: "tbc" }, categoryNames: { mon: "Montag" } });
         expect(list).toEqual([{ id: "mon", name: "Montag", icon: CONTENT_ICONS.kara, versionId: "tbc" }]);
+    });
+});
+
+describe("eventCategoryNames", () => {
+    it("names categories by their events like the dialog's list, cancelled and too old ones not", () => {
+        mockEvents.push(
+            { id: "a", categoryId: "fri", categoryName: "Freitag-Raid", startTime: sec("2030-03-28T19:00Z") },
+            { id: "b", categoryId: "mon", categoryName: "Abgesagt", startTime: sec("2030-03-25T19:00Z"), status: "cancelled" },
+            { id: "c", categoryId: "mon", categoryName: "Alt", startTime: sec("2029-09-01T19:00Z") },
+            { id: "d", categoryId: "sun", startTime: sec("2030-03-24T19:00Z") },
+        );
+        expect(eventCategoryNames(["fri", "mon", "sun", "fri", ""], { now: NOW })).toEqual({ fri: "Freitag-Raid" });
+        expect(eventCategoryNames(["fri"], { now: NOW })).toEqual(entryCategories({ now: NOW, config: { categoryIds: ["fri"], mainVersion: "tbc" } }).reduce((m, c) => ({ ...m, [c.id]: c.name }), {}));
+    });
+
+    it("reads no events without ids", () => {
+        expect(eventCategoryNames([], { now: NOW })).toEqual({});
+        expect(eventCategoryNames(undefined)).toEqual({});
     });
 });

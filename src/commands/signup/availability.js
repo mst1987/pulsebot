@@ -4,7 +4,7 @@
 // member (ephemeral, in their language); the panel itself is a public message
 // nobody edits.
 //
-//   /availability                    the own entries plus the three buttons
+//   /availability                    the own entries plus the three buttons (only on a server of the server list)
 //   availability:a|p:<categoryId>    "Enter absence" / "Enter attendance" → the period modal
 //   availability:ma|mp:<categoryId>  the submitted modal → the raid picker (a session)
 //   availability:l:<categoryId>      "My entries"; availability:del:<categoryId> deletes one
@@ -28,6 +28,9 @@ const { requestModal, requestSummary, waitingSummary } = require("../../utils/si
 const { pickPayload, itemModal, itemIdOfModal } = require("../../utils/signup/guildBankPick");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
+const { serverChoices, eventGuildIds } = require("../../services/discord/roles/guildRoles");
+const { categoryContext, displayServerOf } = require("../../services/categories/categoryGuild");
+const { scopeOf } = require("../../services/signups/availabilityScope");
 const { specLabel } = require("../../utils/i18n/botText");
 const { myRaidPayload, myReportPayload } = require("../../utils/signup/organizerPanel");
 const { appEmojiMap } = require("../../services/discord/appEmojis");
@@ -69,8 +72,28 @@ function versionsFor(categoryId, config) {
     return categoryId ? [mainVersionFor({ categoryId, config })] : visibleVersions(config);
 }
 
+/**
+ * Where an entry counts, as the list shows it: "Server: Category, Category" per
+ * server, "Server" for every category there. An older entry without scope shows
+ * its category, or nothing (it counts everywhere, as before). Names from the
+ * server list and the bot's category cache - no Discord request.
+ */
+function placeText(entry, config) {
+    const scope = scopeOf(entry);
+    if (!scope) return "";
+    const names = Object.fromEntries(serverChoices(config).map((s) => [s.guildId, String(s.name || s.label || s.guildId)]));
+    const catName = (id) => categoryNameFor(id, { config }) || id;
+    // scopeOf never yields a part without both server and categories
+    return scope.map((s) => {
+        const server = s.guildId ? names[s.guildId] || s.guildId : "";
+        const cats = s.categoryIds.map(catName).join(", ");
+        return server && cats ? `${server}: ${cats}` : server || cats;
+    }).join(" · ");
+}
+
 function listFor(userId, categoryId, lang, notice = "") {
-    return listPayload(availability.activeEntries(userId), { categoryId, notice, lang });
+    const config = settingsStore.getConfig();
+    return listPayload(availability.activeEntries(userId), { categoryId, notice, lang, placeOf: (e) => placeText(e, config) });
 }
 
 /** "Enter attendance" without a character of the version: say so and link the profile. */
@@ -85,8 +108,14 @@ function retryButton(kind, categoryId, lang) {
         .setLabel(tr(lang, "Try again")).setEmoji("🔁").setStyle(ButtonStyle.Primary);
 }
 
-/** The submitted period modal: check it, then the picker in a fresh session. */
+/**
+ * The submitted period modal: check it, then the picker in a fresh session. Finding
+ * the raids of categories the raider is no raider of asks Discord for the roles per
+ * server (no timeout there), so the modal is acknowledged first and answered by edit.
+ */
 async function onModal(interaction, kind, categoryId, lang) {
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    const answer = (payload) => interaction.editReply(payload);
     const uid = interaction.user.id;
     const config = settingsStore.getConfig();
     const read = (id) => {
@@ -103,23 +132,30 @@ async function onModal(interaction, kind, categoryId, lang) {
     if (!period) {
         const wrong = parseDayRange(fromText) ? toText : fromText;
         const text = tr(lang, "I could not read **{text}** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**", { text: wrong || "–" });
-        return interaction.reply(answerPayload(`⚠️ ${text}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
+        return answer(answerPayload(`⚠️ ${text}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
     }
     const input = { kind, from: period.from, to: period.to, categoryId, comment: kind === "absence" ? read("reason") : "" };
+    // a panel's category together with its server; without a category the entry
+    // counts on the server the command ran on (execute refuses a DM) - never on every server
+    input.scope = categoryId ? panelScope(categoryId, config) : commandScope(interaction);
     let pick = null;
     if (kind === "presence") {
         const versions = versionsFor(categoryId, config);
         pick = defaultCharacter(profiles.getProfile(uid), versions[0], versions);
-        if (!pick) return ephemeral(interaction, noCharacterPayload(lang));
-        Object.assign(input, { character: pick.key, spec: pick.spec });
+        if (!pick) return answer(noCharacterPayload(lang));
+        Object.assign(input, { characters: [{ character: pick.key, spec: pick.spec }] });
     }
-    const checked = availability.checkInput(uid, input);
-    if (checked.error) return interaction.reply(answerPayload(`⚠️ ${serviceText(lang, checked.error)}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
+    const checked = availability.checkInput(uid, input, { config });
+    if (checked.error) return answer(answerPayload(`⚠️ ${serviceText(lang, checked.error)}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
     // every category (/availability): the raids of categories the raider is no raider of are not offered at all
     const hidden = categoryId ? [] : await availability.foreignRaids(uid, checked.value, { config });
-    const session = { ...checked.value, characterKey: pick ? pick.key : "", hidden };
+    // the picker shows and changes one character: its fields beside the entry's list
+    const first = checked.value.characters[0];
+    const one = first ? { character: first.character, spec: first.spec, versionId: first.versionId } : {};
+    // categoryId stays the panel's: the picker's versions and the raid hub's switches hang on it
+    const session = { ...checked.value, ...one, categoryId, characterKey: pick ? pick.key : "", hidden };
     const token = createSession(uid, session);
-    return ephemeral(interaction, picker(token, getSession(token, uid), config, lang));
+    return answer(picker(token, getSession(token, uid), config, lang));
 }
 
 /** The member's name as the orga reads it: the server nickname, else the Discord name. */
@@ -148,6 +184,28 @@ async function onGuildBankModal(interaction, categoryId, config, lang) {
 
 /** The server an interaction ran on (#924: the guild bank channel is per server). */
 const guildOf = (interaction) => String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
+
+/**
+ * Where an entry without a category counts: every category of the server the
+ * command or button ran on. A DM or a server outside the server list never gets
+ * this far (onServerList), so there is no "every server" entry from Discord.
+ */
+const commandScope = (interaction) => [{ guildId: guildOf(interaction), categoryIds: [] }];
+
+/**
+ * A panel's category together with its server. A category whose server cannot be
+ * resolved is stored in the old form (no server: the category decides it, scopeOf).
+ */
+function panelScope(categoryId, config) {
+    return [{ guildId: displayServerOf(categoryId, categoryContext(config)) || "", categoryIds: [categoryId] }];
+}
+
+/** Whether the interaction ran on a server of the server list - /availability without a category needs one. */
+const onServerList = (interaction, config) => {
+    const here = guildOf(interaction);
+    return !!here && eventGuildIds(config).includes(here);
+};
+const notHereText = (lang) => tr(lang, "Please run this on the Discord server the absence or attendance is for – or enter it on the web under Signups.");
 
 /** The guild bank offer for an organizer click: the clicked server's bank first, then the other servers'. */
 const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildIds: [interaction.guildId], categoryId, config });
@@ -257,12 +315,24 @@ function picker(token, session, config, lang, notice = "") {
     return pickerPayload(token, session, raids, { profile: profiles.getProfile(session.userId), versions, notice, lang });
 }
 
+/**
+ * A picker opened before scopes existed has none: its panel's category, else the
+ * server the click comes from (a DM or a server off the list stays without - the
+ * service then refuses it). Changes the session in place.
+ */
+function withScope(session, interaction, config) {
+    if (Array.isArray(session.scope) && session.scope.length) return;
+    if (session.categoryId) session.scope = panelScope(session.categoryId, config);
+    else if (onServerList(interaction, config)) session.scope = commandScope(interaction);
+}
+
 /** A step inside the picker. */
 async function onPicker(interaction, token, action, lang) {
     const uid = interaction.user.id;
     const session = getSession(token, uid);
     if (!session) return interaction.update(answerUpdate(tr(lang, "This selection has expired – start again with the button or /availability."), { lang }));
     const config = settingsStore.getConfig();
+    withScope(session, interaction, config);
     if (action === "x") {
         endSession(token);
         return interaction.update(answerUpdate(tr(lang, "Cancelled – nothing was saved."), { lang }));
@@ -278,7 +348,11 @@ async function onPicker(interaction, token, action, lang) {
             .find((o) => o.key === key && o.spec === spec);
         if (option) {
             const changedVersion = option.versionId !== session.versionId;
-            Object.assign(session, { character: option.character, characterKey: option.key, spec: option.spec, versionId: option.versionId });
+            Object.assign(session, {
+                character: option.character, characterKey: option.key, spec: option.spec, versionId: option.versionId,
+                // the one character the Discord picker carries (the web dialog takes several)
+                characters: [{ character: option.character, spec: option.spec, versionId: option.versionId }],
+            });
             // another game version has other raids: start from all of them again
             if (changedVersion) session.selected = null;
             saveSession(token, session);
@@ -292,7 +366,11 @@ async function onPicker(interaction, token, action, lang) {
     }
     if (action === "save") {
         await interaction.deferUpdate();
-        const input = { ...session, character: session.characterKey || session.character };
+        const input = { ...session };
+        if (session.kind === "presence") {
+            const first = (session.characters || [])[0] || {};
+            input.characters = [{ character: session.characterKey || first.character || session.character, spec: session.spec || first.spec }];
+        }
         // nothing picked by hand = every raid offered (the hidden ones of other categories stay out)
         const eventIds = session.selected || ((session.hidden || []).length ? offeredRaids(session, config).map((e) => e.id) : undefined);
         const result = await availability.createEntry(uid, input, { eventIds, config, via: "panel" });
@@ -318,10 +396,19 @@ module.exports = {
     async execute(interaction) {
         const uid = interaction.user.id;
         const lang = langOfInteraction(interaction);
-        if (!interaction.customId) return ephemeral(interaction, listFor(uid, "", lang));
+        const config = settingsStore.getConfig();
+        // without a category the entry counts on the server the command ran on: a DM or
+        // a server outside the server list would mean every server - refused
+        if (!interaction.customId) {
+            if (!onServerList(interaction, config)) return ephemeral(interaction, answerPayload(notHereText(lang), { lang }));
+            return ephemeral(interaction, listFor(uid, "", lang));
+        }
         const { token, action, categoryId } = parseId(interaction.customId);
         if (token) return onPicker(interaction, token, action, lang);
-        const config = settingsStore.getConfig();
+        // the same for the buttons and modals of an older list without a category
+        if (["a", "p", "ma", "mp"].includes(action) && !categoryId && !onServerList(interaction, config)) {
+            return ephemeral(interaction, answerPayload(notHereText(lang), { lang }));
+        }
         // A button of a section the orga switched off (#969) — an older panel message still shows it.
         if (!(action === "l" && fromEphemeral(interaction)) && switchedOff(categoryId, PANEL_FEATURES[action])) {
             return ephemeral(interaction, answerPayload(switchedOffText(lang), { lang }));

@@ -2,11 +2,16 @@
 // signs a raider off from the raids of that period, "there from … to … with
 // this character" signs them up — now and for raids created later, with a DM.
 //
-// GET    /api/availability[?userId=]      area signup   — the active entries, the characters to pick from and the raid
-//                                                         categories an entry may be limited to (entryCategories.js)
-// POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, character, spec, categoryId?, userId? }
-// POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, character, spec, categoryId?, eventIds[], userId? }
-//                                                         `categoryId` "" or missing = every category; an unknown one is a 400
+// GET    /api/availability[?userId=]      area signup   — the active entries (readable `scope`, `characters`), the characters
+//                                                         to pick from and `servers` [{ guildId, name, icon, categories }]:
+//                                                         the servers the raider is a member of (entryServers.js)
+// POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, scope, characters, id?, userId? };
+//                                                         with `id` (editing) each raid says `applied` / `absent` without that entry
+// POST   /api/availability                area signup   — enter one; body { kind, from, to, comment, scope, characters, eventIds[], userId? }
+//                                                         scope [{ guildId, categoryIds: [] = every category }]; an unknown server or
+//                                                         a category of another server is a 400. Older body: character, spec, categoryId
+// PUT    /api/availability                area signup   — change one; body as POST plus { id }; raids it touched stay, newly covered
+//                                                         ones are applied now; rights as DELETE
 // DELETE /api/availability                area signup   — remove one; body { id }
 // GET    /api/availability/attendance[?userId=&version=]        area signup — own attendance per category and raid (orga: anyone's)
 // GET    /api/availability/overview?weeks=&category=&version=  area roster — the orga's overview: who is away when (absenceOverview.js)
@@ -39,9 +44,12 @@ const linkCheck = require("../../../services/discord/linkCheck");
 const discord = require("../../../services/discord/discord");
 const absenceOverview = require("../../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../../availability/raiderAttendance");
-const { entryCategories, entryCategoryIds } = require("../../availability/entryCategories");
+const { entryCategoryIds, eventCategoryNames } = require("../../availability/entryCategories");
+const { entryServers, serverNames } = require("../../availability/entryServers");
+const { scopeOf, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { activeGuildFor } = require("../../http/activeGuild");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -62,28 +70,54 @@ function targetOf(user, requested) {
     return { userId: id };
 }
 
-function specLabel(key) {
-    const info = profiles.specInfo(key);
-    return (info && info.label) || key;
-}
-
-function entryView(entry) {
+/**
+ * An entry as the dialog lists it. `scope` and `characters` as the overview's drawer shows them
+ * (availabilityScope.scopeView / charactersView); `character`/`spec`/`categoryId` stay for older
+ * readers (the first character, the one category).
+ * @param {{ servers?: Object<string,string>, categories?: Object<string,string> }} [names] guildId -> server
+ *   name (entryServers.serverNames), category id -> name (categoryNamesOf)
+ */
+function entryView(entry, names = {}) {
     const applied = Object.values(entry.applied || {});
+    const scope = scopeView(entry, names);
+    const characters = charactersView(entry);
+    const first = characters[0] || { character: "", spec: "", versionId: "" };
+    const oneCategory = scope.length === 1 && scope[0].categories.length === 1 ? scope[0].categories[0].id : "";
     return {
         id: entry.id,
         kind: entry.kind,
         from: entry.from,
         to: entry.to,
         comment: entry.comment,
-        character: entry.character,
-        spec: entry.spec,
-        specLabel: entry.spec ? specLabel(entry.spec) : "",
-        versionId: entry.versionId,
-        categoryId: entry.categoryId,
-        categoryName: entry.categoryId ? availabilityPanel.categoryNameFor(entry.categoryId) : "",
+        scope,
+        characters,
+        character: first.character,
+        spec: first.spec,
+        specLabel: first.spec ? specLabel(first.spec) : "",
+        versionId: first.versionId || str(entry.versionId),
+        categoryId: oneCategory,
+        categoryName: oneCategory ? scope[0].categories[0].name : "",
         byOrga: !!entry.createdBy && entry.createdBy !== entry.userId,
         done: applied.filter((a) => a.ok).length,
     };
+}
+
+/**
+ * Whether the caller may touch somebody else's entry (#925): every server it names is one they may
+ * use - an older entry's category by the channel cache, an older entry for everything always.
+ */
+function mayTouchEntry(user, req, entry) {
+    if (!entry || entry.userId === str(user.id)) return true;
+    const scope = scopeOf(entry);
+    if (!scope) return true;
+    return scope.every((s) => (s.guildId ? mayUseServer(user, req, s.guildId) : s.categoryIds.every((c) => categoryOnActiveServer(user, req, c))));
+}
+
+/** Whether every server of a body's scope (or an older body's single category) is one the caller may use. */
+function mayUseScope(user, req, body) {
+    const parts = Array.isArray(body.scope) ? body.scope.filter(Boolean) : [];
+    if (parts.length) return parts.every((p) => mayUseServer(user, req, str(p.guildId)));
+    return !str(body.categoryId) || categoryOnActiveServer(user, req, body.categoryId);
 }
 
 /** The characters an attendance can be entered with: the shown game versions, specs with usable gear. */
@@ -109,39 +143,66 @@ function resultView(r) {
 }
 
 /** GET /api/availability — the raider's entries that are not over, and their characters. */
-const getAvailability = withUser({}, async ({ user, query, res }) => {
+const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
+    const entries = availability.activeEntries(target.userId);
+    const names = viewNames(config, entries);
+    // the servers of the raider the entry is for (their memberships), each with its categories;
+    // for somebody else only the servers the caller may use (#925) - a save elsewhere is refused anyway
+    const own = target.userId === str(user.id);
+    const servers = (await entryServers(target.userId, { config, categoryNames: names.categories }))
+        .filter((s) => own || mayUseServer(user, req, s.guildId));
     ok(res, {
         userId: target.userId,
         name: profile.name || "",
         orga: isOrga(user),
         today: availability.today(),
         maxDays: availability.MAX_DAYS,
-        entries: availability.activeEntries(target.userId).map(entryView),
+        entries: entries.map((e) => entryView(e, names)),
         characters: characterChoices(profile, config),
-        // the dialog offers the caller's own list, also when the orga enters for somebody else
-        categories: target.userId === str(user.id) ? entryCategories({ config, categoryNames: categoryNamesOf(config) }) : [],
+        servers,
+        // the server the web shows: a new entry starts with it picked
+        activeGuildId: activeGuildFor(req),
+        // the flat list of before the server blocks (older clients)
+        categories: servers.flatMap((s) => s.categories),
     });
 });
 
 const UNKNOWN_CATEGORY = "Diese Raid-Kategorie gibt es nicht (mehr) – bitte eine andere wählen.";
+const NOT_FOUND = "Eintrag nicht gefunden.";
 
-/** Whether a body's `categoryId` is none ("" = every category) or one an entry may name. */
+/** Whether every category a body names (its scope, or an older body's `categoryId`) is one an entry may name. */
 function knownCategory(body, config) {
-    const id = str(body && body.categoryId);
-    return !id || entryCategoryIds({ config }).includes(id);
+    const parts = Array.isArray(body && body.scope) ? body.scope.filter(Boolean) : [];
+    const ids = parts.length
+        ? parts.flatMap((p) => (Array.isArray(p.categoryIds) ? p.categoryIds : [])).map(str).filter(Boolean)
+        : [str(body && body.categoryId)].filter(Boolean);
+    if (!ids.length) return true;
+    const known = entryCategoryIds({ config });
+    return ids.every((id) => known.includes(id));
 }
 
-/** POST /api/availability/preview — which raids the period covers, with the raider's current status in each. */
+/** The body's picked raids: a list of ids, or undefined (= every raid of the period). */
+const eventIdsOf = (body) => (Array.isArray(body.eventIds) ? body.eventIds.map(str).filter(Boolean) : undefined);
+
+/**
+ * POST /api/availability/preview — which raids the period covers, with the raider's current status in each.
+ * With `id` (the dialog edits that entry): the raid it already touched is `applied` (it stays as it is), and
+ * `absent` (an absence covers the raid, so an attendance stays out) leaves that entry itself out.
+ */
 const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
+    const id = str(body.id);
+    const editing = id ? availabilityStore.getEntry(id) : null;
+    if (id && (!editing || editing.userId !== target.userId)) return apiError(res, 404, "not_found", NOT_FOUND);
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
-    const checked = availability.checkInput(target.userId, body);
+    const input = editing ? { ...body, kind: editing.kind } : body;
+    const checked = availability.checkInput(target.userId, input, { config });
     if (checked.error) return apiError(res, 400, "bad_request", checked.error);
     const raids = availability.raidsInRange(checked.value, { config });
     ok(res, {
@@ -154,6 +215,8 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, re
                 categoryName: e.categoryName || "",
                 status: signup ? signup.status : "",
                 url: linkCheck.eventLink(e),
+                applied: !!(editing && editing.applied && editing.applied[e.id]),
+                absent: availability.absentFor(target.userId, e, { excludeId: id, config }),
             };
         }),
     });
@@ -165,21 +228,35 @@ const postEntry = withUser({ csrf: true, body: true }, async ({ user, req, body,
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
-    // for somebody else only in a category of the active server (#925)
-    if (target.userId !== str(user.id) && str(body.categoryId) && !categoryOnActiveServer(user, req, body.categoryId)) return otherServer(res);
-    const eventIds = Array.isArray(body.eventIds) ? body.eventIds.map(str).filter(Boolean) : undefined;
-    const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds, config });
+    // for somebody else only on servers the caller may use (#925)
+    if (target.userId !== str(user.id) && !mayUseScope(user, req, body)) return otherServer(res);
+    const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds: eventIdsOf(body), config });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
-    ok(res, { entry: entryView(result.entry), results: result.results.map(resultView), dm: !!result.dm });
+    ok(res, { entry: entryView(result.entry, viewNames(config, [result.entry])), results: result.results.map(resultView), dm: !!result.dm });
+});
+
+/**
+ * PUT /api/availability — change an entry: period, reason, scope, (attendance) characters; body as POST
+ * plus `id`. Rights as DELETE. The raids it already touched stay; newly covered ones are applied now
+ * (`eventIds` = the picked ones), one DM "Absence changed" / "Attendance changed".
+ */
+const putEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
+    const entry = availabilityStore.getEntry(str(body.id));
+    // somebody else's entry of another server does not exist here (#925), nor may it be moved there
+    if (entry && !mayTouchEntry(user, req, entry)) return apiError(res, 404, "not_found", NOT_FOUND);
+    if (entry && entry.userId !== str(user.id) && isOrga(user) && !mayUseScope(user, req, body)) return otherServer(res);
+    const config = getConfig();
+    if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
+    const result = await availability.changeEntry(str(body.id), body, { userId: user.id, orga: isOrga(user), eventIds: eventIdsOf(body), config });
+    if (result.error) return apiError(res, result.code === "not_found" ? 404 : 400, result.code || "bad_request", result.error);
+    ok(res, { entry: entryView(result.entry, viewNames(config, [result.entry])), results: result.results.map(resultView), dm: !!result.dm });
 });
 
 /** DELETE /api/availability — remove an entry (the signups it made stay). */
 const deleteEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
-    // somebody else's entry for a category of another server does not exist here (#925)
+    // somebody else's entry of another server does not exist here (#925)
     const entry = availabilityStore.getEntry(str(body.id));
-    if (entry && entry.userId !== str(user.id) && str(entry.categoryId) && !categoryOnActiveServer(user, req, entry.categoryId)) {
-        return apiError(res, 404, "not_found", "Eintrag nicht gefunden.");
-    }
+    if (entry && !mayTouchEntry(user, req, entry)) return apiError(res, 404, "not_found", NOT_FOUND);
     const removed = availability.deleteEntry(str(body.id), { userId: user.id, orga: isOrga(user) });
     if (removed.error) return apiError(res, 404, removed.code, removed.error);
     ok(res, { id: removed.entry.id });
@@ -264,10 +341,24 @@ function versionOf(query, config) {
     return versionId || mainVersion;
 }
 
-/** Names of the active categories and of every category an entry names. */
-function categoryNamesOf(config) {
-    const ids = new Set([...(Array.isArray(config.categoryIds) ? config.categoryIds : []), ...availabilityStore.listEntries().map((e) => e.categoryId)].map(str).filter(Boolean));
-    return Object.fromEntries([...ids].map((id) => [id, availabilityPanel.categoryNameFor(id, { config }) || ""]));
+/**
+ * Names of the active categories and of every category an entry names: the Discord name, else the
+ * name their events were created with (entryCategories.eventCategoryNames - the dialog's list names
+ * them the same way); the event store is read only when Discord leaves a category unnamed.
+ * @param {object[]} [entries] entries to name beyond the stored ones (a fresh write, a mocked list)
+ */
+function categoryNamesOf(config, entries = []) {
+    const named = [...availabilityStore.listEntries(), ...entries].flatMap((e) => [e.categoryId, ...(scopeOf(e) || []).flatMap((s) => s.categoryIds)]);
+    const ids = new Set([...(Array.isArray(config.categoryIds) ? config.categoryIds : []), ...named].map(str).filter(Boolean));
+    const names = Object.fromEntries([...ids].map((id) => [id, availabilityPanel.categoryNameFor(id, { config }) || ""]));
+    const fromEvents = eventCategoryNames(Object.keys(names).filter((id) => !names[id]));
+    for (const id of Object.keys(fromEvents)) names[id] = fromEvents[id];
+    return names;
+}
+
+/** The names an entry view reads: servers and categories (entryView, absenceOverview.raiderDetail). */
+function viewNames(config, entries = []) {
+    return { servers: serverNames(config), categories: categoryNamesOf(config, entries) };
 }
 
 /** Discord names for the raiders a view names; a failing lookup keeps the names it has. */
@@ -307,7 +398,8 @@ const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     const config = getConfig();
-    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: categoryNamesOf(config) });
+    const names = viewNames(config);
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });
@@ -339,6 +431,7 @@ const routes = [
     { method: "GET", path: "/api/availability/overview/raider", handler: getOverviewRaider, area: "roster" },
     { method: "POST", path: "/api/availability/preview", handler: postPreview, area: "signup" },
     { method: "POST", path: "/api/availability", handler: postEntry, area: "signup" },
+    { method: "PUT", path: "/api/availability", handler: putEntry, area: "signup" },
     { method: "DELETE", path: "/api/availability", handler: deleteEntry, area: "signup" },
     { method: "GET", path: "/api/availability/panels", handler: getPanels, area: "settings" },
     { method: "POST", path: "/api/availability/panel", handler: postPanel, area: "settings" },
@@ -347,4 +440,4 @@ const routes = [
     { method: "PUT", path: "/api/availability/features", handler: putFeatures, area: "settings" },
 ];
 
-module.exports = { routes, _internal: { entryView, characterChoices, targetOf, knownHubCategory } };
+module.exports = { routes, _internal: { entryView, characterChoices, targetOf, knownHubCategory, mayTouchEntry, mayUseScope, knownCategory } };

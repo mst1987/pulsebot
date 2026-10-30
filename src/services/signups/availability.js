@@ -6,13 +6,19 @@
 // The rules, once, for every front end (the panel and /availability in
 // Discord, the web's signup page, the orga for another raider):
 //   * which raids: own events whose day (server time) lies in the period, not
-//     begun, not cancelled, not archived — of the entry's raid category when it
-//     has one (an entry made at a category's panel), of the character's game
-//     version for an attendance. Raids deselected when entering stay untouched
-//     (`skip`), later ones are always included;
+//     begun, not cancelled, not archived — of the entry's scope (`scope: [{
+//     guildId, categoryIds }]` - a raid of another server is never covered;
+//     availabilityScope.js reads older entries too), of a game version one of
+//     the attendance's characters plays. Raids deselected when entering stay
+//     untouched (`skip`), later ones are always included;
+//   * an attendance signs up with its characters of the raid's version
+//     (versionOfEvent), in their order, at most as many as the raid takes
+//     (maxCharactersFor - the rest is left out);
+//   * an entry can be changed (changeEntry): the raids it already touched stay
+//     as they are (`applied`), newly covered ones are applied at once;
 //   * an absence signs off — also a raider already signed up (the absence
 //     wins); a raid already signed off from is left alone;
-//   * an attendance signs up with its character · spec as "Dabei" — never over
+//   * an attendance signs up as "Dabei" — never over
 //     an existing signup or absence, and never into a raid an absence covers;
 //   * each raid is touched once per entry (`applied`): signing up again after
 //     the bot signed you off is not undone by the next raid of the period;
@@ -28,11 +34,15 @@ const profiles = require("../../stores/roster/raiderProfileStore");
 const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
-const { submitSignup, signupWindow, checkRaiderRole } = require("./signupService");
+const { submitSignup, signupWindow, checkRaiderRole, maxCharactersFor } = require("./signupService");
+const { covers: coversEntry, charactersFor, charactersOf, scopeOf } = require("./availabilityScope");
+const { categoryContext, displayServerOf } = require("../categories/categoryGuild");
+const { eventGuildIds } = require("../discord/roles/guildRoles");
+const { firstServerId } = require("../discord/servers/serverOf");
 const { membershipByServer, isOpenRaid, serverOf } = require("./pugMembership");
-const { versionOfEvent, mainVersionFor, isVersionVisible } = require("../versions/mainVersion");
+const { mainVersionFor, isVersionVisible } = require("../versions/mainVersion");
 const { archiveOf } = require("../events/eventArchive");
-const { spec: specOf, rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
+const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../../utils/i18n/botText");
 const { langOf, eventLang } = require("../discord/botLanguage");
@@ -68,13 +78,8 @@ function daysBetween(from, to) {
 }
 
 /** Whether a raid lies in an entry's period and scope (not whether it can still be changed). */
-function covers(entry, event) {
-    if (!entry || !event || !event.startTime) return false;
-    const day = dayOf(event.startTime);
-    if (day < entry.from || day > entry.to) return false;
-    if (entry.categoryId && str(event.categoryId) !== entry.categoryId) return false;
-    if (entry.kind === "presence" && entry.versionId && versionOfEvent(event) !== entry.versionId) return false;
-    return true;
+function covers(entry, event, { config } = {}) {
+    return coversEntry(entry, event, { config });
 }
 
 /** Whether a raid still takes a change at all: not begun, not cancelled, not archived. */
@@ -86,7 +91,7 @@ function openRaid(event, { now = Date.now(), config } = {}) {
 
 /**
  * The raids an entry (or the period being entered) covers right now, soonest
- * first: `{ from, to, kind, categoryId?, versionId? }`.
+ * first: `{ from, to, kind, scope?, categoryId?, characters? }`.
  */
 function raidsInRange(scope, { now = Date.now(), config } = {}) {
     const cfg = config || settingsStore.getConfig();
@@ -94,7 +99,7 @@ function raidsInRange(scope, { now = Date.now(), config } = {}) {
     return eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) })
         .filter((e) => openRaid(e, { now, config: cfg }))
         .filter((e) => !cats.length || cats.includes(str(e.categoryId)))
-        .filter((e) => covers(scope, e))
+        .filter((e) => covers(scope, e, { config: cfg }))
         .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
 }
 
@@ -118,36 +123,101 @@ function presenceVersionProblem(character, categoryId, { config } = {}) {
  * in the attendance's game version. Returns `{ value }` or `{ error }` (German,
  * the bot translates through botEnglish).
  */
-function checkInput(userId, input = {}, { now = Date.now() } = {}) {
+function checkInput(userId, input = {}, { now = Date.now(), config } = {}) {
+    const cfg = config || settingsStore.getConfig();
     const value = {
         userId: str(userId),
         kind: input.kind === "presence" ? "presence" : input.kind === "absence" ? "absence" : "",
         from: str(input.from),
         to: str(input.to || input.from),
-        categoryId: str(input.categoryId),
+        categoryId: "",
+        scope: [],
         comment: str(input.comment).slice(0, store.COMMENT_MAX),
-        character: "", spec: "", versionId: "",
+        characters: [],
     };
     const problem = store.entryProblem({ ...value, character: "-", spec: "-" });
     if (problem) return { error: problem };
     if (value.to < today(now)) return { error: "Der Zeitraum liegt schon in der Vergangenheit." };
     if (daysBetween(value.from, value.to) > MAX_DAYS) return { error: `Höchstens ${MAX_DAYS} Tage auf einmal.` };
+    const scope = scopeInput(input, cfg);
+    if (scope.error) return scope;
+    Object.assign(value, scope.value);
     if (value.kind === "presence") {
-        const profile = profiles.getProfile(value.userId);
-        const character = (profile.characters || []).find((c) => c.key === str(input.character))
-            || (profile.characters || []).find((c) => profiles.nameKey(c.name) === profiles.nameKey(input.character));
+        const chars = charactersInput(value, input, cfg);
+        if (chars.error) return chars;
+        value.characters = chars.value;
+    }
+    return { value };
+}
+
+const NO_SCOPE = "Bitte mindestens einen Server oder eine Kategorie wählen.";
+
+/**
+ * Where an entry counts: `scope: [{ guildId, categoryIds }]` (empty categoryIds =
+ * every category of that server). Every server must be one of the list, every
+ * category one of its server (categoryGuild.displayServerOf - asked only when a
+ * category is named). An older caller's bare `categoryId` stays as it was: that
+ * category, wherever it is (the route checks that it exists).
+ */
+function scopeInput(input, cfg) {
+    const parts = Array.isArray(input.scope) ? input.scope.filter(Boolean) : [];
+    const legacy = str(input.categoryId);
+    if (!parts.length) return legacy ? { value: { categoryId: legacy, scope: [] } } : { error: NO_SCOPE };
+    const servers = eventGuildIds(cfg);
+    let ctx = null;
+    const merged = new Map();
+    for (const part of parts) {
+        const guildId = str(part.guildId);
+        const cats = [...new Set((Array.isArray(part.categoryIds) ? part.categoryIds : []).map(str).filter(Boolean))];
+        if (cats.length) ctx = ctx || categoryContext(cfg);
+        // A panel's category whose server cannot be told (no cache, no event of it yet):
+        // the older form - the category alone decides where it counts (scopeOf).
+        if (!guildId && cats.length && cats.every((c) => !displayServerOf(c, ctx))) {
+            const before = merged.get("");
+            merged.set("", [...new Set([...(before || []), ...cats])]);
+            continue;
+        }
+        if (!guildId || !servers.includes(guildId)) return { error: "Diesen Server gibt es hier nicht." };
+        if (cats.some((c) => displayServerOf(c, ctx) !== guildId)) return { error: "Die Kategorie gehört nicht zu diesem Server." };
+        // the same server twice: one part, "every category" wins
+        const before = merged.get(guildId);
+        merged.set(guildId, before === undefined ? cats : (!before.length || !cats.length ? [] : [...new Set([...before, ...cats])]));
+    }
+    return { value: { categoryId: "", scope: [...merged].map(([guildId, categoryIds]) => ({ guildId, categoryIds })) } };
+}
+
+/**
+ * An attendance's characters `[{ character, spec }]` (an older caller's single
+ * `character`/`spec` as one): each from the profile, of a shown version, with a
+ * spec it has there. Limited to categories only, each must play the version of
+ * one of them - else it would sign up nowhere.
+ */
+function charactersInput(value, input, cfg) {
+    const asked = Array.isArray(input.characters) && input.characters.length
+        ? input.characters.filter(Boolean)
+        : [{ character: input.character, spec: input.spec }];
+    if (asked.length > store.MAX_CHARACTERS) return { error: `Höchstens ${store.MAX_CHARACTERS} Charaktere.` };
+    const profile = profiles.getProfile(value.userId);
+    const own = profile.characters || [];
+    const cats = value.categoryId ? [value.categoryId]
+        : value.scope.every((s) => s.categoryIds.length) ? value.scope.flatMap((s) => s.categoryIds) : [];
+    const out = [];
+    for (const want of asked) {
+        if (!str(want.character) || !str(want.spec)) return { error: "Für eine Anwesenheit bitte Charakter und Spec wählen." };
+        const character = own.find((c) => c.key === str(want.character))
+            || own.find((c) => profiles.nameKey(c.name) === profiles.nameKey(want.character));
         if (!character) return { error: "Dieser Charakter steht nicht in deinem Profil." };
         // The character's version is the attendance's (#741): a category plays one
         // version, and a version hidden in the settings takes no new entry.
-        const versionProblem = presenceVersionProblem(character, value.categoryId);
-        if (versionProblem) return { error: versionProblem };
-        const spec = (character.specs || []).find((s) => s.key === str(input.spec));
+        const fits = cats.length
+            ? cats.some((c) => !presenceVersionProblem(character, c, { config: cfg }))
+            : !presenceVersionProblem(character, "", { config: cfg });
+        if (!fits) return { error: presenceVersionProblem(character, cats[0] || "", { config: cfg }) };
+        const spec = (character.specs || []).find((s) => s.key === str(want.spec));
         if (!spec) return { error: "Diese Spec hat der Charakter im Profil nicht." };
-        value.character = character.name;
-        value.spec = spec.key;
-        value.versionId = character.versionId || "";
+        out.push({ character: character.name, spec: spec.key, versionId: character.versionId || "" });
     }
-    return { value };
+    return { value: out };
 }
 
 /**
@@ -162,7 +232,7 @@ async function foreignRaids(userId, scope, { now = Date.now(), config } = {}) {
     const out = [];
     for (const event of raidsInRange(scope, { now, config: cfg })) {
         if (signupStore.getSignup(event.id, userId)) continue;
-        const guild = event.guildId || cfg.guildId || "";
+        const guild = event.guildId || firstServerId(cfg) || "";
         if (!roleIds.has(guild)) roleIds.set(guild, await discord.memberRoleIds(guild, userId));
         const access = await checkRaiderRole(event, userId, { previous: null, roleIds: roleIds.get(guild), config: cfg });
         if (access.error) out.push(event.id);
@@ -171,8 +241,21 @@ async function foreignRaids(userId, scope, { now = Date.now(), config } = {}) {
 }
 
 /** Whether an absence of the raider covers this raid (an attendance then stays out of it). */
-function absentFor(userId, event) {
-    return store.listEntries({ userId }).some((e) => e.kind === "absence" && covers(e, event) && !e.skip.includes(event.id));
+function absentFor(userId, event, { excludeId = "", config } = {}) {
+    return store.listEntries({ userId })
+        .some((e) => e.id !== excludeId && e.kind === "absence" && covers(e, event, { config }) && !e.skip.includes(event.id));
+}
+
+/**
+ * Whether an entry was made at one category's panel: a single category, not
+ * from the web (anybody can pick any category there). Such an absence signs
+ * off whatever the raider roles say - the panel sits where only that
+ * category's raiders are.
+ */
+function fromPanel(entry) {
+    if (entry.via === "web") return false;
+    const scope = scopeOf(entry);
+    return !!scope && scope.length === 1 && scope[0].categoryIds.length === 1;
 }
 
 /**
@@ -195,8 +278,7 @@ async function applyOutcome(entry, event, { now, config, members }) {
         // category (/availability) leaves the raids of categories the raider is no raider of alone — quietly,
         // they were never theirs. So does one from the web dialog, category or not: anybody can pick any
         // category there. Entries without `via` predate the web dialog and come from Discord.
-        const fromPanel = entry.categoryId && entry.via !== "web";
-        if (!fromPanel && !previous && !byOrga) {
+        if (!fromPanel(entry) && !previous && !byOrga) {
             const access = await checkRaiderRole(event, entry.userId, { previous: null, config });
             if (access.error) return { ok: false, skipped: "not_raider" };
         }
@@ -207,10 +289,12 @@ async function applyOutcome(entry, event, { now, config, members }) {
         return saved.error ? { ok: false, error: saved.error } : { ok: true };
     }
     if (previous) return { ok: false, skipped: previous.status === "absence" ? "absent" : "already_signed" };
-    if (absentFor(entry.userId, event)) return { ok: false, skipped: "absent" };
-    if (!specOf(entry.spec, event.versionId)) return { ok: false, error: "Klasse passt nicht zu diesem Raid" };
+    if (absentFor(entry.userId, event, { config })) return { ok: false, skipped: "absent" };
+    // the characters that can play the raid (its version, a spec of it), in order, as many as it takes - the rest is left out
+    const chars = charactersFor(entry, event, { max: maxCharactersFor(event, config), config });
+    if (!chars.length) return { ok: false, error: "Klasse passt nicht zu diesem Raid" };
     const saved = await submitSignup(event.id, entry.userId, {
-        characters: [{ character: entry.character, spec: entry.spec }],
+        characters: chars.map((c) => ({ character: c.character, spec: c.spec })),
         status: "signed",
     // an attendance from the web signs up like the web signup does: a PuG raid only for members of its server (#907)
     // `members` (createEntry): the membership asked once per server up front; a server missing there asks itself
@@ -238,9 +322,9 @@ async function membersFor(entry, raids, cfg) {
  * @returns {Promise<{ entry?: object, results?: object[], dm?: boolean, error?: string }>}
  */
 async function createEntry(userId, input = {}, { by = "", via = "", eventIds, now = Date.now(), config, dm = true } = {}) {
-    const checked = checkInput(userId, input, { now });
-    if (checked.error) return checked;
     const cfg = config || settingsStore.getConfig();
+    const checked = checkInput(userId, input, { now, config: cfg });
+    if (checked.error) return checked;
     const raids = raidsInRange(checked.value, { now, config: cfg });
     const picked = Array.isArray(eventIds) ? new Set(eventIds.map(str)) : null;
     const skip = picked ? raids.filter((e) => !picked.has(e.id)).map((e) => e.id) : [];
@@ -272,17 +356,57 @@ async function applyToEvent(eventId, { now = Date.now(), config } = {}) {
         if (!event || !openRaid(event, { now, config: cfg })) return out;
         if (cats.length && !cats.includes(str(event.categoryId))) return out;
         const entries = store.listEntries()
-            .filter((e) => covers(e, event) && !e.skip.includes(event.id) && !e.applied[event.id])
+            .filter((e) => covers(e, event, { config: cfg }) && !e.skip.includes(event.id) && !e.applied[event.id])
             .sort((a, b) => (a.kind === b.kind ? 0 : a.kind === "absence" ? -1 : 1));
         for (const entry of entries) {
             const result = await applyToRaid(entry, event, { now, config: cfg });
             out.push({ entry, result });
-            if (result.ok) await sendDm(entry.userId, raidDm(entry, event, langOf(entry.userId, { config: cfg })));
+            if (result.ok) await sendDm(entry.userId, raidDm(entry, event, langOf(entry.userId, { config: cfg }), { config: cfg }));
         }
     } catch (e) {
         logger.warn(`[availability] ${eventId}: ${(e && e.message) || e}`);
     }
     return out;
+}
+
+/**
+ * Change an entry - the raider's own, or anyone's for the orga: its period,
+ * reason, scope and (attendance) characters; the kind stays. The raids it
+ * already touched stay as they are (`applied`, nothing is undone); raids it
+ * newly covers are applied at once like createEntry does - `eventIds` are the
+ * ones picked (none given = all), the others are remembered as deselected. One
+ * DM "Absence changed" / "Attendance changed".
+ * @returns {Promise<{ entry?: object, results?: object[], dm?: boolean, error?: string, code?: string }>}
+ */
+async function changeEntry(id, input = {}, { userId = "", orga = false, eventIds, now = Date.now(), config, dm = true } = {}) {
+    const old = store.getEntry(id);
+    if (!old || (!orga && old.userId !== str(userId))) return { error: "Eintrag nicht gefunden.", code: "not_found" };
+    const cfg = config || settingsStore.getConfig();
+    const checked = checkInput(old.userId, { ...input, kind: old.kind }, { now, config: cfg });
+    if (checked.error) return checked;
+    const raids = raidsInRange(checked.value, { now, config: cfg });
+    const fresh = raids.filter((e) => !old.applied[e.id]);
+    const picked = Array.isArray(eventIds) ? new Set(eventIds.map(str)) : null;
+    // deselected now, plus what was deselected before and is not in today's list (a raid gone past, out of scope)
+    const skip = picked
+        ? [...new Set([...fresh.filter((e) => !picked.has(e.id)).map((e) => e.id), ...old.skip.filter((s) => !raids.some((e) => e.id === s))])]
+        : old.skip;
+    const patch = { from: checked.value.from, to: checked.value.to, comment: checked.value.comment, skip };
+    if (checked.value.scope.length) patch.scope = checked.value.scope;
+    else { patch.scope = []; patch.categoryId = checked.value.categoryId; }
+    if (old.kind === "presence") patch.characters = checked.value.characters;
+    // whoever edits decides the rights the new raids are applied with: the owner edits as themselves (web,
+    // raider role, deadline, seats, membership), only the orga on someone else's entry edits as the orga
+    const editor = str(userId) || old.userId;
+    const updated = store.updateEntry(old.id, patch, { createdBy: editor, via: "web" });
+    if (updated.error) return updated;
+    const targets = fresh.filter((e) => !skip.includes(e.id));
+    const members = await membersFor(updated.entry, targets, cfg);
+    const results = [];
+    for (const event of targets) results.push(await applyToRaid(updated.entry, event, { now, config: cfg, members }));
+    const entry = store.getEntry(old.id) || updated.entry;
+    const sent = dm ? await sendDm(entry.userId, entryDm(entry, results, langOf(entry.userId, { config: cfg }), { changed: true })) : false;
+    return { entry, results, dm: sent };
 }
 
 /** Remove an entry — the raider's own, or anyone's for the orga. Returns `{ entry }` or `{ error, code }`. */
@@ -332,12 +456,22 @@ const SKIP_TEXT = {
 // not shown at all: a raid of a category the raider is no raider of (an absence for every category)
 const QUIET_SKIPS = ["not_raider"];
 
-/** The DM after entering: the period, what was done per raid, and that later raids follow. */
-function entryDm(entry, results, lang = "de") {
+/** "**A** · Spec, **B** · Spec" of an attendance's characters. */
+function charactersText(chars, lang) {
+    return chars.map((c) => `**${c.character}** · ${specName(c.spec, lang)}`).join(", ");
+}
+
+/** The DM after entering (or changing): the period, what was done per raid, and that later raids follow. */
+function entryDm(entry, results, lang = "de", { changed = false } = {}) {
     const absence = entry.kind === "absence";
     const lines = [periodText(entry)];
     if (absence && entry.comment) lines.push(tr(lang, "Reason: {reason}", { reason: entry.comment }));
-    if (!absence) lines.push(tr(lang, "Character: **{character}** · {spec}", { character: entry.character, spec: specName(entry.spec, lang) }));
+    if (!absence) {
+        const chars = charactersOf(entry);
+        lines.push(chars.length === 1
+            ? tr(lang, "Character: **{character}** · {spec}", { character: chars[0].character, spec: specName(chars[0].spec, lang) })
+            : tr(lang, "Characters: {characters}", { characters: charactersText(chars, lang) }));
+    }
     const done = results.filter((r) => r.ok);
     const skipped = results.filter((r) => !r.ok && r.skipped && !QUIET_SKIPS.includes(r.skipped));
     const failed = results.filter((r) => !r.ok && !r.skipped);
@@ -355,22 +489,27 @@ function entryDm(entry, results, lang = "de") {
         ? tr(lang, "Raids created later in this period sign you off automatically – you get a DM each time.")
         : tr(lang, "Raids created later in this period sign you up automatically – you get a DM each time."));
     return {
-        title: absence ? tr(lang, "Absence saved") : tr(lang, "Attendance saved"),
+        title: changed
+            ? (absence ? tr(lang, "Absence changed") : tr(lang, "Attendance changed"))
+            : (absence ? tr(lang, "Absence saved") : tr(lang, "Attendance saved")),
         description: lines.join("\n"),
         footer: entry.createdBy !== entry.userId ? tr(lang, "Entered for you by the raid lead") : "",
     };
 }
 
 /** The DM when a raid of the period was signed up / off for the raider later on. */
-function raidDm(entry, event, lang = "de") {
+function raidDm(entry, event, lang = "de", { config } = {}) {
     const absence = entry.kind === "absence";
     const lines = [raidLine({ eventId: event.id, title: event.title, startTime: event.startTime })];
     const period = periodText(entry);
+    const chars = absence ? [] : charactersFor(entry, event, { max: maxCharactersFor(event, config), config });
     lines.push(absence
         ? (entry.comment
             ? tr(lang, "You are away {period} ({reason}), so you were signed off.", { period, reason: entry.comment })
             : tr(lang, "You are away {period}, so you were signed off.", { period }))
-        : tr(lang, "You are available {period}, so you were signed up with **{character}** · {spec}.", { period, character: entry.character, spec: specName(entry.spec, lang) }));
+        : chars.length === 1
+            ? tr(lang, "You are available {period}, so you were signed up with **{character}** · {spec}.", { period, character: chars[0].character, spec: specName(chars[0].spec, lang) })
+            : tr(lang, "You are available {period}, so you were signed up with {characters}.", { period, characters: charactersText(chars, lang) }));
     lines.push(tr(lang, "Changed your mind? Sign up or off again in the raid's message."));
     return {
         title: absence ? tr(lang, "Signed off automatically") : tr(lang, "Signed up automatically"),
@@ -393,8 +532,8 @@ async function sendDm(userId, { title, description, footer }) {
 
 module.exports = {
     MAX_DAYS, DAY,
-    raidsInRange, foreignRaids, checkInput, createEntry, applyToEvent, deleteEntry, activeEntries, covers, today, dayOf, dayStart, shortDay,
+    raidsInRange, foreignRaids, checkInput, createEntry, changeEntry, applyToEvent, deleteEntry, activeEntries, covers, absentFor, today, dayOf, dayStart, shortDay,
     entrySummary: entryDm,
     // only for the tests: not part of the module's API
-    _internal: { raidDm, applyToRaid, absentFor },
+    _internal: { raidDm, applyToRaid, absentFor, fromPanel },
 };

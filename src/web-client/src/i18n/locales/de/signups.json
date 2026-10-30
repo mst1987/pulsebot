@@ -176,6 +176,8 @@
         "byOrga": "von der Raidleitung",
         "byOrgaTip": "Die Raidleitung hat das für dich eingetragen.",
         "onlyCategory": "nur {name}",
+        "everywhere": "Alle Server",
+        "edit": "Eintrag bearbeiten",
         "done": {
             "one": "{count} Raid geändert",
             "other": "{count} Raids geändert"
@@ -205,6 +207,8 @@
             "noCharacterCategory": "Für {category} steht kein passender Charakter mit Spec im Profil.",
             "raids": "Raids im Zeitraum",
             "picked": "{picked} von {total} gewählt",
+            "raidsDone": "{done} erledigt",
+            "raidsPickedDone": "{picked} gewählt · {done} erledigt",
             "noRaids": "Im Zeitraum steht noch kein Raid an.",
             "searching": "Raids werden gesucht …",
             "raidAria": "{title} einbeziehen",
@@ -221,7 +225,28 @@
             "forName": "Für {name}",
             "backToMe": "Wieder für mich",
             "loadingRaider": "Charaktere werden geladen …",
-            "resultsKicker": "Gespeichert"
+            "resultsKicker": "Gespeichert",
+            "kickerEdit": "Eintrag ändern",
+            "titleEditAbsence": "Abwesenheit bearbeiten",
+            "titleEditPresence": "Anwesenheit bearbeiten",
+            "hintEdit": "Schon gesetzte An- und Abmeldungen bleiben, wie sie sind. Neu erfasste Raids im Zeitraum werden beim Speichern geändert, die Änderung kommt als DM.",
+            "hintEditFor": "Schon gesetzte An- und Abmeldungen bleiben, wie sie sind. Neu erfasste Raids im Zeitraum werden beim Speichern geändert, die Änderung geht als DM an {name}.",
+            "saveEdit": "Änderungen speichern",
+            "entryGone": "Diesen Eintrag gibt es nicht mehr – er ist abgelaufen oder wurde gelöscht.",
+            "allOfServer": "Alle Kategorien",
+            "serverAria": "Kategorien von {name}",
+            "noServer": "Du bist auf keinem Server, für den der Bot Raids plant.",
+            "noServerFor": "{name} ist auf keinem Server, für den der Bot Raids plant.",
+            "noScope": "Wähle mindestens einen Server oder eine Kategorie.",
+            "characters": "Charaktere",
+            "charAria": "{name} anmelden",
+            "specAria": "Spec von {name}",
+            "noCharPicked": "Wähle mindestens einen Charakter.",
+            "maxChars": "Höchstens {count} Charaktere",
+            "applied": "erledigt",
+            "appliedTip": "Dieser Eintrag hat den Raid schon geändert – das bleibt so.",
+            "absentFixed": "abwesend",
+            "absentTip": "Eine Abwesenheit deckt diesen Raid – die Anwesenheit lässt ihn aus."
         },
         "result": {
             "signedOff": {

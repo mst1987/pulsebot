@@ -17,6 +17,7 @@ const { handleLogMessage } = require("./services/logcheck/logChannel.js");
 const { autoLinkAllGuilds } = require("./services/logcheck/logAutoLink.js");
 const { runLogChannelMigration } = require("./services/logcheck/logChannelMigration.js");
 const { cleanForeignRoles } = require("./services/discord/roles/foreignRoleCleanup.js");
+const { runAvailabilityMigration } = require("./services/signups/availabilityMigration.js");
 const softresDetect = require("./services/loot/softresDetect.js");
 const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/roles/roleSync.js");
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
@@ -89,6 +90,9 @@ client.on(Events.ClientReady, () => {
     // The old global log-channel list goes to the servers the channels lie on (#921) - only
     // Discord knows that, so it runs here and not with the start migrations.
     runLogChannelMigration(client, { log: (line) => logger.info(line), warn: (line) => logger.warn(line) }).catch(() => {});
+    // Absences/attendances that held everywhere get their raider's first server, once - only
+    // Discord knows the membership (services/signups/availabilityMigration.js).
+    runAvailabilityMigration(client, { log: (line) => logger.info(line), warn: (line) => logger.warn(line) }).catch(() => {});
     // The rights per server (#925): the roles of other servers the migration copied into each
     // server's rights leave again - only where Discord shows for sure that they belong elsewhere.
     cleanForeignRoles(client, { log: (line) => logger.info(line), warn: (line) => logger.warn(line) });
