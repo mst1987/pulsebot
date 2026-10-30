@@ -71,7 +71,7 @@ jest.mock("../../../src/services/events/versionSettings", () => ({
 }));
 
 const { verifyToken } = require("../../../src/stores/ingestTokenStore");
-const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
+const { upsertPending, resolutionFor, listPending } = require("../../../src/stores/lootInboxStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const { handle } = require("../../../src/web/http/apiRouter");
@@ -168,6 +168,22 @@ describe("POST /api/ingest/loot with a game version (#1002)", () => {
         expect(status(res)).toBe(201);
         expect(placed()).toMatchObject({ waiting: true, servers: ["gA", "gC"] });
         spy.mockRestore();
+    });
+
+    it("leaves a card waiting for other servers alone (#994)", async () => {
+        listPending.mockReturnValue([{
+            id: "inbox1", sessionId: "eh-1784574000-ssc", guildId: "", waiting: true, servers: ["gA", "gB"], match: { suggested: null },
+        }]);
+        serversOfToken.mockResolvedValue(["gC"]);
+        raidsOn({ gC: [raid("eC", PEOPLE)] });
+        const res = await upload(payload());
+        expect(json(res).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+        expect(upsertPending).not.toHaveBeenCalled();
+        // a key sharing one of its servers may still add to it
+        serversOfToken.mockResolvedValue(["gB", "gC"]);
+        await upload(payload());
+        expect(upsertPending).toHaveBeenCalledTimes(1);
+        listPending.mockReturnValue([]);
     });
 
     it("keeps the plain day match without a game version", async () => {

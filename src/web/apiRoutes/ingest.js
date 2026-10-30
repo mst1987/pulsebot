@@ -232,11 +232,17 @@ async function ingestLoot(req, res) {
         }
         // A key with servers (#994; a personal key #1000) never touches another server's loot: not
         // the raid a session was accepted into, not an open card of the same session.
+        // A card waiting for a list of servers (#1002) belongs to them: a key sharing none of them
+        // neither adds its items nor rewrites the card's servers.
         if (servers) {
-            const owner = prior && prior.action === "accepted" && prior.eventId
+            const card = listPending().find((p) => p.sessionId === String(session.sessionId || ""));
+            const accepted = prior && prior.action === "accepted" && prior.eventId;
+            const owner = accepted
                 ? guildOfLootEvent(ctx, prior.eventId, prior.categoryId, prior.guildId)
-                : cardServer(ctx, listPending().find((p) => p.sessionId === String(session.sessionId || "")));
-            if (owner && !servers.includes(owner)) {
+                : cardServer(ctx, card);
+            const waitingFor = !accepted && card && card.waiting && Array.isArray(card.servers) ? card.servers : [];
+            const foreignWaiting = waitingFor.length > 0 && !waitingFor.some((g) => servers.includes(g));
+            if (foreignWaiting || (owner && !servers.includes(owner))) {
                 results.push({ sessionId: session.sessionId, status: "other_server", added: 0 });
                 continue;
             }

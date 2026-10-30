@@ -10,9 +10,15 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({
     charactersOfVersion: (profile, versionId) => ((profile && profile.characters) || []).filter((c) => c.versionId === versionId),
 }));
 
+jest.mock("../../../src/stores/eventStore", () => ({
+    isOwnEventId: (id) => String(id).startsWith("eh-"),
+    getEvent: jest.fn(() => null),
+}));
+
+const eventStore = require("../../../src/stores/eventStore");
 const raiderProfiles = require("../../../src/stores/raiderProfileStore");
 const {
-    MATCH_SHARE, realmKey, recipientKeys, signupKeys, scoreCandidates, decideCandidates, isStrong,
+    MATCH_SHARE, realmKey, recipientKeys, signupKeys, setupCharacters, scoreCandidates, decideCandidates, isStrong,
 } = require("../../../src/web/loot/inboxCandidates");
 
 // 2026-10-29 20:00 Europe/Berlin
@@ -51,6 +57,31 @@ describe("web/loot/inboxCandidates", () => {
             ],
         }, "tbc");
         expect([...keys].sort()).toEqual(["arthas", "muradin", "rexxar", "thrall"]);
+    });
+
+    it("counts the characters of the setup as participants too", () => {
+        const setup = {
+            groups: [{ index: 1, slots: [{ userId: "u1", character: "Varian" }, { userId: "u2" }] }],
+            bench: [{ userId: "u3", character: "Bolvar" }],
+            approved: { groups: [{ slots: [{ userId: "u4", character: "Tirion" }] }] },
+            events: [{ groups: [{ slots: [{ userId: "u5", character: "Anduin" }] }] }],
+        };
+        expect(setupCharacters(setup).sort()).toEqual(["Anduin", "Bolvar", "Tirion", "Varian"]);
+        expect(setupCharacters(null)).toEqual([]);
+        // the own event's stored setup: a swapped-in character who never signed up counts
+        eventStore.getEvent.mockReturnValueOnce({ setup });
+        const keys = signupKeys({ id: "eh-1", signUps: [signup("Arthas")] }, "tbc");
+        expect([...keys].sort()).toEqual(["anduin", "arthas", "bolvar", "tirion", "varian"]);
+        // a Raid-Helper raid has no stored setup to look up
+        expect([...signupKeys({ id: "123", signUps: [], setup: [] }, "tbc")]).toEqual([]);
+        expect(eventStore.getEvent).toHaveBeenCalledTimes(1);
+    });
+
+    it("lets the setup lift a raid to the clear match", () => {
+        const setupOf = (id) => (id === "eh-s" ? { groups: [{ slots: FIVE.slice(2).map((c) => ({ character: c })) }] } : null);
+        const out = scoreCandidates(session(FIVE), [row("eh-s", "gA", FIVE.slice(0, 1))], { gameVersion: "tbc", at: AT, setupOf });
+        expect(out[0]).toMatchObject({ matched: 4, total: 5 });
+        expect(isStrong(out[0])).toBe(true);
     });
 
     describe("scoreCandidates", () => {

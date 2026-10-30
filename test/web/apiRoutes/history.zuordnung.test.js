@@ -84,6 +84,8 @@ describe("GET /api/history/inbox", () => {
         const onA = json(await get("/api/history/inbox")).data;
         expect(onA.sessions).toEqual([]);
         expect(onA.waiting.map((s) => s.id)).toEqual([entry.id]);
+        // named like the sync app names it (versionHead, #1001)
+        expect(onA.waiting[0].versionShort).toBe("TBC");
         expect(onA.waiting[0].candidates).toEqual([
             expect.objectContaining({ eventId: "evA", serverName: "Server A", ownServer: true, suggested: true }),
             expect.objectContaining({ eventId: "evB", serverName: "Server B", ownServer: false, suggested: false }),
@@ -123,6 +125,33 @@ describe("first to assign wins", () => {
         expect(results.map(status).sort()).toEqual([201, 409]);
         expect(inbox.getPending(entry.id)).toBeNull();
         expect(inbox.resolvedById(entry.id).action).toBe("accepted");
+    });
+
+    it("tells an accept that the upload was dismissed meanwhile", async () => {
+        const entry = waitingUpload();
+        inbox.resolvePending(entry.id, "dismissed", { by: "Admin" });
+        mockGuild = "gB";
+        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "__manual__", manualLabel: "Kara" });
+        expect(status(res)).toBe(409);
+        expect(json(res).error.code).toBe("already_dismissed");
+    });
+
+    it("lets a full admin assign a raid of another server, an orga only its own", async () => {
+        const entry = waitingUpload();
+        const listed = json(await get("/api/history/inbox")).data.waiting[0].candidates;
+        expect(listed.map((c) => c.assignable)).toEqual([true, true]);
+
+        getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { history: { read: true, write: true } } });
+        const forOrga = json(await get("/api/history/inbox")).data.waiting[0].candidates;
+        expect(forOrga.map((c) => c.assignable)).toEqual([true, false]);
+        expect(status(await post("/api/history/inbox-accept", { id: entry.id, event: "evB" }))).toBe(403);
+        expect(inbox.getPending(entry.id)).not.toBeNull();
+
+        getUser.mockReturnValue(ADMIN);
+        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "evB" });
+        expect(status(res)).toBe(201);
+        expect(inbox.resolvedById(entry.id)).toMatchObject({ action: "accepted" });
+        expect(lootStore.listByEvent("evB").map((i) => i.guildId)).toEqual(["gB"]);
     });
 
     it("refuses the upload on a server it does not wait for", async () => {

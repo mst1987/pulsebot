@@ -28,10 +28,14 @@ import { tParts, useT } from "../../i18n";
 const DAY_MS = 24 * 60 * 60 * 1000;
 const KEEP_DAYS = 14;
 
-/** "TBC" for "tbc": the version's label as the top bar shows it. */
-function useVersionLabel(): (id?: string) => string {
+/**
+ * "TBC" for "tbc": the server's short name (versionHead, as the sync app shows it, #1001),
+ * else the version's label as the top bar shows it.
+ */
+function useVersionLabel(): (id?: string, short?: string) => string {
     const { versions } = useContentVersion();
-    return (id) => {
+    return (id, short) => {
+        if (short) return short;
         if (!id) return "";
         const v = versions.find((x) => x.id === id);
         return v ? (v.short || v.label) : id.toUpperCase();
@@ -53,7 +57,7 @@ function FootNote({ servers }: { servers: number }) {
     return <p className="hl-wait-foot">{servers === 2 ? t("history.waiting.footTwo") : t("history.waiting.footMany", { count: servers })}</p>;
 }
 
-/** One candidate raid: when, which server and raid, how many participants; the button if it is ours. */
+/** One candidate raid: when, which server and raid, how many participants; the button if we may assign it. */
 function CandidateRow({ c, busy, onAssign }: { c: InboxCandidate; busy: boolean; onAssign: () => void }) {
     const t = useT();
     const server = c.serverName || t("history.waiting.unknownServer");
@@ -65,11 +69,11 @@ function CandidateRow({ c, busy, onAssign }: { c: InboxCandidate; busy: boolean;
                 <small>
                     {[server, c.categoryName].filter(Boolean).join(" · ")}
                     {" · "}
-                    {t("history.waiting.participants", { matched: c.matched, count: c.total })}
+                    <span className="hl-wait-count">{t("history.waiting.participants", { matched: c.matched, count: c.total })}</span>
                 </small>
             </span>
             {c.suggested && <Badge tone="ok" tip={t("history.waiting.suggestedTip")}>{t("history.waiting.suggested")}</Badge>}
-            {c.ownServer
+            {c.assignable
                 // Short label: the raid name already stands in the row; the full text is the tooltip and name.
                 ? <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={onAssign}
                     aria-label={t("history.waiting.assign", { raid: c.eventLabel })}
@@ -89,7 +93,9 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
     // Another server was faster: tell it plainly and reload, the upload is gone.
     const failText = (err: unknown) => {
         const e = err as ApiError;
-        return e.code === "already_assigned" ? t("history.waiting.taken") : e.message;
+        if (e.code === "already_assigned") return t("history.waiting.taken");
+        if (e.code === "already_dismissed") return t("history.waiting.dismissedMeanwhile");
+        return e.message;
     };
 
     const assign = async (c: InboxCandidate) => {
@@ -123,7 +129,7 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
                     <span className="hl-wait-recv">{t("history.waiting.received", { date: formatDateTime(session.receivedAt) })}</span>
                 </div>
                 <MetaLine parts={[
-                    versionLabel(session.gameVersion), session.realm,
+                    versionLabel(session.gameVersion, session.versionShort), session.realm,
                     t("history.waiting.items", { count: session.itemCount }),
                     session.reporter ? t("history.waiting.from", { name: session.reporter }) : "",
                 ]} />
@@ -163,7 +169,7 @@ export function DismissedUpload({ session, onDone }: { session: InboxDismissedSe
             <span className="hl-wait-what">
                 <b>{title}</b>
                 <small>{[
-                    versionLabel(session.gameVersion), session.realm,
+                    versionLabel(session.gameVersion, session.versionShort), session.realm,
                     t("history.waiting.items", { count: session.itemCount }),
                     session.dismissedBy ? t("history.waiting.dismissedBy", { name: session.dismissedBy }) : "",
                 ].filter(Boolean).join(" · ")}</small>
@@ -202,7 +208,7 @@ export function WaitingBank({ bank, onDone }: { bank: InboxWaitingBank; onDone: 
                     <span className="hl-wait-recv">{t("history.waiting.received", { date: formatDateTime(bank.receivedAt) })}</span>
                 </div>
                 <MetaLine parts={[
-                    versionLabel(bank.gameVersion), bank.realm,
+                    versionLabel(bank.gameVersion, bank.versionShort), bank.realm,
                     t("history.waiting.items", { count: bank.items }),
                     bank.uploadedBy ? t("history.waiting.from", { name: bank.uploadedBy }) : "",
                 ]} />

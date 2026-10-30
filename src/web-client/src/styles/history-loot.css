@@ -242,15 +242,20 @@ td.sub.hl-msg-cell.hl-msg-bad { color: var(--high); }
 .hl-wait-meta { color: var(--muted); font-size: 13px; margin-top: 2px; }
 .hl-wait-row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line-soft); }
 .hl-wait-row.muted { color: var(--muted); }
+/* The suggestion: an accent edge on the left, no tint (#1002 review). */
+.hl-wait-row.is-best { box-shadow: inset 3px 0 0 var(--accent); padding-left: 12px; margin-left: -12px; }
 .hl-wait-row.is-best .hl-wait-what b { font-weight: 800; }
 .hl-wait-when { flex: 0 0 140px; color: var(--muted); font-size: 13px; }
 .hl-wait-what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hl-wait-what b { font-size: 15px; font-weight: 600; overflow-wrap: anywhere; }
 .hl-wait-what small { color: var(--muted); font-size: 13px; }
+/* "8 von 14 Teilnehmern" stays on one line; the server name before it may wrap. */
+.hl-wait-count { white-space: nowrap; }
 .hl-wait-other { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .hl-wait-actions { display: flex; justify-content: flex-end; padding: 8px 0 0; border-top: 1px solid var(--line-soft); }
 .hl-wait-foot { color: var(--muted); font-size: 13px; margin: 0; }
 .hl-wait-empty { max-width: 640px; }
+.hl-inbox-waithint { display: flex; align-items: center; justify-content: center; gap: 8px 12px; flex-wrap: wrap; margin-top: 14px; }
 @media (max-width: 600px) {
     .hl-wait-row { flex-wrap: wrap; gap: 6px 10px; }
     .hl-wait-when { flex-basis: 100%; }

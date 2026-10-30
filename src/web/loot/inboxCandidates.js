@@ -17,6 +17,7 @@ const { versionOfEvent } = require("../../services/events/mainVersion");
 const { settingsForVersion } = require("../../services/events/versionSettings");
 const { signupStatus } = require("../../utils/attendance");
 const raiderProfiles = require("../../stores/raiderProfileStore");
+const eventStore = require("../../stores/eventStore");
 
 /** The share of recipients that must have signed up for a raid to be the clear match. */
 const MATCH_SHARE = 0.6;
@@ -38,14 +39,43 @@ function recipientKeys(session) {
     return keys;
 }
 
+/** An own event's stored setup (the group rows carry none), null for a Raid-Helper raid. */
+function storedSetupOf(eventId) {
+    const ev = eventStore.isOwnEventId(eventId) ? eventStore.getEvent(eventId) : null;
+    return (ev && ev.setup) || null;
+}
+
 /**
- * The characters a raid's signups stand for, as name keys: the characters an
- * own event's signup names, else (a Raid-Helper signup carries only the
- * account) the profile characters of that account in the raid's version. A
- * signed-off signup does not count.
+ * The characters a setup placed or benched: the current draft and the last
+ * approved snapshot, across the events of a raid group.
  */
-function signupKeys(event, versionId, { profileOf = raiderProfiles.getProfile } = {}) {
+function setupCharacters(setup) {
+    const names = [];
+    if (!setup || typeof setup !== "object") return names;
+    const parts = [setup, setup.approved, ...(Array.isArray(setup.events) ? setup.events : [])].filter((p) => p && typeof p === "object");
+    for (const part of parts) {
+        for (const g of Array.isArray(part.groups) ? part.groups : []) {
+            for (const slot of Array.isArray(g && g.slots) ? g.slots : []) if (slot && slot.character) names.push(slot.character);
+        }
+        for (const b of Array.isArray(part.bench) ? part.bench : []) if (b && b.character) names.push(b.character);
+    }
+    return names;
+}
+
+/**
+ * The characters a raid's participants stand for, as name keys - its signups
+ * and its setup ("Anmeldungen bzw. Setup"): the characters an own event's
+ * signup names, else (a Raid-Helper signup carries only the account) the
+ * profile characters of that account in the raid's version; plus every
+ * character the setup placed or benched (the orga may have swapped one in).
+ * A signed-off signup does not count.
+ */
+function signupKeys(event, versionId, { profileOf = raiderProfiles.getProfile, setupOf = storedSetupOf } = {}) {
     const keys = new Set();
+    for (const name of setupCharacters(event && (event.setup && !Array.isArray(event.setup) ? event.setup : setupOf(event.id)))) {
+        const key = nameKeyOf(name);
+        if (key) keys.add(key);
+    }
     for (const s of (event && event.signUps) || []) {
         if (signupStatus(s) === "absence") continue;
         const named = (Array.isArray(s.characters) ? s.characters : []).map((c) => c && c.character).filter(Boolean);
@@ -67,7 +97,7 @@ function signupKeys(event, versionId, { profileOf = raiderProfiles.getProfile } 
  * the key's servers): same day, same game version, same realm (when both are
  * known), each with how many recipients signed up. Best match first.
  */
-function scoreCandidates(session, rows, { gameVersion, realm, at, config, profileOf } = {}) {
+function scoreCandidates(session, rows, { gameVersion, realm, at, config, profileOf, setupOf } = {}) {
     const recipients = recipientKeys(session);
     const total = recipients.size;
     const sameDay = new Set(candidatesForDay(at, (rows || []).map((r) => r.ev)));
@@ -79,7 +109,7 @@ function scoreCandidates(session, rows, { gameVersion, realm, at, config, profil
         if (versionId !== gameVersion) continue;
         const serverRealm = realmKey(settingsForVersion(versionId, { config, guildId: row.guildId }).blizzardRealmSlug);
         if (uploadRealm && serverRealm && uploadRealm !== serverRealm) continue;
-        const signed = signupKeys(row.ev, versionId, { profileOf });
+        const signed = signupKeys(row.ev, versionId, { profileOf, ...(setupOf ? { setupOf } : {}) });
         let matched = 0;
         for (const key of recipients) if (signed.has(key)) matched += 1;
         out.push({
@@ -128,4 +158,4 @@ function decideCandidates(candidates, keyServers) {
     };
 }
 
-module.exports = { MATCH_SHARE, realmKey, recipientKeys, signupKeys, scoreCandidates, decideCandidates, isStrong };
+module.exports = { MATCH_SHARE, realmKey, recipientKeys, signupKeys, setupCharacters, scoreCandidates, decideCandidates, isStrong };

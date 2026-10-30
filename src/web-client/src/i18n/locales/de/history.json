@@ -113,7 +113,9 @@
         "loading": "Inbox wird geladen",
         "empty": "Keine offenen Addon-Uploads.",
         "emptyHint": "Das Sync-Tool lädt Raid-Sessions hoch; ein Token dafür gibt es unter",
-        "emptyLink": "Einstellungen → Loot-Sync"
+        "emptyLink": "Einstellungen → Loot-Sync",
+        "emptyWaiting": { "one": "{count} Upload wartet auf seinen Raid.", "other": "{count} Uploads warten auf ihren Raid." },
+        "emptyWaitingLink": "„Wartet auf Zuordnung“ öffnen"
     },
     "waiting": {
         "tabs": "Uploads",
@@ -136,6 +138,7 @@
         "noCandidates": "Kein passender Raid gefunden.",
         "dismissText": "„{title}\" wird verworfen. {days} Tage lang lässt er sich unter „Verworfen\" wiederherstellen.",
         "taken": "Schon zugeordnet – die Orga eines anderen Servers war schneller.",
+        "dismissedMeanwhile": "Inzwischen verworfen – du findest den Upload unter „Verworfen“.",
         "footTwo": "Sichtbar für die Orga beider Server. Wer zuerst zuordnet, entscheidet; beim anderen verschwindet der Upload.",
         "footMany": "Sichtbar für die Orga aller {count} Server. Wer zuerst zuordnet, entscheidet; bei den anderen verschwindet der Upload.",
         "empty": "Nichts wartet auf Zuordnung.",
@@ -154,11 +157,11 @@
         "bankTaken": "Diese Gildenbank ist schon einem Server zugeordnet."
     },
     "inboxCard": {
-        "accepted": "{count} Item(s) zu „{event}\" übernommen. Weitere Uploads dieses Raids landen automatisch dort.",
-        "acceptedSkipped": "{count} Item(s) zu „{event}\" übernommen, {skipped} Duplikat(e) übersprungen. Weitere Uploads dieses Raids landen automatisch dort.",
-        "dismissTitle": "Session verwerfen?",
-        "dismissText": "{title}, {span}, {count} Item(s). Sie wird nicht erneut angeboten, auch wenn das Addon sie nochmal hochlädt.",
-        "dismissed": "Session verworfen.",
+        "accepted": { "one": "{count} Item zu „{event}“ übernommen. Weitere Uploads dieses Raids landen automatisch dort.", "other": "{count} Items zu „{event}“ übernommen. Weitere Uploads dieses Raids landen automatisch dort." },
+        "acceptedSkipped": { "one": "{count} Item zu „{event}“ übernommen, Duplikate übersprungen: {skipped}. Weitere Uploads dieses Raids landen automatisch dort.", "other": "{count} Items zu „{event}“ übernommen, Duplikate übersprungen: {skipped}. Weitere Uploads dieses Raids landen automatisch dort." },
+        "dismissTitle": "Upload verwerfen?",
+        "dismissText": "{title}, {span}, {count} Item(s). Er wird nicht erneut angeboten, auch wenn das Addon ihn nochmal hochlädt.",
+        "dismissed": "Upload verworfen.",
         "notLoaded": "Events nicht geladen",
         "notLoadedSub": "Beim Upload war Raid-Helper nicht erreichbar. Der Loot ist gesichert — das Event wird hier von Hand gewählt.",
         "multiTip": "Mehrere Raids",

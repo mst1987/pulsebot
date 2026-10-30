@@ -65,8 +65,8 @@ function waitingUpload(over: Partial<InboxWaitingSession> = {}): InboxWaitingSes
         itemCount: 6, items: [], realm: "Thunderstrike", reporter: "Gemli", addonVersion: "1.16.0", tokenName: "Gemli",
         match: null, gameVersion: "tbc", waiting: true, servers: ["gA", "gB"],
         candidates: [
-            { eventId: "evA", eventLabel: "BT Donnerstag", startTime: 1790000000, categoryId: "c1", categoryName: "Main", guildId: "gA", serverName: "Server A", ownServer: true, suggested: true, matched: 4, total: 7 },
-            { eventId: "evB", eventLabel: "BT Twink", startTime: 1790003600, categoryId: "c2", categoryName: "PuG", guildId: "gB", serverName: "Server B", ownServer: false, suggested: false, matched: 3, total: 7 },
+            { eventId: "evA", eventLabel: "BT Donnerstag", startTime: 1790000000, categoryId: "c1", categoryName: "Main", guildId: "gA", serverName: "Server A", ownServer: true, assignable: true, suggested: true, matched: 4, total: 7 },
+            { eventId: "evB", eventLabel: "BT Twink", startTime: 1790003600, categoryId: "c2", categoryName: "PuG", guildId: "gB", serverName: "Server B", ownServer: false, assignable: false, suggested: false, matched: 3, total: 7 },
         ],
         ...over,
     };
@@ -77,6 +77,9 @@ const bank: InboxWaitingBank = {
     receivedAt: Date.now(), uploadedBy: "Arthas", items: 120,
     servers: [{ guildId: "gA", name: "Server A", ownServer: true }, { guildId: "gB", name: "Server B", ownServer: false }],
 };
+
+/** The candidate line under a raid ("Server A · Main · 4 von 7 Teilnehmern"), spread over spans. */
+const candidateLine = (re: RegExp) => screen.getByText((_, el) => el?.tagName === "SMALL" && re.test(el.textContent || ""));
 
 const nonAdmin = () => adminUser({ isAdmin: false, access: { history: { read: true, write: true } } });
 
@@ -89,7 +92,7 @@ describe("HistoryInboxPage: Wartet auf Zuordnung", () => {
         renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
         expect(await screen.findByRole("radio", { name: "Wartet auf Zuordnung (1)" })).toHaveAttribute("aria-checked", "true");
         expect(screen.getByText("TBC · Thunderstrike · 6 Items · von Gemli")).toBeInTheDocument();
-        expect(screen.getByText(/Server A · Main · 4 von 7 Teilnehmern/)).toBeInTheDocument();
+        expect(candidateLine(/^Server A · Main · 4 von 7 Teilnehmern$/)).toBeInTheDocument();
         expect(screen.getByText("Vorschlag")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /BT Donnerstag zuordnen/ })).toBeInTheDocument();
         // A raid of the other server: only its orga may assign it.
@@ -114,14 +117,47 @@ describe("HistoryInboxPage: Wartet auf Zuordnung", () => {
         expect(vi.mocked(api.getLootInbox).mock.calls.length).toBeGreaterThan(1);
     });
 
+    it("says plainly when the upload was dismissed meanwhile (409)", async () => {
+        vi.mocked(api.acceptLootInbox).mockRejectedValue({ code: "already_dismissed", message: "dismissed" });
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
+        fireEvent.click(await screen.findByRole("button", { name: /BT Donnerstag zuordnen/ }));
+        expect(await screen.findByRole("status")).toHaveTextContent(/Inzwischen verworfen/);
+    });
+
+    it("lets a full admin assign a raid of another server when the API allows it", async () => {
+        const both = waitingUpload();
+        both.candidates[1] = { ...both.candidates[1], assignable: true };
+        vi.mocked(api.getLootInbox).mockResolvedValue({ sessions: [], linked: [], waiting: [both], dismissed: [], waitingBanks: [] });
+        vi.mocked(api.acceptLootInbox).mockResolvedValue({ added: 1, eventLabel: "BT Twink" } as Awaited<ReturnType<typeof api.acceptLootInbox>>);
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
+        fireEvent.click(await screen.findByRole("button", { name: /BT Twink zuordnen/ }));
+        expect(api.acceptLootInbox).toHaveBeenCalledWith({ id: "w1", event: "evB" });
+        expect(await screen.findByRole("status")).toHaveTextContent("1 Item zu „BT Twink“ übernommen.");
+    });
+
+    it("names the version as the sync app does", async () => {
+        vi.mocked(api.getLootInbox).mockResolvedValue({ sessions: [], linked: [], waiting: [waitingUpload({ versionShort: "TBC-A" })], dismissed: [], waitingBanks: [] });
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
+        expect(await screen.findByText("TBC-A · Thunderstrike · 6 Items · von Gemli")).toBeInTheDocument();
+    });
+
+    it("points from the empty Ready tab to the waiting uploads", async () => {
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
+        fireEvent.click(await screen.findByRole("radio", { name: "Bereit (0)" }));
+        expect(screen.getByText("1 Upload wartet auf seinen Raid.")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /Wartet auf Zuordnung“ öffnen/ }));
+        expect(screen.getByRole("radio", { name: "Wartet auf Zuordnung (1)" })).toHaveAttribute("aria-checked", "true");
+    });
+
     it("dismisses after asking", async () => {
         vi.mocked(api.dismissLootInbox).mockResolvedValue(undefined as never);
         renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
         fireEvent.click(await screen.findByRole("button", { name: "Verwerfen" }));
         const dialog = await screen.findByRole("dialog");
+        expect(dialog).toHaveTextContent(/Upload verwerfen\?/);
         expect(dialog).toHaveTextContent(/14 Tage/);
         fireEvent.click(within(dialog).getByRole("button", { name: /Verwerfen/ }));
-        await screen.findByRole("status");
+        expect(await screen.findByRole("status")).toHaveTextContent("Upload verworfen.");
         expect(api.dismissLootInbox).toHaveBeenCalledWith("w1");
     });
 
@@ -157,7 +193,8 @@ describe("HistoryInboxPage: Wartet auf Zuordnung", () => {
         await switchLang("en");
         renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
         expect(await screen.findByRole("radio", { name: "Awaiting assignment (1)" })).toBeInTheDocument();
-        expect(screen.getByText(/Server A · Main · 4 of 7 participants/)).toBeInTheDocument();
+        expect(candidateLine(/^Server A · Main · 4 of 7 participants$/)).toBeInTheDocument();
+        expect(screen.getByText("Only Server B's orga")).toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Assign BT Donnerstag/ })).toBeInTheDocument();
         expect(screen.getByText("Suggestion")).toBeInTheDocument();
         expect(screen.getByText(/Visible to the orga of both servers/)).toBeInTheDocument();

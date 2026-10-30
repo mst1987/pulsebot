@@ -324,8 +324,10 @@ export type InboxCandidate = InboxMatchEvent & {
     guildId: string;
     /** The server's name as the server list shows it. */
     serverName: string;
-    /** The raid is on the active server: only then it can be assigned from here. */
+    /** The raid is on the active server. */
     ownServer: boolean;
+    /** It may be assigned from here: the active server's raids, for a full admin every server's. */
+    assignable: boolean;
     /** The best candidate ("Vorschlag"): the most participants. */
     suggested: boolean;
     /** Participants of the upload who were signed up for this raid, of all of them. */
@@ -336,6 +338,8 @@ export type InboxCandidate = InboxMatchEvent & {
 /** An upload no raid holds alone (#1002): it waits for the orga of each of its servers. */
 export type InboxWaitingSession = InboxSession & {
     gameVersion?: string;
+    /** The version's short name as the sync app shows it ("TBC", versionHead #1001). */
+    versionShort?: string;
     waiting?: boolean;
     servers: string[];
     candidates: InboxCandidate[];
@@ -348,6 +352,8 @@ export type InboxDismissedSession = InboxWaitingSession & { dismissedAt: number;
 export type InboxWaitingBank = {
     key: string;
     gameVersion: string;
+    /** The version's short name as the sync app shows it ("TBC", versionHead #1001). */
+    versionShort?: string;
     realm: string;
     guild: string;
     faction: string;

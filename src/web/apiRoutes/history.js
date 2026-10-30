@@ -49,6 +49,7 @@ const { userCan } = require("../../config/permissions");
 const discord = require("../../services/discord/discord");
 const linkCheck = require("../../services/discord/linkCheck");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { versionHead } = require("../../services/discord/ingestServers");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -614,7 +615,7 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
  * has filed yet, each with the event it was matched to (a suggestion only) and
  * its loot, so the admin can see what they are accepting before they accept it.
  */
-const getLootInbox = withUser({}, async ({ req, res, url }) => {
+const getLootInbox = withUser({}, async ({ user, req, res, url }) => {
     // One game version (#741): a session matched to a raid only under that raid's
     // version, one without a match under every version (like a log without a raid).
     const cfg = getConfig();
@@ -650,18 +651,19 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
     const names = serverNames(cfg);
     // Uploads that wait for the orga of several servers (#1002): with their
     // candidates, each naming its server and whether it is the active one.
-    const waiting = pending.filter((s) => s.waiting).map((s) => withCandidates(decorate(s), guildId, names));
+    const fullAdmin = !!(user && user.isAdmin);
+    const waiting = pending.filter((s) => s.waiting).map((s) => withCandidates(decorate(s), guildId, names, fullAdmin, cfg));
     const sessions = pending.filter((s) => !s.waiting).map(decorate);
     // Dismissed uploads past their 14 days leave the file too (writes only when one is due).
     pruneDismissedSessions();
-    const dismissed = listDismissedSessions().filter(visible).map((s) => withCandidates(decorate(s), guildId, names));
+    const dismissed = listDismissedSessions().filter(visible).map((s) => withCandidates(decorate(s), guildId, names, fullAdmin, cfg));
     // Accepted sessions that keep appending by themselves — the quiet list under
     // the cards, so nobody wonders where last night's second half went.
     ok(res, {
         sessions,
         waiting,
         dismissed,
-        waitingBanks: waitingBanksFor(guildId, versionId, names),
+        waitingBanks: waitingBanksFor(guildId, versionId, names, cfg),
         linked: listLinkedSessions().filter((s) => s && inVersion(s.eventId) && linkedInGuild(s)),
     });
 });
@@ -679,26 +681,36 @@ function serverNames(cfg) {
     return names;
 }
 
-/** A waiting or dismissed upload with its candidates ready for the tab (#1002). */
-function withCandidates(session, guildId, names) {
+/**
+ * A waiting or dismissed upload with its candidates ready for the tab (#1002).
+ * `assignable`: the active server's raids, for a full admin every server's (like the banks, #926).
+ * `versionShort`: the version's short name as the sync app shows it (`versionHead`, #1001).
+ */
+function withCandidates(session, guildId, names, fullAdmin = false, cfg = undefined) {
     const match = session.match || {};
     const candidates = (Array.isArray(match.candidates) ? match.candidates : []).map((c) => ({
         ...c,
         serverName: names.get(String(c.guildId || "")) || "",
         ownServer: String(c.guildId || "") === String(guildId),
+        assignable: String(c.guildId || "") === String(guildId) || (fullAdmin && !!c.guildId),
         suggested: !!match.best && c.eventId === match.best,
     }));
-    return { ...session, candidates, servers: Array.isArray(session.servers) ? session.servers : [] };
+    return { ...session, versionShort: versionShortOf(session.gameVersion, guildId, cfg), candidates, servers: Array.isArray(session.servers) ? session.servers : [] };
+}
+
+/** "TBC" for "tbc" on this server, "" without a version. */
+function versionShortOf(versionId, guildId, cfg) {
+    return versionId ? versionHead(versionId, guildId, cfg).short : "";
 }
 
 /** Guild banks waiting for the orga of the active server (#1002): new banks of a personal key. */
-function waitingBanksFor(guildId, versionId, names) {
+function waitingBanksFor(guildId, versionId, names, cfg = undefined) {
     const active = String(guildId || "");
     if (!active) return [];
     return guildBankStockStore.listBanks()
         .filter((b) => b.pending && b.waitingFor.includes(active) && (!versionId || b.gameVersion === versionId))
         .map((b) => ({
-            key: b.key, gameVersion: b.gameVersion, realm: b.realm, guild: b.guild, faction: b.faction,
+            key: b.key, gameVersion: b.gameVersion, versionShort: versionShortOf(b.gameVersion, active, cfg), realm: b.realm, guild: b.guild, faction: b.faction,
             receivedAt: b.receivedAt, uploadedBy: b.uploadedBy, items: b.counts.items,
             servers: b.waitingFor.map((gid) => ({ guildId: gid, name: names.get(gid) || "", ownServer: gid === active })),
         }));
@@ -706,6 +718,32 @@ function waitingBanksFor(guildId, versionId, names) {
 
 const GONE = "Diese Session liegt nicht mehr in der Inbox.";
 const TAKEN = "Diese Session hat schon ein anderer Server zugeordnet.";
+const DISMISSED = "Dieser Upload wurde inzwischen verworfen.";
+
+/** Why a card left the inbox: 409 for the first decision taken elsewhere, else 404. */
+function goneAnswer(res, id) {
+    const done = resolvedInboxById(id);
+    if (done && done.action === "accepted") return error(res, 409, "already_assigned", TAKEN);
+    if (done && done.action === "dismissed") return error(res, 409, "already_dismissed", DISMISSED);
+    return error(res, 404, "not_found", GONE);
+}
+
+/**
+ * The candidate raid of a waiting upload on another server than the active one,
+ * when a full admin picks it (#1002, like the banks #926): it is filed under
+ * that raid and server as the upload's own candidate list names them. null for
+ * anything else - the active server's raids go through resolveImportTarget; a
+ * 403 for anyone but a full admin.
+ */
+function foreignCandidate(user, entry, eventId, active) {
+    if (!entry.waiting || !eventId) return null;
+    const list = entry.match && Array.isArray(entry.match.candidates) ? entry.match.candidates : [];
+    const hit = list.find((c) => c && String(c.eventId) === eventId);
+    if (!hit || !hit.guildId || String(hit.guildId) === String(active)) return null;
+    // Everyone else only assigns the raids of the server they work on (#919).
+    if (!user || !user.isAdmin) return { error: OTHER_SERVER, status: 403, code: "other_server" };
+    return { eventId: String(hit.eventId), eventLabel: hit.eventLabel || String(hit.eventId), categoryId: hit.categoryId || "", guildId: String(hit.guildId) };
+}
 
 /**
  * POST /api/history/inbox-accept — body: { id, event, manualLabel, categoryId }.
@@ -713,15 +751,11 @@ const TAKEN = "Diese Session hat schon ein anderer Server zugeordnet.";
  * `event` defaults to the suggested match; the admin can override it with any
  * event id, "__auto__" or "__manual__" (same vocabulary as the paste import).
  */
-const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const id = String(body.id || "").trim();
     const entry = getPendingSession(id);
-    if (!entry) {
-        // First to assign wins (#1002): the other server learns it was taken.
-        const done = resolvedInboxById(id);
-        if (done && done.action === "accepted") return error(res, 409, "already_assigned", TAKEN);
-        return error(res, 404, "not_found", GONE);
-    }
+    // First decision wins (#1002): the other server learns it was taken or dismissed.
+    if (!entry) return goneAnswer(res, id);
     // A card the active server does not show is not this server's to file (#919).
     if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
 
@@ -731,8 +765,9 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
     // No explicit choice → take the match the upload already suggested, and only
     // fall back to re-matching by date when there was none.
     const suggested = entry.match && entry.match.suggested ? entry.match.suggested.eventId : "";
-    const target = await resolveImportTarget(req, {
-        event: String(body.event || "").trim() || suggested || "__auto__",
+    const asked = String(body.event || "").trim();
+    const target = foreignCandidate(user, entry, asked, activeGuildFor(req)) || await resolveImportTarget(req, {
+        event: asked || suggested || "__auto__",
         manualLabel: body.manualLabel,
         items: entry.items,
         // The version the session was matched under (the inbox lists it there), else the
@@ -740,9 +775,9 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
         versionId: importVersion(body, storedVersionOf(suggested) || entry.gameVersion || ""),
     });
     if (target.error) return error(res, target.status, target.code, target.error);
-    // The match above awaited: another server may have assigned the upload meanwhile.
-    // From here on everything runs without a pause, so exactly one assignment wins.
-    if (!getPendingSession(entry.id)) return error(res, 409, "already_assigned", TAKEN);
+    // The match above awaited: another server may have assigned or dismissed the upload
+    // meanwhile. From here on everything runs without a pause, so exactly one decision wins.
+    if (!getPendingSession(entry.id)) return goneAnswer(res, entry.id);
 
     const categoryId = target.categoryId || picked.id;
     linkItemsForImport(entry.items, { eventId: target.eventId, categoryId });
@@ -772,11 +807,7 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
 const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const id = String(body.id || "").trim();
     const entry = getPendingSession(id);
-    if (!entry) {
-        const done = resolvedInboxById(id);
-        if (done && done.action === "accepted") return error(res, 409, "already_assigned", TAKEN);
-        return error(res, 404, "not_found", GONE);
-    }
+    if (!entry) return goneAnswer(res, id);
     // Same rule as the list (#919): only a card the active server shows.
     if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
     const removed = resolvePendingSession(id, "dismissed", { by: (user && (user.name || user.username || user.id)) || "" });
