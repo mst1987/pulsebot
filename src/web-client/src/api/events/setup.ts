@@ -136,6 +136,8 @@ export type SetupEditorData = {
     /** By user id; only on the page load — the page keeps it across moves. */
     attendance?: Record<string, SetupAttendance>;
     signupCount?: number;
+    /** #1035: how many raids in total the signups fill (ceil(signups / size), at most 8); 0 without signups. */
+    suggestedTotal?: number;
     absent?: number;
     /** How many "nicht zusammen" pairs stand among the signups — what the editor asks about. */
     avoidPairs?: number;
@@ -187,9 +189,12 @@ export type RaidGroup = {
     raids: RaidGroupRaid[];
 };
 
-/** "Weiteren Raid hinzufügen" (#811): a further raid of the event's group; `title` empty = "<Titel> 2". */
-export function addGroupRaid(eventId: string, title = ""): Promise<{ event: string; title: string; raidGroup: RaidGroup | null; message: string }> {
-    return send("POST", "/api/raids/setup/raid-add", { event: eventId, title });
+/**
+ * "Weiteren Raid hinzufügen" (#811): a further raid of the event's group; `title` empty = "<Titel> 2".
+ * `count` > 1 (#1035) makes that many at once, titled "<Titel> n" (`events` = their ids, `event` the first).
+ */
+export function addGroupRaid(eventId: string, title = "", count = 1): Promise<{ event: string; events?: string[]; title: string; raidGroup: RaidGroup | null; message: string }> {
+    return send("POST", "/api/raids/setup/raid-add", count > 1 ? { event: eventId, count } : { event: eventId, title });
 }
 
 /** Dissolve a further raid without an approved setup (#811): its raiders fall back into "Angemeldet". */
