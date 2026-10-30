@@ -298,8 +298,21 @@ describe("web/apiRoutes/settings", () => {
                 expect(ingestTokens.createToken).toHaveBeenLastCalledWith("PC", "Admin", "gB");
             });
 
+            it("mints no token without a server: no active one, or one not configured", async () => {
+                fullAdmin();
+                for (const active of ["", "gX"]) {
+                    activeGuildFor.mockReturnValue(active);
+                    const res = await post("/api/settings/ingest-tokens", { name: "PC" });
+                    expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                    expect(json(res).error.code).toBe("unknown_server");
+                }
+                expect(ingestTokens.createToken).not.toHaveBeenCalled();
+                activeGuildFor.mockReturnValue("");
+            });
+
             it("lets a full admin assign a token without a server", async () => {
                 fullAdmin();
+                ingestTokens.listTokens.mockReturnValueOnce([{ id: "t1", name: "PC", guildId: "" }]);
                 ingestTokens.assignTokenGuild.mockReturnValueOnce({ id: "t1", guildId: "gB" });
                 const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gB" });
                 expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
@@ -320,6 +333,25 @@ describe("web/apiRoutes/settings", () => {
                 const res = await post("/api/settings/ingest-tokens/assign", { id: "nope", guildId: "gA" });
                 expect(res.writeHead).toHaveBeenCalledWith(404, expect.any(Object));
                 expect(json(res).error.code).toBe("not_found");
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            // user decision: a token keeps its server; to move, mint a new one
+            it("refuses to move a token that already has a server", async () => {
+                fullAdmin();
+                ingestTokens.listTokens.mockReturnValueOnce([{ id: "t1", name: "PC", guildId: "gA" }]);
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gB" });
+                expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                expect(json(res).error.code).toBe("already_assigned");
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
+            });
+
+            it("refuses an assignment without CSRF", async () => {
+                fullAdmin();
+                auth.checkCsrf.mockReturnValue(false);
+                const res = await post("/api/settings/ingest-tokens/assign", { id: "t1", guildId: "gA" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(ingestTokens.assignTokenGuild).not.toHaveBeenCalled();
             });
 
             it("refuses a limited settings user", async () => {

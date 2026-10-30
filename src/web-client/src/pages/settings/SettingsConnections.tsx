@@ -207,6 +207,7 @@ export default function ConnectionsSection({ data, tokens, tokenServers = [], on
                 open={editing === "lootsync"}
                 tokens={tokens}
                 servers={tokenServers}
+                activeGuildId={data.activeGuildId}
                 onClose={() => setEditing(null)}
                 onChanged={onTokensChanged}
             />
@@ -421,10 +422,12 @@ function serverName(servers: IngestTokenServer[], guildId: string): string {
  * tokens (the page is "Alle Server", full admins only), a token minted before
  * gets a server picker instead of a name.
  */
-function TokensModal({ open, tokens, servers = [], onClose, onChanged }: {
+function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, onChanged }: {
     open: boolean;
     tokens: IngestToken[] | null;
     servers?: IngestTokenServer[];
+    /** The server a new token is minted for; outside the server list none is (400 unknown_server). */
+    activeGuildId?: string;
     onClose: () => void;
     onChanged: () => void;
 }) {
@@ -438,6 +441,7 @@ function TokensModal({ open, tokens, servers = [], onClose, onChanged }: {
     const [copied, setCopied] = useState(false);
 
     const close = () => { setFresh(null); setCopied(false); onClose(); };
+    const mintServer = activeGuildId && servers.some((s) => s.guildId === activeGuildId) ? activeGuildId : "";
 
     const create = async () => {
         setBusy(true);
@@ -523,8 +527,11 @@ function TokensModal({ open, tokens, servers = [], onClose, onChanged }: {
                     <FieldLabel htmlFor="token-name" tip={t("settings.tokens.new")} tipSub={t("settings.tokens.newSub")}>{t("settings.tokens.new")}</FieldLabel>
                     <div className="secret-row">
                         <input id="token-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.tokens.namePlaceholder")} />
-                        <Button icon="apiToken" onClick={create} disabled={busy}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
+                        <Button icon="apiToken" onClick={create} disabled={busy || !mintServer}>{busy ? t("settings.tokens.creating") : t("settings.tokens.create")}</Button>
                     </div>
+                    <small className="muted" data-testid="token-for-server">
+                        {mintServer ? t("settings.tokens.forServer", { server: serverName(servers, mintServer) }) : t("settings.tokens.noActiveServer")}
+                    </small>
                 </div>
                 {!tokens ? <RaidLoader compact text={t("settings.tokens.loading")} /> : !tokens.length ? (
                     <div className="empty">{t("settings.tokens.empty")}</div>

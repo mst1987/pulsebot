@@ -205,7 +205,7 @@ const findBank = (data, key) => data.banks.find((b) => b.key === str(key));
 /**
  * Store a parsed scan (utils/guildbank/guildBankScan.js). A bank seen for the
  * first time is created — assigned to `guildId` when one is given, else it
- * waits for an assignment. Returns `{ status: "created" | "updated" | "stale",
+ * waits for an assignment. A known bank keeps its server (`guildId` is ignored). Returns `{ status: "created" | "updated" | "stale",
  * bank (summary), newItems: [itemId] }`; "stale" = an older scan than the
  * stored one, nothing changed.
  * @param {object} scan
@@ -223,8 +223,9 @@ function recordScan(scan, { now = Date.now(), guildId = "", uploadedBy = "" } = 
     if (!created && before.scannedAt && scan.scannedAt && scan.scannedAt < before.scannedAt) {
         return { status: "stale", bank: bankView(bank, { items: false }), newItems: [] };
     }
+    // A known bank keeps its server - also none, when it waits or was taken back
+    // on purpose (#994): only the orga assigns it then.
     Object.assign(bank, { realm: scan.realm, guild: scan.guild, faction: scan.faction || bank.faction || "", updatedAt: now });
-    if (!str(bank.guildId) && str(guildId)) bank.guildId = str(guildId, 30);
     bank.lastScan = {
         scannedAt: scan.scannedAt || now,
         scannedBy: scan.scannedBy || "",

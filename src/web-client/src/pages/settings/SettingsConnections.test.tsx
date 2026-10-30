@@ -1,7 +1,7 @@
 // The Loot-Sync token table works per Discord server (#994): a token shows the
 // server it belongs to, a token minted before the split gets a picker instead,
 // and picking a server binds it and reloads the list.
-import { screen, waitFor, within } from "@testing-library/react";
+import { cleanup, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
@@ -40,10 +40,10 @@ const SERVERS: IngestTokenServer[] = [
     { guildId: "gB", name: "PuGs", label: "Pulse PuGs" },
 ];
 
-function show(tokens: IngestToken[], onTokensChanged = vi.fn()) {
+function show(tokens: IngestToken[], onTokensChanged = vi.fn(), activeGuildId = "gA") {
     renderPage(
         <ConnectionsSection
-            data={settings()}
+            data={{ ...settings(), activeGuildId }}
             tokens={tokens}
             tokenServers={SERVERS}
             onConfig={vi.fn()}
@@ -98,9 +98,36 @@ describe("SettingsConnections — upload keys per server (#994)", () => {
         expect(changed).not.toHaveBeenCalled();
     });
 
+    it("names the server a new token is minted for", async () => {
+        show([], vi.fn(), "gB");
+        const dlg = await openTokens(/Tokens verwalten/);
+        expect(dlg.getByTestId("token-for-server")).toHaveTextContent("Das neue Token gilt für Pulse PuGs.");
+        expect(dlg.getByRole("button", { name: /Token erstellen/ })).toBeEnabled();
+    });
+
+    // the server refuses with 400 unknown_server; the dialog says why and offers no button
+    it("mints nothing without an active server from the list", async () => {
+        for (const active of ["", "gX"]) {
+            show([], vi.fn(), active);
+            const dlg = await openTokens(/Tokens verwalten/);
+            expect(dlg.getByTestId("token-for-server")).toHaveTextContent(/Kein aktiver Discord-Server gewählt/);
+            const create = dlg.getByRole("button", { name: /Token erstellen/ });
+            expect(create).toBeDisabled();
+            await userEvent.click(create);
+            expect(api.createIngestToken).not.toHaveBeenCalled();
+            cleanup();
+        }
+    });
+
     describe("in English", () => {
         beforeEach(() => switchLang("en"));
         afterEach(() => switchLang("de"));
+
+        it("names the server of a new token in English", async () => {
+            show([], vi.fn(), "gA");
+            const dlg = await openTokens(/Manage tokens/);
+            expect(dlg.getByTestId("token-for-server")).toHaveTextContent("The new token works for Pulse.");
+        });
 
         it("names the picker and its empty choice in English", async () => {
             show([token({ id: "t9", name: "Alt-PC", guildId: "" })]);

@@ -6,8 +6,9 @@
 // several it belongs to no server yet and waits for an assignment ("Wartet auf
 // Zuordnung") — it is stored all the same, so nothing scanned is lost. An
 // ingest token bound to a server (`token.guildId`, #994; older tokens carry none)
-// assigns a new bank right away. Only a raid server can own a bank: that is
-// where the requests are made.
+// assigns a new bank right away; it is refused (`other_server`) for a bank of
+// another server, and a known bank without a server stays without one. Only a
+// raid server can own a bank: that is where the requests are made.
 //
 // A scan whose client names no game version (#737) is never filed under the
 // main version: it goes to the bank already known for its realm and guild
@@ -48,7 +49,8 @@ function onlyEventServer(config = getConfig()) {
  * once and returns the items that still need a Wowhead lookup (`lookups`) —
  * the caller queues them after answering (itemMeta.queueLookups).
  * @throws {GuildBankParseError} for an upload that is no readable scan
- * @returns {{ scan, status: "created"|"updated"|"stale", bank, newItems: number[], lookups: number[] }}
+ * @returns {{ scan, status: "created"|"updated"|"stale", bank, newItems: number[], lookups: number[] }
+ *   | { code: "other_server", error: string, scan }}  nothing stored for the latter
  */
 /**
  * The game version of a scan without one (#737): the version of the bank
@@ -71,7 +73,17 @@ function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
         if (e instanceof GuildBankParseError) console.warn(`[guildbank] Scan abgelehnt: ${e.message}`);
         throw e;
     }
-    const guildId = serverOfToken(token) || (store.getBank(scan.key) ? "" : onlyEventServer(config));
+    // A key with a server (#994) never writes into another server's bank. Each
+    // game version is a bank of its own (key version:realm:guild), so the own
+    // server's bank of another version is no conflict. A known bank without a
+    // server (waiting, or taken back) takes the scan but stays without one.
+    const own = serverOfToken(token);
+    const known = store.getBank(scan.key);
+    if (own && known && String(known.guildId || "") && String(known.guildId) !== own) {
+        console.warn(`[guildbank] Scan abgelehnt: Bank ${scan.key} gehört zu einem anderen Server.`);
+        return { code: "other_server", error: "Diese Gildenbank gehört zu einem anderen Discord-Server.", scan };
+    }
+    const guildId = known ? "" : (own || onlyEventServer(config));
     const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
     if (result.status === "stale") return { scan, ...result, lookups: [] };
     // new items and those with stale (German) meta: the local tables name them at once

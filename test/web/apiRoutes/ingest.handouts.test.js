@@ -72,6 +72,16 @@ describe("GET /api/ingest/guildbank/handouts", () => {
         expect(touchToken).toHaveBeenCalledWith("t1");
     });
 
+    // #994: the service scopes list and report to the key's server (handouts.test.js).
+    it("hands a server key on to the list and the report", async () => {
+        const own = { ...TOKEN, guildId: "g2" };
+        verifyToken.mockReturnValue(own);
+        await get();
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: own, bankKey: "" });
+        await post({ done: ["r1"] });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: own });
+    });
+
     it("passes the bank filter through", async () => {
         await get({ bank: "tbc:spineshatter:die gilde" });
         expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, bankKey: "tbc:spineshatter:die gilde" });

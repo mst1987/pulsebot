@@ -28,7 +28,7 @@ const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = requi
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
 const { serverIds } = require("../../services/discord/guildRoles");
-const { serverWithoutSession, serverContext } = require("../../services/loot/lootServer");
+const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../services/guildbank/itemMeta");
@@ -133,6 +133,19 @@ async function eventsOfServers(guildIds) {
     return all;
 }
 
+/**
+ * The server an open inbox card belongs to: its suggested raid's (the stored
+ * server, else the raid's own rule), else the server of the key that sent it;
+ * "" for no card or a card of a key without server (it shows on every server).
+ */
+function cardServer(ctx, entry) {
+    if (!entry) return "";
+    const suggested = entry.match && entry.match.suggested;
+    if (suggested && String(suggested.guildId || "").trim()) return String(suggested.guildId).trim();
+    if (suggested && suggested.eventId) return guildOfLootEvent(ctx, suggested.eventId, suggested.categoryId || "");
+    return String(entry.guildId || "").trim();
+}
+
 async function ingestLoot(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
@@ -147,6 +160,8 @@ async function ingestLoot(req, res) {
     touchToken(token.id);
 
     const { meta, sessions } = parsed;
+    const own = tokenGuild(token);
+    const ctx = serverContext();
     const results = [];
     for (const session of sessions) {
         if (!session.items.length) {
@@ -157,6 +172,17 @@ async function ingestLoot(req, res) {
         if (prior && prior.action === "dismissed") {
             results.push({ sessionId: session.sessionId, status: "dismissed", added: 0 });
             continue;
+        }
+        // A key with a server (#994) never touches another server's loot: not the
+        // raid a session was accepted into, not an open card of the same session.
+        if (own) {
+            const owner = prior && prior.action === "accepted" && prior.eventId
+                ? guildOfLootEvent(ctx, prior.eventId, prior.categoryId, prior.guildId)
+                : cardServer(ctx, listPending().find((p) => p.sessionId === String(session.sessionId || "")));
+            if (owner && owner !== own) {
+                results.push({ sessionId: session.sessionId, status: "other_server", added: 0 });
+                continue;
+            }
         }
         // A confirmed session asks the Wowhead section of its event's version;
         // a pending one has no event yet and asks the main version's (#750).
@@ -430,6 +456,8 @@ async function ingestGuildBank(req, res) {
         throw e;
     }
     touchToken(token.id);
+    // another server's bank (#994): nothing stored, no waiting list, no DMs
+    if (result.code) return error(res, 403, result.code, result.error);
 
     const { scan, status, bank, newItems, lookups } = result;
     ok(res, {

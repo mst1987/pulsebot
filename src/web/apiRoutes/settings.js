@@ -1544,17 +1544,24 @@ const getIngestTokens = withUser({ full: true }, async ({ res }) => {
 /**
  * POST /api/settings/ingest-tokens — body: { name }. Mints a token for the
  * active Discord server (#994) and returns the plaintext **once**; it is stored
- * hashed and can never be shown again.
+ * hashed and can never be shown again. Without a configured active server no
+ * token is minted: one without a server would see every server's data.
  */
 const createIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ user, body, req, res }) => {
-    const { token, record } = createIngestToken(body.name, user.name || user.id || "", String(activeGuildFor(req) || ""));
+    const guildId = String(activeGuildFor(req) || "").trim();
+    if (!guildId || !guildRoles.serverIds(getConfig()).includes(guildId)) {
+        return error(res, 400, "unknown_server", "Kein aktiver Discord-Server aus der Serverliste gewählt.");
+    }
+    const { token, record } = createIngestToken(body.name, user.name || user.id || "", guildId);
     ok(res, { token, record }, 201);
 });
 
 /**
  * POST /api/settings/ingest-tokens/assign — body: { id, guildId }. Binds a
- * token to a configured Discord server (#994): for the tokens minted before
- * they carried one. Full admins only, like every other token route.
+ * token to a configured Discord server (#994): only the tokens minted before
+ * they carried one. A token that has a server keeps it (409 `already_assigned`,
+ * user decision): to move, mint a new one. Full admins only, like every other
+ * token route.
  */
 const assignIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
@@ -1562,7 +1569,11 @@ const assignIngestTokenHandler = withUser({ full: true, csrf: true, body: true }
     if (!guildId || !guildRoles.serverIds(getConfig()).includes(guildId)) {
         return error(res, 400, "unknown_server", "Nur ein Server aus der Serverliste.");
     }
-    const record = id ? assignIngestTokenGuild(id, guildId) : null;
+    const known = id ? listIngestTokens().find((t) => t.id === id) : null;
+    if (known && String(known.guildId || "")) {
+        return error(res, 409, "already_assigned", "Dieses Token gehört schon zu einem Server. Für einen anderen Server ein neues Token anlegen.");
+    }
+    const record = known ? assignIngestTokenGuild(id, guildId) : null;
     if (!record) return error(res, 404, "not_found", "Token nicht gefunden.");
     ok(res, { record });
 });

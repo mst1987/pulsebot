@@ -801,7 +801,9 @@
         "noServer": "kein Server – zuordnen",
         "noServerTip": "Vor der Server-Trennung erstellt: Das Token sieht noch alle Server. Ordne es einem Server zu, dann sieht es nur dessen Daten.",
         "assignAria": "Server für {name}",
-        "assigned": "Token „{name}“ gehört jetzt zu {server}."
+        "assigned": "Token „{name}“ gehört jetzt zu {server}.",
+        "forServer": "Das neue Token gilt für {server}.",
+        "noActiveServer": "Kein aktiver Discord-Server gewählt – oben einen Server wählen, dann lässt sich ein Token anlegen."
     },
     "permissions": {
         "orgaOn": "Orga",
