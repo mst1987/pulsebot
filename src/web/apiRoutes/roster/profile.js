@@ -24,6 +24,7 @@ const { userIsOrga } = require("../../../config/permissions");
 const { ROLE_LABELS } = require("../../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../../services/characters/characterEdit");
 const discord = require("../../../services/discord/discord");
+const { ownLeads } = require("./leaderFlags");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
 const GEAR_LABELS = { none: "keins", usable: "brauchbar", ready: "raidbereit" };
@@ -112,6 +113,8 @@ const getProfile = withUser({}, async ({ user, req, res }) => {
         isNew: !profiles.hasProfile(user.id),
         // #291: the own specs imported from Raid-Helper — "Von Hand" prefills from them.
         specHistory: specHistory.specHistoryOf(user.id).slice(0, 8),
+        // #1034 "Raids leiten": the versions on offer with their instances and the own flags
+        leadVersions: ownLeads(user.id),
         ...pageContext(),
     });
 });

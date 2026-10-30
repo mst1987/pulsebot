@@ -36,6 +36,7 @@
 const rosterStore = require("../../stores/roster/rosterStore");
 const profiles = require("../../stores/roster/raiderProfileStore");
 const characterStore = require("../../stores/roster/characterStore");
+const { leadsForVersion, instanceChoices } = require("../../services/roster/leaderFlags");
 const discord = require("../../services/discord/discord");
 const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { listStoredEvents } = require("../../services/events/eventSources");
@@ -489,10 +490,13 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: orga ? figures : slimFigures(figures), guildId: roster.guildId || guildId,
     });
+    // the leader flags (#1034): no notes about a person, every reader of the roster sees them
+    const leaders = { instances: instanceChoices(roster.versionId), byUser: leadsForVersion(rows.map((r) => r.userId), roster.versionId) };
     if (!orga) {
         return {
             roster: { ...head, kader: null },
             members: rows.map(slimMember),
+            leaders,
             window: null,
             nights: [],
             canEditAttendance: false,
@@ -513,6 +517,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     return {
         roster: { ...head, kader: linkedKader(roster) },
         members,
+        leaders,
         isOrga: true,
         ...(short ? { vermerke: shortFor(shortGuild, rows.map((r) => r.userId)) } : {}),
         window,

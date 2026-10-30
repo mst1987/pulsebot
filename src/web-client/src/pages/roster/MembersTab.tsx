@@ -21,6 +21,7 @@ import {
 } from "../../lib/roster/rosters";
 import { CharChip, MemberAvatar } from "./RosterParts";
 import VermerkMark from "../../components/vermerke/VermerkMark";
+import { LeadMark } from "../../components/roster/LeadChips";
 
 type RowActions = {
     canManage: boolean;
@@ -69,6 +70,7 @@ function MemberRow({ member, data, actions }: { member: RosterMember; data: Rost
                         <MemberAvatar member={member} />
                         <b>{member.displayName}</b>
                     </button>
+                    {data.leaders && <LeadMark instances={data.leaders.instances} ids={data.leaders.byUser[member.userId]} />}
                     <VermerkMark short={data.vermerke?.[member.userId]} userId={member.userId} />
                 </span>
             </td>

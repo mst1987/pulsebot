@@ -30,6 +30,7 @@ vi.mock("../../../api", async (orig) => ({
     addProfileCharacter: vi.fn(),
     getRaiderAttendance: vi.fn(),
     getProfileRaiding: vi.fn(),
+    saveOwnLeads: vi.fn(),
 }));
 
 // ---- fixtures ----
@@ -338,6 +339,27 @@ describe("Meine Infos – folded parts", () => {
         // a second click folds everything
         await openFold(user, "raids");
         expect(expandButtons().every((b) => b.getAttribute("aria-expanded") === "false")).toBe(true);
+    });
+
+    it("shows „Raids leiten“ after the attendance once a version is there, and a chip saves the own flag at once (#1034)", async () => {
+        const { user } = setup();
+        const tbc = {
+            id: "tbc", label: "TBC Anniversary", short: "TBC", by: "", at: 0, leads: [] as string[],
+            instances: [{ id: "kara", name: "Karazhan", short: "Kara", icon: "" }, { id: "gruul", name: "Gruul's Lair", short: "Gruul", icon: "" }],
+        };
+        vi.mocked(api.getProfile).mockResolvedValue({ ...profileData(), leadVersions: [tbc] });
+        vi.mocked(api.saveOwnLeads).mockResolvedValue({ leadVersions: [{ ...tbc, leads: ["gruul"] }] });
+        await renderProfile();
+
+        const labels = expandButtons().map((b) => b.getAttribute("aria-label"));
+        expect(labels.slice(0, 2)).toEqual([t("profile.fold.attendance"), t("profile.fold.leads")]);
+        expect(screen.getByText(t("profile.leads.none"))).toBeInTheDocument();
+
+        await openFold(user, "leads");
+        await user.click(screen.getByRole("button", { name: /Gruul/, pressed: false }));
+        expect(api.saveOwnLeads).toHaveBeenCalledWith("tbc", ["gruul"]);
+        expect(await screen.findByRole("button", { name: /Gruul/, pressed: true })).toBeInTheDocument();
+        expect(screen.queryByRole("checkbox")).toBeNull();
     });
 
     it("marks every weekday with its day, in the buttons and in the folded summary, and saves a click", async () => {

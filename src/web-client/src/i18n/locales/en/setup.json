@@ -21,6 +21,8 @@
             "linkManual": "Character link confirmed",
             "linkAuto": "Assigned automatically, not confirmed",
             "autoBadge": "Auto",
+            "leads": "Leads",
+            "leadsSub": "Which instances this person can lead. Applies to every raid at once.",
             "brings": "Brings",
             "bringsGroup": "to the group ({count} profit)",
             "bringsGroupShort": "Group · {count}",

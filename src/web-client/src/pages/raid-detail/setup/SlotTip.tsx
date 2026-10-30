@@ -14,6 +14,8 @@ import { Link } from "react-router-dom";
 import type { VermerkShort } from "../../../api/roster/vermerke";
 import LevelMark from "../../../components/vermerke/LevelMark";
 import { reasonSummary, vermerkeHref } from "../../../components/vermerke/markText";
+import type { LeadInstance } from "../../../api/roster/leaders";
+import { LeadChips, LeadMark } from "../../../components/roster/LeadChips";
 
 /** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
 function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
@@ -127,8 +129,12 @@ function ActionRow({ a }: { a: SlotActions }) {
  * `peek`: the same panel read only, beside the line the mouse rests on or the
  * focus is on (SetupEditor.tsx' peek) — no actions, a short hint that a click
  * holds it with them (`removable`: in a group or on the bench, a double click takes them out).
+ * `lead` (#1034): the crown beside the name when the person can lead raids; with
+ * `onChange` (orga, not in the peek) the instances as toggle chips under "Leitet".
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false }: {
+export type SlotLead = { instances: LeadInstance[]; ids: string[]; onChange?: (next: string[]) => void; busy?: boolean };
+
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false, lead }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
     /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
@@ -136,6 +142,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     actions?: SlotActions; pinned?: boolean; peek?: boolean; removable?: boolean;
     /** the person's note in short (#981) - only in an answer past maySeeShort; the link to /vermerke with read access, never in the peek */
     vermerk?: VermerkShort; canOpenVermerke?: boolean;
+    lead?: SlotLead;
 }) {
     const t = useT();
     // the other characters they signed up with, in their order
@@ -158,6 +165,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                 <div className="se-tip-who">
                     <span className="se-tip-nameline">
                         <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                        {lead && <LeadMark instances={lead.instances} ids={lead.ids} />}
                         {pinned && <span className="se-tip-pin" data-tip={t("setup.person.tip.pinnedSub")}>{t("setup.person.tip.pinned")}</span>}
                     </span>
                     <span className="se-tip-sub">
@@ -271,6 +279,12 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+                {lead?.onChange && !peek && lead.instances.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.leads")} data-tip-sub={t("setup.person.tip.leadsSub")}>{t("setup.person.tip.leads")}</span>
+                        <LeadChips instances={lead.instances} value={lead.ids} onChange={lead.onChange} disabled={lead.busy} />
                     </div>
                 )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}

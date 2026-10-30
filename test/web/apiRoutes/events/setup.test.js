@@ -538,6 +538,36 @@ describe("explanation", () => {
     });
 });
 
+describe("leader flags in the editor (#1034)", () => {
+    const leads = require("../../../../src/stores/roster/leaderFlagsStore");
+    const { tempStoreFile } = require("../../../helpers/tempStore");
+    const { versionOfEvent } = require("../../../../src/services/versions/mainVersion");
+
+    beforeEach(() => leads.useFile(tempStoreFile("leader-flags.json")));
+    afterAll(() => leads.useFile(null));
+
+    it("names the flags of everybody in the editor for the raid's version, and nobody else's", async () => {
+        const versionId = versionOfEvent(mockEvents.get(ID));
+        leads.setLeads("tank", versionId, ["kara"]);
+        leads.setLeads("stranger", versionId, ["kara"]);
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.versionId).toBe(versionId);
+        expect(view.leaders.instances.map((i) => i.id)).toContain("kara");
+        expect(view.leaders.byUser).toEqual({ tank: ["kara"] });
+        // being orga makes nobody a leader: no flag, no crown
+        expect(view.leaders.byUser).not.toHaveProperty("orga");
+    });
+
+    it("leaves a flag of another version out", async () => {
+        const versionId = versionOfEvent(mockEvents.get(ID));
+        expect(versionId).not.toBe("forever");
+        leads.setLeads("tank", "forever", ["forever-hyjal"]);
+        expect(leads.leadsOf("tank")).toHaveProperty("forever");
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.byUser).toEqual({});
+    });
+});
+
 describe("Vermerke in the editor (#981)", () => {
     const notes = require("../../../../src/stores/roster/userNotesStore");
     const { tempStoreFile } = require("../../../helpers/tempStore");

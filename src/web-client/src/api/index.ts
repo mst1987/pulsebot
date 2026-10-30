@@ -42,5 +42,6 @@ export * from "./events/setup";
 export * from "./raidplan/raidplan";
 export * from "./roster/kader";
 export * from "./roster/vermerke";
+export * from "./roster/leaders";
 export * from "./system/system";
 export { canAccess, canAccessAny, canAccessAnywhere } from "../lib/app/access";

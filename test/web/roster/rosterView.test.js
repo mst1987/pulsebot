@@ -138,6 +138,28 @@ describe("buildRosterOverview", () => {
     });
 });
 
+describe("leader flags (#1034)", () => {
+    const leads = require("../../../src/stores/roster/leaderFlagsStore");
+    beforeEach(() => leads.useFile(tempStoreFile(`leader-flags-${count}.json`)));
+    afterAll(() => leads.useFile(null));
+
+    it("marks the leaders among the members for the roster's version, for the orga and for a raider alike", async () => {
+        const versionId = rosterStore.listRosters(G)[0].versionId || "tbc";
+        leads.setLeads(ANNA, versionId, ["kara"]);
+        leads.setLeads("300000000000000009", versionId, ["kara"]);
+        for (const user of [ADMIN, READER]) {
+            const view = await buildRosterDetail({ guildId: G, id: rosterId(), user, config: CONFIG });
+            expect(view.leaders.byUser).toEqual({ [ANNA]: ["kara"] });
+            expect(view.leaders.instances.map((i) => i.id)).toContain("kara");
+        }
+    });
+
+    it("makes nobody a leader without a flag, a full admin neither", async () => {
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.leaders.byUser).toEqual({});
+    });
+});
+
 describe("who sees the people data (epic #723)", () => {
     const ORGA = { id: "8", name: "Orga", isAdmin: false, isOrga: true };
 

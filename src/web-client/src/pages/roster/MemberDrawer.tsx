@@ -2,13 +2,14 @@
 // canvas "Mitglied"): status as square fields (and the trial's end), the
 // characters of this roster, the spec the first one counts with here ("Spec in
 // diesem Roster"), the roster's Discord roles as switches, the
-// attendance, the orga's note, the person's history, and "Aus dem Roster
+// attendance, which raids they can lead (#1034, chips for the orga), the
+// orga's note, the person's history, and "Aus dem Roster
 // nehmen". Every change is saved at once; the page reloads the roster after it.
 // Readers without the right to manage see the same facts without a control.
 // Esc, the X or a click on the shade closes it.
 import { useEffect, useState } from "react";
 import {
-    getRosterHistory, removeRosterMember, saveRosterMember, setRosterRole,
+    getRosterHistory, removeRosterMember, saveRosterMember, setLeads, setRosterRole,
     type RosterDetail, type RosterMemberPatch, type RosterRoleResult, type RosterStatus,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -21,6 +22,8 @@ import { HistoryLines } from "./HistoryTab";
 import { AttendanceSection, CharsSection, DrawerSection, NoteSection, RolesSection, SpecSection, TrialUntil } from "./MemberDrawerParts";
 import { MemberAvatar, RoleResults, StatusPicker } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
+import { LeadChips, LeadMark } from "../../components/roster/LeadChips";
+import { leadList } from "../../lib/roster/leaders";
 
 export default function MemberDrawer({ data, userId, onClose, onChanged }: {
     data: RosterDetail;
@@ -64,6 +67,13 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
         await afterChange();
     };
 
+    // leader flags (#1034): a click saves at once, the roster loads again
+    const leaders = data.leaders && data.leaders.instances.length ? data.leaders : null;
+    const leads = leaders?.byUser[userId] || [];
+    const saveLeads = async (instances: string[]) => {
+        if (await run("leads", () => setLeads({ rosterId, userId, instances }))) await onChanged();
+    };
+
     const setStatus = (status: RosterStatus) => save("status", status === "trial" || !member?.trialUntil ? { status } : { status, trialUntil: null });
 
     const toggleRole = async (roleId: string, give: boolean) => {
@@ -105,7 +115,7 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
                     {member && <MemberAvatar member={member} large />}
                     <div className="rn-dr-title">
                         <div className="rn-kick">{data.roster.name}</div>
-                        <h2 className="rn-h2">{member ? member.displayName : t("roster.drawer.gone")}</h2>
+                        <h2 className="rn-h2">{member ? member.displayName : t("roster.drawer.gone")}{leaders && <LeadMark instances={leaders.instances} ids={leads} />}</h2>
                         {member && <div className="rn-sub">{statusSince(member)}</div>}
                     </div>
                     <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
@@ -124,6 +134,11 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
                             <SpecSection member={member} data={data} busy={busy !== ""} onSave={(spec) => save("spec", { spec })} />
                             <RolesSection member={member} data={data} busyRole={busy.startsWith("role-") ? busy : ""} onRole={toggleRole} />
                             <AttendanceSection member={member} data={data} onChanged={() => { void onChanged(); }} />
+                            {leaders && (manage || leads.length > 0) && (
+                                <DrawerSection title={t("roster.leaders.edit")} hint={manage ? undefined : leadList(leaders.instances, leads)}>
+                                    {manage && <LeadChips instances={leaders.instances} value={leads} onChange={(next) => void saveLeads(next)} disabled={busy !== ""} />}
+                                </DrawerSection>
+                            )}
                             {manage && <NoteSection member={member} busy={busy === "note"} onSave={(note) => save("note", { note })} />}
                             <DrawerSection title={t("roster.drawer.history")}>
                                 {history.data

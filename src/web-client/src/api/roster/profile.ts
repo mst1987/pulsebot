@@ -2,6 +2,7 @@ import { get, send } from "../client";
 import type { GameRole, GameClass } from "../events/raidTemplates";
 import type { CharLootPreview } from "../loot/history";
 import type { RosterStatus } from "./roster";
+import type { LeadVersion } from "./leaders";
 import type { ItemSearchResult } from "../system/settings";
 
 // ---- Mein Profil (#255, src/web/apiRoutes/roster/profile.js) ----
@@ -111,6 +112,8 @@ export type ProfileData = {
     limits: { characters: number; wishes: number; avoid: number; note: number; professions?: number; wishItems?: number; timeStep?: number };
     /** Each version's main professions (part 2); a version without = no "Berufe" part. */
     professionsByVersion?: Record<string, ProfessionList>;
+    /** "Raids leiten" (#1034): the versions offered, each with its instances and the own flag. */
+    leadVersions?: LeadVersion[];
 };
 
 export type ProfileVersion = { id: string; label: string; short: string; lastName: boolean };

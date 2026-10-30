@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
+import type { AttendanceCategory, CalendarTokens, LeadVersion, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
 import { Badge, buttonClass, IconButton, NumberStepper, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { EyeOffIcon, XIcon } from "../../components/ui/icons/icons";
@@ -10,10 +10,13 @@ import { tOr, useT } from "../../i18n";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CalendarPart } from "./CalendarPart";
 import { SyncKeysPart } from "./SyncKeysPart";
+import { LeadsPart } from "./LeadsPart";
+import { leadsSummary } from "../../lib/roster/leaders";
 
 // The tab "Meine Infos": what belongs to the person, not to a character — in
 // three calm groups, every part folded to one line until it is opened:
-//   Raiden         the attendance of the shown version (GET /api/availability/attendance)
+//   Raiden         the attendance of the shown version (GET /api/availability/attendance),
+//                  which instances the person can lead (#1034, PUT /api/profile/leads)
 //   Verknüpfungen  the calendar subscription; the sync app keys (#1000) only for orga of a server
 //   Vorlieben      weekdays, preferred raids, with whom (not), a note for the orga
 // Saving works as before: every change goes through `patch` (PUT /api/profile).
@@ -110,7 +113,7 @@ function DayTimes({ days, times, step, onChange }: {
     );
 }
 
-export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, syncKeys = null, onSyncKeys, attendance, attendanceFailed }: {
+export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, syncKeys = null, onSyncKeys, attendance, attendanceFailed, leadVersions = [], onLeads }: {
     data: ProfileData;
     profile: RaiderProfile;
     fold: Fold[];
@@ -125,6 +128,9 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
     /** The own attendance of the shown version, null while it loads. */
     attendance: RaiderAttendanceData | null;
     attendanceFailed: boolean;
+    /** "Raids leiten": the versions the person plays with their own leader flags (#1034). */
+    leadVersions?: LeadVersion[];
+    onLeads?: (next: LeadVersion[]) => void;
 }) {
     const t = useT();
     const cal = calendar;
@@ -140,6 +146,11 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                             : <p className="pf-muted">{attendanceSummary(attendance, attendanceFailed, t)}</p>}
                         <Link className={buttonClass("ghost", "sm", false, "pf-fold-link")} to="/absences">{t("profile.attendance.open")}</Link>
                     </FoldPart>
+                    {onLeads && leadVersions.length > 0 && (
+                        <FoldPart id="leads" open={fold} onToggle={onFold} title={t("profile.fold.leads")} summary={leadsSummary(leadVersions)}>
+                            <LeadsPart versions={leadVersions} onChange={onLeads} />
+                        </FoldPart>
+                    )}
                 </Group>
                 <Group label={t("profile.info.groupLinks")}>
                     <FoldPart

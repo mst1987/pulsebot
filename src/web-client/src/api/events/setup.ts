@@ -2,6 +2,7 @@ import { get, send } from "../client";
 import type { SignupStatus } from "./raidDetail";
 import type { GameRole } from "./raidTemplates";
 import type { VermerkShortMap } from "../roster/vermerke";
+import type { LeadersView } from "../roster/leaders";
 
 // ---- Setup editor of an own event (#263) — src/web/setupEditor.js, apiRoutes/events/setup.js ----
 
@@ -160,6 +161,8 @@ export type SetupEditorData = {
     vermerke?: VermerkShortMap;
     /** Vermerke (#981): the persons with a shadowban among "Angemeldet" (the pool) - same gate as `vermerke`. */
     shadowbanInPool?: { userId: string; name: string }[];
+    /** Orga only (#1034): the raid's version, its instances and who of the raid leads which of them. */
+    leaders?: LeadersView;
     message?: string;
 };
 

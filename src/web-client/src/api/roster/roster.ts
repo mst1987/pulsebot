@@ -2,6 +2,7 @@ import { get, send } from "../client";
 import type { Category } from "../discord/channels";
 import type { CharLootPreview } from "../loot/history";
 import type { VermerkShortMap } from "./vermerke";
+import type { LeadersView } from "./leaders";
 
 // Manual raider->character-per-category assignments (see raiderCharactersStore.js
 // on the backend). Used to enrich the Raid-Detail attendance tab's "missing" list
@@ -364,6 +365,8 @@ export type RosterDetail = {
     isOrga?: boolean;
     /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
     vermerke?: VermerkShortMap;
+    /** Leader flags (#1034) of the roster version: the crown beside a name, the chips in the drawer. */
+    leaders?: LeadersView;
     canManage: boolean;
     isAdmin: boolean;
     /** What the settings dialog starts from; null for a caller who may not manage the roster. */

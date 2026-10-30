@@ -66,6 +66,8 @@ const raidGroup = require("../../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../../utils/raidGroup");
 const { shortFor, shadowbannedAmong } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
+const { leadsForVersion, instanceChoices } = require("../../../services/roster/leaderFlags");
+const { versionOfEvent } = require("../../../services/versions/mainVersion");
 
 // The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
 // of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
@@ -126,11 +128,21 @@ async function view(event, user, { names = true, req = null } = {}) {
         out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
         // the short form only through the one rule (vermerkeAccess.js) - the setup's own write right is not enough
         if (await maySeeShort(user, fresh.guildId, { req })) Object.assign(out, await vermerkeOf(fresh, signups, out.setup));
+        out.leaders = leadersOf(fresh, signups, out.setup);
     }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
     out.canEditEvent = write;
     return out;
+}
+
+/**
+ * The leader flags (#1034) of everybody in the editor, for the raider panel: the
+ * raid's version, its instances (the chips) and `{ [userId]: instanceIds }`.
+ */
+function leadersOf(event, signups, setup) {
+    const versionId = versionOfEvent(event);
+    return { versionId, instances: instanceChoices(versionId), byUser: leadsForVersion(personIdsOf(signups, setup), versionId) };
 }
 
 /** Everybody the editor shows: the signups, and who stands in a group, on the bench or in the pool. */

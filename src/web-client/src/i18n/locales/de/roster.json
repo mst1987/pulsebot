@@ -1,4 +1,15 @@
 {
+    "leaders": {
+        "chipsAria": "Instanzen, die diese Person leiten kann",
+        "chipOn": "kann leiten – klicken zum Entfernen",
+        "chipOff": "klicken: kann leiten",
+        "mark": "Leader: {list}",
+        "markTip": "Kann Raids leiten",
+        "markShort": "Leader",
+        "edit": "Leitet",
+        "editSub": "Welche Instanzen diese Person leiten kann. Gilt sofort.",
+        "saveError": "Leader konnte nicht gespeichert werden: {message}"
+    },
     "page": {
         "orgaOnly": "Diese Liste ist für die Orga. Als Raider siehst du die Roster und ihre Komposition unter „Roster“.",
         "loadError": "Fehler beim Laden: {message}",
