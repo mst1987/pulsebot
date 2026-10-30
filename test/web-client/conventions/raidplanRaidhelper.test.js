@@ -28,7 +28,7 @@ describe("how a Raid-Helper name reads", () => {
         const board = read("components", "raidplan", "PlanBoard.tsx");
         expect(board).toContain("player.nameFromRh ? \"rp-pname-rh\" : \"\", player.gone ? \"rp-pname-gone\" : \"\"");
         expect(read("lib", "raidplan", "assign", "assignModal.ts")).toContain("e.player && e.player.rhName ? e.player.rhName : \"\"");
-        expect(read("components", "raidplan", "editor", "AssignRosterModal.tsx")).toContain("c.player.rhName || \"\"");
+        expect(read("components", "raidplan", "editor", "assign", "AssignRosterModal.tsx")).toContain("c.player.rhName || \"\"");
         const tab = read("pages", "raid-detail", "RaidplanTab.tsx");
         expect(tab).toContain("{view.rosterSource && <RhSource src={view.rosterSource} busy={reloading} onReload={reloadRoster} />}");
         expect(tab).toContain("getRaidplan(eventId, true)");

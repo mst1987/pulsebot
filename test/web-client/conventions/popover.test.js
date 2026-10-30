@@ -26,7 +26,7 @@ describe("ui/Popover", () => {
         ["components/ui/RichTip.tsx", "tipPlacement()"],
         ["components/ui/HoverPanel.tsx", "panelPlacement("],
         ["pages/raid-detail/manage/ManageMenu.tsx", "belowEndPlacement()"],
-        ["components/raidplan/editor/ContextMenu.tsx", "pointPlacement(x, y)"],
+        ["components/raidplan/editor/inspector/ContextMenu.tsx", "pointPlacement(x, y)"],
     ])("%s is built on it", (file, placement) => {
         const s = read(file);
         expect(s).toContain("<Popover");

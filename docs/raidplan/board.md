@@ -487,7 +487,7 @@ and for several at once in the multi-selection. Chosen in the design canvas "Fl√
 
 Tests: `src/web-client/src/lib/raidplan/board/__tests__/areaStyle.test.ts` (defaults, band, path, badge and name places), `src/web-client/src/components/raidplan/__tests__/PlanBoard.areas.test.tsx`
 (both styles rendered, the read view against the editor), "a role group area switches between calm and arc" in
-`src/web-client/src/components/raidplan/editor/__tests__/Inspector.tabs.test.tsx`, "the area style for all of them at once" in
+`src/web-client/src/components/raidplan/editor/inspector/__tests__/Inspector.tabs.test.tsx`, "the area style for all of them at once" in
 `src/web-client/src/lib/raidplan/__tests__/multiOptions.test.ts`, "a role group area's style: calm or arc (#559)" in `test/services/raidplan/raidplanBoard.test.js`.
 
 ## Section bar and boss icons (feature/raidplan-16, part 3)

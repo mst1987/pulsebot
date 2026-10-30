@@ -15,8 +15,8 @@ describe("the pages", () => {
     const app = read("App.tsx");
     const pub = read("pages/raidplan/PlanPublicPage.tsx");
     const css = read("styles/raidplan/index.css");
-    const menu = read("components/raidplan/editor/ContextMenu.tsx");
-    const insp = read("components/raidplan/editor/Inspector.tsx");
+    const menu = read("components/raidplan/editor/inspector/ContextMenu.tsx");
+    const insp = read("components/raidplan/editor/inspector/Inspector.tsx");
 
     it("is a tab of an own event, and of a Raid-Helper event whose plan is switched on; after the setup; only with raidplan read", () => {
         expect(detail).toMatch(/const TABS: Tab\[\] = \["roster", "setup", "plan", "loot", "logs"\];/);
@@ -212,9 +212,9 @@ describe("the texts", () => {
         const de = dictionary("de");
         const en = dictionary("en");
         const files = [
-            "pages/raidplan/RaidplanTemplatesPage.tsx", "components/raidplan/editor/BoardWorkspace.tsx", "components/raidplan/editor/workspace", "components/raidplan/editor/Inspector.tsx", "components/raidplan/editor/LayerList.tsx",
+            "pages/raidplan/RaidplanTemplatesPage.tsx", "components/raidplan/editor/BoardWorkspace.tsx", "components/raidplan/editor/workspace", "components/raidplan/editor/inspector/Inspector.tsx", "components/raidplan/editor/inspector/LayerList.tsx",
             "components/raidplan/editor/Palette.tsx", "components/raidplan/editor/MapPanel.tsx", "components/raidplan/editor/SectionStrip.tsx", "components/raidplan/editor/Palette.tsx", "pages/raid-detail/RaidplanTab.tsx",
-            "components/raidplan/editor/TargetsPanel.tsx", "components/raidplan/editor/ProfileModals.tsx", "components/raidplan/editor/ShareModal.tsx", "pages/raidplan/PlanPublicPage.tsx",
+            "components/raidplan/editor/assign/TargetsPanel.tsx", "components/raidplan/editor/ProfileModals.tsx", "components/raidplan/editor/ShareModal.tsx", "pages/raidplan/PlanPublicPage.tsx",
             "components/raidplan/PlanBoard.tsx",
         ];
         const keys = new Set();
@@ -248,7 +248,7 @@ describe("the new pages", () => {
     const work = readWorkspace();
     const board2 = read("components/raidplan/PlanBoard.tsx");
     const palette = read("components/raidplan/editor/Palette.tsx");
-    const insp = read("components/raidplan/editor/Inspector.tsx");
+    const insp = read("components/raidplan/editor/inspector/Inspector.tsx");
     const css = read("styles/raidplan/index.css");
     const pub = read("pages/raidplan/PlanPublicPage.tsx");
 
@@ -313,13 +313,13 @@ describe("\"All assignments\" never cuts a name (feature/raidplan-16)", () => {
     it("a name in a table is never broken; on a phone the tank and group heal tables become blocks (no sideways scrolling)", () => {
         expect(css).toContain(".rp-rtable .rp-who .class-colored, .rp-rtable .rp-who > strong, .rp-rtable .rp-who-open { white-space: nowrap; overflow-wrap: normal; word-break: keep-all; }");
         expect(css).toMatch(/@media \(max-width: 560px\) \{[\s\S]*\.rp-gheal \.rp-rtable thead \{ display: none; \}[\s\S]*\.rp-tanktable thead \{ display: none; \}/);
-        const read = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/ReadTables.tsx"), "utf8");
+        const read = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/assign/ReadTables.tsx"), "utf8");
         expect(read).toContain("<td data-label={t(\"raidBoard.read.colHealedBy\")}>");
         expect(read).toContain("<table className=\"rp-rtable rp-tanktable\">");
     });
 
     it("the sheet's chips carry the full name in their tooltip", () => {
-        const line = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/AssignLine.tsx"), "utf8");
+        const line = fs.readFileSync(p.join(__dirname, "../../../src/web-client/src/components/raidplan/editor/assign/AssignLine.tsx"), "utf8");
         expect(line).toContain(": readOnly ? playerLabel(r.player) : undefined}");
     });
 });

@@ -9,7 +9,7 @@ import { neighbours, sectionPlace } from "../../../lib/raidplan/view/stage";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import LangToggle from "../../../components/shell/LangToggle";
 import ThemeToggle from "../../../components/shell/ThemeToggle";
-import AutoFollowToggle from "../../../components/raidplan/editor/AutoFollowToggle";
+import AutoFollowToggle from "../../../components/raidplan/editor/assign/AutoFollowToggle";
 import SectionMenu from "./SectionMenu";
 import { useT } from "../../../i18n";
 

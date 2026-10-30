@@ -267,7 +267,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   `slots`, filled in setup order the first time it is opened, so a Standard row "Tank 1 -> Boss" means each section's own
   Tank 1. When the Standard's tanks were changed (order, number of tank slots, who stands in them: `tankLineup`), the
   editor asks on leaving the Standard (or on saving while in it) "Tanks auch für die anderen Bosse?" - only once per
-  change and only when some boss / trash differs (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every
+  change and only when some boss / trash differs (`components/raidplan/editor/assign/useTankOrderFollow.ts`). Not on every
   click: a swap through the Besetzung's chips takes two steps. "Für alle übernehmen" gives each section, in one undo
   step, the Standard's tank line-up (`lib/raidplan/assign/tankOrder.ts applyTankLineup`): as many tank slots (`setCount`, as
   +/- on the boss), the Standard's tanks in its order. A tank standing in another slot there swaps with whoever had his
