@@ -55,6 +55,7 @@ const { kaderChoices } = require("../../services/roster/rosterCreate");
 const { rosterLootSystem } = require("../../services/loot/lootSystem");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
+const { thresholdsOf } = require("../../services/vermerke/signalRecorder");
 
 const STATUSES = rosterStore.STATUSES;
 /** Statuses that take a place in the roster. */
@@ -278,7 +279,9 @@ function memberRows(roster, { ctx, discordData, config, manage = false, orga = t
     if (orga && roster.categoryId) {
         const window = categoryAttendanceFor(config, roster.categoryId).window;
         const accounts = rows.map((r) => ({ userId: r.userId, chars: r._attendanceChars }));
-        const results = attempt(() => attendanceForAccounts(ctx, roster.categoryId, accounts, { nights: true, window }), new Map());
+        // #990: the log's "left early" suggestion - only here, in the orga's view of the roster
+        const suggestLeftEarly = attempt(() => thresholdsOf(roster.guildId || "", { config }).leftEarlyBosses, 0);
+        const results = attempt(() => attendanceForAccounts(ctx, roster.categoryId, accounts, { nights: true, window, suggestLeftEarly }), new Map());
         for (const r of rows) r.attendance = attendanceView(results.get(r.userId));
     }
     for (const r of rows) delete r._attendanceChars;

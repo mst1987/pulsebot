@@ -147,6 +147,31 @@ describe("POST /api/attendance/override", () => {
         }
     });
 
+    it("confirms the log's suggestion as leftEarly and dismisses it with the fixed reason (#990)", async () => {
+        let res = await post("/api/attendance/override", { eventId: "e1", userId: "100001", status: "leftEarly" });
+        expect(status(res)).toBe(200);
+        expect(overridesStore.getOverride("e1", "100001")).toMatchObject({ status: "leftEarly", by: MANAGER.id });
+        // "Verwerfen": present with the fixed reason, whatever reason the client sends
+        res = await post("/api/attendance/override", { eventId: "e1", userId: "100002", status: "present", dismiss: "leftEarly", reason: "egal" });
+        expect(status(res)).toBe(200);
+        expect(data(res).override).toMatchObject({ status: "present", reason: overridesStore.LEFT_EARLY_DISMISSED });
+        // dismiss only counts with present - otherwise the reason is the client's
+        res = await post("/api/attendance/override", { eventId: "e1", userId: "100003", status: "bench", dismiss: "leftEarly", reason: "Bank" });
+        expect(data(res).override).toMatchObject({ status: "bench", reason: "Bank" });
+    });
+
+    it("refuses leftEarly and dismiss to whoever may not edit the night", async () => {
+        mockUser = ROSTER_WRITER;
+        for (const body of [{ status: "leftEarly" }, { status: "present", dismiss: "leftEarly" }]) {
+            const res = await post("/api/attendance/override", { eventId: "e1", userId: "100001", ...body });
+            expect([status(res), code(res)]).toEqual([403, "not_manager"]);
+        }
+        mockUser = READER;
+        const res = await post("/api/attendance/override", { eventId: "e1", userId: "100001", status: "leftEarly" });
+        expect(status(res)).toBe(403);
+        expect(overridesStore.listOverrides()).toEqual({});
+    });
+
     it("needs the CSRF token", async () => {
         auth.checkCsrf.mockReturnValue(false);
         const res = await post("/api/attendance/override", { eventId: "e1", userId: "100001", status: "bench" });

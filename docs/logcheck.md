@@ -29,6 +29,10 @@ The page draws them with `src/web/report/charts.js`: pure inline-SVG builders (r
 
 **Recommendations** (`utils/logcheck/recommendations.js`, thresholds in `config/recommendationRules.js`) are plain rules over the finished report — per raider and for the raid, with impact, text and evidence; a missing source yields nothing, never a false "alles gut". They are rebuilt on every build; what the raid lead approved or rewrote lives beside them in `recommendationReview` and survives the rebuild. **Nothing reaches a raider unapproved**: `web/logcheck/recommendationSend.js` DMs only approved points (character → Discord account from `raiderCharactersStore`, ambiguous names reported, an unchanged set never sent twice), and `utils/logcheck/recommendationText.js` only *phrases* them with Claude (key in Einstellungen → Verbindungen; the key never goes back to the browser) — the raid lead's own text beats the model's, the model's beats the rule's.
 
+## Who stood in which kill (`kills`, #990)
+
+The evaluation keeps `report.kills = [{ id, encounterId, boss, at, players }]` — one entry per boss **kill** in log order, `at` the absolute start (ms), `players` the classed friendly units of that fight (`utils/logcheck/killRoster.js`, from the `report/fights` payload the build already loads: `friendlies[].fights`; no extra request). Wipes and trash are left out. `condenseReport` keeps the field (`null` for a report evaluated before #990). The attendance uses it for the „Früh gegangen" suggestion (docs/vermerke.md); the field is read from the stored report only, never fetched per page view. Test: `test/utils/logcheck/killRoster.test.js`, the build golden `test/fixtures/reportBuildGolden/tbc-report.json`.
+
 ## The report pages' files (#423)
 
 `/r/<id>` and `/r/<id>/p/<n>` are server-rendered and public, and they are the only place where the raid lead reviews, rephrases and sends the recommendations. Until Sept 2026 all of it sat in one `src/web/report/render.js` of 3873 lines, with some 70 kB of CSS and fourteen inline scripts pasted into every page. Now:

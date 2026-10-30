@@ -133,9 +133,12 @@ export type VermerkSignal = {
 };
 
 /** The thresholds of the hints (#993): from when a hint shows, per server. */
-export type SignalThresholdKey = "windowDays" | "signoffAfterSetup" | "lateSignoff" | "lateHours" | "noShow" | "leftServer";
-/** The order of the settings dialog: the window first, then one line per hint. */
-export const SIGNAL_THRESHOLD_KEYS: SignalThresholdKey[] = ["windowDays", "lateHours", "lateSignoff", "signoffAfterSetup", "noShow", "leftServer"];
+export type SignalThresholdKey = "windowDays" | "signoffAfterSetup" | "lateSignoff" | "lateHours" | "noShow" | "leftEarly" | "leftEarlyBosses" | "leftServer";
+/**
+ * The order of the settings dialog: the window first, then one line per hint. "leftEarlyBosses" (#990)
+ * is no threshold of a hint but how many of the last kills the log must miss for its suggestion.
+ */
+export const SIGNAL_THRESHOLD_KEYS: SignalThresholdKey[] = ["windowDays", "lateHours", "lateSignoff", "signoffAfterSetup", "noShow", "leftEarly", "leftEarlyBosses", "leftServer"];
 export type SignalThresholds = Record<SignalThresholdKey, number>;
 export type SignalSettings = {
     guildId: string;

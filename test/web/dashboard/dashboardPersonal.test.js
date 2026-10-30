@@ -170,6 +170,8 @@ describe("loadPersonal", () => {
         expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
         await loadPersonal("g1", user, { config: {} });
         expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "tbc" }));
+        // the own dashboard: "left early" reads as present (#990)
+        expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ neutral: true }));
     });
 
     it("has no raids without a guild", async () => {

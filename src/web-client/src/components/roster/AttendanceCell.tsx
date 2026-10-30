@@ -2,10 +2,13 @@
 // the member drawer and "Meine Anwesenheit" share it. The field shows the status in its
 // colour (--att-<status>) with its letter, a corner dot when the orga set it by hand, and
 // the night, the verdict and the override in its tooltip. Whoever may correct attendance
-// (`canEdit`) clicks it and gets a small menu: the six statuses, "Automatisch" and an
+// (`canEdit`) clicks it and gets a small menu: the statuses of EDIT_ORDER, "Automatisch" and an
 // optional reason; saving goes through POST /api/attendance/override.
+// The log's "left early" suggestion (#990, orga answers only) rides on the field as a dashed
+// ring and a tooltip line; the menu opens with it on top: confirming sets "leftEarly",
+// dismissing keeps the night present and ends the suggestion.
 import { useRef, useState, type RefObject } from "react";
-import { setAttendanceOverride, type ApiError, type AttendanceOverride, type AttendanceStatus } from "../../api";
+import { setAttendanceOverride, type ApiError, type AttendanceOverride, type AttendanceStatus, type AttendanceSuggestion } from "../../api";
 import { useT } from "../../i18n";
 import { formatDayDate } from "../../lib/format";
 import { EDIT_ORDER, countsAsPresent, statusHint, statusLabel, statusLetter, statusOf, verdictText } from "../../lib/roster/attendanceStatus";
@@ -25,7 +28,18 @@ export type AttendanceNight = {
     detail?: string;
     reason?: string | null;
     override?: AttendanceOverride;
+    suggestion?: AttendanceSuggestion;
 };
+
+/** The log's suggestion of a night, when there is one the field understands. */
+function suggestionOf(night: AttendanceNight): AttendanceSuggestion | undefined {
+    return night.suggestion?.kind === "leftEarly" ? night.suggestion : undefined;
+}
+
+/** The suggestion's line: "Fehlt bei den letzten 2 Kills: Vashj, Kael'thas". */
+function suggestionText(s: AttendanceSuggestion, t: ReturnType<typeof useT>): string {
+    return t("attendance.suggest.missed", { count: s.missedKills, bosses: s.bosses.join(", ") });
+}
 
 const REASON_MAX = 200;
 
@@ -56,8 +70,9 @@ export default function AttendanceCell({ night, userId, name, canEdit = false, s
     const status = statusOf(night);
     const date = formatDayDate(night.startTime * 1000);
     const head = night.title ? t("attendance.grid.nightTip", { date, title: night.title }) : date;
-    const verdict = verdictText(night);
-    const cls = `att-sq${countsAsPresent(status) ? " is-in" : ""}${night.override ? " is-manual" : ""}${size === "sm" ? " is-sm" : ""}`;
+    const suggestion = suggestionOf(night);
+    const verdict = suggestion ? `${verdictText(night)}\n${t("attendance.suggest.cellTip")} · ${suggestionText(suggestion, t)}` : verdictText(night);
+    const cls = `att-sq${countsAsPresent(status) ? " is-in" : ""}${night.override ? " is-manual" : ""}${suggestion ? " has-suggest" : ""}${size === "sm" ? " is-sm" : ""}`;
     const letter = size === "sm" ? "" : statusLetter(status);
     if (!canEdit) {
         return (
@@ -104,11 +119,15 @@ export function AttendanceEditMenu({ anchor, night, status, userId, name, date, 
     const [busy, setBusy] = useState(false);
 
     const errorText = (e: ApiError) => (ERROR_CODES.has(e.code) ? t(`attendance.edit.err.${e.code}`) : t("attendance.edit.err.other", { message: e.message }));
-    const save = async (next: AttendanceStatus | null) => {
+    const suggestion = suggestionOf(night);
+    /** `via`: the suggestion's buttons - confirm sets "leftEarly", dismiss keeps the night present with the server's fixed reason. */
+    const save = async (next: AttendanceStatus | null, via?: "confirm" | "dismiss") => {
         setBusy(true);
         try {
-            await setAttendanceOverride({ eventId: night.eventId, userId, status: next, ...(next && reason.trim() ? { reason: reason.trim() } : {}) });
-            toast(next ? t("attendance.edit.saved", { name, status: statusLabel(next), date }) : t("attendance.edit.reset", { name, date }));
+            if (via === "dismiss") await setAttendanceOverride({ eventId: night.eventId, userId, status: "present", dismiss: "leftEarly" });
+            else await setAttendanceOverride({ eventId: night.eventId, userId, status: next, ...(next && reason.trim() ? { reason: reason.trim() } : {}) });
+            if (via) toast(t(via === "confirm" ? "attendance.suggest.confirmed" : "attendance.suggest.dismissed", { name, date }));
+            else toast(next ? t("attendance.edit.saved", { name, status: statusLabel(next), date }) : t("attendance.edit.reset", { name, date }));
             onSaved();
         } catch (e) {
             toast(errorText(e as ApiError), "err");
@@ -124,6 +143,20 @@ export function AttendanceEditMenu({ anchor, night, status, userId, name, date, 
                 <span>{[name, night.title ? `${date} · ${night.title}` : date].filter(Boolean).join(" · ")}</span>
                 <span className="att-menu-now">{t("attendance.edit.now", { status: verdictText(night) })}</span>
             </div>
+            {suggestion && (
+                <div className="att-suggest" data-att="leftEarly">
+                    <b>{t("attendance.suggest.title")}</b>
+                    <span>{suggestionText(suggestion, t)}</span>
+                    <div className="att-suggest-acts">
+                        <Button size="sm" variant="ghost" disabled={busy} onClick={() => void save("present", "dismiss")} data-tip={t("attendance.suggest.dismissHint")}>
+                            {t("attendance.suggest.dismiss")}
+                        </Button>
+                        <Button size="sm" variant="yes" disabled={busy} onClick={() => void save("leftEarly", "confirm")} data-tip={t("attendance.suggest.confirmHint")}>
+                            {t("attendance.suggest.confirm")}
+                        </Button>
+                    </div>
+                </div>
+            )}
             <div className="att-menu-opts" role="radiogroup" aria-label={t("attendance.edit.title")}>
                 {EDIT_ORDER.map((s) => (
                     <button

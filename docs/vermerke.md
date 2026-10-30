@@ -137,9 +137,27 @@ The bot **never makes a note itself** — it only proposes. The word is always "
 | `late_signoff` | sign-off of an existing signup less than `lateHours` (12) before the start, not placed | 2 in 60 days |
 | `no_show` | **computed**, not stored: `noShow` in the attendance overrides (`attendanceOverridesStore`) of the server's own raids inside the window; a raid group (#811) is **one night** — an override at a further raid counts for the group's first raid, a person once per night; `at` is the start of the night | 2 in 60 days |
 | `left_server` | leaving the Discord server (`memberActivity.onMemberRemove`) for somebody **tied to that server**: in an open roster of it (`roster.guildId`) or signed up at one of its own raids. Characters alone, a roster or a signup of another server, a Raid-Helper raid do not count | 1 |
+| `left_early` | **computed**, not stored (#990): a confirmed override `leftEarly` in the attendance (`attendanceOverridesStore`) of the server's own raids inside the window — like `no_show` a raid group is one night, a person once per night. The log only **suggests** it, the orga confirms it (below) | 2 in 60 days |
 
-`left_early` is **not** detected: there is no attendance per fight, wipes, raid groups, several logs and character
-switches blur it, and Warcraft Logs has no events outside fights — own issue #990. A first
+**"Früh gegangen" (#990): the log suggests, the orga confirms.** Nothing is decided automatically. The evaluation
+keeps who stood in which boss kill (`report.kills`, docs/logcheck.md); the orga's roster attendance
+(`rosterView` → `attendanceForAccounts(…, { suggestLeftEarly: n })`) marks a night the log counts as present
+(`detail: "inLog"`) with `suggestion: { kind: "leftEarly", missedKills, bosses }` when the person (any character of
+theirs — a twink counts as present) is missing from the night's **last n kills** (`leftEarlyBosses`, default 2, 1–5;
+counted over the raids of a raid group they stood in a kill of, all logs merged, kills of the same boss within 2
+minutes are one) — someone in no kill at all did not leave early. Wipes and trash never count. A night evaluated before
+#990 has no `kills` and so no suggestion; no Warcraft Logs request is made per page view. In the cell's menu
+**Bestätigen** sets the override `leftEarly` ("Früh gegangen", counts as present for the quota, makes the hint) and
+**Verwerfen** stores `present` with the fixed reason `LEFT_EARLY_DISMISSED` (`POST /api/attendance/override
+{ status: "present", dismiss: "leftEarly" }`) — any override ends the suggestion. Dismissing freezes the night as
+"Dabei": the override stays even if the log changes later; **Automatisch** in the menu deletes it and brings the
+suggestion back. The raider never sees either: their own views (`neutralNight`/`neutralAttendance`: „Meine
+Anwesenheit", „Für dich", the availability answers, the own character page `GET /api/roster/char`) show such a
+night as plain "anwesend", without override or suggestion; the quota is the same. A guard test lists every module
+that builds night-by-night attendance with the reason it is safe. Thresholds `leftEarly` (default 2, 1–20) and
+`leftEarlyBosses` live in `serverSettings[g].vermerkeSignals`. Test: `test/services/characters/rosterAttendance.leftEarly.test.js`.
+
+A first
 answer "abwesend" (no signup before) is no sign-off; removing a raider by the orga (`removeRaider`) is no hint
 either. An absence entered via `availability.js` (the panel, `/abwesenheit`, the web) goes through `submitSignup` and
 counts like any sign-off: a hint only when it is one — after the setup, or late (`lateHours`); an early absence is none.

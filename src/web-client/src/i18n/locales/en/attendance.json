@@ -1,6 +1,7 @@
 {
     "status": {
         "present": "Present",
+        "leftEarly": "Left early",
         "bench": "Bench",
         "vacation": "Vacation",
         "absence": "Signed off",
@@ -10,6 +11,7 @@
     },
     "letter": {
         "present": "P",
+        "leftEarly": "L",
         "bench": "B",
         "vacation": "V",
         "absence": "O",
@@ -19,6 +21,7 @@
     },
     "hint": {
         "present": "In the log, or signed up without a log. Counts.",
+        "leftEarly": "Left before the raid ended, confirmed from the log or set by hand. Counts as present.",
         "bench": "Put on the bench or signed up as bench. Counts as present.",
         "vacation": "An absence entered for this period covers the raid. Excused, but counts as missed.",
         "absence": "Signed off for this raid.",
@@ -85,5 +88,24 @@
         "legend": "Legend",
         "nightTip": "{date} · {title}",
         "pause": "Paused"
+    },
+    "suggest": {
+        "title": "Left early according to the log",
+        "missed": {
+            "one": "Misses the last kill: {bosses}",
+            "other": "Misses the last {count} kills: {bosses}"
+        },
+        "cellTip": "Suggested by the log: left early",
+        "confirm": "Confirm",
+        "dismiss": "Dismiss",
+        "confirmHint": "Sets the night to “Left early”. Still counts as present, but can raise a hint in the Vermerke.",
+        "dismissHint": "The night stays “Present”, the suggestion goes away.",
+        "confirmed": "{name}: {date} confirmed as left early",
+        "dismissed": "{name}: suggestion for {date} dismissed",
+        "count": {
+            "one": "{count} suggestion from the log",
+            "other": "{count} suggestions from the log"
+        },
+        "countHint": "Fields with a dashed border: left early according to the log. Click the field to confirm or dismiss."
     }
 }

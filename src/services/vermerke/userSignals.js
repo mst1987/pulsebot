@@ -7,12 +7,14 @@
 //   late_signoff         sign-offs fewer than `lateHours` hours before the start
 //   no_show              raid nights the orga set to "Nicht erschienen" (the
 //                        attendance overrides, #677 - computed here, not stored twice)
+//   left_early           raid nights the orga set to (or confirmed as) "Früh gegangen"
+//                        (#990, the same overrides - the log only suggests it)
 //   left_server          left the server while tied to its raids (a roster of the
 //                        server, a signup at one of its raids)
 //
 // What hides a hint: the orga's "Ausblenden" of that kind, and an active Vermerk
 // with the matching reason (late_signoff for both sign-off kinds, no_show,
-// left_server). It comes back with the first event after that - and then counts
+// left_early, left_server). It comes back with the first event after that - and then counts
 // every event inside the window, the older ones too.
 //
 // Only the Vermerke routes load this module (it reads the notes);
@@ -32,13 +34,17 @@ const KIND_RULES = Object.freeze({
     signoff_after_setup: { threshold: "signoffAfterSetup", reason: "late_signoff" },
     late_signoff: { threshold: "lateSignoff", reason: "late_signoff" },
     no_show: { threshold: "noShow", reason: "no_show" },
+    left_early: { threshold: "leftEarly", reason: "left_early" },
     left_server: { threshold: "leftServer", reason: "left_server" },
 });
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
+/** The override statuses that make a hint, and its kind. */
+const OVERRIDE_KINDS = Object.freeze({ noShow: "no_show", leftEarly: "left_early" });
+
 /**
- * The no-shows of `guildId` in raids since `sinceMs`: `{ [userId]: [event] }` from the attendance
+ * The no-shows (and nights left early, #990) of `guildId` in raids since `sinceMs`: `{ [userId]: [event] }` from the attendance
  * overrides of the server's own raids (one pass over the overrides, the raids looked up in one list).
  * A raid group (#811) is one night, as in rosterAttendance.js: an override at a further raid counts
  * for the group's first raid, and a person counts once per night. `at` is the start of the night.
@@ -54,11 +60,12 @@ function noShowsOf(guildId, sinceMs) {
         const night = byId.get(nightId) || event;
         const startTime = Number(night.startTime) || 0;
         for (const [userId, o] of Object.entries(people || {})) {
-            if (!o || o.status !== "noShow") continue;
-            const key = `${userId}\u0000${nightId}`;
+            const kind = o && OVERRIDE_KINDS[o.status];
+            if (!kind) continue;
+            const key = `${userId}\u0000${nightId}\u0000${kind}`;
             if (seen.has(key)) continue;
             seen.add(key);
-            (out[userId] = out[userId] || []).push({ kind: "no_show", eventId: nightId, title: str(night.title), startTime, at: startTime * 1000 });
+            (out[userId] = out[userId] || []).push({ kind, eventId: nightId, title: str(night.title), startTime, at: startTime * 1000 });
         }
     }
     return out;

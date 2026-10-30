@@ -11,6 +11,7 @@ const { knownVersion, resolveVersionQuery } = require("../../services/events/mai
 const { getConfig } = require("../../stores/settingsStore");
 const { userIsOrga } = require("../../config/permissions");
 const profiles = require("../../stores/raiderProfileStore");
+const { neutralAttendance } = require("../../services/characters/rosterAttendance");
 
 /**
  * The game version a list is filtered to (#543): `?version=<id>`, "all" for
@@ -113,6 +114,18 @@ function isOwnCharacter(user, name) {
 }
 
 /**
+ * The attendance per category as the caller may see it: the orga sees every override and log
+ * suggestion; the character's own player sees each night neutral (#990) - "left early" and a
+ * dismissed suggestion read as present, no suggestion, the quota unchanged.
+ */
+function attendanceView(byCategory, orga) {
+    if (orga) return byCategory;
+    const out = {};
+    for (const [categoryId, summary] of Object.entries(byCategory)) out[categoryId] = neutralAttendance(summary);
+    return out;
+}
+
+/**
  * GET /api/roster/char?name=<name>&items=<id,id,…> — the character page's roster
  * facts: role, categories with attendance night by night, and per worn item its
  * drop source and BiS specs. The page asks for it beside /api/history/char and
@@ -134,12 +147,13 @@ const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
         .slice(0, MAX_ITEM_IDS);
     const items = {};
     for (const id of new Set(ids)) items[id] = itemFacts(id);
-    const attendanceVisible = userIsOrga(user) || isOwnCharacter(user, name);
+    const orga = userIsOrga(user);
+    const attendanceVisible = orga || isOwnCharacter(user, name);
     ok(res, {
         character: name,
         role: (facts && facts.role) || "",
         categories: attendanceVisible ? (facts && facts.categories) || [] : [],
-        attendance: attendanceVisible ? (facts && facts.attendance) || {} : {},
+        attendance: attendanceVisible ? attendanceView((facts && facts.attendance) || {}, orga) : {},
         attendanceVisible,
         items,
     });

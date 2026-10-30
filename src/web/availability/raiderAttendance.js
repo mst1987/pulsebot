@@ -22,7 +22,7 @@ const profileStore = require("../../stores/raiderProfileStore");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
-const { buildAttendanceContext, attendanceForAccounts, categoryInfo, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
+const { buildAttendanceContext, attendanceForAccounts, categoryInfo, neutralNight, RAID_WINDOW } = require("../../services/characters/rosterAttendance");
 const { accountCharacters } = require("../setup/setupAttendance");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../../services/events/mainVersion");
 
@@ -64,7 +64,7 @@ function upcomingRaids(uid, { now, active, eventUrl, versionId, config }) {
  * `playsVersion`: the category plays the asked version today - then an assignment or a signup of
  * another version is enough for a card (its quota empty until the first raid of this version).
  */
-function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW, playsVersion = true }) {
+function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, window = RAID_WINDOW, playsVersion = true, neutral = false }) {
     const signup = newestSignup(nights, uid);
     if (!nights.length && !upcoming.length && !playsVersion) return null;
     // the roster of the version counted (#739)
@@ -83,7 +83,7 @@ function categoryView(uid, categoryId, { ctx, nights, upcoming, profile, name, w
         total: result ? result.total : 0,
         link: result ? result.link : "auto",
         window,
-        raids: (result && result.raids) || [],
+        raids: ((result && result.raids) || []).map((r) => (neutral ? neutralNight(r) : r)),
         upcoming: upcoming.slice(0, 6),
     };
 }
@@ -105,8 +105,10 @@ function eventCategoryNames(now) {
  * @param {string} userId
  * @param {{ versionId?: string, now?: number, config?: object, categoryNames?: Object<string,string>, eventUrl?: (event) => string }} opts
  *   `versionId`: the game version counted (#740) - the main version when none (or an unknown one) is named
+ *   `neutral`: the raider's own view (#990) - a night set to "left early" (or its dismissed log suggestion)
+ *   reads as plainly present (rosterAttendance.neutralNight); the orga's view of a raider leaves it off
  */
-function raiderAttendance(userId, { versionId = "", now = Date.now(), config, categoryNames = {}, eventUrl = () => "" } = {}) {
+function raiderAttendance(userId, { versionId = "", now = Date.now(), config, categoryNames = {}, eventUrl = () => "", neutral = false } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
     const version = knownVersion(versionId) || mainVersionFor({ config: cfg });
@@ -127,6 +129,7 @@ function raiderAttendance(userId, { versionId = "", now = Date.now(), config, ca
             nights: all.get(id) || [],
             upcoming: (upcomingByCategory.get(id) || []).sort((a, b) => a.startTime - b.startTime),
             playsVersion: mainVersionFor({ categoryId: id, config: cfg }) === version,
+            neutral,
         }))
         .filter(Boolean)
         .sort((a, b) => (b.total - a.total) || a.name.localeCompare(b.name));

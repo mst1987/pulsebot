@@ -32,6 +32,10 @@ const DEFAULT_THRESHOLDS = Object.freeze({
     lateHours: 12,
     noShow: 2,
     leftServer: 1,
+    // #990: nights the orga confirmed as "left early" make a hint from this many; the log suggests
+    // a night when a raider is missing from that many of its last boss kills
+    leftEarly: 2,
+    leftEarlyBosses: 2,
 });
 /** The range each threshold may be set to (whole numbers). */
 const THRESHOLD_LIMITS = Object.freeze({
@@ -41,6 +45,8 @@ const THRESHOLD_LIMITS = Object.freeze({
     lateHours: [1, 72],
     noShow: [1, 20],
     leftServer: [1, 5],
+    leftEarly: [1, 20],
+    leftEarlyBosses: [1, 5],
 });
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
