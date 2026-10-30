@@ -50,6 +50,7 @@
     --area-lootcouncil: var(--accent); --area-lootcouncil-soft: var(--accent-soft);
     --area-bank: var(--accent); --area-bank-soft: var(--accent-soft);
     --area-kader: var(--accent); --area-kader-soft: var(--accent-soft);
+    --area-vermerke: var(--accent); --area-vermerke-soft: var(--accent-soft);
     /* a step back (BackButton): a calm steel blue, the ink at least 4.5:1 on its
        tint over --panel and --panel2 in both themes */
     --back-ink: #8fb0d6; --back-bg: rgba(143, 176, 214, .10); --back-bg-hover: rgba(143, 176, 214, .16); --back-line: rgba(143, 176, 214, .45);

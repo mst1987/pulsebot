@@ -1,11 +1,15 @@
 import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
-import { useOutletContext, useSearchParams } from "react-router-dom";
+import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getServerMembers, type MemberRole, type ServerMember, type ServerMembers } from "../../api";
+import { getVermerke, type VermerkPerson } from "../../api/vermerke";
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
-import { Badge, PageHead, Switch } from "../../components/ui";
+import { Badge, Button, PageHead, Switch } from "../../components/ui";
 import { SortTh } from "../../components/ui/SortTh";
-import { SearchIcon } from "../../components/ui/icons";
+import { PlusIcon, SearchIcon } from "../../components/ui/icons";
+import LevelMark from "../../components/vermerke/LevelMark";
+import VermerkDialog, { type VermerkDialogPreset } from "../../components/vermerke/VermerkDialog";
+import { canAccess } from "../../lib/app/access";
 import { classColorProps } from "../../components/character/ClassSpec";
 import DiscordTabs from "../../components/channels/DiscordTabs";
 import ServerPicker from "../../components/channels/ServerPicker";
@@ -46,6 +50,19 @@ export default function MembersPage() {
     const sort = useTableSort<MemberSortKey>("discord-members-sort", MEMBER_SORT_DEFAULTS, "name");
     const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
     const openId = params.get("user");
+    const navigate = useNavigate();
+    // Vermerke (#980): the notes of the active server, for the "Mit Vermerk" filter
+    // and the mark next to the name — only when the picked server is that one
+    const canReadNotes = canAccess(user, "vermerke", "read");
+    const canWriteNotes = canAccess(user, "vermerke", "write");
+    const notesState = useApi(() => getVermerke(), [], { enabled: canReadNotes });
+    const [withNote, setWithNote] = useState(false);
+    const [dialog, setDialog] = useState<VermerkDialogPreset | null>(null);
+    const notesById = useMemo(() => {
+        const list = notesState.data;
+        if (!list || !data || list.guildId !== data.guildId) return null;
+        return new Map(list.people.filter((p) => p.activeCount > 0).map((p) => [p.userId, p]));
+    }, [notesState.data, data]);
     // a role filter belongs to its server
     useEffect(() => setFilter((f) => (f.roleId ? { ...f, roleId: "" } : f)), [guildId]);
 
@@ -68,10 +85,37 @@ export default function MembersPage() {
 
             {state.error && !data && <p className="empty">{t("discord.members.page.loadError", { message: state.error.message })}</p>}
             {!data && !state.error && <><div className="dmb-controls">{sideSegment}</div><RaidLoader text={t("discord.members.page.loading")} /></>}
-            {data && <MembersView data={data} sideSegment={sideSegment} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open} />}
+            {data && (
+                <MembersView
+                    data={data} sideSegment={sideSegment} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open}
+                    notesById={notesById} withNote={withNote} setWithNote={setWithNote}
+                />
+            )}
             {/* no drawer while no server is set up */}
             {data && data.guildId && openId && (
-                <MemberDrawer guildId={data.guildId} userId={openId} guildName={data.guildName} listed={listed} onClose={close} />
+                <MemberDrawer
+                    guildId={data.guildId} userId={openId} guildName={data.guildName} listed={listed} onClose={close}
+                    actions={notesById && (
+                        <>
+                            {canWriteNotes && (
+                                <Button
+                                    variant="ghost" size="sm" icon={<PlusIcon />} data-tip={t("vermerke.members.add")} data-tip-sub={t("vermerke.members.addSub")}
+                                    onClick={() => setDialog({ person: { userId: openId, name: listed ? listed.name : openId } })}
+                                >
+                                    {t("vermerke.members.add")}
+                                </Button>
+                            )}
+                            {notesById.has(openId) && (
+                                <Button variant="ghost" size="sm" onClick={() => navigate(`/vermerke?user=${encodeURIComponent(openId)}`)}>
+                                    {t("vermerke.members.open")}
+                                </Button>
+                            )}
+                        </>
+                    )}
+                />
+            )}
+            {dialog && (
+                <VermerkDialog guildId={data ? data.guildId : ""} preset={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notesState.reload(); }} />
             )}
         </div>
     );
@@ -92,7 +136,7 @@ function membersErrorText(data: ServerMembers, t: ReturnType<typeof useT>): stri
     return t(data.membersError === "timeout" ? "discord.members.page.membersErrorSub" : "discord.members.page.membersErrorIntent");
 }
 
-function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpen }: {
+function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpen, notesById, withNote, setWithNote }: {
     data: ServerMembers;
     sideSegment: ReactNode;
     filter: MemberFilter;
@@ -100,12 +144,18 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
     sort: TableSort<MemberSortKey>;
     openId: string | null;
     onOpen: (id: string) => void;
+    /** the people with notes that count on this server, null without the right or for another server */
+    notesById: Map<string, VermerkPerson> | null;
+    withNote: boolean;
+    setWithNote: (on: boolean) => void;
 }) {
     const t = useT();
     const [all, setAll] = useState(false);
     const rolesById = useMemo(() => new Map(data.roles.map((r) => [r.id, r])), [data.roles]);
     const counts = filterCounts(data.members, filter.hideBots);
     const patch = (p: Partial<MemberFilter>) => { setFilter({ ...filter, ...p }); setAll(false); };
+    const noteFilter = !!notesById && withNote;
+    const noteCount = notesById ? data.members.filter((m) => notesById.has(m.id)).length : 0;
     const ready = data.guildId && data.online && !data.membersError;
 
     const controls = (
@@ -145,6 +195,13 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
                 label={<>{t("discord.members.page.hideBots")} <span className="dmb-n">{counts.bots}</span></>}
                 tipHead={t("discord.members.page.hideBots")} tip={t("discord.members.page.hideBotsSub")}
             />
+            {notesById && (
+                <Switch
+                    checked={withNote} onChange={(on) => { setWithNote(on); setAll(false); }}
+                    label={<>{t("vermerke.members.filter")} <span className="dmb-n">{noteCount}</span></>}
+                    tipHead={t("vermerke.members.filter")} tip={t("vermerke.members.filterSub")}
+                />
+            )}
         </div>
     );
 
@@ -152,12 +209,13 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
     if (!data.online) return <>{controls}<p className="empty">{t("discord.members.page.offlineSub")}</p></>;
     if (data.membersError) return <>{controls}<p className="empty">{membersErrorText(data, t)}</p></>;
 
-    const kept = filterMembers(data.members, filter);
+    const filtered = filterMembers(data.members, filter);
+    const kept = noteFilter && notesById ? filtered.filter((m) => notesById.has(m.id)) : filtered;
     const rows = sort.apply(kept, (m, key) => memberSortValue(m, key, rolesById));
     const shown = all ? rows : rows.slice(0, ROWS_SHOWN);
     const pool = filter.hideBots ? data.members.filter((m) => !m.bot).length : data.members.length;
     // without a search or filter: how many, and how many bots are left out; with one: "N von M"
-    const narrowed = !!(filter.query.trim() || filter.roleId || filter.noRole || filter.notInRoster);
+    const narrowed = !!(filter.query.trim() || filter.roleId || filter.noRole || filter.notInRoster || noteFilter);
     const note = narrowed
         ? t("discord.members.page.shown", { count: rows.length, total: pool })
         : [t("discord.members.page.count", { count: rows.length }), filter.hideBots && counts.bots > 0 ? t("discord.members.page.botsHidden", { count: counts.bots }) : ""].filter(Boolean).join(" · ");
@@ -186,7 +244,12 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
                                 </tr>
                             </thead>
                             <tbody>
-                                {shown.map((m) => <MemberRow key={m.id} member={m} rolesById={rolesById} open={m.id === openId} onOpen={onOpen} />)}
+                                {shown.map((m) => (
+                                    <MemberRow
+                                        key={m.id} member={m} rolesById={rolesById} open={m.id === openId} onOpen={onOpen}
+                                        note={notesById ? notesById.get(m.id) || null : null}
+                                    />
+                                ))}
                             </tbody>
                         </table>
                     </div>
@@ -202,11 +265,13 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
     );
 }
 
-function MemberRow({ member: m, rolesById, open, onOpen }: {
+function MemberRow({ member: m, rolesById, open, onOpen, note }: {
     member: ServerMember;
     rolesById: Map<string, MemberRole>;
     open: boolean;
     onOpen: (id: string) => void;
+    /** the member's notes on this server (the level as a symbol next to the name) */
+    note: VermerkPerson | null;
 }) {
     const t = useT();
     const joined = joinedDate(m.joinedAt);
@@ -217,6 +282,7 @@ function MemberRow({ member: m, rolesById, open, onOpen }: {
                     <span className="dmb-av" aria-hidden="true">{m.avatarUrl ? <img src={m.avatarUrl} alt="" loading="lazy" /> : initialsOf(m.name)}</span>
                     <span className="dmb-names">
                         <button type="button" className="dmb-name" onClick={(e) => { e.stopPropagation(); onOpen(m.id); }} aria-expanded={open}>{m.name}</button>
+                        {note && note.level && <LevelMark level={note.level} iconOnly size={15} />}
                         {m.bot && <span className="dmb-tag">{t("discord.members.cell.bot")}</span>}
                         {m.username && m.username !== m.name.toLowerCase() && <span className="dmb-user">{m.username}</span>}
                         {/* phone: the roster and the highest role under the name, the columns are hidden there */}

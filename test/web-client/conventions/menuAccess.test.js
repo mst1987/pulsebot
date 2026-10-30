@@ -77,12 +77,14 @@ describe("one menu for both front ends", () => {
             { name: "Start", ids: ["home", "signups", "absences"] },
             // Oct 2026: loot pages moved under Raids (no own Loot group), Roster + Gildenbank under Gilde, Kanäle under System
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
-            { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
+            // Vermerke (#980) beside Roster and Kaderplaner, as the user wanted (Oct 2026). Gilde may hold
+            // five: Kaderplaner and Vermerke are orga-only, a raider sees three at most there.
+            { name: "Gilde", ids: ["roster", "kader", "vermerke", "recruitment", "bank"] },
             { name: "System", ids: ["channels", "settings"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
-        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(4);
+        for (const g of groups) expect(g.ids.length).toBeLessThanOrEqual(g.name === "Gilde" ? 5 : 4);
     });
 
     it("marks exactly the pages without a server as \"Alle Server\" (#918)", () => {
@@ -115,6 +117,7 @@ describe("one menu for both front ends", () => {
             lootcouncil: "lootcouncil",
             bank: "guildbank",
             kader: "kader",
+            vermerke: "vermerke",
             // the Discord line itself: Discord's mark in its Blurple
             channels: "discord",
             addon: "addons",

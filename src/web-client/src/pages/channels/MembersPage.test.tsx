@@ -8,7 +8,8 @@ import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type { MemberRole, ServerMember, ServerMemberDetail, ServerMembers } from "../../api";
-import { renderPage } from "../../test/render";
+import * as notesApi from "../../api/vermerke";
+import { adminUser, renderPage } from "../../test/render";
 import { switchLang } from "../../test/i18n";
 import { resetServerPickCache } from "../../hooks/useServerPick";
 import MembersPage from "./MembersPage";
@@ -19,6 +20,13 @@ vi.mock("../../api", async (orig) => ({
     getServerMemberDetail: vi.fn(),
     getDiscordTabCounts: vi.fn(),
     getServerChoices: vi.fn(),
+}));
+
+vi.mock("../../api/vermerke", async (orig) => ({
+    ...(await orig<typeof import("../../api/vermerke")>()),
+    getVermerke: vi.fn(),
+    searchVermerkPeople: vi.fn(),
+    getVermerkRaids: vi.fn(),
 }));
 
 const SERVERS: api.DiscordServerChoice[] = [
@@ -71,7 +79,14 @@ beforeEach(() => {
     vi.mocked(api.getServerMembers).mockReset().mockImplementation(async (guildId) => (guildId === "g2" ? TALK : EVENT));
     vi.mocked(api.getServerMemberDetail).mockReset().mockResolvedValue(DETAIL);
     vi.mocked(api.getDiscordTabCounts).mockReset().mockResolvedValue({ channels: 31, serverRoles: 5, members: 4, roleMessages: 2 });
+    vi.mocked(notesApi.getVermerke).mockReset().mockResolvedValue({ guildId: "g1", guildName: "Testgilde", people: [NOTE_JAINA] });
+    vi.mocked(notesApi.getVermerkRaids).mockReset().mockResolvedValue({ raids: [] });
 });
+
+const NOTE_JAINA: notesApi.VermerkPerson = {
+    userId: "j", name: "Jaina", level: "warning", reasons: { no_show: 1 }, activeCount: 1, totalCount: 1,
+    lastAt: Date.UTC(2026, 9, 20), lastByName: "Orga", sharedCount: 0, left: false,
+};
 
 /** The router's view of the history next to the page: the query, how it got there, and a back button. */
 function HistoryProbe() {
@@ -321,5 +336,46 @@ describe("Mitglieder: drawer", () => {
         expect(await screen.findByText(/Kein Server eingestellt/)).toBeInTheDocument();
         expect(screen.queryByRole("complementary")).not.toBeInTheDocument();
         expect(api.getServerMemberDetail).not.toHaveBeenCalled();
+    });
+});
+
+describe("Mitglieder: Vermerke (#980)", () => {
+    it("marks members with a note and filters to them", async () => {
+        const user = userEvent.setup();
+        renderPage(<MembersPage />, { route: "/channels/members" });
+        const jaina = (await screen.findByText("Jaina")).closest("tr")!;
+        expect(await within(jaina).findByRole("img", { name: "Warnung" })).toBeInTheDocument();
+        expect(within(screen.getByText("Thrall").closest("tr")!).queryByRole("img", { name: "Warnung" })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("switch", { name: /Mit Vermerk/ }));
+        expect(names()).toEqual(["Jaina"]);
+    });
+
+    it("ignores notes of another server", async () => {
+        vi.mocked(notesApi.getVermerke).mockResolvedValue({ guildId: "g2", guildName: "Talkgilde", people: [NOTE_JAINA] });
+        renderPage(<MembersPage />, { route: "/channels/members" });
+        await screen.findByText("Jaina");
+        await waitFor(() => expect(notesApi.getVermerke).toHaveBeenCalled());
+        expect(screen.queryByRole("switch", { name: /Mit Vermerk/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole("img", { name: "Warnung" })).not.toBeInTheDocument();
+    });
+
+    it("adds a note from the drawer and links to the notes", async () => {
+        const user = userEvent.setup();
+        renderPage(<><MembersPage /><HistoryProbe /></>, { route: "/channels/members?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        await user.click(within(drawer).getByRole("button", { name: "Vermerk anlegen" }));
+        const dlg = await screen.findByRole("dialog");
+        expect(within(dlg).getByText("Vermerk für Jaina")).toBeInTheDocument();
+        await user.click(within(dlg).getByRole("button", { name: "Abbrechen" }));
+        await user.click(within(drawer).getByRole("button", { name: "Vermerke ansehen" }));
+        await waitFor(() => expect(screen.getByTestId("search")).toHaveTextContent("?user=j"));
+    });
+
+    it("shows neither filter nor buttons without the notes area", async () => {
+        renderPage(<MembersPage />, { route: "/channels/members?user=j", user: adminUser({ isAdmin: false, access: { discord: "write" } }) });
+        await screen.findByRole("complementary", { name: "Jaina" });
+        expect(notesApi.getVermerke).not.toHaveBeenCalled();
+        expect(screen.queryByRole("switch", { name: /Mit Vermerk/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Vermerk anlegen" })).not.toBeInTheDocument();
     });
 });

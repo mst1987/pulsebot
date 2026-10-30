@@ -395,3 +395,19 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .emo-big { font-size: 26px; line-height: 1; }
 .emo-name { font-size: 14px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .emo-hint { font-size: 12.5px; color: var(--muted); }
+
+/* ---- Vermerke (#980): level and reason marks, shared by the notes page, the member list and the setup ---- */
+/* the level is always symbol + word; the colour repeats it (amber hint, red warning and shadowban) */
+.nm-level { display: inline-flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 600; white-space: nowrap; color: var(--text); }
+.nm-level .uic { flex: none; }
+.nm-level-hint .uic { color: var(--medium); }
+.nm-level-warning .uic, .nm-level-shadowban .uic { color: var(--high); }
+.nm-level-shadowban .nm-level-word { color: var(--high); }
+.nm-level-none { font-weight: 500; color: var(--muted); }
+.nm-level-icon { gap: 0; }
+/* a reason is a grey line icon, the word in the tooltip; "×2" follows small */
+.nm-reasons { display: inline-flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.nm-reason { display: inline-flex; align-items: center; gap: 3px; color: var(--muted); white-space: nowrap; }
+.nm-reason .uic { flex: none; }
+.nm-reason-word { font-size: 13px; color: var(--text); }
+.nm-reason-n { font-size: 12px; font-weight: 600; font-variant-numeric: tabular-nums; }

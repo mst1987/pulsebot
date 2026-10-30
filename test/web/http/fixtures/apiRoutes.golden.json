@@ -365,5 +365,7 @@
   "GET /api/vermerke/signals",
   "POST /api/vermerke/signals/ignore",
   "GET /api/vermerke/signals/settings",
-  "POST /api/vermerke/signals/settings"
+  "POST /api/vermerke/signals/settings",
+  "GET /api/vermerke/people",
+  "GET /api/vermerke/raids"
 ]

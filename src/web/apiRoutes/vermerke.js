@@ -26,6 +26,7 @@ const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
 const notes = require("../../stores/userNotesStore");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
+const { searchPeople, recentRaids, membersOf } = require("../../services/vermerke/vermerkePeople");
 const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 const { serverLabel } = require("../../services/discord/guildRoles");
 const discord = require("../../services/discord/discord");
@@ -56,6 +57,23 @@ function guildOf(req, res) {
     return guildId;
 }
 
+const SWITCHED = "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.";
+
+/**
+ * The active server for a change, or null after the answer: 400 without one, 409 `server_switched`
+ * when the page was loaded for another server (`serverSettingsGuildId`) - a change in another tab
+ * must not land on the server the page does not show.
+ */
+function writeGuildOf(req, res, body) {
+    const guildId = guildOf(req, res);
+    if (!guildId) return null;
+    if (String((body && body.serverSettingsGuildId) || "") !== guildId) {
+        error(res, 409, "server_switched", SWITCHED);
+        return null;
+    }
+    return guildId;
+}
+
 /** Sends a store refusal (NoteError) as its answer; anything else is thrown on. */
 function refuse(res, err) {
     if (err instanceof notes.NoteError) {
@@ -81,17 +99,23 @@ function namer() {
     };
 }
 
-/** GET /api/vermerke - every person with entries this server sees, one line each (no text). */
+/**
+ * GET /api/vermerke - every person with entries this server sees, one line each (no text): who wrote the
+ * newest entry, how many come shared from another server, and `left` when the member list says the person
+ * is no longer on the server (null when the list is not there).
+ */
 const getList = withUser(async ({ req, res }) => {
     const guildId = guildOf(req, res);
     if (!guildId) return undefined;
     const now = Date.now();
+    const members = await membersOf(guildId);
     const people = Object.entries(notes.listFor(guildId)).map(([userId, p]) => {
         const counted = p.entries.filter((e) => !e.hidden && notes.isActive(e, now));
         let level = null;
         for (const e of counted) if (level === null || notes.levelRank(e.level) > notes.levelRank(level)) level = e.level;
         const reasons = {};
         for (const e of counted) reasons[e.reason] = (reasons[e.reason] || 0) + 1;
+        const last = p.entries.reduce((a, e) => (!a || (e.at || 0) > (a.at || 0) ? e : a), null);
         return {
             userId,
             name: p.name,
@@ -100,10 +124,14 @@ const getList = withUser(async ({ req, res }) => {
             activeCount: counted.length,
             totalCount: p.entries.length,
             lastAt: Math.max(0, ...p.entries.map((e) => e.at || 0)),
+            lastByName: (last && last.byName) || "",
+            sharedCount: counted.filter((e) => !e.own).length,
+            left: members ? !members.has(userId) : null,
         };
     });
     people.sort((a, b) => b.lastAt - a.lastAt);
-    return ok(res, { people });
+    // the server it is for, so a page that shows another server (Mitglieder) can tell
+    return ok(res, { guildId, guildName: serverNameOf(guildId, getConfig()), people });
 });
 
 /** GET /api/vermerke/person?userId= - every entry of one person this server sees, with the notes. */
@@ -130,7 +158,7 @@ const byOf = (user) => ({ by: String(user.id || ""), byName: String(user.name ||
 
 /** POST /api/vermerke { userId, name, level, reason, text?, eventIds?, expiresAt?, shared? } - a new entry. */
 const postEntry = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     const userId = q.snowflake(body, "userId");
     if (!userId) return error(res, 400, "bad_user", "Kein Discord-Konto angegeben.");
@@ -144,7 +172,7 @@ const postEntry = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/update { userId, id, ...fields } - changes an entry of this server. */
 const postUpdate = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const entry = notes.updateEntry(guildId, q.str(body, "userId"), q.str(body, "id"), partialFieldsOf(body), byOf(user));
@@ -156,7 +184,7 @@ const postUpdate = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/archive { userId, id, archived? } - archives (default) or restores an entry of this server. */
 const postArchive = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const entry = notes.archiveEntry(guildId, q.str(body, "userId"), q.str(body, "id"), { archived: q.bool(body, "archived", true), ...byOf(user) });
@@ -168,7 +196,7 @@ const postArchive = withUser(WRITE, async ({ user, body, req, res }) => {
 
 /** POST /api/vermerke/hide { id, hidden? } - hides (default) or shows again a shared entry of another server here. */
 const postHide = withUser(WRITE, async ({ user, body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         const hidden = q.bool(body, "hidden", true);
@@ -189,6 +217,20 @@ const postDelete = withUser({ full: true, csrf: true, body: true }, async ({ bod
     } catch (err) {
         return refuse(res, err);
     }
+});
+
+/** GET /api/vermerke/people?q= - the person search of the dialog: members and who left (earlier signups). */
+const getPeople = withUser(async ({ query, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    return ok(res, await searchPeople(guildId, q.str(query, "q", { max: 100 })));
+});
+
+/** GET /api/vermerke/raids?userId= - the raids of the last four weeks, `signed` for those the person signed up for. */
+const getRaids = withUser(async ({ query, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    return ok(res, { raids: recentRaids(guildId, q.snowflake(query, "userId") || "") });
 });
 
 /**
@@ -249,11 +291,8 @@ const getSignalSettings = withUser(async ({ req, res }) => {
  * whole number in its range: 400 `bad_threshold` with `fields` (the keys), nothing saved.
  */
 const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
-    if (String(body.serverSettingsGuildId || "") !== guildId) {
-        return error(res, 409, "server_switched", "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.");
-    }
     const checked = validateThresholds(body.thresholds);
     if (checked.fields.length) {
         return sendJson(res, 400, { error: { code: "bad_threshold", message: "Ungültiger Schwellenwert – jede Zahl muss ganz sein und in ihrem Bereich liegen.", fields: checked.fields } });
@@ -266,6 +305,8 @@ const routes = [
     { method: "GET", path: "/api/vermerke", handler: getList, area: "vermerke" },
     { method: "POST", path: "/api/vermerke", handler: postEntry, area: "vermerke" },
     { method: "GET", path: "/api/vermerke/person", handler: getPerson, area: "vermerke" },
+    { method: "GET", path: "/api/vermerke/people", handler: getPeople, area: "vermerke" },
+    { method: "GET", path: "/api/vermerke/raids", handler: getRaids, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/update", handler: postUpdate, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/archive", handler: postArchive, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/hide", handler: postHide, area: "vermerke" },
@@ -278,6 +319,6 @@ const routes = [
 ];
 
 module.exports = {
-    routes, getList, getPerson, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf,
+    routes, getList, getPerson, getPeople, getRaids, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf,
     getSignals, postSignalIgnore, getSignalSettings, postSignalSettings,
 };
