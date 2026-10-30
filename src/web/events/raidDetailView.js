@@ -164,10 +164,13 @@ async function setupPart(found, eventId) {
             slots = snapshotSetup;
             setupFromSnapshot = true;
         }
-        return { setup: buildSetupView(slots), setupError: null, tankCandidates: tankCandidates(slots), setupFromSnapshot };
+        return { setup: buildSetupView(slots), setupError: null, tankCandidates: tankCandidates(slots), setupFromSnapshot, slotUserIds: slotIds(slots) };
     } catch (e) {
         if (snapshotSetup.length) {
-            return { setup: buildSetupView(snapshotSetup), setupError: null, tankCandidates: tankCandidates(snapshotSetup), setupFromSnapshot: true };
+            return {
+                setup: buildSetupView(snapshotSetup), setupError: null, tankCandidates: tankCandidates(snapshotSetup),
+                setupFromSnapshot: true, slotUserIds: slotIds(snapshotSetup),
+            };
         }
         console.error("event setup load failed:", e.message);
         return { setup: null, setupError: e.message || "Setup konnte nicht geladen werden.", tankCandidates: [], setupFromSnapshot: false };
@@ -507,18 +510,35 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
     // (#319, #502). Raid-Helper events keep exactly today's view: steps stays null.
     payload.steps = isOwn(found) ? eventSteps(payload, { plan: planPost }) : null;
     payload.playerSummaries = playerSummariesPart(guildId, found, { setup: setupInfo.setup, attendance: attendanceInfo.attendance });
-    // Vermerke (#981): the short form of the raid's signed-up persons, for the orga only - a raider's
-    // answer left above (forRaider) and never reaches this line (vermerkeNeverToPerson.test.js)
-    payload.vermerke = shortFor(guildId, signedUpIds(found, own));
+    // Vermerke (#981): the short form of the raid's signed-up and placed persons, only past the one rule of
+    // every short form (the route's `rights.canSeeShort`, services/vermerke/vermerkeAccess.js) - the orga's
+    // view alone is not enough, and a raider's answer left above (forRaider, vermerkeNeverToPerson.test.js)
+    if (rights && rights.canSeeShort) payload.vermerke = shortFor(guildId, shortIds(found, own, setupInfo, stored));
     return { body: payload };
 }
 
-/** The user ids signed up to the raid: Raid-Helper's signups and an own event's (a raid group's from its first raid). */
-function signedUpIds(found, own) {
+/**
+ * The user ids the short form covers: Raid-Helper's signups and an own event's (a raid group's from its
+ * first raid), plus whoever is placed without a signup - a Raid-Helper setup's slots (`id`) and an own
+ * event's stored setup (groups and bench).
+ */
+function shortIds(found, own, setupInfo, stored) {
     const ids = new Set();
-    for (const s of Array.isArray(found.e.signUps) ? found.e.signUps : []) if (s && s.userId) ids.add(String(s.userId));
-    for (const s of Array.isArray(own.ownSignups) ? own.ownSignups : []) if (s && s.userId) ids.add(String(s.userId));
+    const add = (id) => { if (id) ids.add(String(id)); };
+    for (const s of Array.isArray(found.e.signUps) ? found.e.signUps : []) if (s) add(s.userId);
+    for (const s of Array.isArray(own.ownSignups) ? own.ownSignups : []) if (s) add(s.userId);
+    for (const s of setupInfo.slotUserIds || []) add(s);
+    const setup = stored && stored.setup;
+    if (setup) {
+        for (const g of setup.groups || []) for (const s of g.slots || []) if (s) add(s.userId);
+        for (const b of Array.isArray(setup.bench) ? setup.bench : []) if (b) add(b.userId);
+    }
     return [...ids];
+}
+
+/** The user ids of a Raid-Helper setup's slots (`id`, a snapshot's may carry `userId`). */
+function slotIds(slots) {
+    return (slots || []).map((s) => s && (s.userId || s.id)).filter(Boolean).map(String);
 }
 
 module.exports = {

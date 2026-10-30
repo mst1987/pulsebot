@@ -46,6 +46,7 @@ const { raidViewer } = require("../../services/signups/eventVisibility");
 const { isGlobalRaidOrga, canOrgaRaid } = require("../events/raidOrgaAccess");
 const { requestCache } = require("../../services/roster/categoryOrga");
 const { userCan } = require("../../config/permissions");
+const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 const { expectedRoleIds } = require("../../services/roster/categoryRoles");
 const { mayUseChannel, OTHER_SERVER } = require("../http/serverQuery");
 
@@ -110,6 +111,8 @@ const getRaidDetail = withUser({ onServer: (body, query) => query.get("event") }
             categoryRolesOnly: !isGlobalRaidOrga(user),
             // the server's unassigned logs are the "Log zuordnen" dialog's: `cla` write (POST /api/cla/log-link)
             canLogs: userCan(user, "cla", "write"),
+            // the Vermerke short form (#981): the one rule of every short form, never `viewer.orga`
+            canSeeShort: await maySeeShort(user, guildId, { req }),
         },
     }));
 });

@@ -65,6 +65,7 @@ const { approvedSetupOf, confirmationsFor } = require("../../services/setup/setu
 const raidGroup = require("../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const { shortFor, shadowbannedAmong } = require("../../services/vermerke/vermerkeShort");
+const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 
 // The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
 // of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
@@ -123,7 +124,8 @@ async function view(event, user, { names = true, req = null } = {}) {
     });
     if (write) {
         out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
-        Object.assign(out, vermerkeOf(fresh, signups, out.setup));
+        // the short form only through the one rule (vermerkeAccess.js) - the setup's own write right is not enough
+        if (await maySeeShort(user, fresh.guildId, { req })) Object.assign(out, await vermerkeOf(fresh, signups, out.setup));
     }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
@@ -145,19 +147,34 @@ function personIdsOf(signups, setup) {
 
 /**
  * The orga's part of the Vermerke (#981), one store read: `vermerke` the short form
- * `{ [userId]: { level, reasons } }` of the persons on the page, and `skippedShadowban`
- * `[{ userId, name }]` - who of the pool the proposal held back for a shadowban
- * (proposal.js never places them by itself). Only once a setup is stored, a
- * proposal ran over it. Never in a raider's answer (vermerkeNeverToPerson.test.js).
+ * `{ [userId]: { level, reasons } }` of the persons on the page, and `shadowbanInPool`
+ * `[{ userId, name }]` - everybody with a shadowban who stands in the pool of the
+ * stored setup (proposal.js never places them by itself; one placed by hand is out
+ * of the pool). Only once a setup is stored. The name is the same on every answer:
+ * the Discord name from the member cache (the page load filled it, `namesFor`),
+ * else the character, else the id - a write answers at once, so no member fetch.
+ * Never in a raider's answer (vermerkeNeverToPerson.test.js).
  */
-function vermerkeOf(event, signups, setup) {
+async function vermerkeOf(event, signups, setup) {
     const vermerke = shortFor(event.guildId, personIdsOf(signups, setup));
-    const skippedShadowban = event.setup && setup
-        ? (setup.pool || [])
-            .filter((p) => p && vermerke[String(p.userId)] && vermerke[String(p.userId)].level === "shadowban")
-            .map((p) => ({ userId: String(p.userId), name: p.name || p.character || String(p.userId) }))
+    const banned = event.setup && setup
+        ? (setup.pool || []).filter((p) => p && vermerke[String(p.userId)] && vermerke[String(p.userId)].level === "shadowban")
         : [];
-    return { vermerke, skippedShadowban };
+    const names = banned.length ? await cachedNames(event.guildId, banned.map((p) => String(p.userId))) : {};
+    const shadowbanInPool = banned.map((p) => {
+        const userId = String(p.userId);
+        return { userId, name: names[userId] || p.character || p.name || userId };
+    });
+    return { vermerke, shadowbanInPool };
+}
+
+/** Discord names already in the member cache - never waits for a fetch. */
+async function cachedNames(guildId, ids) {
+    try {
+        return (await discord.resolveUserNames(guildId, ids, { waitMs: 0 })) || {};
+    } catch {
+        return {};
+    }
 }
 
 /** The event channel's current name, else the stored one. */

@@ -76,26 +76,36 @@ Store refusals keep their code: `bad_user`, `bad_level`, `bad_reason`, `text_too
 
 For every orga that plans a raid (#981): the highest active level and the reasons with their counts — **no text, no
 author, no raids**. `shortOf(server, user)` / `shortFor(server, userIds)` in `vermerkeShort.js`; the endpoint is
-open at the gate (`auth: "menu"`) and lets in: `vermerke` read, the global raid orga (orga rank with `raids` write,
-`isGlobalRaidOrga` in `web/events/raidOrgaAccess.js` — the rule of the setup editor), or a manager of a roster of the
-**active server** (`categoryOrga.isAnyCategoryManager(user, { guildId })`). Everyone else: 403 `orga_only`.
+open at the gate (`auth: "menu"`) and lets in whom `maySeeShort` in `services/vermerke/vermerkeAccess.js` lets in:
+`vermerke` read, the global raid orga (orga rank with `raids` write — the rule of the setup editor), or a manager of a
+roster of the **active server** (`categoryOrga.isAnyCategoryManager(user, { guildId })`). Everyone else: 403 `orga_only`.
 `shortFor` reads the store **once** for all ids (`activeEntriesMany`), so a raid with 40 signups is one read.
 
 ### In the answers of the orga (#981)
 
-The short form rides along in the answers the orga plans with — **only in their orga branch**, only for the people
-of that answer, one `shortFor` read each:
+The short form rides along in the answers the orga plans with, only for the people of that answer, one `shortFor`
+read each.
+
+**One rule for every answer:** a field with the short form (or anything built from it) is added only when
+`maySeeShort(user, guildId, { req })` (`services/vermerke/vermerkeAccess.js`) says yes — the same rule as
+`GET /api/vermerke/short`. The answer's own orga flag (`viewer.orga`, `isOrga`, a manager branch) or an area right
+(`kader`, `raids`) is **never enough**: an Einzelkonto with `kader` read may stand in the pool itself, an orga rank
+without `raids` write sees the orga view of a raid but no notes. Every such field has a test "Nicht-Berechtigter
+bekommt kein Feld" next to the one showing that it arrives.
 
 | Answer | Field | People |
 |---|---|---|
-| `GET /api/raids/setup` and every setup write answer (`canWrite` only) | `vermerke`, `skippedShadowban` | signups + everyone in groups, bench, pool (all raids of a group) |
-| `GET /api/raids/detail` (`buildRaidDetail`, `orga` only) | `vermerke` | signups (Raid-Helper and own) |
-| `GET /api/rosters/roster` (manager / orga branch of `buildRosterDetail`) | `vermerke` | the roster's rows |
-| `GET /api/kader` (orga only) | `vermerke` | the Kader's players |
+| `GET /api/raids/setup` and every setup write answer (`canWrite` and `maySeeShort`) | `vermerke`, `shadowbanInPool` | signups + everyone in groups, bench, pool (all raids of a group) |
+| `GET /api/raids/detail` (`rights.canSeeShort`, set by the route) | `vermerke` | signups (Raid-Helper and own) + everyone placed in the setup without a signup (slots, bench) |
+| `GET /api/rosters/roster` (manager / orga branch of `buildRosterDetail`, and `maySeeShort`) | `vermerke` | the roster's rows |
+| `GET /api/kader` (`maySeeShort`) | `vermerke` | the Kader's players |
 
 `vermerke` is `{ [userId]: { level, reasons: { [reason]: count } } }` (nobody without an active note is listed).
-`skippedShadowban` is `[{ userId, name }]`: who stands in the pool of the **stored** setup with a shadowban — the
-client shows "1 Person nicht vorgeschlagen (Shadowban) · Dranok" with the name linking to `/vermerke?user=<id>`.
+`shadowbanInPool` is `[{ userId, name }]`: **everyone** with a shadowban who stands in the pool of the **stored**
+setup (whether the proposal held them back or a hand move put them there) — the client shows "N Person(en) mit
+Shadowban im Pool · Dranok" with the name linking to `/vermerke?user=<id>`. `name` is the same on every answer: the
+Discord name from the member cache (`resolveUserNames(…, { waitMs: 0 })`, the page load filled it), else the
+character, else the id.
 It is computed live per answer and **never stored** in the setup (`saveSetupDraft` keeps the rest of the view).
 The proposal itself skips shadowbans (docs/setup.md "Shadowban"); placing by hand stays allowed. A roster manager
 gets the short form for every person of the server, a shared note shows everything on every server.
@@ -108,7 +118,7 @@ has no `vermerke` right). `test/services/vermerke/vermerkeNeverToPerson.test.js`
 loads the store or the short form (whole require closure), and a raider / the raider view gets 403 on every route
 without the marker text. The orga answers of #981 are held dynamically as well: the setup editor's GET in
 `vermerkeNeverToPerson.routes.test.js` (raider, the noted raider, "Ansicht als Raider": no `vermerke`, no
-`skippedShadowban`, no marker), the raid detail in `test/web/events/raidDetailView.test.js`.
+`shadowbanInPool`, no marker), the raid detail in `test/web/events/raidDetailView.test.js`.
 
 "Never to the person" means: never to a raider **without orga or Vermerke rights**. Whoever holds the rights (the
 area `vermerke`, or the short form as raid orga / roster manager) also sees the notes on the own account — a

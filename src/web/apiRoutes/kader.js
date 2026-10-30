@@ -44,6 +44,7 @@ const { loadKaderSource, loadKaderRules, listRaidCategories, plannerVersion } = 
 const { buildKaderView, kaderPayload, mutationContext, lightContext } = require("../kader/kaderView");
 const presence = require("../kader/kaderPresence");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
+const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 
 const str = (body, key) => q.str(body, key);
 const WRITE = { write: "kader", csrf: true, body: true };
@@ -139,15 +140,17 @@ function newKaderVersion(body) {
  * The players' characters, the classes, the raid categories and the attendance
  * are those of the chosen Kader's version, without one of the shown version.
  */
-const getKader = withUser({}, async ({ req, res, query }) => {
+const getKader = withUser({}, async ({ user, req, res, query }) => {
     const guildId = activeGuildFor(req);
     const kaderId = str(query, "kader");
     const shown = shownVersion(query);
     const before = kaderStore.readPlanner(guildId);
     const source = await sourceFor(guildId, before, versionFor(before, kaderId, shown));
     const view = buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId, versionId: shown });
-    // Vermerke (#981): the short form of the planner's pool - area `kader` is in no base access, the orga's only
-    ok(res, { ...view, vermerke: shortFor(guildId, view.players.map((p) => p.userId)) });
+    // Vermerke (#981): the short form of the planner's pool, only past the one rule of every short form -
+    // `kader` read alone is not enough (an Einzelkonto with it may stand in the pool itself)
+    if (!(await maySeeShort(user, guildId, { req }))) return ok(res, view);
+    return ok(res, { ...view, vermerke: shortFor(guildId, view.players.map((p) => p.userId)) });
 });
 
 /** GET /api/kader/kader?kader=<id> — only the Kader as stored and the summaries of its version (a change inside it, seen live). */

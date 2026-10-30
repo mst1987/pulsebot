@@ -11,20 +11,19 @@
 //
 // GET /api/vermerke/short is the short form for every orga that plans a raid
 // (#981): the highest active level and the reasons with their counts - no text,
-// no author. It is open to any menu user at the gate and checks itself: the
-// area "vermerke" (read), the global orga, or a manager of a roster of the
-// active server. Nothing here ever answers the person a note is about: a raider
+// no author. It is open to any menu user at the gate and checks itself with the
+// one rule for every short-form answer (services/vermerke/vermerkeAccess.js): the
+// area "vermerke" (read), the global orga with raids write, or a manager of a
+// roster of the active server. Nothing here ever answers the person a note is about: a raider
 // and "Ansicht als Raider" get 403 everywhere
 // (test/services/vermerke/vermerkeNeverToPerson.test.js).
 const { ok, error } = require("../http/apiResponse");
 const { withUser, ORGA_ONLY } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
 const { q } = require("../http/apiParams");
-const { userCan } = require("../../config/permissions");
-const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
 const notes = require("../../stores/userNotesStore");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
-const categoryOrga = require("../../services/roster/categoryOrga");
+const { maySeeShort } = require("../../services/vermerke/vermerkeAccess");
 const { serverLabel } = require("../../services/discord/guildRoles");
 const discord = require("../../services/discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
@@ -187,19 +186,13 @@ const postDelete = withUser({ full: true, csrf: true, body: true }, async ({ bod
 });
 
 /**
- * Whether the caller may see the short form on `guildId`: the area, the global raid orga (orga rank with
- * `raids` write, the rule of the setup editor) or a roster manager there.
+ * GET /api/vermerke/short?userIds=a,b - level and reason counts per person, for the orga that plans.
+ * Gate: the one rule of every short form (services/vermerke/vermerkeAccess.js).
  */
-async function maySeeShort(user, req, guildId) {
-    if (userCan(user, "vermerke", "read") || isGlobalRaidOrga(user)) return true;
-    return categoryOrga.isAnyCategoryManager(user, { cache: categoryOrga.requestCache(req), guildId });
-}
-
-/** GET /api/vermerke/short?userIds=a,b - level and reason counts per person, for the orga that plans. */
 const getShort = withUser(async ({ user, query, req, res }) => {
     const guildId = guildOf(req, res);
     if (!guildId) return undefined;
-    if (!(await maySeeShort(user, req, guildId))) return error(res, 403, "orga_only", ORGA_ONLY);
+    if (!(await maySeeShort(user, guildId, { req }))) return error(res, 403, "orga_only", ORGA_ONLY);
     const userIds = q.str(query, "userIds").split(",").map((s) => s.trim()).filter(Boolean).slice(0, MAX_SHORT_IDS);
     return ok(res, { short: shortFor(guildId, userIds) });
 });

@@ -1,6 +1,6 @@
 // Vermerke never reach the person (docs/vermerke.md, #979/#981) - the setup editor's answer.
 //
-// GET /api/raids/setup carries the short form (`vermerke`) and the shadowban hint (`skippedShadowban`)
+// GET /api/raids/setup carries the short form (`vermerke`) and the shadowban hint (`shadowbanInPool`)
 // for the orga only: a raider, the noted raider himself and an admin in "Ansicht als Raider" get
 // neither, and never the marker text. The raid detail's answer is checked in
 // test/web/events/raidDetailView.test.js (#981). Kept apart from vermerkeNeverToPerson.test.js since
@@ -92,7 +92,7 @@ describe("the setup editor's answer (#981)", () => {
         const r = await api.post("/api/raids/setup/propose", { event: raid.id });
         expect(status(r)).toBe(200);
         expect(body(r).vermerke[U].level).toBe("shadowban");
-        expect(body(r).skippedShadowban).toEqual([{ userId: U, name: "Zed" }]);
+        expect(body(r).shadowbanInPool).toEqual([{ userId: U, name: "Zed" }]);
         expect(JSON.stringify(body(r))).not.toContain(MARKER);
     });
 
@@ -108,7 +108,7 @@ describe("the setup editor's answer (#981)", () => {
         const r = await api.get("/api/raids/setup", { event: raid.id });
         const text = JSON.stringify(body(r));
         expect(body(r)).not.toHaveProperty("vermerke");
-        expect(body(r)).not.toHaveProperty("skippedShadowban");
+        expect(body(r)).not.toHaveProperty("shadowbanInPool");
         expect(text).not.toContain(MARKER);
         expect(text).not.toMatch(/shadowban/);
     });

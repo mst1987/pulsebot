@@ -114,6 +114,25 @@ async function kaderWithPlayers() {
 }
 
 describe("web/apiRoutes/kader", () => {
+    describe("Vermerke short form (#981)", () => {
+        it("gives the orga the field", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const res = await get("/api/kader", { kader: kaderId });
+            expect(status(res)).toBe(200);
+            expect(body(res)).toHaveProperty("vermerke");
+        });
+
+        it("gives a Kader reader without the short-form right no field (they may stand in the pool)", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            auth.getUser.mockReturnValue(granted("write"));
+            const res = await get("/api/kader", { kader: kaderId });
+            expect(status(res)).toBe(200);
+            expect(body(res)).not.toHaveProperty("vermerke");
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(body(await get("/api/kader", { kader: kaderId }))).not.toHaveProperty("vermerke");
+        });
+    });
+
     describe("access", () => {
         it("needs a login", async () => {
             auth.getUser.mockReturnValue(null);

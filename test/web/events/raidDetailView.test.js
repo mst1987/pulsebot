@@ -115,8 +115,9 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
             "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "roleTargets", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
-            "orga", "viewer", "progress", "steps", "playerSummaries", "vermerke",
+            "orga", "viewer", "progress", "steps", "playerSummaries",
         ]);
+        // no rights handed in: no Vermerke short form either (only `rights.canSeeShort` adds it, #981)
         // no rights handed in (an older caller): the orga's view counts as the orga's rights
         expect(body.viewer).toEqual({ canOrga: true, canPlan: true, canSwitchPlan: true });
         expect(body.event).toEqual({
@@ -596,6 +597,52 @@ describe("the orga of the raid's category", () => {
             expect(raider).not.toHaveProperty("vermerke");
             expect(JSON.stringify(raider)).not.toContain(MARKER);
             expect(JSON.stringify(raider)).not.toMatch(/shadowban|no_show/);
+        } finally {
+            notes.useFile(null);
+        }
+    });
+
+    it("gives an orga without raids write (no roster manager) the orga view but no Vermerke short form (#981)", async () => {
+        notes.useFile(tempStoreFile("user-notes-orga-read.json"));
+        try {
+            notes.addEntry("g1", "u7", { level: "shadowban", reason: "behavior" }, { by: "x", byName: "x", name: "Arms" });
+            loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+            const ORGA_READ = { id: "o1", name: "Orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: false } } };
+            const d = (await read(ORGA_READ, "eh-1")).body.data;
+            expect(d.orga).toBe(true);
+            expect(d).not.toHaveProperty("vermerke");
+            expect(JSON.stringify(d)).not.toMatch(/shadowban/);
+        } finally {
+            notes.useFile(null);
+        }
+    });
+
+    it("covers who is placed without a signup: a Raid-Helper setup's slots and an own event's stored setup (#981)", async () => {
+        notes.useFile(tempStoreFile("user-notes-placed.json"));
+        try {
+            notes.addEntry("g1", "u2", { level: "warning", reason: "no_show" }, { by: "x", byName: "x", name: "Heili" });
+            notes.addEntry("g1", "p1", { level: "hint", reason: "loot" }, { by: "x", byName: "x", name: "Placed" });
+            notes.addEntry("g1", "p2", { level: "shadowban", reason: "behavior" }, { by: "x", byName: "x", name: "Bench" });
+            // Raid-Helper: u2 stands in the setup (slot id) without a signup (only u1 signed up)
+            rhClient(async () => ({ setup: SLOTS.map((s) => ({ ...s, id: s.userId, userId: undefined })) }));
+            loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+            const rh = (await buildRaidDetail({ guildId: "g1", eventId: "rh1", rights: { canOrga: true, canSeeShort: true } })).body;
+            expect(rh.vermerke).toEqual({ u2: { level: "warning", reasons: { no_show: 1 } } });
+
+            // own event: p1 placed in a group, p2 on the bench, neither signed up
+            loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+            getEvent.mockImplementation((id) => (id === "eh-1" ? {
+                id: "eh-1", guildId: "g1", categoryId: "cat1", versionId: "tbc", status: "active",
+                setup: { groups: [{ index: 1, slots: [{ userId: "p1", character: "Placed" }] }], bench: [{ userId: "p2", character: "Bench" }] },
+            } : null));
+            const own = (await buildRaidDetail({ guildId: "g1", eventId: "eh-1", rights: { canOrga: true, canSeeShort: true } })).body;
+            expect(own.vermerke).toEqual({
+                p1: { level: "hint", reasons: { loot: 1 } },
+                p2: { level: "shadowban", reasons: { behavior: 1 } },
+            });
+            // the same raid without the right: no field
+            const without = (await buildRaidDetail({ guildId: "g1", eventId: "eh-1", rights: { canOrga: true, canSeeShort: false } })).body;
+            expect(without).not.toHaveProperty("vermerke");
         } finally {
             notes.useFile(null);
         }

@@ -554,21 +554,21 @@ describe("Vermerke in the editor (#981)", () => {
         expect(placed).not.toContain("mage");
         expect(placed).toContain("rogue");
         expect(view.setup.pool.map((p) => p.userId)).toContain("mage");
-        expect(view.skippedShadowban).toEqual([{ userId: "mage", name: "Mage" }]);
+        expect(view.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
         expect(view.vermerke).toEqual({
             mage: { level: "shadowban", reasons: { behavior: 1 } },
             rogue: { level: "warning", reasons: { no_show: 1 } },
         });
         // stored is only the setup, never the hint
-        expect(JSON.stringify(mockEvents.get(ID).setup)).not.toMatch(/skippedShadowban|shadowban/);
+        expect(JSON.stringify(mockEvents.get(ID).setup)).not.toMatch(/shadowbanInPool|shadowban/);
         expect(JSON.stringify(view)).not.toMatch(/SECRET-TEXT/);
 
         const again = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
-        expect(again.skippedShadowban).toEqual([{ userId: "mage", name: "Mage" }]);
+        expect(again.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
 
         const reader = body(await call(route.getSetup, READER, null, `event=${ID}`));
         expect(reader).not.toHaveProperty("vermerke");
-        expect(reader).not.toHaveProperty("skippedShadowban");
+        expect(reader).not.toHaveProperty("shadowbanInPool");
     });
 
     it("lets the orga place a shadowbanned raider by hand, without asking", async () => {
@@ -578,7 +578,7 @@ describe("Vermerke in the editor (#981)", () => {
         const saved = await call(route.putSetup, ORGA, { event: ID, version, groups: [{ index: 1, slots: [{ userId: "mage", spec: "Mage-Fire" }] }], bench: [] });
         expect(status(saved)).toBe(200);
         expect(body(saved).setup.groups[0].slots.map((s) => s.userId)).toContain("mage");
-        expect(body(saved).skippedShadowban).toEqual([]);
+        expect(body(saved).shadowbanInPool).toEqual([]);
     });
 
     it("leaves a warning, a hint, an expired and a hidden shadowban out of it", async () => {
@@ -587,7 +587,7 @@ describe("Vermerke in the editor (#981)", () => {
         notes.hideShared("g1", shared.id, { by: "boss" });
         notes.addEntry("g1", "lock", { level: "hint", reason: "loot" }, by);
         const view = body(await call(route.postPropose, ORGA, { event: ID }));
-        expect(view.skippedShadowban).toEqual([]);
+        expect(view.shadowbanInPool).toEqual([]);
         // the expired and the hidden one are gone, the hint stays a hint
         expect(view.vermerke).toEqual({ lock: { level: "hint", reasons: { loot: 1 } } });
         expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toEqual(expect.arrayContaining(["rogue", "lock"]));
@@ -597,6 +597,35 @@ describe("Vermerke in the editor (#981)", () => {
         notes.addEntry("g9", "mage", { level: "shadowban", reason: "behavior", shared: true }, by);
         const view = body(await call(route.postPropose, ORGA, { event: ID }));
         expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).not.toContain("mage");
-        expect(view.skippedShadowban.map((p) => p.userId)).toEqual(["mage"]);
+        expect(view.shadowbanInPool.map((p) => p.userId)).toEqual(["mage"]);
+    });
+
+    it("names the person the same on the page load and on a write answer: the cached Discord name first", async () => {
+        const discord = require("../../../src/services/discord/discord");
+        discord.resolveUserNames.mockImplementation(async (guildId, ids) => Object.fromEntries(ids.filter((id) => id === "mage").map((id) => [id, "MageDiscord"])));
+        try {
+            notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+            const written = body(await call(route.postPropose, ORGA, { event: ID }));
+            expect(written.shadowbanInPool).toEqual([{ userId: "mage", name: "MageDiscord" }]);
+            const loaded = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+            expect(loaded.shadowbanInPool).toEqual(written.shadowbanInPool);
+            // a write answers at once: only names already in the member cache, never a wait
+            const waits = discord.resolveUserNames.mock.calls.filter(([, ids]) => ids.length === 1 && ids[0] === "mage").map(([, , opts]) => opts);
+            expect(waits).toContainEqual({ waitMs: 0 });
+        } finally {
+            discord.resolveUserNames.mockImplementation(async () => ({}));
+        }
+    });
+
+    it("falls back to the character when Discord does not know the person", async () => {
+        const discord = require("../../../src/services/discord/discord");
+        discord.resolveUserNames.mockImplementation(async () => { throw new Error("offline"); });
+        try {
+            notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+            const view = body(await call(route.postPropose, ORGA, { event: ID }));
+            expect(view.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
+        } finally {
+            discord.resolveUserNames.mockImplementation(async () => ({}));
+        }
     });
 });
