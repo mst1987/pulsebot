@@ -24,10 +24,14 @@ const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestToke
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 const { councilRoster } = require("../loot/lootCouncil");
 const { councilOptsFromQuery, categoryOptions } = require("../loot/councilQuery");
-const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = require("../loot/councilSync");
+const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4 } = require("../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { serverIds, serverLabel } = require("../../services/discord/guildRoles");
+const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
+const { settingsForVersion } = require("../../services/events/versionSettings");
+const { wclGuildsOf } = require("../../services/logcheck/wclGuildSettings");
+const { rulesFor } = require("../../config/gameVersions");
 const { serversOfToken, orgaServersOf, isPersonToken, describeServers } = require("../../services/discord/ingestServers");
 const discord = require("../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
@@ -314,6 +318,10 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
                 startTime: Number(ev.startTime) || 0,
                 categoryId: ev.categoryId || "",
                 categoryName: ev.categoryName || "",
+                // The raid's server and game version (#1001): a personal key lists every
+                // orga server's raids together, the tool groups them by both.
+                guildId: ev.guildId || "",
+                gameVersion: ev.gameVersion || "",
                 source: ev.source || "",
                 status: done ? "done" : inbox ? "pending" : session ? "ready" : "empty",
                 matchedSessionId: session ? session.sessionId : null,
@@ -348,11 +356,17 @@ async function ingestRaidStatus(req, res) {
     // No session behind the token: the key's servers (#994; a personal key every orga server of
     // its owner together, #1000), else the first server (#919), never a guess.
     const found = await eventsOfServers(servers || [serverWithoutSession()]);
-    const events = found.map(({ ev, g }) => ({
-        ...ev,
-        categoryId: g.categoryId || "",
-        categoryName: g.categoryName || "",
-    }));
+    const config = getConfig();
+    const events = found.map(({ ev, g, guildId }) => {
+        const categoryId = g.categoryId || "";
+        return {
+            ...ev,
+            categoryId,
+            categoryName: g.categoryName || "",
+            guildId,
+            gameVersion: versionOfEvent({ ...ev, categoryId }, { config }),
+        };
+    });
 
     const raids = computeRaidStatus(events, sessions, {
         lootedEventIds: new Set(eventsWithLoot().map((e) => e.eventId)),
@@ -368,8 +382,11 @@ async function ingestRaidStatus(req, res) {
  * same bearer-token auth as the uploads. The tool writes it into a Lua file the
  * in-game addon reads: each raider's need weighting and what they received.
  *
- * Three versions (docs/loot-import.md):
- *   v3 - `?v=3` (or higher) and no `category`: version 2 with every council
+ * Four versions (docs/loot-import.md):
+ *   v4 - `?v=4` (or higher) and no `category`: the version 3 categories grouped
+ *        by server and game version, with realm and WoW guilds (#1001) - a
+ *        personal key works on several servers.
+ *   v3 - `?v=3` and no `category`: version 2 with every council
  *        role, the roster status, loot points, tenure and each category's own
  *        weighting and item classes (#670) - the sync tools from 1.14.0.
  *   v2 - `?v=2` (or `?categories=council`) and no `category`: every category
@@ -389,6 +406,9 @@ async function ingestCouncil(req, res, url) {
     touchToken(token.id);
 
     const params = url ? url.searchParams : new URLSearchParams();
+    if (!params.has("category") && Number(params.get("v")) >= 4) {
+        return ok(res, councilSyncPayloadV4(await councilServers(servers)));
+    }
     if (!params.has("category") && Number(params.get("v")) >= 3) {
         return ok(res, councilSyncPayloadV3(await councilEntries(servers)));
     }
@@ -453,6 +473,49 @@ async function councilEntries(guildIds = null) {
         entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id), profile, roster });
     }
     return entries;
+}
+
+/**
+ * The Loot-Council categories of version 4 (#1001), grouped: per server of the
+ * key (an old key: every server) its Discord name and settings label, per game
+ * version its realm (version settings of that server) and the WoW guilds the
+ * server set up for it (WCL guilds), below them the categories as
+ * councilEntries() builds them. A category belongs to the server
+ * categoryCouncil() places it on and to its category's main version.
+ * @param {string[]|null} guildIds
+ */
+async function councilServers(guildIds = null) {
+    const config = getConfig();
+    const ctx = serverContext();
+    const entries = await councilEntries(guildIds);
+    const names = new Map((discord.listGuilds() || []).map((g) => [String(g.id), String(g.name || "")]));
+    const ids = Array.isArray(guildIds) ? guildIds : serverIds(config);
+    return ids.map((guildId) => {
+        const byVersion = new Map();
+        for (const entry of entries) {
+            if (serverWithoutSession(entry.id, ctx) !== guildId) continue;
+            const versionId = mainVersionFor({ categoryId: entry.id, config });
+            if (!byVersion.has(versionId)) byVersion.set(versionId, []);
+            byVersion.get(versionId).push(entry);
+        }
+        const guilds = wclGuildsOf(guildId, { config });
+        return {
+            guildId,
+            name: names.get(guildId) || "",
+            label: serverLabel(guildId, config),
+            versions: [...byVersion].map(([id, list]) => {
+                const rules = rulesFor(id) || {};
+                return {
+                    id,
+                    short: rules.short || rules.label || id,
+                    realm: settingsForVersion(id, { config, guildId }).blizzardRealmSlug || "",
+                    guilds: guilds.filter((g) => g.versionId === id)
+                        .map((g) => ({ name: g.guildName, realm: g.realm, region: g.region })),
+                    entries: list,
+                };
+            }),
+        };
+    });
 }
 
 /**

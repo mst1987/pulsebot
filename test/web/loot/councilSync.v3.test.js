@@ -1,7 +1,9 @@
 // Council format version 3 (#670): every role, the roster status, loot points,
 // tenure, the drought state and each category's own weighting - pure mapping
 // over plain object literals (the item classes come from the real tables).
-const { councilSyncPayloadV2, councilSyncPayloadV3, itemClassesFor, VERSION_3 } = require("../../../src/web/loot/councilSync");
+const {
+    councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4, itemClassesFor, VERSION_3, VERSION_4,
+} = require("../../../src/web/loot/councilSync");
 
 const DAY = 24 * 60 * 60 * 1000;
 const T0 = 1791000000000;
@@ -179,5 +181,61 @@ describe("itemClassesFor", () => {
         expect(Object.keys(all).length).toBeGreaterThan(Object.keys(itemClassesFor([{ id: "ssc" }])).length);
         // An instance the loot table does not know (Forever) counts as none.
         expect(itemClassesFor([{ id: "forever-ony" }])).toEqual(all);
+    });
+});
+
+// Version 4 (#1001): the v3 categories under server and version.
+describe("councilSyncPayloadV4", () => {
+    const server = (over = {}) => ({
+        guildId: "gA", name: "Pulse", label: "Pulse",
+        versions: [{
+            id: "tbc", short: "TBC", realm: "thunderstrike",
+            guilds: [{ name: "Pulse", realm: "Thunderstrike", region: "eu" }],
+            entries: [entry()],
+        }],
+        ...over,
+    });
+
+    it("is version 4 with the v3 categories under server and version", () => {
+        const p = councilSyncPayloadV4([server()], { now: T0 + 999 });
+        expect(VERSION_4).toBe(4);
+        expect(p).toMatchObject({ format: "eventhelper-council", version: 4, generatedAt: Math.floor(T0 / 1000) });
+        const v3 = councilSyncPayloadV3([entry()], { now: T0 });
+        expect(p.weights).toEqual(v3.weights);
+        expect(p.servers).toEqual([{
+            guildId: "gA", name: "Pulse", label: "Pulse",
+            versions: [{
+                id: "tbc", short: "TBC", realm: "thunderstrike",
+                guilds: [{ name: "Pulse", realm: "Thunderstrike", region: "eu" }],
+                categories: v3.categories,
+            }],
+        }]);
+    });
+
+    it("drops a version without categories and keeps the server", () => {
+        const p = councilSyncPayloadV4([server({ versions: [{ id: "forever", entries: [] }, { id: "tbc" }] })]);
+        expect(p.servers[0].versions).toEqual([]);
+        expect(p.weights).toEqual(councilSyncPayloadV3([]).weights);
+    });
+
+    it("writes missing texts as empty strings and the id as short name", () => {
+        const p = councilSyncPayloadV4([{
+            guildId: null,
+            versions: [{ id: "forever", realm: undefined, guilds: [{ name: "Pulse" }], entries: [entry()] }],
+        }]);
+        const [s] = p.servers;
+        expect(s).toMatchObject({ guildId: "", name: "", label: "" });
+        expect(s.versions[0]).toMatchObject({ id: "forever", short: "forever", realm: "", guilds: [{ name: "Pulse", realm: "", region: "" }] });
+    });
+
+    it("takes the weights of the first category of the first version that has one", () => {
+        const other = entry({ id: "c9", built: { rows: [], weights: { ...WEIGHTS, droughtDays: 77 } } });
+        const p = councilSyncPayloadV4([
+            server({ guildId: "gA", versions: [{ id: "tbc", entries: [] }] }),
+            server({ guildId: "gB", versions: [{ id: "forever", entries: [other] }] }),
+        ]);
+        expect(p.weights.droughtDays).toBe(77);
+        expect(p.weights).toEqual(councilSyncPayloadV3([other]).weights);
+        expect(councilSyncPayloadV4(null).servers).toEqual([]);
     });
 });

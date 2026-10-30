@@ -22,6 +22,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn(() => [{ id: "c1", name: "SSC/TK Mittwoch" }]),
+    listGuilds: jest.fn(() => [{ id: "gA", name: "Pulse" }, { id: "gB", name: "Pulse Forever" }]),
 }));
 // Category c2 lives on server gB (the category-name snapshot, #919).
 jest.mock("../../../src/services/discord/serverOf", () => ({
@@ -43,6 +44,7 @@ const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const { listCategories } = require("../../../src/services/discord/discord");
 const { serversOfToken } = require("../../../src/services/discord/ingestServers");
+const { storedCategoryGuilds } = require("../../../src/services/discord/serverOf");
 const ingest = require("../../../src/web/apiRoutes/ingest");
 
 const { get, handle, urlFor } = routerClient(ingest);
@@ -146,9 +148,12 @@ describe("GET /api/ingest/council", () => {
         expect(data.categories[0]).toHaveProperty("itemClasses");
     });
 
-    it("answers a higher version than it knows with version 3, and v=3 with a category with version 1", async () => {
-        expect(body(await authed("/api/ingest/council", { v: "4" })).version).toBe(3);
+    it("answers a higher version than it knows with version 4, and v=3/v=4 with a category with version 1", async () => {
+        expect(body(await authed("/api/ingest/council", { v: "9" })).version).toBe(4);
+        expect(body(await authed("/api/ingest/council", { v: "4" })).version).toBe(4);
+        expect(body(await authed("/api/ingest/council", { v: "3" })).version).toBe(3);
         expect(body(await authed("/api/ingest/council", { v: "3", category: "c1" })).version).toBe(1);
+        expect(body(await authed("/api/ingest/council", { v: "4", category: "c1" })).version).toBe(1);
     });
 
     it("passes category and role through to the roster", async () => {
@@ -229,6 +234,99 @@ describe("GET /api/ingest/council", () => {
 
         it("keeps every server's categories for a key without a server", async () => {
             expect(body(await authed("/api/ingest/council", { v: "3" })).categories.map((c) => c.id)).toEqual(["c1", "c2"]);
+        });
+    });
+
+    // #1001: version 4 groups the version 3 categories by server, then game version.
+    describe("version 4", () => {
+        // gA plays TBC (c1) and Forever (c4), gB Forever (c2), gC TBC (c3).
+        const THREE_SERVERS = {
+            categoryIds: ["c1", "c2", "c3", "c4"],
+            discordServers: { servers: [{ guildId: "gA", label: "Pulse EU" }, { guildId: "gB" }, { guildId: "gC" }] },
+            categoryLootSystem: { c1: "lootcouncil", c2: "lootcouncil", c3: "lootcouncil", c4: "lootcouncil" },
+            categoryVersion: { c2: "forever", c4: "forever" },
+            versionSettings: { tbc: { blizzardRealmSlug: "thunderstrike" } },
+            serverSettings: {
+                gA: { wclGuilds: [
+                    { versionId: "tbc", guildName: "Pulse", realm: "Thunderstrike", region: "EU" },
+                    { versionId: "forever", guildName: "Pulse Forever", realm: "Doomhowl", region: "EU" },
+                ] },
+            },
+        };
+        const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+        const v4 = async () => body(await authed("/api/ingest/council", { v: "4" }));
+        const shape = (data) => data.servers.map((s) => [s.guildId, s.versions.map((v) => [v.id, v.categories.map((c) => c.id)])]);
+
+        beforeEach(() => {
+            getConfig.mockReturnValue(THREE_SERVERS);
+            storedCategoryGuilds.mockReturnValue(new Map([["c1", "gA"], ["c2", "gB"], ["c3", "gC"], ["c4", "gA"]]));
+        });
+        afterEach(() => storedCategoryGuilds.mockReturnValue(new Map([["c2", "gB"]])));
+
+        it("gives a personal key with orga on A and B both servers apart, never C", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+            const data = await v4();
+            expect(data).toMatchObject({ format: "eventhelper-council", version: 4, weights: { drought: 45, share: 30, need: 10, tenure: 15 } });
+            expect(shape(data)).toEqual([
+                ["gA", [["tbc", ["c1"]], ["forever", ["c4"]]]],
+                ["gB", [["forever", ["c2"]]]],
+            ]);
+            expect(councilRoster.mock.calls.map(([opts]) => opts.categoryId).sort()).toEqual(["c1", "c2", "c4"]);
+        });
+
+        it("names server, realm and WoW guilds for the addon's choice", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+            const [a, b] = (await v4()).servers;
+            expect(a).toMatchObject({ guildId: "gA", name: "Pulse", label: "Pulse EU" });
+            expect(a.versions[0]).toMatchObject({
+                id: "tbc", short: "TBC", realm: "thunderstrike",
+                guilds: [{ name: "Pulse", realm: "Thunderstrike", region: "EU" }],
+            });
+            expect(a.versions[1]).toMatchObject({ id: "forever", guilds: [{ name: "Pulse Forever", realm: "Doomhowl", region: "EU" }] });
+            expect(b).toMatchObject({ guildId: "gB", name: "Pulse Forever" });
+            expect(b.versions[0].guilds).toEqual([]);
+        });
+
+        it("keeps each category exactly as version 3 builds it", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]).mockResolvedValueOnce(["gA", "gB"]);
+            const four = await v4();
+            const three = body(await authed("/api/ingest/council", { v: "3" }));
+            const grouped = four.servers.flatMap((s) => s.versions.flatMap((v) => v.categories));
+            expect(grouped.sort((x, y) => x.id.localeCompare(y.id))).toEqual(three.categories.sort((x, y) => x.id.localeCompare(y.id)));
+        });
+
+        it("lists a server of the key without Loot-Council category with no versions", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+            getConfig.mockReturnValue({ ...THREE_SERVERS, categoryLootSystem: { c1: "lootcouncil" } });
+            expect(shape(await v4())).toEqual([["gA", [["tbc", ["c1"]]]], ["gB", []]]);
+        });
+
+        it("gives a server key only its own server", async () => {
+            verifyToken.mockReturnValue({ id: "t1", name: "PC", guildId: "gB" });
+            expect(shape(await v4())).toEqual([["gB", [["forever", ["c2"]]]]]);
+        });
+
+        it("gives an old key without server every server", async () => {
+            expect(shape(await v4()).map(([gid]) => gid)).toEqual(["gA", "gB", "gC"]);
+        });
+
+        it("answers 403 no_server when the owner is orga nowhere", async () => {
+            verifyToken.mockReturnValue(PERSON);
+            serversOfToken.mockResolvedValueOnce([]);
+            const res = await authed("/api/ingest/council", { v: "4" });
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("no_server");
+        });
+
+        it("falls back to the default weights without any category", async () => {
+            getConfig.mockReturnValue({ ...THREE_SERVERS, categoryLootSystem: {} });
+            const data = await v4();
+            expect(data.weights).toMatchObject({ scope: "global", drought: 45, share: 30, need: 10, tenure: 15 });
+            expect(data.servers.every((s) => s.versions.length === 0)).toBe(true);
         });
     });
 });

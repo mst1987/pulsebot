@@ -128,6 +128,8 @@ function handoutList({ token = {}, servers, bankKey = "", now = Date.now() } = {
         const linked = own.filter((r) => linking.isLinked(r, { gameVersion: bank.gameVersion || "", index }));
         return {
             key: bank.key,
+            // the bank's server (#1001): a personal key lists the banks of every orga server
+            guildId: bank.guildId || "",
             gameVersion: bank.gameVersion,
             realm: bank.realm,
             guild: bank.guild,

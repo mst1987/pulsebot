@@ -137,6 +137,8 @@ describe("POST /api/ingest/raids", () => {
             startTime: 1784574000,
             categoryId: "cat1",
             categoryName: "Raids",
+            guildId: "gFirst",
+            gameVersion: "tbc",
             source: "raidhelper",
             status: "ready",
             matchedSessionId: "eh-1784574000-ssc",
@@ -195,6 +197,26 @@ describe("POST /api/ingest/raids", () => {
             serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
             await request({ sessions: [SSC_SESSION] });
             expect(loadEventGroups.mock.calls.map(([gid]) => gid).sort()).toEqual(["gA", "gC"]);
+        });
+
+        // #1001: the tool sorts the raids under server and version
+        it("tags every raid with its server and game version", async () => {
+            serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+            loadEventGroups.mockImplementation(async (gid) => ({
+                groups: [{
+                    categoryId: `cat-${gid}`,
+                    categoryName: "Raids",
+                    events: gid === "gA"
+                        ? [{ id: "eA", title: "SSC", startTime: 1784574000 }]
+                        : [{ id: "eB", title: "Karazhan", startTime: 1784660400, versionId: "forever" }],
+                }],
+            }));
+            const res = await request({ sessions: [] });
+            const raids = json(res).data.raids;
+            expect(raids.map((r) => [r.eventId, r.guildId, r.gameVersion]).sort()).toEqual([
+                ["eA", "gA", "tbc"],
+                ["eB", "gB", "forever"],
+            ]);
         });
 
         it("answers 403 no_server when its owner is orga nowhere", async () => {
