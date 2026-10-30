@@ -236,7 +236,7 @@ catalog and the default maps stay global.
   other server; the client shows "Der Discord-Server wurde in einem anderen Tab gewechselt ..." (`settings.serverSwitched`,
   de/en). The full admin writes to the named server as long as it is known (404 otherwise). A map upload names it as
   `&libraryGuildId=` in the query. The client remembers the server of the last library answer per tab
-  (`api/raidplan.ts`, `raidplanLibraryServer()`).
+  (`api/raidplan/raidplan.ts`, `raidplanLibraryServer()`).
 - **Applying** a template and the plan's references look up the template on the event's server; `getTemplate` also
   matches a copy's `originId`, so a plan made before #945 (its `templateId` is the old id) finds its server's copy.
   Tactic profiles keep their id on every server, so a board's `profileId` finds the copy without that.

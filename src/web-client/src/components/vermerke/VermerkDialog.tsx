@@ -3,7 +3,7 @@ import {
     createVermerk, getVermerkRaids, searchVermerkPeople, updateVermerk,
     MAX_NOTE_TEXT, NOTE_LEVELS, NOTE_REASONS,
     type NoteLevel, type NoteReason, type PersonHit, type RecentRaid, type VermerkEntry,
-} from "../../api/vermerke";
+} from "../../api/roster/vermerke";
 import { Button, Chip, Field, IconButton, Modal, Segment, Switch } from "../ui";
 import { SearchIcon, XIcon } from "../ui/icons/icons";
 import { vermerkErrorText } from "./vermerkError";

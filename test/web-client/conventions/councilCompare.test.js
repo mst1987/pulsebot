@@ -20,7 +20,7 @@ const { files, fn: fnIn, text } = require("./councilHelpers");
 
 const page = files.page;
 const css = read("index.css");
-const api = read("api", "lootcouncil.ts");
+const api = read("api", "loot", "lootcouncil.ts");
 
 /** The body of one top-level function in the page source. */
 function fn(name) {

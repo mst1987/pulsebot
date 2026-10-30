@@ -11,7 +11,7 @@
 // server answers one version per list anyway (mainVersion.resolveVersionQuery).
 const fs = require("fs");
 const path = require("path");
-const { read } = require("../clientSource");
+const { read, clientSources } = require("../clientSource");
 
 const SRC = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const MENU = require("../../../src/config/menu.json");
@@ -130,8 +130,7 @@ describe("one game version per page (#741)", () => {
     it("offers no 'Alle' in the switch and never asks the server for every version", () => {
         expect(read("components/shell/ContentSwitch.tsx")).not.toMatch(/"all"/);
         const asking = [];
-        for (const file of fs.readdirSync(path.join(SRC, "api")).filter((f) => f !== "__tests__")) {
-            const src = fs.readFileSync(path.join(SRC, "api", file), "utf8");
+        for (const [file, src] of clientSources("api")) {
             if (/version=all|set\("version",\s*"all"\)|version:\s*"all"/.test(src)) asking.push(file);
         }
         expect(asking).toEqual([]);

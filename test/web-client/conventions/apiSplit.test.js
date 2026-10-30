@@ -1,5 +1,6 @@
 // The client's API layer is one file per area under src/web-client/src/api/
-// (#437; before that a single api.ts of 4485 lines). index.ts re-exports every
+// (#437; before that a single api.ts of 4485 lines), grouped in folders by
+// domain like the server's apiRoutes/ (#1012). index.ts re-exports every
 // area, so a page keeps importing from "../api" — and every name the old file
 // exported must still come out of it. The list of those names was taken from
 // api.ts right before the split (fixtures/apiExports.json): a name that drops
@@ -7,15 +8,18 @@
 const fs = require("fs");
 const path = require("path");
 
+const { clientSources } = require("../clientSource");
+
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const API = path.join(CLIENT, "api");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
 const EXPECTED = require("../fixtures/apiExports.json");
 const index = read("api", "index.ts");
+const AREA_EXPORT = /^export \* from "\.\/([\w/]+)";/gm;
 
-/** The api's own files (its tests in __tests__ left out). */
-const apiFiles = () => fs.readdirSync(API).filter((f) => f !== "__tests__" && !f.endsWith(".test.ts"));
+/** The api's own files, relative to api/ and in its sub folders too (its tests left out). */
+const apiFiles = () => clientSources("api", /\.ts$/).map(([name]) => name.slice("api/".length));
 
 /** The names a module declares with `export` (types, functions, consts). */
 function exportedNames(src) {
@@ -25,7 +29,7 @@ function exportedNames(src) {
 /** Every name index.ts makes reachable: the `export *` modules plus its named re-exports. */
 function reachable() {
     const names = new Map();
-    for (const m of index.matchAll(/^export \* from "\.\/(\w+)";/gm)) {
+    for (const m of index.matchAll(AREA_EXPORT)) {
         for (const name of exportedNames(read("api", `${m[1]}.ts`))) {
             if (names.has(name)) throw new Error(`${name} exported by both ${names.get(name)} and ${m[1]}`);
             names.set(name, m[1]);
@@ -51,8 +55,8 @@ describe("src/api/ replaces api.ts", () => {
     });
 
     it("lists every area file in index.ts", () => {
-        const files = fs.readdirSync(API).filter((f) => f.endsWith(".ts") && f !== "index.ts" && !f.endsWith(".test.ts")).map((f) => f.replace(/\.ts$/, ""));
-        const listed = [...index.matchAll(/^export \* from "\.\/(\w+)";/gm)].map((m) => m[1]);
+        const files = apiFiles().filter((f) => f !== "index.ts").map((f) => f.replace(/\.ts$/, ""));
+        const listed = [...index.matchAll(AREA_EXPORT)].map((m) => m[1]);
         expect(listed.sort()).toEqual(files.sort());
     });
 

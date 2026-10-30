@@ -6,7 +6,7 @@
 // src/web-client/src/pages/__tests__/SignupsPage.test.tsx,
 // src/web-client/src/components/signup/__tests__/SignupDialog.test.tsx,
 // src/web-client/src/pages/raid-detail/__tests__/RosterTab.signups.test.tsx and
-// src/web-client/src/api/__tests__/signups.test.ts.
+// src/web-client/src/api/events/__tests__/signups.test.ts.
 const fs = require("fs");
 const path = require("path");
 

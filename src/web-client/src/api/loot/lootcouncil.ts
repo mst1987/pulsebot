@@ -1,0 +1,983 @@
+import { get, send } from "../client";
+import type { ApiError } from "../client";
+import type { ItemSearchResult } from "../system/settings";
+import type { VersionChoice } from "../events/raidTemplates";
+import type { RosterStatus } from "../roster/roster";
+import { t } from "../../i18n";
+
+// ── Loot-Council ─────────────────────────────────────────────────────────────
+// The caster council view (src/web/apiRoutes/loot/lootCouncil.js). Two speeds: the
+// page itself comes from stored data in one call, the DPS simulation runs as a
+// background job the client polls.
+
+/** One item a raider was awarded, as the council list shows it. */
+export type CouncilLootItem = {
+    itemId: number;
+    itemName: string;
+    itemIconUrl: string;
+    itemQuality: number | null;
+    /** Equip slot (WCL numbering, the first of a doubled one); -1 when unknown. */
+    slot: number;
+    slotName: string;
+    contentId: string;
+    tier: string;
+    boss: string;
+    reason: string;
+    reasonLabel: string;
+    reasonTone: string;
+    awardedAt: number;
+    eventLabel: string;
+    /** What this award counts as in loot points (#668), and why. */
+    weight?: number;
+    weightClass?: ItemWeightClass;
+};
+
+/** The item classes of the weighting ("override" = a per-item exception). */
+export type ItemWeightClass = "trinket" | "bisWeapon" | "weapon" | "set" | "normal" | "frequent" | "override";
+/** The four parts of the need score. */
+export type NeedParts = { drought: number; share: number; need: number; tenure?: number };
+export type NeedShares = { drought: number; share: number; need: number; tenure: number };
+
+/**
+ * One piece a raider currently wears, as the gear row under their name and the
+ * "Slot" column of the candidate list render it. Name and icon come from the
+ * log (it saw what they actually wear); stats and raid come from the item table
+ * where it knows the item.
+ */
+export type WornItem = {
+    slot: number;
+    slotName: string;
+    itemId: number;
+    itemName: string;
+    iconUrl: string;
+    quality: number | null;
+    itemLevel: number;
+    stats: Record<string, number>;
+    contentId: string;
+    boss: string;
+    gemCount: number;
+    /** Socketed gem ids and the enchant id, for the Wowhead tooltip. */
+    gemIds: number[];
+    enchantId: number;
+    emptySockets: number;
+    /** "ok" | "missing" | "bad" | "na" — "missing" is the one worth showing. */
+    enchantStatus: string;
+    /** Whether this piece is on that raider's own BiS list. */
+    isBis: boolean;
+    /** ...and whose lists it is on at all. */
+    bisSpecs: BisSpec[];
+    /**
+     * Set when the piece only pays off against certain bosses (Mark of the
+     * Champion and its like) and no older raid showed what they wear otherwise.
+     * Every comparison reads such a slot as empty, so it has to be marked.
+     */
+    situational: { note: string } | null;
+    /**
+     * The other side of the same coin: this piece was taken from an older raid
+     * because the newest one had a boss-specific item in the slot. Says what it
+     * stands in for, and where it comes from.
+     */
+    replacedSituational: {
+        itemId: number;
+        itemName: string;
+        iconUrl: string;
+        note: string;
+        seenAt: number;
+        reportTitle: string;
+        /**
+         * The best case: the substitute is from the *same* raid, one boss away
+         * — the evaluation walked the fights and found what they wore when the
+         * boss-specific piece was off. Then `fight` names that boss and
+         * `seenAt`/`reportTitle` are empty, because it is not an older set.
+         */
+        sameRaid?: boolean;
+        fight?: string;
+    } | null;
+};
+
+/**
+ * A spec that has a given item on its BiS list.
+ *
+ * "BiS" on its own says nothing when nine specs share one item table — most
+ * caster drops are contested — so every item carries whose list it is on.
+ * `alsoFor` names the specs that borrow this one's list (WoWSims ships none of
+ * their own), which is an assumption and shown as one.
+ */
+export type BisSpec = {
+    specKey: string;
+    label: string;
+    iconUrl: string;
+    classColor: string;
+    role: string;
+    tier: string;
+    alsoFor: string[];
+};
+
+/** An item as the BiS list and the candidate view render it. */
+export type CouncilItem = {
+    id: number;
+    name: string;
+    iconUrl: string;
+    ilvl: number;
+    quality: number;
+    stats: Record<string, number>;
+    setName?: string;
+    contentId: string;
+    boss: string;
+    /** Which specs have it on their BiS list for the tier being measured. */
+    bisSpecs: BisSpec[];
+    owned?: boolean;
+};
+
+/** What one raider would gain from one item. */
+export type CouncilCandidate = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    slot: number;
+    slotName: string;
+    /** What would come off — null when the slot is free. */
+    replaces: WornItem | null;
+    /**
+     * Every slot the item could go in, with what sits there. Two rings, two
+     * trinkets, or both hands for a two-hander; `chosen` marks where it lands
+     * (both, for a two-hander, since it takes both).
+     */
+    slotOptions: { slot: number; slotName: string; chosen: boolean; item: WornItem | null }[];
+    /** True when accepting it also costs the off-hand piece. */
+    twoHanded: boolean;
+    /**
+     * Stat-weight value of the swap — the server's *ordering* while nothing is
+     * simulated, never shown as a number: the page shows measured gains only.
+     */
+    value: number;
+    /**
+     * Why this raider's gain is not comparable to the others': what would come
+     * off carries no caster stats at all, so the comparison measures against an
+     * empty slot and credits them the item's full worth. Empty in the normal
+     * case.
+     */
+    inflatedBy: { itemName: string; note: string }[];
+    isBis: boolean;
+    /** 1 when the item is on this raider's BiS list, else the server's non-BiS weight (0.5). */
+    bisWeight: number;
+    /** needScore × bisWeight: the need as it counts for this item. */
+    itemNeedScore: number;
+    /** The fairness half — the same numbers the roster table shows. */
+    needScore: number;
+    needParts: NeedParts;
+    lootCount: number;
+    /** See CouncilRaider.lootPoints. */
+    lootPoints?: number;
+    lootTotal: number;
+    droughtDays?: number;
+    tenureDays?: number;
+    joinedAt?: number;
+    /** See CouncilRaider.otherCount — off-spec, shards, bank. */
+    otherCount: number;
+    /** Their newest awards, so the loot count can be opened in a hover. */
+    recentItems: CouncilLootItem[];
+    daysSinceLoot: number | null;
+    lastAwardAt: number;
+    bisOwned: number;
+    bisTotal: number;
+    hasGear: boolean;
+    simSupported: boolean;
+    /** The full worn set and where it comes from — same shape as CouncilRaider's, so the drop check can show it inline. */
+    gear: CouncilRaider["gear"];
+};
+
+/**
+ * A raider who cannot equip the item at all — a warlock's tier helm for a
+ * mage, a mail chest for a priest, a two-hander for a rogue. Never a
+ * candidate; listed with the reason so a short list is explained.
+ */
+export type CouncilUnwearable = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    /** "class" | "armor" | "weapon" | "ranged" */
+    reason: string;
+    /** The short German reason, e.g. "Kette — Magier trägt nur Stoff". */
+    note: string;
+};
+
+/**
+ * A raider who already has the drop — worn in their last seen gear, or won
+ * per the loot history. Never a candidate: it would replace itself.
+ */
+export type CouncilOwner = {
+    key: string;
+    character: string;
+    classColor: string;
+    specKey: string;
+    specLabel: string;
+    specIconUrl: string;
+    /** "worn" | "awarded" */
+    source: string;
+};
+
+/** The picked drop: the item, who could take it, who cannot, who has it. */
+export type CouncilFocus = {
+    item: CouncilItem;
+    candidates: CouncilCandidate[];
+    unwearable: CouncilUnwearable[];
+    owned: CouncilOwner[];
+};
+
+/**
+ * The council's roles (config/councilSpecs.js ROLES). Ranged damage is split by
+ * what it scales with: a shadow priest is a "caster", a hunter "ranged".
+ */
+export type CouncilRole = "caster" | "healer" | "tank" | "melee" | "ranged";
+
+export type CouncilRaider = {
+    key: string;
+    character: string;
+    className: string;
+    classColor: string;
+    specIconUrl: string;
+    spec: string;
+    specKey: string;
+    specLabel: string;
+    /** True when the spec was assumed from the class (a mage is always a caster). */
+    specAssumed: boolean;
+    /** Their armory page, for checking the gear this page derived from a log. */
+    armoryUrl: string;
+    role: CouncilRole;
+    /**
+     * Als was der Raidlead sie eingeplant hat ("" = wie in den Daten). Ein
+     * Heiler im Offspec ist für diesen Abend ein DPS, und das steht nirgends in
+     * den Daten — also wird es festgelegt.
+     */
+    roleOverride: string;
+    /** Was die Daten sagen: die Spec, mit der sie zuletzt geloggt wurden. */
+    roleFromData: string;
+    /** Welche Rollen ihre Klasse spielen kann. Eine = nichts zu wählen. */
+    roleOptions: string[];
+    /** Items in the current content filter; lootTotal counts all of them. */
+    lootCount: number;
+    /** The same items weighed by class (#668): what the share part compares. */
+    lootPoints?: number;
+    lootTotal: number;
+    /** The wait as it counts: a small item resets it only partly (0..30). */
+    droughtDays?: number;
+    /** "Dabei seit" (ms, 0 = unknown), where it came from, and the days since. */
+    joinedAt?: number;
+    joinedFrom?: "roster" | "raid" | "loot" | "";
+    tenureDays?: number;
+    /**
+     * Off-spec rolls, shards and bank items. Deliberately *not* part of
+     * lootCount: they did nothing for the raider's set, and counting them would
+     * rank somebody who took three shards above one real upgrade.
+     */
+    otherCount: number;
+    lastAwardAt: number;
+    daysSinceLoot: number | null;
+    items: CouncilLootItem[];
+    gear: {
+        seenAt: number;
+        reportId: string;
+        reportTitle: string;
+        itemCount: number;
+        /** Gear hit rating that counts for the spec: spell hit for a caster, physical hit otherwise (`hitStat`). */
+        hit: number;
+        /** "spellHit" | "meleeHit" | "" (a healer has no hit cap). */
+        hitStat: string;
+        /** 0 = no hit cap to chase (healers) — no hit badge. */
+        hitCap: number;
+        /**
+         * Which kind of set was read out of the log: "caster" (damage kit),
+         * "healer", "tank", "physical" (melee and hunters) or "" when too
+         * little is known. Shamans and druids heal a night regularly, and judging
+         * them on that set would mean no DPS and drops "replacing" healing pieces.
+         */
+        setRole: string;
+        /** False when the two signals (heal ratio, spell hit) disagree. */
+        setConfident: boolean;
+        /** Every recent log showed the wrong role — the numbers are off. */
+        roleMismatch: boolean;
+        /** Newer raids skipped to find a set of the right role. */
+        skippedReports: number;
+        /**
+         * Where this set comes from: "log" — the last evaluation, "wcl" — a
+         * Warcraft-Logs report somebody loaded for this raider, "armory" —
+         * what the character has on now, because somebody pressed the button.
+         */
+        source: "log" | "wcl" | "armory";
+        /** When the armory answered (0 for a log set). */
+        armoryAt: number;
+        /** When the loaded log was fetched (0 unless source is "wcl"). */
+        wclAt: number;
+        /**
+         * A log was loaded for this raider but not taken: "pvp" — an arena
+         * set, "role" — the other role's set. The evaluation's set stays.
+         */
+        logRejected: "" | "pvp" | "role";
+        /**
+         * Why the armory's answer was *not* taken although there is one:
+         * "pvp" — the character is in arena gear right now, which makes no
+         * sense against a boss; "role" — a healing set for a raider judged as
+         * a caster. The last raid's set stays in both cases.
+         */
+        armoryRejected: "" | "pvp" | "role";
+        /** Every recent log showed PvP gear, so this set is one — and says so. */
+        pvpGear: boolean;
+        /**
+         * Pieces that are new since the last raid: the armory names the item,
+         * but its enchant ids are not the ones WoWSims uses, so no enchant is
+         * claimed for them and the simulation runs them unenchanted.
+         */
+        unverifiedEnchants: number;
+        /** Slots still held by a boss-specific piece the comparison reads as empty. */
+        situational: number;
+        /** Slots filled from another source (armory, another boss, an older raid). */
+        substituted: number;
+        /**
+         * Boss-specific pieces taken out of the set entirely, because no source
+         * could say what the raider wears there otherwise. Those slots count as
+         * empty — which is what they are worth against every boss the council
+         * plans for — and the page names them.
+         */
+        dropped: {
+            slot: number;
+            slotName: string;
+            itemId: number;
+            itemName: string;
+            iconUrl: string;
+            note: string;
+        }[];
+        /** Everything they wear, in character-sheet order. */
+        items: WornItem[];
+    } | null;
+    bis: {
+        tier: string;
+        /** False when the list is from an earlier tier than the one asked for. */
+        exact: boolean;
+        /** Set when the list belongs to another spec (Fire mage borrows Arcane). */
+        borrowedFrom: string;
+        /** "wowsims" (simulated loadout) or "wowhead" (written, items only). */
+        source: string;
+        sourceLabel: string;
+        total: number;
+        owned: number;
+        items: CouncilItem[];
+    };
+    simSupported: boolean;
+    /** 0..1, higher = more due for an item. needParts shows what it is made of. */
+    needScore: number;
+    needParts: NeedParts;
+    /**
+     * The roster status, only in a category with a roster (#667): Stamm and
+     * Probe are candidates, Ersatz with "Ersatz zeigen"; "" for a stand-in.
+     */
+    status?: RosterStatus | "";
+};
+
+/**
+ * Somebody the logs or the loot of a roster category know who is not in its
+ * roster (#667): shown folded under "Nicht im Roster", never ranked, never in
+ * the addon - so without a need score.
+ */
+export type CouncilOutsider = Omit<CouncilRaider, "needScore" | "needParts">;
+
+/** The roster a category's council is drawn from (#667). */
+export type CouncilRosterSource = {
+    id: string;
+    name: string;
+    versionId: string;
+    /** Characters per status - Stamm and Probe are the candidates. */
+    counts: Record<RosterStatus, number>;
+    /** Whether Ersatz is shown as candidates ("Ersatz zeigen"). */
+    showBench: boolean;
+    /** Candidates whose spec the council does not know (yet): counted, not left out silently. */
+    noSpec: { key: string; character: string; className: string; status: RosterStatus }[];
+};
+
+/** The weighting a council answer was computed with (#668); "profile" = a profile other than the default (#676). */
+export type CouncilWeightsView = {
+    scope: "global" | "category" | "profile";
+    classes: Record<Exclude<ItemWeightClass, "override">, number>;
+    items: Record<string, { weight: number; name: string }>;
+    /** As stored, 0..100 each. */
+    need: NeedShares;
+    /** The same as shares of 1 — what the score multiplies by. */
+    needShares: NeedShares;
+    tenureDays: number;
+    droughtDays: number;
+};
+
+/** One weighting block - part of a Loot-Council profile (#676, GET /api/lootcouncil/profile). */
+export type CouncilWeightSettings = {
+    classes: Record<Exclude<ItemWeightClass, "override">, number>;
+    items: Record<string, { weight: number; name: string }>;
+    need: NeedShares;
+    tenureDays: number;
+    at?: number;
+    by?: string;
+};
+
+export type CouncilWeightLimits = { weightMax: number; needMax: number; tenureMin: number; tenureMax: number; items: number; name: number };
+
+/** A Loot-Council profile's name (#676): which one applies, and from where. */
+export type CouncilProfileHead = {
+    id: string;
+    name: string;
+    isDefault: boolean;
+    /** Where it came from: the roster's own choice, its category's, or the default. */
+    source?: "roster" | "category" | "default";
+};
+
+/** One profile in the list of the "Profile" tab (GET /api/lootcouncil/profiles). */
+export type CouncilProfileRow = CouncilProfileHead & {
+    /** Loot-Council rosters it applies to. */
+    rosters: { id: string; name: string }[];
+    /** Rosters on another loot system that still name it. */
+    otherRosters: { id: string; name: string }[];
+    /** Categories without roster that keep it. */
+    categories: { id: string; name: string }[];
+    /** Named by a roster or category (or the default): cannot be deleted. */
+    inUse: boolean;
+    at: number;
+    by: string;
+};
+
+export type CouncilProfiles = { defaultId: string; profiles: CouncilProfileRow[] };
+
+/** One profile for its editor (GET /api/lootcouncil/profile). */
+export type CouncilProfileData = {
+    /** The profile's game version (its view, else the main one) - where the exceptions' search looks (#760). */
+    versionId?: string;
+    profile: CouncilProfileHead & { weights: CouncilWeightSettings; view: CouncilCategoryView };
+    /** Per stored exception: icon, name and the class it would have without it. */
+    itemInfo: Record<string, { name: string; iconUrl: string; quality: number | null; autoClass: ItemWeightClass }>;
+    defaults: { weights: CouncilWeightSettings; view: CouncilCategoryView };
+    classIds: Exclude<ItemWeightClass, "override">[];
+    needIds: (keyof NeedShares)[];
+    limits: CouncilWeightLimits;
+};
+
+/** The profiles of the content version (#741): usage only of its rosters and categories, none only another version uses. */
+export function getCouncilProfiles(version = ""): Promise<CouncilProfiles> {
+    return get<CouncilProfiles>(`/api/lootcouncil/profiles${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+export function getCouncilProfile(id: string): Promise<CouncilProfileData> {
+    return get<CouncilProfileData>(`/api/lootcouncil/profile?id=${encodeURIComponent(id)}`);
+}
+
+/** A new profile: the defaults, or a copy of `copyFrom`. */
+export function createCouncilProfile(name: string, copyFrom = ""): Promise<CouncilProfileData> {
+    return send("POST", "/api/lootcouncil/profiles/create", { name, ...(copyFrom ? { copyFrom } : {}) });
+}
+
+/** Rename a profile and/or store its weighting and view (each replaced whole). */
+export function updateCouncilProfile(id: string, patch: { name?: string; weights?: CouncilWeightSettings; view?: CouncilCategoryView }): Promise<CouncilProfileData> {
+    return send("POST", "/api/lootcouncil/profiles/update", { id, ...patch });
+}
+
+/** Delete a profile nobody uses (409 profile_in_use otherwise). */
+export function deleteCouncilProfile(id: string): Promise<{ id: string; deleted: true }> {
+    return send("POST", "/api/lootcouncil/profiles/delete", { id });
+}
+
+/** Who the council page works for (#676): picker, roster, profile, linked Kader and links. */
+export type CouncilHead = {
+    target: "roster" | "category" | "all";
+    roster: {
+        id: string; name: string; categoryId: string; categoryName: string; versionId: string; lootSystem: string;
+        kaderId: string | null;
+        /** Only for a reader of the Kaderplaner. */
+        kaderName: string;
+    } | null;
+    profile: CouncilProfileHead;
+    /** The Loot-Council rosters of the server (the picker's first group). */
+    rosters: { id: string; name: string; categoryId: string; categoryName: string; profileId: string; profileName: string }[];
+    /** Raid categories without roster (the fallback group). */
+    categories: { id: string; name: string; profileId: string; profileName: string }[];
+    /**
+     * The pick asked for that plays another version than the menu's (#741/#563):
+     * the server answered with "Alle Raid-Kategorien" of the menu's version instead.
+     */
+    dropped?: { kind: "roster" | "category"; id: string; versionId: string } | null;
+    canOpenRoster: boolean;
+    canOpenKader: boolean;
+    canEditProfile: boolean;
+};
+
+export type CouncilGap = CouncilItem & {
+    wantedBy: { key: string; character: string; specKey: string; specLabel: string; needScore: number }[];
+    candidates: CouncilCandidate[];
+    best: CouncilCandidate | null;
+};
+
+export type CouncilFilterOptions = {
+    roles: { id: string; label: string }[];
+    tiers: { id: string; label: string }[];
+    contents: { id: string; label: string; short: string; tier: string }[];
+    bisTiers: { id: string; label: string }[];
+    categories: { id: string; name: string }[];
+};
+
+/** A raider the council has stopped planning with. */
+export type ExcludedRaider = {
+    key: string;
+    character: string;
+    reason: string;
+    at: number;
+    by: string;
+};
+
+/** One of the bot's newest logs, offered at a raider to load their gear from. */
+export type CouncilLog = {
+    reportId: string;
+    title: string;
+    postedAt: number;
+    eventLabel: string;
+    link: string;
+};
+
+/** What the council has content data for in a game version: BiS lists, simulation, tier/raid filter, item table (#748). */
+export type CouncilContent = {
+    bis: boolean; sim: boolean; tiers: boolean; itemTable: boolean;
+    /** The version has BiS data, but it is switched off in Einstellungen → Spielversion (#761). */
+    off?: boolean;
+    /** No BiS data of its own: the BiS lists are the orga's hand lists (#760, tab "BiS-Listen"). */
+    manualBis?: boolean;
+    /** With hand lists: whether the version has at least one (else the page says where to start). */
+    manualLists?: boolean;
+};
+
+export type LootCouncilData = {
+    roster: CouncilRaider[];
+    /** With a roster: who stood there without being in it (#667). */
+    outsiders?: CouncilOutsider[];
+    avgLootCount: number;
+    avgLootPoints?: number;
+    /** The weighting the numbers were computed with (#668). */
+    weights?: CouncilWeightsView;
+    recentLogs: CouncilLog[];
+    /** Set aside, and offerable back. */
+    excluded: ExcludedRaider[];
+    gaps: CouncilGap[];
+    focus: CouncilFocus | null;
+    options: CouncilFilterOptions;
+    /** Who the page works for (#676); missing in an older answer. */
+    council?: CouncilHead;
+    filter: {
+        role: string; tierIds: string[]; contentIds: string[]; categoryId: string;
+        /** The BiS list actually measured against. */
+        bisTier: string;
+        /** True when nobody picked one and it came from the guild's newest loot. */
+        bisTierDerived: boolean;
+        /**
+         * How many raiders each filter removed — so a short list is explained.
+         * With a roster: Ersatz while hidden (`bench`) and Pause (`paused`) too.
+         */
+        skipped: { category: number; excluded: number; bench?: number; paused?: number };
+        /**
+         * What each source contributed to "who raids this category" — the logs
+         * of its raids, the loot awarded there, and the maintained
+         * raider→character assignment. All three zero means the filter found
+         * nobody, which is why the list is empty; the page uses this to say
+         * what to fix. null when no category is picked.
+         */
+        categorySources: { reports: number; loot: number; assigned: number } | null;
+        /** The category's roster, which is then the candidate list (#667); null without one. */
+        roster?: CouncilRosterSource | null;
+    };
+    sim: { available: boolean; version: string; hint: string };
+    /** Which content data the council's version has (#748); missing in an older answer = all. */
+    content?: CouncilContent;
+    activeGuildId: string;
+    /** The game version the council looks at (#542): the category's, else the main one. */
+    versionId?: string;
+    /** That version's Wowhead path for the item links; "" = no Wowhead links. */
+    wowheadPath?: string;
+    /**
+     * The character version filter (#545): which raiders are shown at all —
+     * independent of `versionId` above (only the links follow the category).
+     * `version` "" = every version; `versions` is the filter's own choices.
+     */
+    version?: string;
+    mainVersion?: string;
+    versions?: VersionChoice[];
+};
+
+export type CouncilFilter = {
+    /** A roster (#676): wins over `category` - its category, version, candidates and profile. */
+    roster?: string;
+    role?: string;
+    tiers?: string[];
+    contents?: string[];
+    category?: string;
+    bisTier?: string;
+    item?: number;
+    /** A version id; unset = the main version (#545) — the page never asks for every version (#741). */
+    version?: string;
+    /** With a roster: Ersatz shown as candidates too (#667). */
+    bench?: boolean;
+};
+
+export function getLootCouncil(filter: CouncilFilter = {}): Promise<LootCouncilData> {
+    const params = new URLSearchParams();
+    if (filter.role) params.set("role", filter.role);
+    if (filter.tiers && filter.tiers.length) params.set("tiers", filter.tiers.join(","));
+    if (filter.contents && filter.contents.length) params.set("contents", filter.contents.join(","));
+    if (filter.roster) params.set("roster", filter.roster);
+    else if (filter.category) params.set("category", filter.category);
+    if (filter.bisTier) params.set("bisTier", filter.bisTier);
+    if (filter.item) params.set("item", String(filter.item));
+    if (filter.version) params.set("version", filter.version);
+    if (filter.bench) params.set("bench", "1");
+    const qs = params.toString();
+    return get<LootCouncilData>(`/api/lootcouncil${qs ? `?${qs}` : ""}`);
+}
+
+/**
+ * One tile of the council's entry (Oct 2026): a roster with loot system Loot-Council, or a
+ * category without roster on Loot-Council. `members` only for a roster (in it = core + trial).
+ */
+export type CouncilOverviewTile = {
+    kind: "roster" | "category";
+    id: string;
+    name: string;
+    categoryId: string;
+    categoryName: string;
+    versionId: string;
+    versionLabel: string;
+    profileName: string;
+    members: { roster: number; bench: number; pause: number } | null;
+    nextRaid: { id: string; title: string; startTime: number } | null;
+};
+
+export type CouncilOverview = { versionId: string; tiles: CouncilOverviewTile[] };
+
+/** The tiles of the council's entry, of the menu's version — cheap, no council is built (GET /api/lootcouncil/overview). */
+export function getLootCouncilOverview(version?: string): Promise<CouncilOverview> {
+    return get<CouncilOverview>(`/api/lootcouncil/overview${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+/**
+ * The council's filters, stored on the server per Loot-Council profile (#676) —
+ * the in-game addon gets its council with exactly these (GET /api/ingest/council).
+ * `role` "" = every role, `version` "" = the main version.
+ */
+export type CouncilCategoryView = {
+    role: string;
+    tiers: string[];
+    contents: string[];
+    bisTier: string;
+    version: string;
+};
+
+export type CouncilViews = {
+    /** The view of every profile, by profile id. */
+    views: Record<string, CouncilCategoryView>;
+    /** Which profile a target uses: "roster:<id>" / "category:<id>" -> profile id. */
+    targets: Record<string, string>;
+    defaultId: string;
+    /** What a profile without a stored view shows. */
+    defaults: CouncilCategoryView;
+    /** The categories whose loot system is Loot-Council — only those reach the game. */
+    councilCategories: string[];
+    /** The rosters whose loot system is Loot-Council. */
+    councilRosters: string[];
+};
+
+/** The stored views; `targets` only for rosters and categories of the content version (#741). */
+export function getCouncilViews(version = ""): Promise<CouncilViews> {
+    return get<CouncilViews>(`/api/lootcouncil/views${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+/** Store a profile's view (#676). */
+export function saveCouncilView(profileId: string, view: CouncilCategoryView): Promise<{ profileId: string; view: CouncilCategoryView }> {
+    return send("POST", "/api/lootcouncil/view", { profileId, ...view });
+}
+
+/** Per raider: their simulated DPS, and what each candidate item would add. */
+export type SimResult = Record<string, {
+    baseline: number | null;
+    hasGear: boolean;
+    error?: string;
+    items: Record<string, { dps: number | null; delta: number | null; slot: number; cached: boolean; error?: string }>;
+}>;
+
+export type SimJob = {
+    status: "running" | "done" | "error" | "unknown";
+    progress?: number;
+    total?: number;
+    available?: boolean;
+    result?: SimResult | null;
+    error?: string;
+};
+
+/**
+ * Which council view a simulation belongs to (#745): the server reads its game
+ * version from these like the page's query and refuses a version without the
+ * feature "Simulation".
+ */
+export type CouncilSimScope = { roster?: string; category?: string; version?: string };
+
+export function startCouncilSim(
+    id: string,
+    subjects: { key: string; specKey: string }[],
+    items: number[],
+    scope: CouncilSimScope = {},
+): Promise<{ status: string; alreadyRunning: boolean; id: string }> {
+    const view: CouncilSimScope = {};
+    if (scope.roster) view.roster = scope.roster;
+    else if (scope.category) view.category = scope.category;
+    if (scope.version) view.version = scope.version;
+    return send("POST", "/api/lootcouncil/sim", { id, subjects, items, ...view });
+}
+
+export function getCouncilSim(id: string): Promise<SimJob> {
+    return get<SimJob>(`/api/lootcouncil/sim?id=${encodeURIComponent(id)}`);
+}
+
+/**
+ * Start a council simulation and poll it to the end.
+ *
+ * Its own poll loop rather than pollJob(): a sim job reports progress the page
+ * shows while it runs ("7 von 24"), and pollJob only distinguishes running from
+ * done. `onProgress` is called on every poll.
+ */
+export async function runCouncilSim(
+    id: string,
+    subjects: { key: string; specKey: string }[],
+    items: number[],
+    onProgress?: (job: SimJob) => void,
+    scope: CouncilSimScope = {},
+): Promise<SimResult> {
+    await startCouncilSim(id, subjects, items, scope);
+    const startedAt = Date.now();
+    const POLL_MS = 1500;
+    // One raider is ~1s per item; a whole roster against a full BiS gap list is
+    // the worst case this has to survive.
+    const TIMEOUT_MS = 15 * 60 * 1000;
+    for (;;) {
+        await new Promise((r) => setTimeout(r, POLL_MS));
+        const job = await getCouncilSim(id);
+        if (onProgress) onProgress(job);
+        if (job.status === "done") return job.result || {};
+        if (job.status === "error") throw { code: "sim_failed", message: job.error || t("lootcouncil.sim.failed") } as ApiError;
+        if (job.status === "unknown") throw { code: "sim_lost", message: t("lootcouncil.sim.lost") } as ApiError;
+        if (Date.now() - startedAt > TIMEOUT_MS) {
+            throw { code: "sim_timeout", message: t("lootcouncil.sim.timeout") } as ApiError;
+        }
+    }
+}
+
+/**
+ * Items for the "this just dropped" picker.
+ *
+ * Searched in the bot's own caster item table, not on Wowhead: it answers
+ * instantly, only offers items a caster can be handed, and every hit is
+ * guaranteed to resolve to a slot and a stat block — which is what the
+ * candidate list needs. Same result shape as the other item pickers, so
+ * ItemSearchPicker takes it as-is.
+ */
+export function searchCouncilItems(q: string, tier = "", versionId = "", { wowhead = false }: { wowhead?: boolean } = {}): Promise<{ items: CouncilItemHit[] }> {
+    const qs = new URLSearchParams({ q });
+    if (tier) qs.set("tier", tier);
+    if (versionId) qs.set("v", versionId);
+    // On hand lists (#760): Wowhead of the version adds items no list names yet (the weighting's exceptions).
+    if (wowhead) qs.set("wowhead", "1");
+    return get<{ items: CouncilItemHit[] }>(`/api/lootcouncil/item-search?${qs.toString()}`);
+}
+
+/**
+ * A search hit, with the answer to the other direction on it: whose BiS list is
+ * this piece on? An empty `bisSpecs` is that answer, not a missing field — most
+ * items are on nobody's list.
+ */
+export type CouncilItemHit = ItemSearchResult & {
+    /** The caster table knows the item level; the Wowhead pickers do not. */
+    ilvl?: number;
+    contentId: string;
+    boss: string;
+    bisSpecs: BisSpec[];
+};
+
+/** Which gear set is BiS for which caster DPS class and spec, as a matrix. */
+export type BisListsData = {
+    tier: string;
+    /** Every tier, with the lists it has no set for (SWP has none for Shadow/Arcane). */
+    tiers: { id: string; label: string; missing: string[] }[];
+    /** Every caster and healer spec — including those that borrow a list. */
+    specs: {
+        key: string;
+        label: string;
+        className: string;
+        spec: string;
+        role: string;
+        iconUrl: string;
+        classColor: string;
+        /** Whose list this spec plays. */
+        listKey: string;
+        ownList: boolean;
+    }[];
+    /** One column per list, carrying everyone who plays it. */
+    columns: {
+        key: string;
+        label: string;
+        iconUrl: string;
+        classColor: string;
+        role: string;
+        /**
+         * Where the list comes from: "wowsims" is a simulated loadout with gems
+         * and enchants, "wowhead" a written recommendation naming items only.
+         */
+        source: string;
+        sourceLabel: string;
+        users: { key: string; label: string; ownList: boolean }[];
+    }[];
+    rows: {
+        slot: number;
+        slotName: string;
+        cells: {
+            column: string;
+            item: CouncilItem | null;
+            /** Sockets and enchant of the WoWSims reference set. */
+            gems?: number;
+            enchanted?: boolean;
+            /** How many of the tier's lists want this item. */
+            shared?: number;
+        }[];
+    }[];
+    contested: number;
+};
+
+export function getBisLists(tier: string): Promise<BisListsData> {
+    const qs = tier ? `?tier=${encodeURIComponent(tier)}` : "";
+    return get<BisListsData>(`/api/lootcouncil/bislists${qs}`);
+}
+
+/**
+ * Stop planning with a raider, or resume.
+ *
+ * Never deletes anything: the loot history stays whole, the raider simply drops
+ * out of the roster and the candidate lists until somebody takes them back in.
+ */
+export function setCouncilExcluded(
+    character: string,
+    excluded: boolean,
+    reason = "",
+): Promise<{ character: string; excluded: boolean }> {
+    return send("POST", "/api/lootcouncil/exclude", { character, exclude: excluded, reason });
+}
+
+/**
+ * Als was ein Raider eingeplant ist. Ein leeres `role` nimmt die Festlegung
+ * zurück, und die Seite folgt wieder dem, was die Daten sagen.
+ */
+export function setCouncilRole(
+    character: string,
+    role: "" | CouncilRole,
+): Promise<{ character: string; role: string }> {
+    return send("POST", "/api/lootcouncil/role", { character, role });
+}
+
+/**
+ * Fetch these raiders' current gear from the armory.
+ *
+ * A button, not a page load: it is one call per raider to an API outside this
+ * app, and "nimm den Stand von jetzt" is a decision the reader makes. The
+ * council data has to be reloaded afterwards to show it.
+ */
+export function refreshCouncilArmory(
+    characters: string[],
+    scope: CouncilSimScope = {},
+): Promise<{ asked: number; answered: number; configured: boolean }> {
+    // the council view decides the version, so the armory of its realm is asked (#923)
+    return send("POST", "/api/lootcouncil/armory", { characters, ...scope });
+}
+
+/**
+ * Load one raider's gear from a Warcraft-Logs report (one of the bot's logs by
+ * id, any report by link, or — with neither — the newest log they are in), or
+ * forget a loaded one with `clear`. The council data has to be reloaded
+ * afterwards to show it.
+ */
+export function loadCouncilLogGear(
+    body: { character: string; reportId?: string; link?: string; clear?: boolean },
+): Promise<{ cleared?: boolean; reportId?: string; reportTitle?: string; reportStart?: number; items?: number; tried?: number }> {
+    return send("POST", "/api/lootcouncil/loggear", body);
+}
+
+/**
+ * A raider's loadout as a WoWSims "From JSON" import.
+ *
+ * Built from the same pieces as the page's own simulation — gear, talents, spec
+ * options, rotation, consumables, buffs, encounter — so pasting it into
+ * wowsims.github.io/tbc reproduces the number shown here. An export that
+ * quietly differed would make the page look wrong when it is not.
+ */
+export type CouncilExport = {
+    character: string;
+    spec: string;
+    specLabel: string;
+    /** The WoWSims page it belongs on — the import does not switch class itself. */
+    simUrl: string;
+    seenAt: number;
+    reportTitle: string;
+    warnings: string[];
+    json: string;
+};
+
+export function getCouncilExport(character: string, scope: CouncilSimScope = {}): Promise<CouncilExport> {
+    // the council view's version picks the armory snapshot of its realm (#923)
+    const q = new URLSearchParams({ character });
+    for (const [key, value] of Object.entries(scope)) if (value) q.set(key, value);
+    return get<CouncilExport>(`/api/lootcouncil/export?${q.toString()}`);
+}
+
+// ── Hand-maintained BiS lists (#760) ─────────────────────────────────────────
+// A version without BiS data of its own (WoW Forever) keeps its lists by hand,
+// per spec and slot (src/web/apiRoutes/loot/lootCouncilBis.js).
+
+/** An item of a hand list: name, icon and quality from Wowhead of the version ("" / null when Wowhead did not know it). */
+export type ManualBisItem = { id: number; name: string; iconUrl: string; quality: number | null; link: string };
+
+export type ManualBisSpec = {
+    key: string; label: string; className: string; spec: string; role: string;
+    iconUrl: string; classColor: string;
+    /** How many slots its list fills. */
+    filled: number;
+};
+
+export type ManualBisData = {
+    versionId: string;
+    versionLabel: string;
+    /** The version keeps hand lists (no BiS data of its own, feature on). */
+    available: boolean;
+    /** BiS lists are switched off for the version. */
+    off: boolean;
+    /** Wowhead of the version can be searched (a path is set); otherwise item ids only. */
+    search: boolean;
+    maxPerSlot: number;
+    slots: { slot: number; slotName: string }[];
+    specs: ManualBisSpec[];
+    lists: Record<string, { slots: Record<string, ManualBisItem[]>; at: number; by: string }>;
+};
+
+export function getManualBis(version: string): Promise<ManualBisData> {
+    return get<ManualBisData>(`/api/lootcouncil/manual-bis?version=${encodeURIComponent(version)}`);
+}
+
+/** Wowhead of the version: a name, or an item id. `search: false` = the version has no Wowhead path. */
+export function searchManualBisItems(version: string, q: string): Promise<{ items: ItemSearchResult[]; search?: boolean }> {
+    return get(`/api/lootcouncil/manual-bis/search?${new URLSearchParams({ version, q }).toString()}`);
+}
+
+/** Set one slot of one spec's list, whole and in order (first = BiS, the rest alternatives); [] clears it. */
+export function saveManualBisSlot(version: string, spec: string, slot: number, items: number[]): Promise<ManualBisData & { unresolved: number[] }> {
+    return send("POST", "/api/lootcouncil/manual-bis", { version, spec, slot, items });
+}

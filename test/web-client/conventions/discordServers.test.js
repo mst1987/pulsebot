@@ -15,7 +15,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 const section = read("pages", "settings", "discord", "SettingsDiscordServers.tsx");
 const switcher = read("components", "shell", "ServerHeader.tsx");
-const api = read("api", "discordServers.ts");
+const api = read("api", "discord", "discordServers.ts");
 // The texts live in the dictionaries since #440; the source names their keys.
 const de = require("../clientSource").dictionary("de");
 const en = require("../clientSource").dictionary("en");

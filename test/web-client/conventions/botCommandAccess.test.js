@@ -9,7 +9,7 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 
 const view = read("pages", "settings", "access", "BotCommandAccess.tsx");
 const page = read("pages", "settings", "SettingsPage.tsx");
-const api = read("api", "botCommands.ts");
+const api = read("api", "discord", "botCommands.ts");
 
 describe("Bot-Befehle view", () => {
     it("loads its own data and saves the whole map through PATCH /api/settings", () => {

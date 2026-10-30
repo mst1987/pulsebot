@@ -4,7 +4,7 @@
 // the "Raid noch nicht abgeschlossen" dialog draws as the boss grid.
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { pollJob, RAID_INCOMPLETE, type IncompleteRaidError, type JobPollStatus } from "../client";
-import type { ClaRaid } from "../cla";
+import type { ClaRaid } from "../system/cla";
 import { switchLang } from "../../test/i18n";
 
 const HYJAL: ClaRaid = {

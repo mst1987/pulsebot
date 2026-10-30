@@ -2,7 +2,7 @@
 // menu entry, the shared page head and its own stylesheet, and the CSS rules
 // (icon sizes, weekday colours in light and dark, the locked switch). What the
 // page does is rendered in src/web-client/src/pages/profile/__tests__/ProfilePage.test.tsx,
-// components/character/__tests__/AddCharacterDialog.test.tsx, api/__tests__/profile.test.ts and
+// components/character/__tests__/AddCharacterDialog.test.tsx, api/roster/__tests__/profile.test.ts and
 // pages/roster/__tests__/RosterCharsPage.claims.test.tsx.
 
 const { read } = require("../clientSource");
