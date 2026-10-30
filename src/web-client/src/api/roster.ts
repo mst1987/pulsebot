@@ -95,7 +95,8 @@ export type RosterRole = "tank" | "healer" | "dps" | "";
  * quota, the four others are missed. The server sends the code; the client words it (lib/roster/attendanceStatus.ts).
  */
 /** "tentative": a "maybe" the setup left out - shown, but neither attended nor missed (not in `total`). */
-export type AttendanceStatus = "present" | "bench" | "vacation" | "absence" | "noSignup" | "noShow" | "tentative";
+/** "leftEarly" (#990): left before the end - set by the orga only (confirming the log's suggestion or by hand), counts as present. */
+export type AttendanceStatus = "present" | "leftEarly" | "bench" | "vacation" | "absence" | "noSignup" | "noShow" | "tentative";
 
 /** A night the orga set by hand (attendanceOverridesStore): the status, the free-text reason, who and when (ms). */
 export type AttendanceOverride = { status: AttendanceStatus; reason: string; by: string; byName: string; at: number };
@@ -107,7 +108,12 @@ export type AttendanceOverride = { status: AttendanceStatus; reason: string; by:
 export type RosterNight = {
     eventId: string; title: string; startTime: number; attended: boolean; reason: string;
     status?: AttendanceStatus; detail?: string; override?: AttendanceOverride;
+    /** Only in the orga's answers (#990): the log suggests the raider left early - the orga confirms or dismisses it. */
+    suggestion?: AttendanceSuggestion;
 };
+
+/** The log's suggestion for a night (#990): missed the last `missedKills` kills (the bosses, in kill order) with no other character in the raid. */
+export type AttendanceSuggestion = { kind: "leftEarly"; missedKills: number; bosses: string[] };
 
 export type RosterAttendance = {
     attended: number;
@@ -399,8 +405,9 @@ export function getRosterDetail(id: string): Promise<RosterDetail> {
 /**
  * Set one raid night of one Discord account by hand (#677, POST /api/attendance/override); `status: null` = back to
  * automatic. A refusal arrives as { code } (not_manager, invalid_status, reason_too_long, not_found).
+ * `dismiss: "leftEarly"` with status "present" dismisses the log's suggestion (#990; the server sets its fixed reason).
  */
-export function setAttendanceOverride(input: { eventId: string; userId: string; status: AttendanceStatus | null; reason?: string }): Promise<{
+export function setAttendanceOverride(input: { eventId: string; userId: string; status: AttendanceStatus | null; reason?: string; dismiss?: "leftEarly" }): Promise<{
     eventId: string; userId: string; override: AttendanceOverride | null;
 }> {
     return send("POST", "/api/attendance/override", input);

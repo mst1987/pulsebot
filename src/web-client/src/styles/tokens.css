@@ -76,11 +76,11 @@
     /* ---- Roster (rosters.css): member status - Stamm, Probe, Ersatz, Pause ---- */
     --rn-core: #5fae6a; --rn-trial: #d1a05a; --rn-bench: #7f9fcb; --rn-pause: #8a8882;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #5fae6a; --att-bench: #7f9fcb; --att-vacation: #a690c8; --att-absence: #d68f3c; --att-nosignup: #6b6963; --att-noshow: #d9534f; --att-tentative: #6aaba2; --att-ink: #111214;
+    --att-present: #5fae6a; --att-leftearly: #a7a85a; --att-bench: #7f9fcb; --att-vacation: #a690c8; --att-absence: #d68f3c; --att-nosignup: #6b6963; --att-noshow: #d9534f; --att-tentative: #6aaba2; --att-ink: #111214;
     /* ---- game versions (#563, #742): the colour of a version is the whole accent while it is shown (see the end of the file).
        The defaults here are the rule sets' colours (config/gameVersions/<id>.js); a colour changed in Einstellungen → Spielversion
        arrives as --vc-<id>-dark / -light / -ink-dark / -ink-light (lib/app/versionColor.ts) and wins. Every default reaches 4.5:1
-       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/versionColor.test.ts). ---- */
+       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/__tests__/versionColor.test.ts). ---- */
     --ver-forever: var(--vc-forever-dark, #4da3ff); --ver-forever-ink: var(--vc-forever-ink-dark, #0b0f14);
     --ver-tbc: var(--vc-tbc-dark, #9bd45a); --ver-tbc-ink: var(--vc-tbc-ink-dark, #0b0f14);
     --ver-classic: var(--vc-classic-dark, #9fb0c8); --ver-classic-ink: var(--vc-classic-ink-dark, #0b0f14);
@@ -197,7 +197,7 @@
         --ab-away: #a0621c; --ab-away-soft: rgba(160, 98, 28, .10); --ab-away-ink: #ffffff;
         --rn-core: #2b8a3e; --rn-trial: #8a6a12; --rn-bench: #3e5f99; --rn-pause: #6b6963;
         /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-        --att-present: #2b8a3e; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
+        --att-present: #2b8a3e; --att-leftearly: #6c6d1f; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
         --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
         --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
         --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);
@@ -239,7 +239,7 @@
     --ab-away: #a0621c; --ab-away-soft: rgba(160, 98, 28, .10); --ab-away-ink: #ffffff;
     --rn-core: #2b8a3e; --rn-trial: #8a6a12; --rn-bench: #3e5f99; --rn-pause: #6b6963;
     /* attendance per night (#677, lib/roster/attendanceStatus.ts): present/bench filled, the missed ones as rings; lightness differs, a letter rides along */
-    --att-present: #2b8a3e; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
+    --att-present: #2b8a3e; --att-leftearly: #6c6d1f; --att-bench: #3e5f99; --att-vacation: #6b5ba3; --att-absence: #a0621c; --att-nosignup: #9a9893; --att-noshow: #c0392b; --att-tentative: #2f7c74; --att-ink: #ffffff;
     --ver-forever: var(--vc-forever-light, #1a65c4); --ver-forever-ink: var(--vc-forever-ink-light, #ffffff);
     --ver-tbc: var(--vc-tbc-light, #47711a); --ver-tbc-ink: var(--vc-tbc-ink-light, #ffffff);
     --ver-classic: var(--vc-classic-light, #4a5a73); --ver-classic-ink: var(--vc-classic-ink-light, #ffffff);

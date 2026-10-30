@@ -1,0 +1,175 @@
+// The menu is always there (App.tsx + components/shell/Shell.tsx; #435: formerly
+// source scans in test/web-client/menuAccess.test.js):
+//   * only a visitor who is not logged in gets no shell,
+//   * a logged-in account with nothing granted still gets the sidebar with its
+//     logout, a line saying nothing is open, and a notice instead of the dashboard,
+//   * tabs and routes ask for a list of areas, so the read-only "loot" area opens
+//     the loot views of "Historie & Loot" but not its addon inbox,
+//   * an unknown path renders a page of its own instead of a blank one.
+import { render, screen, within } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as api from "../api";
+import type { SessionUser } from "../api";
+import { t } from "../i18n";
+import { MENU, firstAllowedTab } from "../lib/app/menu";
+import App from "../App";
+
+vi.mock("../api", async (orig) => ({
+    ...(await orig<typeof import("../api")>()),
+    getSession: vi.fn(),
+    getDashboard: vi.fn(),
+    getAddonName: vi.fn(),
+}));
+
+// Pages load their data through fetch; nothing answers in a test, so each
+// stays at its loader — enough to tell a page from the guard's refusal.
+beforeEach(() => {
+    vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
+    vi.mocked(api.getDashboard).mockReturnValue(new Promise(() => undefined));
+    vi.mocked(api.getAddonName).mockRejectedValue({ code: "unknown_addon", message: "" });
+});
+
+afterEach(() => {
+    vi.unstubAllGlobals();
+});
+
+const SLOW = { timeout: 8000 };
+
+const nobody: SessionUser = { id: "u2", name: "Mia", isAdmin: false, access: {} };
+const lootOnly: SessionUser = { id: "u3", name: "Lou", isAdmin: false, access: { loot: { read: true, write: false } } };
+
+function showApp(user: SessionUser | null, route = "/") {
+    vi.mocked(api.getSession).mockResolvedValue({ user, csrfToken: null, areas: [], guilds: [], activeGuildId: "" });
+    return render(<MemoryRouter initialEntries={[route]}><App /></MemoryRouter>);
+}
+
+const sidebar = () => screen.getByRole("complementary");
+
+describe("menu access", () => {
+    it("shows only the way in to a visitor who is not logged in", async () => {
+        showApp(null);
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") })).toHaveAttribute("href", "/auth/login");
+        expect(screen.queryByRole("link", { name: t("shell.logout") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    });
+
+    it("shows the way in as a login card: brand, heading, Discord button and what the login reads", async () => {
+        showApp(null);
+        const card = await screen.findByRole("region", { name: t("shell.app.loginTitle") });
+        expect(within(card).getByText("EventHelper")).toBeInTheDocument();
+        expect(within(card).getByRole("heading", { level: 1, name: t("shell.app.loginTitle") })).toBeInTheDocument();
+        const button = within(card).getByRole("link", { name: t("shell.app.loginButton") });
+        expect(button).toHaveClass("btn");
+        expect(button.querySelector("svg")).not.toBeNull();
+        expect(within(card).getByText(t("shell.app.loginHint"))).toBeInTheDocument();
+        // the language switch stays outside the card, still before any login
+        expect(within(card).queryByRole("group")).toBeNull();
+    });
+
+    it("brings a visitor back to the page they opened after the login", async () => {
+        showApp(null, "/raids/detail?event=eh-1");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/raids/detail?event=eh-1")}`);
+        expect(screen.queryByText(t("shell.app.loginNext"))).not.toBeInTheDocument();
+    });
+
+    it("says on an addon's detail page that the login leads to its patch notes", async () => {
+        showApp(null, "/addon/levelhelper");
+        expect(await screen.findByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon/levelhelper")}`);
+        expect(screen.getByText(t("shell.app.loginNext"))).toBeInTheDocument();
+        // the name route answered 404 (unknown, hidden or orga-only): the id made readable
+        expect(await screen.findByText("Levelhelper · Patchnotes")).toBeInTheDocument();
+        expect(api.getAddonName).toHaveBeenCalledWith("levelhelper");
+    });
+
+    it("says it for an old Discord link to a card (/addon#addon-<id>) too", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon#addon-levelhelper");
+        expect(await screen.findByText("LevelHelper · Patchnotes")).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("shell.app.loginButton") }))
+            .toHaveAttribute("href", `/auth/login?returnTo=${encodeURIComponent("/addon#addon-levelhelper")}`);
+    });
+
+    it("names the addon with its real name and icon when the name route knows it", async () => {
+        vi.mocked(api.getAddonName).mockResolvedValue({ id: "levelhelper", name: "LevelHelper", icon: "inv_misc_map02" });
+        showApp(null, "/addon/levelhelper");
+        const line = (await screen.findByText("LevelHelper · Patchnotes")).closest(".login-next") as HTMLElement;
+        expect(line.querySelector("img.wi")).not.toBeNull();
+    });
+
+    it("keeps the shell for a logged-in account with nothing granted", async () => {
+        showApp(nobody);
+        expect(await screen.findByRole("link", { name: t("shell.logout") }, SLOW)).toHaveAttribute("href", "/auth/logout");
+        expect(within(sidebar()).getByText("Mia")).toBeInTheDocument();
+    });
+
+    it("says something in the menu when no tab is allowed", async () => {
+        showApp(nobody);
+        const nav = await screen.findByRole("navigation", {}, SLOW);
+        expect(within(nav).getByText("Kein Bereich freigegeben")).toBeInTheDocument();
+        expect(within(nav).queryAllByRole("link")).toEqual([]);
+    });
+
+    it("sends an account with no area to a notice rather than the dashboard", async () => {
+        showApp(nobody);
+        expect(await screen.findByText(t("shell.app.noAccess"), {}, SLOW)).toBeInTheDocument();
+        // Rendering the dashboard would ask /api/dashboard and show its 403.
+        expect(api.getDashboard).not.toHaveBeenCalled();
+    });
+
+    it("checks tabs against a list of areas: the loot area alone opens Historie & Loot", async () => {
+        expect(firstAllowedTab(lootOnly)?.id).toBe("history");
+        expect(MENU.find((e) => e.id === "history")?.areas).toEqual(["history", "loot"]);
+        showApp(lootOnly, "/history");
+        const nav = await screen.findByRole("navigation", {}, SLOW);
+        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/history"]);
+    });
+
+    it.each([
+        ["/history", "Historie wird geladen"],
+        ["/history/event?event=e1", "Raid wird geladen"],
+        ["/history/char?name=Ahri", "Charakter wird geladen"],
+    ])("opens %s for the read-only loot area", async (route, pageLoader) => {
+        showApp(lootOnly, route);
+        // the page itself (waiting for its data), not the guard's refusal
+        expect(await screen.findByText(pageLoader, {}, SLOW)).toBeInTheDocument();
+        expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
+    });
+
+    it("gives a raider Abwesenheiten in the menu under Start, right after Anmeldungen, and opens it", async () => {
+        const raider: SessionUser = { id: "u4", name: "Rai", isAdmin: false, access: { signup: { read: true, write: true } } };
+        expect(MENU.find((e) => e.id === "absences")).toMatchObject({ href: "/absences", group: "Start", areas: ["signup", "roster"] });
+        showApp(raider, "/absences");
+        const nav = await screen.findByRole("navigation", {}, SLOW);
+        // the start page is the raider's too ("Für dich" comes with their own signup area);
+        // the Roster family's line is Dungeon-Bestzeiten, the one page of it a member may open; the page Addons (#818) is every member's too;
+        // Profil and Addons belong to no server, so they come last under "Alle Server" (#918)
+        expect(within(nav).getAllByRole("link").map((a) => a.getAttribute("href"))).toEqual(["/", "/signups", "/absences", "/roster/dungeons", "/profile", "/addon"]);
+        expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
+        expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
+    });
+
+    it("opens Abwesenheiten with the roster area alone, and the old address under the roster still", async () => {
+        const rosterOnly: SessionUser = { id: "u5", name: "Ros", isAdmin: false, access: { roster: { read: true, write: false } } };
+        showApp(rosterOnly, "/roster/absences?userId=7");
+        expect(await screen.findByText(t("absences.mine.loading"), {}, SLOW)).toBeInTheDocument();
+        expect(document.querySelector(".crumbs")).toHaveTextContent(`${t("shell.crumb.menu")} / ${t("shell.menu.absences")}`);
+    });
+
+    it("keeps the addon inbox closed to the read-only loot area", async () => {
+        showApp(lootOnly, "/history/inbox");
+        expect(await screen.findByText(t("shell.app.noRead"), {}, SLOW)).toBeInTheDocument();
+    });
+});
+
+describe("served from the root", () => {
+    it("catches an unknown path in the client instead of leaving it blank", async () => {
+        showApp({ id: "u1", name: "Admin", isAdmin: true, access: {} }, "/gibt-es-nicht");
+        expect(await screen.findByText(t("shell.app.notFound"), {}, SLOW)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("shell.app.backHome") })).toHaveAttribute("href", "/");
+        // inside the shell: the menu and the way back stay
+        expect(screen.getByRole("navigation")).toBeInTheDocument();
+    });
+});

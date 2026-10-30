@@ -1,6 +1,6 @@
 // Unsaved changes stand out in the plan and template editor: the wiring of the save button, the strip, the chips, Ctrl+S and the
 // warning on leaving (components/raidplan/editor/SaveState.tsx), checked on the source. Which sections differ from the saved plan
-// (lib/raidplan/model.ts dirtyKeys) runs in Vitest: src/web-client/src/lib/raidplan/saveState.test.ts.
+// (lib/raidplan/model.ts dirtyKeys) runs in Vitest: src/web-client/src/lib/raidplan/__tests__/saveState.test.ts.
 
 const { read } = require("../clientSource"); // inlines the @imports of a stylesheet (#441)
 

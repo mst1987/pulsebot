@@ -1,9 +1,9 @@
 // Raid-Vorlagen (#266): the rules a render cannot see — a route of its own
 // under Raids without a sidebar entry, the editor built from the shared plan
 // fields of the event dialog (no copies), and its own stylesheet. The page is
-// rendered in Vitest (src/web-client/src/pages/RaidTemplatesPage.test.tsx,
-// components/raid/RaidFields.test.tsx, components/raid/CompositionEditor.test.tsx),
-// the rules in lib/raids/raidTemplates.test.ts.
+// rendered in Vitest (src/web-client/src/pages/__tests__/RaidTemplatesPage.test.tsx,
+// components/raid/__tests__/RaidFields.test.tsx, components/raid/__tests__/CompositionEditor.test.tsx),
+// the rules in lib/raids/__tests__/raidTemplates.test.ts.
 const fs = require("fs");
 const path = require("path");
 

@@ -1,0 +1,192 @@
+// Das Raid-Cockpit (#319) im Client: die reinen Texte von
+// src/web-client/src/lib/raids/raidSteps.ts wirklich ausgeführt (mit dem echten
+// `t`, Deutsch) und gegen die Server-Regel (src/web/raidDetailSteps.js)
+// gehalten. Die gezeichnete Leiste: pages/raid-detail/__tests__/StepBar.test.tsx, ihre
+// Verdrahtung in der Seite: pages/raid-detail/__tests__/RaidDetailPage.steps.test.tsx.
+import fs from "node:fs";
+import path from "node:path";
+import { describe, expect, it } from "vitest";
+import * as lib from "../raidSteps";
+import { t } from "../../../i18n";
+import { BACKEND_SRC, requireBackend } from "../../../test/backend";
+import { inLang } from "../../../test/i18n";
+
+const { eventSteps, STEP_IDS, STEP_STATES, STEP_NOTES } = requireBackend("web/events/raidDetailSteps");
+
+const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
+const inHours = (h: number) => Math.floor((NOW + h * 3600 * 1000) / 1000);
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- a partial server input, shaped per test
+function progress(overrides: Record<string, any> = {}) {
+    const { event, ...rest } = overrides;
+    return eventSteps({
+        event: {
+            id: "eh-1", source: "eventhelper", title: "SSC + TK", channelName: "mi-23-09",
+            startTime: inHours(48), size: 25, signupDeadline: inHours(24), isPast: false, status: "active",
+            ...(event || {}),
+        },
+        ownSignups: [{ status: "signed" }],
+        attendance: { responded: [], missing: [] },
+        signupTarget: 25, lootItems: [], eventLogs: [],
+        ...rest,
+    }, { now: NOW });
+}
+
+
+describe("the step bar's words", () => {
+    it("names every state the server can send", () => {
+        for (const state of STEP_STATES) expect(lib.stepStateLabel(state).length).toBeGreaterThan(4);
+        expect(STEP_STATES.map(lib.stepStateLabel)).toEqual(["erledigt", "jetzt dran", "später", "übersprungen", "abgesagt"]);
+    });
+
+    it("names no state like a fault", () => {
+        for (const state of STEP_STATES) expect(lib.stepStateLabel(state)).not.toMatch(/fehlt|Fehler|kaputt/i);
+    });
+
+    it("counts a step's place in the route the server sent", () => {
+        const p = progress();
+        expect(lib.stepPosition(p.steps, "setup")).toBe(`Schritt 3 von ${STEP_IDS.length}`);
+        expect(lib.stepPosition(p.steps, "plan")).toBe("Schritt 5 von 6");
+        expect(lib.stepPosition(p.steps, "after")).toBe("Schritt 6 von 6");
+        expect(lib.stepPosition(p.steps, "nope")).toBe("");
+    });
+
+    it("falls to one line: „Schritt n von 6 · Label“", () => {
+        expect(lib.stepSummary(progress())).toBe("Schritt 2 von 6 · Anmeldung");
+        const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
+        expect(done.current).toBe("");
+        expect(lib.stepSummary(done)).toBe(done.note);
+        const cancelled = progress({ event: { status: "cancelled", cancelReason: "Zu wenig Heiler" } });
+        expect(lib.stepSummary(cancelled)).toBe("Abgesagt: Zu wenig Heiler");
+    });
+
+    it("puts the clipped note and the deed into the tooltip", () => {
+        const p = progress({ ownSignups: [{ status: "signed" }, { status: "bench" }] });
+        const created = p.steps[0];
+        expect(lib.stepTipSub(created, true)).toBe(`${created.hint} · Klick: Bearbeiten`);
+        // the note is the part the narrow cell cuts off, so it leads the tooltip
+        const signup = p.steps[1];
+        expect(signup.note).toBe("1 auf der Warteliste");
+        expect(lib.stepTipSub(signup, false)).toBe(`${signup.note} · ${signup.hint}`);
+        // a step without a deed says only what it is
+        expect(lib.stepTipSub({ ...created, action: null }, true)).toBe(created.hint);
+    });
+
+    it("gives the slim bar a short value with a word, never a bare „25 / 25“", () => {
+        const p = progress({ ownSignups: [{ status: "signed" }, { status: "signed" }] });
+        const signup = p.steps.find((s) => s.id === "signup")!;
+        expect(lib.stepShort(signup)).toBe(`${signup.value} angemeldet`);
+        expect(lib.stepShort({ ...signup, value: "25", unit: "/ 25" })).toBe("25 von 25");
+        expect(lib.stepShort({ ...signup, value: "Stand 1", unit: "" })).toBe("Stand 1");
+        // an empty value and one that only repeats the name stay out
+        expect(lib.stepShort({ ...signup, value: "—", unit: "" })).toBe("");
+        expect(lib.stepShort({ ...p.steps[0], value: "angelegt", unit: "" })).toBe("");
+    });
+
+    it("names the open step's strip after its deed, with the explaining sentence", () => {
+        const p = progress();
+        const open = p.steps.find((s) => s.id === p.current)!;
+        expect(lib.stepFocus(open)).toEqual({ title: `Jetzt dran: ${lib.deedLabel(open.action!)}`, text: open.hint });
+        // a reader has no deed: the strip names the step; without a sentence the note stands in
+        expect(lib.stepFocus({ ...open, action: null, hint: "", note: "Entwurf" })).toEqual({ title: `Jetzt dran: ${lib.stepTitle(open)}`, text: "Entwurf" });
+    });
+
+    it("fills a cell's second line with the value, else the server's note — never empty while there is one", () => {
+        const p = progress();
+        const signup = p.steps.find((s) => s.id === "signup")!;
+        expect(lib.stepLine(signup)).toBe(lib.stepShort(signup));
+        const after = p.steps.find((s) => s.id === "after")!;
+        expect(lib.stepShort(after)).toBe("");
+        expect(lib.stepLine(after)).toBe("nach dem Raid");
+        expect(lib.stepLine({ ...after, note: "", noteId: "" })).toBe("");
+    });
+
+    it("gives a calm strip when nothing is due: the server's sentence and the next later step", () => {
+        const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
+        expect(done.current).toBe("");
+        const later = lib.stepLater(done)!;
+        expect(later.title).toBe(done.note);
+        const next = done.steps.find((s) => s.state === "todo");
+        if (next) {
+            expect(later.step).toBe(next);
+            expect(later.text).toBe(`Als Nächstes ${lib.stepTitle(next)}: ${next.hint || next.note}`);
+        } else {
+            expect(later).toEqual({ title: done.note, text: "", step: null });
+        }
+        // nothing later: the sentence alone
+        const all = { ...done, steps: done.steps.map((s) => ({ ...s, state: "done" as const })) };
+        expect(lib.stepLater(all)).toEqual({ title: done.note, text: "", step: null });
+        // a step is due, or the raid is off: no calm strip
+        expect(lib.stepLater(progress())).toBeNull();
+        expect(lib.stepLater(progress({ event: { status: "cancelled" } }))).toBeNull();
+    });
+
+    it("hands a reader the same bar without a single deed", () => {
+        const p = progress();
+        expect(p.action).not.toBeNull();
+        const read = lib.withoutDeeds(p);
+        expect(read.action).toBeNull();
+        expect(read.steps.every((s) => s.action === null)).toBe(true);
+        // and nothing else changes
+        expect(read.steps.map((s) => [s.id, s.state, s.value])).toEqual(p.steps.map((s) => [s.id, s.state, s.value]));
+        expect(p.steps.some((s) => s.action)).toBe(true);
+    });
+});
+
+
+// The step names and deed labels come from the server in German next to a
+// fixed id; the client shows them in the menu language by that id (#i18n).
+describe("the cockpit in the menu language", () => {
+    // every deed the server can send, read off its deed("id", "Label", …) calls
+    const server = fs.readFileSync(path.join(BACKEND_SRC, "web", "events", "raidDetailSteps.js"), "utf8");
+    const deeds = [...server.matchAll(/deed\("(\w+)", "([^"]+)"/g)].map((m) => ({ id: m[1], label: m[2] }));
+    // "CLA auswerten" carries the analysis' name and stays as the server sends it
+    const named = deeds.filter((d) => d.id !== "evaluate");
+
+    it("knows every step and every deed the server can send, in both languages", async () => {
+        expect(named.length).toBeGreaterThan(5);
+        const unknown = () => [
+            ...STEP_IDS.filter((id: string) => t(`raidDetail.steps.title.${id}`) === `raidDetail.steps.title.${id}`),
+            ...named.filter((d) => t(`raidDetail.steps.deed.${d.id}`) === `raidDetail.steps.deed.${d.id}`).map((d) => d.id),
+        ];
+        expect(unknown()).toEqual([]);
+        expect(await inLang("en", unknown)).toEqual([]);
+    });
+
+    it("keeps the server's German where the dictionary has the same text", () => {
+        for (const d of named) expect({ id: d.id, text: t(`raidDetail.steps.deed.${d.id}`) }).toEqual({ id: d.id, text: d.label });
+    });
+
+    it("knows every fixed note the server can send, in both languages, the German one word for word", async () => {
+        const ids = Object.keys(STEP_NOTES);
+        expect(ids).toEqual(expect.arrayContaining(["afterSetup", "afterRaid", "planEmpty", "noLoot"]));
+        for (const id of ids) expect({ id, text: t(`raidDetail.steps.note.${id}`) }).toEqual({ id, text: STEP_NOTES[id] });
+        const unknown = () => ids.filter((id) => t(`raidDetail.steps.note.${id}`) === `raidDetail.steps.note.${id}`);
+        expect(await inLang("en", unknown)).toEqual([]);
+    });
+
+    it("translates a note by its id, the server's text only as fallback, a note with a count as sent", async () => {
+        const p = progress();
+        const after = p.steps.find((s) => s.id === "after")!;
+        expect(after.noteId).toBe("afterRaid");
+        expect(await inLang("en", () => lib.stepLine(after))).toBe("after the raid");
+        expect(await inLang("en", () => lib.noteText({ note: "Raidplan leer", noteId: "planEmpty" }))).toBe("raid plan empty");
+        // the bar's own sentence follows the menu language too
+        const done = progress({ event: { signupsClosed: true, startTime: inHours(0.2) } });
+        expect(done.noteId).toBe("allDone");
+        expect(await inLang("en", () => lib.stepSummary(done))).toBe("Everything before the raid is done.");
+        // an id the dictionaries do not know keeps the server's text; without an id it is the text
+        expect(lib.noteText({ note: "Neu", noteId: "future" })).toBe("Neu");
+        const bench = progress({ ownSignups: [{ status: "signed" }, { status: "bench" }] }).steps[1];
+        expect(bench.noteId).toBe("");
+        expect(await inLang("en", () => lib.noteText(bench))).toBe("1 auf der Warteliste");
+    });
+
+    it("names steps and deeds by id, the server's text only as fallback", () => {
+        const step = { id: "approval", label: "Freigabe" };
+        expect(lib.stepTitle(step)).toBe("Freigabe");
+        expect(lib.stepTitle({ id: "future", label: "Neu" })).toBe("Neu");
+        expect(lib.deedLabel({ id: "evaluate", label: "CLA auswerten" })).toBe("CLA auswerten");
+        expect(lib.deedLabel({ id: "approve", label: "egal" })).toBe("Setup posten");
+    });
+});

@@ -1,9 +1,12 @@
 // Attendance set by hand (#677, docs/roster-profile.md "Anwesenheit"):
 //
 // POST /api/attendance/override  { eventId, userId, status | null, reason? }
-//   status one of the attendance codes (present, bench, vacation, absence,
+//   status one of the attendance codes (present, leftEarly, bench, vacation, absence,
 //   noSignup, noShow) sets the night of that Discord account by hand; null (or
 //   "auto") removes the override - the automatic verdict counts again.
+//   The log's "left early" suggestion (#990) uses this route too: "Bestätigen"
+//   sets leftEarly, "Verwerfen" sends { status: "present", dismiss: "leftEarly" } - present with
+//   the store's fixed reason LEFT_EARLY_DISMISSED (the override ends the suggestion).
 //   Answer: { eventId, userId, override: { status, reason, by, byName, at } | null }.
 //
 // Gate: the areas `roster` or `raids` at write level; then attendanceAccess:
@@ -47,8 +50,10 @@ const postOverride = withUser({ csrf: true, body: true, onServer: (body) => str(
         overridesStore.clearOverride(eventId, userId);
         return ok(res, { eventId, userId, override: null });
     }
+    // "Verwerfen" of the log's suggestion (#990): present with the fixed reason the raider's views know
+    const dismissed = body.dismiss === "leftEarly" && body.status === "present";
     const saved = overridesStore.setOverride(eventId, userId, {
-        status: body.status, reason: str(body.reason), by: str(user.id), byName: str(user.name || user.username),
+        status: body.status, reason: dismissed ? overridesStore.LEFT_EARLY_DISMISSED : str(body.reason), by: str(user.id), byName: str(user.name || user.username),
     });
     if (saved.error) return refuse(res, saved.error);
     return ok(res, { eventId, userId, override: saved });

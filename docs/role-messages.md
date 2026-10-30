@@ -93,7 +93,7 @@ nur die Liste, ohne Knöpfe).
   der bis dahin gesperrt bleibt. Ist der Bot offline oder fehlt „Rollen verwalten“, steht ein Hinweis oben.
 - **Antworten:** `warnings` des Servers erscheinen als Toast „Hinweis: …“; jeder Fehlercode hat einen Text in
   de und en (`roleMessages.error.*`), bei `privileged_role`/`role_unusable` mit Rollenname und Grund.
-  `lib/discord/roleMessages.test.ts` prüft, dass jeder Code der Route und jeder Grund aus `selfRole.js`
+  `lib/discord/__tests__/roleMessages.test.ts` prüft, dass jeder Code der Route und jeder Grund aus `selfRole.js`
   übersetzt ist.
 
 ## API (Bereich `channels`: GET lesen, sonst schreiben)

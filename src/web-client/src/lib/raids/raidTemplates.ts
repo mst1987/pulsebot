@@ -1,5 +1,5 @@
 // The pure rules behind the Raid-Vorlagen page (#266), kept apart from the
-// components so src/web-client/src/lib/raids/raidTemplates.test.ts can run them in plain Node.
+// components so src/web-client/src/lib/raids/__tests__/raidTemplates.test.ts can run them in plain Node.
 //
 // Written like settingsLogic.ts: every function is `export function name(params): Result {`
 // on one line, and no body uses type syntax (no `as`, no generics, no annotated

@@ -2,7 +2,7 @@
 // coming date reads ("wird am Do 17.09. um 19:30 angelegt", "angelegt am
 // 17.09. als #…"), which badge it gets, and how the modal's draft becomes a
 // preview request. No React in here, and strippable (one-line signatures, no
-// types inside bodies), so src/web-client/src/lib/raids/eventSeries.test.ts runs it for real.
+// types inside bodies), so src/web-client/src/lib/raids/__tests__/eventSeries.test.ts runs it for real.
 import type { EventSeries, EventSeriesInput, SeriesDate, SeriesDateState } from "../../api";
 import { t } from "../../i18n";
 import { formatDayDate, formatTime, isoDay } from "../format";

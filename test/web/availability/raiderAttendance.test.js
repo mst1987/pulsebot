@@ -10,6 +10,7 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     categoryInfo: (_ctx, id) => ({ icon: id === "mon" ? "achievement_boss_illidan" : "" }),
     buildAttendanceContext: () => ({ raidsByCategory: mockNights, allRaidsByCategory: mockNights }),
     attendanceForAccounts: (...args) => mockAttendance(...args),
+    neutralNight: (night) => (night.status === "leftEarly" ? { ...night, status: "present", neutralized: true } : night),
 }));
 const mockEvents = new Map();
 jest.mock("../../../src/stores/eventStore", () => ({
@@ -89,6 +90,17 @@ describe("raiderAttendance", () => {
         const view = raiderAttendance("u1", { now: NOW });
         expect(view.categories.map((c) => [c.id, c.window])).toEqual([["wed", 4]]);
         expect(mockAttendance.mock.calls.map((c) => [c[1], c[3]])).toEqual([["wed", { nights: true, window: 4 }]]);
+    });
+
+    it("shows the raider's own nights neutral, the orga's view of them as they are (#990)", () => {
+        mockAssignments = { mon: { u1: "Zibbi" } };
+        mockConfig = { categoryIds: ["mon"] };
+        mockAttendance.mockImplementation((_ctx, _cat, accounts) => new Map(accounts.map((a) => [a.userId, {
+            attended: 1, total: 1, pct: 100, link: "manual", inferred: 0, missed: [],
+            raids: [{ eventId: "n1", title: "n1", startTime: 1, attended: true, status: "leftEarly" }],
+        }])));
+        expect(raiderAttendance("u1", { now: NOW, neutral: true }).categories[0].raids[0]).toMatchObject({ status: "present", neutralized: true });
+        expect(raiderAttendance("u1", { now: NOW }).categories[0].raids[0]).toEqual({ eventId: "n1", title: "n1", startTime: 1, attended: true, status: "leftEarly" });
     });
 
     it("leaves out categories the raider never raided in and cancelled raids", () => {

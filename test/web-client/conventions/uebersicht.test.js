@@ -1,7 +1,7 @@
 // The start page "Übersicht" (design issue #220) — the structural half of the
 // former test/web-client/uebersicht.test.js (#435). What the page, the
 // Raid-Details modal and the Latest-Loot list show is tested in Vitest:
-// src/web-client/src/pages/dashboard/DashboardPage.test.tsx and
+// src/web-client/src/pages/dashboard/__tests__/DashboardPage.test.tsx and
 // src/web-client/src/components/TopLootList.test.tsx.
 const fs = require("fs");
 const path = require("path");

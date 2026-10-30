@@ -130,7 +130,7 @@ describe("one game version per page (#741)", () => {
     it("offers no 'Alle' in the switch and never asks the server for every version", () => {
         expect(read("components/shell/ContentSwitch.tsx")).not.toMatch(/"all"/);
         const asking = [];
-        for (const file of fs.readdirSync(path.join(SRC, "api"))) {
+        for (const file of fs.readdirSync(path.join(SRC, "api")).filter((f) => f !== "__tests__")) {
             const src = fs.readFileSync(path.join(SRC, "api", file), "utf8");
             if (/version=all|set\("version",\s*"all"\)|version:\s*"all"/.test(src)) asking.push(file);
         }

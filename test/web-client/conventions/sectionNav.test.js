@@ -5,9 +5,9 @@
 // Icon-Leiste"). On the Einstellungen page every per-category setting has one
 // home (the category matrix), and explanations sit in tooltips instead of hint
 // paragraphs. What the rail, the sections and the save bar do is tested in
-// src/web-client/src/components/ui/SectionRail.test.tsx, components/shell/Shell.test.tsx,
-// lib/settings/settingsSections.test.ts and pages/settings/SettingsPage.sections.test.tsx;
-// the areas of Historie & Loot in pages/history/HistoryPage.areas.test.tsx.
+// src/web-client/src/components/ui/__tests__/SectionRail.test.tsx, components/shell/__tests__/Shell.test.tsx,
+// lib/settings/__tests__/settingsSections.test.ts and pages/settings/__tests__/SettingsPage.sections.test.tsx;
+// the areas of Historie & Loot in pages/history/__tests__/HistoryPage.areas.test.tsx.
 const fs = require("fs");
 const path = require("path");
 const { read } = require("../clientSource");

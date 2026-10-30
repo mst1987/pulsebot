@@ -243,6 +243,35 @@ describe("buildRosterDetail", () => {
         expect(dora).toMatchObject({ displayName: DORA, onServer: false, hasRole: false, chars: [], role: "", attendance: null });
     });
 
+    it("suggests 'left early' to the orga from the log's kills, with the server's number of kills (#990)", async () => {
+        const { listLogs } = require("../../../src/stores/logStore");
+        const reportStore = require("../../../src/stores/reportStore");
+        listLogs.mockReturnValue([{ eventId: "e1", reportRefId: "r-990" }]);
+        reportStore.listReports.mockReturnValue([{ id: "r-990", generatedAt: Date.now() + count }]);
+        reportStore.getReport.mockReturnValue({
+            roster: [{ name: "Thorgrim" }, { name: "Lunaria" }],
+            kills: [
+                { at: 1000, boss: "Attumen", players: ["Thorgrim", "Lunaria"] },
+                { at: 2000, boss: "Moroes", players: ["Lunaria"] },
+                { at: 3000, boss: "Maiden", players: ["Lunaria"] },
+            ],
+        });
+        try {
+            let view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+            let e1 = view.members.find((m) => m.userId === ANNA).attendance.present.find((n) => n.eventId === "e1");
+            expect(e1.suggestion).toEqual({ kind: "leftEarly", missedKills: 2, bosses: ["Moroes", "Maiden"] });
+            // a server asking for three missed kills: Anna stood in the third last - no suggestion
+            const cfg = { ...CONFIG, serverSettings: { [G]: { vermerkeSignals: { leftEarlyBosses: 3 } } } };
+            view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: cfg });
+            e1 = view.members.find((m) => m.userId === ANNA).attendance.present.find((n) => n.eventId === "e1");
+            expect(e1.suggestion).toBeUndefined();
+        } finally {
+            listLogs.mockReturnValue([]);
+            reportStore.listReports.mockReturnValue([]);
+            reportStore.getReport.mockReturnValue(null);
+        }
+    });
+
     it("sorts the members by name and says who may manage", async () => {
         const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
         expect(view.canManage).toBe(false);

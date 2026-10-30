@@ -40,7 +40,7 @@ dialog's spell lists, the suggestions, the section's mobs and the read view only
 - **Templates and tactic profiles** carry a `versionId` too (see below); a template's editor gets its version's catalog
   and its suggestions ask with that version (`POST /api/raidplan/suggest { versionId }` without an event).
 - Tests: `test/stores/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/raidplan.versions.test.js`
-  (templates, apply, catalog of a Forever plan, suggestions), `src/web-client/src/lib/raidplan/versions.test.ts`,
+  (templates, apply, catalog of a Forever plan, suggestions), `src/web-client/src/lib/raidplan/__tests__/versions.test.ts`,
   `RaidplanCatalogPage.versions.test.tsx` (switch, new entry), `RaidplanTab.versions.test.tsx` ("Vorlage anwenden").
 
 - **Mobs** `{ id, name, kind: boss | add | trash | other, instanceId, bossKey, icon, note, versions }`; `icon` is a
@@ -314,6 +314,6 @@ a verb is a step.
   English "tanks" -> "tank"; his chip carries "DU", the one mark), then "Alle Schritte" in their order (his
   own dimmed there so the numbers do not jump); on a phone the rows wrap.
 - Tests: `test/services/raidplan/raidplanSteps.test.js` (validation, template without players, clamping, board, resolution
-  incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/raidplan/steps.test.ts` (editing and
+  incl. mage tank / missing class, migration of profiles), `src/web-client/src/lib/raidplan/__tests__/steps.test.ts` (editing and
   sorting, timing words, sentence parts, du form, @ mentions, resolution, library, starters, structure,
   texts).

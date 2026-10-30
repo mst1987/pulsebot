@@ -662,7 +662,7 @@ describe("logcheck/report — the whole build (characterisation, #431)", () => {
         expect(Object.keys(report)).toEqual([
             "title", "zone", "date", "reportId", "reportUrl", "reportHost", "versionId", "generatedAt", "sections", "raidProgress", "players",
             "consumables", "shadowResi", "drums", "potions", "sunder", "bossUptimes", "timeline", "fightSeries", "raidDebuffs",
-            "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "rpb", "roster", "icons", "recommendations",
+            "cooldowns", "totems", "mechanics", "activity", "healers", "raidBuffs", "rpb", "roster", "kills", "icons", "recommendations",
         ]);
         expect(report).toEqual(expect.objectContaining({
             title: "SSC + TK", zone: "Serpentshrine Cavern", date: "", reportId: "RPT1",

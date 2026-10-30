@@ -40,7 +40,14 @@ describe("stores/attendanceOverridesStore", () => {
         expect(store.setOverride("e1", "", { status: "bench" })).toEqual({ error: "bad_request" });
         expect(store.setOverride("e1", "u1", { status: "bench", reason: "x".repeat(store.REASON_MAX + 1) })).toEqual({ error: "reason_too_long" });
         expect(store.setOverride("e1", "u1", { status: "bench", reason: "x".repeat(store.REASON_MAX) }).reason).toHaveLength(store.REASON_MAX);
-        expect(store.STATUSES).toEqual(["present", "bench", "vacation", "absence", "noSignup", "noShow"]);
+        expect(store.STATUSES).toEqual(["present", "leftEarly", "bench", "vacation", "absence", "noSignup", "noShow"]);
+    });
+
+    it("kennt „Früh gegangen“ und den festen Grund eines verworfenen Log-Vorschlags (#990)", () => {
+        expect(store.setOverride("e1", "u1", { status: "leftEarly" })).toMatchObject({ status: "leftEarly", reason: "" });
+        // der Grund passt in REASON_MAX, sonst ließe sich ein Vorschlag nicht verwerfen
+        expect(store.LEFT_EARLY_DISMISSED.length).toBeLessThanOrEqual(store.REASON_MAX);
+        expect(store.setOverride("e1", "u2", { status: "present", reason: store.LEFT_EARLY_DISMISSED }).reason).toBe(store.LEFT_EARLY_DISMISSED);
     });
 
     it("lässt beim Lesen kaputte Einträge weg", () => {

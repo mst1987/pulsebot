@@ -6,7 +6,7 @@ import { formatDayDate } from "../format";
 // Spielversion): how an item of the server's checklist reads (badge, value,
 // tooltip) and where it is fixed. The server computes the state
 // (services/events/versionLaunch.js); this only words it. Kept free of React,
-// so lib/settings/versionLaunch.test.ts runs it for real.
+// so lib/settings/__tests__/versionLaunch.test.ts runs it for real.
 
 const K = "settings.versionLaunch";
 

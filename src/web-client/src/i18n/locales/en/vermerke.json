@@ -240,6 +240,8 @@
             "lateSignoff": "Late signoff",
             "signoffAfterSetup": "Signoff after setup",
             "noShow": "No show",
+            "leftEarly": "Left early",
+            "leftEarlyBosses": "Left early: kills",
             "leftServer": "Left the server"
         },
         "value": {
@@ -263,6 +265,14 @@
                 "one": "from {count} time",
                 "other": "from {count} times"
             },
+            "leftEarly": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "leftEarlyBosses": {
+                "one": "misses the last kill",
+                "other": "misses the last {count} kills"
+            },
             "leftServer": {
                 "one": "from {count} time",
                 "other": "from {count} times"
@@ -274,6 +284,8 @@
             "lateSignoff": "How often someone has to sign off late in the window ({min} to {max}).",
             "signoffAfterSetup": "How often someone has to sign off after being set in the setup ({min} to {max}).",
             "noShow": "How often someone has to be a no show in the window ({min} to {max}).",
+            "leftEarly": "How often the orga must have confirmed or set “Left early” in the window ({min} to {max}).",
+            "leftEarlyBosses": "The log suggests “Left early” when someone misses this many of the last kills and has no other character in the raid ({min} to {max}). The orga confirms it in the attendance.",
             "leftServer": "How often someone has to have left the server in the window ({min} to {max})."
         },
         "less": "Less",

@@ -75,17 +75,25 @@ async function serversOfToken(token, opts = {}) {
     return own ? [own] : null;
 }
 
+/**
+ * A game version as the sync app names it on a server (`{ id, short, realm }`): the short name of
+ * its rule set and the Blizzard realm slug of that server's version settings. Shared by
+ * `GET /api/ingest/me` and the council data v4 (#1001), so both name a version the same way.
+ */
+function versionHead(id, guildId, config) {
+    const cfg = config || getConfig();
+    const rules = rulesFor(id) || {};
+    const realm = str(settingsForVersion(id, { config: cfg, guildId }).blizzardRealmSlug);
+    return { id, short: str(rules.short) || str(rules.label) || id, realm };
+}
+
 /** The versions a server plays (`[{ id, short, realm }]`): those of its categories, else the main version. */
 function versionsOfServer(guildId, config) {
     const cfg = config || getConfig();
     const ids = new Set();
     for (const cat of listKnownCategories(guildId)) ids.add(mainVersionFor({ categoryId: cat.id, config: cfg }));
     if (!ids.size) ids.add(mainVersionFor({ config: cfg }));
-    return [...ids].map((id) => {
-        const rules = rulesFor(id) || {};
-        const realm = str(settingsForVersion(id, { config: cfg, guildId }).blizzardRealmSlug);
-        return { id, short: str(rules.short) || str(rules.label) || id, realm };
-    });
+    return [...ids].map((id) => versionHead(id, guildId, cfg));
 }
 
 /**
@@ -105,4 +113,4 @@ function describeServers(servers, { config } = {}) {
     }));
 }
 
-module.exports = { orgaServersOf, isPersonToken, serversOfToken, versionsOfServer, describeServers };
+module.exports = { orgaServersOf, isPersonToken, serversOfToken, versionHead, versionsOfServer, describeServers };
