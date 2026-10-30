@@ -33,6 +33,7 @@ const guildRoles = require("../../services/discord/guildRoles");
 const reminderStore = require("../../stores/reminderStore");
 const eventStore = require("../../stores/eventStore");
 const { proposeSetup } = require("../../services/setup/setupInput");
+const { shadowbannedAmong } = require("../../services/vermerke/vermerkeShort");
 const { inRaidGroup } = require("../../utils/raidGroup");
 const { deliverUserPing } = require("../../services/discord/pingDelivery");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
@@ -219,7 +220,8 @@ function runAutoSuggest({ now = Date.now() } = {}) {
         if (!autoSuggestDue(event, reminderStore.getSent(event.id), now)) continue;
         if (!reminderStore.markSent(event.id, AUTO_SUGGEST, now)) continue;
         try {
-            const proposal = proposeSetup([event.id], { now });
+            // a shadowban (Vermerke, #981) keeps the raider in the pool of the automatic draft too
+            const proposal = proposeSetup([event.id], { now, shadowbannedOf: shadowbannedAmong });
             if (!proposal) throw new Error("Event nicht gefunden.");
             const saved = eventStore.saveSetupDraft(event.id, proposal, { createdBy: "auto", now });
             // An approved setup in the meantime is no failure: there is nothing left to propose.

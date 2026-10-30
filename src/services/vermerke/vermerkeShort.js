@@ -47,4 +47,14 @@ function shortFor(guildId, userIds, { now = Date.now() } = {}) {
     return out;
 }
 
-module.exports = { activeLevelFor, shortOf, shortFor };
+/**
+ * The persons of `userIds` with an active shadowban on `guildId` (own or shared, not hidden, not
+ * expired) - the setup proposal never places them by itself (#981). Warnings and hints do not count.
+ */
+function shadowbannedAmong(guildId, userIds, { now = Date.now() } = {}) {
+    return Object.entries(shortFor(guildId, userIds, { now }))
+        .filter(([, short]) => short && short.level === "shadowban")
+        .map(([uid]) => uid);
+}
+
+module.exports = { activeLevelFor, shortOf, shortFor, shadowbannedAmong };

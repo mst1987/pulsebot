@@ -355,11 +355,15 @@ function addSignupOptions(cand, s, profile, ctx) {
 /** One candidate per raider, with every option they can be placed as. */
 function buildCandidates(input, ctx) {
     const fairness = fairnessMap(input.history, new Set(ctx.events.map((e) => e.id)));
+    // an active shadowban on the raid's server (Vermerke, #981): never placed by the
+    // proposal itself, kept in the pool - only the orga's own hand places them
+    const shadowbanned = new Set((Array.isArray(input.shadowbanned) ? input.shadowbanned : []).map(str));
     const cands = [];
     for (const userId of candidateOrder(ctx.byUser)) {
         const signups = latestSignupPerEvent(ctx.byUser.get(userId));
         const profile = ctx.profiles.get(userId) || null;
         const cand = newCandidate(cands.length, userId, profile, fairness.get(userId), attendanceOf(input.attendance, userId), rosterStatusOf(input.rosterStatus, userId));
+        if (shadowbanned.has(userId)) cand.shadowban = true;
         for (const s of signups) addSignupOptions(cand, s, profile, ctx);
         cands.push(cand);
     }

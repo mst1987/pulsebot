@@ -59,6 +59,19 @@ describe("setupInput", () => {
         rosterStore.rosterForCategory.mockImplementation(() => null);
     });
 
+    it("asks the injected shadowban lookup for the raid's server only (#981)", () => {
+        expect(collectSetupInput(["eh-new"], { now: 5000 }).shadowbanned).toEqual([]);
+        const shadowbannedOf = jest.fn(() => [2]);
+        const input = collectSetupInput(["eh-new"], { now: 5000, shadowbannedOf });
+        expect(shadowbannedOf).toHaveBeenCalledTimes(1);
+        const [guildId, ids, opts] = shadowbannedOf.mock.calls[0];
+        expect(guildId).toBe("g1");
+        expect(ids.sort()).toEqual(["u1", "u2", "u3"]);
+        expect(opts).toEqual({ now: 5000 });
+        expect(input.shadowbanned).toEqual(["2"]);
+        expect(collectSetupInput(["eh-new"], { now: 5000, shadowbannedOf: () => null }).shadowbanned).toEqual([]);
+    });
+
     it("reads the roster of the event's own version (#739)", () => {
         rosterStore.rosterForCategory.mockImplementation((cat, version) => (version === "forever"
             ? { members: { u5: { status: "trial" } } }

@@ -168,6 +168,19 @@ describe("who sees the people data (epic #723)", () => {
         expect(asManager.members.find((m) => m.userId === ANNA).attendance).not.toBeNull();
     });
 
+    it("gives the Vermerke short form (#981) only past the one rule: a manager yes, a raider and an orga without the right no", async () => {
+        const raider = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(raider).not.toHaveProperty("vermerke");
+        // an orga role without `raids` write or `vermerke` read: the orga branch, but no field
+        const asOrga = await buildRosterDetail({ guildId: G, id: rosterId(), user: ORGA, config: CONFIG });
+        expect(asOrga.isOrga).toBe(true);
+        expect(asOrga).not.toHaveProperty("vermerke");
+        rosterStore.updateRoster(rosterId(), { managers: { userIds: [READER.id] } });
+        const asManager = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(asManager).toHaveProperty("vermerke");
+        expect(await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG })).toHaveProperty("vermerke");
+    });
+
     it("trims the overview cards per roster: a raider sees no todo badges, the orga and that roster's manager do", async () => {
         const mineId = rosterId();
         const other = rosterStore.createRoster({ guildId: G, name: "Anderes Roster" });

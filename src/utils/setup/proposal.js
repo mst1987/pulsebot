@@ -102,6 +102,9 @@ function placeFixed(s) {
     const load = s.events.map((e) => new Array(e.groupCount).fill(0));
     const lockedLater = [];
     for (const c of s.cands) {
+        // a shadowban (#981) keeps the raider out of every automatic placement - in the pool,
+        // not on the bench; a place the orga fixed by hand stays theirs
+        if (!c.fixed && c.shadowban) s.banned[c.idx] = 1;
         if (!c.fixed) continue;
         if (c.fixed.bench) {
             s.banned[c.idx] = 1;

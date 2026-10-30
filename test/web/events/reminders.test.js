@@ -25,6 +25,7 @@ const { deliverUserPing } = require("../../../src/services/discord/pingDelivery"
 const reminderStore = require("../../../src/stores/reminderStore");
 const reminders = require("../../../src/web/events/reminders");
 const rosterStore = require("../../../src/stores/rosterStore");
+const { shadowbannedAmong } = require("../../../src/services/vermerke/vermerkeShort");
 
 const HOUR = 60 * 60 * 1000;
 const NOW = Date.UTC(2026, 8, 20, 12, 0, 0);
@@ -260,7 +261,8 @@ describe("runAutoSuggest (Vorschlag bei Anmeldeschluss)", () => {
 
     it("stores the proposal as a draft once the deadline passed — exactly once", () => {
         expect(reminders.runAutoSuggest({ now: NOW })).toEqual({ drafted: ["eh-kara"], failed: 0 });
-        expect(proposeSetup).toHaveBeenCalledWith(["eh-kara"], { now: NOW });
+        // the Vermerke's shadowbans (#981) come in through the orga's door, never from setupInput itself
+        expect(proposeSetup).toHaveBeenCalledWith(["eh-kara"], { now: NOW, shadowbannedOf: shadowbannedAmong });
         expect(eventStore.saveSetupDraft).toHaveBeenCalledWith("eh-kara", proposal, { createdBy: "auto", now: NOW });
         expect(reminderStore.getSent("eh-kara")).toEqual({ autoSuggest: NOW });
         expect(reminders.runAutoSuggest({ now: NOW + 5 * 60 * 1000 })).toEqual({ drafted: [], failed: 0 });
