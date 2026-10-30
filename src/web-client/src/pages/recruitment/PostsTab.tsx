@@ -96,13 +96,30 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                 {posts.map((p) => {
                                     const ch = channelOf(p.channelId);
                                     const tpl = templateName(p.templateId);
+                                    // A forum post: its title is the name, the forum it is in comes under it.
+                                    const name = p.parentChannelId
+                                        ? (p.forumTitle || p.channelName || p.channelId)
+                                        : `#${p.channelName || ch?.name || p.channelId}`;
+                                    const where = p.parentChannelId
+                                        ? t("recruitment.posts.inForum", { forum: p.channelName || p.parentChannelId })
+                                        : (ch?.category || "");
                                     return (
                                         <tr key={p.id} className="rc-row" onClick={() => editor.startEdit(p.id)}>
                                             {/* Cut off rather than wrapped (see recruitment.css) —
                                                 the tooltip keeps the full name readable. */}
-                                            <td data-tip={`#${p.channelName || ch?.name || p.channelId}`} data-tip-sub={ch?.category || undefined}>
-                                                <div className="cname rc-name-tag"><span className="rc-name-text">#{p.channelName || ch?.name || p.channelId}</span><VersionTag versionId={p.versionId} data={data} /></div>
-                                                {ch?.category && <div className="csub">{ch.category}</div>}
+                                            <td data-tip={name} data-tip-sub={where || undefined}>
+                                                <div className="cname rc-name-tag">
+                                                    <span className="rc-name-text">{name}</span>
+                                                    <VersionTag versionId={p.versionId} data={data} />
+                                                </div>
+                                                {/* The link mark sits in the second line, so it never takes room from the name,
+                                                    and leads it, so a cut-off channel name never hides the mark. */}
+                                                {(where || p.buttonKind === "link") && (
+                                                    <div className="csub">
+                                                        {p.buttonKind === "link" && <span className="rc-kind" data-tip={t("recruitment.posts.linkKind")} data-tip-sub={t("recruitment.posts.linkKindSub")}>{t("recruitment.postDialog.kindLink")}</span>}
+                                                        {where}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td><WantedIcons content={p.content} data={data} /></td>
                                             <td>{tpl ? <div className="cell-cut" data-tip={tpl}>{tpl}</div> : <span className="csub">—</span>}</td>

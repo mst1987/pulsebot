@@ -49,6 +49,8 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
     if (pathname === "/history/event") return tr("shell.crumb.eventLoot");
     if (pathname === "/history/char" || pathname === "/roster/char") return search.get("name") || tr("shell.crumb.character");
     if (pathname === "/roster/chars") return tr("shell.crumb.allCharacters");
+    // ?editpost=new is the posting dialog, which opens over any tab
+    if (pathname === "/recruitment" && search.get("editpost") === "new") return tr("shell.crumb.postMessage");
     if (pathname === "/recruitment" && (search.get("view") || "posts") === "posts" && search.get("editpost")) {
         return tr("shell.crumb.editPost");
     }
