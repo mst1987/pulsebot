@@ -69,6 +69,7 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const eventStore = require("../../stores/events/eventStore");
 const availabilityStore = require("../../stores/events/availabilityStore");
+const { scopeCovers } = require("../signups/availabilityScope");
 const overridesStore = require("../../stores/events/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
 const { listAllAssignments } = require("../../stores/roster/raiderCharactersStore");
@@ -131,13 +132,13 @@ function serverDay(seconds) {
     return DateTime.fromSeconds(Number(seconds) || 0, { zone: TIMEZONE }).toFormat("yyyy-MM-dd");
 }
 
-/** The accounts an absence entry (availabilityStore) covers this raid for: its day in the period, its category, not deselected. */
+/** The accounts an absence entry (availabilityStore) covers this raid for: its day in the period, its scope (server + category), not deselected. */
 function vacationIds(entries, ev) {
     const day = serverDay(ev.startTime);
     const out = new Set();
     for (const e of entries) {
         if (day < e.from || day > e.to) continue;
-        if (e.categoryId && String(ev.categoryId) !== e.categoryId) continue;
+        if (!scopeCovers(e, ev)) continue;
         if ((e.skip || []).includes(String(ev.id))) continue;
         out.add(String(e.userId));
     }

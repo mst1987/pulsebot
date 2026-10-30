@@ -323,6 +323,7 @@
   "POST /api/signups/bulk",
   "POST /api/system/backup/snapshot",
   "PUT /api/addon-center",
+  "PUT /api/availability",
   "PUT /api/availability/features",
   "PUT /api/availability/links",
   "PUT /api/kader/assignments",

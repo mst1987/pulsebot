@@ -28,6 +28,11 @@ const { requestModal, requestSummary, waitingSummary } = require("../../utils/si
 const { pickPayload, itemModal, itemIdOfModal } = require("../../utils/signup/guildBankPick");
 const { categoryNameFor } = require("../../services/signups/availabilityPanel");
 const linkCheck = require("../../services/discord/linkCheck");
+const discord = require("../../services/discord/discord");
+const { serverChoices, eventGuildIds } = require("../../services/discord/roles/guildRoles");
+const { firstServerId } = require("../../services/discord/servers/serverOf");
+const { categoryContext, displayServerOf } = require("../../services/categories/categoryGuild");
+const { scopeOf } = require("../../services/signups/availabilityScope");
 const { specLabel } = require("../../utils/i18n/botText");
 const { myRaidPayload, myReportPayload } = require("../../utils/signup/organizerPanel");
 const { appEmojiMap } = require("../../services/discord/appEmojis");
@@ -69,8 +74,28 @@ function versionsFor(categoryId, config) {
     return categoryId ? [mainVersionFor({ categoryId, config })] : visibleVersions(config);
 }
 
+/**
+ * Where an entry counts, as the list shows it: "Server: Category, Category" per
+ * server, "Server" for every category there. An older entry without scope shows
+ * its category, or nothing (it counts everywhere, as before). Names from the
+ * server list and the bot's category cache - no Discord request.
+ */
+function placeText(entry, config) {
+    const scope = scopeOf(entry);
+    if (!scope) return "";
+    const names = Object.fromEntries(serverChoices(config).map((s) => [s.guildId, String(s.name || s.label || s.guildId)]));
+    const catName = (id) => categoryNameFor(id, { config }) || id;
+    // scopeOf never yields a part without both server and categories
+    return scope.map((s) => {
+        const server = s.guildId ? names[s.guildId] || s.guildId : "";
+        const cats = s.categoryIds.map(catName).join(", ");
+        return server && cats ? `${server}: ${cats}` : server || cats;
+    }).join(" · ");
+}
+
 function listFor(userId, categoryId, lang, notice = "") {
-    return listPayload(availability.activeEntries(userId), { categoryId, notice, lang });
+    const config = settingsStore.getConfig();
+    return listPayload(availability.activeEntries(userId), { categoryId, notice, lang, placeOf: (e) => placeText(e, config) });
 }
 
 /** "Enter attendance" without a character of the version: say so and link the profile. */
@@ -106,18 +131,27 @@ async function onModal(interaction, kind, categoryId, lang) {
         return interaction.reply(answerPayload(`⚠️ ${text}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
     }
     const input = { kind, from: period.from, to: period.to, categoryId, comment: kind === "absence" ? read("reason") : "" };
+    // a panel's category together with its server; without a category the entry
+    // counts on the server the command ran on - never on every server
+    input.scope = categoryId
+        ? [{ guildId: displayServerOf(categoryId, categoryContext(config)), categoryIds: [categoryId] }]
+        : await commandScope(interaction, uid, config);
     let pick = null;
     if (kind === "presence") {
         const versions = versionsFor(categoryId, config);
         pick = defaultCharacter(profiles.getProfile(uid), versions[0], versions);
         if (!pick) return ephemeral(interaction, noCharacterPayload(lang));
-        Object.assign(input, { character: pick.key, spec: pick.spec });
+        Object.assign(input, { characters: [{ character: pick.key, spec: pick.spec }] });
     }
-    const checked = availability.checkInput(uid, input);
+    const checked = availability.checkInput(uid, input, { config });
     if (checked.error) return interaction.reply(answerPayload(`⚠️ ${serviceText(lang, checked.error)}`, { lang, components: [retryButton(kind, categoryId, lang)] }));
     // every category (/availability): the raids of categories the raider is no raider of are not offered at all
     const hidden = categoryId ? [] : await availability.foreignRaids(uid, checked.value, { config });
-    const session = { ...checked.value, characterKey: pick ? pick.key : "", hidden };
+    // the picker shows and changes one character: its fields beside the entry's list
+    const first = checked.value.characters[0];
+    const one = first ? { character: first.character, spec: first.spec, versionId: first.versionId } : {};
+    // categoryId stays the panel's: the picker's versions and the raid hub's switches hang on it
+    const session = { ...checked.value, ...one, categoryId, characterKey: pick ? pick.key : "", hidden };
     const token = createSession(uid, session);
     return ephemeral(interaction, picker(token, getSession(token, uid), config, lang));
 }
@@ -148,6 +182,24 @@ async function onGuildBankModal(interaction, categoryId, config, lang) {
 
 /** The server an interaction ran on (#924: the guild bank channel is per server). */
 const guildOf = (interaction) => String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
+
+/**
+ * Where an entry without a category counts: the server the command or button ran
+ * on. In a DM (or on a server outside the server list) it counts on every configured server
+ * the raider is a member of (an unknown membership keeps the server, as in the
+ * web dialog) - and when that leaves none, on the first server, so the entry is
+ * never without scope.
+ */
+async function commandScope(interaction, userId, config) {
+    const here = guildOf(interaction);
+    const servers = eventGuildIds(config);
+    // a server outside the server list is treated like a DM (the check would refuse it)
+    if (here && servers.includes(here)) return [{ guildId: here, categoryIds: [] }];
+    const member = await Promise.all(servers.map((g) => discord.guildMembership(g, userId)));
+    const mine = servers.filter((_, i) => member[i] !== false);
+    const list = mine.length ? mine : [firstServerId(config)].filter(Boolean);
+    return list.map((guildId) => ({ guildId, categoryIds: [] }));
+}
 
 /** The guild bank offer for an organizer click: the clicked server's bank first, then the other servers'. */
 const offerOf = (interaction, categoryId, config) => guildBank.offerFor({ guildIds: [interaction.guildId], categoryId, config });
@@ -278,7 +330,11 @@ async function onPicker(interaction, token, action, lang) {
             .find((o) => o.key === key && o.spec === spec);
         if (option) {
             const changedVersion = option.versionId !== session.versionId;
-            Object.assign(session, { character: option.character, characterKey: option.key, spec: option.spec, versionId: option.versionId });
+            Object.assign(session, {
+                character: option.character, characterKey: option.key, spec: option.spec, versionId: option.versionId,
+                // the one character the Discord picker carries (the web dialog takes several)
+                characters: [{ character: option.character, spec: option.spec, versionId: option.versionId }],
+            });
             // another game version has other raids: start from all of them again
             if (changedVersion) session.selected = null;
             saveSession(token, session);
@@ -292,7 +348,11 @@ async function onPicker(interaction, token, action, lang) {
     }
     if (action === "save") {
         await interaction.deferUpdate();
-        const input = { ...session, character: session.characterKey || session.character };
+        const input = { ...session };
+        if (session.kind === "presence") {
+            const first = (session.characters || [])[0] || {};
+            input.characters = [{ character: session.characterKey || first.character || session.character, spec: session.spec || first.spec }];
+        }
         // nothing picked by hand = every raid offered (the hidden ones of other categories stay out)
         const eventIds = session.selected || ((session.hidden || []).length ? offeredRaids(session, config).map((e) => e.id) : undefined);
         const result = await availability.createEntry(uid, input, { eventIds, config, via: "panel" });

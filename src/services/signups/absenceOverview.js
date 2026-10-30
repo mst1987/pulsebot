@@ -32,6 +32,7 @@ const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
+const { scopeCovers, scopeOf, charactersOf } = require("./availabilityScope");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -95,11 +96,18 @@ function categoryNameOf(categoryId, categoryNames, events = []) {
     return hit ? str(hit.categoryName) : "";
 }
 
-/** Whether an entry covers a raid: its day and, for an entry of one category, that category. */
+/** Whether an entry covers a raid: its day and its scope (server + category, availabilityScope.js). */
 function entryCovers(entry, event) {
     const day = dayOf(event.startTime);
     if (day < entry.from || day > entry.to) return false;
-    return !entry.categoryId || entry.categoryId === str(event.categoryId);
+    return scopeCovers(entry, event);
+}
+
+/** The categories an entry names, or null when it covers every category of a server (or every raid). */
+function entryCategories(entry) {
+    const scope = scopeOf(entry);
+    if (!scope || scope.some((s) => !s.categoryIds.length)) return null;
+    return [...new Set(scope.flatMap((s) => s.categoryIds))];
 }
 
 /** What a raider plays, as the overview shows them: the signup's first character, else the profile's first. */
@@ -169,6 +177,7 @@ function latestSignup(userId, raids, signups) {
 
 function periodView(entry, { withReasons, categoryNames, now }) {
     const today = todayOf(now);
+    const cats = entryCategories(entry);
     return {
         id: entry.id,
         kind: entry.kind,
@@ -176,8 +185,9 @@ function periodView(entry, { withReasons, categoryNames, now }) {
         to: entry.to,
         days: lengthOf(entry.from, entry.to),
         comment: withReasons ? entry.comment : "",
-        categoryId: entry.categoryId,
-        categoryName: entry.categoryId ? (categoryNames[entry.categoryId] || "") : "",
+        // one named category keeps the older single fields; several are joined, "every" leaves them empty
+        categoryId: cats && cats.length === 1 ? cats[0] : "",
+        categoryName: cats ? cats.map((id) => categoryNames[id] || "").filter(Boolean).join(", ") : "",
         byOrga: !!entry.createdBy && entry.createdBy !== entry.userId,
         state: entry.to < today ? "past" : entry.from > today ? "planned" : "running",
     };
@@ -261,8 +271,11 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.
 
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
-        .filter((e) => !e.categoryId || inPick(e.categoryId))
-        .filter((e) => !e.categoryId || inOverview(cfg, e.categoryId));
+        .filter((e) => {
+            // an entry of named categories shows when one of them is picked and in the overview
+            const cats = entryCategories(e);
+            return !cats || cats.some((id) => inPick(id) && inOverview(cfg, id));
+        });
     // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
     const allRaids = raidsBetween(from, to, { config: cfg, versionId: version });
     const raids = allRaids.filter((e) => inPick(e.categoryId));
@@ -364,7 +377,7 @@ function raiderDetail(userId, { versionId = "", now = Date.now(), config, withRe
     const cats = activeCategories(cfg);
     const entries = store.listEntries({ userId: uid }).map((e) => {
         const applied = Object.values(e.applied || {});
-        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec };
+        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec, characters: charactersOf(e) };
     }).sort((a, b) => b.from.localeCompare(a.from));
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)

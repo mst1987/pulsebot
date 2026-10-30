@@ -97,6 +97,10 @@ const RULES = [
     [/^Der Schalter „(.+)“ muss an oder aus sein\.$/, "The switch “$1” must be on or off."],
     [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
     [/^Eintrag nicht gefunden\.$/, "Entry not found."],
+    [/^Diesen Eintrag gibt es nicht \(mehr\)\.$/, "This entry does not exist (any more)."],
+    [/^Bitte mindestens einen Server oder eine Kategorie wählen\.$/, "Pick at least one server or category."],
+    [/^Diesen Server gibt es hier nicht\.$/, "There is no such server here."],
+    [/^Die Kategorie gehört nicht zu diesem Server\.$/, "The category does not belong to this server."],
     // services/signups/guildBank.js + stores/loot/guildBankStore.js (guild bank requests)
     [/^Die Gildenbank ist gerade nicht eingerichtet\.$/, "The guild bank is not set up right now."],
     [/^Bitte angeben, was du brauchst\.$/, "Please say what you need."],

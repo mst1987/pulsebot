@@ -6,9 +6,14 @@
 // `data/settings/availability.json` = { entries: [entry], panels: [panel] }
 //
 //   entry = { id, userId, kind: "absence" | "presence", from, to ("yyyy-MM-dd",
-//             server time, both days included), categoryId ("" = every raid
-//             category), comment (absence), character, spec, versionId
-//             (presence: the character the raids are signed up with), skip
+//             server time, both days included), scope ([{ guildId, categoryIds }]:
+//             the servers it holds for, `categoryIds` [] = every category of that
+//             server; services/signups/availabilityScope.js reads it), categoryId
+//             (older entries without scope: that one category, "" = every raid),
+//             comment, characters ([{ character, spec, versionId }], presence:
+//             each raid is signed up with those of its version, in this order, at
+//             most MAX_CHARACTERS), character, spec, versionId (the first of
+//             `characters`; older entries had only these - read as a list of one), skip
 //             (event ids deselected when it was entered), applied ({ [eventId]:
 //             { at, ok, error? } } — every raid it was applied to once, so a
 //             raid is never touched twice), createdBy, createdAt,
@@ -36,6 +41,8 @@ const VIAS = ["panel", "web"];
 const COMMENT_MAX = 100;
 /** How many entries one raider may have at once. */
 const MAX_ENTRIES = 20;
+/** How many characters one attendance may name (over every version). */
+const MAX_CHARACTERS = 12;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Link buttons per category (one Discord action row) and the longest label Discord shows. */
@@ -65,7 +72,42 @@ const useFile = store.useFile;
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const ids = (list) => [...new Set((Array.isArray(list) ? list : []).map(str).filter(Boolean))];
 
+/**
+ * A scope as stored: one part per server (`guildId` required), its categories
+ * without duplicates; two parts of one server are merged ("every category" wins).
+ */
+function scopeList(list) {
+    const parts = new Map();
+    for (const s of Array.isArray(list) ? list : []) {
+        const guildId = str(s && s.guildId);
+        if (!guildId) continue;
+        const cats = ids(s.categoryIds);
+        const had = parts.get(guildId);
+        if (!had) parts.set(guildId, cats);
+        else parts.set(guildId, had.length && cats.length ? ids([...had, ...cats]) : []);
+    }
+    return [...parts].map(([guildId, categoryIds]) => ({ guildId, categoryIds }));
+}
+
+/** An attendance's characters as stored; an older entry's single one becomes the list. */
+function characterList(entry) {
+    const listed = (Array.isArray(entry.characters) ? entry.characters : [])
+        .map((c) => ({ character: str(c && c.character), spec: str(c && c.spec), versionId: str(c && c.versionId) }))
+        .filter((c) => c.character);
+    const seen = new Set();
+    const unique = listed.filter((c) => {
+        const key = `${c.versionId}|${c.character.toLowerCase()}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+    }).slice(0, MAX_CHARACTERS);
+    if (unique.length) return unique;
+    return str(entry.character) ? [{ character: str(entry.character), spec: str(entry.spec), versionId: str(entry.versionId) }] : [];
+}
+
 function complete(entry) {
+    const characters = characterList(entry);
+    const first = characters[0] || { character: "", spec: "", versionId: "" };
     return {
         id: str(entry.id),
         userId: str(entry.userId),
@@ -73,10 +115,13 @@ function complete(entry) {
         from: str(entry.from),
         to: str(entry.to),
         categoryId: str(entry.categoryId),
+        scope: scopeList(entry.scope),
         comment: str(entry.comment).slice(0, COMMENT_MAX),
-        character: str(entry.character),
-        spec: str(entry.spec),
-        versionId: str(entry.versionId),
+        characters,
+        // the first character, as older readers (and older entries) know it
+        character: first.character,
+        spec: first.spec,
+        versionId: first.versionId,
         skip: ids(entry.skip),
         applied: entry.applied && typeof entry.applied === "object" && !Array.isArray(entry.applied) ? { ...entry.applied } : {},
         createdBy: str(entry.createdBy),
@@ -93,7 +138,12 @@ function entryProblem(input) {
     if (!KINDS.includes(input.kind)) return "Unbekannte Art – Abwesenheit oder Anwesenheit.";
     if (!DAY.test(input.from) || !DAY.test(input.to)) return "Bitte ein gültiges Von- und Bis-Datum angeben.";
     if (input.to < input.from) return "Das Bis-Datum liegt vor dem Von-Datum.";
-    if (input.kind === "presence" && (!input.character || !input.spec)) return "Für eine Anwesenheit bitte Charakter und Spec wählen.";
+    if (input.kind === "presence") {
+        const chars = Array.isArray(input.characters) && input.characters.length
+            ? input.characters
+            : [{ character: input.character, spec: input.spec }];
+        if (chars.some((c) => !str(c && c.character) || !str(c && c.spec))) return "Für eine Anwesenheit bitte Charakter und Spec wählen.";
+    }
     return "";
 }
 
@@ -126,6 +176,32 @@ function addEntry(input = {}, { now = Date.now() } = {}) {
     return { entry };
 }
 
+/** The fields an edit may change; who, what kind, when entered and what was applied stay. */
+const EDITABLE = ["from", "to", "comment", "scope", "characters", "categoryId", "skip"];
+
+/**
+ * Change an entry (the raider's or the orga's edit): period, comment, scope,
+ * characters, skipped raids. `applied` stays - a raid it was applied to is never
+ * touched again. A new `scope` replaces an older entry's `categoryId`.
+ * Returns `{ entry }` or `{ error }`.
+ */
+function updateEntry(id, patch = {}) {
+    const data = store.read();
+    const index = data.entries.findIndex((e) => e.id === str(id));
+    if (index < 0) return { error: "Diesen Eintrag gibt es nicht (mehr)." };
+    const old = complete(data.entries[index]);
+    const changes = {};
+    for (const key of EDITABLE) if (patch[key] !== undefined) changes[key] = patch[key];
+    if (changes.scope !== undefined && changes.categoryId === undefined) changes.categoryId = "";
+    if (changes.characters !== undefined) Object.assign(changes, { character: "", spec: "", versionId: "" });
+    const entry = complete({ ...old, ...changes, id: old.id, userId: old.userId, kind: old.kind, applied: old.applied, createdAt: old.createdAt, createdBy: old.createdBy, via: old.via });
+    const problem = entryProblem(entry);
+    if (problem) return { error: problem };
+    data.entries[index] = entry;
+    store.write(data);
+    return { entry };
+}
+
 /** Remove an entry. Returns the removed entry or null. */
 function removeEntry(id) {
     const data = store.read();
@@ -150,12 +226,16 @@ function renameCharacter(userId, nameKey, toName, { versionId = "" } = {}) {
     if (!uid || !from || !name) return 0;
     const data = store.read();
     let changed = 0;
-    for (const e of data.entries) {
-        if (str(e.userId) !== uid || !str(e.character) || str(e.character).toLowerCase().split("-")[0] !== from) continue;
-        if (versionId && str(e.versionId) && str(e.versionId) !== versionId) continue;
-        e.character = name;
+    const same = (c) => str(c.character) && str(c.character).toLowerCase().split("-")[0] === from
+        && !(versionId && str(c.versionId) && str(c.versionId) !== versionId);
+    data.entries.forEach((e, i) => {
+        if (str(e.userId) !== uid) return;
+        const entry = complete(e);
+        if (!entry.characters.some(same)) return;
+        const characters = entry.characters.map((c) => (same(c) ? { ...c, character: name } : c));
+        data.entries[i] = complete({ ...e, characters, character: "" });
         changed += 1;
-    }
+    });
     if (changed) store.write(data);
     return changed;
 }
@@ -359,8 +439,8 @@ function removePanel(categoryId) {
 }
 
 module.exports = {
-    KINDS, VIAS, MAX_ENTRIES, COMMENT_MAX,
-    listEntries, getEntry, addEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
+    KINDS, VIAS, MAX_ENTRIES, MAX_CHARACTERS, COMMENT_MAX,
+    listEntries, getEntry, addEntry, updateEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
     MAX_LINKS, LINK_LABEL_MAX, checkLinks, readLinks, getLinks, listLinks, setLinks,
     FEATURE_KEYS, readFeatures, checkFeatures, mergeFeatures, getFeatures, listFeatures, setFeatures,

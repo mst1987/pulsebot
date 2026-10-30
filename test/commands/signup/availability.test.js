@@ -11,6 +11,10 @@ jest.mock("../../../src/stores/settings/settingsStore", () => require("../../hel
 jest.mock("../../../src/services/discord/discord", () => ({
     ...require("../../helpers/signupMocks").discord(),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm" })),
+    // the DM fallback of /availability asks which servers the raider is on
+    guildMembership: jest.fn(async () => true),
+    // server names for "My entries" (from the bot's cache, no request)
+    getGuild: jest.fn((id) => (id === "g1" ? { name: "Pulse", iconURL: () => "" } : null)),
     // the guild bank's orga post
     postPayload: jest.fn(async () => ({ guildId: "g1", channelId: "900000", messageId: "m-bank", url: "" })),
 }));
@@ -113,7 +117,7 @@ describe("Abwesenheit", () => {
         expect(mocks.signups.get(`eh-b/${ANNA}`)).toMatchObject({ status: "absence", comment: "Urlaub" });
         expect(mocks.signups.get(`eh-a/${ANNA}`)).toBeUndefined();
         expect(mocks.signups.get(`eh-c/${ANNA}`)).toBeUndefined();
-        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ categoryId: "cat1", skip: ["eh-a"], via: "panel" });
+        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ scope: [{ guildId: "g1", categoryIds: ["cat1"] }], skip: ["eh-a"], via: "panel" });
         expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
 
         // the session is over
@@ -138,6 +142,47 @@ describe("Abwesenheit", () => {
         await command.execute(cancel);
         expect(answerOf(cancel.update.mock.calls[0][0]).description).toContain("nothing was saved");
         expect(store.listEntries()).toEqual([]);
+    });
+});
+
+describe("Geltungsbereich je Server", () => {
+    const TWO = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" }, g2: { botLanguage: "en" } }, discordServers: { servers: [{ guildId: "g1", label: "Pulse" }, { guildId: "g2", label: "PuGs" }] } };
+    const absent = () => submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" });
+    const saveFrom = async (modal) => {
+        await command.execute(modal);
+        const save = click(`availability:${tokenOf(replyPayload(modal))}:save`);
+        await command.execute(save);
+        return store.listEntries({ userId: ANNA })[0];
+    };
+    afterEach(() => discord.guildMembership.mockReset().mockImplementation(async () => true));
+
+    it("/availability ohne Kategorie gilt auf dem Server, auf dem der Befehl lief", async () => {
+        mocks.access.config = TWO;
+        const modal = mockInteraction({ customId: "availability:ma:", userId: ANNA, modal: true, options: { from: dayPlus(0), to: dayPlus(5) }, guild: { id: "g2" } });
+        const entry = await saveFrom(modal);
+        expect(entry.scope).toEqual([{ guildId: "g2", categoryIds: [] }]);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("im DM: jeder Server mit Mitgliedschaft (unbekannt bleibt drin), sonst der erste Server", async () => {
+        mocks.access.config = TWO;
+        discord.guildMembership.mockImplementation(async (g) => (g === "g1" ? false : null));
+        const dm = mockInteraction({ customId: "availability:ma:", userId: ANNA, modal: true, options: { from: dayPlus(0), to: dayPlus(5) }, guild: null });
+        dm.guild = null;
+        expect((await saveFrom(dm)).scope).toEqual([{ guildId: "g2", categoryIds: [] }]);
+
+        store.removeEntry(store.listEntries({ userId: ANNA })[0].id);
+        discord.guildMembership.mockImplementation(async () => false);
+        const none = mockInteraction({ customId: "availability:ma:", userId: ANNA, modal: true, options: { from: dayPlus(0), to: dayPlus(5) } });
+        none.guild = null;
+        expect((await saveFrom(none)).scope).toEqual([{ guildId: "g1", categoryIds: [] }]);
+    });
+
+    it("ein Server außerhalb der Serverliste zählt wie ein DM", async () => {
+        // mockInteraction's guild-1 is not configured
+        const entry = await saveFrom(absent());
+        expect(entry.scope).toEqual([{ guildId: "g1", categoryIds: [] }]);
+        expect(discord.guildMembership).toHaveBeenCalledWith("g1", ANNA);
     });
 });
 
@@ -187,7 +232,7 @@ describe("Deutsch als Standard", () => {
 
 describe("Meine Einträge", () => {
     it("listet die Einträge und löscht einen über die Auswahl", async () => {
-        const { entry } = await availability.createEntry(ANNA, { kind: "absence", from: dayPlus(10), to: dayPlus(12), comment: "Kur" }, { dm: false });
+        const { entry } = await availability.createEntry(ANNA, { kind: "absence", from: dayPlus(10), to: dayPlus(12), comment: "Kur", scope: [{ guildId: "g1", categoryIds: [] }] }, { dm: false });
         const list = click("availability:l:cat1");
         await command.execute(list);
         const payload = replyPayload(list);
@@ -198,6 +243,20 @@ describe("Meine Einträge", () => {
         await command.execute(del);
         expect(answerOf(del.update.mock.calls[0][0]).description).toContain("Entry deleted.");
         expect(store.listEntries()).toEqual([]);
+    });
+
+    it("nennt Server und Kategorien des Eintrags und alle Charaktere einer Anwesenheit", async () => {
+        withCharacters();
+        mocks.access.config = { ...mocks.access.config, discordServers: { servers: [{ guildId: "g1", label: "Pulse" }] } };
+        await availability.createEntry(ANNA, {
+            kind: "presence", from: dayPlus(10), to: dayPlus(12), scope: [{ guildId: "g1", categoryIds: [] }],
+            characters: [{ character: "zibbo", spec: "Priest-Holy" }, { character: "zibbowar", spec: "Warrior-Protection" }],
+        }, { dm: false });
+        const list = click("availability:l:");
+        await command.execute(list);
+        const text = answerOf(replyPayload(list)).description;
+        expect(text).toContain("Pulse");
+        expect(text).toMatch(/Zibbo · Holy.*Zibbowar · Protection/);
     });
 
     it("aus der eigenen (ephemeren) Liste heraus wird die Nachricht ersetzt", async () => {

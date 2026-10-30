@@ -176,6 +176,27 @@ describe("buildOverview", () => {
         expect(view.hints[0]).toMatchObject({ character: "often", spec: "Paladin-Protection", role: "tank", classId: "Paladin" });
         expect(view.hints[0]).not.toHaveProperty("signup");
     });
+
+    it("covers only the raids of the entry's server - a raid on another server stays a single sign-off", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        signup("eh-a", "u1", "absence");
+        signup("eh-b", "u1", "absence");
+        entry("u1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        const view = overview.buildOverview({ now: NOW });
+        const row = view.raiders.find((r) => r.userId === "u1");
+        expect(row.singles.map((s) => s.eventId)).toEqual(["eh-b"]);
+        expect(row.periods[0]).toMatchObject({ categoryId: "", categoryName: "" });
+    });
+
+    it("shows an entry of several categories when one of them is picked, named with all of them", () => {
+        entry("u1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["mon", "wed"] }] });
+        entry("u2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["wed"] }] });
+        const view = overview.buildOverview({ now: NOW, categoryId: "mon", categoryNames: { mon: "Montag", wed: "Mittwoch" } });
+        expect(view.raiders.map((r) => r.userId)).toEqual(["u1"]);
+        expect(view.raiders[0].periods[0]).toMatchObject({ categoryId: "", categoryName: "Montag, Mittwoch" });
+    });
 });
 
 describe("raiderDetail", () => {
@@ -189,7 +210,7 @@ describe("raiderDetail", () => {
         const e = entry("u1", "2030-03-25", "2030-04-05");
         store.markApplied(e.id, "eh-x", { ok: true }, { now: NOW });
         const detail = overview.raiderDetail("u1", { now: NOW, withReasons: true });
-        expect(detail.entries).toEqual([expect.objectContaining({ from: "2030-03-25", days: 12, done: 1, state: "planned", comment: "Urlaub" })]);
+        expect(detail.entries).toEqual([expect.objectContaining({ from: "2030-03-25", days: 12, done: 1, state: "planned", comment: "Urlaub", characters: [] })]);
         // eh-other is a category u1 never raided in
         expect(detail.history.map((h) => [h.eventId, h.status])).toEqual([["eh-0", "in"], ["eh-1", "off"], ["eh-2", "none"], ["eh-3", "in"]]);
         expect(detail.counts).toEqual({ in: 2, off: 1, none: 1, other: 0 });
