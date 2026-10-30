@@ -170,8 +170,10 @@ function serverHasLeaders(guildId, versionId, instanceIds, allLeads, { known, ca
         const e = eventStore.getEvent(id);
         return !!e && String(e.guildId || "") === String(guildId) && (Number(e.startTime) || 0) >= nowSec;
     };
-    const has = flagged.some((u) => known.has(u))
-        || flagged.some((u) => Object.keys(signupStore.signupsOfUser(u)).some(upcomingHere));
+    // a sign-off ("absence") is no signup: it keeps the rule off
+    const signedUpHere = (u) => Object.entries(signupStore.signupsOfUser(u))
+        .some(([id, s]) => (s && s.status) !== "absence" && upcomingHere(id));
+    const has = flagged.some((u) => known.has(u)) || flagged.some(signedUpHere);
     cache.set(key, has);
     return has;
 }

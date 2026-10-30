@@ -162,6 +162,13 @@ describe("the leader in the setup editor (#1036)", () => {
         expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
     });
 
+    it("no rule when the flag holder only signed off from an upcoming event of the server", () => {
+        mockLeads = { outsider: flag };
+        mockEvents.set("eh-off", { id: "eh-off", guildId: "g1", title: "Kara", startTime: 2000000000 });
+        mockSignupsOf = { outsider: { "eh-off": { status: "absence" } } };
+        expect(editor.proposeEventSetup(ID).setup.checks.leader).toBeUndefined();
+    });
+
     it("no rule when the only flag on the server is for another instance (Gruul flag, Kara raid)", () => {
         mockLeads = { frost: { tbc: { instances: ["gruul"], by: "x", at: 1 } } };
         const { setup } = editor.proposeEventSetup(ID);
