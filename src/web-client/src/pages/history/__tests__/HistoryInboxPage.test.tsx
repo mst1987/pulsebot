@@ -129,6 +129,17 @@ describe("HistoryInboxPage: Wartet auf Zuordnung", () => {
         expect(await screen.findByRole("status")).toHaveTextContent(/Inzwischen verworfen/);
     });
 
+    it("says plainly when the raid of the other server is gone or has no category", async () => {
+        vi.mocked(api.acceptLootInbox).mockRejectedValueOnce({ code: "event_gone", message: "gone" });
+        renderPage(<HistoryInboxPage />, { route: "/history/inbox" });
+        fireEvent.click(await screen.findByRole("button", { name: /BT Donnerstag zuordnen/ }));
+        expect(await screen.findByRole("status")).toHaveTextContent(/gibt es auf dem anderen Server nicht mehr/);
+
+        vi.mocked(api.acceptLootInbox).mockRejectedValueOnce({ code: "no_category", message: "none" });
+        fireEvent.click(await screen.findByRole("button", { name: /BT Donnerstag zuordnen/ }));
+        expect(await screen.findByText(/in keiner Kategorie/)).toBeInTheDocument();
+    });
+
     it("lets a full admin assign a raid of another server when the API allows it", async () => {
         const both = waitingUpload();
         both.candidates[1] = { ...both.candidates[1], assignable: true };

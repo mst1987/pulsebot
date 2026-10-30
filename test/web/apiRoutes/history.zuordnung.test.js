@@ -49,7 +49,14 @@ const eventStore = require("../../../src/stores/eventStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { get, post } = routerClient(require("../../../src/web/apiRoutes/history"));
 
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+
+/** The raid groups one server answers with; every other server has none. */
+function raidsOn(guildId, groups) {
+    loadEventGroups.mockImplementation(async (id) => ({ groups: id === guildId ? groups : [] }));
+}
 const DAY = 24 * 60 * 60 * 1000;
 
 const item = (rawId, character) => ({
@@ -72,6 +79,7 @@ beforeEach(() => {
     eventStore.useFile(tempStoreFile("events.json"));
     mockGuild = "gA";
     getUser.mockReturnValue(ADMIN);
+    loadEventGroups.mockImplementation(async () => ({ groups: [] }));
 });
 
 afterAll(() => {
@@ -148,10 +156,33 @@ describe("first to assign wins", () => {
         expect(inbox.getPending(entry.id)).not.toBeNull();
 
         getUser.mockReturnValue(ADMIN);
-        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "evB" });
+        raidsOn("gB", [{ categoryId: "catB", events: [{ id: "evB", title: "Kara B" }] }]);
+        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "evB", categoryId: "catA" });
         expect(status(res)).toBe(201);
-        expect(inbox.resolvedById(entry.id)).toMatchObject({ action: "accepted" });
-        expect(lootStore.listByEvent("evB").map((i) => i.guildId)).toEqual(["gB"]);
+        expect(json(res).data).toMatchObject({ eventId: "evB", eventLabel: "Kara B", categoryId: "catB" });
+        expect(loadEventGroups).toHaveBeenCalledWith("gB", expect.anything());
+        expect(inbox.resolvedById(entry.id)).toMatchObject({ action: "accepted", categoryId: "catB", guildId: "gB" });
+        expect(lootStore.listByEvent("evB").map((i) => [i.guildId, i.categoryId])).toEqual([["gB", "catB"]]);
+    });
+
+    it("refuses a foreign raid that was deleted after the upload, and keeps the upload waiting", async () => {
+        const entry = waitingUpload();
+        raidsOn("gB", [{ categoryId: "catB", events: [{ id: "evOther" }] }]);
+        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "evB" });
+        expect(status(res)).toBe(404);
+        expect(json(res).error.code).toBe("event_gone");
+        expect(inbox.getPending(entry.id)).not.toBeNull();
+        expect(lootStore.listByEvent("evB")).toEqual([]);
+    });
+
+    it("never files a foreign raid under the active server's category", async () => {
+        const entry = waitingUpload();
+        raidsOn("gB", [{ categoryId: "", events: [{ id: "evB" }] }]);
+        const res = await post("/api/history/inbox-accept", { id: entry.id, event: "evB", categoryId: "catA" });
+        expect(status(res)).toBe(409);
+        expect(json(res).error.code).toBe("no_category");
+        expect(inbox.getPending(entry.id)).not.toBeNull();
+        expect(lootStore.listByEvent("evB")).toEqual([]);
     });
 
     it("refuses the upload on a server it does not wait for", async () => {

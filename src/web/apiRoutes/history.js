@@ -719,6 +719,8 @@ function waitingBanksFor(guildId, versionId, names, cfg = undefined) {
 const GONE = "Diese Session liegt nicht mehr in der Inbox.";
 const TAKEN = "Diese Session hat schon ein anderer Server zugeordnet.";
 const DISMISSED = "Dieser Upload wurde inzwischen verworfen.";
+const EVENT_GONE = "Diesen Raid gibt es auf dem anderen Server nicht mehr.";
+const NO_CATEGORY = "Dieser Raid liegt auf dem anderen Server in keiner Kategorie.";
 
 /** Why a card left the inbox: 409 for the first decision taken elsewhere, else 404. */
 function goneAnswer(res, id) {
@@ -731,18 +733,29 @@ function goneAnswer(res, id) {
 /**
  * The candidate raid of a waiting upload on another server than the active one,
  * when a full admin picks it (#1002, like the banks #926): it is filed under
- * that raid and server as the upload's own candidate list names them. null for
- * anything else - the active server's raids go through resolveImportTarget; a
- * 403 for anyone but a full admin.
+ * that raid and server. The candidate list only names it: the raid itself is
+ * looked up on that server again (it may have been deleted since the upload), and
+ * its category comes from there - never the active server's. null for anything
+ * else - the active server's raids go through resolveImportTarget; a 403 for
+ * anyone but a full admin, a 404 for a raid that is gone, a 409 for one without
+ * a category.
  */
-function foreignCandidate(user, entry, eventId, active) {
+async function foreignCandidate(user, entry, eventId, active) {
     if (!entry.waiting || !eventId) return null;
     const list = entry.match && Array.isArray(entry.match.candidates) ? entry.match.candidates : [];
     const hit = list.find((c) => c && String(c.eventId) === eventId);
     if (!hit || !hit.guildId || String(hit.guildId) === String(active)) return null;
     // Everyone else only assigns the raids of the server they work on (#919).
     if (!user || !user.isAdmin) return { error: OTHER_SERVER, status: 403, code: "other_server" };
-    return { eventId: String(hit.eventId), eventLabel: hit.eventLabel || String(hit.eventId), categoryId: hit.categoryId || "", guildId: String(hit.guildId) };
+    const guildId = String(hit.guildId);
+    const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    for (const g of groups || []) {
+        const ev = (g.events || []).find((e) => e && String(e.id) === String(hit.eventId));
+        if (!ev) continue;
+        if (!g.categoryId) return { error: NO_CATEGORY, status: 409, code: "no_category" };
+        return { eventId: String(ev.id), eventLabel: ev.title || hit.eventLabel || String(ev.id), categoryId: String(g.categoryId), guildId };
+    }
+    return { error: EVENT_GONE, status: 404, code: "event_gone" };
 }
 
 /**
@@ -766,7 +779,8 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ user, body
     // fall back to re-matching by date when there was none.
     const suggested = entry.match && entry.match.suggested ? entry.match.suggested.eventId : "";
     const asked = String(body.event || "").trim();
-    const target = foreignCandidate(user, entry, asked, activeGuildFor(req)) || await resolveImportTarget(req, {
+    const foreign = await foreignCandidate(user, entry, asked, activeGuildFor(req));
+    const target = foreign || await resolveImportTarget(req, {
         event: asked || suggested || "__auto__",
         manualLabel: body.manualLabel,
         items: entry.items,
@@ -779,7 +793,8 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ user, body
     // meanwhile. From here on everything runs without a pause, so exactly one decision wins.
     if (!getPendingSession(entry.id)) return goneAnswer(res, entry.id);
 
-    const categoryId = target.categoryId || picked.id;
+    // A foreign raid keeps its own server's category; the picked one belongs to the active server.
+    const categoryId = foreign ? target.categoryId : (target.categoryId || picked.id);
     linkItemsForImport(entry.items, { eventId: target.eventId, categoryId });
     const { added, skipped } = addLootImport(target.eventId, entry.items, {
         categoryId,

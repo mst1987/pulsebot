@@ -95,6 +95,9 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
         const e = err as ApiError;
         if (e.code === "already_assigned") return t("history.waiting.taken");
         if (e.code === "already_dismissed") return t("history.waiting.dismissedMeanwhile");
+        // A raid of another server (full admins only) deleted since the upload, or without a category there.
+        if (e.code === "event_gone") return t("history.waiting.eventGone");
+        if (e.code === "no_category") return t("history.waiting.noCategory");
         return e.message;
     };
 
