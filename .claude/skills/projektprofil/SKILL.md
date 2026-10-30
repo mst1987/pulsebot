@@ -112,7 +112,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 - Versionen nebeneinander: TBC Anniversary (Thunderstrike EU), Classic Era, WoW Forever — Regelsätze
   in `src/config/gameVersions/`, Modell und Trennung in `docs/game-versions.md`.
 - Quellen: Wowhead-Tooltip-API, Warcraft Logs (`fresh.warcraftlogs.com`; Encounter-IDs der
-  Anniversary-Raids versetzt, `config/bosses.js` `baseEncounterId()`), Blizzard-API Namespace
+  Anniversary-Raids versetzt, `config/data/bosses.js` `baseEncounterId()`), Blizzard-API Namespace
   `profile-classicann-eu`. classic-armory.org nur als Link (kein Scraping).
 - Generierte Daten in `src/config/generated/` nie von Hand ändern — Generatoren in `scripts/`
   (`scripts/README.md`).

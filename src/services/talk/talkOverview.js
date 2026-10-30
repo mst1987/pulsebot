@@ -47,7 +47,7 @@ const { getConfig } = require("../../stores/settingsStore");
 const { versionOfEvent, isVersionVisible } = require("../events/mainVersion");
 const { versionShort } = require("../events/versionTag");
 const { VERSIONS, instanceById } = require("../../config/gameVersions");
-const { entryForSpec } = require("../../config/classlist");
+const { entryForSpec } = require("../../config/data/classlist");
 const { onSignupsChanged } = require("../../stores/signupStore");
 const {
     getOverviewState, setOverviewState, overviewKeys, listOverviewKeys, removeOverviewState,

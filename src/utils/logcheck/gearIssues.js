@@ -1,4 +1,4 @@
-const data = require("../../config/claData");
+const data = require("../../config/data/claData");
 const { selectPlayers } = require("./common");
 
 // WCL/WoW equip slot index -> human name

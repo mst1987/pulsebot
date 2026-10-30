@@ -1,5 +1,5 @@
-const classlist = require("../../src/config/classlist");
-const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES } = require("../../src/config/gameVersions/classes");
+const classlist = require("../../../src/config/data/classlist");
+const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES, ROLES } = require("../../../src/config/gameVersions/classes");
 
 const ALL_CLASSES = [...CLASSES, ...RAID_HELPER_ONLY_CLASSES];
 
@@ -88,15 +88,15 @@ describe("config/classlist", () => {
 
     it("refuses an alias whose key the class table does not describe", () => {
         jest.isolateModules(() => {
-            jest.doMock("../../src/config/gameVersions/classes", () => {
-                const actual = jest.requireActual("../../src/config/gameVersions/classes");
+            jest.doMock("../../../src/config/gameVersions/classes", () => {
+                const actual = jest.requireActual("../../../src/config/gameVersions/classes");
                 const names = { ...actual.RAID_HELPER_NAMES };
                 delete names["Paladin-Holy"];
                 return { ...actual, RAID_HELPER_NAMES: names };
             });
-            expect(() => require("../../src/config/classlist")).toThrow("classlist: unknown key Paladin-Holy for Holy1");
+            expect(() => require("../../../src/config/data/classlist")).toThrow("classlist: unknown key Paladin-Holy for Holy1");
         });
-        jest.dontMock("../../src/config/gameVersions/classes");
+        jest.dontMock("../../../src/config/gameVersions/classes");
     });
 
     it("freezes its entries", () => {

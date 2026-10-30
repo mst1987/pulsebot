@@ -15,4 +15,4 @@
 //   SHADOW_RESISTANCE       itemId -> shadow resistance (the Mother Shahraz check)
 //   CONSUMABLES             consumable buff spell GUIDs per category (master config sheet)
 
-module.exports = require("./generated/claData.json");
+module.exports = require("../generated/claData.json");

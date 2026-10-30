@@ -2,7 +2,8 @@
 .env.dev
 node_modules
 logs/
-data/
+# runtime data at the repo root only (src/config/data/ is checked-in game data)
+/data/
 scripts/data-sources/cla/appsscript/
 scripts/data-sources/rpb/appsscript/
 service-account.json

@@ -1,7 +1,7 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
-const { getClass } = require("../../config/applyClasses");
+const { getClass } = require("../../config/data/applyClasses");
 
 module.exports = {
     name: "apply-class",

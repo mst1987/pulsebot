@@ -21,7 +21,7 @@
 // What is expected comes from the roster of that fight, never from a fixed
 // list: no paladin means no blessing is missing, one paladin means one
 // blessing per player, and which one follows the player's role (Might on the
-// warrior, Wisdom on the priest — see config/raidBuffs.js).
+// warrior, Wisdom on the priest — see config/data/raidBuffs.js).
 //
 // Source of the bands: WCL's buffs table with `sourceid` set to the player.
 // For the buffs/debuffs tables WCL's "source" is the unit the aura is ON —
@@ -37,7 +37,7 @@
 // removes or refreshes on a player was on them before; a death that strips
 // every other buff but not this one proves it was missing; a player with
 // neither is `unknown`, never `none`.
-const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings } = require("../../config/raidBuffs");
+const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings } = require("../../config/data/raidBuffs");
 const { roleForClass } = require("./rpb/common");
 const { clipBands, mergeBands, gapsBetween } = require("./fightTimeline");
 
@@ -406,7 +406,7 @@ function majorityBuffs(roster, judged, cells) {
 }
 
 /**
- * What a buff's `expect` kind means for one player (config/raidBuffs.js).
+ * What a buff's `expect` kind means for one player (config/data/raidBuffs.js).
  * `class`: expected where it fits and its class raided; `majority`: where it
  * fits and the raid used it; `blessing`: the slots are counted apart
  * (addBlessingSlots), here only a blessing on a role it does not fit is wrong

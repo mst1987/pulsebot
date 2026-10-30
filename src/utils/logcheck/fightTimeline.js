@@ -8,7 +8,7 @@
 //
 // All times are milliseconds relative to the fight's start, clipped to the
 // fight. Bands are `[from, to]` pairs.
-const { contentForBoss } = require("../../config/raidContent");
+const { contentForBoss } = require("../../config/data/raidContent");
 
 /**
  * Turn WCL aura bands (`{ startTime, endTime }`, absolute report time) or plain

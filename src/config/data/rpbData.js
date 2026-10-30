@@ -18,4 +18,4 @@
 // Entry shape: { name, label (German), ids: [spellId], icon?, lowerRankIds?, castTime?,
 //                cooldown?, uptimeSeconds?, isUptime?, isOverheal? }
 
-module.exports = require("./generated/rpbData.json");
+module.exports = require("../generated/rpbData.json");

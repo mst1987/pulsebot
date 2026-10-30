@@ -19,7 +19,7 @@
 // through versionLinks() and linkCheck.externalLink (#539), so a half-filled
 // template yields no link rather than a broken one.
 const { rulesFor } = require("../../config/gameVersions");
-const { wowheadItemId } = require("../../config/wowheadItemAliases");
+const { wowheadItemId } = require("../../config/data/wowheadItemAliases");
 const schema = require("../../stores/versionSettingsSchema");
 const { knownVersion, mainVersionFor } = require("./mainVersion");
 const { externalLink } = require("../discord/linkCheck");

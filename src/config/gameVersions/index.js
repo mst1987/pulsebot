@@ -8,7 +8,7 @@
 // Instance ids are unique across every version, so `instanceById()` needs no
 // version and a stored id stays unambiguous.
 
-const { normalizeBoss } = require("../tbcContent");
+const { normalizeBoss } = require("../data/tbcContent");
 const { ROLES, ROLE_LABELS } = require("./classes");
 const tbc = require("./tbc");
 const classic = require("./classic");
@@ -135,7 +135,7 @@ function bossesOf(id) {
 }
 
 // Boss and zone lookups for the non-TBC versions. TBC has its own, richer ones
-// in tbcContent.js (loot table, instance patterns); config/raidContent.js asks
+// in tbcContent.js (loot table, instance patterns); config/data/raidContent.js asks
 // the right one for a version. Both lookups take an optional `versionId`: with
 // one they search only that version's instances (Forever's "Hyjal Summit" is
 // not TBC's), without one every non-TBC version in release order.

@@ -1,6 +1,6 @@
 // German labels of the item classes and subclasses the guild bank groups by
 // (item names are English, the group labels stay German).
-const { ITEM_CLASSES, classLabel, subclassLabel } = require("../../src/config/itemClassLabels");
+const { ITEM_CLASSES, classLabel, subclassLabel } = require("../../../src/config/data/itemClassLabels");
 
 describe("config/itemClassLabels", () => {
     it("labels the classes the guild bank sees in German", () => {

@@ -1,8 +1,8 @@
 const {
     ROLES, ROLE_IDS, SPECS, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     gearFamilyFor, bisForSpec, aplForSpec, isSimSupported, bisSpecsForItem, HIT_CAP, MELEE_HIT_CAP,
-} = require("../../src/config/councilSpecs");
-const { CLASSES } = require("../../src/config/gameVersions/classes");
+} = require("../../../src/config/data/councilSpecs");
+const { CLASSES } = require("../../../src/config/gameVersions/classes");
 
 // Every spec #669 brought onto the council, with the role it plays there.
 const NEW_SPECS = {
@@ -299,7 +299,7 @@ describe("config/councilSpecs", () => {
 });
 
 describe("config/councilSpecs — whose BiS list an item is on", () => {
-    const wowsims = require("../../src/config/wowsims");
+    const wowsims = require("../../../src/config/wowsims");
     const labelsFor = (id, tier) => bisSpecsForItem(id, tier).map((o) => o.label);
 
     it("names every spec whose list carries the item", () => {

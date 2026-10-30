@@ -1,6 +1,6 @@
 const { setupResponse } = require("../../../src/utils/setup/response");
 const { formatTimestampToDateString } = require("../../../src/utils/time");
-const { entryFor } = require("../../../src/config/classlist.js");
+const { entryFor } = require("../../../src/config/data/classlist.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 // Build an emoji whose string interpolation is deterministic, mimicking a

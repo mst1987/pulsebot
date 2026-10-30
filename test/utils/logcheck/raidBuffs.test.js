@@ -1,7 +1,7 @@
 const {
     analyzeRaidBuffs, buffsForFight, summarize, buffRole, rosterFromSummary, rosterFromBands, statusOf, untrackedBuffs, inferBands, FULL_PCT, PULL_WINDOW_MS, STRIP_WINDOW_MS,
 } = require("../../../src/utils/logcheck/raidBuffs");
-const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/raidBuffs");
+const { BUFFS, BLESSINGS, buffByGuid, buffByKey, buffFits, expectedBlessings, ROLES } = require("../../../src/config/data/raidBuffs");
 const { fight: gruulFight } = require("../../factories/wcl");
 
 const KINGS = 25898;       // Greater Blessing of Kings

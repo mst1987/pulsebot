@@ -91,7 +91,7 @@ const FINAL_BOSSES = {
 //
 // Hand-kept, unlike RAID_LOOT — the generator knows what drops where, not
 // in which order the raid meets it. The names must match RAID_LOOT's English
-// encounter keys exactly; test/config/tbcContent.test.js checks that they do and
+// encounter keys exactly; test/config/data/tbcContent.test.js checks that they do and
 // that no boss is missing here.
 //
 // Karazhan's three opera bosses follow their event (only one of them is up on a
@@ -148,7 +148,7 @@ function bossOrder(contentId, boss) {
     return at === -1 ? UNKNOWN_BOSS_RANK : at;
 }
 
-const RAID_LOOT = require("./generated/tbcRaidLoot.json");
+const RAID_LOOT = require("../generated/tbcRaidLoot.json");
 
 // item id → { content, boss } and content id → meta, both built once at require
 // time. RAID_LOOT is keyed the other way round because that is the shape the

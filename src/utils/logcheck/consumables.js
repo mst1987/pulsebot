@@ -1,4 +1,4 @@
-const data = require("../../config/claData");
+const data = require("../../config/data/claData");
 
 const FLASK = new Set(data.CONSUMABLES.flask);
 const BATTLE = new Set(data.CONSUMABLES.battleElixir);

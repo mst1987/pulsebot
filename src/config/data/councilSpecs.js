@@ -10,7 +10,7 @@
 // the BiS list, the rotation to sim with, and the stat weights the fallback
 // scoring uses when no sim result is available.
 
-const { aplFor } = require("./wowsims");
+const { aplFor } = require("../wowsims");
 const { bisFor } = require("./bisSets");
 
 // Roles the page can filter by. "caster" was the council's original scope;

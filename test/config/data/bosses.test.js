@@ -1,4 +1,4 @@
-const { bossIconUrl, bossName, baseEncounterId } = require("../../src/config/bosses");
+const { bossIconUrl, bossName, baseEncounterId } = require("../../../src/config/data/bosses");
 
 // The Anniversary realms log the TBC bosses under offset encounter ids — 50xxx for
 // Karazhan, Gruul/Magtheridon and BT/Hyjal, 100xxx for SSC/TK — while the icons and

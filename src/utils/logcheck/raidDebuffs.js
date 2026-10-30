@@ -7,7 +7,7 @@
 // which debuffs the raid should have had — judged by who was there, never by
 // the encounter: a missing Curse of the Elements is only a finding when a
 // warlock raided.
-const { DEBUFFS, expectedDebuffs, debuffByGuid } = require("../../config/raidDebuffs");
+const { DEBUFFS, expectedDebuffs, debuffByGuid } = require("../../config/data/raidDebuffs");
 const { clipBands, mergeBands, gapsBetween, stackBands } = require("./fightTimeline");
 
 /** Per-class headcount of the roster. */

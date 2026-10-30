@@ -4,7 +4,7 @@
 // keeps (the loot store and the raid-event snapshots) — nothing is stored.
 
 const { countsAsLoot } = require("../../utils/loot/lootReasons");
-const { wowheadLink } = require("../../config/wowheadItemAliases");
+const { wowheadLink } = require("../../config/data/wowheadItemAliases");
 
 const WEEK_MS = 7 * 86400000;
 const RECENT_ITEMS = 3;

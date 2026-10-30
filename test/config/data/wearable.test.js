@@ -2,8 +2,8 @@
 // gegen erfundene Items: die Regel hängt an Feldern, die das Fetch-Skript aus
 // WoWSims mitbringt (Klassenliste, Rüstungsart, Waffentyp, Distanztyp), und
 // ein verrutschtes Feld dort würde hier auffallen.
-const { wearCheck, canWear, CLASS_IDS } = require("../../src/config/wearable");
-const wowsims = require("../../src/config/wowsims");
+const { wearCheck, canWear, CLASS_IDS } = require("../../../src/config/data/wearable");
+const wowsims = require("../../../src/config/wowsims");
 
 // Items, deren Art feststeht (Name → Typ aus der Tabelle, siehe items.json).
 const CORRUPTOR_HOOD = 30212;      // Hexenmeister-T5, Stoff, classes [9]
@@ -69,7 +69,7 @@ describe("config/wearable", () => {
         });
 
         it("lässt einen Umhang jedem — er zählt als Stoff, ohne Stoffkenntnis zu brauchen", () => {
-            const cloak = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
+            const cloak = Object.entries(require("../../../src/config/generated/wowsims/items.json").items)
                 .find(([, it]) => it.slots.length === 1 && it.slots[0] === 14 && it.armorType === 1);
             expect(cloak).toBeTruthy();
             expect(canWear("Warrior", Number(cloak[0]))).toBe(true);
@@ -112,7 +112,7 @@ describe("config/wearable", () => {
         });
 
         it("lässt dem Schamanen eine Zweihandaxt nur als Verstärker", () => {
-            const axe = Object.entries(require("../../src/config/generated/wowsims/items.json").items)
+            const axe = Object.entries(require("../../../src/config/generated/wowsims/items.json").items)
                 .find(([, it]) => it.weaponType === 1 && it.hand === "two" && it.quality >= 4);
             expect(axe).toBeTruthy();
             expect(wearCheck("Shaman", Number(axe[0]), { spec: "Elemental" }).ok).toBe(false);

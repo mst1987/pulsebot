@@ -1,7 +1,7 @@
 const {
     CONTENTS, TIERS, RAID_LOOT, BOSS_ORDER, NON_BOSSES, bossOrder,
     content, tier, sourceForItem, encounterKey, contentForInstance, contentsForText, contentForLoot, tokenTier,
-} = require("../../src/config/tbcContent");
+} = require("../../../src/config/data/tbcContent");
 
 describe("tbcContent", () => {
     describe("the generated raid loot table", () => {

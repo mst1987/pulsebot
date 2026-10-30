@@ -11,7 +11,7 @@
 // buff never shows up is judged from its drops instead (`derived`): standing
 // from the drop until the next totem in its slot, its duration or the end of
 // judging, and Windfury with its 5-s pulse and 10-s buff (`windfuryBands`).
-const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../config/totems");
+const { TOTEMS, SLOTS, totemByCast, totemByBuff } = require("../../config/data/totems");
 const { clipBands, mergeBands, gapsBetween } = require("./fightTimeline");
 
 const MIN_GAP_MS = 1000;   // a sub-second flicker between refreshes is not a gap

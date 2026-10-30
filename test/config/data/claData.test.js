@@ -1,4 +1,4 @@
-const claData = require("../../src/config/claData");
+const claData = require("../../../src/config/data/claData");
 
 describe("config/claData", () => {
     it("exports the expected reference structures", () => {

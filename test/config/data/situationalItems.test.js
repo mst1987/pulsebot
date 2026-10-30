@@ -1,7 +1,7 @@
 // The list of items whose worth depends on the boss, and the reason it exists:
 // they carry no caster stats, so every comparison reads such a slot as empty.
-const { SITUATIONAL_ITEMS, situationalItem } = require("../../src/config/situationalItems");
-const wowsims = require("../../src/config/wowsims");
+const { SITUATIONAL_ITEMS, situationalItem } = require("../../../src/config/data/situationalItems");
+const wowsims = require("../../../src/config/wowsims");
 
 describe("config/situationalItems", () => {
     it("knows both halves of Mark of the Champion", () => {

@@ -2,8 +2,8 @@
 // (item level 141) under new ids that Wowhead's database does not know yet —
 // the tooltip widget (power.js) logs a 404 for each and shows nothing. Links go
 // to the original item instead: same name, icon and slot, only the item level
-// differs. A copy of the server's table (src/config/wowheadItemAliases.js),
-// held equal by test/config/wowheadItemAliases.test.js.
+// differs. A copy of the server's table (src/config/data/wowheadItemAliases.js),
+// held equal by test/config/data/wowheadItemAliases.test.js.
 const WOWHEAD_ITEM_ALIASES: Record<number, number> = {
     281893: 37128, // Balebrew Charm
     281895: 37127, // Brightbrew Charm

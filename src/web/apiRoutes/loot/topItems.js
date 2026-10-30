@@ -24,7 +24,7 @@ const { settingsForVersion } = require("../../../services/events/versionSettings
 
 /**
  * The loot table of a version, raid by raid and boss by boss in the order the
- * raid meets them. Only TBC has one yet (config/tbcContent.js); Classic Era and
+ * raid meets them. Only TBC has one yet (config/data/tbcContent.js); Classic Era and
  * Forever answer [] until theirs exist (#760/#765) - the page then offers the
  * search alone.
  */

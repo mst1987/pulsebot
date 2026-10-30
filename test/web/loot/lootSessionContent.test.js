@@ -3,7 +3,7 @@ const { deriveContent, sessionContentLabel } = require("../../../src/web/loot/lo
 // IDs direkt aus der Tabelle ziehen statt sie hinzuschreiben: erfundene IDs
 // prüfen nur, was ich beim Schreiben geglaubt habe. So hängen die Tests an den
 // echten Daten und fallen auf, wenn die Tabelle sich ändert.
-const { RAID_LOOT, sourceForItem } = require("../../../src/config/tbcContent");
+const { RAID_LOOT, sourceForItem } = require("../../../src/config/data/tbcContent");
 
 function idsFor(content, count) {
     const out = [];

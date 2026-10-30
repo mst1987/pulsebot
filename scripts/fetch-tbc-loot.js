@@ -25,7 +25,7 @@
 // Run it when AtlasLoot ships corrections or a new tier opens (add the raid to
 // RAIDS below):  node scripts/fetch-tbc-loot.js
 // It writes src/config/generated/tbcRaidLoot.json; the hand-written parts
-// (content metadata, lookup helpers) are src/config/tbcContent.js, which loads it.
+// (content metadata, lookup helpers) are src/config/data/tbcContent.js, which loads it.
 
 const https = require("https");
 const { writeGeneratedJson } = require("./lib/generatedJson");

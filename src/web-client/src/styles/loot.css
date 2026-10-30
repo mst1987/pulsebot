@@ -190,7 +190,7 @@
 
 /* Two more marks, both about what the *comparison* can read rather than about
    the item's quality: a piece that only counts against certain bosses (the slot
-   reads as empty, see config/situationalItems.js) and one taken from an older
+   reads as empty, see config/data/situationalItems.js) and one taken from an older
    raid in its place. They sit bottom left — the corner the tags above leave
    free — and not as a third border colour: the border is already spoken for
    by "BiS" and "no enchant", and a fourth shade of outline would stop meaning

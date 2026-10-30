@@ -1,9 +1,9 @@
 // What an event's NAME says about its raid (docs/raidplan.md, "Raid-Helper events"): a Raid-Helper event carries no instance, size or
 // game version of its own, but its title usually names the raid ("BT 25er Montag", "Kara + Gruul"). instancesFromTitle() reads it with
-// the title keywords the softres.it integration already uses (config/softresInstances.js), SAFE ones only: short tokens that are also
+// the title keywords the softres.it integration already uses (config/data/softresInstances.js), SAFE ones only: short tokens that are also
 // ordinary words or other abbreviations ("gl", "mag", "aman", "plateau", "serpent", "tempest", "mh") are left out. Several instances may
 // match ("Kara + Gruul"); nothing sure = nothing. The raid plan's activation dialog shows it pre-filled and lets the orga correct it.
-const { INSTANCES } = require("../../config/softresInstances");
+const { INSTANCES } = require("../../config/data/softresInstances");
 const { rulesFor, LEGACY_VERSION } = require("../../config/gameVersions");
 
 // softres.it instance code -> the rule set's instance id (TBC)

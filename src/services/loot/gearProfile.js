@@ -29,7 +29,7 @@
 // spell hit (T6 BiS: 668 / 125) and would otherwise read as a caster's.
 
 const wowsims = require("../../config/wowsims");
-const { gearFamilyFor } = require("../../config/councilSpecs");
+const { gearFamilyFor } = require("../../config/data/councilSpecs");
 
 // Tank ratings (defense + dodge + parry + block rating) from which a set is a
 // tank set, and from which that is beyond doubt. The WoWSims tank lists sit at

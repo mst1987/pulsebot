@@ -425,7 +425,7 @@ describe("web/loot/lootCouncil — wer das Item überhaupt tragen kann", () => {
         if (hood) expect(hood.candidates.every((c) => c.key === "hexer")).toBe(true);
         for (const gap of gaps) {
             for (const c of gap.candidates) {
-                expect(require("../../../src/config/wearable").canWear(c.key === "magier" ? "Mage" : c.key === "hexer" ? "Warlock" : c.key === "schami" ? "Shaman" : "Priest", gap.id)).toBe(true);
+                expect(require("../../../src/config/data/wearable").canWear(c.key === "magier" ? "Mage" : c.key === "hexer" ? "Warlock" : c.key === "schami" ? "Shaman" : "Priest", gap.id)).toBe(true);
             }
         }
     });

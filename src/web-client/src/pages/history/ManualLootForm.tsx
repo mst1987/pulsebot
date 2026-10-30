@@ -3,7 +3,7 @@
 // item traded on afterwards.
 //
 // Two rules shape the form. The item is picked from the raid's own drop table
-// (config/tbcContent.js via /api/history/loot-picker), never from a free
+// (config/data/tbcContent.js via /api/history/loot-picker), never from a free
 // Wowhead search — a Karazhan night cannot be credited with a Sunwell weapon
 // that way. And the raider is picked from the characters the app already knows,
 // class colour and all, so a typo does not silently open a second loot history

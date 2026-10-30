@@ -6,7 +6,7 @@
 // hitting the API again. Only interrupts need their own (single, raid-wide) call.
 //
 // Ported from RPB.js (~L2648-3400).
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { EXCLUDE_KALECGOS, bossFights } = require("./common");
 
 /**

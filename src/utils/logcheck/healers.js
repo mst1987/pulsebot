@@ -13,7 +13,7 @@
 // events on the active tank. Everything stored is a derived interval or a
 // number; the raw events are not kept.
 const { mergeBands, gapsBetween, stackBands } = require("./fightTimeline");
-const { TANK_AURAS, ABSORB_IDS, tankAuraById, manaRegenById } = require("../../config/healerSpells");
+const { TANK_AURAS, ABSORB_IDS, tankAuraById, manaRegenById } = require("../../config/data/healerSpells");
 
 const STEP_MS = 5000;              // the mana curve's sampling step
 const LOW_MANA_PCT = 20;           // "running dry": time spent below this is reported

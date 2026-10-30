@@ -1,7 +1,7 @@
 // Healers: a fight's healing topic (ranked list, mana curves, tank auras) and the
 // raid-wide healer table.
 const { fmtTime, lineChart, ribbonChart } = require("../charts");
-const { TANK_AURAS } = require("../../../config/healerSpells");
+const { TANK_AURAS } = require("../../../config/data/healerSpells");
 const { esc } = require("../layout");
 const { expBtn, badge, LINE, barCell, healBar, HEAL_BAR_HOW, hicon, classColorOf, pctTone, classIconName, fmtK, fmtSecs, num } = require("../widgets");
 const { topicTable } = require("../fightTopics");

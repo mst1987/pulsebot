@@ -6,7 +6,7 @@
 // (rpbData.DEBUFFS — until now read by nobody), who took it and when, plus
 // what each death was: the killing blow, whether it was avoidable, how early
 // in the pull it came and how close to the end.
-const rpbData = require("../../config/rpbData");
+const rpbData = require("../../config/data/rpbData");
 
 const EARLY_MS = 30000;           // a death in the first half minute is a pull mistake
 const NEAR_END_SHARE = 0.1;       // a death in the last tenth of a kill cost little

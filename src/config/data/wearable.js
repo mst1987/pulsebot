@@ -13,7 +13,7 @@
 // And an item the table does not know passes — "cannot tell" is not "cannot
 // wear", and dropping a raider on a guess would be the wrong kind of error.
 
-const wowsims = require("./wowsims");
+const wowsims = require("../wowsims");
 
 // Blizzard's class ids, as the item table's `classes` lists them (WoWSims'
 // Class enum uses the same numbers).

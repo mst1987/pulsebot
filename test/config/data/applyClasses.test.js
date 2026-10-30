@@ -1,4 +1,4 @@
-const { CLASSES, getClass } = require("../../src/config/applyClasses");
+const { CLASSES, getClass } = require("../../../src/config/data/applyClasses");
 
 describe("config/applyClasses", () => {
     it("exports CLASSES as an array and getClass as a function", () => {

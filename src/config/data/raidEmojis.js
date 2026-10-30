@@ -2,7 +2,7 @@
 // Zul'Aman"). Suggestions only — the orga picks, nothing is set on its own.
 //
 // Backend twin of src/web-client/src/lib/raids/raidEmojis.ts (RAID_EMOJIS,
-// raidEmojiSuggestions); test/config/raidEmojis.test.js keeps both lists identical.
+// raidEmojiSuggestions); test/config/data/raidEmojis.test.js keeps both lists identical.
 // Keyed by the instance id of src/config/gameVersions; every emoji is Emoji 12.1
 // or older, so every system the orga uses can draw it.
 

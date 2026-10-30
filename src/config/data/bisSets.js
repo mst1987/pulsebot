@@ -12,8 +12,8 @@
 // answer says which source it came from, and the page labels a Wowhead list as
 // what it is — a recommendation without gems or enchants.
 
-const wowsims = require("./wowsims");
-const wowhead = require("./generated/wowhead/bisSets.json");
+const wowsims = require("../wowsims");
+const wowhead = require("../generated/wowhead/bisSets.json");
 
 const TIER_ORDER = ["t4", "t5", "t6", "t65"];
 

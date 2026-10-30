@@ -1,7 +1,7 @@
 // The player page /r/<id>/p/<n>: head, personal KPIs, the raider's points, the
 // fights per boss and the folded detail sections.
 const { plural } = require("../../utils/text");
-const { bossIconUrl } = require("../../config/bosses");
+const { bossIconUrl } = require("../../config/data/bosses");
 const { PX_PER_SEC } = require("./charts");
 const { esc, shellPage, renderNotFound } = require("./layout");
 const { classIconUrl, expBtn, badge, LINE, armoryLink, dlgClose, groupHead, barCell, barPct, hicon, classColorOf, fmtK, kpi, avgOf, withReportVersion } = require("./widgets");

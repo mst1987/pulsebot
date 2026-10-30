@@ -1,5 +1,5 @@
 // Formatters of the legacy Raid-Helper signup command (/signup).
-const { entryFor } = require("../config/classlist.js");
+const { entryFor } = require("../config/data/classlist.js");
 const { getCharacterIcon } = require("./discord/reply");
 
 /** The class icons of the given specs as one line of server emojis. */

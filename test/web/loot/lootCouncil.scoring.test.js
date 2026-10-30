@@ -42,7 +42,7 @@ const {
         candidatesForItem, upgradeValue, gearHit,
     },
 } = require("../../../src/web/loot/lootCouncil");
-const { specByKey, hitCapFor } = require("../../../src/config/councilSpecs");
+const { specByKey, hitCapFor } = require("../../../src/config/data/councilSpecs");
 const wowsims = require("../../../src/config/wowsims");
 const { DAY, now, lootRow, gearOf, item } = require("../../helpers/lootCouncil");
 

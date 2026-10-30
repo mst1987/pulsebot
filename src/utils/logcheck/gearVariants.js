@@ -4,7 +4,7 @@
 // answers it with a single gear snapshot per player. For judging gems and
 // enchants that is exactly right. For a piece somebody swaps in for one boss it
 // is not: Mark of the Champion goes on for Illidan and comes off again (see
-// config/situationalItems.js), and the snapshot may well be the fight it was on.
+// config/data/situationalItems.js), and the snapshot may well be the fight it was on.
 //
 // Judging a caster on that trinket is the same mistake as judging them on
 // healing gear — the slot reads as empty in every comparison, so any trinket
@@ -24,7 +24,7 @@
 
 const { selectPlayers } = require("./common");
 const { buildArmory } = require("./gearIssues");
-const { situationalItem } = require("../../config/situationalItems");
+const { situationalItem } = require("../../config/data/situationalItems");
 
 // How many fights of a night are looked at before giving up. A TBC raid night
 // is 8-12 boss fights; past that the snapshot is old enough that the older

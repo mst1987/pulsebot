@@ -1,8 +1,8 @@
 const fs = require("fs");
 const path = require("path");
-const { RAID_EMOJIS, raidEmojiSuggestions } = require("../../src/config/raidEmojis");
+const { RAID_EMOJIS, raidEmojiSuggestions } = require("../../../src/config/data/raidEmojis");
 
-const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "src", "web-client", "src", "lib", "raids", "raidEmojis.ts"), "utf8");
+const TWIN = fs.readFileSync(path.join(__dirname, "..", "..", "..", "src", "web-client", "src", "lib", "raids", "raidEmojis.ts"), "utf8");
 
 /** The RAID_EMOJIS table of the client's file: `id: ["…", …],` lines between `= {` and `};`. */
 function clientTable() {

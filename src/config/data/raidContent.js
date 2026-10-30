@@ -13,7 +13,7 @@
 // version to be read back (`gameVersions.instanceById`).
 
 const tbcContent = require("./tbcContent");
-const gameVersions = require("./gameVersions");
+const gameVersions = require("../gameVersions");
 
 const TBC = "tbc";
 

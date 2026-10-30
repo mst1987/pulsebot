@@ -1,4 +1,4 @@
-// Generates src/config/generated/rpbData.json (read by src/config/rpbData.js) from the RPB reference CSVs.
+// Generates src/config/generated/rpbData.json (read by src/config/data/rpbData.js) from the RPB reference CSVs.
 // Run once (and again if the RPB config sheet changes). Not used at runtime.
 //
 // Source: scripts/data-sources/rpb/config/configNew.csv — the shared CLA/RPB master config
@@ -398,7 +398,7 @@ async function resolveIcons() {
 }
 
 // --- emit -----------------------------------------------------------------
-// The key meanings are documented in src/config/rpbData.js.
+// The key meanings are documented in src/config/data/rpbData.js.
 function render() {
     return {
         // Kalecgos is excluded from every RPB number (two-realm fight breaks the maths).

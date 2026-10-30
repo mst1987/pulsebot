@@ -6,15 +6,15 @@
 // evidence it rests on (boss, number), so the page can show the reasoning and
 // the raid lead can judge it. Rules whose data is missing from the report (an
 // older report, an analyzer that failed) simply yield nothing — never a false
-// "alles gut". The thresholds live in config/recommendationRules.js.
+// "alles gut". The thresholds live in config/data/recommendationRules.js.
 //
 // The engine is pure: it never talks to an API and never stores anything. What
 // the raid lead approves or rewrites is kept beside it (recommendationReview
 // on the report) and merged in by the page.
-const R = require("../../config/recommendationRules");
-const { DEBUFFS } = require("../../config/raidDebuffs");
-const { TANK_AURAS } = require("../../config/healerSpells");
-const { buffByKey, ROLE_LABELS } = require("../../config/raidBuffs");
+const R = require("../../config/data/recommendationRules");
+const { DEBUFFS } = require("../../config/data/raidDebuffs");
+const { TANK_AURAS } = require("../../config/data/healerSpells");
+const { buffByKey, ROLE_LABELS } = require("../../config/data/raidBuffs");
 
 const IMPACT_ORDER = { high: 0, medium: 1, low: 2 };
 

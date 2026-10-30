@@ -2,11 +2,11 @@
 // and WoW Forever share the same nine classes and talent trees).
 //
 // A spec's key is `"<Class>-<Spec>"` in Warcraft Logs' own spelling — the same
-// key config/councilSpecs.js uses — so a spec from a log, from the loot council
+// key config/data/councilSpecs.js uses — so a spec from a log, from the loot council
 // and from the rule set are one and the same string.
 //
 // `role` is what a setup counts a raider as: tank / healer / melee / ranged.
-// `buffRole` is the vocabulary of config/raidBuffs.js (tank / healer / melee /
+// `buffRole` is the vocabulary of config/data/raidBuffs.js (tank / healer / melee /
 // caster), which sorts by damage type rather than by range: a hunter is "melee"
 // there because Might and Trueshot are worth having on him, a shadow priest a
 // "caster". The two differ on purpose; `role` places a raider, `buffRole` says
@@ -95,7 +95,7 @@ const CLASSES = [
 ];
 
 // Classes Raid-Helper still offers that no rule set here plays (the Death
-// Knight came with Wrath). Only config/classlist.js reads them — to resolve a
+// Knight came with Wrath). Only config/data/classlist.js reads them — to resolve a
 // Raid-Helper spec name that may still arrive — so they stay out of CLASSES and
 // never reach a class picker. `DK` is the id Raid-Helper and the setup sheets use.
 const RAID_HELPER_ONLY_CLASSES = [
@@ -109,7 +109,7 @@ const RAID_HELPER_ONLY_CLASSES = [
     },
 ];
 
-// How Raid-Helper presents each spec, for config/classlist.js: its own spec
+// How Raid-Helper presents each spec, for config/data/classlist.js: its own spec
 // name (`spec` — what its API sends and expects back), the Discord emoji the
 // guild uploaded for it (`icon`) and the label the bot has always shown
 // (`name`). A key without a spec ("Paladin") is the class-only entry

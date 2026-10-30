@@ -1,9 +1,9 @@
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { characterKey, enrichItemNames, needsLookup } = require("../utils/loot/lootImport");
-const { wowheadLink } = require("../config/wowheadItemAliases");
+const { wowheadLink } = require("../config/data/wowheadItemAliases");
 const { describeReason } = require("../utils/loot/lootReasons");
-const { contentForLoot, tokenTier } = require("../config/tbcContent");
+const { contentForLoot, tokenTier } = require("../config/data/tbcContent");
 const { newId } = require("../utils/ids");
 
 // Imported loot lives as a single JSON file next to the other editable settings.

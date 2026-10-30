@@ -6,10 +6,10 @@
 // and which did not, and how many more would have fitted before the fight
 // (or the player's death) ended. One cast pull per fight, filtered to every
 // tracked id, then split by who cast it.
-const rpbData = require("../../config/rpbData");
+const rpbData = require("../../config/data/rpbData");
 const { POTION_TYPES } = require("./potions");
-// Bloodlust's ids and window (TBC data, config/logcheckTables.js)
-const { LUST_IDS, LUST_MS } = require("../../config/logcheckTables");
+// Bloodlust's ids and window (TBC data, config/data/logcheckTables.js)
+const { LUST_IDS, LUST_MS } = require("../../config/data/logcheckTables");
 
 const POTION_COOLDOWN = 120;
 // A cooldown that came back this long before the end and was not pressed

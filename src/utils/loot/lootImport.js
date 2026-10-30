@@ -29,7 +29,7 @@ const { versionLinks } = require("../../services/events/versionSettings");
 // Wowhead links of a game version (#542: its Wowhead path, "" when it has
 // none). Item names resolve in the tooltip even when an export (Gargul) only
 // gives us the id. An Anniversary re-issue links the original item Wowhead
-// knows (config/wowheadItemAliases.js). A parse links with the main version;
+// knows (config/data/wowheadItemAliases.js). A parse links with the main version;
 // the import relinks with the version of the event it lands on
 // (services/loot/lootVersion.js).
 function itemLink(itemId, versionId) {

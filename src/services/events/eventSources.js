@@ -11,7 +11,7 @@ const { listEvents, getEvent, isOwnEventId } = require("../../stores/eventStore"
 const { listSignups } = require("../../stores/signupStore");
 const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
 const { getConfig } = require("../../stores/settingsStore");
-const { ALIASES } = require("../../config/classlist");
+const { ALIASES } = require("../../config/data/classlist");
 const { categoryNameAt } = require("./categoryEras");
 const { visibleRows, versionOfEvent } = require("./mainVersion");
 const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
@@ -22,7 +22,7 @@ const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
 
 // Rule-set spec key → the Raid-Helper spec name the readers already understand
-// (config/classlist.js via setupView.specProfile, dashboardOverview's role
+// (config/data/classlist.js via setupView.specProfile, dashboardOverview's role
 // buckets, the bot's class emojis). Holy and Protection exist for two classes,
 // so the key carries the class.
 const RH_SPEC_NAMES = {
@@ -55,7 +55,7 @@ const WOW_CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman"
 /**
  * The rule-set spec key of one Raid-Helper signup (`className`, `specName`), or
  * "" when it names no playable spec (Absence, Bench, a death knight, a typo).
- * Aliases of config/classlist.js ("Destro", "RestoSham", "ProtPala") resolve to
+ * Aliases of config/data/classlist.js ("Destro", "RestoSham", "ProtPala") resolve to
  * their spec; when `className` is a real class it wins over an ambiguous name —
  * "Holy" on a paladin is a holy paladin, not the priest classlist's alias means.
  */

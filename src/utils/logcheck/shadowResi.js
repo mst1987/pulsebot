@@ -1,8 +1,8 @@
-const data = require("../../config/claData");
+const data = require("../../config/data/claData");
 const { selectPlayers } = require("./common");
 
-// Shadow resistance granted by enchants / gems (TBC data, config/logcheckTables.js)
-const { SR_ENCHANT, SR_GEM } = require("../../config/logcheckTables");
+// Shadow resistance granted by enchants / gems (TBC data, config/data/logcheckTables.js)
+const { SR_ENCHANT, SR_GEM } = require("../../config/data/logcheckTables");
 
 /**
  * Shadow resistance from gear (base + enchant + gem) for the Mother Shahraz fight.

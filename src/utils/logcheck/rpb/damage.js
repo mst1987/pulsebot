@@ -3,7 +3,7 @@
 // Ported from the RPB Apps Script. The raid-wide "top avoidable abilities" list is
 // built once from a by-ability damage-taken table; each player then contributes
 // their share from a per-player table.
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { EXCLUDE_KALECGOS, trashFights } = require("./common");
 const logger = require("../../../logger.js").child("rpb/damage");
 

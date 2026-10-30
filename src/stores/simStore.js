@@ -20,8 +20,8 @@ const { dataPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 
 const engine = require("../utils/wowsims/engine");
-const { specByKey } = require("../config/councilSpecs");
-const { canWear } = require("../config/wearable");
+const { specByKey } = require("../config/data/councilSpecs");
+const { canWear } = require("../config/data/wearable");
 const { equipmentFor, targetSlotFor, bisFittingFor } = require("../utils/wowsims/loadout");
 const { gearByCharacter } = require("../services/loot/charGear");
 
@@ -175,7 +175,7 @@ function startCouncilSim(id, subjects, itemIds = [], { versionId, guildId } = {}
                     for (const itemId of itemIds) {
                         const target = targetSlotFor(gear, itemId);
                         // No slot, or a piece this class cannot equip at all
-                        // (config/wearable.js): the number would be honestly
+                        // (config/data/wearable.js): the number would be honestly
                         // measured and the answer wrong — a mage does not gain
                         // from a mail chest, they cannot put it on.
                         const wearable = canWear(

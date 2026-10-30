@@ -26,7 +26,7 @@ const { dataPath, settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
 const { instanceById, LEGACY_VERSION } = require("../config/gameVersions");
-const { ZONES } = require("../config/bosses");
+const { ZONES } = require("../config/data/bosses");
 const { wowIconUrl } = require("../config/menu");
 
 const DEFAULT_FILE = settingsPath("raidplans.json");

@@ -26,7 +26,7 @@
 // (config/gameVersions/<id>.js `settingsDefaults`); defaultBlock() turns them
 // into a block, fillDefaults() fills only a block's empty fields.
 const { VERSIONS, LEGACY_VERSION } = require("../config/gameVersions");
-const { INSTANCES: SOFTRES_INSTANCES } = require("../config/softresInstances");
+const { INSTANCES: SOFTRES_INSTANCES } = require("../config/data/softresInstances");
 const vars = require("../config/variables");
 const { normalizeDisabled } = require("../config/versionFeatures");
 

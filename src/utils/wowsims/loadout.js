@@ -16,16 +16,16 @@
 //     build is what makes two raiders comparable.
 
 const { slotsFor, item: itemInfo } = require("../../config/wowsims");
-const { bisForSpec } = require("../../config/councilSpecs");
-const { bisTiers } = require("../../config/bisSets");
+const { bisForSpec } = require("../../config/data/councilSpecs");
+const { bisTiers } = require("../../config/data/bisSets");
 const { metaGemActive } = require("../logcheck/gearIssues");
-const claData = require("../../config/claData");
+const claData = require("../../config/data/claData");
 // The pinned WoWSims binary has its own item database and does not know TBC
 // Anniversary's re-issued Brewfest ids either — an unknown item aborts the
 // whole sim (unlike an unknown gem, which is stripped and retried), costing
 // the raider their entire baseline. Resolved to the id WoWSims does know
 // before it ever reaches the request, same as config/wowsims's own lookups.
-const { wowheadItemId } = require("../../config/wowheadItemAliases");
+const { wowheadItemId } = require("../../config/data/wowheadItemAliases");
 
 const META_GEMS = new Set(claData.META_GEM_IDS.map(String));
 const RED_GEMS = new Set(claData.RED_GEM_IDS.map(String));

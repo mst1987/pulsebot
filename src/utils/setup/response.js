@@ -2,7 +2,7 @@
 // stands in the setup of an event.
 const { getCharacterIcon, findServerEmoji } = require("../discord/reply");
 const { formatTimestampToDateString } = require("../time");
-const { entryFor } = require("../../config/classlist.js");
+const { entryFor } = require("../../config/data/classlist.js");
 
 function setupResponse(interaction, event) {
     let notInSetup = "Setup not done yet";

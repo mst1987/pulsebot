@@ -1,6 +1,6 @@
 // The TBC tables the log-check analyzers read (#747: moved out of the
 // analyzers, contents unchanged) — and the analyzers still hand out the same objects.
-const tables = require("../../src/config/logcheckTables");
+const tables = require("../../../src/config/data/logcheckTables");
 
 describe("config/logcheckTables", () => {
     it("lists every potion once, in one of the three report groups", () => {
@@ -24,10 +24,10 @@ describe("config/logcheckTables", () => {
     });
 
     it("is what the analyzers export under their old names", () => {
-        expect(require("../../src/utils/logcheck/potions").POTION_TYPES).toBe(tables.POTION_TYPES);
-        expect(require("../../src/utils/logcheck/drums").DRUM_TYPE).toBe(tables.DRUM_TYPE);
-        expect(require("../../src/utils/logcheck/cooldownTimeline").LUST_IDS).toBe(tables.LUST_IDS);
-        expect(require("../../src/utils/logcheck/shadowResi").SR_ENCHANT).toBe(tables.SR_ENCHANT);
-        expect(require("../../src/utils/logcheck/rpb/validate").ZONE_TAGS).toBe(tables.ZONE_TAGS);
+        expect(require("../../../src/utils/logcheck/potions").POTION_TYPES).toBe(tables.POTION_TYPES);
+        expect(require("../../../src/utils/logcheck/drums").DRUM_TYPE).toBe(tables.DRUM_TYPE);
+        expect(require("../../../src/utils/logcheck/cooldownTimeline").LUST_IDS).toBe(tables.LUST_IDS);
+        expect(require("../../../src/utils/logcheck/shadowResi").SR_ENCHANT).toBe(tables.SR_ENCHANT);
+        expect(require("../../../src/utils/logcheck/rpb/validate").ZONE_TAGS).toBe(tables.ZONE_TAGS);
     });
 });

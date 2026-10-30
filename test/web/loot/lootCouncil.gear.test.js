@@ -113,7 +113,7 @@ describe("web/loot/lootCouncil — the worn gear a council looks at", () => {
 
         it("leaves the raid empty for an item no single raid drops", () => {
             // Tier tokens and badge gear are deliberately absent from the
-            // content table (see config/tbcContent.js) — filing them under
+            // content table (see config/data/tbcContent.js) — filing them under
             // whichever raid came first would be a wrong answer, not a gap.
             expect(wornItemView(worn(), new Set()).contentId).toBe("");
             // ...while a plain boss drop resolves.

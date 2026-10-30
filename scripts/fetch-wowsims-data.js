@@ -7,7 +7,7 @@
 //   src/config/generated/wowsims/apls/*.json     — the ground-truth rotations, verbatim
 //
 // Run it to refresh those files; do NOT hand-edit them (same rule as the
-// RAID_LOOT block in config/tbcContent.js):
+// RAID_LOOT block in config/data/tbcContent.js):
 //
 //   node scripts/fetch-wowsims-data.js
 //
@@ -42,7 +42,7 @@ const APL_DIR = path.join(OUT_DIR, "apls");
 // "the best you can wear in that raid tier" are listed — a `simtest`, a
 // `blank` or a per-boss resistance set is not a BiS list.
 //
-// `tier` is our own tier id (config/tbcContent.js's TIERS), so a set lines up
+// `tier` is our own tier id (config/data/tbcContent.js's TIERS), so a set lines up
 // with the content filter on the page: t4 = Kara/Gruul/Mag, t5 = SSC/TK/ZA,
 // t6 = Hyjal/BT, t65 = Sunwell.
 const BIS_FILES = {
@@ -439,7 +439,7 @@ async function main() {
         // Wert ist ein Effekt —, also würde der Stat-Filter sie alle
         // verwerfen. Ein Council muss sie trotzdem vergeben können, darum
         // kommen sie ab Blau immer mit. Effektbasierte Schmuckstücke dagegen
-        // bleiben draußen: config/situationalItems.js verlässt sich darauf,
+        // bleiben draußen: config/data/situationalItems.js verlässt sich darauf,
         // dass die Tabelle ein bossabhängiges Teil *nicht* kennt.
         const relic = [6, 7, 8].includes(Number(item.rangedWeaponType)) && quality >= 3;
         const wanted = bisItemIds.has(id) || (wowheadIds.has(id) && quality >= 3) || relic;
@@ -465,7 +465,7 @@ async function main() {
             // Which classes may wear it at all (Blizzard's class ids, as the
             // WoWSims Class enum numbers them: 1 Warrior … 11 Druid). Only set
             // items and a few class-bound pieces carry one; everything else is
-            // decided by the three types below (see config/wearable.js).
+            // decided by the three types below (see config/data/wearable.js).
             ...(Array.isArray(item.classAllowlist) && item.classAllowlist.length
                 ? { classes: item.classAllowlist.map(Number) } : {}),
             // Rüstungsart (ArmorType: 1 Stoff, 2 Leder, 3 Kette, 4 Platte),

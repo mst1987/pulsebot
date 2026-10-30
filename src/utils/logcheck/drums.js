@@ -1,5 +1,5 @@
-// Drum ability GUIDs -> category (TBC data, config/logcheckTables.js).
-const { DRUM_TYPE } = require("../../config/logcheckTables");
+// Drum ability GUIDs -> category (TBC data, config/data/logcheckTables.js).
+const { DRUM_TYPE } = require("../../config/data/logcheckTables");
 
 const DRUM_FILTER = "ability.id IN (35476,35475,35478,35477,351355,351360,351358,351359)";
 

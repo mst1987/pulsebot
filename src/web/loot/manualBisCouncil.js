@@ -20,7 +20,7 @@ const manualBisStore = require("../../stores/manualBisStore");
 const { MANUAL_SLOTS } = manualBisStore;
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
-const { specByKey } = require("../../config/councilSpecs");
+const { specByKey } = require("../../config/data/councilSpecs");
 const wowhead = require("../../utils/loot/wowhead");
 
 const SOURCE = "manual";

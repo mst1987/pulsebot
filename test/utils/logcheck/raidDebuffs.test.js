@@ -1,7 +1,7 @@
 const {
     analyzeRaidDebuffs, debuffRowsForFight, classCounts, mainTargetEvents, summarize,
 } = require("../../../src/utils/logcheck/raidDebuffs");
-const { DEBUFFS, expectedDebuffs, debuffByGuid } = require("../../../src/config/raidDebuffs");
+const { DEBUFFS, expectedDebuffs, debuffByGuid } = require("../../../src/config/data/raidDebuffs");
 const { fight: gruulFight } = require("../../factories/wcl");
 
 const SUNDER = 25225;   // Sunder Armor rank 6

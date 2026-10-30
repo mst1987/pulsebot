@@ -2,9 +2,9 @@
 // (404 on the tooltip, "not found" on the page) — links go to the original.
 const fs = require("fs");
 const path = require("path");
-const { WOWHEAD_ITEM_ALIASES, wowheadItemId, wowheadLink } = require("../../src/config/wowheadItemAliases");
+const { WOWHEAD_ITEM_ALIASES, wowheadItemId, wowheadLink } = require("../../../src/config/data/wowheadItemAliases");
 
-const CLIENT = path.join(__dirname, "..", "..", "src", "web-client", "src");
+const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 
 describe("config/wowheadItemAliases", () => {
     it("maps a re-issue to the original and leaves every other id alone", () => {

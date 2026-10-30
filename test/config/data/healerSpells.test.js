@@ -1,6 +1,6 @@
 // The healer analysis' spell tables: every rank of a tank aura and every mana
 // source must be found by the id the log carries, whatever its type.
-const { TANK_AURAS, ABSORB_IDS, MANA_REGEN, tankAuraById, manaRegenById } = require("../../src/config/healerSpells");
+const { TANK_AURAS, ABSORB_IDS, MANA_REGEN, tankAuraById, manaRegenById } = require("../../../src/config/data/healerSpells");
 
 describe("config/healerSpells", () => {
     it("finds a tank aura by any of its rank ids, as number or string", () => {

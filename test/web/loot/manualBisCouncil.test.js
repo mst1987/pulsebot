@@ -24,7 +24,7 @@ const {
     manualIndex, manualBisForSpec, manualBisItems, manualBisSpecsView, manualItemView,
     manualCandidateSplit, manualBisGaps, searchManualItems,
 } = require("../../../src/web/loot/manualBisCouncil");
-const { specByKey } = require("../../../src/config/councilSpecs");
+const { specByKey } = require("../../../src/config/data/councilSpecs");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { lootRow, gearOf, item } = require("../../helpers/lootCouncil");
 

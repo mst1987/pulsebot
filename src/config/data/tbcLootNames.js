@@ -15,7 +15,7 @@
 // English, like the exports and the loot tables. Regenerate the JSON instead
 // of hand-editing it.
 
-const RAID_ITEMS = require("./generated/tbcLootNames.json");
+const RAID_ITEMS = require("../generated/tbcLootNames.json");
 
 /** `[name, icon, quality]` for an item id, or null when the table doesn't know it. */
 function itemMeta(itemId) {

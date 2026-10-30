@@ -2,7 +2,7 @@
 // what the page filters by and the addon gets. Shared by the Loot-Council
 // profiles (councilProfilesStore.js, #676) and the old per-category views
 // (councilStore.js re-exports it), pure so either store can be mocked alone.
-const { ROLE_IDS } = require("../config/councilSpecs");
+const { ROLE_IDS } = require("../config/data/councilSpecs");
 
 /** What the page shows for a council nobody set a view for. */
 const VIEW_DEFAULTS = Object.freeze({ role: "caster", tiers: [], contents: [], bisTier: "", version: "" });

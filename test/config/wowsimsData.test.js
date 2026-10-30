@@ -44,7 +44,7 @@ describe("config/wowsims — die erzeugten Daten", () => {
         });
 
         it("kennt Rüstungsart, Waffentyp und Distanztyp — woran die Tragbarkeit hängt", () => {
-            // config/wearable.js liest genau diese drei Felder; fehlen sie,
+            // config/data/wearable.js liest genau diese drei Felder; fehlen sie,
             // winkt es jedes Item durch und der Magier bekommt die Kettenbrust.
             expect(items.items["30169"]).toMatchObject({ name: "Cataclysm Chestpiece", armorType: 3, classes: [7] });
             expect(items.items["30734"]).toMatchObject({ armorType: 1 });
@@ -81,7 +81,7 @@ describe("config/wowsims — die erzeugten Daten", () => {
             expect(items.items["33505"]).toMatchObject({ name: "Totem of Living Water", rangedType: 8 });
             expect(items.items["28568"]).toMatchObject({ name: "Idol of the Avian Heart", rangedType: 6 });
             // Effektbasierte Schmuckstücke bleiben draußen — siehe
-            // config/situationalItems.js, das darauf baut.
+            // config/data/situationalItems.js, das darauf baut.
             expect(items.items["23207"]).toBeUndefined();
         });
     });

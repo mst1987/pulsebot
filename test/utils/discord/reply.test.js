@@ -13,7 +13,7 @@ const { EMBED_ACCENT_COLOR } = require("../../../src/config/constants");
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { asEmbed, cardButtons } = require("../../helpers/card");
-const { entryFor } = require("../../../src/config/classlist.js");
+const { entryFor } = require("../../../src/config/data/classlist.js");
 
 const emoji = (name) => ({ name, toString: () => `<:${name}:1>` });
 

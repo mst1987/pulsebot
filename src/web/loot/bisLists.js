@@ -28,9 +28,9 @@
 // Everything here is derived from config on read; nothing is stored.
 
 const wowsims = require("../../config/wowsims");
-const bis = require("../../config/bisSets");
-const { SPECS, ROLE_IDS } = require("../../config/councilSpecs");
-const { TIERS } = require("../../config/tbcContent");
+const bis = require("../../config/data/bisSets");
+const { SPECS, ROLE_IDS } = require("../../config/data/councilSpecs");
+const { TIERS } = require("../../config/data/tbcContent");
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
 const { itemView } = require("./lootCouncil");

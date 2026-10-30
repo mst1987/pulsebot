@@ -4,13 +4,13 @@
 // `kill` true/false once it is over and `inProgress` true while the live log is still writing it. Trash
 // (`boss` 0) never counts. A fight is matched to a section of the plan by its encounter name folded with
 // tbcContent's encounterKey() (opera bosses, "Reliquary of Souls", "Daakara"), and by the name WCL gives the
-// encounter id: the Anniversary realms log offset ids (50601 = Naj'entus), which config/bosses.js'
+// encounter id: the Anniversary realms log offset ids (50601 = Naj'entus), which config/data/bosses.js'
 // bossName() folds back — so a log whose fight names were not translated still finds its boss.
 //
 // Pure: no request, no clock. services/raidplan/raidplanProgress.js does the fetching and the caching.
 
-const { encounterKey } = require("../../config/tbcContent");
-const { bossName } = require("../../config/bosses");
+const { encounterKey } = require("../../config/data/tbcContent");
+const { bossName } = require("../../config/data/bosses");
 
 /** The encounter keys a fight can stand for: its own name and WCL's name for its encounter id. */
 function fightKeys(fight) {

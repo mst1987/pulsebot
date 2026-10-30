@@ -4,7 +4,7 @@ import type { LootSource, LootItem, CharLootPreview } from "./history";
 
 // ---- Loot overviews (Gründe / Items) ----------------------------------------
 // Labels, colours (tone) and the raid/tier catalogs all come from the server
-// (utils/lootReasons.js, config/tbcContent.js) — the client only maps a tone
+// (utils/lootReasons.js, config/data/tbcContent.js) — the client only maps a tone
 // onto a CSS class, so a new reason or a new raid never needs a client change.
 
 export type LootReason = { id: string; label: string; tone: string; order: number };

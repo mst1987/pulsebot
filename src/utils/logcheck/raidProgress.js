@@ -1,6 +1,6 @@
-const tbcContent = require("../../config/tbcContent");
+const tbcContent = require("../../config/data/tbcContent");
 const gameVersions = require("../../config/gameVersions");
-const raidContent = require("../../config/raidContent");
+const raidContent = require("../../config/data/raidContent");
 
 const { normalizeBoss, encounterKey } = tbcContent;
 
@@ -11,7 +11,7 @@ const { normalizeBoss, encounterKey } = tbcContent;
 // instance (WoW Forever before release) has no final boss and never blocks.
 //
 // With a `versionId` (#749) bosses and zones are looked up only within that
-// version (config/raidContent.js): Forever's Archimonde is not TBC's. Without
+// version (config/data/raidContent.js): Forever's Archimonde is not TBC's. Without
 // one a log is read as before: TBC first, then the other versions.
 
 /** The raid an encounter name belongs to, or "". */

@@ -3,7 +3,7 @@
 const { itemFacts, itemClass, itemWeight, lootPoints } = require("../../../src/services/loot/itemWeights");
 const councilWeights = require("../../../src/stores/councilWeightsStore");
 const wowsims = require("../../../src/config/wowsims");
-const { bisForSpec, specByKey } = require("../../../src/config/councilSpecs");
+const { bisForSpec, specByKey } = require("../../../src/config/data/councilSpecs");
 
 const S = councilWeights.defaults();
 

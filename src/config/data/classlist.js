@@ -8,7 +8,7 @@
 // how Raid-Helper and the guild's emojis call it — comes from
 // config/gameVersions/classes.js, the one place classes are described.
 
-const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES } = require("./gameVersions/classes");
+const { CLASSES, RAID_HELPER_ONLY_CLASSES, RAID_HELPER_NAMES } = require("../gameVersions/classes");
 
 // Raid-Helper name → rule-set key. The order is the order the entries were
 // always listed in: the first name of a spec is the one a catalog shows.

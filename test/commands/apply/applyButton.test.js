@@ -1,7 +1,7 @@
 const { MessageFlags } = require("discord.js");
 const { cardText, cardControls } = require("../../helpers/cardText");
 const command = require("../../../src/commands/apply/applyButton.js");
-const { CLASSES } = require("../../../src/config/applyClasses.js");
+const { CLASSES } = require("../../../src/config/data/applyClasses.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 

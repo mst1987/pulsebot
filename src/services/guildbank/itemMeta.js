@@ -3,7 +3,7 @@
 //
 // Item names are English everywhere (web page, Discord, the addon's hand-out
 // list); only the group labels built from class/subclass stay German, mapped
-// from the ids (config/itemClassLabels.js, services/guildbank/stockView.js).
+// from the ids (config/data/itemClassLabels.js, services/guildbank/stockView.js).
 //
 // Two sources, in this order:
 //   1. the local item tables (TBC only: WoWSims items, the raid loot names) —
@@ -31,7 +31,7 @@ const store = require("../../stores/guildBankStockStore");
 const requestStore = require("../../stores/guildBankStore");
 const wowhead = require("../../utils/loot/wowhead");
 const wowsims = require("../../config/wowsims");
-const { itemMeta: raidItemMeta } = require("../../config/tbcLootNames");
+const { itemMeta: raidItemMeta } = require("../../config/data/tbcLootNames");
 const { settingsForVersion } = require("../events/versionSettings");
 const { settingsDefaultsOf } = require("../../stores/versionSettingsSchema");
 const { LEGACY_VERSION } = require("../../config/gameVersions");

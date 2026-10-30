@@ -1,8 +1,8 @@
 // Version-aware content recognition (#749): a Forever raid is never claimed by
 // the TBC tables, a TBC raid reads exactly as before.
-const raidContent = require("../../src/config/raidContent");
-const tbcContent = require("../../src/config/tbcContent");
-const { VERSIONS, instanceById, iconOf } = require("../../src/config/gameVersions");
+const raidContent = require("../../../src/config/data/raidContent");
+const tbcContent = require("../../../src/config/data/tbcContent");
+const { VERSIONS, instanceById, iconOf } = require("../../../src/config/gameVersions");
 
 describe("config/raidContent", () => {
     describe("contentsForText", () => {

@@ -22,7 +22,7 @@ describe("services/events/eventIcon", () => {
 
     it("stays within 25 options and works without raid, template or category channels", () => {
         const many = Array.from({ length: 40 }, (_, i) => `${String.fromCodePoint(0x1F400 + i)}・name-${i}`);
-        expect(icons({ categoryNames: many, instanceIds: Object.keys(require("../../../src/config/raidEmojis").RAID_EMOJIS) }).options.length).toBeLessThanOrEqual(25);
+        expect(icons({ categoryNames: many, instanceIds: Object.keys(require("../../../src/config/data/raidEmojis").RAID_EMOJIS) }).options.length).toBeLessThanOrEqual(25);
         const bare = iconOptions();
         expect(bare.options.map((o) => o.code)).toEqual(["", ICON_NONE]);
         expect(bare.options[0].emoji).toBe("");

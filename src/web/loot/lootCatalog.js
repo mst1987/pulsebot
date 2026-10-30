@@ -3,19 +3,19 @@
 // A loot import knows what dropped because the export says so. Adding a piece
 // by hand has to work the other way round: the raid lead picks a raid, a boss
 // and an item, and the only trustworthy list of what is even possible there is
-// the drop table the loot classifier already uses (config/tbcContent.js's
-// RAID_LOOT), named by config/tbcLootNames.js. Offering a free Wowhead search
+// the drop table the loot classifier already uses (config/data/tbcContent.js's
+// RAID_LOOT), named by config/data/tbcLootNames.js. Offering a free Wowhead search
 // instead would let a Karazhan night be credited with a Sunwell weapon.
 //
 // The catalogue is static data, so it is built once and reused; the picker
 // filters it client-side (a raid is 30-200 items — small enough to hand over in
 // one response, and searching it then costs no round trip).
-const { CONTENTS, RAID_LOOT, contentsForText, tier, bossOrder } = require("../../config/tbcContent");
-const { RAID_ITEMS } = require("../../config/tbcLootNames");
+const { CONTENTS, RAID_LOOT, contentsForText, tier, bossOrder } = require("../../config/data/tbcContent");
+const { RAID_ITEMS } = require("../../config/data/tbcLootNames");
 const { iconUrl, itemLink } = require("../../utils/loot/wowhead");
 
 // Bosses sort in the order the raid actually meets them (BOSS_ORDER in
-// config/tbcContent.js), with the non-encounter buckets last: the timed chest,
+// config/data/tbcContent.js), with the non-encounter buckets last: the timed chest,
 // "Trash" and the nameless one ("" — an item no single kill can be pinned on).
 // Whoever fills this in walked the instance an hour ago and reads the list that
 // way, so alphabetical order — Gurtogg Bloodboil ahead of the Black Temple's

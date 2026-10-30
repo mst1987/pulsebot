@@ -82,7 +82,7 @@ export const LOG_ANALYSES: { key: LogSection; label: string; tip: string }[] = [
     { key: "rpb", label: "RPB", get tip() { return t("raidDetail.analysis.rpbTip"); } },
 ];
 
-/** WoW icons for the softres.it instance codes (config/softresInstances.js). */
+/** WoW icons for the softres.it instance codes (config/data/softresInstances.js). */
 export const INSTANCE_ICONS: Record<string, string> = {
     kara: "achievement_boss_princemalchezaar_02",
     gruul: "achievement_boss_gruulthedragonkiller",
