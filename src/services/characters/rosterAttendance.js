@@ -489,6 +489,19 @@ function neutralNight(night) {
     return rest;
 }
 
+/**
+ * An attendanceFor summary as the raider's own views show it (#990): every night, in `raids` and
+ * `missed`, through neutralNight. The quota stays - a night left early counts as attended either way.
+ */
+function neutralAttendance(summary) {
+    if (!summary) return summary;
+    return {
+        ...summary,
+        raids: (summary.raids || []).map(neutralNight),
+        missed: (summary.missed || []).map(neutralNight),
+    };
+}
+
 /** The missed nights of a night list, without `attended`. */
 function missedOf(raids) {
     return raids.filter((r) => !r.attended && counts(r)).map(({ attended: _a, ...rest }) => rest);
@@ -710,6 +723,6 @@ function categoryNights(ctx, categoryId, opts = {}) {
 
 module.exports = {
     buildAttendanceContext, attendanceFor, attendanceForAccounts, categoryInfo, categoryNights, nightStatus, roleFor, roleFromSpec,
-    leftEarlySuggestion, neutralNight,
+    leftEarlySuggestion, neutralNight, neutralAttendance,
     RAID_WINDOW, CONTENT_ICONS, STATUSES,
 };

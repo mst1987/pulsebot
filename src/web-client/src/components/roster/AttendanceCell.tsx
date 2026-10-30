@@ -2,7 +2,7 @@
 // the member drawer and "Meine Anwesenheit" share it. The field shows the status in its
 // colour (--att-<status>) with its letter, a corner dot when the orga set it by hand, and
 // the night, the verdict and the override in its tooltip. Whoever may correct attendance
-// (`canEdit`) clicks it and gets a small menu: the six statuses, "Automatisch" and an
+// (`canEdit`) clicks it and gets a small menu: the statuses of EDIT_ORDER, "Automatisch" and an
 // optional reason; saving goes through POST /api/attendance/override.
 // The log's "left early" suggestion (#990, orga answers only) rides on the field as a dashed
 // ring and a tooltip line; the menu opens with it on top: confirming sets "leftEarly",

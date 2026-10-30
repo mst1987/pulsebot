@@ -38,7 +38,7 @@ jest.mock("../../../src/stores/attendanceOverridesStore", () => ({
     listOverrides: () => mockOverrides,
 }));
 
-const { buildAttendanceContext, attendanceForAccounts, neutralNight } = require("../../../src/services/characters/rosterAttendance");
+const { buildAttendanceContext, attendanceForAccounts, neutralNight, neutralAttendance } = require("../../../src/services/characters/rosterAttendance");
 const { LEFT_EARLY_DISMISSED } = jest.requireActual("../../../src/stores/attendanceOverridesStore");
 
 const NOW = Date.UTC(2026, 9, 10);
@@ -204,5 +204,68 @@ describe("neutralNight (the raider's own view)", () => {
         const suggested = { eventId: "e3", attended: true, status: "present", detail: "inLog", reason: "im Log", suggestion: { kind: "leftEarly", missedKills: 2, bosses: ["A", "B"] } };
         expect(neutralNight(suggested)).toEqual({ eventId: "e3", attended: true, status: "present", detail: "inLog", reason: "im Log" });
         expect(neutralNight(null)).toBeNull();
+    });
+});
+
+describe("neutralAttendance (a whole summary for the raider)", () => {
+    it("puts every night of raids and missed through neutralNight and keeps the quota", () => {
+        const left = { eventId: "e1", attended: true, status: "leftEarly", detail: "override", reason: "x", override: { status: "leftEarly", reason: "weg" } };
+        const missed = { eventId: "e2", status: "noShow", detail: "notInLog", reason: "nicht im Log" };
+        const summary = { attended: 1, total: 2, pct: 50, raids: [left, { ...missed, attended: false }], missed: [missed] };
+        const out = neutralAttendance(summary);
+        expect(out).toMatchObject({ attended: 1, total: 2, pct: 50 });
+        expect(out.raids[0]).toMatchObject({ status: "present", attended: true });
+        expect(out.raids[0]).not.toHaveProperty("override");
+        expect(out.missed).toEqual([missed]);
+        expect(summary.raids[0].override).toBeDefined();
+        expect(neutralAttendance(null)).toBeNull();
+        expect(neutralAttendance({ attended: 0, total: 0, pct: null })).toEqual({ attended: 0, total: 0, pct: null, raids: [], missed: [] });
+    });
+});
+
+// "Left early", a dismissed suggestion and an open suggestion are the orga's (#990): a raider never sees
+// them on a night of their own. Every module that builds night-by-night attendance is listed here with the
+// reason it is safe; a new one is a decision, not an accident - send the raider's own view through
+// neutralNight / neutralAttendance (or raiderAttendance's `neutral`) and add it with its reason.
+describe("who builds night-by-night attendance (#990)", () => {
+    const fs = require("fs");
+    const path = require("path");
+    const SRC = path.join(__dirname, "..", "..", "..", "src");
+    const SAFE = {
+        "services/characters/attendanceLookup.js": "/anwesenheit + /anwesenheit-raider: quota and missed nights only (left early never misses)",
+        "services/characters/rosterAttendance.js": "the builder itself",
+        "services/setup/setupInput.js": "the setup proposal: the quota (pct) only",
+        "web/apiRoutes/availability.js": "GET /api/attendance: neutral when the caller looks at their own nights; /overview/raider is orga_only",
+        "web/apiRoutes/roster.js": "GET /api/roster/char: orga, or the own player through neutralAttendance",
+        "web/availability/raiderAttendance.js": "the builder of the raider view; its callers pass `neutral`",
+        "web/characters/roster.js": "buildRoster (orga_only) and rosterCharacter (filtered in apiRoutes/roster.js)",
+        "web/dashboard/dashboardPersonal.js": "the raider's own dashboard: always neutral",
+        "web/kader/kaderSource.js": "the kader planner: admins and the kader area only",
+        "web/roster/rosterView.js": "the roster grid: a non-orga caller gets the composition only",
+        "web/setup/setupAttendance.js": "the setup editor: orga only",
+    };
+    function modulesMatching(re) {
+        const out = [];
+        const walk = (dir) => {
+            for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+                const full = path.join(dir, entry.name);
+                if (entry.isDirectory()) {
+                    if (entry.name !== "web-client" && entry.name !== "node_modules") walk(full);
+                } else if (entry.name.endsWith(".js") && re.test(fs.readFileSync(full, "utf8"))) {
+                    out.push(path.relative(SRC, full).split(path.sep).join("/"));
+                }
+            }
+        };
+        walk(SRC);
+        return out.sort();
+    }
+
+    it("is done by the reviewed modules alone", () => {
+        expect(modulesMatching(/\b(attendanceFor|attendanceForAccounts|raiderAttendance|rosterCharacter)\(/)).toEqual(Object.keys(SAFE).sort());
+    });
+
+    it("the character page filters the own player's view", () => {
+        const route = fs.readFileSync(path.join(SRC, "web/apiRoutes/roster.js"), "utf8");
+        expect(route).toMatch(/neutralAttendance\(/);
     });
 });

@@ -35,6 +35,8 @@ function buildKillRoster(fights) {
     return kills
         .map((f) => ({
             id: f.id,
+            // Raw WCL encounter id, Anniversary offset included (docs/logcheck.md); kept for reference only -
+            // the "left early" suggestion (#990) matches kills by boss name, never by this id.
             encounterId: Number(f.boss),
             boss: String(f.name || ""),
             at: start + (Number(f.start_time) || 0),

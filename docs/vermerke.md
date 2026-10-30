@@ -149,10 +149,13 @@ minutes are one) — someone in no kill at all did not leave early. Wipes and tr
 #990 has no `kills` and so no suggestion; no Warcraft Logs request is made per page view. In the cell's menu
 **Bestätigen** sets the override `leftEarly` ("Früh gegangen", counts as present for the quota, makes the hint) and
 **Verwerfen** stores `present` with the fixed reason `LEFT_EARLY_DISMISSED` (`POST /api/attendance/override
-{ status: "present", dismiss: "leftEarly" }`) — any override ends the suggestion. The raider never sees either: their
-own views (`neutralNight`: „Meine Anwesenheit", „Für dich", the availability answers) show such a night as plain
-"anwesend". Thresholds `leftEarly` (default 2, 1–20) and `leftEarlyBosses` live in
-`serverSettings[g].vermerkeSignals`. Test: `test/services/characters/rosterAttendance.leftEarly.test.js`.
+{ status: "present", dismiss: "leftEarly" }`) — any override ends the suggestion. Dismissing freezes the night as
+"Dabei": the override stays even if the log changes later; **Automatisch** in the menu deletes it and brings the
+suggestion back. The raider never sees either: their own views (`neutralNight`/`neutralAttendance`: „Meine
+Anwesenheit", „Für dich", the availability answers, the own character page `GET /api/roster/char`) show such a
+night as plain "anwesend", without override or suggestion; the quota is the same. A guard test lists every module
+that builds night-by-night attendance with the reason it is safe. Thresholds `leftEarly` (default 2, 1–20) and
+`leftEarlyBosses` live in `serverSettings[g].vermerkeSignals`. Test: `test/services/characters/rosterAttendance.leftEarly.test.js`.
 
 A first
 answer "abwesend" (no signup before) is no sign-off; removing a raider by the orga (`removeRaider`) is no hint
