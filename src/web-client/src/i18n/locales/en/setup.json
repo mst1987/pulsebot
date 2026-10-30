@@ -448,7 +448,7 @@
         "addSub": "Same time, same template and size – the signups stay with the first raid and are split over both.",
         "addOverbooked": "{signed} signed up for {places} places – another raid takes the rest.",
         "addTitle": "Add another raid",
-        "addText": "A second raid at the same time: same category, template, size and composition, the same channel. Raiders keep signing up at the first raid only; you split them over the raids here. Every raid gets its own setup and its own setup message.",
+        "addText": "More raids at the same time: same category, template, size and composition, the same channel. Raiders keep signing up at the first raid only; you split them over the raids here. Every raid gets its own setup and its own setup message.",
         "titleLabel": "Title of the new raid",
         "create": "Create raid",
         "split": "Split into {count} raids",
