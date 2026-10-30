@@ -130,6 +130,8 @@ export type DraftShape = {
     categoryAttendance?: Record<string, Partial<CategoryAttendance>>;
     /** A Discord event per raid (#305); missing = off. */
     categoryDiscordEvent?: Record<string, boolean>;
+    /** false = left out of the server overview (/createoverview scope:server); missing or true = shown. */
+    categoryServerOverview?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
     categoryVoiceChannel?: Record<string, string>;
     /** The look of the signup message; missing = raid picture on, title "large". */
@@ -351,6 +353,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryLanguage || {}), ...Object.keys(draft.categoryLanguage || {}),
         ...Object.keys(saved.categoryAttendance || {}), ...Object.keys(draft.categoryAttendance || {}),
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
+        ...Object.keys(saved.categoryServerOverview || {}), ...Object.keys(draft.categoryServerOverview || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
         ...Object.keys(saved.categoryMessageLook || {}), ...Object.keys(draft.categoryMessageLook || {}),
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
@@ -386,6 +389,9 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const deWas = (saved.categoryDiscordEvent || {})[id] === true;
         const deIs = (draft.categoryDiscordEvent || {})[id] === true;
         if (deWas !== deIs) out.push(t(deIs ? "settings.changes.discordEventOn" : "settings.changes.discordEventOff", { name }));
+        const inWas = (saved.categoryServerOverview || {})[id] !== false;
+        const inIs = (draft.categoryServerOverview || {})[id] !== false;
+        if (inWas !== inIs) out.push(t(inIs ? "settings.changes.serverOverviewOn" : "settings.changes.serverOverviewOff", { name }));
         const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
         const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
         if (voiceWas !== voiceIs) out.push(t(voiceIs ? "settings.changes.voiceSet" : "settings.changes.voiceRemoved", { name }));

@@ -385,6 +385,16 @@ describe("stores/configSchema normalisers", () => {
         expect(schema.normalizeCategoryRaidTemplate(undefined)).toEqual({});
     });
 
+    it("normalizeCategoryServerOverview keeps only the excluded categories, inServerOverview defaults to shown", () => {
+        expect(schema.normalizeCategoryServerOverview({ a: false, b: true, c: "no", "": false })).toEqual({ a: false });
+        expect(schema.normalizeCategoryServerOverview(["x"])).toEqual({});
+        expect(schema.normalizeCategoryServerOverview(undefined)).toEqual({});
+        expect(schema.inServerOverview({ categoryServerOverview: { a: false } }, "a")).toBe(false);
+        expect(schema.inServerOverview({ categoryServerOverview: { a: false } }, "b")).toBe(true);
+        expect(schema.inServerOverview({}, "a")).toBe(true);
+        expect(schema.inServerOverview(null, "a")).toBe(true);
+    });
+
     it("configuredCategoryIds collects every category an install configured anything for", () => {
         expect(schema.configuredCategoryIds({ categoryIds: ["1"], categoryRoles: { 2: [] }, categorySheets: { "": {} } }).sort()).toEqual(["1", "2"]);
     });

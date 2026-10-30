@@ -36,6 +36,8 @@ export type Draft = {
     /** Attendance per category (Abwesenheiten page); missing = the defaults (see settingsLogic's attendanceOf). */
     categoryAttendance: Record<string, Partial<CategoryAttendance>>;
     categoryDiscordEvent: Record<string, boolean>;
+    /** false = left out of the server overview; missing or true = shown. */
+    categoryServerOverview: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
     /** The look of the signup message; missing = raid picture on, title "large". */
     categoryMessageLook: Record<string, { raidArt?: boolean; titleSize?: string }>;
@@ -135,6 +137,7 @@ export function toDraft(config: AdminConfig, guildId = ""): Draft {
         categoryLanguage: config.categoryLanguage || {},
         categoryAttendance: config.categoryAttendance || {},
         categoryDiscordEvent: config.categoryDiscordEvent || {},
+        categoryServerOverview: config.categoryServerOverview || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
         categoryMessageLook: config.categoryMessageLook || {},
         categoryAnnounce: config.categoryAnnounce || {},

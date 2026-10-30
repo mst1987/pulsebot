@@ -116,6 +116,11 @@ const CONFIG_DEFAULTS = {
     // scheduled event, #305), keyed by category id: { [categoryId]: true }. Off
     // by default — only switched categories are stored.
     categoryDiscordEvent: {},
+    // Whether a category's raids are part of the server overview (/createoverview,
+    // scope "server", raidOverview.js), keyed by category id: { [categoryId]: false }.
+    // Shown by default - only categories taken out are stored. The category's own
+    // overview is not affected.
+    categoryServerOverview: {},
     // The voice channel a raid of this category meets in (#305), keyed by
     // category id: { [categoryId]: channelId }. Only the preset of a new event
     // (`event.voiceChannelId`) — an event keeps whatever was picked for it.
@@ -701,6 +706,22 @@ function normalizeCategorySetupDms(raw) {
     return out;
 }
 
+/** Normalise categoryServerOverview to `{ [categoryId]: false }` - shown is the default and not stored. */
+function normalizeCategoryServerOverview(raw) {
+    if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+    const out = {};
+    for (const [catId, on] of Object.entries(raw)) {
+        const key = String(catId).trim();
+        if (key && on === false) out[key] = false;
+    }
+    return out;
+}
+
+/** Whether the category's raids appear in the server overview (missing = yes). */
+function inServerOverview(config, categoryId) {
+    return ((config && config.categoryServerOverview) || {})[String(categoryId || "")] !== false;
+}
+
 /** A `{ [categoryId]: true }` switch map — off is the default and not stored (#305). */
 function normalizeCategoryFlags(raw) {
     return normalizeCategorySetupDms(raw);
@@ -1089,6 +1110,7 @@ function normalizeConfig(raw) {
         categoryLanguage: normalizeCategoryLanguage(stored.categoryLanguage),
         categoryAttendance: normalizeCategoryAttendance(stored.categoryAttendance),
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
+        categoryServerOverview: normalizeCategoryServerOverview(stored.categoryServerOverview),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
         categoryMessageLook: normalizeCategoryMessageLook(stored.categoryMessageLook),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
@@ -1120,7 +1142,7 @@ module.exports = {
     normalizeServers, normalizeLinks, legacyServersAndLinks, MAX_SERVERS: MAX_EVENT_GUILDS, EVENT_GUILD_LABEL_MAX,
     normalizeRoleSync, roleSyncContext, normalizeCategoryRaidTemplate, normalizeCategoryReminders, normalizeTopItems, TOP_ITEM_NAME_MAX,
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryLanguagePatch,
-    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
+    normalizeCategoryAttendance, attendanceSettings, categoryAttendanceFor, ATTENDANCE_WINDOW_MIN, ATTENDANCE_WINDOW_MAX, ATTENDANCE_DEFAULT_WINDOW, normalizeCategoryFlags, normalizeCategoryServerOverview, inServerOverview, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategorySignupSource, configuredCategoryIds, signupSourcesOf,
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,

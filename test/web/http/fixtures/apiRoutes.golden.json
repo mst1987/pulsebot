@@ -352,5 +352,13 @@
   "GET /api/discord/pug-onboarding",
   "POST /api/discord/pug-onboarding",
   "GET /api/discord/overview",
-  "GET /api/discord/servers"
+  "GET /api/discord/servers",
+  "GET /api/vermerke",
+  "POST /api/vermerke",
+  "GET /api/vermerke/person",
+  "POST /api/vermerke/update",
+  "POST /api/vermerke/archive",
+  "POST /api/vermerke/hide",
+  "POST /api/vermerke/delete",
+  "GET /api/vermerke/short"
 ]

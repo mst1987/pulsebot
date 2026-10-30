@@ -84,6 +84,10 @@ export type CategorySettings = {
     onSignupSource: (categoryId: string, source: EventSource) => void;
     onSetupDms?: (categoryId: string, on: boolean) => void;
     onDiscordEvent?: (categoryId: string, on: boolean) => void;
+    /** false = the category is left out of the server overview; missing or true = shown. */
+    categoryServerOverview?: Record<string, boolean>;
+    /** Missing = no "Server-Übersicht" card (an older caller). */
+    onServerOverview?: (categoryId: string, on: boolean) => void;
     onVoiceChannel?: (categoryId: string, channelId: string) => void;
     onAnnounce?: (categoryId: string, mode: string) => void;
     onSheet: (categoryId: string, sheet: CategorySheet) => void;
@@ -412,6 +416,16 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
         const out: Field[] = [];
         if (s.availabilityPanels) out.push({ key: "panel", node: <AvailabilityPanelRow categoryId={cat.id} categoryName={name} panels={s.availabilityPanels} /> });
         if (s.orgaHubs) out.push({ key: "orgaHub", node: <OrgaHubRow categoryId={cat.id} categoryName={name} hubs={s.orgaHubs} /> });
+        const { onServerOverview } = s;
+        if (onServerOverview) {
+            // Missing or true = the category's raids are listed in the server overview (/createoverview scope:server).
+            const on = (s.categoryServerOverview || {})[cat.id] !== false;
+            out.push({ key: "serverOverview", node: (
+                <CategoryField label={t("settings.categories.serverOverview")} sub={t("settings.categories.serverOverviewShort")} more={t("settings.categories.serverOverviewSub")}>
+                    <Toggle checked={on} onChange={() => onServerOverview(cat.id, !on)} ariaLabel={t("settings.categories.serverOverviewAria", { name })} />
+                </CategoryField>
+            ) });
+        }
         return out;
     }
 

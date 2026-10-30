@@ -20,7 +20,7 @@
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
     "session", "dashboard", "version", "channels", "settings", "topItems", "talkOverview", "pugInvites", "raidhelperRetirement", "wclGuilds", "versionLaunch",
-    "ingest", "kader", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil", "lootCouncilBis",
+    "ingest", "kader", "vermerke", "botCommands", "raiderCharacters", "roster", "rosters", "rosterRoles", "rosterMembers", "rosterAdmin", "profile", "characters", "signups", "lootCouncil", "lootCouncilBis",
     "raids", "raidDetail", "setup", "raidplan", "eventManage", "eventSeries", "gameVersions",
     "notifyTemplates", "raidTemplates", "recruitment", "history", "cla", "availability", "orgaHub", "attendance", "guildBank", "dungeons", "addons", "addonCenter", "roleMessages", "discordRoles", "discordMembers", "system", "discordOverview", "pugOnboarding",
 ];
