@@ -23,6 +23,8 @@ vi.mock("../../api/vermerke", async (orig) => ({
     searchVermerkPeople: vi.fn(),
     getVermerkRaids: vi.fn(),
     getVermerkSignals: vi.fn(),
+    getSignalSettings: vi.fn(),
+    saveSignalSettings: vi.fn(),
     ignoreVermerkSignal: vi.fn(),
 }));
 
@@ -61,7 +63,7 @@ beforeEach(() => {
     localStorage.clear();
     vi.mocked(api.getVermerke).mockReset().mockResolvedValue({ guildId: "g1", guildName: "Testgilde", people: [THRALL, JAINA, NEU, ALT] });
     vi.mocked(api.getVermerkPerson).mockReset().mockResolvedValue(JAINA_DETAIL);
-    vi.mocked(api.getVermerkSignals).mockReset().mockResolvedValue([]);
+    vi.mocked(api.getVermerkSignals).mockReset().mockResolvedValue({ signals: [], thresholds: null });
     vi.mocked(api.searchVermerkPeople).mockReset().mockResolvedValue({ results: [{ userId: "t", name: "Thrall", gone: false }, { userId: "x", name: "Thralline", gone: true }] });
     vi.mocked(api.getVermerkRaids).mockReset().mockResolvedValue({ raids: [{ eventId: "r1", title: "Karazhan", startTime: 1_792_000_000, signed: true }] });
     vi.mocked(api.createVermerk).mockReset().mockResolvedValue({ entry: entry({}) });
@@ -127,7 +129,7 @@ describe("Vermerke: list", () => {
     });
 
     it("shows no add buttons to a read-only account", async () => {
-        vi.mocked(api.getVermerkSignals).mockResolvedValue([signal(1)]);
+        vi.mocked(api.getVermerkSignals).mockResolvedValue({ signals: [signal(1)], thresholds: null });
         renderPage(<VermerkePage />, { route: "/vermerke?user=j", user: readOnly() });
         await screen.findByText("Hat im Raid geflamed.");
         expect(await screen.findByText("Hinweise aus den Daten")).toBeInTheDocument();
@@ -222,18 +224,25 @@ describe("Vermerke: dialog", () => {
 });
 
 describe("Vermerke: hints from the data", () => {
-    it("is hidden without hints", async () => {
-        renderPage(<VermerkePage />, { route: "/vermerke" });
+    it("is hidden when the server does not know the hints, else keeps its head and the thresholds button", async () => {
+        vi.mocked(api.getVermerkSignals).mockResolvedValue(null);
+        const { unmount } = renderPage(<VermerkePage />, { route: "/vermerke" });
         await screen.findByText("Thrall");
         await waitFor(() => expect(api.getVermerkSignals).toHaveBeenCalled());
         expect(screen.queryByText("Hinweise aus den Daten")).not.toBeInTheDocument();
+        unmount();
+        vi.mocked(api.getVermerkSignals).mockResolvedValue({ signals: [], thresholds: null });
+        renderPage(<VermerkePage />, { route: "/vermerke" });
+        const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
+        expect(within(section).getByText("Gerade keine Hinweise.")).toBeInTheDocument();
+        expect(within(section).getByRole("button", { name: "Schwellen" })).toBeInTheDocument();
     });
 
     it("shows five, the rest on request, ignores one and opens the dialog prefilled", async () => {
         const user = userEvent.setup();
-        vi.mocked(api.getVermerkSignals).mockResolvedValue([
+        vi.mocked(api.getVermerkSignals).mockResolvedValue({ signals: [
             signal(1, { kind: "signoff_after_setup", count: 3 }), signal(2), signal(3), signal(4), signal(5), signal(6, { kind: "left_server" }),
-        ]);
+        ], thresholds: null });
         renderPage(<VermerkePage />, { route: "/vermerke" });
         const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
         expect(section.querySelectorAll(".vmk-sig")).toHaveLength(5);
@@ -254,5 +263,97 @@ describe("Vermerke: hints from the data", () => {
         expect(within(dlg).getByText("Vermerk für Raider1")).toBeInTheDocument();
         // "Abmeldung nach Setzung" is a late signoff
         expect(within(dlg).getByRole("button", { name: "Späte Abmeldung" })).toHaveAttribute("aria-pressed", "true");
+    });
+
+    it("prefills the reason \"Server verlassen\" from its hint", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getVermerkSignals).mockResolvedValue({ signals: [signal(7, { kind: "left_server", count: 1 })], thresholds: null });
+        renderPage(<VermerkePage />, { route: "/vermerke" });
+        const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
+        const row = section.querySelector('[data-user="s7"]') as HTMLElement;
+        await user.click(within(row).getByRole("button", { name: "Vermerk anlegen" }));
+        const dlg = await screen.findByRole("dialog");
+        expect(within(dlg).getByRole("button", { name: "Server verlassen" })).toHaveAttribute("aria-pressed", "true");
+        expect(api.reasonOfSignal("left_server")).toBe("left_server");
+        expect(api.reasonOfSignal("signoff_after_setup")).toBe("late_signoff");
+    });
+});
+
+const DEFAULTS = { windowDays: 60, signoffAfterSetup: 2, lateSignoff: 2, lateHours: 12, noShow: 2, leftServer: 1 };
+const LIMITS = { windowDays: [7, 180], signoffAfterSetup: [1, 20], lateSignoff: [1, 20], lateHours: [1, 72], noShow: [1, 20], leftServer: [1, 5] } as api.SignalSettings["limits"];
+function settings(own: Partial<api.SignalThresholds> = {}): api.SignalSettings {
+    return { guildId: "g1", thresholds: { ...DEFAULTS, ...own }, own, defaults: DEFAULTS, limits: LIMITS };
+}
+
+describe("Vermerke: thresholds of the hints", () => {
+    async function openThresholds(user: ReturnType<typeof userEvent.setup>, opts: Parameters<typeof renderPage>[1] = { route: "/vermerke" }) {
+        renderPage(<VermerkePage />, opts);
+        const section = (await screen.findByText("Hinweise aus den Daten")).closest("section")!;
+        await user.click(within(section).getByRole("button", { name: "Schwellen" }));
+        const dlg = await screen.findByRole("dialog");
+        await within(dlg).findByText("60 Tage");
+        return dlg;
+    }
+    const line = (dlg: HTMLElement, key: string) => dlg.querySelector(`[data-key="${key}"]`) as HTMLElement;
+
+    beforeEach(() => {
+        vi.mocked(api.getSignalSettings).mockReset().mockResolvedValue(settings({ noShow: 3 }));
+        vi.mocked(api.saveSignalSettings).mockReset().mockImplementation(async (th) => {
+            const own: Partial<api.SignalThresholds> = {};
+            for (const [k, v] of Object.entries(th)) if (typeof v === "number") own[k as api.SignalThresholdKey] = v;
+            return settings(own);
+        });
+    });
+
+    it("shows every value with its word, the own one with \"Standard\" beside it", async () => {
+        const user = userEvent.setup();
+        const dlg = await openThresholds(user);
+        expect(within(line(dlg, "windowDays")).getByText("60 Tage")).toBeInTheDocument();
+        expect(within(line(dlg, "lateHours")).getByText("unter 12 Stunden")).toBeInTheDocument();
+        expect(within(line(dlg, "noShow")).getByText("ab 3-mal")).toBeInTheDocument();
+        expect(within(line(dlg, "noShow")).getByRole("button", { name: "Standard" })).toBeInTheDocument();
+        expect(within(line(dlg, "windowDays")).queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
+        // nothing changed yet: saving is off
+        expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeDisabled();
+    });
+
+    it("saves the own values, null for \"Standard\", with the server it was opened for", async () => {
+        const user = userEvent.setup();
+        const dlg = await openThresholds(user);
+        await user.click(within(line(dlg, "windowDays")).getByRole("button", { name: "Mehr" }));
+        expect(within(line(dlg, "windowDays")).getByText("61 Tage")).toBeInTheDocument();
+        await user.click(within(line(dlg, "noShow")).getByRole("button", { name: "Standard" }));
+        expect(within(line(dlg, "noShow")).getByText("ab 2-mal")).toBeInTheDocument();
+        await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.saveSignalSettings).toHaveBeenCalled());
+        const [sent, guildId] = vi.mocked(api.saveSignalSettings).mock.calls[0];
+        expect(guildId).toBe("g1");
+        expect(sent).toMatchObject({ windowDays: 61, noShow: null, lateHours: null });
+        await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+        // the hints are counted anew
+        await waitFor(() => expect(vi.mocked(api.getVermerkSignals).mock.calls.length).toBeGreaterThan(1));
+    });
+
+    it("marks a value out of range and names a server switch", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.saveSignalSettings).mockRejectedValueOnce(Object.assign(new Error("bad"), { code: "bad_threshold", fields: ["windowDays"] }));
+        const dlg = await openThresholds(user);
+        await user.click(within(line(dlg, "windowDays")).getByRole("button", { name: "Weniger" }));
+        await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+        expect(await within(dlg).findByRole("alert")).toHaveTextContent("außerhalb des erlaubten Bereichs");
+        expect(line(dlg, "windowDays")).toHaveClass("vmk-thr-bad");
+        vi.mocked(api.saveSignalSettings).mockRejectedValueOnce(Object.assign(new Error("x"), { code: "server_switched" }));
+        await user.click(within(dlg).getByRole("button", { name: "Speichern" }));
+        expect(await within(dlg).findByText(/Server gewechselt/)).toBeInTheDocument();
+    });
+
+    it("shows the values to a read-only account without a way to change them", async () => {
+        const user = userEvent.setup();
+        const dlg = await openThresholds(user, { route: "/vermerke", user: readOnly() });
+        expect(within(dlg).getByText("ab 3-mal")).toBeInTheDocument();
+        expect(within(dlg).queryByRole("button", { name: "Speichern" })).not.toBeInTheDocument();
+        expect(within(dlg).queryByRole("button", { name: "Mehr" })).not.toBeInTheDocument();
+        expect(within(dlg).queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
+        expect(within(dlg).getByText(/Nur ansehen/)).toBeInTheDocument();
     });
 });

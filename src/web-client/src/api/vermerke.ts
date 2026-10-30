@@ -6,10 +6,10 @@ import { get, send } from "./client";
 // write = add, change, archive, hide.
 
 export type NoteLevel = "hint" | "warning" | "shadowban";
-export type NoteReason = "left_early" | "no_show" | "late_signoff" | "behavior" | "loot" | "other";
+export type NoteReason = "left_early" | "no_show" | "late_signoff" | "left_server" | "behavior" | "loot" | "other";
 
 export const NOTE_LEVELS: NoteLevel[] = ["hint", "warning", "shadowban"];
-export const NOTE_REASONS: NoteReason[] = ["late_signoff", "no_show", "left_early", "behavior", "loot", "other"];
+export const NOTE_REASONS: NoteReason[] = ["late_signoff", "no_show", "left_early", "left_server", "behavior", "loot", "other"];
 /** Notes per person and server, the archive included (the store's MAX_ENTRIES). */
 export const MAX_NOTES = 50;
 /** Characters of a note's text (the store's MAX_TEXT). */
@@ -120,18 +120,44 @@ export type VermerkSignal = {
     lastAt: number;
 };
 
+/** The thresholds of the hints (#993): from when a hint shows, per server. */
+export type SignalThresholdKey = "windowDays" | "signoffAfterSetup" | "lateSignoff" | "lateHours" | "noShow" | "leftServer";
+/** The order of the settings dialog: the window first, then one line per hint. */
+export const SIGNAL_THRESHOLD_KEYS: SignalThresholdKey[] = ["windowDays", "lateHours", "lateSignoff", "signoffAfterSetup", "noShow", "leftServer"];
+export type SignalThresholds = Record<SignalThresholdKey, number>;
+export type SignalSettings = {
+    guildId: string;
+    /** the values that count (own or default) */
+    thresholds: SignalThresholds;
+    /** only the values this server set itself */
+    own: Partial<SignalThresholds>;
+    defaults: SignalThresholds;
+    /** key -> [min, max] */
+    limits: Record<SignalThresholdKey, [number, number]>;
+};
+export type SignalList = { signals: VermerkSignal[]; thresholds: SignalThresholds | null };
+
 /**
  * The hints from the data. The section is optional: a server without the
- * route yet (404) or any other failure reads as "no hints", never as an error.
+ * route yet (404) or any other failure reads as null (no section), never as an error.
  */
-export async function getVermerkSignals(): Promise<VermerkSignal[]> {
+export async function getVermerkSignals(): Promise<SignalList | null> {
     try {
-        const res = await get<{ signals?: VermerkSignal[] }>("/api/vermerke/signals");
-        const list = res && res.signals;
-        return Array.isArray(list) ? list : [];
+        const res = await get<{ signals?: VermerkSignal[]; thresholds?: SignalThresholds }>("/api/vermerke/signals");
+        if (!res || !Array.isArray(res.signals)) return null;
+        return { signals: res.signals, thresholds: res.thresholds || null };
     } catch {
-        return [];
+        return null;
     }
+}
+
+export function getSignalSettings(): Promise<SignalSettings> {
+    return get("/api/vermerke/signals/settings");
+}
+
+/** Saves the server's own thresholds; null (or a key left out) = back to the default. */
+export function saveSignalSettings(thresholds: Partial<Record<SignalThresholdKey, number | null>>, serverSettingsGuildId: string): Promise<SignalSettings> {
+    return send("POST", "/api/vermerke/signals/settings", { thresholds, serverSettingsGuildId });
 }
 
 export function ignoreVermerkSignal(userId: string, kind: SignalKind): Promise<unknown> {
@@ -141,6 +167,5 @@ export function ignoreVermerkSignal(userId: string, kind: SignalKind): Promise<u
 /** The note reason a hint stands for ("Abmeldung nach Setzung" is a late signoff). */
 export function reasonOfSignal(kind: SignalKind): NoteReason {
     if (kind === "signoff_after_setup") return "late_signoff";
-    if (kind === "left_server") return "other";
     return kind;
 }

@@ -4,10 +4,11 @@ import { NOTE_REASONS, type NoteReason } from "../../api/vermerke";
 
 // The reason of a note (#980) as a grey line icon; the word is its tooltip.
 // With a count above one a small "×2" follows (the list's reasons column).
-const ICON: Record<NoteReason, "reasonLateSignoff" | "reasonNoShow" | "reasonLeftEarly" | "reasonBehavior" | "reasonLoot" | "reasonOther"> = {
+const ICON: Record<NoteReason, "reasonLateSignoff" | "reasonNoShow" | "reasonLeftEarly" | "reasonLeftServer" | "reasonBehavior" | "reasonLoot" | "reasonOther"> = {
     late_signoff: "reasonLateSignoff",
     no_show: "reasonNoShow",
     left_early: "reasonLeftEarly",
+    left_server: "reasonLeftServer",
     behavior: "reasonBehavior",
     loot: "reasonLoot",
     other: "reasonOther",

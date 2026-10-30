@@ -15,6 +15,7 @@
         "late_signoff": "Späte Abmeldung",
         "no_show": "Nicht erschienen",
         "left_early": "Früh gegangen",
+        "left_server": "Server verlassen",
         "behavior": "Verhalten",
         "loot": "Loot",
         "other": "Sonstiges"
@@ -24,7 +25,7 @@
         "other": "{count} Vermerke mit diesem Grund"
     },
     "page": {
-        "kicker": "System",
+        "kicker": "Gilde",
         "title": "Vermerke",
         "add": "Vermerk anlegen",
         "people": {
@@ -175,6 +176,7 @@
     "signals": {
         "title": "Hinweise aus den Daten",
         "tip": "Vorschläge aus Anmeldungen und Logs. Nichts davon ist ein Vermerk, bis du einen anlegst.",
+        "empty": "Gerade keine Hinweise.",
         "kind": {
             "late_signoff": "Späte Abmeldung",
             "signoff_after_setup": "Abmeldung nach Setzung",
@@ -194,6 +196,63 @@
             "other": "{count} weitere Hinweise zeigen"
         },
         "showLess": "Weniger zeigen"
+    },
+    "thresholds": {
+        "open": "Schwellen",
+        "openSub": "Ab wann ein Hinweis erscheint – gilt für diesen Server.",
+        "title": "Schwellen für Hinweise",
+        "label": {
+            "windowDays": "Zeitraum",
+            "lateHours": "Kurzfristig",
+            "lateSignoff": "Späte Abmeldung",
+            "signoffAfterSetup": "Abmeldung nach Setzung",
+            "noShow": "Nicht erschienen",
+            "leftServer": "Server verlassen"
+        },
+        "value": {
+            "windowDays": {
+                "one": "{count} Tag",
+                "other": "{count} Tage"
+            },
+            "lateHours": {
+                "one": "unter {count} Stunde",
+                "other": "unter {count} Stunden"
+            },
+            "lateSignoff": {
+                "one": "ab {count}-mal",
+                "other": "ab {count}-mal"
+            },
+            "signoffAfterSetup": {
+                "one": "ab {count}-mal",
+                "other": "ab {count}-mal"
+            },
+            "noShow": {
+                "one": "ab {count}-mal",
+                "other": "ab {count}-mal"
+            },
+            "leftServer": {
+                "one": "ab {count}-mal",
+                "other": "ab {count}-mal"
+            }
+        },
+        "tip": {
+            "windowDays": "So weit zurück wird gezählt ({min} bis {max} Tage).",
+            "lateHours": "Eine Abmeldung gilt als spät, wenn sie weniger Stunden vor dem Start kommt ({min} bis {max}).",
+            "lateSignoff": "So oft muss sich jemand im Zeitraum spät abmelden ({min} bis {max}).",
+            "signoffAfterSetup": "So oft muss sich jemand im Zeitraum abmelden, nachdem er im Setup stand ({min} bis {max}).",
+            "noShow": "So oft muss jemand im Zeitraum nicht erschienen sein ({min} bis {max}).",
+            "leftServer": "So oft muss jemand im Zeitraum den Server verlassen haben ({min} bis {max})."
+        },
+        "less": "Weniger",
+        "more": "Mehr",
+        "default": "Standard",
+        "defaultTip": "Zurück zum Standard: {value}",
+        "isDefault": "Standard",
+        "readOnly": "Nur ansehen – ändern darf, wer bei Vermerke schreiben darf.",
+        "loadError": "Schwellen konnten nicht geladen werden: {message}",
+        "badThreshold": "Mindestens ein Wert liegt außerhalb des erlaubten Bereichs.",
+        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit die Schwellen zum richtigen Server gehören.",
+        "failed": "Speichern hat nicht geklappt: {message}"
     },
     "members": {
         "filter": "Mit Vermerk",

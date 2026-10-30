@@ -15,6 +15,7 @@
         "late_signoff": "Late signoff",
         "no_show": "No show",
         "left_early": "Left early",
+        "left_server": "Left the server",
         "behavior": "Behaviour",
         "loot": "Loot",
         "other": "Other"
@@ -24,7 +25,7 @@
         "other": "{count} notes with this reason"
     },
     "page": {
-        "kicker": "System",
+        "kicker": "Guild",
         "title": "Notes",
         "add": "Add note",
         "people": {
@@ -175,6 +176,7 @@
     "signals": {
         "title": "Hints from the data",
         "tip": "Suggestions from signups and logs. None of this is a note until you add one.",
+        "empty": "No hints right now.",
         "kind": {
             "late_signoff": "Late signoff",
             "signoff_after_setup": "Signoff after being placed",
@@ -194,6 +196,63 @@
             "other": "Show {count} more hints"
         },
         "showLess": "Show less"
+    },
+    "thresholds": {
+        "open": "Thresholds",
+        "openSub": "From when a hint shows – for this server.",
+        "title": "Thresholds for hints",
+        "label": {
+            "windowDays": "Window",
+            "lateHours": "Short notice",
+            "lateSignoff": "Late signoff",
+            "signoffAfterSetup": "Signoff after setup",
+            "noShow": "No show",
+            "leftServer": "Left the server"
+        },
+        "value": {
+            "windowDays": {
+                "one": "{count} day",
+                "other": "{count} days"
+            },
+            "lateHours": {
+                "one": "under {count} hour",
+                "other": "under {count} hours"
+            },
+            "lateSignoff": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "signoffAfterSetup": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "noShow": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            },
+            "leftServer": {
+                "one": "from {count} time",
+                "other": "from {count} times"
+            }
+        },
+        "tip": {
+            "windowDays": "How far back is counted ({min} to {max} days).",
+            "lateHours": "A signoff counts as late when it comes fewer hours before the start ({min} to {max}).",
+            "lateSignoff": "How often someone has to sign off late in the window ({min} to {max}).",
+            "signoffAfterSetup": "How often someone has to sign off after being set in the setup ({min} to {max}).",
+            "noShow": "How often someone has to be a no show in the window ({min} to {max}).",
+            "leftServer": "How often someone has to have left the server in the window ({min} to {max})."
+        },
+        "less": "Less",
+        "more": "More",
+        "default": "Default",
+        "defaultTip": "Back to the default: {value}",
+        "isDefault": "Default",
+        "readOnly": "View only – changes need write access to Vermerke.",
+        "loadError": "Could not load the thresholds: {message}",
+        "badThreshold": "At least one value is outside its allowed range.",
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the thresholds belong to the right server.",
+        "failed": "Saving did not work: {message}"
     },
     "members": {
         "filter": "With note",
