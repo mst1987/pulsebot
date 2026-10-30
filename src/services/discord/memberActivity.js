@@ -15,6 +15,7 @@
 const guildRoles = require("./guildRoles");
 const memberActivityStore = require("../../stores/memberActivityStore");
 const memberRelation = require("./memberRelation");
+const signalRecorder = require("../vermerke/signalRecorder");
 const logger = require("../../logger").child("memberActivity");
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -68,11 +69,29 @@ function onMemberAdd(member) {
     }
 }
 
+/**
+ * A person tied to the raids (a roster or characters) left: a hint for the orga's Vermerke (#982,
+ * signalRecorder.js). Best-effort, never throws.
+ */
+function noteLeaveSignal(member) {
+    try {
+        const userId = str(member.id);
+        const relation = memberRelation.relationOf(userId);
+        if (!relation.rosters.length && !relation.characters.length) return null;
+        return signalRecorder.recordLeave(guildIdOf(member), userId, { name: nameOf(member) });
+    } catch (e) {
+        logger.warn("could not note a leave hint:", (e && e.message) || e);
+        return null;
+    }
+}
+
 /** guildMemberRemove: note the leave with the roles the member had. Never throws. */
 function onMemberRemove(member) {
     try {
         if (!relevant(member)) return null;
-        return recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+        const entry = recordSafe({ guildId: guildIdOf(member), userId: str(member.id), name: nameOf(member), kind: "leave", roles: rolesOf(member) });
+        noteLeaveSignal(member);
+        return entry;
     } catch (e) {
         logger.warn("could not note a leave:", (e && e.message) || e);
         return null;

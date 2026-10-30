@@ -69,6 +69,7 @@ const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 const { checkPugMember, holdsSignup, serverOf } = require("./pugMembership");
 const { planSignupCharacter, addSignupCharacter } = require("./signupNewCharacter");
 const { groupPlaces } = require("../events/raidGroup");
+const signalRecorder = require("../vermerke/signalRecorder");
 
 // Statuses a member may still pick once the deadline has passed.
 const AFTER_DEADLINE = ["absence", "late"];
@@ -606,6 +607,9 @@ async function submitSignup(eventId, userId, input = {}, {
     // The note of "Vielleicht" / "Absagen" goes to the orga's channel — not
     // awaited: a slow or refused post never holds up or fails the signup.
     signupNotes.postSignupNote(event, saved.signup, previous, { config: config || settingsStore.getConfig(), byOrga });
+    // A sign-off after the setup or shortly before the start is a hint for the orga's Vermerke (#982):
+    // noted for the orga only, best-effort - the answer below stays exactly the same.
+    signalRecorder.recordSignoff(event, uid, previous, saved.signup, { now, byOrga, config, name: accountName });
     return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 

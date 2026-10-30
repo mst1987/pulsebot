@@ -167,13 +167,13 @@ describe("stores/userNotesStore", () => {
         }
 
         // everything else goes through the short form (services/vermerke/vermerkeShort.js): no text out
-        it("is read by the Vermerke routes and the short form alone", () => {
+        it("is read by the Vermerke routes, the short form and the hints alone", () => {
             expect(modulesMatching(/require\(\s*["'][^"']*userNotesStore["']\s*\)/))
-                .toEqual(["services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"]);
+                .toEqual(["services/vermerke/userSignals.js", "services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"]);
         });
 
         it("writes nothing of a note into a log", () => {
-            const own = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "web/apiRoutes/vermerke.js"];
+            const own = ["stores/userNotesStore.js", "services/vermerke/vermerkeShort.js", "services/vermerke/userSignals.js", "web/apiRoutes/vermerke.js"];
             const logging = modulesMatching(/\b(console\.\w+|logger\.\w+)\s*\(|require\(\s*["'][^"']*\/logger["']\s*\)/)
                 .filter((rel) => own.includes(rel));
             expect(logging).toEqual([]);

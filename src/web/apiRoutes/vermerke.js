@@ -16,6 +16,9 @@
 // active server. Nothing here ever answers the person a note is about: a raider
 // and "Ansicht als Raider" get 403 everywhere
 // (test/services/vermerke/vermerkeNeverToPerson.test.js).
+//
+// /api/vermerke/signals* (#982): the hints from the data - proposals the orga
+// may turn into a Vermerk or hide, and their thresholds per server.
 const { ok, error } = require("../http/apiResponse");
 const { withUser, ORGA_ONLY } = require("../http/apiHandler");
 const { activeGuildFor } = require("../http/activeGuild");
@@ -27,7 +30,10 @@ const { shortFor } = require("../../services/vermerke/vermerkeShort");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const { serverLabel } = require("../../services/discord/guildRoles");
 const discord = require("../../services/discord/discord");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig, saveConfig } = require("../../stores/settingsStore");
+const { IGNORE_KINDS } = require("../../stores/userSignalsStore");
+const { signalsFor, ignoreSignal } = require("../../services/vermerke/userSignals");
+const { DEFAULT_THRESHOLDS, THRESHOLD_LIMITS, normalizeThresholds, thresholdsOf } = require("../../services/vermerke/signalRecorder");
 
 const WRITE = { write: "vermerke", csrf: true, body: true };
 const MAX_SHORT_IDS = 200;
@@ -204,6 +210,60 @@ const getShort = withUser(async ({ user, query, req, res }) => {
     return ok(res, { short: shortFor(guildId, userIds) });
 });
 
+/**
+ * GET /api/vermerke/signals - the hints from the data (#982): persons over a threshold of the active
+ * server, newest first, with the thresholds in use. Proposals only - the bot never makes a Vermerk.
+ */
+const getSignals = withUser(async ({ req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    const config = getConfig();
+    return ok(res, { signals: signalsFor(guildId, { config }), thresholds: thresholdsOf(guildId, { config }) });
+});
+
+/** POST /api/vermerke/signals/ignore { userId, kind } - "Ausblenden" until a new event of that kind. */
+const postSignalIgnore = withUser(WRITE, async ({ body, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    const userId = q.snowflake(body, "userId");
+    if (!userId) return error(res, 400, "bad_user", "Kein Discord-Konto angegeben.");
+    const kind = q.str(body, "kind");
+    if (!IGNORE_KINDS.includes(kind)) return error(res, 400, "bad_kind", "Unbekannte Art von Hinweis.");
+    return ok(res, { ignored: ignoreSignal(guildId, userId, kind) });
+});
+
+/** The thresholds of a server as the settings get them: in use, own values, defaults and ranges. */
+function thresholdView(guildId, config) {
+    return {
+        guildId,
+        thresholds: thresholdsOf(guildId, { config }),
+        own: normalizeThresholds(((config.serverSettings || {})[guildId] || {}).vermerkeSignals),
+        defaults: DEFAULT_THRESHOLDS,
+        limits: THRESHOLD_LIMITS,
+    };
+}
+
+/** GET /api/vermerke/signals/settings - the thresholds of the hints on the active server. */
+const getSignalSettings = withUser(async ({ req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    return ok(res, thresholdView(guildId, getConfig()));
+});
+
+/**
+ * POST /api/vermerke/signals/settings { thresholds, serverSettingsGuildId } - the server's own
+ * thresholds (replaces them; a value left out or empty is the default again).
+ */
+const postSignalSettings = withUser(WRITE, async ({ body, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    if (String(body.serverSettingsGuildId || "") !== guildId) {
+        return error(res, 409, "server_switched", "Der aktive Server wurde inzwischen gewechselt. Bitte die Seite neu laden.");
+    }
+    saveConfig({ serverSettings: { [guildId]: { vermerkeSignals: normalizeThresholds(body.thresholds) } } });
+    return ok(res, thresholdView(guildId, getConfig()));
+});
+
 const routes = [
     { method: "GET", path: "/api/vermerke", handler: getList, area: "vermerke" },
     { method: "POST", path: "/api/vermerke", handler: postEntry, area: "vermerke" },
@@ -213,6 +273,13 @@ const routes = [
     { method: "POST", path: "/api/vermerke/hide", handler: postHide, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/delete", handler: postDelete, area: "vermerke" },
     { method: "GET", path: "/api/vermerke/short", handler: getShort, auth: "menu" },
+    { method: "GET", path: "/api/vermerke/signals", handler: getSignals, area: "vermerke" },
+    { method: "POST", path: "/api/vermerke/signals/ignore", handler: postSignalIgnore, area: "vermerke" },
+    { method: "GET", path: "/api/vermerke/signals/settings", handler: getSignalSettings, area: "vermerke" },
+    { method: "POST", path: "/api/vermerke/signals/settings", handler: postSignalSettings, area: "vermerke" },
 ];
 
-module.exports = { routes, getList, getPerson, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf };
+module.exports = {
+    routes, getList, getPerson, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf,
+    getSignals, postSignalIgnore, getSignalSettings, postSignalSettings,
+};

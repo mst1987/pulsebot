@@ -359,5 +359,9 @@
   "POST /api/vermerke/archive",
   "POST /api/vermerke/hide",
   "POST /api/vermerke/delete",
-  "GET /api/vermerke/short"
+  "GET /api/vermerke/short",
+  "GET /api/vermerke/signals",
+  "POST /api/vermerke/signals/ignore",
+  "GET /api/vermerke/signals/settings",
+  "POST /api/vermerke/signals/settings"
 ]

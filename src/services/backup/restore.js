@@ -42,6 +42,7 @@ const SENSITIVE_FILES = new Set([
     "settings/availability.json",
     "settings/attendance-overrides.json",
     "settings/user-notes.json",
+    "settings/user-signals.json",
 ]);
 const SENSITIVE_MODE = 0o600;
 const PLAIN_MODE = 0o644;

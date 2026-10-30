@@ -21,7 +21,9 @@ jest.mock("../../../src/stores/raiderCharactersStore", () => ({
 
 const memberActivity = require("../../../src/services/discord/memberActivity");
 const store = require("../../../src/stores/memberActivityStore");
+const signals = require("../../../src/stores/userSignalsStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const fs = require("fs");
 
 const EVENT = "900000000000000001";
 const OTHER = "900000000000000009";
@@ -34,11 +36,17 @@ function member({ guildId = EVENT, id = U1, bot = false, roles = [] } = {}) {
 
 beforeEach(() => {
     store.useFile(tempStoreFile("member-activity.json"));
+    const signalFile = tempStoreFile("user-signals.json");
+    if (fs.existsSync(signalFile)) fs.unlinkSync(signalFile);
+    signals.useFile(signalFile);
     mockRosters.length = 0;
     for (const k of Object.keys(mockProfiles)) delete mockProfiles[k];
     for (const k of Object.keys(mockAssignments)) delete mockAssignments[k];
 });
-afterAll(() => store.useFile(null));
+afterAll(() => {
+    store.useFile(null);
+    signals.useFile(null);
+});
 
 describe("onMemberAdd / onMemberRemove", () => {
     it("notes a join on a configured server", () => {
@@ -70,6 +78,46 @@ describe("onMemberAdd / onMemberRemove", () => {
         expect(memberActivity.onMemberAdd(broken)).toBeNull();
         expect(memberActivity.onMemberRemove(broken)).toBeNull();
         expect(store.listEntries()).toEqual([]);
+    });
+});
+
+describe("leave hint for the Vermerke (#982)", () => {
+    const hints = () => signals.eventsFor(EVENT);
+
+    it("notes nothing for somebody without a roster or characters", () => {
+        memberActivity.onMemberRemove(member());
+        expect(hints()).toEqual({});
+    });
+
+    it("notes leaving the server for somebody in a roster or with characters", () => {
+        mockRosters.push({ id: "r1", name: "TBC Main", categoryId: "c1", members: { [U1]: { status: "raider" } } });
+        memberActivity.onMemberRemove(member());
+        expect(hints()[U1]).toEqual({ name: "Ostrava", events: [expect.objectContaining({ kind: "left_server", eventId: "" })] });
+
+        mockRosters.length = 0;
+        const U2 = "100000000000000002";
+        mockAssignments[U2] = [{ character: "Twink" }];
+        memberActivity.onMemberRemove(member({ id: U2 }));
+        expect(Object.keys(hints()).sort()).toEqual([U1, U2]);
+    });
+
+    it("notes no hint on a join, for a bot or on another server", () => {
+        mockAssignments[U1] = [{ character: "Twink" }];
+        memberActivity.onMemberAdd(member());
+        memberActivity.onMemberRemove(member({ bot: true }));
+        memberActivity.onMemberRemove(member({ guildId: OTHER }));
+        expect(hints()).toEqual({});
+        expect(signals.eventsFor(OTHER)).toEqual({});
+    });
+
+    it("still notes the leave when the hint fails", () => {
+        mockAssignments[U1] = [{ character: "Twink" }];
+        const spy = jest.spyOn(signals, "recordEvent").mockImplementation(() => { throw new Error("disk full"); });
+        try {
+            expect(memberActivity.onMemberRemove(member())).toEqual(expect.objectContaining({ kind: "leave" }));
+        } finally {
+            spy.mockRestore();
+        }
     });
 });
 

@@ -45,8 +45,8 @@ When A takes `shared` back, B's hide mark stays in the store; should A share the
   hidden: { [guildId]: { [entryId]: { by, at } } } }
 ```
 
-Only two modules read it: the routes (`src/web/apiRoutes/vermerke.js`) and the short form
-(`src/services/vermerke/vermerkeShort.js`). Nothing of a note is ever logged. Both are held by
+Only three modules read it: the routes (`src/web/apiRoutes/vermerke.js`), the short form
+(`src/services/vermerke/vermerkeShort.js`) and the hints (`src/services/vermerke/userSignals.js`, see below). Nothing of a note is ever logged. Both are held by
 `test/stores/userNotesStore.test.js`.
 
 ## Rights
@@ -80,6 +80,52 @@ open at the gate (`auth: "menu"`) and lets in: `vermerke` read, the global raid 
 `isGlobalRaidOrga` in `web/events/raidOrgaAccess.js` — the rule of the setup editor), or a manager of a roster of the
 **active server** (`categoryOrga.isAnyCategoryManager(user, { guildId })`). Everyone else: 403 `orga_only`.
 `shortFor` reads the store **once** for all ids (`activeEntriesMany`), so a raid with 40 signups is one read.
+
+## Hints from the data (#982)
+
+The bot **never makes a note itself** — it only proposes. The word is always "Hinweis", never "auffällig".
+
+| Kind | Source | Default threshold |
+|---|---|---|
+| `signoff_after_setup` | sign-off while placed in the **approved** setup (`event.setup.approved`, for a raid group any raid of the group, noted at the first) — every way: web, bot, several raids at once, the orga for somebody | 2 in 60 days |
+| `late_signoff` | sign-off of an existing signup less than `lateHours` (12) before the start, not placed | 2 in 60 days |
+| `no_show` | **computed**, not stored: `noShow` in the attendance overrides (`attendanceOverridesStore`) of the server's own raids inside the window | 2 in 60 days |
+| `left_server` | leaving the Discord server (`memberActivity.onMemberRemove`) for somebody in a roster or with characters (`relationOf`) | 1 |
+
+`left_early` is **not** detected: there is no attendance per fight, wipes, raid groups, several logs and character
+switches blur it, and Warcraft Logs has no events outside fights — own issue #990. A first
+answer "abwesend" (no signup before) is no sign-off; removing a raider by the orga (`removeRaider`) is no hint
+either. An absence entered via `availability.js` goes through `submitSignup` and counts like a sign-off.
+
+**Recording** (`src/services/vermerke/signalRecorder.js`, called at the end of `submitSignup`): only when the new
+status is `absence`, the old one was not, before the start and on a known server; a failure is caught — the raider's
+sign-off and answer never change (`test/services/signups/signupService.signals.test.js`). Stored: the raid, when, the
+hours before the start (`hoursBefore`) and `byOrga`.
+
+**Store** `src/stores/userSignalsStore.js`, file `data/settings/user-signals.json` (sensitive, kept **180 days**,
+at most 60 events per person and server):
+
+```
+{ guilds:  { [guildId]: { [userId]: { name, events: [{ kind, eventId, title, startTime, at, hoursBefore?, byOrga? }] } } },
+  ignored: { [guildId]: { [userId]: { [kind]: at } } } }
+```
+
+**Reading** (`src/services/vermerke/userSignals.js`, loaded by the Vermerke routes only): per kind the events inside
+the window; shown only from the threshold on, newest first. "Ausblenden" (`ignored`) and an **active Vermerk with
+the matching reason** (`late_signoff` for both sign-off kinds, `no_show`) hold a hint back until a newer event of
+that kind. `left_server` has no matching reason, only "Ausblenden" holds it back. No-shows cost one
+`listEvents(server, { siblings, sinceSeconds })` and one read of the overrides per request — no scan over all signups.
+
+**Thresholds per server** in `serverSettings[guildId].vermerkeSignals` (`DEFAULT_THRESHOLDS` / `THRESHOLD_LIMITS`
+in `signalRecorder.js`): `windowDays` 60 (7–180), `signoffAfterSetup` 2, `lateSignoff` 2, `noShow` 2 (1–20 each),
+`lateHours` 12 (1–72), `leftServer` 1 (1–5). Only an API for now, no page.
+
+| Route | Right | What |
+|---|---|---|
+| `GET /api/vermerke/signals` | read | `{ signals: [{ userId, name, kind, count, windowDays, events: [{ eventId, title, startTime }], lastAt }], thresholds }` |
+| `POST /api/vermerke/signals/ignore` | write | `{ userId, kind }` → `{ ignored }`; 400 `bad_user` / `bad_kind` |
+| `GET /api/vermerke/signals/settings` | read | `{ guildId, thresholds, own, defaults, limits }` |
+| `POST /api/vermerke/signals/settings` | write | `{ thresholds, serverSettingsGuildId }` → same + saved; 409 `server_switched` for a stale tab |
 
 ## Never to the person
 
