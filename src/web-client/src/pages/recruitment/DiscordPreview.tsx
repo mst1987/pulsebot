@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import type { Emoji, TextChannel } from "../../api";
-import { CrestIcon } from "../../components/ui/icons";
+import { CrestIcon, ExternalIcon } from "../../components/ui/icons";
 import { parseDiscordMarkdown, type InlineToken, type MdBlock } from "../../lib/discord/discordMarkdown";
 import { formatTime } from "../../lib/format";
 import { t as translate, useT } from "../../i18n";
@@ -75,9 +75,13 @@ function nowLabel(): string {
     return translate("recruitment.preview.now", { time: formatTime(Date.now()) });
 }
 
-export default function DiscordPreview({ content, buttonLabel, emojis, channels = [], botName = "EventHelper" }: {
+export default function DiscordPreview({ content, buttonLabel, emojis, channels = [], botName = "EventHelper", buttonKind = "apply", forumTitle }: {
     content: string;
     buttonLabel: string;
+    /** "link": Discord's grey link button (an invite) instead of the green apply button. */
+    buttonKind?: "apply" | "link";
+    /** Set for a forum post: its title, shown above the message ("" shows a placeholder). */
+    forumTitle?: string;
     emojis: Emoji[];
     channels?: TextChannel[];
     botName?: string;
@@ -86,6 +90,9 @@ export default function DiscordPreview({ content, buttonLabel, emojis, channels 
     const blocks = parseDiscordMarkdown(content);
     return (
         <div className="dc">
+            {forumTitle !== undefined && (
+                <div className={`dc-forum-title${forumTitle.trim() ? "" : " dc-empty"}`}>{forumTitle.trim() || t("recruitment.preview.noForumTitle")}</div>
+            )}
             <div className="dc-row">
                 <div className="dc-ava" aria-hidden="true"><CrestIcon /></div>
                 <div className="dc-msg">
@@ -97,9 +104,11 @@ export default function DiscordPreview({ content, buttonLabel, emojis, channels 
                     {blocks.length
                         ? blocks.map((b, i) => <Block key={i} block={b} emojis={emojis} channels={channels} />)
                         : <p className="dc-p dc-empty">{t("recruitment.preview.empty")}</p>}
-                    {/* Same default label as buildRecruitmentMessage() in src/web/discord.js —
-                        what the bot posts, so it is not translated. */}
-                    <div className="dc-btn">{buttonLabel.trim() || "Jetzt bewerben"}</div>
+                    {/* Same default labels as buildRecruitmentMessage() in src/services/discord/discord.js —
+                        what the bot posts, so they are not translated. */}
+                    {buttonKind !== "link"
+                        ? <div className="dc-btn">{buttonLabel.trim() || "Jetzt bewerben"}</div>
+                        : <div className="dc-btn dc-btn-link">{buttonLabel.trim() || "Server beitreten"}<ExternalIcon /></div>}
                 </div>
             </div>
         </div>
