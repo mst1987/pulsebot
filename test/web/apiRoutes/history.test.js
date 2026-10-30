@@ -350,7 +350,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedAuth;
             jest.isolateModules(() => {
                 jest.doMock("../../../src/stores/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked,
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(),
                     getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
                 }));
                 jest.doMock("../../../src/services/events/storedVersion", () => ({
@@ -390,7 +390,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedGuild;
             jest.isolateModules(() => {
                 jest.doMock("../../../src/stores/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked,
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(),
                     getPending: (id) => pending.find((s) => s.id === id) || null,
                     resolvePending, upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(), unlinkEvent: jest.fn(() => 0),
                 }));
@@ -420,14 +420,14 @@ describe("web/apiRoutes/history", () => {
             expect(resolvePending).not.toHaveBeenCalled();
             const dismissOpen = await send("POST", "/api/history/inbox-dismiss", { id: "p-open" });
             expect(json(dismissOpen).data).toEqual({ id: "p-open", sessionId: "p-open" });
-            expect(resolvePending).toHaveBeenCalledWith("p-open", "dismissed");
+            expect(resolvePending).toHaveBeenCalledWith("p-open", "dismissed", { by: "Admin" });
 
             isolatedGuild.activeGuildFor.mockReturnValue("gB");
             expect(json(await send("GET", "/api/history/inbox")).data.sessions.map((s) => s.id)).toEqual(["p-b", "p-open"]);
 
             isolatedGuild.activeGuildFor.mockReturnValue("");
             const none = json(await send("GET", "/api/history/inbox")).data;
-            expect(none).toEqual({ sessions: [], linked: [] });
+            expect(none).toEqual({ sessions: [], waiting: [], dismissed: [], waitingBanks: [], linked: [] });
         });
 
         // #919, through the real router: every loot view of the history area -
@@ -1117,7 +1117,7 @@ describe("web/apiRoutes/history", () => {
             // the inbox store reads its file; here it is a stand-in, in a registry of its own
             jest.isolateModules(() => {
                 jest.doMock("../../../src/stores/lootInboxStore", () => ({
-                    listPending: () => [], listLinked: () => [], unlinkEvent,
+                    listPending: () => [], listLinked: () => [], listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), unlinkEvent,
                     getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
                 }));
                 route = require("../../../src/web/apiRoutes/history");

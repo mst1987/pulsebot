@@ -20,6 +20,7 @@ const { rememberFromLoot } = require("../../services/characters/characterInfo");
 const { parseEventHelperSessions, LootParseError } = require("../../utils/loot/lootImport");
 const { linkItemsForImport, enrichForImport } = require("../../services/loot/lootVersion");
 const { bestDayMatch } = require("../loot/lootEventMatch");
+const { scoreCandidates, decideCandidates } = require("../loot/inboxCandidates");
 const { verifyToken, touchToken, bearerFrom } = require("../../stores/ingestTokenStore");
 const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../stores/lootInboxStore");
 const { councilRoster } = require("../loot/lootCouncil");
@@ -125,6 +126,50 @@ async function suggestMatch(session, servers) {
     }
 }
 
+/**
+ * The raid of an upload that names its game version (#1002, web/loot/inboxCandidates.js): the
+ * one raid on the key's servers where most recipients signed up, else waiting with every
+ * candidate. A failed raid lookup leaves the upload waiting on the key's servers - the loot is
+ * never lost over it.
+ */
+async function candidateMatch(session, servers, meta) {
+    const keyServers = Array.isArray(servers) ? servers : [];
+    const at = sessionTime(session);
+    let candidates = [];
+    if (at) {
+        try {
+            const rows = await eventsOfServers(searchServers(servers));
+            candidates = scoreCandidates(session, rows, {
+                gameVersion: meta.gameVersion, realm: meta.realm, at, config: getConfig(),
+            });
+        } catch (e) {
+            console.error("ingest: candidate match failed:", (e && e.message) || e);
+        }
+    }
+    return decideCandidates(candidates, keyServers);
+}
+
+/**
+ * Where a new inbox card goes: its match, its server and (#1002) whether it waits. With a game
+ * version the recipients decide between the raids of the key's servers; without one the plain
+ * day match as before. Without a suggestion the card shows only on the key's server (#994); a
+ * personal key's on the first of its owner's servers (#1000) - never on every server. A clear
+ * match (#1002) goes to its raid's server, a waiting upload to its candidates' servers.
+ */
+async function inboxPlacement(session, servers, meta) {
+    if (!meta.gameVersion) {
+        return { match: await suggestMatch(session, servers), guildId: servers ? servers[0] : "" };
+    }
+    const decided = await candidateMatch(session, servers, meta);
+    return {
+        match: decided.match,
+        guildId: decided.waiting ? "" : decided.match.suggested.guildId,
+        gameVersion: meta.gameVersion,
+        waiting: decided.waiting,
+        servers: decided.servers,
+    };
+}
+
 /** The raids of the given servers, each with its group and server; a raid listed twice counts once. */
 async function eventsOfServers(guildIds) {
     const seen = new Set();
@@ -224,17 +269,15 @@ async function ingestLoot(req, res) {
             continue;
         }
 
-        const match = await suggestMatch(session, servers);
+        const placement = await inboxPlacement(session, servers, meta);
+        const match = placement.match;
         const { entry, added, created } = upsertPending(session, {
             realm: meta.realm,
             reporter: meta.reporter,
             addonVersion: meta.addonVersion,
             tokenId: token.id,
             tokenName: token.name,
-            // without a suggestion the card shows only on the key's server (#994); a personal
-            // key's on the first of its owner's servers (#1000) - never on every server
-            guildId: servers ? servers[0] : "",
-            match,
+            ...placement,
         });
         results.push({
             sessionId: session.sessionId,
@@ -243,6 +286,8 @@ async function ingestLoot(req, res) {
             added,
             total: entry.itemCount,
             suggested: match && match.suggested ? match.suggested.eventLabel : "",
+            // #1002: no clear raid, the orga assigns it in the inbox
+            ...(entry.waiting ? { waiting: true } : {}),
         });
     }
 

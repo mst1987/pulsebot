@@ -25,6 +25,13 @@
 // the same item ids repeat across a raid's loot.
 
 const { versionLinks } = require("../../services/events/versionSettings");
+const { rulesFor } = require("../../config/gameVersions");
+
+/** A game version id the upload names, "" when it is missing or unknown. */
+function knownGameVersion(value) {
+    const id = String(value || "").trim().toLowerCase();
+    return id && rulesFor(id) ? id : "";
+}
 
 // Wowhead links of a game version (#542: its Wowhead path, "" when it has
 // none). Item names resolve in the tooltip even when an export (Gargul) only
@@ -303,6 +310,9 @@ function parseEventHelperSessions(text) {
         reporter: splitPlayer(data.reporter).player,
         addonVersion: String((data.client && data.client.addon) || "").trim(),
         syncVersion: String((data.client && data.client.sync) || "").trim(),
+        // The game version the addon ran on (#1002, optional): a known id, else
+        // "" — then every version counts as before.
+        gameVersion: knownGameVersion(data.gameVersion),
     };
     return { meta, sessions };
 }

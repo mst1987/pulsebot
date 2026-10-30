@@ -29,13 +29,19 @@ const INBOX_FILE = settingsPath("loot-inbox.json");
 // which the sync tool might still re-upload a raid, but is cheap to keep long.
 const MAX_RESOLVED = 500;
 
+// How long a dismissed upload stays visible (and restorable) in the inbox's
+// "Verworfen" tab (#1002). Its decision is remembered longer (MAX_RESOLVED), so a
+// later upload of the same raid stays dismissed after the card is gone.
+const DISMISS_KEEP_MS = 14 * 24 * 60 * 60 * 1000;
+
 const store = createJsonStore({
     file: INBOX_FILE,
-    defaults: () => ({ pending: [], resolved: [] }),
+    defaults: () => ({ pending: [], resolved: [], dismissed: [] }),
     normalize: (data) => {
         return {
             pending: Array.isArray(data.pending) ? data.pending : [],
             resolved: Array.isArray(data.resolved) ? data.resolved : [],
+            dismissed: Array.isArray(data.dismissed) ? data.dismissed : [],
         };
     },
 });
@@ -44,10 +50,16 @@ function readState() {
     return store.read();
 }
 
+/** Dismissed uploads still inside the 14-day window. */
+function keptDismissed(list, now = Date.now()) {
+    return (list || []).filter((d) => (Number(d.dismissedAt) || 0) > now - DISMISS_KEEP_MS);
+}
+
 function writeState(state) {
     store.write({
         pending: state.pending,
         resolved: state.resolved.slice(-MAX_RESOLVED),
+        dismissed: keptDismissed(state.dismissed),
     });
 }
 
@@ -119,6 +131,9 @@ function upsertPending(session, meta = {}) {
         if (meta.match !== undefined) existing.match = meta.match;
         // The server of the upload key (#994); a key assigned later fills it in.
         if (meta.guildId) existing.guildId = String(meta.guildId);
+        // A matching raid created later ends the waiting (#1002).
+        if (meta.waiting !== undefined) Object.assign(existing, waitingFields(meta));
+        if (meta.gameVersion) existing.gameVersion = String(meta.gameVersion);
         writeState(state);
         return { entry: existing, added: existing.items.length - before, created: false };
     }
@@ -141,10 +156,25 @@ function upsertPending(session, meta = {}) {
         // The server of the upload key (#994), "" for a key without one.
         guildId: meta.guildId ? String(meta.guildId) : "",
         match: meta.match || null,
+        // The game version the upload named (#1002), "" for an older addon.
+        gameVersion: meta.gameVersion ? String(meta.gameVersion) : "",
+        ...waitingFields(meta),
     };
     state.pending.push(entry);
     writeState(state);
     return { entry, added: items.length, created: true };
+}
+
+/**
+ * An upload without one clear raid waits for the orga (#1002): `waiting` with
+ * the servers whose orga sees it (every candidate's server, else the key's).
+ */
+function waitingFields(meta) {
+    const waiting = !!meta.waiting;
+    const servers = waiting && Array.isArray(meta.servers)
+        ? [...new Set(meta.servers.map(String).filter(Boolean))]
+        : [];
+    return { waiting, servers };
 }
 
 /**
@@ -159,7 +189,11 @@ function resolvePending(id, action, link = {}) {
     const idx = state.pending.findIndex((s) => s.id === String(id || ""));
     if (idx === -1) return null;
     const [entry] = state.pending.splice(idx, 1);
+    const at = Date.now();
     state.resolved.push({
+        // The inbox id, so a second accept of the same card can say "already
+        // assigned" (409) instead of "not found" (#1002).
+        id: entry.id,
         sessionId: entry.sessionId,
         action,
         eventId: link.eventId || "",
@@ -173,10 +207,70 @@ function resolvePending(id, action, link = {}) {
         startedAt: entry.startedAt || 0,
         itemCount: entry.itemCount || (entry.items || []).length,
         appended: 0,
-        at: Date.now(),
+        at,
     });
+    // A dismissed card stays restorable for 14 days (#1002).
+    if (action === "dismissed") {
+        state.dismissed = state.dismissed.filter((d) => d.sessionId !== entry.sessionId);
+        state.dismissed.push({ ...entry, dismissedAt: at, dismissedBy: link.by || "" });
+    }
     writeState(state);
     return entry;
+}
+
+/** The last decision on an inbox id, or null (#1002). */
+function resolvedById(id) {
+    const key = String(id || "");
+    if (!key) return null;
+    const { resolved } = readState();
+    for (let i = resolved.length - 1; i >= 0; i -= 1) {
+        if (resolved[i].id === key) return resolved[i];
+    }
+    return null;
+}
+
+/** Dismissed uploads of the last 14 days, newest decision first (#1002). */
+function listDismissed(now = Date.now()) {
+    return keptDismissed(readState().dismissed, now)
+        .slice()
+        .sort((a, b) => (b.dismissedAt || 0) - (a.dismissedAt || 0));
+}
+
+/** A dismissed upload by its inbox id (inside the 14 days), or null. */
+function getDismissed(id) {
+    const key = String(id || "");
+    return listDismissed().find((d) => d.id === key) || null;
+}
+
+/**
+ * Bring a dismissed upload back into the inbox (#1002): it waits again where it
+ * waited before, and the dismissal is forgotten so the next upload merges in.
+ * @returns {object|null} the restored entry, or null when it is unknown or older than 14 days
+ */
+function restorePending(id) {
+    const state = readState();
+    const key = String(id || "");
+    const kept = keptDismissed(state.dismissed);
+    const found = kept.find((d) => d.id === key);
+    if (!found) return null;
+    state.dismissed = kept.filter((d) => d.id !== key);
+    state.resolved = state.resolved.filter((r) => !(r.sessionId === found.sessionId && r.action === "dismissed"));
+    const { dismissedAt, dismissedBy, ...entry } = found; // eslint-disable-line no-unused-vars
+    entry.updatedAt = Date.now();
+    if (!state.pending.some((s) => s.sessionId === entry.sessionId)) state.pending.push(entry);
+    writeState(state);
+    return entry;
+}
+
+/** Drop dismissed uploads past the 14 days now (also happens on every write). */
+function pruneDismissed(now = Date.now()) {
+    const state = readState();
+    const kept = keptDismissed(state.dismissed, now);
+    const removed = state.dismissed.length - kept.length;
+    if (removed > 0) {
+        store.write({ ...state, dismissed: kept });
+    }
+    return removed;
 }
 
 /**
@@ -254,4 +348,7 @@ function listLinked(limit = 10) {
 
 module.exports = {
     listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
+    resolvedById, listDismissed, getDismissed, restorePending, pruneDismissed, DISMISS_KEEP_MS,
+    // tests: another file (null = back to the default)
+    useFile: store.useFile,
 };

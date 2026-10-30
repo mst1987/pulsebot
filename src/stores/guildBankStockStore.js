@@ -13,6 +13,9 @@
 //   bank = { key            "tbc:spineshatter:die gilde" — version + realm + guild (bankKeyOf)
 //            gameVersion, realm, guild, faction ("Alliance" | "Horde" | "")
 //            guildId        the Discord server it belongs to; "" = waits for assignment
+//            waitingFor     [guildId] - a new bank of a personal sync key that fitted none or several
+//                           of its servers (#1002): the orga of these servers sees it in the
+//                           Addon-Inbox; cleared by any assignment
 //            firstSeenAt, updatedAt,
 //            lastScan: { scannedAt, scannedBy, money (copper), generatedAt, build, receivedAt,
 //                        uploadedBy (token name), tabs: [{ index, name }],
@@ -185,6 +188,7 @@ function bankView(bank, { items = true, emojis = {} }) {
         faction: str(bank.faction, 20),
         guildId,
         pending: !guildId,
+        waitingFor: guildId ? [] : (Array.isArray(bank.waitingFor) ? bank.waitingFor.map((g) => str(g, 30)).filter(Boolean) : []),
         firstSeenAt: num(bank.firstSeenAt),
         updatedAt: num(bank.updatedAt),
         scannedAt: scan.scannedAt,
@@ -209,14 +213,17 @@ const findBank = (data, key) => data.banks.find((b) => b.key === str(key));
  * bank (summary), newItems: [itemId] }`; "stale" = an older scan than the
  * stored one, nothing changed.
  * @param {object} scan
- * @param {{ now?: number, guildId?: string, uploadedBy?: string }} [opts]
+ * `waitingFor` (a new bank without a server only): the servers whose orga may pick it (#1002).
+ * @param {{ now?: number, guildId?: string, uploadedBy?: string, waitingFor?: string[] }} [opts]
  */
-function recordScan(scan, { now = Date.now(), guildId = "", uploadedBy = "" } = {}) {
+function recordScan(scan, { now = Date.now(), guildId = "", uploadedBy = "", waitingFor = [] } = {}) {
     const data = store.read();
     let bank = findBank(data, scan.key);
     const created = !bank;
     if (!bank) {
         bank = { key: scan.key, gameVersion: scan.gameVersion, guildId: str(guildId, 30), firstSeenAt: now, tabSettings: {}, items: {} };
+        const waiting = bank.guildId ? [] : [...new Set((waitingFor || []).map((g) => str(g, 30)).filter(Boolean))];
+        if (waiting.length) bank.waitingFor = waiting;
         data.banks.push(bank);
     }
     const before = scanOf(bank);
@@ -279,6 +286,7 @@ function assignBank(key, guildId) {
     const bank = findBank(data, key);
     if (!bank) return null;
     bank.guildId = str(guildId, 30);
+    delete bank.waitingFor;
     store.write(data);
     return bankView(bank, { items: false });
 }

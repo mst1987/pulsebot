@@ -101,6 +101,33 @@ describe("services/guildbank/guildBankStock", () => {
         expect(two.bank).toMatchObject({ guildId: "", pending: true });
     });
 
+    // #1002: version, realm and guild decide between the key's servers; else the bank waits for them.
+    describe("a new bank of a personal key with several servers", () => {
+        const person = { id: "p1", ownerId: "u1" };
+        const wcl = (guildName, realm, versionId = "tbc") => ({ wclGuilds: [{ versionId, guildName, realm, region: "EU" }] });
+        const withGuilds = (settings) => ({ ...CONFIG, serverSettings: settings });
+
+        it("goes to the one server whose WCL guild is the bank's guild", () => {
+            const config = withGuilds({ 11111: wcl("Andere Gilde", "Spineshatter"), 22222: wcl("Die Gilde", "Spineshatter") });
+            const result = stock.ingestScan(body(), { token: person, servers: ["11111", "22222"], now: NOW, config });
+            expect(result.bank).toMatchObject({ guildId: "22222", pending: false, waitingFor: [] });
+        });
+
+        it("waits for both servers when the guild fits two of them", () => {
+            const config = withGuilds({ 11111: wcl("Die Gilde", "Spineshatter"), 22222: wcl("die gilde", "Spineshatter") });
+            const result = stock.ingestScan(body(), { token: person, servers: ["11111", "22222"], now: NOW, config });
+            expect(result.bank).toMatchObject({ guildId: "", pending: true, waitingFor: ["11111", "22222"] });
+        });
+
+        it("waits when no server's guild fits in version and realm, and any assignment ends the wait", () => {
+            const config = withGuilds({ 11111: wcl("Die Gilde", "Thunderstrike"), 22222: wcl("Die Gilde", "Spineshatter", "forever") });
+            const result = stock.ingestScan(body(), { token: person, servers: ["11111", "22222"], now: NOW, config });
+            expect(result.bank.waitingFor).toEqual(["11111", "22222"]);
+            expect(store.assignBank(result.bank.key, "22222")).toMatchObject({ guildId: "22222", pending: false, waitingFor: [] });
+            expect(store.getBank(result.bank.key).waitingFor).toEqual([]);
+        });
+    });
+
     it("lets a personal key scan known banks of its servers and refuses one of another", () => {
         const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
         const person = { id: "p1", ownerId: "u1" };
