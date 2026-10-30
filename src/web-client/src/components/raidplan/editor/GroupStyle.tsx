@@ -1,6 +1,6 @@
 import type { RaidplanBoard } from "../../../api";
 import { MarkIcon } from "../MarkIcon";
-import { GROUP_MARKS, GROUP_PALETTE, defaultGroupColor, groupColor, groupMark, setGroupColor, setGroupMark } from "../../../lib/raidplan/groupStyle";
+import { GROUP_MARKS, GROUP_PALETTE, defaultGroupColor, groupColor, groupMark, setGroupColor, setGroupMark } from "../../../lib/raidplan/board/groupStyle";
 import { useT } from "../../../i18n";
 
 /**

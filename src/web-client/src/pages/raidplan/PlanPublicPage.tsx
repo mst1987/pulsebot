@@ -1,31 +1,31 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { ChevronLeft, Clapperboard, ZoomIn, ZoomOut } from "lucide-react";
 import { useVisiblePoll } from "../../hooks/useVisiblePoll";
-import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/sectionUrl";
+import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/view/sectionUrl";
 import { useBoardView } from "../../hooks/useBoardView";
 import { useSheetLayout } from "../../hooks/useSheetLayout";
-import type { MinePos, StripMode } from "../../lib/raidplan/sheetLayout";
-import { viewFromSaved } from "../../lib/raidplan/boardView";
+import type { MinePos, StripMode } from "../../lib/raidplan/view/sheetLayout";
+import { viewFromSaved } from "../../lib/raidplan/board/boardView";
 import MiniMap from "../../components/raidplan/MiniMap";
 import { useViewPrefs } from "../../hooks/useViewPrefs";
 import { useRaidProgress } from "../../hooks/useRaidProgress";
-import { shownFor } from "../../lib/raidplan/viewRules";
+import { shownFor } from "../../lib/raidplan/view/viewRules";
 import { SheetViewMenu } from "../../components/raidplan/editor/ViewControls";
 import { getRaidplanPublic, pollRaidplanPublic, type RaidplanBoard, type RaidplanPublicBoss } from "../../api";
 import { useApi } from "../../hooks/useApi";
-import { autoPlaces, deriveAuto } from "../../lib/raidplan/autoPlace";
+import { autoPlaces, deriveAuto } from "../../lib/raidplan/assign/autoPlace";
 import PlanBoard from "../../components/raidplan/PlanBoard";
 import ScenePlayerBar, { SceneCaption } from "../../components/raidplan/ScenePlayerBar";
 import { useScenePlayer } from "../../hooks/useScenePlayer";
-import { autoAtOf, boardAfter, boardAt, frameAt, playable } from "../../lib/raidplan/scene";
-import { memberOffsets } from "../../lib/raidplan/members";
+import { autoAtOf, boardAfter, boardAt, frameAt, playable } from "../../lib/raidplan/anim/scene";
+import { memberOffsets } from "../../lib/raidplan/board/members";
 import StageBar from "./stage/StageBar";
 import BossStrip from "./stage/BossStrip";
 import MineCard from "./stage/MineCard";
 import TasksPanel from "./stage/TasksPanel";
-import { bossesWithMine } from "../../lib/raidplan/bossMine";
-import { assignmentLinks } from "../../lib/raidplan/assign";
-import { splitMine } from "../../lib/raidplan/mineView";
+import { bossesWithMine } from "../../lib/raidplan/view/bossMine";
+import { assignmentLinks } from "../../lib/raidplan/assign/assign";
+import { splitMine } from "../../lib/raidplan/view/mineView";
 import RaidLoader from "../../components/ui/RaidLoader";
 import { TipLayer } from "../../components/ui/Tip";
 import ArchiveBanner from "../../components/raid/ArchiveBanner";
@@ -33,7 +33,7 @@ import LangToggle from "../../components/shell/LangToggle";
 import ThemeToggle from "../../components/shell/ThemeToggle";
 import { formatEventTime } from "../../lib/format";
 import { rememberSection, rememberedSection, rosterMap, sectionLabel, severalInstances, startSection } from "../../lib/raidplan";
-import { cleanNames } from "../../lib/raidplan/mention";
+import { cleanNames } from "../../lib/raidplan/view/mention";
 import { useT } from "../../i18n";
 import { applyVersionColors, markVersion } from "../../lib/app/versionColor";
 import "../../styles/raidplan/index.css";
@@ -70,7 +70,7 @@ function useStageSize(): [(el: HTMLDivElement | null) => void, { w: number; h: n
  * Live (#555): while the tab is visible the page asks again every LIVE_POLL_MS with the ETag of what it shows; the server
  * answers a bare 304 while nothing changed. A changed plan is drawn in place - the section, the zoom, the scroll position,
  * the highlighted group and "Only for me" stay - and a small "Aktualisiert" shows for a moment. The chosen section stands
- * in the address (`#boss=<key>`, lib/raidplan/sectionUrl.ts) and in this browser, so a reload lands on it again.
+ * in the address (`#boss=<key>`, lib/raidplan/view/sectionUrl.ts) and in this browser, so a reload lands on it again.
  */
 const LIVE_POLL_MS = 20_000;
 /** How long the "Aktualisiert" note stays after a live update. */
@@ -236,7 +236,7 @@ export default function PlanPublicPage({ token }: { token: string }) {
         );
     }
 
-    // an open animation moves the objects (lib/raidplan/scene.ts): the board at the player's time, the tank rows' objects from where they stand;
+    // an open animation moves the objects (lib/raidplan/anim/scene.ts): the board at the player's time, the tank rows' objects from where they stand;
     // with less motion asked for, frame by frame. `drawn` is what the map shows: the plan as it is, or that moment of the animation
     const memberAt = scene ? memberOffsets({ ...boss, autoUsers: baseAuto ? baseAuto.users : [] } as never, planned, aspect) : {};
     const anim = scene ? (player.still ? boardAfter(boss, scene, frameAt(scene, player.t), autoAtOf(baseAuto), memberAt) : boardAt(boss, scene, player.t, autoAtOf(baseAuto), memberAt)) : null;

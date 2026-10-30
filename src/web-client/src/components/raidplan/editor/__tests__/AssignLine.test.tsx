@@ -6,8 +6,8 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import type { RaidplanAssignment } from "../../../../api";
 import AssignLine, { PrioChip } from "../AssignLine";
-import { classPlaceNameFor, type AssignCtx } from "../../../../lib/raidplan/assign";
-import { CLASS_COLOR } from "../../../../lib/raidplan/classRefs";
+import { classPlaceNameFor, type AssignCtx } from "../../../../lib/raidplan/assign/assign";
+import { CLASS_COLOR } from "../../../../lib/raidplan/assign/classRefs";
 
 const name = (c: string) => classPlaceNameFor(c, "", "heal");
 

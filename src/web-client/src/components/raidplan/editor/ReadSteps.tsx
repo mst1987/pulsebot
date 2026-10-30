@@ -1,7 +1,7 @@
 import { Clapperboard } from "lucide-react";
 import type { RaidplanScene, RaidplanStep } from "../../../api";
 import { ActionIcon } from "../ActionIcon";
-import type { AssignCtx } from "../../../lib/raidplan/assign";
+import type { AssignCtx } from "../../../lib/raidplan/assign/assign";
 import { duForm, isMyStep } from "../../../lib/raidplan/steps";
 import { StepPeople, StepSentence, TimingChip } from "./StepParts";
 import { useLang, useT } from "../../../i18n";

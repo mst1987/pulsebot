@@ -5,7 +5,7 @@ import { NumberField } from "../NumberField";
 import Switch from "../../ui/Switch";
 import { buttonClass } from "../../ui/Button";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
-import { BADGE_PRESETS } from "../../../lib/raidplan/sceneEdit";
+import { BADGE_PRESETS } from "../../../lib/raidplan/anim/sceneEdit";
 import { useT } from "../../../i18n";
 
 const ICON_NAME = /^[a-z0-9_'-]{2,64}$/;

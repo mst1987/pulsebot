@@ -4,7 +4,7 @@ import { useConfirm } from "../../ui";
 import { useT } from "../../../i18n";
 import { boardOf } from "../../../lib/raidplan";
 import { DEFAULTS_KEY } from "../../../lib/raidplan/inherit";
-import { applyTankLineup, differingKeys, sameOrder, tankLineup } from "../../../lib/raidplan/tankOrder";
+import { applyTankLineup, differingKeys, sameOrder, tankLineup } from "../../../lib/raidplan/assign/tankOrder";
 
 type Bosses = Record<string, Partial<RaidplanBoard>>;
 
@@ -14,7 +14,7 @@ const NAMES_SHOWN = 6;
 /**
  * "Soll die Tank-Reihenfolge auch für die anderen Bosse gelten?" Every section fills its tank slots in setup order; a
  * new tank line-up set in the Standard (order, number of tanks, who tanks) asks once whether the bosses (and trash) follow
- * it (lib/raidplan/tankOrder.ts). Asked
+ * it (lib/raidplan/assign/tankOrder.ts). Asked
  * when the editor leaves the Standard or saves on it - not on every click: a swap through the Besetzung's chips takes two
  * (Tank 1 = B empties Tank 2 until A is put there), so the order is only complete when the organiser is done.
  *

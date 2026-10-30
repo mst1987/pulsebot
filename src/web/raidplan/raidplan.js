@@ -261,7 +261,7 @@ function editorView(event, { canWrite, canWriteLibrary = false, me = "" }) {
             templateName: template ? template.name : "",
             bosses: plan.bosses,
             updatedAt: plan.updatedAt,
-            // "Gruppen im Plan" (#529): null = the groups up to the raid's size, no bench (lib/raidplan/planGroups.ts reads it)
+            // "Gruppen im Plan" (#529): null = the groups up to the raid's size, no bench (lib/raidplan/assign/planGroups.ts reads it)
             includedGroups: plan.includedGroups || null,
         },
         bosses: withStandard(bossList(event, { templateId: template ? template.id : "" })),

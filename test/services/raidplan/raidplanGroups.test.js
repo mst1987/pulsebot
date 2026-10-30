@@ -1,6 +1,6 @@
 // "Gruppen im Plan" (#529): the raid plan picks its raiders only from the setup groups up to the raid's size (25 = 1..5), never from the
 // bench unless the orga switches it on; the pool ("Angemeldet") never comes in. The client twin runs the same cases:
-// src/web-client/src/lib/raidplan/__tests__/planGroups.test.ts.
+// src/web-client/src/lib/raidplan/assign/__tests__/planGroups.test.ts.
 const groups = require("../../../src/services/raidplan/raidplanGroups");
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const raidplan = require("../../../src/web/raidplan/raidplan");

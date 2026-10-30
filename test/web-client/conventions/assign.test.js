@@ -1,4 +1,4 @@
-// The wiring of the assignments in the pages and their catalog texts; the logic of lib/raidplan/assign.ts is tested in
+// The wiring of the assignments in the pages and their catalog texts; the logic of lib/raidplan/assign/assign.ts is tested in
 // src/web-client/src/lib/assign.test.ts.
 const fs = require("fs");
 const path = require("path");
@@ -21,7 +21,7 @@ describe("the lines of the rows on the board (#507)", () => {
     const read = (p) => fs.readFileSync(path.join(root, p), "utf8");
     const css = read("styles/raidplan/assign.css") + read("styles/raidplan/layout.css");
     const tokens = read("styles/tokens.css");
-    const lineTypes = JSON.parse(read("lib/raidplan/assign.ts").match(/export const LINE_TYPES = (\[[^\]]*\]);/)[1]);
+    const lineTypes = JSON.parse(read("lib/raidplan/assign/assign.ts").match(/export const LINE_TYPES = (\[[^\]]*\]);/)[1]);
     const rules = css.split("}").filter((r) => r.indexOf(".rp-links") >= 0);
     it("every row type has a class that points at a colour variable defined in tokens.css", () => {
         expect(lineTypes).toEqual(expect.arrayContaining(["heal", "tank", "kick"]));

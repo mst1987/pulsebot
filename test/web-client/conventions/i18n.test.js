@@ -65,7 +65,7 @@ const ALLOWED_FILES = {
     // German verb forms: the plan's "du" rewrite of a German task sentence
     "lib/raidplan/steps.ts": "parses German input",
     // German spell names (Fluch der Elemente, Tollkühnheit …) that pick a task's icon
-    "lib/raidplan/assign.ts": "parses German input",
+    "lib/raidplan/assign/assign.ts": "parses German input",
 };
 
 const GERMAN_WORD = /\b(und|nicht|der|die|das|ist|mit|für|oder|kein|keine|noch|wird|werden|auf|zum|zur|dem|den|ein|eine|einen|bitte|wählen|hinzufügen|entfernen|speichern|abbrechen|löschen|schließen)\b/i;

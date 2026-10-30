@@ -4,7 +4,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import AssignPanel from "../AssignPanel";
 import { emptyBoard } from "../../../../lib/raidplan/model";
-import { addRowOfType } from "../../../../lib/raidplan/assign";
+import { addRowOfType } from "../../../../lib/raidplan/assign/assign";
 import { JobsProvider } from "../../../shell/Jobs";
 import { ConfirmProvider } from "../../../ui/Modal";
 import type { RaidplanBoard } from "../../../../api";

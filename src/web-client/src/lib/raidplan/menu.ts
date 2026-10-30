@@ -1,10 +1,10 @@
 import type { RaidplanBoard, RaidplanSlotKind } from "../../api";
 import { t } from "../../i18n";
 import { type InsertSpec, type MenuItem, type ObjectKind, RAID_MARKS, type Selection, ZONE_TYPES } from "./model";
-import { COMPASS, normAngle } from "./facing";
-import { scaleObject, setObjectPercent, SIZE_STEPS } from "./geometry";
-import { duplicateObject, insertObject, patchLook, removeObject, reorderObject, updateIcon, updateSlot } from "./objects";
-import { assignSlot, removeToken, takeOutOfGroup } from "./players";
+import { COMPASS, normAngle } from "./board/facing";
+import { scaleObject, setObjectPercent, SIZE_STEPS } from "./board/geometry";
+import { duplicateObject, insertObject, patchLook, removeObject, reorderObject, updateIcon, updateSlot } from "./board/objects";
+import { assignSlot, removeToken, takeOutOfGroup } from "./board/players";
 
 export function item(id: string, section: string, disabled: boolean, danger: boolean): MenuItem {
     return { id, section, disabled, danger };

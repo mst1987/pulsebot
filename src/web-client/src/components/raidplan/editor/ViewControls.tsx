@@ -3,7 +3,7 @@ import { Bookmark, BookmarkX, BoxSelect, ChevronDown, CircleDashed, CircleUser, 
 import type { RaidplanBoard } from "../../../api";
 import { IconButton, Switch } from "../../ui";
 import { SliderField } from "../NumberField";
-import { sameView, type BoardView } from "../../../lib/raidplan/boardView";
+import { sameView, type BoardView } from "../../../lib/raidplan/board/boardView";
 import { SCALE_MAX, SCALE_MIN, setAutoScale, setObjectScale } from "../../../lib/raidplan";
 import type { ViewPrefs } from "../../../hooks/useViewPrefs";
 import { useT } from "../../../i18n";

@@ -1,5 +1,5 @@
 import WowIcon from "../../ui/WowIcon";
-import { ASSIGN_META } from "../../../lib/raidplan/assign";
+import { ASSIGN_META } from "../../../lib/raidplan/assign/assign";
 import { useT } from "../../../i18n";
 
 /**

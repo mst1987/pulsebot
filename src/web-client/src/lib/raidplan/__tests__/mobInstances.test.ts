@@ -2,9 +2,9 @@
 // means ONE placed icon (`oid`); a row of the kind (older plans) still works for every icon nobody named. Auto placement, the facing, the
 // tank lines and the labels all read it the same way.
 import { describe, expect, it } from "vitest";
-import * as auto from "../autoPlace";
-import * as assign from "../assign";
-import * as modalLib from "../assignModal";
+import * as auto from "../assign/autoPlace";
+import * as assign from "../assign/assign";
+import * as modalLib from "../assign/assignModal";
 
 const FLAME = { kind: "mob", ref: "d:flame", name: "Flame of Azzinoth", icon: "" };
 const icon = (id, x, y, extra = {}) => ({ id, iconKey: "enemy", label: "Flame", x, y, size: 48, rotation: 0, showLabel: false, mobId: "d:flame", autoFace: true, ...extra });

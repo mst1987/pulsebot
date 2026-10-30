@@ -8,10 +8,10 @@ import type { Besetzung, RaidplanBoard, RaidplanPlayer } from "../../../../api";
 import { ConfirmProvider } from "../../../ui/Modal";
 import { boardOf, ensureBesetzung } from "../../../../lib/raidplan";
 import { DEFAULTS_KEY } from "../../../../lib/raidplan/inherit";
-import { assignOrSwap } from "../../../../lib/raidplan/rosterAssign";
-import { roleOrder } from "../../../../lib/raidplan/tankOrder";
-import { setCount } from "../../../../lib/raidplan/besetzung";
-import { assignSlot } from "../../../../lib/raidplan/players";
+import { assignOrSwap } from "../../../../lib/raidplan/assign/rosterAssign";
+import { roleOrder } from "../../../../lib/raidplan/assign/tankOrder";
+import { setCount } from "../../../../lib/raidplan/assign/besetzung";
+import { assignSlot } from "../../../../lib/raidplan/board/players";
 import { useDraftHistory } from "../useDraftHistory";
 import { useTankOrderFollow } from "../useTankOrderFollow";
 

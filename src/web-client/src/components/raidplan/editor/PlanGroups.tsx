@@ -1,6 +1,6 @@
 import { RotateCcw, Users } from "lucide-react";
 import type { IncludedGroups, RaidplanPlayer } from "../../../api";
-import { BENCH, groupChoices, isDefaultSelection, planRoster, toggleIncluded } from "../../../lib/raidplan/planGroups";
+import { BENCH, groupChoices, isDefaultSelection, planRoster, toggleIncluded } from "../../../lib/raidplan/assign/planGroups";
 import { useT } from "../../../i18n";
 
 /**

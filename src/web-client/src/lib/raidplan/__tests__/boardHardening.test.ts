@@ -1,7 +1,7 @@
 // A board with missing array fields must not crash (regression: "n.assignments is not iterable" when a mob was put on the map as an icon).
 import { describe, expect, it } from "vitest";
 import * as raidplan from "..";
-import * as assign from "../assign";
+import * as assign from "../assign/assign";
 
 describe("boards without every array", () => {
     const bare = { tokens: [], slots: [] };

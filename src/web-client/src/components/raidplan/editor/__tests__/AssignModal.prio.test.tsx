@@ -1,7 +1,7 @@
 // The row dialog's class priority (#525): "Nach Priorität" is the way a new heal row starts; the class tiles build the order, the count
 // is a NumberField, the order chips move with "earlier / later", the resolution shows who it is now; "In Priorität umwandeln" turns
 // Paladin 1 + Schamane 1 into 1 x Paladin › Schamane; "Je Klasse fest" takes the priority away. The resolution itself runs in
-// lib/raidplan/__tests__/classPriority.test.ts (both twins).
+// lib/raidplan/assign/__tests__/classPriority.test.ts (both twins).
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

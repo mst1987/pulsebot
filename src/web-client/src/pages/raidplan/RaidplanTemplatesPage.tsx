@@ -30,7 +30,7 @@ import PlanBoard from "../../components/raidplan/PlanBoard";
 import { formatDate } from "../../lib/format";
 import { rolePluralLabel } from "../../lib/wow/wowNames";
 import type { BesetzungCounts } from "../../api";
-import { bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../lib/raidplan/assign";
+import { bossIconOf, scopeOf, sectionMobs as sectionMobsOf } from "../../lib/raidplan/assign/assign";
 import { DEFAULTS_KEY, copyDefaultsToAll, differs } from "../../lib/raidplan/inherit";
 import { besetzungFor } from "../../lib/raidplan";
 import { useT } from "../../i18n";

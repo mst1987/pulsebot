@@ -4,7 +4,7 @@
 .rp-mapoff { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin: 8px 0; padding: 8px 12px; border: 1px dashed var(--line); border-radius: 10px; color: var(--muted); font-size: 13.5px; }
 .rp-mapoff > span { flex: 1 1 260px; }
 
-/* what the tank rows put on the map (lib/raidplan/autoPlace.ts): a placeholder of the template dashed, a class nobody in the raid has dimmed with a warning */
+/* what the tank rows put on the map (lib/raidplan/assign/autoPlace.ts): a placeholder of the template dashed, a class nobody in the raid has dimmed with a warning */
 .rp-autotank .rp-token-btn { position: relative; }
 .rp-autotank.is-rule .rp-ico, .rp-autotank.is-slot .rp-ico { border-style: dashed; opacity: .85; }
 .rp-autotank.is-missing { opacity: .6; }
@@ -23,7 +23,7 @@
 .rp-layer.is-auto .rp-layer-kind { display: inline-flex; align-items: center; gap: 3px; color: var(--accent); }
 /* a role group placeholder ("Melees", "Ranged" ...): a soft area in the role colour with ONE outline, the role icon, an optional label and count; never players */
 /* a role group ("Melees" ...): ONE clean outline and a light fill in its colour, its icon once in the middle, unscaled - every measure a share of
-   the zone (lib/raidplan/roleGroups.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
+   the zone (lib/raidplan/board/roleGroups.ts roleZoneMetrics -> --rp-zb / --rp-rg / --rp-zl / --rp-zk / --rp-zn), so it scales as one piece (#raidplan-15) */
 .rp-zone-role { border-style: solid; border-width: var(--rp-zb, 2px); background-image: none; }
 .rp-zone-role.rp-shape-cluster { background-color: transparent; border-color: transparent; }
 /* a role group AREA (#559, docs/raidplan/board.md "Role group areas: calm or arc"). Calm: a very light fill (a share of its opacity), a thin
@@ -43,7 +43,7 @@
 .rp-rg-bico { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; width: var(--rp-bi, 18px); height: var(--rp-bi, 18px); }
 .rp-rg-bcount { padding: 0 calc(var(--rp-bf, 11px) * .45); border-radius: 999px; background: var(--zc); color: var(--rp-rg-ink); font-size: calc(var(--rp-bf, 11px) * .92); font-weight: 800; }
 /* the badge (calm: on the edge that lies on top, calmBadgeAt; arc: on the band's outer edge) and every name chip of an arc stand at their own
-   point (--rp-dx / --rp-dy from the middle, lib/raidplan/roleGroups.ts) */
+   point (--rp-dx / --rp-dy from the middle, lib/raidplan/board/roleGroups.ts) */
 .rp-rg-up > .rp-rg-badge, .rp-rg-up.is-arc > .rp-rg-at { position: absolute; left: calc(50% + var(--rp-dx, 0px)); top: calc(50% + var(--rp-dy, 0px)); transform: translate(-50%, -50%); }
 .rp-rg-at { white-space: nowrap; padding: 0 calc(var(--rp-zn, 11px) * .35); border-radius: calc(var(--rp-zn, 11px) * .5); background: var(--rp-names-bg); font-size: var(--rp-zn, 11px); font-weight: 600; line-height: 1.4; }
 .rp-rg-at.rp-rg-more { background: var(--zc); color: var(--rp-rg-ink); font-weight: 800; }
@@ -118,7 +118,7 @@
 .rp-glyph-group { --g: var(--accent); }
 .rp-glyph-disc { fill: var(--rp-glyph-bg); }
 
-/* ---- animations (lib/raidplan/scene.ts, docs/raidplan/animation.md): the effects an animation puts on objects and its trails ---- */
+/* ---- animations (lib/raidplan/anim/scene.ts, docs/raidplan/animation.md): the effects an animation puts on objects and its trails ---- */
 .rp-board :is(.rp-fx, .rp-trail) { left: var(--rp-x) !important; top: var(--rp-y) !important; }
 .rp-fx { position: absolute; width: 0; height: 0; z-index: 7; pointer-events: none; }
 .rp-fx-badge { position: absolute; left: calc(var(--rp-s, 38px) * -.62); top: calc(var(--rp-s, 38px) * -.62); display: grid; place-items: center; padding: 2px; border-radius: 6px; background: var(--rp-icon-outline); box-shadow: 0 0 0 2px var(--rp-danger-strong), 0 2px 8px var(--shade-50); animation: rp-fx-pop .35s ease-out; }

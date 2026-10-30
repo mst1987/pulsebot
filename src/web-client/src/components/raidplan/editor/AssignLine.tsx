@@ -1,20 +1,20 @@
-import { ANY } from "../../../lib/raidplan/classRefs";
+import { ANY } from "../../../lib/raidplan/assign/classRefs";
 import { useRef, useState, type CSSProperties, type KeyboardEvent } from "react";
 import { AlertTriangle, ArrowRight, EyeOff, Lock, MapPin, MoreHorizontal, Pencil, StickyNote, Trash2 } from "lucide-react";
 import Popover from "../../ui/Popover";
 import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
-import { CLASS_COLOR } from "../../../lib/raidplan/classRefs";
+import { CLASS_COLOR } from "../../../lib/raidplan/assign/classRefs";
 import type { RaidplanAssignment } from "../../../api";
 import WowIcon from "../../ui/WowIcon";
 import ClassRefIcon from "../ClassRefIcon";
 import RoleGlyph from "../RoleGlyph";
 import { MarkIcon } from "../MarkIcon";
 import { PlayerName, TokenIcon, playerLabel } from "../PlanBoard";
-import { classIconOf, classPlaceNameFor, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
-import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/raidplan/assignLine";
-import { groupColor } from "../../../lib/raidplan/groupStyle";
+import { classIconOf, classPlaceNameFor, iconForTask, iconForText, offRole, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign/assign";
+import { assigneeItems, lineLabel, lineState, subLine, targetItems, type LineItem } from "../../../lib/raidplan/assign/assignLine";
+import { groupColor } from "../../../lib/raidplan/board/groupStyle";
 import { MobIcon } from "./AssignPanel";
-import { ROLE_TONE } from "../../../lib/raidplan/assign";
+import { ROLE_TONE } from "../../../lib/raidplan/assign/assign";
 import { useT } from "../../../i18n";
 
 /** One chip of a row container: it only shows (no "+", no "x"); a missing place is the one yellow mark, the viewer's own chip carries "DU". */
@@ -144,7 +144,7 @@ export default function AssignLine({ a, filled, ctx, isEvent, readOnly, inherite
     /** `ask` = the Delete key (asks first); the trash removes at once (Ctrl+Z brings it back) */
     onDelete?: (ask: boolean) => void;
     onHide?: () => void;
-    /** "Auf Map setzen" / "Von der Map nehmen" of a task row (lib/raidplan/autoPlace.ts canPutOnMap); missing = the row cannot (a tank row, only role groups) */
+    /** "Auf Map setzen" / "Von der Map nehmen" of a task row (lib/raidplan/assign/autoPlace.ts canPutOnMap); missing = the row cannot (a tank row, only role groups) */
     onMap?: () => void;
 }) {
     const t = useT();

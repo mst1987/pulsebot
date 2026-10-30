@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 import type { RaidplanBoard, RaidplanSlot } from "../../../api";
 import { NumberField, SliderField } from "../NumberField";
 import { chipWidthOf, groupScales, patchLook, setAllGroupScale, setGroupScale, slotTitle, updateSlot } from "../../../lib/raidplan";
-import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/raidplan/labelScale";
+import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../lib/raidplan/board/labelScale";
 import GroupStyle from "./GroupStyle";
 import InspectorTabs from "./InspectorTabs";
 import { useT } from "../../../i18n";

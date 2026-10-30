@@ -5,7 +5,7 @@
 // Every reader that PICKS raiders goes through `planRoster` - the Besetzung, the class references and priorities (expandClassRefs),
 // the suggestions, the auto tokens, "Nicht platziert", the read view. The whole lineup stays what a save may name (a bench raider
 // the orga put into a row by name keeps his place, the editor marks him "nicht im Plan"). The client twin is
-// src/web-client/src/lib/raidplan/planGroups.ts (the same cases in test/services/raidplan/raidplanGroups.test.js and planGroups.test.ts).
+// src/web-client/src/lib/raidplan/assign/planGroups.ts (the same cases in test/services/raidplan/raidplanGroups.test.js and planGroups.test.ts).
 
 const { fillSlots } = require("./raidplanBoard");
 
@@ -73,7 +73,7 @@ function outOfPlanRoster(roster, included) {
 /**
  * The role slots of a board with everybody outside the plan taken out and ONLY those places filled again from the plan's raiders
  * (raidplanBoard.fillSlots: the slot's classes first, then the role; a flex role of this board counts). A slot the orga left open stays
- * open, a slot with a raider of the plan keeps him. The editor does the same (lib/raidplan/besetzung.ts ensureBesetzung), so the read
+ * open, a slot with a raider of the plan keeps him. The editor does the same (lib/raidplan/assign/besetzung.ts ensureBesetzung), so the read
  * view shows what the editor shows before anybody saves. Returns the same list when nobody is outside.
  */
 function refillSlots(slots, roster, roles = {}, busy = []) {

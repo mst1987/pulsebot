@@ -1,7 +1,7 @@
 // A mob's portrait key (mob:<NPC id>) on the client: its picture, its map icon and how it is told from a boss icon.
 import { describe, expect, it } from "vitest";
 import * as raidplan from "..";
-import * as assign from "../assign";
+import * as assign from "../assign/assign";
 
 describe("mob portrait keys", () => {
     it("portraitUrl maps boss:N to the boss image and mob:N to the portrait, anything else to nothing", () => {

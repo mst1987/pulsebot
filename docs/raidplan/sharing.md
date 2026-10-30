@@ -9,7 +9,7 @@ Readable width (`.rp-read-assign`, at most 1180 px; the board may stay wide), th
 by side per type** (320-400 px, stacked on a phone), real WoW icons on everything (a row shows its spell's
 icon or the icon a word in its task names — `TEXT_ICONS` / `iconForText` as the fallback —, a slot its role
 icon, a group, a mark, a mob its own; the raider his spec icon). Above them the visitor's own block "Meine
-Einteilungen" (`rowMode` / `splitMine` in `lib/raidplan/mineView.ts`: assignee, target or a name mention in a note or free text). There
+Einteilungen" (`rowMode` / `splitMine` in `lib/raidplan/view/mineView.ts`: assignee, target or a name mention in a note or free text). There
 is no list of all tasks by player any more (removed: it repeated what the tables say); the derivation helpers
 for it (`tasksByAssignee`, `myTasks`, `taskText`) are gone.
 
@@ -26,13 +26,13 @@ The "Sheet-Ansicht", laid out as a **stage** ("Karte als Bühne", Oct 2026; desi
 Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidplan/stage.css`):
 
 - **One bar** (`stage/StageBar.tsx`): the open section with its portrait, its place ("Hyjal · Boss 2 von 5",
-  `lib/raidplan/stage.ts` `sectionPlace`) and arrows to the sections before and after it; "Alle N Abschnitte"
+  `lib/raidplan/view/stage.ts` `sectionPlace`) and arrows to the sections before and after it; "Alle N Abschnitte"
   opens `stage/SectionMenu.tsx` - every section in runs of one instance, with "Aufgabe für dich" (#503) and
   "besiegt" (#534) spelled out, "Nur für mich" at its foot (closed by `useDismiss`); then the group fields
   (#512), "Alle Einteilungen", "Automatisch mitgehen", the live note, language and theme. It replaced the row of
   one chip per section (`SheetBossNav`), which needed two lines for a raid of three instances. The title block has
   a fixed width (300px), so the arrows stay where they are from boss to boss; a longer name ends in "…".
-- **The visitor's layout** (`lib/raidplan/sheetLayout.ts`, `hooks/useSheetLayout.ts`, localStorage
+- **The visitor's layout** (`lib/raidplan/view/sheetLayout.ts`, `hooks/useSheetLayout.ts`, localStorage
   `eh.raidplan.sheetLayout`, never in the plan): "Alle Einteilungen" in the bar opens or closes the panel and
   stays so across sections and reloads (the tab on the right edge does the same); "Boss-Leiste: Aus | Oben |
   Links" at the foot of the section menu adds the old chips back for whoever wants every boss in sight
@@ -46,13 +46,13 @@ Redesign", sketch 3). The page is exactly the window (`.rp-sheet`, `styles/raidp
   quick links to the other sections where he has a task of his own. It folds to its head (folded from the start
   on a phone). Without a login it is the login hint, outside the plan a single sentence. The visitor **drags it by
   its head** anywhere over the map (arrow keys on the grip, Pos1 or a double click on the head sends it home); the
-  place is a share of the free room (`MinePos` in `lib/raidplan/sheetLayout.ts`, CSS `--mx`/`--my` with a translate
+  place is a share of the free room (`MinePos` in `lib/raidplan/view/sheetLayout.ts`, CSS `--mx`/`--my` with a translate
   by the card's own size), so it stays inside the map on any window and when it folds, and it is kept in this
   browser with the rest of the layout (`eh.raidplan.sheetLayout`). On a phone it is pinned to the bottom. Its rows
   wrap inside the card (no shared four-column grid), so nothing sticks out and there is no sideways scrollbar.
 - **"Alle Aufgaben"** is a tab on the right edge (and the switch "Alle Einteilungen" in the bar); it opens `stage/TasksPanel.tsx` over the map: the organiser's
   note, `ReadTables` without the personal part (`personal={false}`) and the tactic's steps. Its head carries **"Karte
-  daneben"** (`push` in `lib/raidplan/sheetLayout.ts`, on by default, remembered): on, the map gets narrower and stays
+  daneben"** (`push` in `lib/raidplan/view/sheetLayout.ts`, on by default, remembered): on, the map gets narrower and stays
   whole beside the panel (`.is-push`, the stage keeps `--rp-side` free on the right, which "Deine Aufgaben" and its drag
   respect too); off, the panel lies over the map's right side. Only where the stage is at least 900px wide (below, and
   on a phone, the panel always lies over the map). The panel body is the CSS container `rp-tables`: under 560px of
@@ -81,7 +81,7 @@ the group cells of the group heal table in "Alle Aufgaben" do the same. A click 
 only in the page (`focusGroup`, never saved, it survives a change of section and works beside "Only for me").
 Every raider of another group (or of none) dims: the group markers with their ring, chip and member tokens,
 filled role slots, free tokens and auto-placed raiders on the map (`groupFocusCls` in
-`lib/raidplan/groupStyle.ts`, `gf()` in `PlanBoard.tsx`), and the rows of the group heal table. Marks, bosses,
+`lib/raidplan/board/groupStyle.ts`, `gf()` in `PlanBoard.tsx`), and the rows of the group heal table. Marks, bosses,
 lines and open slots stay as they are. `.rp-gdim` only sets `--rp-gf: var(--rp-group-dim)` (`.22`,
 `tokens.css`), which the board rules multiply into their own opacity (`calc(var(--rp-o, 1) * var(--rp-gf, 1))
 !important`, `styles/raidplan/objects.css`). An opacity on `.rp-groupwrap` itself does nothing - it is
@@ -92,7 +92,7 @@ Tests: `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.groupFocus.te
 **Sections marked where the visitor is assigned (#503):** in the section menu every section where the visitor is
 **personally** assigned says "Aufgabe für dich" (`raidBoard.stage.tagMine`, in `--accent`), and "Deine Aufgaben"
 links those sections ("Eigene Aufgaben hast du bei"). Until Oct 2026 it was a small dot on the section's chip.
-Personal = `lib/raidplan/bossMine.ts` `bossesWithMine`: a row whose
+Personal = `lib/raidplan/view/bossMine.ts` `bossesWithMine`: a row whose
 assignee is one of his players by name or by slot (tank, kick, heal, special task …), a row whose target is him
 or his slot ("Wirkt auf dich"), or a tactic step with `user:<him>` among its participants. Stricter than "Only
 for me" (`mineView`): a `role:<role>` row, a target role group, his raid group ("Gruppe 2") or his
@@ -113,7 +113,7 @@ the event.
   (`bt/supremus`); without a linked log, outside the raid window or when WCL fails `{ live: false, killed: [], current: null,
   next: null }` plus `waiting`: `"no_log"` (inside the window, no Warcraft Log linked to the event), `"wcl_error"` (a log is
   linked but its fights cannot be read — private, WCL down, no key), `null` outside the window. The derivation and the cache are described in docs/logcheck.md ("Progress for the raid plan").
-- **Client:** `hooks/useRaidProgress.ts` (pure half `lib/raidplan/progress.ts`). It asks at once and every 60 s, but only while
+- **Client:** `hooks/useRaidProgress.ts` (pure half `lib/raidplan/view/progress.ts`). It asks at once and every 60 s, but only while
   `document.visibilityState` is `visible` and the clock is inside the raid window (start − 30 min to start + 6 h, the same as the
   server's); a tab that becomes visible again asks at once. It turns to `current ?? next` when the page shows that section. A
   section picked by hand (a chip, the editor's "open assignments" list) goes through `choose()` and pauses following — only while a
@@ -132,8 +132,8 @@ the event.
   page. Only the newest linked log with a report id is read.
 - Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
   `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/__tests__/useRaidProgress.test.tsx`,
-  `lib/raidplan/__tests__/progress.test.ts`, `stage/__tests__/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
-  `pages/raidplan/__tests__/PlanPublicPage.stage.test.tsx`, `lib/raidplan/__tests__/stage.test.ts`.
+  `lib/raidplan/view/__tests__/progress.test.ts`, `stage/__tests__/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
+  `pages/raidplan/__tests__/PlanPublicPage.stage.test.tsx`, `lib/raidplan/view/__tests__/stage.test.ts`.
 
 ## Live updates and the section in the address (#555)
 
@@ -152,7 +152,7 @@ The read view takes a changed plan without a reload, and a reload lands on the b
   A small `.rp-live-note` "Aktualisiert" (`raidBoard.public.updated`, `role="status"`) shows for 4 s beside the
   toggles. A failed poll (withdrawn, offline) keeps what is shown. A section removed meanwhile falls back to where a
   fresh visit starts.
-- **The section in the address:** `lib/raidplan/sectionUrl.ts`. The chosen section — by hand, by following the log
+- **The section in the address:** `lib/raidplan/view/sectionUrl.ts`. The chosen section — by hand, by following the log
   (#534) or on the first load — is written as `#boss=<key>` with `history.replaceState` (no history entry; path, query
   and the router's `history.state` kept) and remembered per plan in this browser (`rememberSection("p:<token>")`; the
   editor keeps `rememberSection(<eventId>)`). A page opens on `#boss=` first, then the deep link `?section=`, then the
@@ -160,7 +160,7 @@ The read view takes a changed plan without a reload, and a reload lands on the b
   reload during the raid still turns to the boss being pulled. The editor (`RaidplanTab`) writes the same hash; its
   router drops it when another tab is chosen.
 - Tests: `test/web/http/apiResponse.test.js`, `test/web/apiRoutes/raidplan.test.js` (ETag / 304),
-  `lib/raidplan/__tests__/sectionUrl.test.ts`, `hooks/__tests__/useVisiblePoll.test.tsx`, `api/__tests__/client.test.ts`,
+  `lib/raidplan/view/__tests__/sectionUrl.test.ts`, `hooks/__tests__/useVisiblePoll.test.tsx`, `api/__tests__/client.test.ts`,
   `pages/raidplan/__tests__/PlanPublicPage.live.test.tsx`.
 
 ## Einteilungen in den Event-Kanal posten (#502)

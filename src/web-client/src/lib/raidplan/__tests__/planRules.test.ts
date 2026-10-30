@@ -1,7 +1,7 @@
 // Pure rules of the plan: who is gone from the lineup, lines only between things on the map, the icon that follows its tank.
 import { describe, expect, it } from "vitest";
 import * as raidplan from "..";
-import * as assign from "../assign";
+import * as assign from "../assign/assign";
 
 const player = (userId, role = "dps", group = 1) => ({ userId, character: userId, group, role });
 const slot = (kind, n, userId = "", x = 0.5, y = 0.5, extra = {}) => ({ id: `${kind}${n}`, kind, n, userId, x, y, label: "", ...extra });

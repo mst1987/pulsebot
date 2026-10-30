@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { DEFAULT_PREFS, parsePrefs, type ViewPrefs } from "../lib/raidplan/viewRules";
+import { DEFAULT_PREFS, parsePrefs, type ViewPrefs } from "../lib/raidplan/view/viewRules";
 
 /**
  * What one person wants to see, remembered in this browser (never in the plan): the highlight of his own character, the selection frame in the editor,

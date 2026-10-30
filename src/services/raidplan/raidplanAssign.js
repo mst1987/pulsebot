@@ -45,7 +45,7 @@ const ROLE_REFS = ["melee", "ranged", "healer", "tank", "dps"];
 const ROLE_ASSIGNEE = /^role:(melee|ranged|healer|tank|dps)$/;
 /**
  * Whether a raider belongs to a role group ("Melees" ...): his spec role from the setup, a flex role on this boss wins; "dps" = everybody
- * who is neither tank nor healer. The client twin is lib/raidplan/assign.ts inRoleGroup (kept in step by the tests).
+ * who is neither tank nor healer. The client twin is lib/raidplan/assign/assign.ts inRoleGroup (kept in step by the tests).
  */
 function inRoleGroup(role, playerRole) {
     if (!role || !playerRole) return false;
@@ -66,7 +66,7 @@ const ANY = "Any";
 const SLOT_TARGET = /^(tank|healer|melee|ranged|dps):(\d{1,3})$/;
 const ID_REF = /^[\w-]{1,40}$/;
 const MARKS = ["skull", "cross", "square", "moon", "triangle", "diamond", "circle", "star"];
-// the rows that put their tanks on the map by themselves (twin of lib/raidplan/autoPlace.ts AUTO_TANK_TYPES)
+// the rows that put their tanks on the map by themselves (twin of lib/raidplan/assign/autoPlace.ts AUTO_TANK_TYPES)
 const AUTO_TANK_TYPES = ["tank", "trashtank", "special"];
 const LIMITS = { perBoard: 60, assignees: 12, targets: 12, note: 200, text: 60, title: 80 };
 /** The roles a row can prefer (the row dialog's "Rolle"); none stored = any. */
@@ -542,7 +542,7 @@ const roleFits = (filter, role) => (!filter ? true : filter === "dps" ? role !==
 /**
  * The roles of a board as the class references read them: the flex roles, and on top who stands in a role slot of the Besetzung plays
  * that role on this boss - a feral druid put into "Tank 3" by hand tanks here (no flex role is stored for that), a tank put into a DPS
- * slot does not. Client twin: lib/raidplan/classRefs.ts slotRoles.
+ * slot does not. Client twin: lib/raidplan/assign/classRefs.ts slotRoles.
  */
 function slotRoles(slots, roster, roles) {
     const out = { ...(roles || {}) };
@@ -571,8 +571,8 @@ function poolOf(q, type, roster, roles) {
 }
 
 // ---- ranking of candidates (#501) ----------------------------------------------------------------
-// Who of several raiders who COULD do a task should do it. The client twin is lib/raidplan/classRefs.ts (rankCandidates ...), the
-// same cases run on both (test/services/raidplan/raidplanRank.test.js, src/web-client/src/lib/raidplan/__tests__/rank.test.ts). Pure.
+// Who of several raiders who COULD do a task should do it. The client twin is lib/raidplan/assign/classRefs.ts (rankCandidates ...), the
+// same cases run on both (test/services/raidplan/raidplanRank.test.js, src/web-client/src/lib/raidplan/assign/__tests__/rank.test.ts). Pure.
 
 /** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
 const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };
@@ -816,7 +816,7 @@ module.exports = {
     CLASS_ASSIGNEE, ROLE_ASSIGNEE, ROLE_REFS, inRoleGroup, ASSIGN_TYPES, CLASS_IDS, SLOT_ROLES, cleanClasses, LIMITS, SUGGESTABLE,
     cleanAssignments, reidAssignments, expandClassRefs, targetsToAssignments, suggest,
     // only for the tests (#424): not part of the module's API
-    // the ranking of candidates (#501): twin of lib/raidplan/classRefs.ts
+    // the ranking of candidates (#501): twin of lib/raidplan/assign/classRefs.ts
     PREFERRED_ROLES, RANK_POINTS, playerRole, scoreCandidate, rankCandidates, withoutMisfits, boardContext, slotRoles,
     _internal: {
         impliedRole, mobInstance, renumberClassRefs, classesFor, rowCount, classPriorityOf, MAX_COUNT,

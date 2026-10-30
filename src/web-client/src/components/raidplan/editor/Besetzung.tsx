@@ -5,10 +5,10 @@ import type { Besetzung as BesetzungData, RaidplanBoard, RaidplanPlayer, Raidpla
 import WowIcon from "../../ui/WowIcon";
 import RoleGlyph from "../RoleGlyph";
 import { PlayerName, TokenIcon } from "../PlanBoard";
-import { classIconOf } from "../../../lib/raidplan/assign";
-import { slotSummary } from "../../../lib/raidplan/assignLine";
-import { classStatus, refillByClass } from "../../../lib/raidplan/rosterAssign";
-import { groupColor, groupMark } from "../../../lib/raidplan/groupStyle";
+import { classIconOf } from "../../../lib/raidplan/assign/assign";
+import { slotSummary } from "../../../lib/raidplan/assign/assignLine";
+import { classStatus, refillByClass } from "../../../lib/raidplan/assign/rosterAssign";
+import { groupColor, groupMark } from "../../../lib/raidplan/board/groupStyle";
 import { MarkIcon } from "../MarkIcon";
 import { useCollapse } from "../../../hooks/useCollapse";
 import GroupStyle from "./GroupStyle";

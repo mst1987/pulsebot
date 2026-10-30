@@ -32,7 +32,7 @@ export const FILTER_DEFAULT: FilterView = { role: "caster", tiers: [], contents:
 // Wie die Rollen am Raider heißen, und ihr Icon im Segment. Der Name wird beim
 // Rendern übersetzt (lootcouncil.role.*); eine unbekannte Rolle zeigt `fallback`.
 export const roleLabel = (id: string, fallback?: string) => tOr(`lootcouncil.role.${id}`, fallback || id);
-// Tank, melee and ranged wear the icons the raid detail uses for its role groups (lib/raidplan/assign.ts).
+// Tank, melee and ranged wear the icons the raid detail uses for its role groups (lib/raidplan/assign/assign.ts).
 export const ROLE_ICON: Record<string, string> = {
     caster: "spell_holy_magicalsentry",
     healer: "spell_holy_guardianspirit",

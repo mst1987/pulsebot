@@ -1,4 +1,4 @@
-import { ANY } from "../../../lib/raidplan/classRefs";
+import { ANY } from "../../../lib/raidplan/assign/classRefs";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Flyout from "../Flyout";
 import AssignModal from "./AssignModal";
@@ -17,15 +17,15 @@ import { PlayerName, TokenIcon } from "../PlanBoard";
 import {
     ALL_MARKS, CARD_ORDER, SCOPE_TYPES, playersByClass, mobTarget, spellRef, spellsFor, iconForText, SUGGESTABLE, addRowOfType, addableCards, applySuggestions, cardTypes, fitsType, hideCard, isDefaultCard, removeCard, showCard, rowsOfType, patchAssignment, removeAssignment,
     resolveAssignee, resolveTarget, slotChoices, toggleTarget, ROLE_TONE, type AssignCtx, type Resolved,
-} from "../../../lib/raidplan/assign";
-import { assigneeItems, cardSummary, lineState } from "../../../lib/raidplan/assignLine";
-import { targetKey } from "../../../lib/raidplan/assignModal";
-import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/autoPlace";
+} from "../../../lib/raidplan/assign/assign";
+import { assigneeItems, cardSummary, lineState } from "../../../lib/raidplan/assign/assignLine";
+import { targetKey } from "../../../lib/raidplan/assign/assignModal";
+import { canPutOnMap, mobTargetsFor, sameTargetAs, setRowOnMap } from "../../../lib/raidplan/assign/autoPlace";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { canRestore, deviate, hideInherited, isDeviation, restoreInherited } from "../../../lib/raidplan/inherit";import { portraitUrl } from "../../../lib/raidplan";
-import { effectiveClasses } from "../../../lib/raidplan/rosterAssign";
-import { carryClasses, expandClassRefs } from "../../../lib/raidplan/classRefs";
-import { groupColor } from "../../../lib/raidplan/groupStyle";
+import { effectiveClasses } from "../../../lib/raidplan/assign/rosterAssign";
+import { carryClasses, expandClassRefs } from "../../../lib/raidplan/assign/classRefs";
+import { groupColor } from "../../../lib/raidplan/board/groupStyle";
 import { useT } from "../../../i18n";
 
 /** A mob's icon: a boss image (boss:N), a portrait (mob:N), a WoW icon by name, or the generic enemy symbol. */

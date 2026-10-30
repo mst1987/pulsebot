@@ -50,19 +50,29 @@ function expandMapping(mapping, files) {
     return moves;
 }
 
-/** For every moved backend module src/<x>.js: its tests test/<x>.test.js and test/<x>.<part>.test.js move along. */
+/**
+ * The tests of every moved module move along: a backend module src/<x>.js has them in
+ * test/<x>.test.js and test/<x>.<part>.test.js, a client module <dir>/<name>.ts(x) in
+ * <dir>/__tests__/<name>.test.ts(x) and <name>.<part>.test.ts(x).
+ */
 function addMirroredTests(moves, files) {
     for (const [from, to] of [...moves]) {
-        if (!from.startsWith("src/") || from.startsWith("src/web-client/") || !from.endsWith(".js")) continue;
-        const testDir = path.dirname(`test/${from.slice(4)}`);
-        const name = path.basename(from, ".js");
-        const newDir = path.dirname(`test/${to.slice(4)}`);
+        let testDir;
+        let newDir;
+        if (from.startsWith("src/web-client/") && /\.tsx?$/.test(from) && !/\.test\.tsx?$/.test(from)) {
+            testDir = `${path.dirname(from)}/__tests__`;
+            newDir = `${path.dirname(to)}/__tests__`;
+        } else if (from.startsWith("src/") && !from.startsWith("src/web-client/") && from.endsWith(".js")) {
+            testDir = path.dirname(`test/${from.slice(4)}`);
+            newDir = path.dirname(`test/${to.slice(4)}`);
+        } else {
+            continue;
+        }
+        const name = withoutExt(path.basename(from));
         for (const file of files) {
             if (path.dirname(file) !== testDir || moves.has(file)) continue;
             const base = path.basename(file);
-            if (base === `${name}.test.js` || (base.startsWith(`${name}.`) && base.endsWith(".test.js"))) {
-                moves.set(file, `${newDir}/${base}`);
-            }
+            if (base.startsWith(`${name}.`) && /\.test\.(js|tsx?)$/.test(base)) moves.set(file, `${newDir}/${base}`);
         }
     }
 }
