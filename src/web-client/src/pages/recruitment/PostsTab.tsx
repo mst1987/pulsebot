@@ -112,11 +112,12 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                                                     <span className="rc-name-text">{name}</span>
                                                     <VersionTag versionId={p.versionId} data={data} />
                                                 </div>
-                                                {/* The link mark sits in the second line, so it never takes room from the name. */}
+                                                {/* The link mark sits in the second line, so it never takes room from the name,
+                                                    and leads it, so a cut-off channel name never hides the mark. */}
                                                 {(where || p.buttonKind === "link") && (
                                                     <div className="csub">
-                                                        {where}
                                                         {p.buttonKind === "link" && <span className="rc-kind" data-tip={t("recruitment.posts.linkKind")} data-tip-sub={t("recruitment.posts.linkKindSub")}>{t("recruitment.postDialog.kindLink")}</span>}
+                                                        {where}
                                                     </div>
                                                 )}
                                             </td>

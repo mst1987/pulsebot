@@ -89,6 +89,8 @@
 .rc-postdlg-hint { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 13px; color: var(--muted); }
 .rc-postdlg-link { font-family: var(--font-mono); font-size: 13px; overflow-wrap: anywhere; }
 .rc-kind { font-size: 12px; color: var(--muted); margin-left: 6px; }
+/* in the posts table the mark leads the second line */
+.csub > .rc-kind:first-child { margin-left: 0; margin-right: 6px; }
 
 /* spec pills with round icons, the add button beside them */
 .rc-page .spec-picker { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px; }

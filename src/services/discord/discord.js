@@ -766,9 +766,14 @@ async function duplicateChannel(channelId, newName) {
 // (PuG invites, raid plans) - so "Server durchsuchen" knows a link post only by this mark.
 const RECRUITMENT_MARK = 7291;
 
-/** Put the hidden recruitment mark on a card payload (its container). */
+/**
+ * Put the hidden recruitment mark on a card payload (its container). Through setId(): discord.js sends a builder's
+ * `data` (toJSON), so a plain `.id` on the builder would never reach Discord.
+ */
 function markRecruitment(payload) {
-    if (payload.components && payload.components[0]) payload.components[0].id = RECRUITMENT_MARK;
+    const container = payload.components && payload.components[0];
+    if (container && typeof container.setId === "function") container.setId(RECRUITMENT_MARK);
+    else if (container) container.id = RECRUITMENT_MARK;
     return payload;
 }
 
@@ -1069,8 +1074,14 @@ async function scanRecruitment(guildId, { perChannel = 50, archivedLimit = 50, m
     if (!guild) return [];
     const me = guild.members.me;
     const found = [];
+    // type first: a thread in the cache whose parent is not can answer permissionsFor() with null
     const channels = [...guild.channels.cache.values()]
-        .filter((c) => !me || c.permissionsFor(me).has(PermissionsBitField.Flags.ViewChannel));
+        .filter((c) => TEXT_CHANNEL_TYPES.includes(c.type) || c.type === ChannelType.GuildForum)
+        .filter((c) => {
+            if (!me) return true;
+            const perms = c.permissionsFor(me);
+            return !!perms && perms.has(PermissionsBitField.Flags.ViewChannel);
+        });
     const forums = channels.filter((c) => c.type === ChannelType.GuildForum);
     for (const channel of channels.filter((c) => TEXT_CHANNEL_TYPES.includes(c.type))) {
         try {

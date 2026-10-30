@@ -336,9 +336,18 @@ describe("services/discord/discord recruitment mark and the forum scan", () => {
         ...over,
     });
 
-    it("marks both kinds of recruitment message with the hidden id", () => {
-        expect(discord.buildRecruitmentMessage({ content: "Hi" }).components[0].id).toBe(7291);
-        expect(discord.buildRecruitmentMessage({ content: "Hi", buttonKind: "link", linkUrl: "https://discord.gg/abc" }).components[0].id).toBe(7291);
+    // what discord.js sends is the builder's toJSON(), never a property set on the builder object
+    const sent = (payload) => ({ author: { id: BOT }, content: "", embeds: [], components: payload.components.map((c) => (typeof c.toJSON === "function" ? c.toJSON() : c)) });
+
+    it("marks both kinds of recruitment message with the hidden id in the JSON that is sent", () => {
+        expect(sent(discord.buildRecruitmentMessage({ content: "Hi" })).components[0].id).toBe(7291);
+        expect(sent(discord.buildRecruitmentMessage({ content: "Hi", buttonKind: "link", linkUrl: "https://discord.gg/abc" })).components[0].id).toBe(7291);
+    });
+
+    it("finds a link post it built itself once it comes back from Discord", () => {
+        const msg = sent(discord.buildRecruitmentMessage({ content: "Gilde X sucht", buttonKind: "link", linkUrl: "https://discord.gg/abc", buttonLabel: "Beitreten" }));
+        expect(discord.isRecruitmentMessage(msg)).toBe(true);
+        expect(discord.extractTemplate(msg)).toMatchObject({ buttonKind: "link", linkUrl: "https://discord.gg/abc", buttonLabel: "Beitreten" });
     });
 
     it("counts a link post only with the mark, and reads link and label off it", () => {

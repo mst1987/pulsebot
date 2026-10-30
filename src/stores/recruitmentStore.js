@@ -117,7 +117,7 @@ function saveRecruitmentPost(data) {
         // or what a scan read off the button), else the one it had.
         versionId: knownVersion(data.versionId) || had.versionId || mainVersionFor(),
         // The button under the card: "apply" (the apply flow) or "link" (linkUrl, e.g. an invite to the guild's server).
-        // A record from before has none and is an apply post; a re-scan (which sends none) keeps what it had.
+        // A record from before has none and is an apply post; a save that sends none keeps what it had.
         buttonKind: BUTTON_KINDS.includes(data.buttonKind) ? data.buttonKind : (had.buttonKind || "apply"),
         linkUrl: replace("linkUrl"),
         // A post in a forum: channelId is the post (thread), parentChannelId the forum, forumTitle its title.
