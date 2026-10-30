@@ -3,7 +3,7 @@
 // the timing as a word ("Pull", "Phase 2", "50 → 30 %", "alle 30 s"), the sentence a step reads as, the "du" form for the viewer's own
 // steps, the @ mentions of the sentence field and the three starter tactics. Server twin: src/web/raidplanSteps.js. Tested in
 // src/web-client/src/lib/steps.test.ts; function declarations and one-line signatures only.
-import { expandClassRefs } from "./classRefs";
+import { expandClassRefs } from "./assign/classRefs";
 import { t } from "../../i18n";
 import type { RaidplanAssignType, RaidplanBoard, RaidplanPlayer, RaidplanProfile, RaidplanStep, RaidplanTiming } from "../../api";
 

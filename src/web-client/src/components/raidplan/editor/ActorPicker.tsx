@@ -1,6 +1,6 @@
 import type { CSSProperties, MouseEvent } from "react";
 import { X } from "lucide-react";
-import type { Actor, ActorSection } from "../../../lib/raidplan/sceneActions";
+import type { Actor, ActorSection } from "../../../lib/raidplan/anim/sceneActions";
 import { useT } from "../../../i18n";
 
 const SECTIONS: ActorSection[] = ["groups", "players", "enemies", "marks"];

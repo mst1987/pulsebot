@@ -1,7 +1,7 @@
 import { Check } from "lucide-react";
 import type { RaidplanPublicBoss } from "../../../api";
-import { sectionGroups } from "../../../lib/raidplan/stage";
-import { STRIP_MODES, type StripMode } from "../../../lib/raidplan/sheetLayout";
+import { sectionGroups } from "../../../lib/raidplan/view/stage";
+import { STRIP_MODES, type StripMode } from "../../../lib/raidplan/view/sheetLayout";
 import { useT } from "../../../i18n";
 import Switch from "../../../components/ui/Switch";
 

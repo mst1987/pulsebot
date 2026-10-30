@@ -19,7 +19,7 @@ import { MobIcon } from "../../components/raidplan/editor/AssignPanel";
 import Flyout from "../../components/raidplan/Flyout";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { catalogOfVersion, inVersion, versionChips, versionLabel } from "../../lib/raidplan/versions";
-import { ASSIGN_META } from "../../lib/raidplan/assign";
+import { ASSIGN_META } from "../../lib/raidplan/assign/assign";
 import { useT } from "../../i18n";
 import "../../styles/raidplan/index.css";
 

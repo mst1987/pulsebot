@@ -6,14 +6,14 @@ import WowIcon from "../../ui/WowIcon";
 import ClassRefIcon from "../ClassRefIcon";
 import RoleGlyph from "../RoleGlyph";
 import { PlayerName, TokenIcon } from "../PlanBoard";
-import { type FlyItem } from "../../../lib/raidplan/flyout";
-import { ROLE_REFS, CLASS_IDS, classIdsOf, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign";
-import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, slotRoles, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/classRefs";
-import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assignModal";
-import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/rosterAssign";
-import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/autoPlace";
+import { type FlyItem } from "../../../lib/raidplan/assign/flyout";
+import { ROLE_REFS, CLASS_IDS, classIdsOf, classIconOf, classPlaceNameFor, classRefLabelFor, classesForType, iconForTask, moveAssignee, patchAssignment, quickTexts, resolveAssignee, resolveTarget, toggleAssignee, toggleTarget, type AssignCtx } from "../../../lib/raidplan/assign/assign";
+import { ANY, ANY_SPEC, CLASS_COLOR, PREFERRED_ROLES, TANK_CLASSES, TANK_SPEC_CLASSES, TANK_TYPES, boardContext, candidatesOf, rankCandidates, defaultClassRole, effectiveRole, storedRole, classGroups, expandClassRefs, impliedRole, isClassRef, parseClassRef, pickKey, refsOfClass, setClassCount, setClassRole, MAX_COUNT, classPriorityOf, hasPriority, movePriorityClass, rowCount, setPriority, slotRoles, setRowCount, toPriority, togglePriorityClass } from "../../../lib/raidplan/assign/classRefs";
+import { BAR_SLOTS, CLASS_ROLE_CHOICES, PEOPLE_TABS, categoriesFor, chosenCounts, chosenKeys, classCount, filterPeople, nextSlot, peopleEntries, peopleGroups, previewLines, previewText, type PeopleEntry } from "../../../lib/raidplan/assign/assignModal";
+import { bindClassesToSlots, effectiveClasses, slotClassesOfRow } from "../../../lib/raidplan/assign/rosterAssign";
+import { AUTO_TANK_TYPES, mobCountOf, mobIconsOf, mobInstanceOf, setMobCount, setMobInstance, setRowOnMap } from "../../../lib/raidplan/assign/autoPlace";
 import { MobIcon } from "./AssignPanel";
-import { groupColor } from "../../../lib/raidplan/groupStyle";
+import { groupColor } from "../../../lib/raidplan/board/groupStyle";
 import { AssignChip } from "./AssignPanel";
 import { NumberField } from "../NumberField";
 import { useT } from "../../../i18n";
@@ -37,7 +37,7 @@ const CAT_ICON: Record<string, ReactNode> = {
  * three slots (who, at whom, task / spell; the active one is framed and a click in the grid fills it), the categories at the left with
  * their counters, ONE grid of the active category at the right, the sheet preview below and "Zeile entfernen / Abbrechen / Fertig" in the
  * foot. Nothing scrolls: the grids are multi-column and dense. It works on a copy of the board and hands the row back with "Fertig"
- * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/raidplan/assignModal.ts.
+ * (Enter); Esc / "Abbrechen" throw the changes away. Pure logic in lib/raidplan/assign/assignModal.ts.
  */
 export default function AssignModal({ board, rowId, title, targetOptions, spellOptions, onTarget, onText, onSpell, onSuggest, onDone, onClose, onRemove, isEvent, roster, catalog, players, initialSlot = "who", initialCat = "" }: {
     /** the slot and category the dialog opens on (the note icon of a row: task / free text) */
@@ -139,7 +139,7 @@ export default function AssignModal({ board, rowId, title, targetOptions, spellO
         return patchAssignment(b, rowId, { preferredClasses: cur.includes(c) ? cur.filter((x) => x !== c) : [...cur, c] });
     });
     const suggestedClasses = classesForType(type, catalog);
-    /** Changes the row itself on the copy (the priority helpers of lib/raidplan/classRefs.ts). */
+    /** Changes the row itself on the copy (the priority helpers of lib/raidplan/assign/classRefs.ts). */
     const setRow = (fn: (r: RaidplanAssignment) => RaidplanAssignment) => set((b) => ({ ...b, assignments: b.assignments.map((a) => (a.id === rowId ? fn(a) : a)) }));
     /** "Nach Priorität": the class references become a priority when that is simple (Paladin 1 + Schamane 1 -> 1 x Paladin › Schamane). */
     const toPrio = () => { setPrioMode(true); setRow((r) => (hasPriority(r) ? r : toPriority(r) || r)); };

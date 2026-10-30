@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { FIT, MAX_Z, centerOn, centerOf, panBy, pinchView, stepZoom, wheelZoom, zoomAt, type BoardView } from "../lib/raidplan/boardView";
-import { REF_W } from "../lib/raidplan/boardScale";
+import { FIT, MAX_Z, centerOn, centerOf, panBy, pinchView, stepZoom, wheelZoom, zoomAt, type BoardView } from "../lib/raidplan/board/boardView";
+import { REF_W } from "../lib/raidplan/board/boardScale";
 
 /** What counts as an object of the board: a press on one of these never pans. */
 const OBJECTS = ".rp-token, .rp-zone, .rp-text, .rp-line-hit, .rp-handle, .rp-multibox, .rp-multi-edge";
@@ -11,7 +11,7 @@ const OBJECTS = ".rp-token, .rp-zone, .rp-text, .rp-line-hit, .rp-handle, .rp-mu
  * Pan (when zoomed in): drag on empty ground (Shift + drag keeps the rubber band), Space + drag, the middle mouse button, the hand tool, a plain wheel or a
  * trackpad two-finger scroll while the picture can still move that way (at the edge the page gets the wheel again), the arrow keys when `arrows`,
  * one finger on empty ground when `touchPan`. The listeners are native, in the capture phase: a pan never starts a drag of an object underneath.
- * The maths is lib/raidplan/boardView.ts (tested).
+ * The maths is lib/raidplan/board/boardView.ts (tested).
  */
 export function useBoardView(opts: { touchPan?: boolean; arrows?: boolean; onEmptyClick?: () => void } = {}): {
     view: BoardView;

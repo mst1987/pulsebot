@@ -1,5 +1,5 @@
 // The client's Vitest suites live in a __tests__ folder next to their module
-// (#1007): lib/raidplan/assign.ts -> lib/raidplan/__tests__/assign.test.ts, so a
+// (#1007): lib/raidplan/assign/assign.ts -> lib/raidplan/assign/__tests__/assign.test.ts, so a
 // folder lists its modules and not twice as many files. A test written next to
 // the module, the old way, fails here with the place it belongs.
 const fs = require("fs");

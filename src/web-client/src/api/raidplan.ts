@@ -38,7 +38,7 @@ const isTemplateMapKey = (key: string) => key.startsWith("t/");
 // ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
-/** What the orga changed about an object the tank rows put on the map (lib/raidplan/autoPlace.ts); missing = the default. */
+/** What the orga changed about an object the tank rows put on the map (lib/raidplan/assign/autoPlace.ts); missing = the default. */
 export type RaidplanAutoStyle = { arrowScale?: number; arrowHidden?: boolean; arrowColor?: string; arrowOpacity?: number; size?: number; opacity?: number; ring?: boolean; showName?: boolean; label?: string; showLabel?: boolean; rotation?: number; autoFace?: boolean; hidden?: boolean; lock?: boolean; z?: number };
 export type RaidplanLook = { opacity: number; lock: boolean; hidden: boolean; /** false = no ring / border round it (missing = shown) */ ring?: boolean; /** false = no name label at this object (missing = shown) */ showName?: boolean };
 export type RaidplanToken = { userId: string; x: number; y: number; size: number } & RaidplanLook;
@@ -46,7 +46,7 @@ export type RaidplanTarget = { id: string; title: string; userIds: string[] };
 export type RaidplanSlotKind = "tank" | "healer" | "melee" | "ranged" | "dps" | "group" | "label";
 /** A placeholder place: tank 1..n, healer 1..n, dps, a group marker (n = the setup group) or a free label; `userId` "" = open. */
 /** A raider of a split group who was moved or scaled on his own: relative to the group marker, in board fractions. */
-export type RaidplanOffset = { dx: number; dy: number; size: number; /** never stored: an animation moved him on his own (lib/raidplan/scene.ts) - his group's ring does not stretch to him */ away?: boolean };
+export type RaidplanOffset = { dx: number; dy: number; size: number; /** never stored: an animation moved him on his own (lib/raidplan/anim/scene.ts) - his group's ring does not stretch to him */ away?: boolean };
 /** A group marker also has hideMembers (only its tag shows), split (its raiders stand around it) and per-raider offsets. */
 export type RaidplanSlot = {
     /** a group: its scale as a whole, of its ring spacing and of its member tokens (0.25 .. 4, missing = 1) */
@@ -76,11 +76,11 @@ export type RaidplanBoard = {
     assignments: RaidplanAssignment[];
     /** the tactic: ordered steps, who does what, when and how (references only) */
     steps?: RaidplanStep[];
-    /** animations of the board's objects (lib/raidplan/scene.ts, docs/raidplan/animation.md) */
+    /** animations of the board's objects (lib/raidplan/anim/scene.ts, docs/raidplan/animation.md) */
     scenes?: RaidplanScene[];
     /** false = this boss / trash section is shown without its map (the objects stay stored) */
     showMap?: boolean;
-    /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/raidplan/autoPlace.ts) */
+    /** the tank rows put their mobs and tanks on the map by themselves (default on; lib/raidplan/assign/autoPlace.ts) */
     autoPlace?: boolean;
     /** where an auto-placed object was moved to by hand, by its key ("t:<row>:<n>" / "m:<mob>#<n>") */
     autoPos?: Record<string, { x: number; y: number }>;
@@ -144,7 +144,7 @@ export type RaidplanPlayer = {
     gone?: boolean;
     /** on the bench of the setup: part of the plan only with "Bank" in "Gruppen im Plan" (#529) */
     bench?: boolean;
-    /** outside the groups of the plan (#529, lib/raidplan/planGroups.ts): named in a row he keeps his place, marked "nicht im Plan" */
+    /** outside the groups of the plan (#529, lib/raidplan/assign/planGroups.ts): named in a row he keeps his place, marked "nicht im Plan" */
     outOfPlan?: boolean;
 };
 /** "Gruppen im Plan" (#529): group numbers and "bench"; null = the groups up to the raid's size, no bench. */
@@ -191,7 +191,7 @@ export type RaidplanSpellRef = { id: string; name: string; icon: string };
 export type RaidplanMobRef = { id: string; name: string; icon: string };
 export type RaidplanAssignType = "tank" | "heal" | "kick" | "md" | "ss" | "fearward" | "special" | "dispel" | "cc" | "buff" | "curse" | "thunderclap" | "demoshout" | "trashtank" | "other" | "debuff" | "blessing" | "aura" | "totem" | "brez";
 /** An assignment (spell: the catalog spell it is about): assignees are `slot:<kind>:<n>` or `user:<userId>` (the order is a rotation); `suggested` = made by "Vorschlag", not edited yet. */
-export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean; /** "Auf Map setzen" of a task row (not a tank row): its named raiders stand on the map as auto tokens (lib/raidplan/autoPlace.ts) */ onMap?: boolean; /** the role the row prefers for suggestions and class references (melee / ranged / healer / tank; none = any) */ preferredRole?: string; /** how many raiders a row with a class priority wants (1..40, #525) */ count?: number; /** the classes in the order they are asked: the first free raider of the first, else of the next ... (#525) */ classPriority?: string[] };
+export type RaidplanAssignment = { id: string; type: RaidplanAssignType; /** the free text of the task */ title: string; spell: RaidplanSpellRef | null; assignees: string[]; targets: RaidplanAssignTarget[]; note: string; suggested: boolean; /** the class(es) that should do it (class ids; empty = any that fits the type) */ preferredClasses?: string[]; /** a suggestion may take other classes when none of them fits */ allowOthers?: boolean; /** where the row comes from: "default" (the template's Standard) or the id of the default row it deviates from */ origin?: string; /** a raider chosen by hand for a class reference of the row (key: the assignee ref, or "t:" + the target ref) */ picks?: Record<string, string>; /** the same raider may take the task more than once when the class is short */ allowMulti?: boolean; /** "Auf Map setzen" of a task row (not a tank row): its named raiders stand on the map as auto tokens (lib/raidplan/assign/autoPlace.ts) */ onMap?: boolean; /** the role the row prefers for suggestions and class references (melee / ranged / healer / tank; none = any) */ preferredRole?: string; /** how many raiders a row with a class priority wants (1..40, #525) */ count?: number; /** the classes in the order they are asked: the first free raider of the first, else of the next ... (#525) */ classPriority?: string[] };
 /** The role slots of a raid: tanks, healers, melee and ranged (the groups follow from the size). */
 export type BesetzungCounts = { tank: number; healer: number; dps: number; melee: number; ranged: number };
 export type Besetzung = { size: number; counts: BesetzungCounts; groups: number; /** melee / ranged were split by hand */ split: boolean };

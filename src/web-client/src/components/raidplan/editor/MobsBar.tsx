@@ -1,6 +1,6 @@
 import { Crosshair, X } from "lucide-react";
 import type { Catalog, RaidplanBoard, RaidplanMobRef } from "../../../api";
-import { addMobs, mobIconKey, mobRef, removeMob } from "../../../lib/raidplan/assign";
+import { addMobs, mobIconKey, mobRef, removeMob } from "../../../lib/raidplan/assign/assign";
 import { insertObject } from "../../../lib/raidplan";
 import { useT } from "../../../i18n";
 import CollapseToggle from "../CollapseToggle";

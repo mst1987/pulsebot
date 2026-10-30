@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RaidplanScene } from "../api";
-import { frameAt } from "../lib/raidplan/scene";
+import { frameAt } from "../lib/raidplan/anim/scene";
 
 /** The speeds the player offers. */
 export const SPEEDS = [0.5, 1, 2] as const;
@@ -29,7 +29,7 @@ export type ScenePlayer = {
 };
 
 /**
- * Plays a scene (lib/raidplan/scene.ts): the time runs with requestAnimationFrame at the chosen speed, stops at the end or starts
+ * Plays a scene (lib/raidplan/anim/scene.ts): the time runs with requestAnimationFrame at the chosen speed, stops at the end or starts
  * again when the scene loops. A new scene starts from 0 (and plays when `autoplay`). Pure state: what is drawn at `t` is boardAt's job.
  */
 export function useScenePlayer(scene: RaidplanScene | null, { autoplay = false }: { autoplay?: boolean } = {}): ScenePlayer {

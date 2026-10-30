@@ -9,7 +9,7 @@ import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanPlayer, RaidplanSl
 import { JobsProvider } from "../../../shell/Jobs";
 import { ConfirmProvider } from "../../../ui/Modal";
 import { boardOf, emptyBoard } from "../../../../lib/raidplan";
-import { badgeMetrics } from "../../../../lib/raidplan/labelScale";
+import { badgeMetrics } from "../../../../lib/raidplan/board/labelScale";
 import BoardWorkspace from "../BoardWorkspace";
 import { useDraftHistory } from "../useDraftHistory";
 
@@ -402,7 +402,7 @@ describe("BoardWorkspace: the lines of the rows", () => {
     });
 });
 
-// #511: the group badge grows with its icon (lib/raidplan/labelScale.ts badgeMetrics) and sits the same way on every kind of token
+// #511: the group badge grows with its icon (lib/raidplan/board/labelScale.ts badgeMetrics) and sits the same way on every kind of token
 describe("BoardWorkspace: the group badge", () => {
     const badgeOf = (tok: HTMLElement) => {
         const badge = tok.querySelector<HTMLElement>(":scope > .rp-token-gbadge");

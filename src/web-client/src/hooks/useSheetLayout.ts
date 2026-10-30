@@ -1,5 +1,5 @@
 import { useCallback, useState } from "react";
-import { parseSheetLayout, type SheetLayout } from "../lib/raidplan/sheetLayout";
+import { parseSheetLayout, type SheetLayout } from "../lib/raidplan/view/sheetLayout";
 
 const KEY = "eh.raidplan.sheetLayout";
 
@@ -8,7 +8,7 @@ function load(): SheetLayout {
 }
 
 /**
- * The sheet's layout as this visitor left it (lib/raidplan/sheetLayout.ts): the boss strip and "Alle Einteilungen", kept in this browser
+ * The sheet's layout as this visitor left it (lib/raidplan/view/sheetLayout.ts): the boss strip and "Alle Einteilungen", kept in this browser
  * across sections and reloads. A private window that refuses storage keeps it for the page's life only.
  */
 export function useSheetLayout(): [SheetLayout, (patch: Partial<SheetLayout>) => void] {

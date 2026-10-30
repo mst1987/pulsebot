@@ -1,5 +1,5 @@
 // Whether a raid plan editor block (Roster slots, Taktik, the mobs bar, an assignment card …) is folded away, remembered
-// in this browser: pure parsing is tested directly in lib/raidplan/__tests__/collapse.test.ts, this covers the localStorage round
+// in this browser: pure parsing is tested directly in lib/raidplan/view/__tests__/collapse.test.ts, this covers the localStorage round
 // trip and, for the assignment cards, that several ids under one storage key never clobber each other.
 import { act, renderHook } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";

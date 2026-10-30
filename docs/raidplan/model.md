@@ -74,7 +74,7 @@ upright; a small wedge on the rim shows the facing (only the wedge turns, never 
 name stays square and has no facing. Turning: the round handle above the selected icon (drag around the
 centre, Shift = 15° steps), the "Blickrichtung" field (0–359) and eight compass buttons in the inspector, the
 eight "Blick nach …" entries of the right-click menu, and Q / E (15°, with Shift 45°). Pure maths
-(`normAngle`, `angleTo`, `snapAngle`, `compassName`, `turnIcon`) is in `lib/raidplan/facing.ts`.
+(`normAngle`, `angleTo`, `snapAngle`, `compassName`, `turnIcon`) is in `lib/raidplan/board/facing.ts`.
 
 **No automatic labels on the board:** only what was typed is drawn (`slotBoardLabel`, `zoneBoardLabel`,
 `iconBoardLabel`, `textShown`). No "Tank 1", no zone type, no icon name: an open role slot shows just its role
@@ -122,7 +122,7 @@ read view draws the same.
   from the groups it includes: `plan.includedGroups` (group numbers 1..8 and optionally `"bench"`; missing = the groups up to the
   raid's size, `ceil(size / 5)` of the plan's Besetzung - a 25er takes 1..5 -, no bench). One reader on each side:
   `src/services/raidplan/raidplanGroups.js` (`includedGroups`, `planRoster`, `outOfPlanRoster`, `refillSlots`,
-  `cleanIncludedGroups`) and its client twin `lib/raidplan/planGroups.ts`. Everything that picks a raider reads through it: the
+  `cleanIncludedGroups`) and its client twin `lib/raidplan/assign/planGroups.ts`. Everything that picks a raider reads through it: the
   Besetzung and its counts, `expandClassRefs` (class references, priorities), the suggestions (roster and the heal row's groups),
   the auto tokens, "Nicht platziert", the group markers, the read view and a template's slot fill. What a save may NAME stays the
   whole lineup (`allowedUserIds`), so a bench raider already in a row is kept and marked "nicht im Plan". Set with `POST
@@ -179,7 +179,7 @@ own size and composition).
 ## Assignments ("Einteilungen")
 
 One model — **and one list per board** — for everything the orga hands out (`src/services/raidplan/raidplanAssign.js`,
-client rules in `lib/raidplan/assign.ts`): `{ id, type, title, assignees, targets, note, suggested }`. `title` is the
+client rules in `lib/raidplan/assign/assign.ts`): `{ id, type, title, assignees, targets, note, suggested }`. `title` is the
 task in free words ("Fear unterbrechen"), the type gives it its icon. The old task rows are part of this list:
 **a row = who** (assignees, from the Besetzung; in an event also players; several at once) **does what** (type +
 free text) **to what** (optional target). An old row `{ title, userIds }` is read as type "other", the title
@@ -269,7 +269,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   editor asks on leaving the Standard (or on saving while in it) "Tanks auch für die anderen Bosse?" - only once per
   change and only when some boss / trash differs (`components/raidplan/editor/useTankOrderFollow.ts`). Not on every
   click: a swap through the Besetzung's chips takes two steps. "Für alle übernehmen" gives each section, in one undo
-  step, the Standard's tank line-up (`lib/raidplan/tankOrder.ts applyTankLineup`): as many tank slots (`setCount`, as
+  step, the Standard's tank line-up (`lib/raidplan/assign/tankOrder.ts applyTankLineup`): as many tank slots (`setCount`, as
   +/- on the boss), the Standard's tanks in its order. A tank standing in another slot there swaps with whoever had his
   tank slot (the "2 -> 3 tanks, the cat druid as Tank 3" case: he leaves his DPS slot); one who plays another role on
   that boss on purpose (a flex role other than tank) stays, the next tank moves up; places on the map stay. "Nur im
@@ -416,7 +416,7 @@ shape `raidplan.rosterFrom()` already reads:
 (`raiderProfileStore`): a) a character of **Raid-Helper's class** — the raider's first of it in their own order (there is no main);
 b) else a character named like the Raid-Helper name (case and realm ignored); c) else the Raid-Helper name
 itself, marked `nameFromRh` (set in italics, "Name aus Raid-Helper"). The name is display only. Chips, tables
-and the sheet show the resolved name; the tooltip adds "Raid-Helper: <name>" (`lib/raidplan/players.ts rhNote`), the
+and the sheet show the resolved name; the tooltip adds "Raid-Helper: <name>" (`lib/raidplan/board/players.ts rhNote`), the
 search of the assign dialogs finds both names, and the head counts "n Namen aus Raid-Helper nicht zuordenbar".
 "Meine Aufgaben" and the highlight go by the **Discord id**.
 

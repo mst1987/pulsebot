@@ -1,7 +1,7 @@
-// The map height (S/M/L + splitter, remembered) and the class order of a row's pickers (lib/raidplan/, lib/raidplan/assign.ts).
+// The map height (S/M/L + splitter, remembered) and the class order of a row's pickers (lib/raidplan/, lib/raidplan/assign/assign.ts).
 import { describe, expect, it } from "vitest";
 import * as raidplan from "..";
-import * as assign from "../assign";
+import * as assign from "../assign/assign";
 
 describe("map height", () => {
     it("a step is a share of the window's height, bigger steps are bigger", () => {

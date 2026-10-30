@@ -22,14 +22,14 @@
 // The other raid plan libs next to these (assign.ts, autoPlace.ts, steps.ts …)
 // are imported by their own path.
 export * from "./model";
-export * from "./players";
-export * from "./objects";
-export * from "./autoStyle";
-export * from "./geometry";
-export * from "./labels";
-export * from "./facing";
+export * from "./board/players";
+export * from "./board/objects";
+export * from "./board/autoStyle";
+export * from "./board/geometry";
+export * from "./board/labels";
+export * from "./board/facing";
 export * from "./menu";
-export * from "./besetzung";
+export * from "./assign/besetzung";
 export * from "./profiles";
-export * from "./roleGroups";
-export * from "./planGroups";
+export * from "./board/roleGroups";
+export * from "./assign/planGroups";

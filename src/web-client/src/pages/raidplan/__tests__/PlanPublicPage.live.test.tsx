@@ -7,7 +7,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
 import type { RaidplanPublic, RaidplanPublicBoss } from "../../../api";
 import { rememberedSection } from "../../../lib/raidplan";
-import { sectionFromHash } from "../../../lib/raidplan/sectionUrl";
+import { sectionFromHash } from "../../../lib/raidplan/view/sectionUrl";
 import PlanPublicPage from "../PlanPublicPage";
 
 vi.mock("../../../api", async (orig) => ({

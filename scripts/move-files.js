@@ -22,7 +22,9 @@ const { planMove } = require("./lib/moveFiles");
 
 // text files that may hold a path; images, fonts and the big generated tables are left out
 const TEXT = /\.(c|m)?[jt]sx?$|\.(json|md|css|ya?ml|html)$/;
-const SKIP = [/^assets\//, /^src\/web-client\/public\//, /\/i18n\/locales\//, /(^|\/)package-lock\.json$/];
+const SKIP = [/^assets\//, /^src\/web-client\/public\//, /\/i18n\/locales\//, /(^|\/)package-lock\.json$/,
+    // the move's own code and tests: their example paths are real files and must stay as written
+    /^scripts\/move-files\.js$/, /^scripts\/lib\/moveFiles\.js$/, /^test\/scripts\/moveFiles\.test\.js$/];
 const MAX_BYTES = 1024 * 1024;
 
 function trackedFiles(root) {

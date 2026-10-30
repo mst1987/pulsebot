@@ -1,7 +1,7 @@
 // The editor's views of one section (Oct 2026): "Aufgaben" (the assignments, the Besetzung, the tactic - no drawing tools),
 // "Karte" (the board with its tools in the full width) and "Animation" (the scenes of the board, docs/raidplan/animation.md). Never side by side: there is not enough room for the map next
 // to the task list. The choice is the user's, remembered in this browser, and - in the event editor, whose section is in the
-// address already (`#boss=`, lib/raidplan/sectionUrl.ts) - also in the address (`#view=map`), so a reload or a shared link
+// address already (`#boss=`, lib/raidplan/view/sectionUrl.ts) - also in the address (`#view=map`), so a reload or a shared link
 // opens the same view. "Allgemein" and "Standard" have no map: there the view is always "tasks" (the stored choice stays).
 // The address carries `#view=map` / `#view=anim`; "tasks" is the default and left out.
 import { useCallback, useState } from "react";

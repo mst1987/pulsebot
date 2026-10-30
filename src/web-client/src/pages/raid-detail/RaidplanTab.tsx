@@ -12,9 +12,9 @@ import { useT } from "../../i18n";
 import {
     boardCount, boardOf, dirtyKeys, ensureBesetzung, rememberSection, rememberedSection, startSection, objectCount, planHasContent, sameBosses, sheetIncluded, toSave,
 } from "../../lib/raidplan";
-import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/sectionUrl";
+import { hasSectionDeepLink, sectionFromUrl, showSectionInUrl } from "../../lib/raidplan/view/sectionUrl";
 import type { RaidCtx } from "./meta";
-import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assignLine";
+import { missingNames, openAssignments, type OpenRow } from "../../lib/raidplan/assign/assignLine";
 import { DEFAULTS_KEY } from "../../lib/raidplan/inherit";
 import BoardWorkspace from "../../components/raidplan/editor/BoardWorkspace";
 import SectionStrip from "../../components/raidplan/editor/SectionStrip";
@@ -30,7 +30,7 @@ import "../../styles/raidplan/index.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "../../components/raidplan/editor/RhSource";
 import PlanGroups from "../../components/raidplan/editor/PlanGroups";
-import { includedGroups, splitRoster } from "../../lib/raidplan/planGroups";
+import { includedGroups, splitRoster } from "../../lib/raidplan/assign/planGroups";
 import { ofVersion, splitByVersion, versionLabel } from "../../lib/raidplan/versions";
 
 /** The players a plan picks from ("Gruppen im Plan", #529) and the rest of the lineup (only to name a raider a row still holds). */

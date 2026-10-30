@@ -5,7 +5,7 @@ import { useConfirm } from "../../ui";
 import { ActionIcon } from "../ActionIcon";
 import CollapseToggle from "../CollapseToggle";
 import { useCollapse } from "../../../hooks/useCollapse";
-import type { AssignCtx } from "../../../lib/raidplan/assign";
+import type { AssignCtx } from "../../../lib/raidplan/assign/assign";
 import { appendSteps, blankStep, duplicateStep, moveStep, moveStepTo, putStep, removeStep, resolveParticipants, starterTactics, stepsOf, timingLabel } from "../../../lib/raidplan/steps";
 import StepModal from "./StepModal";
 import { StepPeople, StepSentence, TimingChip } from "./StepParts";

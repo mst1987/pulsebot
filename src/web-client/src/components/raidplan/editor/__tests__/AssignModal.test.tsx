@@ -1,6 +1,6 @@
 // The row dialog's "Rolle" (#501): a compact choice next to the class chips (egal / Nahkampf / Fernkampf / Heiler / Tank), stored as the
 // row's `preferredRole`; the candidates of a class reference follow it (an elemental shaman for Fernkampf), the wand sends it to the
-// server, a row whose task implies a role (healing, tanking) has none. The ranking itself runs in lib/raidplan/__tests__/rank.test.ts.
+// server, a row whose task implies a role (healing, tanking) has none. The ranking itself runs in lib/raidplan/assign/__tests__/rank.test.ts.
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";

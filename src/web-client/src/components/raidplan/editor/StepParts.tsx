@@ -1,6 +1,6 @@
 import type { RaidplanStep, RaidplanStepTarget, RaidplanTiming } from "../../../api";
-import { classRefLabelFor, isMe, offRole, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign";
-import { isMissing } from "../../../lib/raidplan/assignLine";
+import { classRefLabelFor, isMe, offRole, resolveAssignee, resolveTarget, type AssignCtx, type Resolved } from "../../../lib/raidplan/assign/assign";
+import { isMissing } from "../../../lib/raidplan/assign/assignLine";
 import { TASK_OF, sentenceParts, targetWord, timingLabel } from "../../../lib/raidplan/steps";
 import { TimingIcon } from "../ActionIcon";
 import { LineChip } from "./AssignLine";

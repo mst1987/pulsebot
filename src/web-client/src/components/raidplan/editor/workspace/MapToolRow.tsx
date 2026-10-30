@@ -4,7 +4,7 @@ import type { RaidplanBoard } from "../../../../api";
 import { IconButton, Switch } from "../../../ui";
 import RoleGlyph from "../../RoleGlyph";
 import { useT } from "../../../../i18n";
-import { savedView, viewFromSaved } from "../../../../lib/raidplan/boardView";
+import { savedView, viewFromSaved } from "../../../../lib/raidplan/board/boardView";
 import type { useBoardView } from "../../../../hooks/useBoardView";
 import type { useViewPrefs } from "../../../../hooks/useViewPrefs";
 import type { InsertSpec, MapSize } from "../../../../lib/raidplan";

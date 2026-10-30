@@ -1,6 +1,6 @@
 import WowIcon from "../ui/WowIcon";
-import { classRefIcon } from "../../lib/raidplan/assign";
-import { ANY } from "../../lib/raidplan/classRefs";
+import { classRefIcon } from "../../lib/raidplan/assign/assign";
+import { ANY } from "../../lib/raidplan/assign/classRefs";
 import RoleGlyph from "./RoleGlyph";
 
 /** The icon of a class reference: the WoW class icon, and for "any <role>" (no class) the role's glyph. */
