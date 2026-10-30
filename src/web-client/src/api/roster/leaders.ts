@@ -21,15 +21,26 @@ export type LeadVersion = {
     at: number;
 };
 
-/** The leaders a view marks: the version's instances and the flags by user id (only people with one). */
-export type LeadersView = { versionId?: string; instances: LeadInstance[]; byUser: Record<string, string[]> };
+/**
+ * The leaders a view marks: the version's instances and the flags by user id (only
+ * people with one). For the orga `editable`: the instances it may switch here (the
+ * raid's or the category's), and in the setup editor `switchable`: for whom
+ * (signed up or in the roster) - PUT /api/leads refuses everything else.
+ */
+export type LeadersView = {
+    versionId?: string; instances: LeadInstance[]; byUser: Record<string, string[]>;
+    editable?: string[]; switchable?: string[];
+};
 
 /** The caller's own flags of one version; an empty list removes them. */
 export function saveOwnLeads(versionId: string, instances: string[]): Promise<{ leadVersions: LeadVersion[] }> {
     return send("PUT", "/api/profile/leads", { versionId, instances });
 }
 
-/** The orga sets (or with an empty list removes) somebody's flags — of the raid's or the roster's version. */
-export function setLeads(input: { userId: string; instances: string[]; event?: string; rosterId?: string }): Promise<{ userId: string; versionId: string; leads: string[]; by: string; at: number }> {
+/**
+ * The orga sets (or with an empty list removes) somebody's flags of the raid's or
+ * the roster's version - only the instances of that context; `leads` answers all.
+ */
+export function setLeads(input: { userId: string; instances: string[]; event?: string; rosterId?: string }): Promise<{ userId: string; versionId: string; leads: string[]; editable: string[]; by: string; at: number }> {
     return send("PUT", "/api/leads", input);
 }

@@ -648,8 +648,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         const leaders = data?.leaders;
         if (!leaders) return undefined;
         const ids = leaders.byUser[userId] || [];
-        if (!edit) return { instances: leaders.instances, ids };
-        return { instances: leaders.instances, ids, busy: leadBusy === userId, onChange: (next) => void saveLead(userId, next) };
+        // only for whom and what the server takes: signed up or in the roster, the raid's instances
+        const editable = leaders.editable || [];
+        const switchable = !leaders.switchable || leaders.switchable.includes(userId);
+        if (!edit || !switchable || !editable.length) return { instances: leaders.instances, ids };
+        return { instances: leaders.instances, ids, editable, busy: leadBusy === userId, onChange: (next) => void saveLead(userId, next) };
     };
     const saveLead = async (userId: string, instances: string[]) => {
         setLeadBusy(userId);

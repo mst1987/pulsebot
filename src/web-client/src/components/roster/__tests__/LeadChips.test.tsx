@@ -19,6 +19,15 @@ describe("LeadChips", () => {
         expect(onChange).toHaveBeenLastCalledWith([]);
         expect(screen.queryByRole("checkbox")).toBeNull();
     });
+
+    it("the orga switches only its context; the other flags stand beside as text", () => {
+        const onChange = vi.fn();
+        render(<LeadChips instances={[KARA, GRUUL]} value={["gruul", "kara"]} onChange={onChange} editable={["kara"]} />);
+        expect(screen.queryByRole("button", { name: /Gruul/ })).toBeNull();
+        expect(screen.getByText("Außerdem: Gruul")).toBeInTheDocument();
+        fireEvent.click(screen.getByRole("button", { name: /Kara/ }));
+        expect(onChange).toHaveBeenLastCalledWith([]);
+    });
 });
 
 describe("LeadMark", () => {

@@ -427,3 +427,4 @@ dialog.dlg.dlg-w { width: min(var(--dlg-w), calc(100vw - 32px)); }
 .lead-mark { display: inline-flex; flex: none; align-items: center; margin-left: 4px; vertical-align: -2px; color: var(--accent); line-height: 1; cursor: default; }
 .lead-mark svg { width: 15px; height: 15px; }
 .lead-chips { margin-bottom: 0; }
+.lead-elsewhere { align-self: center; color: var(--muted); font-size: 12px; cursor: help; }

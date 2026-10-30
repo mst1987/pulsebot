@@ -70,6 +70,8 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
     // leader flags (#1034): a click saves at once, the roster loads again
     const leaders = data.leaders && data.leaders.instances.length ? data.leaders : null;
     const leads = leaders?.byUser[userId] || [];
+    // the orga switches only the category's instances (`editable`, the server's rule); nothing to switch: read only
+    const leadEdit = manage && !!leaders?.editable?.length;
     const saveLeads = async (instances: string[]) => {
         if (await run("leads", () => setLeads({ rosterId, userId, instances }))) await onChanged();
     };
@@ -134,9 +136,9 @@ export default function MemberDrawer({ data, userId, onClose, onChanged }: {
                             <SpecSection member={member} data={data} busy={busy !== ""} onSave={(spec) => save("spec", { spec })} />
                             <RolesSection member={member} data={data} busyRole={busy.startsWith("role-") ? busy : ""} onRole={toggleRole} />
                             <AttendanceSection member={member} data={data} onChanged={() => { void onChanged(); }} />
-                            {leaders && (manage || leads.length > 0) && (
-                                <DrawerSection title={t("roster.leaders.edit")} hint={manage ? undefined : leadList(leaders.instances, leads)}>
-                                    {manage && <LeadChips instances={leaders.instances} value={leads} onChange={(next) => void saveLeads(next)} disabled={busy !== ""} />}
+                            {leaders && (leadEdit || leads.length > 0) && (
+                                <DrawerSection title={t("roster.leaders.edit")} hint={leadEdit ? undefined : leadList(leaders.instances, leads)}>
+                                    {leadEdit && <LeadChips instances={leaders.instances} value={leads} onChange={(next) => void saveLeads(next)} disabled={busy !== ""} editable={leaders.editable} />}
                                 </DrawerSection>
                             )}
                             {manage && <NoteSection member={member} busy={busy === "note"} onSave={(note) => save("note", { note })} />}

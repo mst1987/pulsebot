@@ -1,6 +1,7 @@
 // Leader-Flags (#1034) über den echten Router: eigene Flags in „Mein Profil“, die Orga setzt und
-// entfernt Flags anderer (über den Raid oder das Roster), eine Kategorie-Orga einer fremden Kategorie
-// bekommt 403, und Orga oder Admin sein macht niemanden zum Leader.
+// entfernt Flags anderer (über den Raid oder das Roster) nur in ihrem Kontext und mischt sie in die
+// übrigen, eine Kategorie-Orga einer fremden Kategorie bekommt 403, ein Roster eines anderen Servers
+// gibt 404, und Orga oder Admin sein macht niemanden zum Leader.
 let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
@@ -11,17 +12,21 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => ""),
 }));
-jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+let mockGuild = "g1";
+jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => mockGuild) }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 // cat1's TBC roster: managed by "mgr", members "m1" and "m2"; cat2's roster by "mgr2"
 jest.mock("../../../../src/stores/roster/rosterStore", () => {
-    const roster = (id, categoryId, versionId, managers, members) => ({
-        id, categoryId, versionId, guildId: "g1", managers: { userIds: managers, roleIds: [] },
+    const roster = (id, categoryId, versionId, managers, members, guildId = "g1") => ({
+        id, categoryId, versionId, guildId, managers: { userIds: managers, roleIds: [] },
         members: Object.fromEntries(members.map((m) => [m, { status: "active" }])),
     });
     const rosters = {
         "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"], ["m1", "m2"]),
         "cat2:tbc": roster("r2", "cat2", "tbc", ["mgr2"], ["m3"]),
+        // another server's roster (g2) and a roster without category
+        "cat9:tbc": roster("r9", "cat9", "tbc", ["mgr"], ["m9"], "g2"),
+        "-:tbc": roster("r0", "", "tbc", ["mgr"], ["m1"]),
     };
     return {
         listRosters: jest.fn(() => Object.values(rosters)),
@@ -76,6 +81,7 @@ function raid(categoryId, title) {
 }
 
 beforeEach(() => {
+    mockGuild = "g1";
     eventStore.useFile(tempStoreFile("events.json"));
     signupStore.useFile(tempStoreFile("signups.json"));
     profileStore.useFile(tempStoreFile("profiles.json"));
@@ -112,10 +118,10 @@ describe("PUT /api/profile/leads (eigene Flags)", () => {
 describe("PUT /api/leads (Orga für andere)", () => {
     it("die globale Orga setzt und entfernt das Flag eines Angemeldeten über den Raid", async () => {
         mockUser = ORGA;
-        let r = await put("/api/leads", { event: foreign.id, userId: "s1", instances: ["kara", "gruul"] });
+        let r = await put("/api/leads", { event: foreign.id, userId: "s1", instances: ["kara"] });
         expect(status(r)).toBe(200);
-        expect(body(r)).toMatchObject({ userId: "s1", versionId: "tbc", leads: ["kara", "gruul"], by: "orga" });
-        expect(userCanLead("s1", "tbc", ["kara", "gruul"])).toBe(true);
+        expect(body(r)).toMatchObject({ userId: "s1", versionId: "tbc", leads: ["kara"], editable: ["kara"], by: "orga" });
+        expect(userCanLead("s1", "tbc", ["kara"])).toBe(true);
 
         r = await put("/api/leads", { event: foreign.id, userId: "s1", instances: [] });
         expect(status(r)).toBe(200);
@@ -125,11 +131,62 @@ describe("PUT /api/leads (Orga für andere)", () => {
 
     it("die Kategorie-Orga setzt Flags in ihrer Kategorie (Raid und Roster)", async () => {
         mockUser = MANAGER;
-        let r = await put("/api/leads", { event: own.id, userId: "m2", instances: ["ssc"] });
+        let r = await put("/api/leads", { event: own.id, userId: "m2", instances: ["kara"] });
         expect(status(r)).toBe(200);
         r = await put("/api/leads", { rosterId: "r1", userId: "m1", instances: ["kara"] });
         expect(status(r)).toBe(200);
         expect(leaderFlagsStore.leadsOf("m1").tbc).toMatchObject({ instances: ["kara"], by: "mgr" });
+    });
+
+    it("schaltet nur die Instanzen ihres Kontexts und lässt die übrigen Flags stehen (Merge)", async () => {
+        leaderFlagsStore.setLeads("m1", "tbc", ["ssc", "tk"], { by: "m1" });
+        mockUser = MANAGER;
+        let r = await put("/api/leads", { event: own.id, userId: "m1", instances: ["kara"] });
+        expect(status(r)).toBe(200);
+        expect(body(r).leads).toEqual(["kara", "ssc", "tk"]);
+        r = await put("/api/leads", { event: own.id, userId: "m1", instances: [] });
+        expect(status(r)).toBe(200);
+        expect(leaderFlagsStore.leadsOf("m1").tbc.instances).toEqual(["ssc", "tk"]);
+    });
+
+    it("lehnt eine Instanz außerhalb des Kontexts mit 400 ab, und nichts ändert sich", async () => {
+        leaderFlagsStore.setLeads("m1", "tbc", ["ssc"], { by: "m1" });
+        mockUser = ORGA;
+        let r = await put("/api/leads", { event: own.id, userId: "m1", instances: ["kara", "ssc"] });
+        expect(status(r)).toBe(400);
+        expect(code(r)).toBe("outside_context");
+        r = await put("/api/leads", { rosterId: "r1", userId: "m1", instances: ["gruul"] });
+        expect(status(r)).toBe(400);
+        expect(code(r)).toBe("outside_context");
+        expect(leaderFlagsStore.leadsOf("m1").tbc).toMatchObject({ instances: ["ssc"], by: "m1" });
+    });
+
+    it("ein Roster ohne Kategorie hat keinen Kontext (400 no_context)", async () => {
+        mockUser = ORGA;
+        const r = await put("/api/leads", { rosterId: "r0", userId: "m1", instances: [] });
+        expect(status(r)).toBe(400);
+        expect(code(r)).toBe("no_context");
+    });
+
+    it("ein Roster eines anderen Servers gibt 404 und verrät keine Mitglieder", async () => {
+        mockUser = ORGA;
+        for (const userId of ["m9", "fremd"]) {
+            const r = await put("/api/leads", { rosterId: "r9", userId, instances: [] });
+            expect(status(r)).toBe(404);
+            expect(code(r)).toBe("not_found");
+        }
+        mockGuild = "g2";
+        const r = await put("/api/leads", { rosterId: "r1", userId: "m1", instances: ["kara"] });
+        expect(status(r)).toBe(404);
+        expect(code(r)).toBe("not_found");
+        expect(leaderFlagsStore.allLeads()).toEqual({});
+    });
+
+    it("ein Manager bekommt den Roster eines anderen Servers nicht einmal über die Kategorie", async () => {
+        mockUser = MANAGER;
+        const r = await put("/api/leads", { rosterId: "r9", userId: "m9", instances: [] });
+        expect([403, 404]).toContain(status(r));
+        expect(leaderFlagsStore.allLeads()).toEqual({});
     });
 
     it("gibt einer Kategorie-Orga einer fremden Kategorie 403, und nichts ändert sich", async () => {

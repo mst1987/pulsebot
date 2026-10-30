@@ -5,10 +5,11 @@
         "chipOff": "click: can lead",
         "mark": "Leader: {list}",
         "markTip": "Can lead raids",
-        "markShort": "Leader",
         "edit": "Leads",
-        "editSub": "Which instances this person can lead. Applies at once.",
-        "saveError": "Could not save the leader: {message}"
+        "saveError": "Could not save the leader: {message}",
+        "elsewhere": "Also: {list}",
+        "elsewhereTip": "Other instances – not changeable here",
+        "elsewhereSub": "The orga only switches the instances of this raid or category; the person changes everything else in “My profile”."
     },
     "page": {
         "orgaOnly": "This list is for the orga. As a raider you see the rosters and their composition under “Roster”.",

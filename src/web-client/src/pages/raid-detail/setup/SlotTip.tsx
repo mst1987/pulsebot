@@ -132,7 +132,7 @@ function ActionRow({ a }: { a: SlotActions }) {
  * `lead` (#1034): the crown beside the name when the person can lead raids; with
  * `onChange` (orga, not in the peek) the instances as toggle chips under "Leitet".
  */
-export type SlotLead = { instances: LeadInstance[]; ids: string[]; onChange?: (next: string[]) => void; busy?: boolean };
+export type SlotLead = { instances: LeadInstance[]; ids: string[]; onChange?: (next: string[]) => void; busy?: boolean; editable?: string[] };
 
 export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false, lead }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
@@ -281,10 +281,10 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                         </div>
                     </div>
                 )}
-                {lead?.onChange && !peek && lead.instances.length > 0 && (
+                {lead?.onChange && !peek && (lead.editable || lead.instances).length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k" data-tip={t("setup.person.tip.leads")} data-tip-sub={t("setup.person.tip.leadsSub")}>{t("setup.person.tip.leads")}</span>
-                        <LeadChips instances={lead.instances} value={lead.ids} onChange={lead.onChange} disabled={lead.busy} />
+                        <LeadChips instances={lead.instances} value={lead.ids} onChange={lead.onChange} disabled={lead.busy} editable={lead.editable} />
                     </div>
                 )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}

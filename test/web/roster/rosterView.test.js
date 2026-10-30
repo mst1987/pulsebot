@@ -158,6 +158,21 @@ describe("leader flags (#1034)", () => {
         const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
         expect(view.leaders.byUser).toEqual({});
     });
+
+    it("names the instances of the category the orga may switch, and none for a raider", async () => {
+        const eventStore = require("../../../src/stores/events/eventStore");
+        eventStore.useFile(tempStoreFile(`events-${count}.json`));
+        const versionId = rosterStore.listRosters(G)[0].versionId || "tbc";
+        eventStore.createEvent({
+            guildId: G, channelId: "c1", categoryId: "cat1", title: "Kara", versionId, instanceIds: ["kara"],
+            startTime: Math.floor(Date.now() / 1000) + 86400, size: 10,
+        });
+        const orga = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(orga.leaders.editable).toEqual(["kara"]);
+        const reader = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(reader.leaders.editable).toEqual([]);
+        eventStore.useFile(null);
+    });
 });
 
 describe("who sees the people data (epic #723)", () => {

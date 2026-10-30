@@ -5,10 +5,11 @@
         "chipOff": "klicken: kann leiten",
         "mark": "Leader: {list}",
         "markTip": "Kann Raids leiten",
-        "markShort": "Leader",
         "edit": "Leitet",
-        "editSub": "Welche Instanzen diese Person leiten kann. Gilt sofort.",
-        "saveError": "Leader konnte nicht gespeichert werden: {message}"
+        "saveError": "Leader konnte nicht gespeichert werden: {message}",
+        "elsewhere": "Außerdem: {list}",
+        "elsewhereTip": "Andere Instanzen – hier nicht änderbar",
+        "elsewhereSub": "Die Orga schaltet nur die Instanzen dieses Raids bzw. dieser Kategorie; alles Übrige ändert die Person in „Mein Profil“."
     },
     "page": {
         "orgaOnly": "Diese Liste ist für die Orga. Als Raider siehst du die Roster und ihre Komposition unter „Roster“.",

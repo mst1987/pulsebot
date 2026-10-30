@@ -66,8 +66,8 @@ const raidGroup = require("../../../services/events/raidGroup");
 const { signupEventIdOf } = require("../../../utils/raidGroup");
 const { shortFor, shadowbannedAmong } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
-const { leadsForVersion, instanceChoices } = require("../../../services/roster/leaderFlags");
-const { versionOfEvent } = require("../../../services/versions/mainVersion");
+const { leadsForVersion, instanceChoices, eventLeadContext } = require("../../../services/roster/leaderFlags");
+const { rosterOfEvent } = require("../../../services/roster/categoryRoster");
 
 // The event a write names: an archived event (a hidden game version, #563) is read only, and the orga
 // of a category (#725, `orgaScoped`) may change only the setups of their own category's raids.
@@ -138,11 +138,21 @@ async function view(event, user, { names = true, req = null } = {}) {
 
 /**
  * The leader flags (#1034) of everybody in the editor, for the raider panel: the
- * raid's version, its instances (the chips) and `{ [userId]: instanceIds }`.
+ * raid's version, its instances, `{ [userId]: instanceIds }`, the instances the
+ * orga may switch here (`editable`, the raid's context - PUT /api/leads refuses
+ * the rest) and for whom (`switchable`: signed up for the raid or a member of its
+ * roster - somebody only on the bench or in the pool is not).
  */
 function leadersOf(event, signups, setup) {
-    const versionId = versionOfEvent(event);
-    return { versionId, instances: instanceChoices(versionId), byUser: leadsForVersion(personIdsOf(signups, setup), versionId) };
+    const config = getConfig();
+    const { versionId, instances: editable } = eventLeadContext(event, { config });
+    const roster = rosterOfEvent(event, { config });
+    const allowed = new Set([...signups.map((s) => String(s.userId)), ...Object.keys((roster && roster.members) || {})]);
+    const ids = personIdsOf(signups, setup);
+    return {
+        versionId, instances: instanceChoices(versionId), byUser: leadsForVersion(ids, versionId),
+        editable, switchable: ids.filter((id) => allowed.has(id)),
+    };
 }
 
 /** Everybody the editor shows: the signups, and who stands in a group, on the bench or in the pool. */

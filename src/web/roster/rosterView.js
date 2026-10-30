@@ -36,7 +36,7 @@
 const rosterStore = require("../../stores/roster/rosterStore");
 const profiles = require("../../stores/roster/raiderProfileStore");
 const characterStore = require("../../stores/roster/characterStore");
-const { leadsForVersion, instanceChoices } = require("../../services/roster/leaderFlags");
+const { leadsForVersion, instanceChoices, rosterLeadContext, mayOrgaRosterLeads } = require("../../services/roster/leaderFlags");
 const discord = require("../../services/discord/discord");
 const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { listStoredEvents } = require("../../services/events/eventSources");
@@ -490,8 +490,13 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: orga ? figures : slimFigures(figures), guildId: roster.guildId || guildId,
     });
-    // the leader flags (#1034): no notes about a person, every reader of the roster sees them
-    const leaders = { instances: instanceChoices(roster.versionId), byUser: leadsForVersion(rows.map((r) => r.userId), roster.versionId) };
+    // the leader flags (#1034): no notes about a person, every reader of the roster sees them;
+    // `editable` - the instances of the category the orga may switch here (PUT /api/leads), else none
+    const mayLead = await mayOrgaRosterLeads(user, roster, { config }).catch(() => false);
+    const leaders = {
+        instances: instanceChoices(roster.versionId), byUser: leadsForVersion(rows.map((r) => r.userId), roster.versionId),
+        editable: mayLead ? rosterLeadContext(roster, { config }).instances : [],
+    };
     if (!orga) {
         return {
             roster: { ...head, kader: null },
