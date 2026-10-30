@@ -53,6 +53,7 @@ const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCou
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
 const GuildBankPage = lazyWithReload(() => import("./pages/guildbank/GuildBankPage"));
 const KaderPage = lazyWithReload(() => import("./pages/kader/KaderPage"));
+const VermerkePage = lazyWithReload(() => import("./pages/vermerke/VermerkePage"));
 const AddonPage = lazyWithReload(() => import("./pages/addon/AddonPage"));
 const AddonDetailPage = lazyWithReload(() => import("./pages/addon/AddonDetailPage"));
 const SystemPage = lazyWithReload(() => import("./pages/system/SystemPage"));
@@ -316,6 +317,8 @@ function MenuApp() {
                                 <Route path="guildbank" element={<Guard user={user} areas={["raids"]}><GuildBankPage /></Guard>} />
                                 {/* The Kaderplaner (area "kader"): one Kader at a time, /kader opens the one used last. */}
                                 <Route path="kader/:kaderId?/:sub?" element={<Guard user={user} areas={["kader"]}><KaderPage /></Guard>} />
+                                {/* Vermerke (#980): notes on Discord accounts of the active server; ?user=<id> opens one. */}
+                                <Route path="vermerke" element={<Guard user={user} areas={["vermerke"]}><VermerkePage /></Guard>} />
                                 {/* Addons (#818): the download page of the own addons, for every member ("signup") and the loot importers ("history"). */}
                                 <Route path="addon" element={<Guard user={user} areas={["signup", "history"]} scope="all"><AddonPage /></Guard>} />
                                 {/* One addon with its patch notes, whatever version the menu shows (the Discord centre links here). */}

@@ -31,6 +31,13 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn((id) => (id === "A" ? { id: "A", name: "Server Alpha" } : null)),
 }));
 
+let mockMembers = null;
+jest.mock("../../../src/services/vermerke/vermerkePeople", () => ({
+    membersOf: jest.fn(async () => mockMembers),
+    searchPeople: jest.fn(async (guildId, query) => ({ results: [{ userId: "111111111111111111", name: `${guildId}:${query}`, gone: true }] })),
+    recentRaids: jest.fn((guildId, userId) => [{ eventId: "e1", title: `${guildId}:${userId}`, startTime: 1, signed: true }]),
+}));
+
 const categoryOrga = require("../../../src/services/roster/categoryOrga");
 const notes = require("../../../src/stores/userNotesStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../src/config/permissions");
@@ -59,6 +66,7 @@ beforeEach(() => {
     mockUser = ADMIN;
     mockActive = "A";
     mockManager = false;
+    mockMembers = null;
     categoryOrga.isAnyCategoryManager.mockClear();
 });
 afterAll(() => notes.useFile(null));
@@ -71,12 +79,36 @@ describe("web/apiRoutes/vermerke", () => {
         expect(entry).toMatchObject({ level: "warning", reason: "no_show", by: "1", byName: "Admin", own: true, originGuildId: "A" });
 
         const list = body(await get("/api/vermerke")).people;
-        expect(list).toEqual([{ userId: U, name: "Zed", level: "warning", reasons: { no_show: 1 }, activeCount: 1, totalCount: 1, lastAt: entry.at }]);
+        expect(list).toEqual([{ userId: U, name: "Zed", level: "warning", reasons: { no_show: 1 }, activeCount: 1, totalCount: 1, lastAt: entry.at,
+            lastByName: "Admin", sharedCount: 0, left: null }]);
         expect(JSON.stringify(list)).not.toContain("MARKER-TEXT");
 
         const person = body(await get("/api/vermerke/person", { userId: U }));
         expect(person).toMatchObject({ userId: U, name: "Zed", level: "warning" });
         expect(person.entries).toEqual([expect.objectContaining({ id: entry.id, text: "MARKER-TEXT", active: true })]);
+    });
+
+    it("marks in the list who left, who wrote last and how many come shared", async () => {
+        await add({ userId: U });
+        await add({ userId: V, name: "Yara", shared: true });
+        mockMembers = new Map([[U, "Zed"]]);
+        const byId = Object.fromEntries(body(await get("/api/vermerke")).people.map((p) => [p.userId, p]));
+        expect(byId[U]).toMatchObject({ left: false, sharedCount: 0, lastByName: "Admin" });
+        expect(byId[V]).toMatchObject({ left: true });
+        expect(body(await get("/api/vermerke")).guildId).toBe("A");
+        mockActive = "B";
+        mockMembers = null;
+        expect(body(await get("/api/vermerke")).people).toEqual([expect.objectContaining({ userId: V, sharedCount: 1, left: null })]);
+    });
+
+    it("searches people and the recent raids on the active server", async () => {
+        expect(body(await get("/api/vermerke/people", { q: "ze" })).results).toEqual([{ userId: U, name: "A:ze", gone: true }]);
+        expect(body(await get("/api/vermerke/raids", { userId: U })).raids).toEqual([{ eventId: "e1", title: `A:${U}`, startTime: 1, signed: true }]);
+        mockUser = granted("read");
+        expect(status(await get("/api/vermerke/people", { q: "x" }))).toBe(200);
+        mockUser = RAIDER;
+        expect(status(await get("/api/vermerke/people", { q: "x" }))).toBe(403);
+        expect(status(await get("/api/vermerke/raids", { userId: U }))).toBe(403);
     });
 
     it("answers the store's refusals with their code", async () => {

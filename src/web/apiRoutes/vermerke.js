@@ -24,6 +24,7 @@ const { userCan } = require("../../config/permissions");
 const { isGlobalRaidOrga } = require("../events/raidOrgaAccess");
 const notes = require("../../stores/userNotesStore");
 const { shortFor } = require("../../services/vermerke/vermerkeShort");
+const { searchPeople, recentRaids, membersOf } = require("../../services/vermerke/vermerkePeople");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const { serverLabel } = require("../../services/discord/guildRoles");
 const discord = require("../../services/discord/discord");
@@ -76,17 +77,23 @@ function namer() {
     };
 }
 
-/** GET /api/vermerke - every person with entries this server sees, one line each (no text). */
+/**
+ * GET /api/vermerke - every person with entries this server sees, one line each (no text): who wrote the
+ * newest entry, how many come shared from another server, and `left` when the member list says the person
+ * is no longer on the server (null when the list is not there).
+ */
 const getList = withUser(async ({ req, res }) => {
     const guildId = guildOf(req, res);
     if (!guildId) return undefined;
     const now = Date.now();
+    const members = await membersOf(guildId);
     const people = Object.entries(notes.listFor(guildId)).map(([userId, p]) => {
         const counted = p.entries.filter((e) => !e.hidden && notes.isActive(e, now));
         let level = null;
         for (const e of counted) if (level === null || notes.levelRank(e.level) > notes.levelRank(level)) level = e.level;
         const reasons = {};
         for (const e of counted) reasons[e.reason] = (reasons[e.reason] || 0) + 1;
+        const last = p.entries.reduce((a, e) => (!a || (e.at || 0) > (a.at || 0) ? e : a), null);
         return {
             userId,
             name: p.name,
@@ -95,10 +102,14 @@ const getList = withUser(async ({ req, res }) => {
             activeCount: counted.length,
             totalCount: p.entries.length,
             lastAt: Math.max(0, ...p.entries.map((e) => e.at || 0)),
+            lastByName: (last && last.byName) || "",
+            sharedCount: counted.filter((e) => !e.own).length,
+            left: members ? !members.has(userId) : null,
         };
     });
     people.sort((a, b) => b.lastAt - a.lastAt);
-    return ok(res, { people });
+    // the server it is for, so a page that shows another server (Mitglieder) can tell
+    return ok(res, { guildId, guildName: serverNameOf(guildId, getConfig()), people });
 });
 
 /** GET /api/vermerke/person?userId= - every entry of one person this server sees, with the notes. */
@@ -186,6 +197,20 @@ const postDelete = withUser({ full: true, csrf: true, body: true }, async ({ bod
     }
 });
 
+/** GET /api/vermerke/people?q= - the person search of the dialog: members and who left (earlier signups). */
+const getPeople = withUser(async ({ query, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    return ok(res, await searchPeople(guildId, q.str(query, "q", { max: 100 })));
+});
+
+/** GET /api/vermerke/raids?userId= - the raids of the last four weeks, `signed` for those the person signed up for. */
+const getRaids = withUser(async ({ query, req, res }) => {
+    const guildId = guildOf(req, res);
+    if (!guildId) return undefined;
+    return ok(res, { raids: recentRaids(guildId, q.snowflake(query, "userId") || "") });
+});
+
 /**
  * Whether the caller may see the short form on `guildId`: the area, the global raid orga (orga rank with
  * `raids` write, the rule of the setup editor) or a roster manager there.
@@ -208,6 +233,8 @@ const routes = [
     { method: "GET", path: "/api/vermerke", handler: getList, area: "vermerke" },
     { method: "POST", path: "/api/vermerke", handler: postEntry, area: "vermerke" },
     { method: "GET", path: "/api/vermerke/person", handler: getPerson, area: "vermerke" },
+    { method: "GET", path: "/api/vermerke/people", handler: getPeople, area: "vermerke" },
+    { method: "GET", path: "/api/vermerke/raids", handler: getRaids, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/update", handler: postUpdate, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/archive", handler: postArchive, area: "vermerke" },
     { method: "POST", path: "/api/vermerke/hide", handler: postHide, area: "vermerke" },
@@ -215,4 +242,4 @@ const routes = [
     { method: "GET", path: "/api/vermerke/short", handler: getShort, auth: "menu" },
 ];
 
-module.exports = { routes, getList, getPerson, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf };
+module.exports = { routes, getList, getPerson, getPeople, getRaids, postEntry, postUpdate, postArchive, postHide, postDelete, getShort, serverNameOf };

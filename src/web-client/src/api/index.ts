@@ -41,5 +41,6 @@ export * from "./orgaHub";
 export * from "./setup";
 export * from "./raidplan";
 export * from "./kader";
+export * from "./vermerke";
 export * from "./system";
 export { canAccess, canAccessAny, canAccessAnywhere } from "../lib/app/access";

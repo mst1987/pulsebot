@@ -19,6 +19,7 @@
     { "id": "serverRoles", "label": "Rollen", "href": "/channels/server-roles", "group": "System", "areas": ["channels"], "neutral": true, "icon": "roles", "area": "channels", "sub": true },
     { "id": "members", "label": "Mitglieder", "href": "/channels/members", "group": "System", "areas": ["channels"], "neutral": true, "icon": "members", "area": "channels", "sub": true },
     { "id": "roleMessages", "label": "Rollen-Nachrichten", "href": "/channels/roles", "group": "System", "areas": ["channels"], "neutral": true, "icon": "message", "area": "channels", "sub": true },
+    { "id": "vermerke", "label": "Vermerke", "href": "/vermerke", "group": "System", "areas": ["vermerke"], "neutral": true, "icon": "vermerke" },
     { "id": "addon", "label": "Addons", "href": "/addon", "group": "System", "areas": ["signup", "history"], "area": "system", "scope": "all", "icon": "addons" },
     { "id": "settings", "label": "Einstellungen", "href": "/settings", "group": "System", "areas": ["settings"], "neutral": true, "icon": "settings" },
     { "id": "settingsAll", "label": "Einstellungen", "href": "/settings/all", "group": "System", "areas": [], "adminOnly": true, "neutral": true, "scope": "all", "area": "settings", "icon": "settings" },

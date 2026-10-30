@@ -60,8 +60,10 @@ unless it is shared (then read only). Without an active server: 400 `no_server`.
 
 | Route | Right | What |
 |---|---|---|
-| `GET /api/vermerke` | read | `{ people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt }] }`, newest first, no text |
+| `GET /api/vermerke` | read | `{ people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
 | `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, entries: [note + own, originGuildId, originName?, hidden, active] }` |
+| `GET /api/vermerke/people?q=` | read | person search of the dialog: `{ results: [{ userId, name, gone }] }` — members first, then who left (found through earlier signups), at most 25 |
+| `GET /api/vermerke/raids?userId=` | read | `{ raids: [{ eventId, title, startTime, signed }] }` — the raids of the last four weeks on the server, newest first |
 | `POST /api/vermerke` | write | `{ userId, name, level, reason, text?, eventIds?, expiresAt?, shared? }` → 201 `{ entry }` |
 | `POST /api/vermerke/update` | write | `{ userId, id, …fields }` → `{ entry }`; archived: 409 `archived` |
 | `POST /api/vermerke/archive` | write | `{ userId, id, archived = true }` → `{ entry }` |

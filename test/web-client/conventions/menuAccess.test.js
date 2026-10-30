@@ -78,7 +78,8 @@ describe("one menu for both front ends", () => {
             // Oct 2026: loot pages moved under Raids (no own Loot group), Roster + Gildenbank under Gilde, Kanäle under System
             { name: "Raids", ids: ["raids", "cla", "history", "lootcouncil"] },
             { name: "Gilde", ids: ["roster", "kader", "recruitment", "bank"] },
-            { name: "System", ids: ["channels", "settings"] },
+            // Vermerke (#980) beside Discord: notes on Discord accounts (Gilde is full)
+            { name: "System", ids: ["channels", "vermerke", "settings"] },
         ]);
         // a group is one contiguous block, so its heading is printed once
         expect(new Set(groups.map((g) => g.name)).size).toBe(groups.length);
@@ -115,6 +116,7 @@ describe("one menu for both front ends", () => {
             lootcouncil: "lootcouncil",
             bank: "guildbank",
             kader: "kader",
+            vermerke: "vermerke",
             // the Discord line itself: Discord's mark in its Blurple
             channels: "discord",
             addon: "addons",

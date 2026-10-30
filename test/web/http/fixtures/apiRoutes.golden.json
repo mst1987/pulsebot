@@ -359,5 +359,7 @@
   "POST /api/vermerke/archive",
   "POST /api/vermerke/hide",
   "POST /api/vermerke/delete",
-  "GET /api/vermerke/short"
+  "GET /api/vermerke/short",
+  "GET /api/vermerke/people",
+  "GET /api/vermerke/raids"
 ]

@@ -1,0 +1,205 @@
+{
+    "level": {
+        "hint": "Hinweis",
+        "warning": "Warnung",
+        "shadowban": "Shadowban"
+    },
+    "levelTip": {
+        "hint": "Etwas zum Merken, ohne Folgen.",
+        "warning": "Ernster Vermerk: beim nächsten Mal genauer hinschauen.",
+        "shadowban": "Wird im Setup-Vorschlag nicht mehr gesetzt. Die Person merkt davon nichts."
+    },
+    "levelNone": "abgelaufen",
+    "levelNoneTip": "Kein Vermerk zählt mehr: alle sind archiviert oder abgelaufen.",
+    "reason": {
+        "late_signoff": "Späte Abmeldung",
+        "no_show": "Nicht erschienen",
+        "left_early": "Früh gegangen",
+        "behavior": "Verhalten",
+        "loot": "Loot",
+        "other": "Sonstiges"
+    },
+    "reasonTimes": {
+        "one": "{count} Vermerk mit diesem Grund",
+        "other": "{count} Vermerke mit diesem Grund"
+    },
+    "page": {
+        "kicker": "System",
+        "title": "Vermerke",
+        "add": "Vermerk anlegen",
+        "people": {
+            "one": "{count} Person",
+            "other": "{count} Personen"
+        },
+        "loading": "Vermerke werden geladen …",
+        "loadError": "Vermerke konnten nicht geladen werden: {message}",
+        "noServer": "Kein Server gewählt – Vermerke gehören immer zu einem Server.",
+        "empty": "Noch keine Vermerke auf diesem Server.",
+        "emptyArchive": "Das Archiv ist leer.",
+        "emptyFilter": "Niemand mit dieser Stufe.",
+        "showAll": {
+            "one": "{count} weitere Person zeigen",
+            "other": "{count} weitere Personen zeigen"
+        },
+        "foot": "Vermerke sieht nur, wer den Bereich „Vermerke“ hat – nie die Person selbst."
+    },
+    "tab": {
+        "aria": "Aktive Vermerke oder Archiv",
+        "active": "Aktiv",
+        "activeTip": "Personen mit mindestens einem Vermerk, der noch zählt",
+        "archive": "Archiv",
+        "archiveTip": "Personen, deren Vermerke alle archiviert oder abgelaufen sind"
+    },
+    "filter": {
+        "aria": "Nach Stufe filtern",
+        "all": "Alle Stufen"
+    },
+    "col": {
+        "person": "Person",
+        "level": "Stufe",
+        "reasons": "Gründe",
+        "entries": "Einträge",
+        "entriesTip": "Vermerke, die noch zählen",
+        "entriesArchiveTip": "Vermerke im Archiv",
+        "last": "Zuletzt",
+        "lastTip": "Datum des neuesten Vermerks",
+        "state": "Status",
+        "stateTip": "Server verlassen oder von einem anderen Server geteilt"
+    },
+    "cell": {
+        "lastBy": "Von {name}",
+        "left": "Hat den Server verlassen",
+        "leftSub": "Gefunden über frühere Anmeldungen.",
+        "shared": {
+            "one": "{count} geteilter Vermerk",
+            "other": "{count} geteilte Vermerke"
+        },
+        "sharedSub": "Kommt von einem anderen Server und lässt sich hier nur lesen."
+    },
+    "drawer": {
+        "kicker": "Vermerke · {guild}",
+        "loading": "Vermerke werden geladen …",
+        "loadError": "Konnte nicht geladen werden: {message}",
+        "add": "Eintrag hinzufügen",
+        "active": {
+            "one": "{count} Eintrag zählt",
+            "other": "{count} Einträge zählen"
+        },
+        "noneActive": "Kein Eintrag zählt gerade.",
+        "archive": {
+            "one": "Archiv · {count} Eintrag",
+            "other": "Archiv · {count} Einträge"
+        },
+        "hiddenSection": {
+            "one": "Ausgeblendet · {count} Eintrag",
+            "other": "Ausgeblendet · {count} Einträge"
+        },
+        "by": "{name} · {date}",
+        "shared": "Geteilt",
+        "sharedOwnSub": "Alle Server sehen diesen Eintrag.",
+        "fromServer": "Von {server}",
+        "otherServer": "einem anderen Server",
+        "fromServerSub": "Geteilt von {server}: hier nur lesbar, ändern kann ihn nur dieser Server.",
+        "expires": "Läuft ab am {date}",
+        "expired": "Abgelaufen am {date}",
+        "archivedOn": "Archiviert am {date}",
+        "noText": "Ohne Text.",
+        "raids": {
+            "one": "{count} Raid",
+            "other": "{count} Raids"
+        },
+        "edit": "Bearbeiten",
+        "archiveIt": "Archivieren",
+        "archiveSub": "Zählt dann nicht mehr, bleibt aber im Archiv.",
+        "restore": "Wiederherstellen",
+        "restoreSub": "Holt den Eintrag aus dem Archiv zurück.",
+        "hide": "Für diesen Server ausblenden",
+        "hideSub": "Zählt dann hier nicht mehr. Der andere Server behält ihn.",
+        "unhide": "Wieder einblenden",
+        "history": {
+            "one": "Verlauf · {count} Änderung",
+            "other": "Verlauf · {count} Änderungen"
+        },
+        "action": {
+            "create": "angelegt",
+            "update": "geändert",
+            "archive": "archiviert",
+            "restore": "wiederhergestellt"
+        },
+        "field": {
+            "level": "Stufe",
+            "reason": "Grund",
+            "text": "Text",
+            "eventIds": "Raids",
+            "expiresAt": "Ablauf",
+            "shared": "Teilen"
+        },
+        "failed": "Hat nicht geklappt: {message}"
+    },
+    "dialog": {
+        "kickerNew": "Neuer Vermerk",
+        "kickerEdit": "Vermerk bearbeiten",
+        "titleNew": "Vermerk anlegen",
+        "titleFor": "Vermerk für {name}",
+        "person": "Person",
+        "personTip": "Mitglieder des Servers und alle, die sich früher angemeldet haben",
+        "personSearch": "Name suchen",
+        "personHint": "Mindestens zwei Buchstaben.",
+        "personNone": "Niemand gefunden.",
+        "personGone": "nicht mehr auf dem Server",
+        "personChange": "Andere Person",
+        "level": "Stufe",
+        "reason": "Grund",
+        "expiry": "Läuft ab",
+        "expiryNever": "Nie",
+        "expiry30": "30 Tage",
+        "expiry90": "90 Tage",
+        "expiryDate": "Datum",
+        "expiryDateLabel": "Ablaufdatum",
+        "text": "Notiz",
+        "textPlaceholder": "Was ist passiert? Kurz und sachlich.",
+        "textCount": "{count} / {max} Zeichen",
+        "raids": "Raids der letzten 4 Wochen",
+        "raidsTip": "Antippen, um den Raid an den Vermerk zu hängen",
+        "raidsNone": "Keine Raids in den letzten 4 Wochen.",
+        "raidsPick": "Erst eine Person wählen.",
+        "raidSigned": "War angemeldet",
+        "raidNotSigned": "War nicht angemeldet",
+        "shared": "Auf allen Servern zeigen",
+        "sharedTip": "Jeder verknüpfte Server sieht den Eintrag mit Text und Verlauf, ändern kann ihn nur dieser Server.",
+        "save": "Speichern",
+        "create": "Vermerk anlegen",
+        "tooMany": "Für diese Person sind schon {max} Vermerke gespeichert – das Archiv zählt mit. Ein Voll-Admin muss erst einen alten Eintrag endgültig löschen.",
+        "failed": "Speichern hat nicht geklappt: {message}"
+    },
+    "signals": {
+        "title": "Hinweise aus den Daten",
+        "tip": "Vorschläge aus Anmeldungen und Logs. Nichts davon ist ein Vermerk, bis du einen anlegst.",
+        "kind": {
+            "late_signoff": "Späte Abmeldung",
+            "signoff_after_setup": "Abmeldung nach Setzung",
+            "no_show": "Nicht erschienen",
+            "left_early": "Früh gegangen",
+            "left_server": "Server verlassen"
+        },
+        "count": {
+            "one": "{count}× in {days} Tagen",
+            "other": "{count}× in {days} Tagen"
+        },
+        "add": "Vermerk anlegen",
+        "ignore": "Ignorieren",
+        "ignoreSub": "Dieser Hinweis taucht für diese Person nicht mehr auf.",
+        "showAll": {
+            "one": "{count} weiteren Hinweis zeigen",
+            "other": "{count} weitere Hinweise zeigen"
+        },
+        "showLess": "Weniger zeigen"
+    },
+    "members": {
+        "filter": "Mit Vermerk",
+        "filterSub": "Nur Mitglieder, für die ein Vermerk zählt.",
+        "add": "Vermerk anlegen",
+        "addSub": "Neuen Vermerk für dieses Mitglied anlegen",
+        "open": "Vermerke ansehen"
+    }
+}

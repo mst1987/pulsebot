@@ -1,4 +1,4 @@
-import { useEffect, type CSSProperties } from "react";
+import { useEffect, type CSSProperties, type ReactNode } from "react";
 import { getServerMemberDetail, type MemberChannel, type MemberChannelGroup, type ServerMember, type ServerMemberDetail } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { IconButton } from "../../components/ui";
@@ -15,7 +15,7 @@ import { useT } from "../../i18n";
 // characters by version with the roster each is in, and the channels it can see,
 // by category. Esc or the X closes it.
 
-export default function MemberDrawer({ guildId, userId, guildName, listed, onClose }: {
+export default function MemberDrawer({ guildId, userId, guildName, listed, onClose, actions }: {
     /** the server of the server list the member is shown for */
     guildId: string;
     userId: string;
@@ -23,6 +23,8 @@ export default function MemberDrawer({ guildId, userId, guildName, listed, onClo
     /** the member from the list, so the head shows before the detail is loaded */
     listed: ServerMember | null;
     onClose: () => void;
+    /** extra buttons at the top of the body (the notes: "Vermerk anlegen") */
+    actions?: ReactNode;
 }) {
     const t = useT();
     const state = useApi(() => getServerMemberDetail(guildId, userId), [guildId, userId]);
@@ -58,6 +60,7 @@ export default function MemberDrawer({ guildId, userId, guildName, listed, onClo
                     <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={onClose} />
                 </div>
                 <div className="dmb-drawer-body">
+                    {actions && <div className="dmb-drawer-acts">{actions}</div>}
                     {state.error && !data && (
                         <p className="dmb-empty">{t("discord.members.drawer.loadError", { message: state.error.message })}</p>
                     )}

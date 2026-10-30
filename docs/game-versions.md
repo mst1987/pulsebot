@@ -150,7 +150,7 @@ Manches gehört zu einer Person oder ist reiner Text, nicht zu einer Version:
 - **Abwesenheiten:** Eine eingetragene Abwesenheit gilt für die Raids aller Versionen; nur die Auswertung (Quote, Hinweise, letzte Raids) zählt je Version.
 - **Profil je Person:** Discord-Konto, Sprache, Benachrichtigungen und Kalender-Link gibt es einmal je Person. Die **Charaktere** darin haben dagegen ihre Version (bis zu 12 je Version, Reihenfolge je Version, kein Main).
 - **Aufruf-Vorlagen** (`/raids/templates`, `notifyTemplateStore.js`): Texte mit Platzhaltern, ohne Raid, Klasse oder Item, für jede Version gleich (Entscheidung auf #736). `test/web-client/conventions/contentVersion.test.js` führt sie in `NEUTRAL_PAGES`, der kleinen Ausnahmeliste neben den `neutral`-Einträgen von `menu.json`.
-- **Seiten ohne Spielinhalt:** Kanäle, Rollen-Nachrichten, Einstellungen, Systemstatus (`menu.json` `neutral: true`).
+- **Seiten ohne Spielinhalt:** Kanäle, Rollen-Nachrichten, Einstellungen, Systemstatus, Vermerke (hängen am Discord-Konto je Server, nicht an einer Version; [vermerke.md](vermerke.md)) (`menu.json` `neutral: true`).
 - **Rollen-Picker ohne Bot-Rollen (#745):** `discord.listRoles` liefert `managed` (eine Rolle, die ein Bot oder eine Integration besitzt, z. B. @MEE6). Die Rollen-Auswahl der Einstellungen (`lib/settings/assignableRoles.ts`: Raider-Rollen, Rollen im Umstell-Dialog, `RolePicker`, Rechte und Bot-Befehle) bietet sie nicht an; eine schon gewählte bleibt sichtbar.
 
 ## Neue Version starten: die Checkliste (#745)

@@ -65,8 +65,8 @@ describe("Alle Server › Einstellungen (#957)", () => {
 });
 
 describe("version-neutral pages (#742)", () => {
-    it("are Kanaele, Rollen, Rollen-Nachrichten, both Einstellungen and Systemstatus - the one list; every other page follows the version", () => {
-        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "settingsAll", "system"]);
+    it("are Kanaele, Rollen, Rollen-Nachrichten, both Einstellungen, Systemstatus and Vermerke - the one list; every other page follows the version", () => {
+        expect(MENU.filter((e) => e.neutral).map((e) => e.id).sort()).toEqual(["channels", "discordOverview", "members", "roleMessages", "serverRoles", "settings", "settingsAll", "system", "vermerke"]);
     });
 
     it("count an addon's detail page as neutral, while the page Addons itself follows the version", () => {

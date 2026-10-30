@@ -39,6 +39,7 @@ const AREA_ICONS: Record<string, string> = {
     loot: "loot",
     lootcouncil: "lootcouncil",
     kader: "kader",
+    vermerke: "vermerke",
     channels: "channels",
     settings: "settings",
 };
