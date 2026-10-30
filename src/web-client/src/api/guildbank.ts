@@ -1,7 +1,7 @@
 import { get, send } from "./client";
 
 // ── Gildenbank ───────────────────────────────────────────────────────────────
-// The guild bank stock the addon uploads (src/web/apiRoutes/guildBank.js): the
+// The guild bank stock the addon uploads (src/web/apiRoutes/loot/guildBank.js): the
 // page "Gildenbank" (#632) and the assignment of a bank to a Discord server in
 // Einstellungen → Verbindungen.
 

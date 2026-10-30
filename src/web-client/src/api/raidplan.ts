@@ -35,7 +35,7 @@ function serverSwitched(err: ApiError): ApiError {
 /** A template's own room map (`t/<id>/<boss>`) belongs to the library of a server. */
 const isTemplateMapKey = (key: string) => key.startsWith("t/");
 
-// ---- Raidplan (src/web/apiRoutes/raidplan.js, docs/raidplan.md) ----
+// ---- Raidplan (src/web/apiRoutes/raidplan/raidplan.js, docs/raidplan.md) ----
 
 /** What every board object shares: opacity 0.1..1 (zones start at 0.3), locked = cannot be moved, hidden = not drawn. */
 /** What the orga changed about an object the tank rows put on the map (lib/raidplan/assign/autoPlace.ts); missing = the default. */

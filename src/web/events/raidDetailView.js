@@ -1,7 +1,7 @@
 // What the raid detail page reads in one request (GET /api/raids/detail, #424):
 // meta, raidplan setup, attendance vs. role holders, softres/sheet links
 // already created, the loot already imported, the logs, the step bar. The
-// route (apiRoutes/raidDetail.js) only speaks HTTP; this module builds the
+// route (apiRoutes/events/raidDetail.js) only speaks HTTP; this module builds the
 // payload from one small builder per part. The parts that go outside — the
 // setup (Raid-Helper), the member list (Discord), the own signups' names
 // (Discord), the log titles (Warcraft Logs) — run in parallel; only the softres

@@ -72,7 +72,7 @@ proxy's HTML.
   (boss / trash) "Karte ausblenden / anzeigen" (`SectionStrip` `onMap`; the chips of `BossNav` before Oct 2026). A test that `showMap` travels with
   "Vorlage anwenden" and "Vorlage duplizieren": `test/services/raidplan/raidplanAutoPlace.test.js`.
 - Tests: `src/web-client/src/lib/raidplan/__tests__/raidplanSection.test.ts`, `test/services/raidplan/raidplanBoard.test.js` (flag),
-  `test/web/apiRoutes/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
+  `test/web/apiRoutes/raidplan/raidplan.test.js` ("a section without its map", order), `test/stores/raidplanStore.test.js`,
   `test/services/raidplan/raidplanInherit.test.js`.
 
 ## Auto placement from the tank rows (feature/raidplan-9)
@@ -152,7 +152,7 @@ mechanism (see "Auto tokens of every task row").
 - Tests: `src/web-client/src/lib/raidplan/assign/__tests__/autoPlace.test.ts` (derivation, instances, layout without overlap, overrides, one
   place per player, template placeholder vs. event player vs. missing, facing, the menu helpers, wiring),
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation, mob numbers, reidBoard / apply / duplicate keep positions
-  and `showMap`), `test/web/apiRoutes/raidplan.test.js` (public API with and without the map).
+  and `showMap`), `test/web/apiRoutes/raidplan/raidplan.test.js` (public API with and without the map).
 - **Look of the auto objects** (`board.autoStyle { [key]: { size, opacity, ring, showName, label, showLabel,
   rotation, autoFace, hidden, lock, z } }`, only what differs from the default, validated by
   `raidplanBoard.cleanAutoStyle`: size in the range of a token (tank) / an icon (mob), opacity 0.1..1, label
@@ -175,7 +175,7 @@ mechanism (see "Auto tokens of every task row").
 - Tests (look): `src/web-client/src/lib/raidplan/board/__tests__/autoStyle.test.ts` (style through the lib functions, ranges, lock, order,
   reset, the plan uses it, spacing grows without overlap, multi selection),
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation of `autoStyle` / `autoScale`, keys move with the rows on
-  apply and duplicate), `test/web/apiRoutes/raidplan.test.js` (public API).
+  apply and duplicate), `test/web/apiRoutes/raidplan/raidplan.test.js` (public API).
 
 ## Auto tokens of every task row (#498)
 
@@ -217,7 +217,7 @@ mechanism as the tanks of a tank row, not a second one: the tokens are **derived
   `src/web-client/src/components/raidplan/editor/__tests__/BoardWorkspace.test.tsx` (pin -> tokens, drag, delete the row,
   pin off, tank + kick = one token, group badge, the menu), "task rows put on the map" in
   `test/services/raidplan/raidplanAutoPlace.test.js` (validation, reidBoard, inherited rows) and the public API in
-  `test/web/apiRoutes/raidplan.test.js`.
+  `test/web/apiRoutes/raidplan/raidplan.test.js`.
 
 ## Connection lines of the rows (#507)
 

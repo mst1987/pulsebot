@@ -16,7 +16,7 @@
 // integration; else (and when the role is gone) the member gets one clear line and
 // the log a warning saying why.
 //
-// A download is checked like the web's (apiRoutes/addons.js): the areas "signup" or
+// A download is checked like the web's (apiRoutes/system/addons.js): the areas "signup" or
 // "history", an orga-only addon only for the orga (userAccess.resolveAccess, a failed
 // lookup = the base access), the shared limit per Discord account (downloadLimit.js),
 // then the size against what Discord lets the bot upload here. It is logged like

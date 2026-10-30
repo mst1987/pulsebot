@@ -1,7 +1,7 @@
 import { get, send } from "./client";
 
 // Rollen-Nachrichten (self-service roles): the contract is the header of
-// src/web/apiRoutes/roleMessages.js, the overview docs/role-messages.md.
+// src/web/apiRoutes/discord/roleMessages.js, the overview docs/role-messages.md.
 
 /** One role of a message: its button label and (optionally) its reaction emoji ("🛡️" or "<:name:id>"). */
 export type RoleMessageRole = { roleId: string; emoji: string; label: string };

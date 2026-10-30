@@ -1,0 +1,631 @@
+// The setup editor's API (src/web/apiRoutes/events/setup.js, #263): a reader gets the
+// approved lineup and never the draft, writing takes `raids` write, and the
+// explanation runs as a background job that needs the Anthropic key.
+let mockUser = null;
+jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
+jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
+let mockConfig = {};
+jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+const { onSyncedList } = require("../../../helpers/raidhelperList");
+const mockEvents = new Map();
+jest.mock("../../../../src/stores/eventStore", () => ({
+    getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
+    listEvents: () => [],
+    isOwnEventId: (id) => String(id || "").startsWith("eh-"),
+    setEventSetup: (id, setup) => {
+        mockEvents.set(id, { ...mockEvents.get(id), setup: JSON.parse(JSON.stringify(setup)) });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    },
+    setEventSetupPost: (id, patch) => {
+        mockEvents.set(id, { ...mockEvents.get(id), setupPost: { ...(mockEvents.get(id).setupPost || {}), ...JSON.parse(JSON.stringify(patch)) } });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    },
+    setEventSetupPingText: jest.fn((id, text) => {
+        if (!mockEvents.has(id)) return null;
+        mockEvents.set(id, { ...mockEvents.get(id), setupPingText: String(text || "") });
+        return JSON.parse(JSON.stringify(mockEvents.get(id)));
+    }),
+}));
+let mockSignups = [];
+jest.mock("../../../../src/stores/signupStore", () => ({
+    listSignups: () => mockSignups,
+    getSignup: (eventId, userId) => mockSignups.find((s) => String(s.userId) === String(userId)) || null,
+}));
+jest.mock("../../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
+jest.mock("../../../../src/services/events/eventSources", () => ({
+    listStoredEvents: () => [],
+    specNameFor: jest.requireActual("../../../../src/services/events/eventSources").specNameFor,
+}));
+jest.mock("../../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), avatarUrlFor: jest.fn(() => ""), listGuilds: () => [{ id: "g1" }] }));
+jest.mock("../../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
+jest.mock("../../../../src/services/setup/setupMessage", () => ({
+    publishSetup: jest.fn(async () => ({ post: { action: "posted" }, dms: null })),
+    refreshLiveSetup: jest.fn(async () => ({ action: "edited" })),
+    postOrEditSetupMessage: jest.fn(async () => ({ action: "edited" })),
+    editSetupMessageQueued: jest.fn(async () => ({ action: "edited" })),
+    scheduleSetupEdit: jest.fn(),
+    publishView: jest.fn(() => ({ dmsEnabled: false, recipients: 10 })),
+}));
+const mockExplain = jest.fn();
+jest.mock("../../../../src/utils/setup/explainText", () => ({ explainSetup: (...args) => mockExplain(...args) }));
+
+const { readJsonBody } = require("../../../../src/web/http/apiBody");
+const { refreshEventMessage } = require("../../../../src/services/events/eventMessage");
+const setupMessage = require("../../../../src/services/setup/setupMessage");
+const route = require("../../../../src/web/apiRoutes/events/setup");
+const { checkAccess } = require("../../../../src/web/http/apiAccess");
+const { su } = require("../../../utils/setup/fixtures");
+const { mockRes, status, body } = require("../../../helpers/http");
+const { ownEvent } = require("../../../factories/events");
+
+const ID = "eh-kara";
+// The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
+const ORGA = { id: "orga", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+const READER = { id: "reader", isAdmin: false, access: { raids: { read: true, write: false } } };
+
+const url = (q) => new URL(`http://x/api/raids/setup?${q}`);
+
+async function call(handler, user, payload, query) {
+    mockUser = user;
+    readJsonBody.mockResolvedValue(payload || {});
+    const r = mockRes();
+    await handler({ headers: {} }, r, query ? url(query) : undefined);
+    return r;
+}
+
+beforeEach(() => {
+    mockConfig = {};
+    mockEvents.clear();
+    mockEvents.set(ID, ownEvent({
+        id: ID, guildId: "g1", categoryId: "cat", title: "Kara", startTime: 2000000000,
+        composition: { tank: 1, healer: 2, melee: 0, ranged: 0 }, setup: null, message: { channelId: "c", messageId: "m" },
+    }));
+    mockSignups = [
+        su("tank", "Warrior-Protection"), su("heal1", "Priest-Holy"), su("heal2", "Paladin-Holy"), su("mage", "Mage-Fire"),
+        su("rogue", "Rogue-Combat"), su("lock", "Warlock-Destruction"), su("hunter", "Hunter-BeastMastery"),
+        su("sham", "Shaman-Enhancement"), su("feral", "Druid-Feral"), su("spriest", "Priest-Shadow"),
+        su("late", "Mage-Frost", { comment: "kommt 20:30" }),
+    ];
+    mockExplain.mockReset();
+    refreshEventMessage.mockClear();
+    setupMessage.publishSetup.mockClear();
+    setupMessage.scheduleSetupEdit.mockClear();
+    setupMessage.editSetupMessageQueued.mockClear();
+    setupMessage.refreshLiveSetup.mockClear();
+});
+
+describe("access", () => {
+    it("lists every setup path under raids — reading is GET, everything else a write", () => {
+        for (const path of ["/api/raids/setup", "/api/raids/setup/propose", "/api/raids/setup/approve", "/api/raids/setup/post", "/api/raids/setup/ping-text", "/api/raids/setup/explain"]) {
+            expect(checkAccess(path, "POST", READER)).toMatchObject({ status: 403 });
+            expect(checkAccess(path, "POST", ORGA)).toBeNull();
+        }
+        expect(checkAccess("/api/raids/setup", "GET", READER)).toBeNull();
+        expect(checkAccess("/api/raids/setup", "PUT", READER)).toMatchObject({ status: 403 });
+        const member = { id: "m", isAdmin: false, access: { signup: { read: true, write: true } } };
+        expect(checkAccess("/api/raids/setup", "GET", member)).toMatchObject({ status: 403 });
+    });
+
+    it("refuses writes of a reader in the handler as well", async () => {
+        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish, route.postPingText, route.postExplain]) {
+            const r = await call(handler, READER, { event: ID });
+            expect(status(r)).toBe(403);
+        }
+        expect(mockEvents.get(ID).setup).toBeNull();
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+    });
+
+    // Oct 2026: the setup editor is the orga's - a raider role with raids write is no orga
+    it("gives a raider role with raids write neither the draft nor a write", async () => {
+        const raiderWriter = { id: "rw", isAdmin: false, access: { raids: { read: true, write: true } } };
+        await call(route.postPropose, ORGA, { event: ID });
+        const view = body(await call(route.getSetup, raiderWriter, null, `event=${ID}`));
+        expect(view.canWrite).toBe(false);
+        expect(view).not.toHaveProperty("publish");
+        for (const handler of [route.postPropose, route.putSetup, route.postApprove, route.postPublish]) {
+            const r = await call(handler, raiderWriter, { event: ID });
+            expect(status(r)).toBe(403);
+            expect(body(r).error.code).toBe("orga_only");
+        }
+    });
+
+    it("answers a raider the setup of a raid of a foreign category with the 404 of an unknown one", async () => {
+        mockConfig = { categoryIds: ["other"] };
+        const r = await call(route.getSetup, READER, null, `event=${ID}`);
+        expect(status(r)).toBe(404);
+        expect(body(r).error.code).toBe("not_found");
+        expect(status(await call(route.getSetup, ORGA, null, `event=${ID}`))).toBe(200);
+        // …but a raider signed up for it sees the approved lineup
+        const signedUp = { id: "mage", isAdmin: false, access: { raids: { read: true, write: false } } };
+        expect(status(await call(route.getSetup, signedUp, null, `event=${ID}`))).toBe(200);
+    });
+});
+
+describe("posting the approved setup (#290)", () => {
+    it("posts on approval, not on a proposal, and not again for an already approved setup", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+        const version = mockEvents.get(ID).setup.version;
+        await call(route.postApprove, ORGA, { event: ID, version });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        setupMessage.publishSetup.mockClear();
+        const again = await call(route.postApprove, ORGA, { event: ID, version });
+        expect(body(again).message).toMatch(/schon gepostet/);
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+    });
+
+    it("says in the approval's answer when the message could not be posted", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        setupMessage.publishSetup.mockResolvedValueOnce({ post: { code: "discord", error: "Bot nicht verbunden." }, dms: null });
+        const r = await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toMatch(/nicht gepostet: Bot nicht verbunden/);
+    });
+
+    it("gives the orga the publish plan and a reader nothing of it", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).publish).toEqual({ dmsEnabled: false, recipients: 10 });
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`))).not.toHaveProperty("publish");
+    });
+
+    it("hands the orga's \"Bench mitposten\" on to the post, only when it is a yes/no (#517)", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version, bench: true });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: true });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, bench: false });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: false });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, bench: "yes" });
+        expect(setupMessage.publishSetup.mock.calls[0][1].bench).toBeUndefined();
+    });
+
+    it("hands the orga's \"DMs an Spieler\" on to the post, only when it is a yes/no", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version, dms: false });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", dms: false });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, dms: true, bench: true });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga", bench: true, dms: true });
+        setupMessage.publishSetup.mockClear();
+        await call(route.postPublish, ORGA, { event: ID, dms: "on" });
+        expect(setupMessage.publishSetup.mock.calls[0][1].dms).toBeUndefined();
+    });
+
+    it("POST /post re-posts and reports a refusal with its code", async () => {
+        const ok = await call(route.postPublish, ORGA, { event: ID });
+        expect(status(ok)).toBe(200);
+        expect(body(ok).message).toBe("Setup gepostet.");
+        setupMessage.publishSetup.mockResolvedValueOnce({ post: { code: "no_approved_setup", error: "Es gibt noch kein freigegebenes Setup." } });
+        const refused = await call(route.postPublish, ORGA, { event: ID });
+        expect(status(refused)).toBe(400);
+        expect(body(refused).error.code).toBe("no_approved_setup");
+    });
+
+    it("POST /post approves a draft first — posting is approving", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const version = mockEvents.get(ID).setup.version;
+        // only the version the editor showed
+        const stale = await call(route.postPublish, ORGA, { event: ID, version: version + 5 });
+        expect(body(stale).error.code).toBe("conflict");
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+
+        const r = await call(route.postPublish, ORGA, { event: ID, version });
+        expect(status(r)).toBe(200);
+        expect(mockEvents.get(ID).setup).toMatchObject({ status: "approved", approvedBy: "orga", approvedVersion: version });
+        expect(setupMessage.publishSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+    });
+});
+
+describe("no proposal needed: the empty start", () => {
+    it("gives the orga empty groups and every signup under \"Angemeldet\" before anything is stored", async () => {
+        const r = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(status(r)).toBe(200);
+        const setup = body(r).setup;
+        expect(setup).toMatchObject({ status: "draft", version: 0, blank: true });
+        expect(setup.groups.every((g) => g.slots.length === 0)).toBe(true);
+        expect(setup.bench).toEqual([]);
+        expect(setup.pool.map((p) => p.userId).sort()).toEqual(mockSignups.map((s) => s.userId).sort());
+        // valued like a hand-made lineup: the counts read 0 of the plan, nothing is ok yet
+        expect(setup.checks.ok).toBe(false);
+        // nothing is written by looking
+        expect(mockEvents.get(ID).setup).toBeNull();
+        // a reader still gets no draft at all
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`))).not.toHaveProperty("setup");
+    });
+
+    it("stores the first move on the empty start as version 1", async () => {
+        const tank = mockSignups[0];
+        const r = await call(route.putSetup, ORGA, { event: ID, version: 0, groups: [{ index: 1, slots: [{ userId: tank.userId, spec: tank.spec }] }], bench: [] });
+        expect(status(r)).toBe(200);
+        expect(mockEvents.get(ID).setup).toMatchObject({ version: 1, status: "draft", origin: "manual" });
+        expect(body(r).setup.groups[0].slots.map((s) => s.userId)).toEqual([tank.userId]);
+        expect(body(r).setup.blank).toBeUndefined();
+    });
+
+    it("\"Freie Plätze füllen\" keeps everybody where the orga put them, unlocked, and fills the rest", async () => {
+        const [tank, , , mage] = mockSignups;
+        await call(route.putSetup, ORGA, { event: ID, version: 0, groups: [{ index: 2, slots: [{ userId: mage.userId, spec: mage.spec, pos: 4 }] }, { index: 1, slots: [{ userId: tank.userId, spec: tank.spec, locked: true }] }], bench: [] });
+        const r = await call(route.postPropose, ORGA, { event: ID, keep: "placed" });
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toBe("Freie Plätze gefüllt.");
+        const groups = mockEvents.get(ID).setup.groups;
+        const where = (id) => groups.find((g) => g.slots.some((s) => s.userId === id));
+        const slotOf = (id) => where(id).slots.find((s) => s.userId === id);
+        expect(where(mage.userId).index).toBe(2);
+        expect(slotOf(mage.userId)).toMatchObject({ locked: false, pos: 4 });
+        expect(slotOf(mage.userId).reasons).not.toContain("Von der Orga fixiert");
+        // a lock the orga set stays one
+        expect(where(tank.userId).index).toBe(1);
+        expect(slotOf(tank.userId).locked).toBe(true);
+        // the free places got filled
+        expect(groups.reduce((n, g) => n + g.slots.length, 0)).toBeGreaterThan(2);
+    });
+});
+
+describe("who else is in the editor (presence)", () => {
+    const presence = require("../../../../src/services/setup/setupPresence");
+    const OTHER = { ...ORGA, id: "orga2", name: "Taccop" };
+    beforeEach(() => presence._resetForTests());
+
+    it("answers the others with what they hold, the stored version and what the others changed — never one's own", async () => {
+        await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID, action: { kind: "drag", userId: "tank" } });
+        const tank = mockSignups[0];
+        await call(route.putSetup, OTHER, { event: ID, version: 0, groups: [{ index: 2, slots: [{ userId: tank.userId, spec: tank.spec }] }], bench: [] });
+
+        const mine = body(await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID }));
+        expect(mine.editors).toEqual([]);
+        expect(mine.version).toBe(1);
+        expect(mine.activity).toEqual([expect.objectContaining({ kind: "move", byName: "Taccop", userId: tank.userId, to: { group: 2 } })]);
+        // the one who moved sees the other editor, and not their own move
+        const theirs = body(await call(route.postPresence, OTHER, { event: ID }));
+        expect(theirs.editors).toEqual([{ userId: "orga", name: "Exitus", action: null, avatarUrl: "" }]);
+        expect(theirs.activity).toEqual([]);
+        // only what came after the last id the page has
+        expect(body(await call(route.postPresence, { ...ORGA, name: "Exitus" }, { event: ID, since: mine.activity[0].id })).activity).toEqual([]);
+    });
+
+    it("drops one on leaving and notes a proposal and a post", async () => {
+        await call(route.postPresence, OTHER, { event: ID, action: { kind: "edit", userId: "heal1" } });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([{ userId: "orga2", name: "Taccop", action: { kind: "edit", userId: "heal1" }, avatarUrl: "" }]);
+        expect(body(await call(route.postPresence, OTHER, { event: ID, leave: true }))).toEqual({ left: true });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([]);
+
+        await call(route.postPropose, OTHER, { event: ID });
+        await call(route.postPublish, OTHER, { event: ID, version: mockEvents.get(ID).setup.version });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).activity.map((e) => e.kind)).toEqual(["propose", "post"]);
+    });
+
+    it("hands each other editor's Discord picture along", async () => {
+        const discord = require("../../../../src/services/discord/discord");
+        discord.avatarUrlFor.mockImplementation((guildId, userId) => (userId === "orga2" ? "https://cdn/orga2.png" : ""));
+        await call(route.postPresence, OTHER, { event: ID });
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).editors).toEqual([expect.objectContaining({ userId: "orga2", avatarUrl: "https://cdn/orga2.png" })]);
+        discord.avatarUrlFor.mockImplementation(() => "");
+    });
+
+    it("carries the Confirm/Cancel marks — a raider's click in Discord changes no version", async () => {
+        expect(body(await call(route.postPresence, ORGA, { event: ID })).confirmations).toEqual({});
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        const raider = mockEvents.get(ID).setup.approved.groups[0].slots[0].userId;
+        const version = body(await call(route.postPresence, ORGA, { event: ID })).version;
+        // what setupConfirmBot stores on the click under the message
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", confirmations: { [raider]: { status: "confirmed", at: 1, by: raider } } } });
+
+        const beat = body(await call(route.postPresence, ORGA, { event: ID }));
+        expect(beat.version).toBe(version);
+        expect(beat.confirmations).toEqual({ [raider]: "confirmed" });
+    });
+
+    it("is for the orga only, and fetches the editor light on request", async () => {
+        expect(status(await call(route.postPresence, READER, { event: ID }))).toBe(403);
+        const light = body(await call(route.getSetup, ORGA, null, `event=${ID}&light=1`));
+        expect(light.setup).toBeTruthy();
+        expect(light).not.toHaveProperty("attendance");
+    });
+});
+
+describe("Confirm/Cancel set by the orga", () => {
+    async function posted() {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        return mockEvents.get(ID).setup.approved.groups[0].slots[0].userId;
+    }
+
+    it("sets a raider's check and answers at once with only the marks — the edit is scheduled", async () => {
+        const raider = await posted();
+        const r = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "confirmed" });
+        expect(status(r)).toBe(200);
+        // no whole editor payload: a click must answer fast
+        expect(body(r)).toEqual({ confirmations: { [raider]: "confirmed" } });
+        expect(mockEvents.get(ID).setupPost.confirmations[raider]).toMatchObject({ status: "confirmed", by: "orga" });
+        expect(setupMessage.scheduleSetupEdit).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(setupMessage.editSetupMessageQueued).not.toHaveBeenCalled();
+
+        const cleared = await call(route.postConfirm, ORGA, { event: ID, userId: raider, status: "" });
+        expect(body(cleared).confirmations).toEqual({});
+    });
+
+    it("confirms everybody without an answer with one request", async () => {
+        await posted();
+        const placed = mockEvents.get(ID).setup.approved.groups.flatMap((g) => g.slots.map((s) => s.userId));
+        const r = await call(route.postConfirmAll, ORGA, { event: ID });
+        expect(status(r)).toBe(200);
+        expect(body(r).count).toBe(placed.length);
+        expect(Object.keys(body(r).confirmations).sort()).toEqual([...placed].sort());
+        expect(setupMessage.scheduleSetupEdit).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(status(await call(route.postConfirmAll, READER, { event: ID }))).toBe(403);
+    });
+
+    it("refuses somebody not in a group and a reader", async () => {
+        await posted();
+        const r = await call(route.postConfirm, ORGA, { event: ID, userId: "nobody", status: "confirmed" });
+        expect(status(r)).toBe(409);
+        expect(body(r).error.code).toBe("not_placed");
+        expect(status(await call(route.postConfirm, READER, { event: ID, userId: "x", status: "confirmed" }))).toBe(403);
+    });
+
+    it("refuses \"Alle bestätigen\" before anything is posted", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const r = await call(route.postConfirmAll, ORGA, { event: ID });
+        expect(status(r)).toBe(409);
+        expect(body(r).error.code).toBe("no_approved_setup");
+    });
+});
+
+describe("a posted setup follows every change", () => {
+    /** The stored lineup with the first pool raider in place of a DPS — a change of who stands where. */
+    function changedLineup() {
+        const setup = mockEvents.get(ID).setup;
+        const groups = setup.groups.map((g) => ({ index: g.index, slots: g.slots.map((s) => ({ userId: s.userId, spec: s.spec, role: s.role })) }));
+        const incoming = setup.pool[0];
+        const group = groups.find((g) => g.slots.some((s) => s.role !== "tank" && s.role !== "healer"));
+        const out = group.slots.find((s) => s.role !== "tank" && s.role !== "healer");
+        group.slots = group.slots.filter((s) => s !== out).concat({ userId: incoming.userId, spec: incoming.spec });
+        return { event: ID, version: setup.version, groups, bench: [] };
+    }
+
+    async function approveAndPost() {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        setupMessage.publishSetup.mockClear();
+        refreshEventMessage.mockClear();
+    }
+
+    it("edits the posted message on a move — quietly, no new post", async () => {
+        await approveAndPost();
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(status(r)).toBe(200);
+        expect(body(r).setup.status).toBe("approved");
+        expect(body(r).message).toBeUndefined();
+        expect(setupMessage.refreshLiveSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(setupMessage.publishSetup).not.toHaveBeenCalled();
+        expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+    });
+
+    it("says so when the edit did not get through, the change stands", async () => {
+        await approveAndPost();
+        setupMessage.refreshLiveSetup.mockResolvedValueOnce({ code: "discord", error: "Bot nicht verbunden." });
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(status(r)).toBe(200);
+        expect(body(r).message).toBe("Setup-Nachricht nicht aktualisiert: Bot nicht verbunden.");
+        expect(mockEvents.get(ID).setup.status).toBe("approved");
+    });
+
+    it("a new proposal goes into the message too", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        // a draft from before the post — whatever the proposal makes of it goes live
+        await call(route.putSetup, ORGA, changedLineup());
+        mockEvents.set(ID, { ...mockEvents.get(ID), setupPost: { channelId: "c", messageId: "sm", version: 1 } });
+        const r = await call(route.postPropose, ORGA, { event: ID });
+        expect(setupMessage.refreshLiveSetup).toHaveBeenCalledWith(ID, { userId: "orga" });
+        expect(body(r).message).toBe("Neuer Vorschlag erstellt. Die gepostete Setup-Nachricht zeigt es schon.");
+        expect(mockEvents.get(ID).setup.status).toBe("approved");
+    });
+
+    it("leaves the message alone while nothing is posted yet", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        await call(route.postApprove, ORGA, { event: ID, version: mockEvents.get(ID).setup.version });
+        const r = await call(route.putSetup, ORGA, changedLineup());
+        expect(body(r).setup.status).toBe("draft");
+        expect(setupMessage.refreshLiveSetup).not.toHaveBeenCalled();
+    });
+});
+
+describe("the ping text (#354's follow-up)", () => {
+    it("saves it on the event and shows it in the editor's payload", async () => {
+        const saved = await call(route.postPingText, ORGA, { event: ID, text: "  Kommt alle!  " });
+        expect(status(saved)).toBe(200);
+        expect(mockEvents.get(ID).setupPingText).toBe("Kommt alle!");
+        const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(view).pingText).toBe("Kommt alle!");
+    });
+
+    it("reads the default once none was set — in the server language", async () => {
+        mockConfig = { guildId: "g1", serverSettings: { g1: { botLanguage: "en" } } };
+        const view = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(view).pingText).toMatch(/setup is up/i);
+        mockConfig = {};
+        const german = await call(route.getSetup, ORGA, null, `event=${ID}`);
+        expect(body(german).pingText).toBe("📋 Das Setup steht – du bist dabei!");
+    });
+});
+
+describe("the draft stays with the orga", () => {
+    it("hands a reader neither the draft nor anything of it, only the approved lineup", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const draft = await call(route.getSetup, READER, null, `event=${ID}`);
+        expect(status(draft)).toBe(200);
+        const seen = body(draft);
+        expect(seen).toMatchObject({ canWrite: false, approved: null });
+        expect(seen).not.toHaveProperty("setup");
+        expect(JSON.stringify(seen)).not.toMatch(/"heal1"|reasons/);
+
+        const version = mockEvents.get(ID).setup.version;
+        const approved = await call(route.postApprove, ORGA, { event: ID, version });
+        expect(status(approved)).toBe(200);
+        expect(body(approved).message).toMatch(/gepostet – Raider sehen es jetzt/);
+        expect(refreshEventMessage).toHaveBeenCalledWith(ID);
+
+        const after = body(await call(route.getSetup, READER, null, `event=${ID}`));
+        expect(after.approved.groups.flatMap((g) => g.slots)).toHaveLength(10);
+        expect(after).not.toHaveProperty("setup");
+    });
+
+    it("gives the orga the draft with checks and reasons", async () => {
+        const proposed = await call(route.postPropose, ORGA, { event: ID });
+        expect(status(proposed)).toBe(200);
+        const view = body(proposed);
+        expect(view).toMatchObject({ canWrite: true, setup: { status: "draft", version: 1 }, hasApiKey: false });
+        expect(view.setup.groups[0].slots[0].reasons.length).toBeGreaterThan(0);
+    });
+
+    it("answers a manual save that breaks a rule with 400 and a conflict with 409", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const dup = await call(route.putSetup, ORGA, { event: ID, groups: [{ index: 1, slots: [{ userId: "mage" }] }, { index: 2, slots: [{ userId: "mage" }] }] });
+        expect(status(dup)).toBe(400);
+        expect(body(dup).error.code).toBe("invalid");
+        const stale = await call(route.putSetup, ORGA, { event: ID, version: 42, groups: [], bench: [] });
+        expect(status(stale)).toBe(409);
+    });
+
+    it("refuses Raid-Helper events and unknown ids", async () => {
+        // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
+        const restore = onSyncedList("g1", ["12345"]);
+        try {
+            expect(status(await call(route.getSetup, ORGA, null, "event=12345"))).toBe(409);
+        } finally {
+            restore();
+        }
+        expect(status(await call(route.getSetup, ORGA, null, "event=eh-nope"))).toBe(404);
+    });
+});
+
+describe("explanation", () => {
+    it("refuses without an Anthropic key", async () => {
+        await call(route.postPropose, ORGA, { event: ID });
+        const r = await call(route.postExplain, ORGA, { event: ID });
+        expect(status(r)).toBe(400);
+        expect(body(r).error.code).toBe("no_api_key");
+        expect(mockExplain).not.toHaveBeenCalled();
+    });
+
+    it("runs in the background and stores the text for the setup's version", async () => {
+        mockConfig = { anthropic: { apiKey: "sk-test", model: "claude-x" } };
+        await call(route.postPropose, ORGA, { event: ID });
+        mockExplain.mockResolvedValue({ text: "Gruppe 1 trägt die Nahkämpfer.", model: "claude-x" });
+        const r = await call(route.postExplain, ORGA, { event: ID });
+        expect(status(r)).toBe(202);
+        // the job is a promise chain without any timer: draining the microtask
+        // queue (setImmediate runs after it) finishes it - no real sleep
+        await new Promise((resolve) => setImmediate(resolve));
+        const [setup, ctx, opts] = mockExplain.mock.calls[0];
+        expect(setup.groups.length).toBeGreaterThan(0);
+        expect(ctx.signups.find((s) => s.userId === "late").comment).toBe("kommt 20:30");
+        expect(opts).toEqual({ apiKey: "sk-test", model: "claude-x" });
+
+        const state = body(await call(route.getExplain, ORGA, null, `event=${ID}`));
+        expect(state.job.status).toBe("done");
+        expect(state.explanation).toMatchObject({ text: "Gruppe 1 trägt die Nahkämpfer.", version: 1 });
+        // the explanation never moves anybody or approves anything
+        expect(mockEvents.get(ID).setup.status).toBe("draft");
+    });
+});
+
+describe("Vermerke in the editor (#981)", () => {
+    const notes = require("../../../../src/stores/userNotesStore");
+    const { tempStoreFile } = require("../../../helpers/tempStore");
+    const by = { by: "boss", byName: "Boss", name: "x" };
+
+    beforeEach(() => notes.useFile(tempStoreFile("user-notes.json")));
+    afterAll(() => notes.useFile(null));
+
+    it("keeps a shadowbanned signup out of the proposal and names the person for the orga only", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior", text: "SECRET-TEXT" }, by);
+        notes.addEntry("g1", "rogue", { level: "warning", reason: "no_show", text: "SECRET-TEXT" }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        const placed = view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId));
+        expect(placed).not.toContain("mage");
+        expect(placed).toContain("rogue");
+        expect(view.setup.pool.map((p) => p.userId)).toContain("mage");
+        expect(view.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
+        expect(view.vermerke).toEqual({
+            mage: { level: "shadowban", reasons: { behavior: 1 } },
+            rogue: { level: "warning", reasons: { no_show: 1 } },
+        });
+        // stored is only the setup, never the hint
+        expect(JSON.stringify(mockEvents.get(ID).setup)).not.toMatch(/shadowbanInPool|shadowban/);
+        expect(JSON.stringify(view)).not.toMatch(/SECRET-TEXT/);
+
+        const again = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(again.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
+
+        const reader = body(await call(route.getSetup, READER, null, `event=${ID}`));
+        expect(reader).not.toHaveProperty("vermerke");
+        expect(reader).not.toHaveProperty("shadowbanInPool");
+    });
+
+    it("lets the orga place a shadowbanned raider by hand, without asking", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+        await call(route.postPropose, ORGA, { event: ID });
+        const version = mockEvents.get(ID).setup.version;
+        const saved = await call(route.putSetup, ORGA, { event: ID, version, groups: [{ index: 1, slots: [{ userId: "mage", spec: "Mage-Fire" }] }], bench: [] });
+        expect(status(saved)).toBe(200);
+        expect(body(saved).setup.groups[0].slots.map((s) => s.userId)).toContain("mage");
+        expect(body(saved).shadowbanInPool).toEqual([]);
+    });
+
+    it("leaves a warning, a hint, an expired and a hidden shadowban out of it", async () => {
+        notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior", expiresAt: 1 }, by);
+        const shared = notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
+        notes.hideShared("g1", shared.id, { by: "boss" });
+        notes.addEntry("g1", "lock", { level: "hint", reason: "loot" }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.shadowbanInPool).toEqual([]);
+        // the expired and the hidden one are gone, the hint stays a hint
+        expect(view.vermerke).toEqual({ lock: { level: "hint", reasons: { loot: 1 } } });
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toEqual(expect.arrayContaining(["rogue", "lock"]));
+    });
+
+    it("lets a shared shadowban of another server count", async () => {
+        notes.addEntry("g9", "mage", { level: "shadowban", reason: "behavior", shared: true }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).not.toContain("mage");
+        expect(view.shadowbanInPool.map((p) => p.userId)).toEqual(["mage"]);
+    });
+
+    it("names the person the same on the page load and on a write answer: the cached Discord name first", async () => {
+        const discord = require("../../../../src/services/discord/discord");
+        discord.resolveUserNames.mockImplementation(async (guildId, ids) => Object.fromEntries(ids.filter((id) => id === "mage").map((id) => [id, "MageDiscord"])));
+        try {
+            notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+            const written = body(await call(route.postPropose, ORGA, { event: ID }));
+            expect(written.shadowbanInPool).toEqual([{ userId: "mage", name: "MageDiscord" }]);
+            const loaded = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+            expect(loaded.shadowbanInPool).toEqual(written.shadowbanInPool);
+            // a write answers at once: only names already in the member cache, never a wait
+            const waits = discord.resolveUserNames.mock.calls.filter(([, ids]) => ids.length === 1 && ids[0] === "mage").map(([, , opts]) => opts);
+            expect(waits).toContainEqual({ waitMs: 0 });
+        } finally {
+            discord.resolveUserNames.mockImplementation(async () => ({}));
+        }
+    });
+
+    it("falls back to the character when Discord does not know the person", async () => {
+        const discord = require("../../../../src/services/discord/discord");
+        discord.resolveUserNames.mockImplementation(async () => { throw new Error("offline"); });
+        try {
+            notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior" }, by);
+            const view = body(await call(route.postPropose, ORGA, { event: ID }));
+            expect(view.shadowbanInPool).toEqual([{ userId: "mage", name: "Mage" }]);
+        } finally {
+            discord.resolveUserNames.mockImplementation(async () => ({}));
+        }
+    });
+});

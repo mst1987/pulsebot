@@ -48,7 +48,7 @@ const signupStore = require("../../../src/stores/signupStore");
 const profileStore = require("../../../src/stores/raiderProfileStore");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { effectiveUser } = require("../../../src/web/http/viewAs");
-const route = require("../../../src/web/apiRoutes/setup");
+const route = require("../../../src/web/apiRoutes/events/setup");
 
 const api = routerClient(route);
 const MARKER = "VERMERK-MARKER-7f3a";

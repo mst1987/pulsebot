@@ -694,7 +694,7 @@ assignment columns (healers, kicks, soulstones, debuffs) took raiders of a Raid-
 - **Raidsheet** (`utils/setup/fillSetup.js buildSetupWrite`): only raiders of groups 1..5 are read (a slot without a group number
   after the 25th is group 6) - the bench of a Raid-Helper setup no longer lands in the sheet's healer, kick, soulstone or debuff cells.
   An own event's sheet (`raidHelperSlots`) never had the bench or the pool.
-- Tests: `test/services/raidplan/raidplanGroups.test.js`, `test/web/apiRoutes/raidplan.groups.test.js` (25 + 3 bench + 2 pool: the
+- Tests: `test/services/raidplan/raidplanGroups.test.js`, `test/web/apiRoutes/raidplan/raidplan.groups.test.js` (25 + 3 bench + 2 pool: the
   editor payload, the read view's priority, named bench raider, slot refill, the toggle, suggestions, template apply),
   `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/assign/__tests__/planGroups.test.ts`,
   `src/web-client/src/components/raidplan/editor/assign/__tests__/PlanGroups.test.tsx`.

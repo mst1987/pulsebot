@@ -1,6 +1,6 @@
 // What the roster pages read (#654, docs/roster-profile.md "Roster-Seiten"):
 // the overview's cards (GET /api/rosters) and one roster with its members
-// (GET /api/rosters/roster?id=). The writes are web/apiRoutes/rosterMembers.js,
+// (GET /api/rosters/roster?id=). The writes are web/apiRoutes/roster/rosterMembers.js,
 // rosterRoles.js and rosterAdmin.js (#655-#657); for a caller who may manage the
 // roster the detail adds what the editing needs: each member's note and further
 // profile characters of the version (`otherChars`), and the roster's `settings`.

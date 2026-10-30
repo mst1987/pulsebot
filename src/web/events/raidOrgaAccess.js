@@ -1,8 +1,8 @@
 // Who is the orga of one raid (#725, #727, docs/permissions.md "Kategorie-Orga") - one rule for every
 // answer field and exemption that must say what the `orgaScoped` gate (web/http/apiHandler.js) says:
-// the setup editor's `canWrite` (web/setup/setupAccess.js), the signup's `byOrga` (apiRoutes/signups.js:
+// the setup editor's `canWrite` (web/setup/setupAccess.js), the signup's `byOrga` (apiRoutes/events/signups.js:
 // deadline, closed signup and the required message do not bind the orga) and the category orga's limits
-// on the raid detail's actions (apiRoutes/raidDetail.js) - and since #729 the buttons of the client: the
+// on the raid detail's actions (apiRoutes/events/raidDetail.js) - and since #729 the buttons of the client: the
 // raid detail's `viewer.canOrga`, a raid list's `canOrga` per row and `canCreate`, the dashboard's block.
 //
 //   - the global orga (permissions.userIsOrga) with `raids` write: every raid,

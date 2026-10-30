@@ -3,7 +3,7 @@ import type { SignupStatus } from "./raidDetail";
 import type { GameRole } from "./raidTemplates";
 import type { VermerkShortMap } from "./vermerke";
 
-// ---- Setup editor of an own event (#263) — src/web/setupEditor.js, apiRoutes/setup.js ----
+// ---- Setup editor of an own event (#263) — src/web/setupEditor.js, apiRoutes/events/setup.js ----
 
 export type SetupPlacement =
     | { group: number; character: string; spec: string; role: GameRole | "" }

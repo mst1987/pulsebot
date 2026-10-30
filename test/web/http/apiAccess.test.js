@@ -193,7 +193,7 @@ describe("web/http/apiAccess", () => {
         });
 
         // The loot-sync uploader has no Discord session at all, so the session
-        // gate has to let it past — apiRoutes/ingest.js checks the bearer token
+        // gate has to let it past — apiRoutes/loot/ingest.js checks the bearer token
         // itself before doing anything.
         it("lets the token-authenticated ingest endpoints past the session gate", () => {
             expect(checkAccess("/api/ingest/loot", "POST", null)).toBeNull();

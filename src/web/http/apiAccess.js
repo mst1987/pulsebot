@@ -59,7 +59,7 @@ const UNGATED = pathsWith("none");
 // account's own menu language).
 const ANY_AREA = pathsWith("menu");
 // Authenticated by an API token instead of a Discord session (the loot-sync
-// uploader — see apiRoutes/ingest.js). These bypass *this* gate because there is
+// uploader — see apiRoutes/loot/ingest.js). These bypass *this* gate because there is
 // no session user to check, never the auth itself: the handler rejects anything
 // without a valid bearer token before it does any work. Deliberately a tiny,
 // explicit set — an endpoint listed here is reachable by whoever holds a token.

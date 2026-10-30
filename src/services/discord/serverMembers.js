@@ -1,5 +1,5 @@
 // The members of a Discord server as the web shows them (System › Discord › Mitglieder,
-// web/apiRoutes/discordMembers.js): read-only, nothing here changes a member.
+// web/apiRoutes/discord/discordMembers.js): read-only, nothing here changes a member.
 //
 // - listServerMembers(guildId)       every member of one server of the list (#895): name, user
 //                                    name, avatar, bot, joined, role ids (highest first), the

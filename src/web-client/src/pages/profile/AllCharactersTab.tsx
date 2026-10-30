@@ -21,7 +21,7 @@ import { CharacterCard } from "./CharacterCard";
 // every raider profile in one sortable list. A click opens the character's
 // card as the raider sees it (specs, gear, the two switches, take it out); the
 // pencil opens "Charakter bearbeiten" — set a wrong name right, by hand or by
-// picking the logged character (src/web/apiRoutes/characters.js); the bin
+// picking the logged character (src/web/apiRoutes/roster/characters.js); the bin
 // takes a character out straight from the row (a mistyped second entry).
 // Without write access to the roster area the list only reads.
 
