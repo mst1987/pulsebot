@@ -46,6 +46,7 @@ jest.mock("../../../../src/web/availability/raiderAttendance", () => ({
 jest.mock("../../../../src/web/availability/entryCategories", () => ({
     entryCategories: jest.fn(() => [{ id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" }]),
     entryCategoryIds: jest.fn(() => ["cat1"]),
+    eventCategoryNames: jest.fn((ids) => Object.fromEntries(ids.filter((id) => id === "catEv").map((id) => [id, "Raids Forever"]))),
 }));
 const mockCat1 = { id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" };
 jest.mock("../../../../src/web/availability/entryServers", () => ({
@@ -140,6 +141,18 @@ describe("GET /api/availability", () => {
         expect(e.characters[0].specLabel).toBe("Arkan");
         // the first character and no single category for older readers
         expect(e).toMatchObject({ character: "Nerathil", spec: "Mage-Arcane", categoryId: "" });
+    });
+
+    it("names a category Discord does not know by its events (as the dialog's list)", async () => {
+        const added = store.addEntry({ userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", scope: [{ guildId: "g", categoryIds: ["catEv"] }], createdBy: ANNA.id }).entry;
+        availability.activeEntries.mockReturnValue([added]);
+        const data = json(await call("GET", "/api/availability", ANNA)).data;
+        expect(data.entries[0].scope).toEqual([{ guildId: "g", name: "Pulse", categories: [{ id: "catEv", name: "Raids Forever" }] }]);
+        expect(data.entries[0]).toMatchObject({ categoryId: "catEv", categoryName: "Raids Forever" });
+        // the Discord name wins, the events are asked only for the unnamed ones
+        expect(entryCats.eventCategoryNames).toHaveBeenLastCalledWith(expect.not.arrayContaining(["cat1"]));
+        expect(entryServersMod.entryServers).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.objectContaining({ catEv: "Raids Forever" }) }));
+        store.removeEntry(added.id);
     });
 });
 
@@ -463,7 +476,7 @@ describe("the orga's overview", () => {
     it("answers one raider's detail and needs a raider", async () => {
         const res = await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1" });
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", canEdit: true });
-        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true }));
+        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true, servers: { g: "Pulse", A: "Server A" }, categoryNames: expect.any(Object) }));
         expect(status(await call("GET", "/api/availability/overview/raider", ORGA))).toBe(400);
     });
 

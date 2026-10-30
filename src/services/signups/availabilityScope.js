@@ -22,6 +22,7 @@ const settingsStore = require("../../stores/settings/settingsStore");
 const { TIMEZONE } = require("../../config/timezone");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { firstServerId } = require("../discord/servers/serverOf");
+const profiles = require("../../stores/roster/raiderProfileStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
@@ -90,4 +91,31 @@ function covers(entry, event, { config } = {}) {
     return true;
 }
 
-module.exports = { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer, dayOf };
+/** A spec's label from the rule set, else the key itself. */
+function specLabel(key) {
+    const info = key ? profiles.specInfo(key) : null;
+    return (info && info.label) || str(key);
+}
+
+/**
+ * An entry's scope as the web shows it (the dialog's list, the overview's drawer):
+ * `[{ guildId, name, categories: [{ id, name }] }]` - empty categories = every
+ * category of that server; an older entry of one category has `guildId` "" (that
+ * category wherever it is), an older entry for everything an empty list. The names
+ * are the caller's (`servers` guildId -> name, `categories` id -> name: the route's
+ * categoryNamesOf, Discord name else the events' name); an unknown one stays "".
+ */
+function scopeView(entry, { servers = {}, categories = {} } = {}) {
+    return (scopeOf(entry) || []).map((s) => ({
+        guildId: s.guildId,
+        name: s.guildId ? str(servers[s.guildId]) : "",
+        categories: s.categoryIds.map((id) => ({ id, name: str(categories[id]) })),
+    }));
+}
+
+/** An attendance's characters with their spec label: `[{ character, spec, versionId, specLabel }]`. */
+function charactersView(entry) {
+    return charactersOf(entry).map((c) => ({ ...c, specLabel: c.spec ? specLabel(c.spec) : "" }));
+}
+
+module.exports = { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer, dayOf, specLabel, scopeView, charactersView };

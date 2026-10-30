@@ -32,6 +32,35 @@ function entryCategoryIds({ now = Date.now(), config } = {}) {
     return [...new Set(coming)];
 }
 
+/** The events that name and picture a category: those of the last LOOKBACK_DAYS on, not cancelled. */
+function recentEvents(now) {
+    return eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - LOOKBACK_DAYS * 86400 })
+        .filter((e) => e && e.status !== "cancelled");
+}
+
+/** Per category of `ids`: the name the first-listed of its events was created with (Map id -> name). */
+function namesFrom(events, ids) {
+    const wanted = new Set(ids);
+    const names = new Map();
+    for (const e of events) {
+        const id = str(e.categoryId);
+        if (wanted.has(id) && !names.has(id) && str(e.categoryName)) names.set(id, str(e.categoryName));
+    }
+    return names;
+}
+
+/**
+ * The names categories get where Discord knows none (on a dev server always): the
+ * name their events were created with - the same as the dialog's list
+ * (entryCategories). `{ id: name }` for the ids it knows; one read of the event
+ * store, none when `ids` is empty.
+ */
+function eventCategoryNames(ids, { now = Date.now() } = {}) {
+    const list = [...new Set((ids || []).map(str).filter(Boolean))];
+    if (!list.length) return {};
+    return Object.fromEntries(namesFrom(recentEvents(now), list));
+}
+
 /**
  * Per category of `ids`: the name its events were created with and the icon of the
  * newest raid content their titles name (in the order of the rule sets, as the
@@ -39,12 +68,12 @@ function entryCategoryIds({ now = Date.now(), config } = {}) {
  */
 function eventFacts(ids, versions, now) {
     const wanted = new Set(ids);
-    const names = new Map();
+    const events = recentEvents(now);
+    const names = namesFrom(events, ids);
     const found = new Map();
-    for (const e of eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - LOOKBACK_DAYS * 86400 })) {
-        const id = str(e && e.categoryId);
-        if (!wanted.has(id) || e.status === "cancelled") continue;
-        if (!names.has(id) && str(e.categoryName)) names.set(id, str(e.categoryName));
+    for (const e of events) {
+        const id = str(e.categoryId);
+        if (!wanted.has(id)) continue;
         if (!found.has(id)) found.set(id, new Set());
         // the title within the event's own version (#740), as categoryInfo reads it
         for (const c of contentsForText(str(e.title), { versionId: str(e.versionId) || versions[id] })) found.get(id).add(c);
@@ -80,4 +109,4 @@ function entryCategories({ now = Date.now(), config, categoryNames = {} } = {}) 
         .filter((c) => c.name);
 }
 
-module.exports = { entryCategories, entryCategoryIds };
+module.exports = { entryCategories, entryCategoryIds, eventCategoryNames };

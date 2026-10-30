@@ -32,7 +32,7 @@ const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
-const { scopeCovers, scopeOf, charactersOf } = require("./availabilityScope");
+const { scopeCovers, scopeOf, scopeView, charactersView } = require("./availabilityScope");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -369,15 +369,18 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.
  * One raider: every entry with what it did, and the last HISTORY raids of the
  * categories they raid in (a signup there in the last 120 days) — in, off, or
  * no answer. Raids of one game version (`versionId`, #740; the main version when none is named).
+ * Each entry carries its readable `scope` and its `characters` (availabilityScope.scopeView /
+ * charactersView), named by `servers` (guildId -> name) and `categoryNames` (id -> name).
  */
-function raiderDetail(userId, { versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {} } = {}) {
+function raiderDetail(userId, { versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, servers = {} } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
     const version = versionFor(versionId, cfg);
     const cats = activeCategories(cfg);
     const entries = store.listEntries({ userId: uid }).map((e) => {
         const applied = Object.values(e.applied || {});
-        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec, characters: charactersOf(e) };
+        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec,
+            scope: scopeView(e, { servers, categories: categoryNames }), characters: charactersView(e) };
     }).sort((a, b) => b.from.localeCompare(a.from));
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)

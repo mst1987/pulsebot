@@ -216,6 +216,20 @@ describe("raiderDetail", () => {
         expect(detail.counts).toEqual({ in: 2, off: 1, none: 1, other: 0 });
         expect(detail).toMatchObject({ userId: "u1", character: "u1", role: "healer", classId: "Druid", classColor: "#FF7D0A", specIcon: expect.stringMatching(/^[a-z_]+$/) });
     });
+
+    it("gives every entry its readable scope and its characters with spec labels, as the dialog lists them", () => {
+        entry("u1", "2030-03-25", "2030-03-30", { kind: "presence", scope: [{ guildId: "g1", categoryIds: [] }, { guildId: "g2", categoryIds: ["mon"] }], characters: [{ character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc" }, { character: "Heiler", spec: "Priest-Holy", versionId: "forever" }] });
+        entry("u1", "2030-04-10", "2030-04-12", { categoryId: "wed" });
+        const detail = overview.raiderDetail("u1", { now: NOW, servers: { g1: "Pulse", g2: "PuGs" }, categoryNames: { mon: "Montag", wed: "Mittwoch" } });
+        const [older, presence] = detail.entries;
+        expect(presence.scope).toEqual([{ guildId: "g1", name: "Pulse", categories: [] }, { guildId: "g2", name: "PuGs", categories: [{ id: "mon", name: "Montag" }] }]);
+        expect(presence.characters).toEqual([
+            { character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc", specLabel: "Arkan" },
+            { character: "Heiler", spec: "Priest-Holy", versionId: "forever", specLabel: expect.any(String) },
+        ]);
+        expect(presence.characters[1].specLabel).not.toBe("Priest-Holy");
+        expect(older).toMatchObject({ scope: [{ guildId: "", name: "", categories: [{ id: "wed", name: "Mittwoch" }] }], characters: [], categoryName: "Mittwoch" });
+    });
 });
 
 describe("one game version at a time (#740)", () => {

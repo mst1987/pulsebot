@@ -4,7 +4,7 @@
 let mockConfig = {};
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
-const { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer } = require("../../../src/services/signups/availabilityScope");
+const { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer, specLabel, scopeView, charactersView } = require("../../../src/services/signups/availabilityScope");
 
 const START = Math.floor(Date.UTC(2030, 2, 20, 18) / 1000); // 2030-03-20 19:00 server time
 const event = (over = {}) => ({ id: "eh-1", startTime: START, categoryId: "cat1", ...over });
@@ -78,5 +78,34 @@ describe("covers", () => {
         expect(covers(presence, event({ versionId: "forever" }), { config: mockConfig })).toBe(false);
         expect(covers(entry(), { id: "x" })).toBe(false);
         expect(covers(null, event())).toBe(false);
+    });
+});
+
+describe("scopeView / charactersView (the web's dialog and the overview's drawer)", () => {
+    const names = { servers: { g1: "Pulse" }, categories: { cat1: "Raids TBC" } };
+
+    it("names servers and categories from the names handed in, unknown ones stay empty", () => {
+        const e = entry({ scope: [{ guildId: "g1", categoryIds: [] }, { guildId: "g2", categoryIds: ["cat1", "catX"] }] });
+        expect(scopeView(e, names)).toEqual([
+            { guildId: "g1", name: "Pulse", categories: [] },
+            { guildId: "g2", name: "", categories: [{ id: "cat1", name: "Raids TBC" }, { id: "catX", name: "" }] },
+        ]);
+    });
+
+    it("an older entry: one category without server, everything as an empty list", () => {
+        expect(scopeView(entry({ categoryId: "cat1" }), names)).toEqual([{ guildId: "", name: "", categories: [{ id: "cat1", name: "Raids TBC" }] }]);
+        expect(scopeView(entry(), names)).toEqual([]);
+        expect(scopeView(entry({ categoryId: "cat1" }))).toEqual([{ guildId: "", name: "", categories: [{ id: "cat1", name: "" }] }]);
+    });
+
+    it("gives every character its spec label, the key when the rule set does not know it", () => {
+        const e = { characters: [{ character: "A", spec: "Mage-Arcane", versionId: "tbc" }, { character: "B", spec: "Foo-Bar", versionId: "tbc" }, { character: "C", spec: "" }] };
+        expect(charactersView(e)).toEqual([
+            { character: "A", spec: "Mage-Arcane", versionId: "tbc", specLabel: "Arkan" },
+            { character: "B", spec: "Foo-Bar", versionId: "tbc", specLabel: "Foo-Bar" },
+            { character: "C", spec: "", versionId: "", specLabel: "" },
+        ]);
+        expect(charactersView(entry())).toEqual([]);
+        expect(specLabel("")).toBe("");
     });
 });

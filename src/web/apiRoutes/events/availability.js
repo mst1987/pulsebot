@@ -44,9 +44,9 @@ const linkCheck = require("../../../services/discord/linkCheck");
 const discord = require("../../../services/discord/discord");
 const absenceOverview = require("../../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../../availability/raiderAttendance");
-const { entryCategoryIds } = require("../../availability/entryCategories");
+const { entryCategoryIds, eventCategoryNames } = require("../../availability/entryCategories");
 const { entryServers, serverNames } = require("../../availability/entryServers");
-const { scopeOf, charactersOf } = require("../../../services/signups/availabilityScope");
+const { scopeOf, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 
@@ -69,28 +69,17 @@ function targetOf(user, requested) {
     return { userId: id };
 }
 
-function specLabel(key) {
-    const info = profiles.specInfo(key);
-    return (info && info.label) || key;
-}
-
 /**
- * An entry as the dialog lists it. `scope` readable: `[{ guildId, name, categories: [{ id, name }] }]`,
- * empty categories = every category of that server; an older entry of one category has `guildId` ""
- * (that category wherever it is), an older entry for everything an empty `scope`. `characters` each
- * with its spec label; `character`/`spec`/`categoryId` stay for older readers (the first character,
- * the one category).
- * @param {{ servers?: Object<string,string> }} [names] guildId -> server name (entryServers.serverNames)
+ * An entry as the dialog lists it. `scope` and `characters` as the overview's drawer shows them
+ * (availabilityScope.scopeView / charactersView); `character`/`spec`/`categoryId` stay for older
+ * readers (the first character, the one category).
+ * @param {{ servers?: Object<string,string>, categories?: Object<string,string> }} [names] guildId -> server
+ *   name (entryServers.serverNames), category id -> name (categoryNamesOf)
  */
-function entryView(entry, { servers = {} } = {}) {
+function entryView(entry, names = {}) {
     const applied = Object.values(entry.applied || {});
-    const catName = (id) => availabilityPanel.categoryNameFor(id) || "";
-    const scope = (scopeOf(entry) || []).map((s) => ({
-        guildId: s.guildId,
-        name: s.guildId ? servers[s.guildId] || "" : "",
-        categories: s.categoryIds.map((id) => ({ id, name: catName(id) })),
-    }));
-    const characters = charactersOf(entry).map((c) => ({ ...c, specLabel: c.spec ? specLabel(c.spec) : "" }));
+    const scope = scopeView(entry, names);
+    const characters = charactersView(entry);
     const first = characters[0] || { character: "", spec: "", versionId: "" };
     const oneCategory = scope.length === 1 && scope[0].categories.length === 1 ? scope[0].categories[0].id : "";
     return {
@@ -106,7 +95,7 @@ function entryView(entry, { servers = {} } = {}) {
         specLabel: first.spec ? specLabel(first.spec) : "",
         versionId: first.versionId || str(entry.versionId),
         categoryId: oneCategory,
-        categoryName: oneCategory ? catName(oneCategory) : "",
+        categoryName: oneCategory ? scope[0].categories[0].name : "",
         byOrga: !!entry.createdBy && entry.createdBy !== entry.userId,
         done: applied.filter((a) => a.ok).length,
     };
@@ -158,16 +147,17 @@ const getAvailability = withUser({}, async ({ user, query, res }) => {
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
-    const names = { servers: serverNames(config) };
+    const entries = availability.activeEntries(target.userId);
+    const names = viewNames(config, entries);
     // the servers of the raider the entry is for (their memberships), each with its categories
-    const servers = await entryServers(target.userId, { config, categoryNames: categoryNamesOf(config) });
+    const servers = await entryServers(target.userId, { config, categoryNames: names.categories });
     ok(res, {
         userId: target.userId,
         name: profile.name || "",
         orga: isOrga(user),
         today: availability.today(),
         maxDays: availability.MAX_DAYS,
-        entries: availability.activeEntries(target.userId).map((e) => entryView(e, names)),
+        entries: entries.map((e) => entryView(e, names)),
         characters: characterChoices(profile, config),
         servers,
         // the flat list of before the server blocks (older clients)
@@ -236,7 +226,7 @@ const postEntry = withUser({ csrf: true, body: true }, async ({ user, req, body,
     if (target.userId !== str(user.id) && !mayUseScope(user, req, body)) return otherServer(res);
     const result = await availability.createEntry(target.userId, body, { by: user.id, via: "web", eventIds: eventIdsOf(body), config });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
-    ok(res, { entry: entryView(result.entry, { servers: serverNames(config) }), results: result.results.map(resultView), dm: !!result.dm });
+    ok(res, { entry: entryView(result.entry, viewNames(config, [result.entry])), results: result.results.map(resultView), dm: !!result.dm });
 });
 
 /**
@@ -253,7 +243,7 @@ const putEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, 
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     const result = await availability.changeEntry(str(body.id), body, { userId: user.id, orga: isOrga(user), eventIds: eventIdsOf(body), config });
     if (result.error) return apiError(res, result.code === "not_found" ? 404 : 400, result.code || "bad_request", result.error);
-    ok(res, { entry: entryView(result.entry, { servers: serverNames(config) }), results: result.results.map(resultView), dm: !!result.dm });
+    ok(res, { entry: entryView(result.entry, viewNames(config, [result.entry])), results: result.results.map(resultView), dm: !!result.dm });
 });
 
 /** DELETE /api/availability — remove an entry (the signups it made stay). */
@@ -345,11 +335,24 @@ function versionOf(query, config) {
     return versionId || mainVersion;
 }
 
-/** Names of the active categories and of every category an entry names. */
-function categoryNamesOf(config) {
-    const named = availabilityStore.listEntries().flatMap((e) => [e.categoryId, ...(scopeOf(e) || []).flatMap((s) => s.categoryIds)]);
+/**
+ * Names of the active categories and of every category an entry names: the Discord name, else the
+ * name their events were created with (entryCategories.eventCategoryNames - the dialog's list names
+ * them the same way); the event store is read only when Discord leaves a category unnamed.
+ * @param {object[]} [entries] entries to name beyond the stored ones (a fresh write, a mocked list)
+ */
+function categoryNamesOf(config, entries = []) {
+    const named = [...availabilityStore.listEntries(), ...entries].flatMap((e) => [e.categoryId, ...(scopeOf(e) || []).flatMap((s) => s.categoryIds)]);
     const ids = new Set([...(Array.isArray(config.categoryIds) ? config.categoryIds : []), ...named].map(str).filter(Boolean));
-    return Object.fromEntries([...ids].map((id) => [id, availabilityPanel.categoryNameFor(id, { config }) || ""]));
+    const names = Object.fromEntries([...ids].map((id) => [id, availabilityPanel.categoryNameFor(id, { config }) || ""]));
+    const fromEvents = eventCategoryNames(Object.keys(names).filter((id) => !names[id]));
+    for (const id of Object.keys(fromEvents)) names[id] = fromEvents[id];
+    return names;
+}
+
+/** The names an entry view reads: servers and categories (entryView, absenceOverview.raiderDetail). */
+function viewNames(config, entries = []) {
+    return { servers: serverNames(config), categories: categoryNamesOf(config, entries) };
 }
 
 /** Discord names for the raiders a view names; a failing lookup keeps the names it has. */
@@ -389,7 +392,8 @@ const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     const config = getConfig();
-    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: categoryNamesOf(config) });
+    const names = viewNames(config);
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });
