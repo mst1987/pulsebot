@@ -7,7 +7,7 @@ const { buildReport, reportSummaryLines, ReportError } = require("../../utils/lo
 const logStore = require("../../stores/logStore");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
-const { versionLabel } = require("../../services/events/versionSettings");
+const { versionLabel } = require("../../services/versions/versionSettings");
 
 // "Trotzdem auswerten" — the deliberate way past the guard that refuses to
 // evaluate a raid whose final boss is not down yet (see utils/logcheck/

@@ -31,7 +31,7 @@
 
 const { ASSIGN_TYPES, CLASS_IDS } = require("./raidplanConstants");
 const catalog = require("../../stores/raidplanCatalogStore");
-const { catalogEnabled } = require("../events/versionCapabilities");
+const { catalogEnabled } = require("../versions/versionCapabilities");
 const { str } = require("../../utils/text");
 const { newId } = require("../../utils/ids");
 

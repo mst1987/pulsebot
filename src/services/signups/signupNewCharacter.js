@@ -11,7 +11,7 @@
 // the same character keeps its class, a new spec of it is added.
 const profiles = require("../../stores/raiderProfileStore");
 const { spec: specOf } = require("../../config/gameVersions");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const { validateCharacterName } = require("../../utils/signup/characterNames");
 const { splitPlayer } = require("../../utils/loot/lootImport");
 

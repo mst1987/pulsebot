@@ -17,11 +17,11 @@ const { deployStatus } = require("../../http/deployStatus");
 const { readParts: readBackupParts } = require("../../../services/backup/backupStatus");
 const { backupEnabled } = require("../../../services/backup/backupConfig");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
 const { canOrgaRaid, canCreateRaids, isGlobalRaidOrga, withOrgaFlags } = require("../../events/raidOrgaAccess");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
-const { settingsForVersion } = require("../../../services/events/versionSettings");
+const { settingsForVersion } = require("../../../services/versions/versionSettings");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {

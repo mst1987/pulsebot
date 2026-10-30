@@ -8,7 +8,7 @@ const { getEventSheet } = require("../../stores/eventSheetStore");
 const { getEventSoftres } = require("../../stores/eventSoftresStore");
 const { lootSystemOf } = require("../../stores/eventLootSystemStore");
 const { listLogs } = require("../../stores/logStore");
-const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/recentEvents");
+const { buildRecentEvents, matchLogsForEvent, pendingLogsForEvent } = require("../../services/events/overview/recentEvents");
 const { autoLinkLogs } = require("../../services/logcheck/logAutoLink");
 const { logPostedAt } = require("../../services/logcheck/reportList");
 const { recordVersion } = require("../../services/logcheck/logVersion");
@@ -36,7 +36,7 @@ const {
 const { getEvent, listEvents } = require("../../stores/eventStore");
 const linkCheck = require("../../services/discord/linkCheck");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
-const { versionOfEvent, mainVersionFor } = require("../../services/events/mainVersion");
+const { versionOfEvent, mainVersionFor } = require("../../services/versions/mainVersion");
 const { versionChoices } = require("../../services/characters/characterVersions");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
 const rosterStore = require("../../stores/rosterStore");

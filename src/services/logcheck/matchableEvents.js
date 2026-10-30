@@ -8,8 +8,8 @@ const discord = require("../discord/discord");
 const { EVENT_LOOKBACK_DAYS } = require("../events/raidEventGroups");
 const { listRaidEvents } = require("../../stores/raidEventStore");
 const { ownMatchableEvents, withEraName } = require("../events/eventSources");
-const { versionOfEvent } = require("../events/mainVersion");
-const { LOG_WINDOW_BEFORE_MS } = require("../events/recentEvents");
+const { versionOfEvent } = require("../versions/mainVersion");
+const { LOG_WINDOW_BEFORE_MS } = require("../events/overview/recentEvents");
 const { guildOfEvent } = require("../discord/serverOf");
 
 // Every row carries its raid's game version (#746): a log is matched only to a

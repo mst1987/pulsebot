@@ -23,7 +23,7 @@ jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfi
 
 const { scanRaidEvents, scanAllGuilds, _resetProbesForTests } = require("../../../src/services/events/raidEventScan.js");
 const { runInBackground } = require("../../../src/utils/raidhelper/budget");
-const { RECENT_WINDOW_DAYS } = require("../../../src/services/events/recentEvents.js");
+const { RECENT_WINDOW_DAYS } = require("../../../src/services/events/overview/recentEvents.js");
 
 // g1 and g2 have Raid-Helper switched on (#927)
 const RH_ON = { raidhelper: { enabled: true, apiKey: "fake-key-for-tests" } };

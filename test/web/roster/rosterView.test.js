@@ -6,7 +6,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listRoles: jest.fn(() => []),
     memberRoleIds: jest.fn(async () => []),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "cat1", name: "Raid Mo / Do" }, { id: "cat2", name: "PuG Karazhan" }]),
 }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
@@ -14,7 +14,7 @@ jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
 const rosterStore = require("../../../src/stores/rosterStore");
 const profiles = require("../../../src/stores/raiderProfileStore");

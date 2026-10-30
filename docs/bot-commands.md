@@ -141,7 +141,7 @@ In tests, `test/helpers/axiosMock.js` replaces only axios' adapter (`jest.mock("
 
 ### Lookup commands and the game version (#743)
 
-`/raid`, `/raids`, `/loot`, `/council`, `/report` and `/anwesenheit`, `/anwesenheit-raider` (#740: attendance counts only raids of that version) answer for one game version (`services/events/commandVersion.js`): the optional `version` choice (`addVersionOption`), else the version of the category of the channel the command runs in (a thread counts as its parent channel's category), else the main version. A hidden version falls back to the main version. Every reply names the version in its footer ("Version: WoW Forever"). Adding or changing the option needs `npm run register`.
+`/raid`, `/raids`, `/loot`, `/council`, `/report` and `/anwesenheit`, `/anwesenheit-raider` (#740: attendance counts only raids of that version) answer for one game version (`services/versions/commandVersion.js`): the optional `version` choice (`addVersionOption`), else the version of the category of the channel the command runs in (a thread counts as its parent channel's category), else the main version. A hidden version falls back to the main version. Every reply names the version in its footer ("Version: WoW Forever"). Adding or changing the option needs `npm run register`.
 
 ### Deferred replies for slow operations
 ```javascript

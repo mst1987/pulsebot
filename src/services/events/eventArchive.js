@@ -12,7 +12,7 @@
 // Nothing is deleted: switching the setting off makes every one of them a
 // normal event again.
 const { rulesFor } = require("../../config/gameVersions");
-const { versionOfEvent, isVersionVisible, hidesOtherVersions } = require("./mainVersion");
+const { versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../versions/mainVersion");
 const { tr } = require("../../utils/i18n/botText");
 
 /** The config handed in, else the stored one (required late: this module sits under apiHandler). */

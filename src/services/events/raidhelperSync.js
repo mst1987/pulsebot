@@ -79,7 +79,7 @@ async function runSync() {
     }
     try {
         // the category overviews list Raid-Helper raids from this list (required late: the overview pulls in half the bot)
-        require("./raidOverview").scheduleRefresh();
+        require("./overview/raidOverview").scheduleRefresh();
     } catch (e) {
         logger.warn(`overview nudge failed: ${e.message}`);
     }
@@ -119,7 +119,7 @@ async function refreshNow(guildId) {
     const result = await syncServer(guildId, since);
     if (result.ok) {
         try {
-            require("./raidOverview").scheduleRefresh();
+            require("./overview/raidOverview").scheduleRefresh();
         } catch (e) {
             logger.warn(`overview nudge failed: ${e.message}`);
         }

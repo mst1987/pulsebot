@@ -8,7 +8,7 @@ const { answerPayload } = require("../../utils/signup/signupReply");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { asEphemeral } = require("../../utils/discord/card");
-const { versionShort } = require("../../services/events/versionTag");
+const { versionShort } = require("../../services/versions/versionTag");
 const guildRoles = require("../../services/discord/guildRoles");
 const { getConfig } = require("../../stores/settingsStore");
 

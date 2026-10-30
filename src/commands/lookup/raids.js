@@ -1,7 +1,7 @@
 // /raids — the next raids and where the asking user stands in each (issue #265).
 const { SlashCommandBuilder } = require("discord.js");
 const { listEvents, statusOf, STATUS_LABELS, STATUS_ICONS } = require("../../services/events/eventLookup");
-const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/versions/commandVersion");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/discord/botLookup");
 
 /** How many raids the reply lists. */

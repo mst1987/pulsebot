@@ -11,7 +11,7 @@ jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn(
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: jest.fn(() => []) }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []) }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/services/events/storedVersion", () => ({ storedVersionOf: (id) => (String(id).startsWith("f") ? "forever" : "tbc") }));
+jest.mock("../../../src/services/versions/storedVersion", () => ({ storedVersionOf: (id) => (String(id).startsWith("f") ? "forever" : "tbc") }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({ categoryVersion: { catF: "forever" } })) }));
 
 const raids = require("../../../src/commands/lookup/raids");

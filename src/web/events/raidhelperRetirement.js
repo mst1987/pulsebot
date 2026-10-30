@@ -23,7 +23,7 @@ const { firstServerId, storedCategoryGuilds } = require("../../services/discord/
 const { TIMEZONE } = require("../../config/timezone");
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
-const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../services/categories/categoryNames");
 const appEmojis = require("../../services/discord/appEmojis");
 const specHistory = require("../../stores/specHistoryStore");
 

@@ -29,7 +29,7 @@ const { serverContext, lootOfGuild } = require("../loot/lootServer");
 const dungeonRuns = require("../../stores/dungeonRunStore");
 const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
 const { eventVersion } = require("./characterVersions");
-const { featureOn } = require("../events/versionCapabilities");
+const { featureOn } = require("../versions/versionCapabilities");
 const { wishItemsAllowed } = require("./wishItems");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../../config/gameVersions");
 

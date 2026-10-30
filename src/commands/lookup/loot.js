@@ -9,7 +9,7 @@ const { serverContext, lootOfGuild, serverOfInteraction } = require("../../servi
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
 const { eventVersion, charactersOfVersion } = require("../../services/characters/characterVersions");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 

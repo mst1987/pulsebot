@@ -10,7 +10,7 @@ const profiles = require("../../stores/raiderProfileStore");
 const { listReports, getReportRoster } = require("../../stores/reportStore");
 const { accountCount } = require("../../utils/signup/capacity");
 const { recordVersion } = require("../logcheck/logVersion");
-const { isVersionVisible } = require("../events/mainVersion");
+const { isVersionVisible } = require("../versions/mainVersion");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 
 /** How many of the newest evaluations "Evaluation" looks through. */

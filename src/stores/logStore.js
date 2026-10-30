@@ -75,7 +75,7 @@ function fallbackVersionOf(log) {
  */
 function versionFieldsOf(link, channelVersionId) {
     const { linkVersion } = require("../services/logcheck/logVersion");
-    const { knownVersion } = require("../services/events/mainVersion");
+    const { knownVersion } = require("../services/versions/mainVersion");
     const { host, hostVersionId } = linkVersion(link);
     const fields = { host, hostVersionId, channelVersionId: knownVersion(channelVersionId) };
     return { ...fields, ...fallbackVersionOf(fields) };

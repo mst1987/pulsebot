@@ -12,8 +12,8 @@ jest.mock("../../../src/stores/channelArchiveStore", () => ({
     ...jest.requireActual("../../../src/stores/channelArchiveStore"),
     getChannelConfig: () => ({ schemas: { cat1: { templateChannelId: "t-schema" } } }),
 }));
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     mainVersionFor: jest.fn(() => "tbc"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
 }));

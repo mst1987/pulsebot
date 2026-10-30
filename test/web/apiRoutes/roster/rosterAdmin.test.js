@@ -23,7 +23,7 @@ jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
     setRoleGainedHandler: jest.fn(),
     takeFailedPending: jest.fn(() => false),
 }));
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "700000000000000001", name: "Donnerstag Raid" }]),
     rememberCategories: jest.fn(),
 }));

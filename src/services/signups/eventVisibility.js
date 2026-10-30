@@ -15,7 +15,7 @@
 // so the rule lives in one place. Loot is never filtered by it: raiders may look up any raid's loot.
 const { userIsOrga } = require("../../config/permissions");
 const { canSignUp } = require("./signupAccess");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const { rosterOfEvent, currentRoster } = require("../roster/categoryRoster");
 const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");

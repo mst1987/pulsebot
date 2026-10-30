@@ -12,7 +12,7 @@ const { buildRosterOverview, buildRosterDetail } = require("../../roster/rosterV
 const { buildRosterHistory } = require("../../roster/rosterHistoryView");
 const { activeRoster } = require("../../roster/activeRoster");
 const { isRosterOrga } = require("../../../services/roster/rosterAccess");
-const { resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 
 /**
  * GET /api/rosters[?version=<id>] — one card per roster of the active server, the categories

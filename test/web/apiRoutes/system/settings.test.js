@@ -66,11 +66,11 @@ jest.mock("../../../../src/stores/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../../src/services/events/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
+jest.mock("../../../../src/services/events/overview/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
 jest.mock("../../../../src/stores/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
@@ -167,7 +167,7 @@ jest.mock("../../../../src/stores/ingestTokenStore", () => ({
     assignTokenGuild: jest.fn(() => null),
 }));
 // The content switch (#563): the warning list and the archive export, steered per test.
-jest.mock("../../../../src/services/events/contentVersions", () => ({
+jest.mock("../../../../src/services/versions/contentVersions", () => ({
     upcomingByVersion: jest.fn(() => ({})),
     versionsWithData: jest.fn(() => new Set(["tbc"])),
     archiveExport: jest.fn(() => ({ exportedAt: "2026-10-01T12:00:00.000Z", mainVersion: "forever", versions: ["tbc", "classic"], loot: [], attendance: [] })),
@@ -738,7 +738,7 @@ describe("web/apiRoutes/settings", () => {
 
             describe("a fixed version per category (#738)", () => {
                 const seriesStore = require("../../../../src/stores/eventSeriesStore");
-                const { onCategoryVersionSwitch } = require("../../../../src/services/events/categorySwitch");
+                const { onCategoryVersionSwitch } = require("../../../../src/services/categories/categorySwitch");
                 const BEFORE = { guildId: "g1", categoryIds: ["cat1"], mainVersion: "tbc", categoryVersion: { cat1: "tbc" } };
                 beforeEach(() => {
                     auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
@@ -1976,7 +1976,7 @@ describe("web/apiRoutes/settings", () => {
         });
 
         describe("Kategorie in der Server-Übersicht", () => {
-            const { scheduleRefresh } = require("../../../../src/services/events/raidOverview");
+            const { scheduleRefresh } = require("../../../../src/services/events/overview/raidOverview");
 
             it("stores the switch as booleans and redraws the overviews soon after a change", async () => {
                 readJsonBody.mockResolvedValue({ categoryServerOverview: { c1: false, c2: true, c3: "x" } });
@@ -2884,7 +2884,7 @@ describe("web/apiRoutes/settings", () => {
 // gets the coming raids per version, and the archive export is a download for
 // full admins only.
 describe("web/apiRoutes/settings: content switch (#563)", () => {
-    const contentVersions = require("../../../../src/services/events/contentVersions");
+    const contentVersions = require("../../../../src/services/versions/contentVersions");
 
     beforeEach(() => {
         requireAdmin.mockReset().mockImplementation(realMiddleware.requireAdmin);

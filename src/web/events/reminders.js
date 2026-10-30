@@ -40,9 +40,9 @@ const { loadEventGroups } = require("../../services/events/raidEventGroups");
 const { getConfig } = require("../../stores/settingsStore");
 const { computeAttendance, signupStatus, isRosterKnown } = require("../../utils/attendance");
 const { tr } = require("../../utils/i18n/botText");
-const { versionOfEvent, isVersionVisible } = require("../../services/events/mainVersion");
+const { versionOfEvent, isVersionVisible } = require("../../services/versions/mainVersion");
 const { hasExpected, listExpectedMembers } = require("../../services/roster/expectedRaiders");
-const { isCategoryActive } = require("../../services/events/categoryLifecycle");
+const { isCategoryActive } = require("../../services/categories/categoryLifecycle");
 
 const HOUR_MS = 60 * 60 * 1000;
 const KINDS = ["missing", "signed"];

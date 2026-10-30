@@ -140,8 +140,8 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../../src/services/events/raidListing", () => ({
-    ...jest.requireActual("../../../../src/services/events/raidListing"),
+jest.mock("../../../../src/services/events/overview/raidListing", () => ({
+    ...jest.requireActual("../../../../src/services/events/overview/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));

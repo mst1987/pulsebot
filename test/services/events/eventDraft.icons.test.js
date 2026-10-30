@@ -16,7 +16,7 @@ const { signupSourceFor } = require("../../../src/services/events/eventSources")
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const draft = require("../../../src/services/events/eventDraft");
 const eventStore = require("../../../src/stores/eventStore");
-const { templateVersionProblem } = require("../../../src/services/events/categoryEras");
+const { templateVersionProblem } = require("../../../src/services/categories/categoryEras");
 
 const CAT_EH = "100000000000000001";
 const CAT_FOREVER = "100000000000000003";

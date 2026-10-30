@@ -11,7 +11,7 @@
 const { PermissionsBitField } = require("discord.js");
 const discord = require("./discord");
 const linkCheck = require("./linkCheck");
-const { listKnownCategories } = require("./categoryNames");
+const { listKnownCategories } = require("../categories/categoryNames");
 const orgaHubStore = require("../../stores/orgaHubStore");
 const raidOverviewStore = require("../../stores/raidOverviewStore");
 const talkOverviewStore = require("../../stores/talkOverviewStore");

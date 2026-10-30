@@ -12,7 +12,7 @@
 //
 // Pure: takes the config, never reads a store (configStore requires this module).
 // Whether a version may fill the Google raid sheet at all is the feature
-// "raidSheet" of services/events/versionCapabilities.js (#761: sheetOffered,
+// "raidSheet" of services/versions/versionCapabilities.js (#761: sheetOffered,
 // sheetVersionRefusal) — not here, since that one reads the config.
 
 const PLANNING_MODES = ["raidplan", "sheet"];

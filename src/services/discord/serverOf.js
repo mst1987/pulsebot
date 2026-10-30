@@ -25,7 +25,7 @@ function firstServerId(config) {
 
 /**
  * categoryId -> guildId from the category-name snapshot
- * (services/discord/categoryNames.js, `{ guilds: { guildId: { categoryId: name } } }`).
+ * (services/categories/categoryNames.js, `{ guilds: { guildId: { categoryId: name } } }`).
  */
 function categoryGuildIndex(guilds) {
     const src = guilds && typeof guilds === "object" ? guilds : {};

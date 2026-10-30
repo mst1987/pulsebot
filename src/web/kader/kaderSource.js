@@ -15,12 +15,12 @@
 // (test/web/kader/kaderSource.test.js scans the payload for them).
 const { rulesFor } = require("../../config/gameVersions");
 const { buildClasses } = require("../../config/gameVersions/classes");
-const { mainVersionFor, isVersionVisible } = require("../../services/events/mainVersion");
+const { mainVersionFor, isVersionVisible } = require("../../services/versions/mainVersion");
 const { listStoredEvents } = require("../../services/events/eventSources");
-const { isCategoryActive } = require("../../services/events/categoryLifecycle");
+const { isCategoryActive } = require("../../services/categories/categoryLifecycle");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const discord = require("../../services/discord/discord");
-const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { getConfig } = require("../../stores/configStore");
 const profiles = require("../../stores/raiderProfileStore");
 const raiderCharacters = require("../../stores/raiderCharactersStore");

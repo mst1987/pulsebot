@@ -19,7 +19,7 @@ jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => m
 const mockEvents = [];
 jest.mock("../../../src/stores/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
 // A plain Discord category must never count as a raid one: the check reads no category list.
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: () => { throw new Error("botCheck must not read the category list"); },
     rememberCategories: () => { throw new Error("botCheck must not write"); },
 }));

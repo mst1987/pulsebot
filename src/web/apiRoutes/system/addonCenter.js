@@ -20,8 +20,8 @@ const addonCenter = require("../../../services/addons/addonCenter");
 const discord = require("../../../services/discord/discord");
 const guildRoles = require("../../../services/discord/guildRoles");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../../services/events/mainVersion");
-const { versionLabel } = require("../../../services/events/versionSettings");
+const { mainVersionFor, isVersionVisible, visibleVersions } = require("../../../services/versions/mainVersion");
+const { versionLabel } = require("../../../services/versions/versionSettings");
 const { privilegedReason } = require("../../../services/discord/selfRole");
 
 function centerView(center) {

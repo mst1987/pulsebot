@@ -6,16 +6,16 @@
 //   1. the raider profiles: a profile character carries its `versionId`
 //      (matched by name — "Devi Res" is the Forever character "forever~devi res");
 //   2. the loot: an item has the stored version of its raid (#737: an own
-//      event's, a Raid-Helper snapshot's — events/storedVersion.js), an
+//      event's, a Raid-Helper snapshot's — versions/storedVersion.js), an
 //      item without a stored raid (a manual bucket, a raid never scanned) is
 //      TBC — stored records never move, whatever the setting says later;
 //   3. only when neither knows the character: the version its raid categories
-//      play (services/events/mainVersion.js).
+//      play (services/versions/mainVersion.js).
 // A character with no evidence at all is TBC (LEGACY_VERSION), what everything
 // before versions was.
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
-const { mainVersionFor, visibleVersions } = require("../events/mainVersion");
-const { storedVersionOf } = require("../events/storedVersion");
+const { mainVersionFor, visibleVersions } = require("../versions/mainVersion");
+const { storedVersionOf } = require("../versions/storedVersion");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const profiles = require("../../stores/raiderProfileStore");
 

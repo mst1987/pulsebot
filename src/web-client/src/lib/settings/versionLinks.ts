@@ -1,7 +1,7 @@
 // Settings per game version on the client (#542): the block the server keeps
 // in config.versionSettings (src/stores/versionSettingsSchema.js) and the
 // links built from it. The same rules as the server's helper
-// (src/services/events/versionSettings.js): an empty setting means "not there
+// (src/services/versions/versionSettings.js): an empty setting means "not there
 // for this version", and the link is left out rather than guessed or broken.
 import { createContext, createElement, useContext, type ReactNode } from "react";
 import { LEGACY_WOWHEAD_PATH, wowheadItemUrl } from "../wow/wowheadItems";

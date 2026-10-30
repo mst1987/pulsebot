@@ -137,8 +137,8 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../../src/services/events/raidListing", () => ({
-    ...jest.requireActual("../../../../src/services/events/raidListing"),
+jest.mock("../../../../src/services/events/overview/raidListing", () => ({
+    ...jest.requireActual("../../../../src/services/events/overview/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
@@ -182,7 +182,7 @@ const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
 const raidEventGroups = require("../../../../src/services/events/raidEventGroups");
 const raidEventStore = require("../../../../src/stores/raidEventStore");
-const raidListing = require("../../../../src/services/events/raidListing");
+const raidListing = require("../../../../src/services/events/overview/raidListing");
 const eventSoftresStore = require("../../../../src/stores/eventSoftresStore");
 const { post, handle, get } = routerClient(require("../../../../src/web/apiRoutes/events/raids"));
 const { knownChannels } = require("../../../helpers/linkCheck");

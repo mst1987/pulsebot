@@ -81,7 +81,7 @@ const ICONS = {
     // an arrow running into a wall — the raid's end (#305); a second clock
     // would be indistinguishable from `time` at 32 px.
     end: '<path d="M3.5 12h11"/><path d="M10.5 7.5 15 12l-4.5 4.5"/><path d="M19.5 4.5v15"/>',
-    // The Orga-Zentrale's raid statuses (services/events/orgaStatus.js) — shape and colour both differ.
+    // The Orga-Zentrale's raid statuses (services/orgaHub/orgaStatus.js) — shape and colour both differ.
     // a hollow circle, grey — the signup runs
     orgasignup: '<circle cx="12" cy="12" r="8"/>',
     // a filled circle, orange — the setup is open

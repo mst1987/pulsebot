@@ -1,7 +1,7 @@
 // The character tabs of "Mein Profil" (services/characters/profileRaiding.js):
 // the own roster memberships, loot and LevelHelper data of one game version,
 // read from the stores - versions strictly apart, only the caller's own.
-jest.mock("../../../src/services/events/storedVersion", () => ({
+jest.mock("../../../src/services/versions/storedVersion", () => ({
     storedVersionOf: (id) => ({ ev_tbc: "tbc", ev_forever: "forever" })[id] || "",
 }));
 

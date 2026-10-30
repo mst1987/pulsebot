@@ -4,8 +4,8 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ redrawEventMessage: jest.fn(async () => null) }));
-jest.mock("../../../src/services/events/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
-jest.mock("../../../src/services/events/raidOverview", () => ({ onOverviewMessageDeleted: jest.fn((id) => id === "ov-msg") }));
+jest.mock("../../../src/services/orgaHub/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
+jest.mock("../../../src/services/events/overview/raidOverview", () => ({ onOverviewMessageDeleted: jest.fn((id) => id === "ov-msg") }));
 jest.mock("../../../src/services/addons/addonCenter", () => ({ onCenterMessageDeleted: jest.fn((id) => id === "center-msg") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } })) }));
 
@@ -100,7 +100,7 @@ describe("services/discord/linkWatch", () => {
     });
 
     it("hands a deleted Orga-Zentrale message to its redraw", () => {
-        const { onHubMessageDeleted } = require("../../../src/services/events/orgaHub");
+        const { onHubMessageDeleted } = require("../../../src/services/orgaHub/orgaHub");
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "hub-msg" })).toMatchObject({ orgaHub: true });
         expect(onHubMessageDeleted).toHaveBeenCalledWith("hub-msg", { delayMs: linkWatch.REDRAW_DELAY_MS });
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ orgaHub: false });
@@ -114,7 +114,7 @@ describe("services/discord/linkWatch", () => {
     });
 
     it("forgets a deleted category overview message", () => {
-        const { onOverviewMessageDeleted } = require("../../../src/services/events/raidOverview");
+        const { onOverviewMessageDeleted } = require("../../../src/services/events/overview/raidOverview");
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "ov-msg" })).toMatchObject({ raidOverview: true });
         expect(onOverviewMessageDeleted).toHaveBeenCalledWith("ov-msg");
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ raidOverview: false });

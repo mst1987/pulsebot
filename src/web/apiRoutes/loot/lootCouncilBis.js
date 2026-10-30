@@ -25,9 +25,9 @@ const { SLOT_NAMES } = require("../../../utils/logcheck/gearIssues");
 const { SPECS, specByKey } = require("../../../config/data/councilSpecs");
 const { characterProfile } = require("../../../utils/setup/setupView");
 const { rulesFor } = require("../../../config/gameVersions");
-const { knownVersion, resolveVersionQuery, isVersionVisible } = require("../../../services/events/mainVersion");
-const { councilContent } = require("../../../services/events/versionCapabilities");
-const { versionLinks } = require("../../../services/events/versionSettings");
+const { knownVersion, resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
+const { councilContent } = require("../../../services/versions/versionCapabilities");
+const { versionLinks } = require("../../../services/versions/versionSettings");
 const { wowheadPathOf } = require("../../../services/characters/wishItems");
 const wowhead = require("../../../utils/loot/wowhead");
 

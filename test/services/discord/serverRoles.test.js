@@ -14,7 +14,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => {
         roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
     };
 });
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: () => [{ id: "cat-1", name: "WoW Forever" }],
 }));
 const mockDiscord = {

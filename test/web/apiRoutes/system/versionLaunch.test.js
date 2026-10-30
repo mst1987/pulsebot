@@ -2,7 +2,7 @@
 // the checklist of a target version and marks the manual items.
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/services/events/versionLaunch", () => ({
+jest.mock("../../../../src/services/versions/versionLaunch", () => ({
     loadChecklist: jest.fn((versionId) => ({ versionId: versionId || "forever", items: [] })),
     setManualMark: jest.fn(() => ({ config: { versionLaunch: {} } })),
 }));
@@ -10,7 +10,7 @@ jest.mock("../../../../src/services/events/versionLaunch", () => ({
 let mockUser;
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const versionLaunch = require("../../../../src/services/events/versionLaunch");
+const versionLaunch = require("../../../../src/services/versions/versionLaunch");
 const { getVersionLaunch, postVersionLaunch } = require("../../../../src/web/apiRoutes/system/versionLaunch");
 const { AREA_BY_PATH } = require("../../../../src/web/http/apiAccess");
 const { mockRes, status, body } = require("../../../helpers/http");

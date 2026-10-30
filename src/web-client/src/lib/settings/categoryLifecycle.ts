@@ -1,7 +1,7 @@
 // Einstellungen → Kategorien over a category's life (#744): which categories a
 // save deactivates, how a category's series is named in the dialogs, and which
 // roles the raider-role picker offers. The server side is
-// src/services/events/categoryLifecycle.js.
+// src/services/categories/categoryLifecycle.js.
 import type { CategorySeriesInfo, Role } from "../../api";
 import { weekdayShort } from "../raids/eventSeries";
 import { assignableRoles } from "./assignableRoles";

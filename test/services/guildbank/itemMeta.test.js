@@ -6,12 +6,12 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
     ...jest.requireActual("../../../src/utils/loot/wowhead"),
     lookupItemDetails: jest.fn(),
 }));
-jest.mock("../../../src/services/events/versionSettings", () => ({
+jest.mock("../../../src/services/versions/versionSettings", () => ({
     settingsForVersion: jest.fn((v) => ({ versionId: v, wowheadPath: v === "tbc" ? "tbc" : "" })),
 }));
 
 const wowhead = require("../../../src/utils/loot/wowhead");
-const { settingsForVersion } = require("../../../src/services/events/versionSettings");
+const { settingsForVersion } = require("../../../src/services/versions/versionSettings");
 const fs = require("fs");
 const store = require("../../../src/stores/guildBankStockStore");
 const requestStore = require("../../../src/stores/guildBankStore");

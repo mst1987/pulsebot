@@ -31,7 +31,7 @@ const { loadMatchableEvents, eventLinkFields } = require("../../../services/logc
 const { linkLogByUrl } = require("../../logcheck/manualLog");
 const { linkConflict, inVersionList } = require("../../../services/logcheck/logVersion");
 const { logChannelsOf } = require("../../../services/logcheck/logChannelSettings");
-const { resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const discord = require("../../../services/discord/discord");
 
 /**

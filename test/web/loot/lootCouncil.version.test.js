@@ -18,7 +18,7 @@ jest.mock("../../../src/stores/eventStore", () => ({ listEvents: () => [], getEv
 jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
 jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
 jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null, getReportRoster: () => null }));
-jest.mock("../../../src/services/events/storedVersion", () => ({ storedVersionOf: (...a) => mockStored(...a), versionOfLog: () => "" }));
+jest.mock("../../../src/services/versions/storedVersion", () => ({ storedVersionOf: (...a) => mockStored(...a), versionOfLog: () => "" }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { lootRow, gearOf, item } = require("../../helpers/lootCouncil");

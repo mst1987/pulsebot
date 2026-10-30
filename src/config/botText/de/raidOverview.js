@@ -1,4 +1,4 @@
-// German bot texts of the raid overview of a category (services/events/raidOverviewPanel.js).
+// German bot texts of the raid overview of a category (services/events/overview/raidOverviewPanel.js).
 module.exports = {
     "Raids": "Raids",
     "This ID": "Diese ID",

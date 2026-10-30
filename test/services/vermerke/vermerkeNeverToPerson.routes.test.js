@@ -18,8 +18,8 @@ jest.mock("../../../src/web/http/auth", () => ({
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "A"), pickActiveGuild: jest.fn(async () => "A") }));
 jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []), rosterForCategory: jest.fn(() => null), isClosed: jest.fn(() => false) }));
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),

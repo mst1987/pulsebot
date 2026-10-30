@@ -6,7 +6,7 @@ const { listLogs } = require("../../stores/logStore");
 const { reportsOfGuild } = require("../../services/logcheck/reportGuild");
 const { prepareReportList } = require("../../services/logcheck/reportList");
 const { recordVersion } = require("../../services/logcheck/logVersion");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
 const { webUrl, lookupReply, discordTime, clip, plural } = require("../../utils/discord/botLookup");
 
 /** How many evaluations the reply lists. */

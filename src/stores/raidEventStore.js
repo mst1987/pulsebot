@@ -15,7 +15,7 @@ const { rulesFor } = require("../config/gameVersions");
 // (mainVersionFor({ categoryId })); a later scan never overwrites it, so
 // switching `mainVersion` or `categoryVersion` afterwards moves no stored
 // raid. Snapshots from before #737 get it once from settingsMigration.js
-// (migrateVersions). Readers go through services/events/mainVersion.js'
+// (migrateVersions). Readers go through services/versions/mainVersion.js'
 // versionOfEvent(), never the live config.
 const RAID_EVENTS_FILE = settingsPath("raid-events.json");
 

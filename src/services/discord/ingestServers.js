@@ -17,9 +17,9 @@ const { eventGuildIds, serverLabel } = require("./guildRoles");
 const { resolveGuildAccess, accessForGuild } = require("./userAccess");
 const categoryOrga = require("../roster/categoryOrga");
 const discord = require("./discord");
-const { listKnownCategories } = require("./categoryNames");
-const { mainVersionFor } = require("../events/mainVersion");
-const { settingsForVersion } = require("../events/versionSettings");
+const { listKnownCategories } = require("../categories/categoryNames");
+const { mainVersionFor } = require("../versions/mainVersion");
+const { settingsForVersion } = require("../versions/versionSettings");
 const { rulesFor } = require("../../config/gameVersions");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();

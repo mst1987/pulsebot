@@ -4,7 +4,7 @@ const characterStore = require("./characterStore");
 const rosterStore = require("./rosterStore");
 const raiderProfileStore = require("./raiderProfileStore");
 const { characterKeyOf, nameKeyOf } = require("../utils/loot/lootImport");
-const { mainVersionFor } = require("../services/events/mainVersion");
+const { mainVersionFor } = require("../services/versions/mainVersion");
 
 // Manual, per-raid-category mapping of a raider (Discord user id) to the WoW
 // character they play there — raiders often play a different character on

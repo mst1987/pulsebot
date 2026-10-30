@@ -6,7 +6,7 @@ const { listEvents, statusOf, statusCounts, STATUS_LABELS, STATUS_ICONS } = requ
 const { serverIds } = require("../../services/discord/guildRoles");
 const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
-const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/versions/commandVersion");
 const { TIMEZONE } = require("../../config/timezone");
 
 /** "Mi 24.09. 20:00" in the guild's time zone — autocomplete names cannot carry Discord timestamps. */

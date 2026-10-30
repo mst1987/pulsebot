@@ -1,5 +1,5 @@
 // The game versions the Kaderplaner holds Kader for, seen from outside it: the
-// menu's content switch (services/events/contentVersions.js) offers a version
+// menu's content switch (services/versions/contentVersions.js) offers a version
 // only when something is stored for it, and a Kader stands only under its own
 // version (#741). Without this door a server whose only Forever data is the
 // planner could never switch to Forever and so lost its Kader. Only version

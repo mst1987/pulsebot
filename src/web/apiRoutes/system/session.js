@@ -12,7 +12,7 @@ const { getConfig } = require("../../../stores/settingsStore");
 const { guildId: envGuildId } = require("../../../config/variables");
 const { configForGuild, accessSettings, fullAdminRoleIds } = require("../../../services/discord/serverAccess");
 const { normalizeRoleIds, MAX_ROLES } = require("../../http/viewAs");
-const { contentVersions } = require("../../../services/events/contentVersions");
+const { contentVersions } = require("../../../services/versions/contentVersions");
 const { areaAudience, orgaRoleNames } = require("../../http/areaAudience");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
 

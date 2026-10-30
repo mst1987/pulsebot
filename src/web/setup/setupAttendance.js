@@ -11,11 +11,11 @@ const profileStore = require("../../stores/raiderProfileStore");
 const characterStore = require("../../stores/characterStore");
 const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
-const { raidContentIds, raidSize } = require("../../services/events/raidListing");
+const { raidContentIds, raidSize } = require("../../services/events/overview/raidListing");
 const { benchHistory } = require("../../services/setup/setupInput");
 const settingsStore = require("../../stores/settingsStore");
 const { categoryAttendanceFor } = require("../../stores/configSchema");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 
 /** "Druid-Feral" -> "Druid". */

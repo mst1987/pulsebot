@@ -15,7 +15,7 @@
 // version still belongs to the closed roster of that version. Who must skip
 // them (role sync, mirroring) asks rosterStore.isClosed.
 const rosterStore = require("../../stores/rosterStore");
-const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

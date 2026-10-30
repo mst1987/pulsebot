@@ -5,7 +5,7 @@
 // login (the files of private repos must not leak through a forwarded link).
 const { SlashCommandBuilder } = require("discord.js");
 const { getConfig } = require("../../stores/configStore");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
 const { userIsOrga } = require("../../config/permissions");
 const { resolveAccess } = require("../../services/discord/userAccess");
 const { interactionGuildId } = require("../../services/discord/serverAccess");

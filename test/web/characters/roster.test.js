@@ -32,7 +32,7 @@ jest.mock("../../../src/web/characters/charGearIssues", () => ({
 // live Discord list — see that module for why (categoryNames.test.js covers the
 // resolution itself).
 const mockListCategories = jest.fn(() => []);
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (...a) => mockListCategories(...a),
 }));
 

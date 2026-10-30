@@ -20,7 +20,7 @@
 const configStore = require("../../stores/configStore");
 const { serverSettingGuildIds, mergeServerSettings } = require("../../stores/configSchema");
 const { firstServerId } = require("../discord/serverOf");
-const { mainVersionFor } = require("../events/mainVersion");
+const { mainVersionFor } = require("../versions/mainVersion");
 const { normalizeLogChannels } = require("./logChannelSettings");
 
 // Discord API codes of a channel the bot cannot see any more.

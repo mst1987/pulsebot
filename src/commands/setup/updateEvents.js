@@ -1,10 +1,10 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { adoptMessage, refreshOverviews } = require("../../services/events/raidOverview");
+const { adoptMessage, refreshOverviews } = require("../../services/events/overview/raidOverview");
 const store = require("../../stores/raidOverviewStore");
 
 // The "Update Events" button of the old overview messages. Such a message is registered and
-// redrawn in the new design (no buttons, refreshes itself, services/events/raidOverview.js);
+// redrawn in the new design (no buttons, refreshes itself, services/events/overview/raidOverview.js);
 // as a slash command it redraws the overviews of the channel's category plus the server-wide
 // overview of the channel, if one lives there.
 module.exports = {

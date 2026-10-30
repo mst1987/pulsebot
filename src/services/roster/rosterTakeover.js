@@ -61,7 +61,7 @@ const rosterRoleSync = require("./rosterRoleSync");
 const { kaderCharacter } = require("./rosterCreate");
 const { rosterCategories } = require("./rosterOptions");
 const { mirrorCategoryRoles } = require("./categoryRoles");
-const { isVersionVisible } = require("../events/mainVersion");
+const { isVersionVisible } = require("../versions/mainVersion");
 
 const Flags = PermissionsBitField.Flags;
 

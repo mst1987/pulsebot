@@ -45,18 +45,18 @@ const { characterMap } = require("../../../stores/characterStore");
 const { specFor, ROLES } = require("../../../config/data/councilSpecs");
 const engine = require("../../../utils/wowsims/engine");
 const { getConfig } = require("../../../stores/settingsStore");
-const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { councilOptsFromQuery, pageCouncilOpts, categoryOptions, pickVersion } = require("../../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../../loot/councilView");
 const { councilHead, councilRosters, councilOverview } = require("../../loot/councilTargets");
-const { councilContent: councilContentFor, featureState } = require("../../../services/events/versionCapabilities");
-const { knownVersion } = require("../../../services/events/mainVersion");
+const { councilContent: councilContentFor, featureState } = require("../../../services/versions/versionCapabilities");
+const { knownVersion } = require("../../../services/versions/mainVersion");
 const {
     manualIndex, manualItemView, manualCandidateSplit, manualBisGaps, searchManualItems, manualBisSpecsView,
 } = require("../../loot/manualBisCouncil");
 const { wowheadPathOf } = require("../../../services/characters/wishItems");
 const { searchItems: wowheadSearch } = require("../../../utils/loot/wowhead");
-const { versionLinks } = require("../../../services/events/versionSettings");
+const { versionLinks } = require("../../../services/versions/versionSettings");
 
 /**
  * GET /api/lootcouncil — roster, BiS gaps and filter options.

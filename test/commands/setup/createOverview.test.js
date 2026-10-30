@@ -1,10 +1,10 @@
 const { mockInteraction } = require("../../helpers/mockInteraction.js");
 
 jest.mock("../../../src/utils/discord/reply.js");
-jest.mock("../../../src/services/events/raidOverview.js");
+jest.mock("../../../src/services/events/overview/raidOverview.js");
 
 const reply = require("../../../src/utils/discord/reply.js");
-const raidOverview = require("../../../src/services/events/raidOverview.js");
+const raidOverview = require("../../../src/services/events/overview/raidOverview.js");
 const createOverview = require("../../../src/commands/setup/createOverview.js");
 
 const ADMIN_ID = "233598324022837249";

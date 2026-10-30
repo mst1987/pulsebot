@@ -37,7 +37,7 @@
 const rosterStore = require("../../stores/rosterStore");
 const councilProfilesStore = require("../../stores/councilProfilesStore");
 const settingsStore = require("../../stores/settingsStore");
-const { knownVersion, isVersionVisible } = require("../events/mainVersion");
+const { knownVersion, isVersionVisible } = require("../versions/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const pugRoleGuard = require("../discord/pugRoleGuard");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");

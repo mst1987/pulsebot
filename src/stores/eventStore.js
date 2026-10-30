@@ -2,7 +2,7 @@ const crypto = require("crypto");
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const { rulesFor, instanceById, compositionFor, LEGACY_VERSION } = require("../config/gameVersions");
-const { mainVersionFor } = require("../services/events/mainVersion");
+const { mainVersionFor } = require("../services/versions/mainVersion");
 
 // Events the EventHelper keeps itself (`source: "eventhelper"`), next to the
 // ones that live at Raid-Helper. One event has exactly one source: nothing here
@@ -59,7 +59,7 @@ function peekAll() {
 /** A stored event as readers get it: a copy of its own, every field present. */
 const handOut = (e) => complete(structuredClone(e));
 
-// Who wants to know that an own event changed (the Orga-Zentrale, services/events/orgaHub.js):
+// Who wants to know that an own event changed (the Orga-Zentrale, services/orgaHub/orgaHub.js):
 // told after every write — created, edited, moved, cancelled, a setup saved or posted.
 const listeners = new Set();
 
@@ -691,7 +691,7 @@ function migrateOverflowModes() {
 // The one version resolver (mainVersion.versionOfEvent, #737) reads an own
 // event's stored version by id through this; it cannot require this store
 // back (cycle). A test's stand-in of mainVersion may lack the hook.
-const versionHook = require("../services/events/mainVersion").registerOwnEventVersions;
+const versionHook = require("../services/versions/mainVersion").registerOwnEventVersions;
 if (typeof versionHook === "function") {
     versionHook((id) => {
         if (!isOwnEventId(id)) return null;

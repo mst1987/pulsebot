@@ -21,12 +21,12 @@ jest.mock("../../../src/services/discord/discord", () => ({
     botCanManageEvents: jest.fn(() => null),
     listCategories: jest.fn(() => []),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
 jest.mock("../../../src/stores/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
 
 const { getConfig, saveConfig } = require("../../../src/stores/settingsStore");
 const discord = require("../../../src/services/discord/discord");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const specHistory = require("../../../src/stores/specHistoryStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { buildChecklist, loadChecklist, setRaidhelperDisabled } = require("../../../src/web/events/raidhelperRetirement");

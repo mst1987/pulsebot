@@ -15,7 +15,7 @@ const { openPayload } = require("../../services/events/eventManageBot");
 const { listEvents } = require("../../stores/eventStore");
 const { whenLabel } = require("../../services/events/eventManage");
 const { respondChoices } = require("../../utils/discord/botLookup");
-const { visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
+const { visibleRows, versionOfEvent } = require("../../services/versions/mainVersion");
 
 // Events that started more than a day ago are no longer offered.
 const LOOKBACK_SECONDS = 24 * 3600;

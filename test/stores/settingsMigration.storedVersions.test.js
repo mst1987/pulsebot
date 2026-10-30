@@ -14,12 +14,12 @@ const configStore = require("../../src/stores/configStore");
 const raidEventStore = require("../../src/stores/raidEventStore");
 const rosterStore = require("../../src/stores/rosterStore");
 const lootStore = require("../../src/stores/lootStore");
-const { versionOfEvent, mainVersionFor } = require("../../src/services/events/mainVersion");
-const { versionOfLog } = require("../../src/services/events/storedVersion");
+const { versionOfEvent, mainVersionFor } = require("../../src/services/versions/mainVersion");
+const { versionOfLog } = require("../../src/services/versions/storedVersion");
 const { listStoredEvents } = require("../../src/services/events/eventSources");
 const { buildVersionContext, eventVersion } = require("../../src/services/characters/characterVersions");
 const { buildAttendanceContext } = require("../../src/services/characters/rosterAttendance");
-const { archiveExport } = require("../../src/services/events/contentVersions");
+const { archiveExport } = require("../../src/services/versions/contentVersions");
 
 const CONFIG_FILE = settingsPath("config.json");
 const OWN_EVENTS_FILE = settingsPath("events.json");

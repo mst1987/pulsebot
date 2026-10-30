@@ -11,13 +11,13 @@ jest.mock("../../../src/services/roster/categoryOrga", () => ({
 jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Pulse" }, { id: "g2", name: "Pulse Forever" }]),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => []),
 }));
 
 const { resolveGuildAccess } = require("../../../src/services/discord/userAccess");
 const categoryOrga = require("../../../src/services/roster/categoryOrga");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const ingestServers = require("../../../src/services/discord/ingestServers");
 
 const CONFIG = {

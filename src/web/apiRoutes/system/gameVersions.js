@@ -1,7 +1,7 @@
 const { ok } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { publicVersions } = require("../../../config/gameVersions");
-const { mainVersionFor, visibleVersions } = require("../../../services/events/mainVersion");
+const { mainVersionFor, visibleVersions } = require("../../../services/versions/mainVersion");
 const { getConfig } = require("../../../stores/settingsStore");
 
 /**

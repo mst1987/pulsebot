@@ -88,7 +88,7 @@ weit, wie das OS es kennt). `counts` hält Plausibilitätswerte für das Wiederh
    synchron (`jsonStore.js`: `writeFileSync` + `rename`), dazwischen kann also kein Schreiben landen – der Stand ist
    über alle Dateien hinweg stimmig, besser als ein `cp`/`rsync` von außen. Asynchrone Schreiber unter `settings/`
    gibt es nicht (geprüft für #691). `sessions.json` (`web/http/auth.js`) und `settings/category-names.json`
-   (`services/discord/categoryNames.js`) schreiben zwar nicht atomar, aber ebenfalls synchron – für den
+   (`services/categories/categoryNames.js`) schreiben zwar nicht atomar, aber ebenfalls synchron – für den
    Schnappschuss genügt das.
 3. Alles andere (`reports/`, `raidplan-maps/`, `sim/`, …) asynchron Datei für Datei: Stimmen Größe und mtime mit
    der Kopie im vorigen Schnappschuss überein, wird die Datei per **Hardlink** übernommen und ihr sha256 aus dem
@@ -209,7 +209,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/raid-events.json` | `raidEventStore.js` | Schnappschuss gesehener Raid-Helper-Events (Cache) samt `versionId` (#737): die Spielversion, die die Kategorie beim ersten Scan spielte – ein späterer Scan überschreibt sie nicht, ältere Einträge stempelt die Start-Migration einmal; siehe [game-versions.md](game-versions.md) „Version fest an jedem Raid“ | nein |
 | `settings/raidhelper-events.json` | `raidhelperEventsStore.js` | Die Raid-Helper-Eventliste (mit Anmeldungen) des letzten Abgleichs, `syncedAt`, letzter Fehler (Cache, #608); seit #927 je Discord-Server unter `servers[guildId]` | nein |
 | `settings/raidhelper-budget.json` | `raidhelperBudgetStore.js` | Anfragen an Raid-Helper je Stunde der letzten 24 h, Sperre nach HTTP 429 (#608); seit #927 je Discord-Server unter `servers[guildId]`, eine Sperre gilt nur für diesen Server. Löschen setzt nur den Zähler zurück, nicht den von Raid-Helper | nein |
-| `settings/category-names.json` | `services/discord/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
+| `settings/category-names.json` | `services/categories/categoryNames.js` | Letzte bekannte Namen der Discord-Kategorien (Cache) | nein |
 | `settings/backup-alerts.json` | `backupAlertStore.js` | Drossel der Sicherungs-Warnung per Discord-DM (#696): je Teil Zustand und Zeitpunkt der letzten Nachricht | nein |
 | `settings/channel-archive.json` | `channelArchiveStore.js` | Archiv-Kategorie, Namensschema, Archiv-Log der Kanäle-Seite | nein |
 | `settings/raidplans.json` | `raidplanStore.js` | Raidpläne: `{ plans: [...] }` mit Boards je Boss, `publicToken` der Freigabe | nein (der Token öffnet nur die Lese-Ansicht) |

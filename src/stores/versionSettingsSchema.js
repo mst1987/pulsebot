@@ -2,7 +2,7 @@
 // the Battle.net realm, the armory and Warcraft Logs templates, the Wowhead
 // path, the softres edition and the version's default raidsheet. Pure
 // normalisers only, read by configSchema.js; what the values are used for is
-// services/events/versionSettings.js.
+// services/versions/versionSettings.js.
 //
 //   blizzardRegion      "eu" | "us" | "kr" | "tw" | ""   Battle.net API region
 //   blizzardRealmSlug   "thunderstrike"                   realm of the profile lookup

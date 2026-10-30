@@ -13,7 +13,7 @@ jest.mock("../../../src/services/discord/guildRoles", () => {
         roleMessageGuild: (entry) => actual.roleMessageGuild(entry, cfg),
     };
 });
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: () => [] }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: () => [] }));
 const mockDiscord = {
     getGuild: jest.fn(),
     fetchGuildMembersCached: jest.fn(async () => []),

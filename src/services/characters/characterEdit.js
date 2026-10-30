@@ -21,7 +21,7 @@ const signupStore = require("../../stores/signupStore");
 const guildBankStore = require("../../stores/guildBankStore");
 const availabilityStore = require("../../stores/availabilityStore");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const logger = require("../../logger").child("characterEdit");
 
 /**

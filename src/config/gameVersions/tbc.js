@@ -72,7 +72,7 @@ module.exports = {
     sheetLayout: true,
     // The loot council's content data (#748): BiS lists (Wowhead), the item table (stats, slots, wear rules),
     // the tier/raid filter and the simulation (WoWSims tbc-new). A version without this block has none of it;
-    // whether it is used is decided in services/events/versionCapabilities.js (#761).
+    // whether it is used is decided in services/versions/versionCapabilities.js (#761).
     councilContent: { bis: true, sim: true, tiers: true, itemTable: true },
     classes,
     instances,

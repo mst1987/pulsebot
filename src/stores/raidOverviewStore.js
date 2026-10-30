@@ -1,4 +1,4 @@
-// The raid overviews of the categories (services/events/raidOverview.js):
+// The raid overviews of the categories (services/events/overview/raidOverview.js):
 // the messages `/createoverview` posted, found again by their message id.
 //
 // `data/settings/raid-overviews.json` = { overviews: [overview], scannedGuilds: [guildId] }

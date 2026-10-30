@@ -31,8 +31,8 @@ jest.mock("../../../../src/stores/rosterStore", () => {
         isClosed: jest.fn(() => false),
     };
 });
-jest.mock("../../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/mainVersion"),
+jest.mock("../../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/mainVersion"),
     // the raid's own version (versionOfEvent is the one resolver; here its stored field)
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),

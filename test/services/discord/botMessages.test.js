@@ -18,7 +18,7 @@ jest.mock("../../../src/services/discord/linkCheck", () => ({
     messageLink: (g, c, m) => `link:${g}/${c}/${m}`,
     messageFound: jest.fn(),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: () => [{ id: "c1", name: "TBC" }] }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: () => [{ id: "c1", name: "TBC" }] }));
 jest.mock("../../../src/stores/orgaHubStore", () => ({ listHubs: () => mockData.hubs || [] }));
 jest.mock("../../../src/stores/availabilityStore", () => ({ listPanels: () => mockData.panels || [] }));
 jest.mock("../../../src/stores/raidOverviewStore", () => ({ listOverviews: () => mockData.overviews || [] }));
