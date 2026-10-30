@@ -82,11 +82,10 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
     const [busy, setBusy] = useState(false);
     const title = session.contentLabel || session.instance || t("history.shared.unknownRaid");
 
-    const fail = (err: unknown) => {
+    // Another server was faster: tell it plainly and reload, the upload is gone.
+    const failText = (err: unknown) => {
         const e = err as ApiError;
-        // Another server was faster: tell it plainly and reload, the upload is gone.
-        onDone(e.code === "already_assigned" ? t("history.waiting.taken") : e.message, true);
-        setBusy(false);
+        return e.code === "already_assigned" ? t("history.waiting.taken") : e.message;
     };
 
     const assign = async (c: InboxCandidate) => {
@@ -94,7 +93,10 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
         try {
             const r = await acceptLootInbox({ id: session.id, event: c.eventId });
             onDone(t("history.inboxCard.accepted", { count: r.added, event: r.eventLabel }));
-        } catch (err) { fail(err); }
+        } catch (err) {
+            onDone(failText(err), true);
+            setBusy(false);
+        }
     };
 
     const dismiss = async () => {
@@ -103,7 +105,10 @@ export function WaitingUpload({ session, onDone }: { session: InboxWaitingSessio
         try {
             await dismissLootInbox(session.id);
             onDone(t("history.inboxCard.dismissed"));
-        } catch (err) { fail(err); }
+        } catch (err) {
+            onDone(failText(err), true);
+            setBusy(false);
+        }
     };
 
     return (
