@@ -146,7 +146,7 @@ function addRaid(eventId, { title = "", user = null, now = Date.now() } = {}) {
 }
 
 /**
- * "n Raids anlegen" (#1035): `count` further raids in one go — the same as
+ * "Auf n Raids aufteilen" (#1035):`count` further raids in one go — the same as
  * `count` times "Weiteren Raid hinzufügen", with one log entry on the primary
  * ("4 Raids angelegt: …"). `titles[i]` names the i-th new raid (else
  * "<Titel> <n>"). The group stays at most MAX_RAIDS raids: a count beyond it
@@ -185,16 +185,17 @@ function addRaids(eventId, { count = 1, titles = [], user = null, now = Date.now
 }
 
 /**
- * How many raids to add for the signups: enough raids for everybody who is
- * signed up (`active` = without a decline or absence — "Vielleicht" and the
- * bench count, as in the pool), at most MAX_RAIDS together, minus the raids
- * the group already has. 0 when nothing is missing.
+ * How many raids the group should have in total for the signups ("Auf 5 Raids
+ * aufteilen"): enough raids for everybody who is signed up (`active` = without
+ * a decline or absence — "Vielleicht" and the bench count, as in the pool), at
+ * most MAX_RAIDS. 0 without signups or size. The client subtracts the raids
+ * the group already has.
  */
-function suggestedRaidCount({ active = 0, size = 0, raids = 1 } = {}) {
+function suggestedRaidTotal({ active = 0, size = 0 } = {}) {
     const people = Number(active) || 0;
     const seats = Number(size) || 0;
     if (people <= 0 || seats <= 0) return 0;
-    return Math.max(0, Math.min(Math.ceil(people / seats), MAX_RAIDS) - (Number(raids) || 1));
+    return Math.min(Math.ceil(people / seats), MAX_RAIDS);
 }
 
 /** The group an add request grows (its primary, raids), or why not. */
@@ -316,6 +317,6 @@ function dissolveRaid(eventId, { user = null, now = Date.now() } = {}) {
 }
 
 module.exports = {
-    groupEvents, primaryOf, placedElsewhere, lineupMembers, groupSummary, groupPlaces, addRaid, addRaids, suggestedRaidCount,
+    groupEvents, primaryOf, placedElsewhere, lineupMembers, groupSummary, groupPlaces, addRaid, addRaids, suggestedRaidTotal,
     dissolveRaid, defaultTitle, closeUp, followPrimary, MAX_RAIDS,
 };

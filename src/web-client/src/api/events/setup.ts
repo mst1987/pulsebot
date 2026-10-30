@@ -136,8 +136,8 @@ export type SetupEditorData = {
     /** By user id; only on the page load — the page keeps it across moves. */
     attendance?: Record<string, SetupAttendance>;
     signupCount?: number;
-    /** #1035: how many further raids the signups fill (ceil(signups / size) minus the raids there, at most 8 in all). */
-    suggestedRaids?: number;
+    /** #1035: how many raids in total the signups fill (ceil(signups / size), at most 8); 0 without signups. */
+    suggestedTotal?: number;
     absent?: number;
     /** How many "nicht zusammen" pairs stand among the signups — what the editor asks about. */
     avoidPairs?: number;

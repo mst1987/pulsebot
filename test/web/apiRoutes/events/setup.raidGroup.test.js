@@ -110,11 +110,11 @@ describe("POST /api/raids/setup/raid-add", () => {
         expect(refreshEventMessage).not.toHaveBeenCalled();
     });
 
-    it("the editor suggests how many raids the signups fill", async () => {
+    it("the editor suggests how many raids in total the signups fill", async () => {
         for (let i = 0; i < 30; i += 1) signupStore.saveSignup(primary.id, `x${i}`, { character: `X${i}`, spec: "Mage-Fire", status: "signed" }, { versionId: "tbc" });
         const view = body(await api.get("/api/raids/setup", { event: primary.id }));
         expect(view.signupCount).toBe(33);
-        expect(view.suggestedRaids).toBe(3);
+        expect(view.suggestedTotal).toBe(4);
     });
 
     it("refuses a Raid-Helper id", async () => {

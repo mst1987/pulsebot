@@ -130,16 +130,29 @@ describe("Weiteren Raid hinzufügen", () => {
         expect(calls("/api/raids/setup/propose")).toHaveLength(0);
     });
 
-    it("offers as many raids as the signups fill (#1035): the number with −/+, the titles as a preview, then fills the group", async () => {
+    it("splits into as many raids as the signups fill (#1035): the total with −/+, the new titles as a preview, then fills the group", async () => {
         const onSwitchRaid = vi.fn();
         const user = userEvent.setup();
-        const tenMan = editorData({ signupCount: 50, suggestedRaids: 4 });
+        const tenMan = editorData({ signupCount: 50, suggestedTotal: 5 });
         await show({ ...tenMan, event: { ...tenMan.event, size: 10 } }, { onSwitchRaid });
         const hint = document.querySelector<HTMLElement>(".se-overbooked")!;
         expect(hint).toHaveTextContent("50 Anmeldungen für 10 Plätze");
-        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.addMany", { count: 4 }) }));
+        expect(t("setup.raidGroup.split", { count: 5 })).toBe("Auf 5 Raids aufteilen");
+        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.split", { count: 5 }) }));
+        const dialog = screen.getByRole("dialog");
+        expect(dialog).toHaveTextContent(t("setup.raidGroup.splitTitle"));
         const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
-        expect(stepper).toHaveTextContent("4");
+        expect(stepper).toHaveTextContent("5");
+        // the total never goes below the raids there + 1
+        await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") }));
+        await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") }));
+        await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") }));
+        expect(stepper).toHaveTextContent("2");
+        expect(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") })).toBeDisabled();
+        expect(screen.getByLabelText(t("setup.raidGroup.titleLabel"))).toHaveValue("Karazhan Donnerstag 2");
+        expect(dialog).toHaveTextContent(t("setup.raidGroup.addTitle"));
+        for (let i = 0; i < 3; i += 1) await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") }));
+        expect(stepper).toHaveTextContent("5");
         expect(screen.queryByLabelText(t("setup.raidGroup.titleLabel"))).not.toBeInTheDocument();
         expect(screen.getByTestId("se-addraid-preview")).toHaveTextContent("Karazhan Donnerstag 2 … Karazhan Donnerstag 5");
         expect(screen.getByRole("switch", { name: t("setup.raidGroup.fill") })).toBeChecked();
@@ -147,7 +160,7 @@ describe("Weiteren Raid hinzufügen", () => {
         await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") }));
         expect(screen.getByTestId("se-addraid-preview")).toHaveTextContent("Karazhan Donnerstag 2 … Karazhan Donnerstag 6");
         await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") }));
-        await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: t("setup.raidGroup.addMany", { count: 4 }) }));
+        await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: t("setup.raidGroup.split", { count: 5 }) }));
         await waitFor(() => expect(calls("/api/raids/setup/propose")).toHaveLength(1));
         expect(calls("/api/raids/setup/raid-add")[0][2]).toEqual({ event: EVENT_ID, count: 4 });
         // the group already has placed raiders (GROUP: 3 in raid 1): only the free places are filled
@@ -158,10 +171,12 @@ describe("Weiteren Raid hinzufügen", () => {
     it("stops the number at 8 raids in all", async () => {
         const user = userEvent.setup();
         const full: RaidGroup = { ...GROUP, count: 7, raids: [...GROUP.raids, ...[3, 4, 5, 6, 7].map((i) => ({ ...GROUP.raids[1], id: `ev${i}`, index: i, title: `Karazhan Donnerstag ${i}` }))] };
-        await show(editorData({ signupCount: 200, suggestedRaids: 1, raidGroup: full }));
-        await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: t("setup.raidGroup.add") }));
+        await show(editorData({ signupCount: 200, suggestedTotal: 8, raidGroup: full }));
+        await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: t("setup.raidGroup.split", { count: 8 }) }));
         const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
+        expect(stepper).toHaveTextContent("8");
         expect(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") })).toBeDisabled();
+        expect(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") })).toBeDisabled();
         expect(screen.getByLabelText(t("setup.raidGroup.titleLabel"))).toHaveValue("Karazhan Donnerstag 8");
     });
 
@@ -169,12 +184,13 @@ describe("Weiteren Raid hinzufügen", () => {
         await switchLang("en");
         try {
             const user = userEvent.setup();
-            await show(editorData({ signupCount: 50, suggestedRaids: 3 }));
-            await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: "Create 3 raids" }));
-            expect(screen.getByRole("group", { name: "Number" })).toHaveTextContent("3");
+            await show(editorData({ signupCount: 50, suggestedTotal: 4 }));
+            await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: "Split into 4 raids" }));
+            expect(screen.getByRole("group", { name: "Raids in total" })).toHaveTextContent("4");
             expect(screen.getByText("New raids")).toBeInTheDocument();
+            expect(screen.getByText("Split into several raids")).toBeInTheDocument();
             expect(screen.getByRole("switch", { name: "Fill automatically afterwards" })).toBeChecked();
-            expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Create 3 raids" })).toBeInTheDocument();
+            expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Split into 4 raids" })).toBeInTheDocument();
         } finally {
             await switchLang("de");
         }

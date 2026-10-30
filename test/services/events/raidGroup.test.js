@@ -144,15 +144,15 @@ describe("adding several raids at once (#1035)", () => {
 });
 
 describe("the suggested number of raids (#1035)", () => {
-    it("50 signups for a 10-man that already has 2 raids: 3 more", () => {
-        expect(raidGroup.suggestedRaidCount({ active: 50, size: 10, raids: 2 })).toBe(3);
+    it("50 signups for a 10-man: 5 raids in total", () => {
+        expect(raidGroup.suggestedRaidTotal({ active: 50, size: 10 })).toBe(5);
     });
-    it("rounds up, stops at 8 raids together and is 0 when nothing is missing", () => {
-        expect(raidGroup.suggestedRaidCount({ active: 41, size: 10, raids: 1 })).toBe(4);
-        expect(raidGroup.suggestedRaidCount({ active: 200, size: 10, raids: 1 })).toBe(7);
-        expect(raidGroup.suggestedRaidCount({ active: 9, size: 10, raids: 1 })).toBe(0);
-        expect(raidGroup.suggestedRaidCount({ active: 30, size: 10, raids: 4 })).toBe(0);
-        expect(raidGroup.suggestedRaidCount({ active: 30, size: 0 })).toBe(0);
+    it("rounds up, stops at 8 raids and is 0 without signups or size", () => {
+        expect(raidGroup.suggestedRaidTotal({ active: 41, size: 10 })).toBe(5);
+        expect(raidGroup.suggestedRaidTotal({ active: 200, size: 10 })).toBe(8);
+        expect(raidGroup.suggestedRaidTotal({ active: 9, size: 10 })).toBe(1);
+        expect(raidGroup.suggestedRaidTotal({ active: 0, size: 10 })).toBe(0);
+        expect(raidGroup.suggestedRaidTotal({ active: 30, size: 0 })).toBe(0);
     });
     it("the editor counts who is signed up — maybe and bench too, not who is absent", () => {
         for (let i = 0; i < 12; i += 1) signupStore.saveSignup(primary.id, `m${i}`, { character: `M${i}`, spec: "Mage-Fire", status: i < 4 ? "tentative" : "bench" }, { versionId: "tbc" });
@@ -160,7 +160,7 @@ describe("the suggested number of raids (#1035)", () => {
         const signups = signupStore.listSignups(primary.id);
         const view = editor.editorView(eventStore.getEvent(primary.id), { canWrite: true, signups });
         expect(view.signupCount).toBe(26);
-        expect(view.suggestedRaids).toBe(2);
+        expect(view.suggestedTotal).toBe(3);
     });
 });
 

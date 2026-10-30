@@ -516,7 +516,7 @@ const postMoveRaid = withUser({ orgaScoped: SOURCE_AND_TARGET, write: "raids", c
 
 /**
  * POST /api/raids/setup/raid-add — body `{ event, title?, count? }`: "Weiteren Raid hinzufügen" (#811),
- * with `count` > 1 several at once ("5 Raids anlegen", #1035, titled "<Titel> <n>"; the
+ * with `count` > 1 several at once ("Auf 5 Raids aufteilen" sends the 4 new ones, #1035, titled "<Titel> <n>"; the
  * group stays at most 8 raids — 400 too_many beyond). Answers `{ event: <first new raid id>,
  * events: [ids], title, raidGroup, message }`; the signup message is redrawn once.
  */

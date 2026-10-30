@@ -42,7 +42,7 @@ const { suggestSearch } = require("./raidSearch");
 const { eventLang } = require("../discord/botLanguage");
 const signupStore = require("../../stores/events/signupStore");
 const { inRaidGroup, signupEventIdOf } = require("../../utils/raidGroup");
-const { groupEvents, placedElsewhere, groupSummary, suggestedRaidCount } = require("../events/raidGroup");
+const { groupEvents, placedElsewhere, groupSummary, suggestedRaidTotal } = require("../events/raidGroup");
 
 
 function fail(code, error) {
@@ -715,8 +715,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         ...(attendance ? { attendance } : {}),
         groupCount,
         signupCount,
-        // "5 Raids anlegen" (#1035): further raids the signups fill, by the raid's size
-        suggestedRaids: suggestedRaidCount({ active: signupCount, size: event.size, raids: head.raidGroup ? head.raidGroup.count : 1 }),
+        // "Auf 5 Raids aufteilen" (#1035): raids in total the signups fill, by the raid's size
+        suggestedTotal: suggestedRaidTotal({ active: signupCount, size: event.size }),
         absent: signups.filter((s) => s.status === "absence").length,
         avoidPairs,
         pingText: pingTextOf(event, eventLang(event)),

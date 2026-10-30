@@ -791,9 +791,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const isFurther = !!thisRaid && thisRaid.index > 1;
     const nextIndex = group ? Math.max(...group.raids.map((r) => r.index)) + 1 : 2;
     const primaryTitle = group ? (group.raids.find((r) => r.index === 1)?.title || data.event.title) : data.event.title;
-    // #1035: how many more raids the signups fill, and how many the group can still take (8 in all)
-    const roomForRaids = Math.max(0, 8 - (group ? group.count : 1));
-    const suggestedRaids = Math.min(roomForRaids, Math.max(0, data.suggestedRaids || 0));
+    // #1035: "Auf 5 Raids aufteilen" — the raids in total the signups fill (8 at most, as raidGroup.MAX_RAIDS); the server gets the new ones
+    const MAX_GROUP_RAIDS = 8;
+    const raidCount = group ? group.count : 1;
+    const suggestedTotal = Math.min(MAX_GROUP_RAIDS, Math.max(0, data.suggestedTotal || 0));
+    const splitTotal = suggestedTotal > raidCount ? suggestedTotal : 0;
     const groupItems: (MoreItem | "sep")[] = cancelled ? [] : [
         ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
         ...(isFurther ? [{
@@ -912,7 +914,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
                         onClick={() => setDialog("addRaid")}
                     >
-                        {suggestedRaids > 1 ? t("setup.raidGroup.addMany", { count: suggestedRaids }) : t("setup.raidGroup.add")}
+                        {splitTotal ? t("setup.raidGroup.split", { count: splitTotal }) : t("setup.raidGroup.add")}
                     </Button>
                 </div>
             )}
@@ -998,7 +1000,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={raidCtx} search={data.search} />
             <AddRaidModal open={dialog === "addRaid"} onClose={() => setDialog(null)} suggested={`${primaryTitle} ${nextIndex}`} primaryTitle={primaryTitle} nextIndex={nextIndex}
-                initialCount={Math.max(1, suggestedRaids)} max={roomForRaids} running={grouping}
+                current={raidCount} initialTotal={splitTotal || raidCount + 1} max={MAX_GROUP_RAIDS} running={grouping}
                 onCreate={(title, count, fill) => void addRaid(title, count, fill)}
             />
             {editPerson && <SignupEditModal key={editPerson.userId} eventId={eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}

@@ -83,17 +83,18 @@ export function RaidTabs({ group, current, moving, editable, elsewhere, onSwitch
 }
 
 /** The titles the server gives further raids: "<Titel> 2", "<Titel> 3" … from `from` on. */
-export function raidTitles(base: string, from: number, count: number): string[] {
+function raidTitles(base: string, from: number, count: number): string[] {
     return Array.from({ length: count }, (_, i) => `${base} ${from + i}`);
 }
 
 /**
- * "Weiteren Raid hinzufügen": how many (−/+, starting at the suggestion from the
- * signups, #1035), the title of a single new raid ("<Titel> 2", editable) or the
- * titles of several ("Karazhan 2 … Karazhan 5"), and whether the group is filled
- * right after.
+ * "Weiteren Raid hinzufügen" / "Auf 5 Raids aufteilen" (#1035): the raids in
+ * total (−/+, from the raids there + 1 up to `max`, starting at the suggestion
+ * from the signups), the title of a single new raid ("<Titel> 2", editable) or
+ * the titles of the new ones ("Karazhan 2 … Karazhan 5"), and whether the group
+ * is filled right after. `onCreate` gets the number of NEW raids.
  */
-export function AddRaidModal({ open, onClose, suggested, primaryTitle, nextIndex, initialCount = 1, max = 7, running, onCreate }: {
+export function AddRaidModal({ open, onClose, suggested, primaryTitle, nextIndex, current = 1, initialTotal, max = 8, running, onCreate }: {
     open: boolean;
     onClose: () => void;
     /** the title offered for a single new raid */
@@ -102,37 +103,43 @@ export function AddRaidModal({ open, onClose, suggested, primaryTitle, nextIndex
     primaryTitle: string;
     /** the index the first new raid gets */
     nextIndex: number;
-    /** the suggested number of new raids */
-    initialCount?: number;
-    /** how many more raids the group can take (8 in all) */
+    /** the raids the group has now */
+    current?: number;
+    /** the suggested number of raids in total */
+    initialTotal?: number;
+    /** the most raids a group can have */
     max?: number;
     running: boolean;
     onCreate: (title: string, count: number, fill: boolean) => void;
 }) {
     const t = useT();
-    const limit = Math.max(1, max);
+    const min = current + 1;
+    const limit = Math.max(min, max);
+    const start = Math.min(limit, Math.max(min, initialTotal ?? min));
     const [title, setTitle] = useState(suggested);
-    const [count, setCount] = useState(Math.min(limit, Math.max(1, initialCount)));
+    const [total, setTotal] = useState(start);
     const [fill, setFill] = useState(true);
     useEffect(() => {
         if (!open) return;
         setTitle(suggested);
-        setCount(Math.min(limit, Math.max(1, initialCount)));
+        setTotal(start);
         setFill(true);
-    }, [open, suggested, initialCount, limit]);
+    }, [open, suggested, start]);
+    const count = total - current;
     const single = count === 1;
     const ready = !single || Boolean(title.trim());
     const create = () => { if (ready) onCreate(single ? title.trim() : "", count, fill); };
     const titles = raidTitles(primaryTitle, nextIndex, count);
     return (
         <Modal
-            open={open} onClose={onClose} icon="members" tone="raids" kicker={t("setup.raidGroup.add")} title={t("setup.raidGroup.addTitle")} width={520}
+            open={open} onClose={onClose} icon="members" tone="raids" kicker={primaryTitle}
+            title={single ? t("setup.raidGroup.addTitle") : t("setup.raidGroup.splitTitle")} width={520}
             hint={t("setup.raidGroup.addText")}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
                     <Button icon="members" running={running} disabled={!ready} onClick={create}>
-                        {single ? t("setup.raidGroup.create") : t("setup.raidGroup.addMany", { count })}
+                        {single ? t("setup.raidGroup.create") : t("setup.raidGroup.split", { count: total })}
                     </Button>
                 </>
             )}
@@ -140,7 +147,7 @@ export function AddRaidModal({ open, onClose, suggested, primaryTitle, nextIndex
             <form className="se-addraid-form" onSubmit={(e) => { e.preventDefault(); create(); }}>
                 <Field className="field se-addraid" label={t("setup.raidGroup.countLabel")}>
                     <NumberStepper
-                        value={count} min={1} max={limit} onChange={setCount}
+                        value={total} min={min} max={limit} onChange={setTotal}
                         ariaLabel={t("setup.raidGroup.countLabel")} lessLabel={t("setup.raidGroup.countLess")} moreLabel={t("setup.raidGroup.countMore")}
                     />
                 </Field>
