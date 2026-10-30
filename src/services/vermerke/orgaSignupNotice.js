@@ -14,14 +14,13 @@
 const discord = require("../discord/discord");
 const { getConfig } = require("../../stores/settingsStore");
 const hubs = require("../../stores/orgaHubStore");
-const { noteChannelFor } = require("../signups/signupNotes");
-const { shortFor } = require("./vermerkeShort");
+const { noteChannelFor, plainText } = require("../signups/signupNotes");
+const { shortFor, levelRank } = require("./vermerkeShort");
 const { card, CARD_TEXT_LIMIT } = require("../../utils/discord/card");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const queue = require("./orgaSignupQueue");
 
 const LEVEL_LABELS = { hint: "Hinweis", warning: "Warnung", shadowban: "Shadowban" };
-const LEVEL_RANK = { hint: 1, warning: 2, shadowban: 3 };
 const REASON_LABELS = {
     late_signoff: "Späte Abmeldung",
     no_show: "Nicht erschienen",
@@ -37,18 +36,10 @@ const LINES_LIMIT = CARD_TEXT_LIMIT - 400;
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
-/** Markdown and @ of a name or title made harmless (no formatting, no ping). */
-function plainText(text) {
-    return String(text || "")
-        .replace(/[\\*_~`|>[\]()<]/g, (c) => `\\${c}`)
-        .replace(/@/g, "@​")
-        .replace(/\s+/g, " ")
-        .trim();
-}
-
 /** Does this level count for the server's switch ("warning" = warning or shadowban)? */
 function levelCounts(level, switchLevel) {
-    return (LEVEL_RANK[level] || 0) >= (LEVEL_RANK[switchLevel] || LEVEL_RANK.warning);
+    const floor = levelRank(switchLevel) > 0 ? levelRank(switchLevel) : levelRank("warning");
+    return levelRank(level) >= floor;
 }
 
 /** "Nicht erschienen ×3 · Verhalten" - most frequent first. */
@@ -96,12 +87,31 @@ function buildNoticePosts(lines) {
     }));
 }
 
+/** The server a channel lives on, from the bot's cache; "" = unknown. */
+function guildOfChannel(channelId) {
+    try {
+        const client = typeof discord.getClient === "function" ? discord.getClient() : null;
+        const channel = client && client.channels && client.channels.cache ? client.channels.cache.get(str(channelId)) : null;
+        return channel ? str(channel.guildId || (channel.guild && channel.guild.id)) : "";
+    } catch {
+        return "";
+    }
+}
+
 /** Where a raid category's hint goes on this server: Orga-Zentrale, else the orga channel. "" = nowhere. */
 function channelFor(categoryId, guildId, config) {
-    const reachable = (id) => discord.channelVisible(id);
+    // A channel on another server never takes the post (postPayload would refuse
+    // it with wrong_guild): the category's own channel then falls back to the
+    // server's default instead of losing the line.
+    const onGuild = (id) => {
+        if (!discord.channelVisible(id)) return false;
+        const owner = guildOfChannel(id);
+        return !owner || owner === str(guildId);
+    };
     const hub = categoryId ? hubs.getHub(categoryId) : null;
-    if (hub && hub.channelId && str(hub.guildId) === str(guildId) && reachable(hub.channelId)) return hub.channelId;
-    return noteChannelFor(categoryId, config, { reachable, guildId }) || "";
+    if (hub && hub.channelId && str(hub.guildId) === str(guildId) && onGuild(hub.channelId)) return hub.channelId;
+    const channelId = noteChannelFor(categoryId, config, { reachable: onGuild, guildId }) || "";
+    return channelId && onGuild(channelId) ? channelId : "";
 }
 
 /**

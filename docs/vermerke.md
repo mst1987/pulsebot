@@ -198,8 +198,9 @@ Discord. **Off by default**, switched per server in the dialog "Einstellungen" o
 web, bot, several raids at once, a raid group — one line per night, i.e. per raid of the group the person signs up
 for). A later change of status or role, a sign-off and a new signup bring no second line: the mark in
 `data/settings/orga-signup-notices.json` (`orgaSignupNoticeStore`, `{ events: { [eventId]: { [userId]: at } } }`,
-90 days) is set at the first signup while the switch is on. An entry by the orga for somebody else (`byOrga` without
-an `actorId` or with one other than the person) brings none — the orga knows already. **Raid-Helper** signups never pass
+90 days) is set at **every** first signup — also with the switch off and when the orga entered the person, so
+switching on later or signing off and up again never makes a line. An entry by the orga for somebody else (`byOrga`
+without an `actorId` or with one other than the person) sets the mark but brings no line — the orga knows already. **Raid-Helper** signups never pass
 `submitSignup` and bring none (no extra API calls).
 
 **Gathering.** `src/services/vermerke/orgaSignupQueue.js` (on the raider's path, reads no Vermerk) queues per server
@@ -218,10 +219,13 @@ Anmeldung mit Vermerk            (or "3 Anmeldungen mit Vermerk")
 Nur für die Orga – die Person sieht das nicht.
 ```
 
-Level as a word, reasons with their count (`×n` from 2 on), **no free text, no author**. Names and titles are
+The name is always the mention plus the character of the signup; without a character the display name (web and bot
+alike). Level as a word, reasons with their count (`×n` from 2 on), **no free text, no author**. Names and titles are
 escaped (no Markdown, no ping besides the mention). **Where:** the category's Orga-Zentrale (`orgaHubStore`) when
 it lives on the raid's server and the bot sees it, otherwise the orga channel (`signupNotes.noteChannelFor`), posted
-with `{ guildId }` of that server. **No channel:** only a log line, nothing else. Never a public channel, a raid
+with `{ guildId }` of that server. A category's own channel on another server is skipped for the server's default.
+**No channel:** only a log line, nothing else. Everybody who can read that orga channel sees the line — the circle
+can be wider than the one of `maySeeShort`, and that is intended (the orga picks the channel). Never a public channel, a raid
 post, a thread or a DM; a failed post is logged and dropped. The raider's answer is the same with the switch on or
 off (`test/services/signups/signupService.orgaNotice.test.js`).
 

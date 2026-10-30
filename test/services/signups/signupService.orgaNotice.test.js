@@ -80,13 +80,13 @@ beforeEach(() => {
 afterEach(() => queue.clearPending());
 
 describe("signupService - orga's hint at signup (#983)", () => {
-    it("queues a first signup with the raid and the account name", async () => {
+    it("queues a first signup with the raid and the character (not the account name)", async () => {
         mockEvents.set("eh-1", raid("eh-1"));
         const res = await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW, accountName: "Anna" });
         expect(res.error).toBeUndefined();
         expect(queued()).toBe(1);
         await queue.flush("A");
-        expect(handler).toHaveBeenCalledWith("A", [expect.objectContaining({ eventId: "eh-1", userId: ANNA, name: "Anna", title: "Raid eh-1" })]);
+        expect(handler).toHaveBeenCalledWith("A", [expect.objectContaining({ eventId: "eh-1", userId: ANNA, name: "Nerathil", title: "Raid eh-1" })]);
     });
 
     it("queues once per raid: not on a change, a sign-off or signing up again", async () => {
@@ -104,7 +104,30 @@ describe("signupService - orga's hint at signup (#983)", () => {
         mockConfig = {};
         await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW });
         expect(queued()).toBe(0);
-        expect(marks.hasMark("eh-1", ANNA)).toBe(false);
+        // the first signup is still marked: switching on later never makes it a first one again
+        expect(marks.hasMark("eh-1", ANNA)).toBe(true);
+        expect(marks.hasMark("eh-1", BERT)).toBe(false);
+    });
+
+    it("A: switch on only after the first signup - signing off and up again gives no line", async () => {
+        mockEvents.set("eh-1", raid("eh-1"));
+        mockConfig = {};
+        await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW });
+        mockConfig = SWITCH_ON;
+        await service.submitSignup("eh-1", ANNA, { status: "absence" }, { now: NOW });
+        await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW });
+        expect(queued()).toBe(0);
+        await queue.flush("A");
+        expect(handler).not.toHaveBeenCalled();
+    });
+
+    it("B: entered by the orga, then signed off and up again by the person - no line", async () => {
+        mockEvents.set("eh-1", raid("eh-1"));
+        await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW, byOrga: true, actorId: "999000999000999000" });
+        expect(marks.hasMark("eh-1", ANNA)).toBe(true);
+        await service.submitSignup("eh-1", ANNA, { status: "absence" }, { now: NOW });
+        await service.submitSignup("eh-1", ANNA, SIGN, { now: NOW });
+        expect(queued()).toBe(0);
     });
 
     it("skips an entry by the orga for somebody else, but not the orga signing up itself", async () => {

@@ -102,26 +102,30 @@ function enqueue(guildId, item) {
 }
 
 /**
- * Called by signupService.submitSignup after every saved signup. Queues the
- * person when it is the first signup for this raid (a group's first raid, #811:
- * one line per night) on a server with the hint switched on. Returns whether it
- * queued. Never throws.
+ * Called by signupService.submitSignup after every saved signup. Every first
+ * signup for this raid (a group's first raid, #811: one line per night) sets the
+ * mark - also with the switch off and when the orga entered the person, so a
+ * later sign-off and signup again never counts as a first one. Only queued when
+ * the person signed up themselves on a server with the hint switched on.
+ * Returns whether it queued. Never throws.
  * @param {object} event the raid the signup was saved at
  * @param {string} userId
  * @param {object|null} previous the signup before the change
  * @param {object} saved the signup as stored
- * @param {{ now?: number, config?: object, name?: string }} [opts]
+ * @param {{ now?: number, config?: object, name?: string, byOrga?: boolean }} [opts]
  */
-function noteSignup(event, userId, previous, saved, { now = Date.now(), config, name = "" } = {}) {
+function noteSignup(event, userId, previous, saved, { now = Date.now(), config, name = "", byOrga = false } = {}) {
     try {
         const uid = str(userId);
         if (!event || !uid || !isFirstSignup(previous, saved)) return false;
+        if (!marks.markOnce(event.id, uid, { now })) return false;
+        if (byOrga === true) return false;
         const guildId = guildOfEvent(event);
         if (!guildId || !orgaNoticeOf(guildId, { config }).enabled) return false;
-        if (!marks.markOnce(event.id, uid, { now })) return false;
         enqueue(guildId, {
             eventId: str(event.id), categoryId: str(event.categoryId), title: str(event.title), startTime: Number(event.startTime) || 0,
-            userId: uid, name: str(name) || str(saved.character), at: now,
+            // The line reads "@mention (Char)"; without a character the display name instead (web and bot alike)
+            userId: uid, name: str(saved.character) || str(name), at: now,
         });
         return true;
     } catch (e) {

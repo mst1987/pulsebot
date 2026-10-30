@@ -284,7 +284,7 @@
         "readOnly": "Nur ansehen – ändern darf, wer bei Vermerke schreiben darf.",
         "loadError": "Einstellungen konnten nicht geladen werden: {message}",
         "badThreshold": "Mindestens ein Wert liegt außerhalb des erlaubten Bereichs.",
-        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit die Schwellen zum richtigen Server gehören.",
+        "serverSwitched": "Du hast inzwischen den Server gewechselt. Lade die Seite neu, damit die Einstellungen zum richtigen Server gehören.",
         "failed": "Speichern hat nicht geklappt: {message}"
     },
     "members": {

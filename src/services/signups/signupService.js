@@ -617,7 +617,8 @@ async function submitSignup(eventId, userId, input = {}, {
     signalRecorder.recordSignoff(event, uid, previous, saved.signup, { now, byOrga: enteredByOrga, config, name: accountName });
     // #983 a raider's first signup goes into the orga's two-minute batch; the
     // Vermerke are only read in the bot process and this answer never changes.
-    if (!enteredByOrga) orgaSignupQueue.noteSignup(event, uid, previous, saved.signup, { now, config, name: accountName });
+    // Always called: the first-signup mark is set even when the orga entered it (only the queueing is skipped).
+    orgaSignupQueue.noteSignup(event, uid, previous, saved.signup, { now, config, name: accountName, byOrga: enteredByOrga });
     return { signup: saved.signup, event: lock.event, waitlisted: overflow.waitlisted, locked: lock.locked, notice };
 }
 

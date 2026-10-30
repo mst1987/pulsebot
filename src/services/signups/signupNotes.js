@@ -158,5 +158,5 @@ async function postSignupNote(event, signup, previous, { config = getConfig(), b
 
 module.exports = {
     NOTE_MODES, NOTE_STATUSES, MIN_NOTE, MAX_NOTE,
-    noteMode, isNoteStatus, noteChannelId, noteChannelFor, hasNewNote, buildNotePost, postSignupNote,
+    noteMode, isNoteStatus, noteChannelId, noteChannelFor, hasNewNote, buildNotePost, postSignupNote, plainText,
 };

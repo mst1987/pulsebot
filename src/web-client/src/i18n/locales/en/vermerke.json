@@ -284,7 +284,7 @@
         "readOnly": "View only – changes need write access to Vermerke.",
         "loadError": "Could not load the settings: {message}",
         "badThreshold": "At least one value is outside its allowed range.",
-        "serverSwitched": "You switched the server in the meantime. Reload the page so the thresholds belong to the right server.",
+        "serverSwitched": "You switched the server in the meantime. Reload the page so the settings belong to the right server.",
         "failed": "Saving did not work: {message}"
     },
     "members": {

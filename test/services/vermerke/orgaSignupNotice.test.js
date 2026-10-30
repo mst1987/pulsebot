@@ -5,9 +5,11 @@ const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 const mockVisible = new Set();
+const mockChannelGuild = new Map();
 jest.mock("../../../src/services/discord/discord", () => ({
     postPayload: jest.fn(async () => ({ id: "m1" })),
     channelVisible: jest.fn((id) => mockVisible.has(id)),
+    getClient: () => ({ channels: { cache: { get: (id) => (mockChannelGuild.has(id) ? { guildId: mockChannelGuild.get(id) } : undefined) } } }),
 }));
 let mockHub = null;
 jest.mock("../../../src/stores/orgaHubStore", () => ({
@@ -43,6 +45,7 @@ beforeEach(() => {
     mockVisible.clear();
     mockVisible.add(HUB).add(ORGA).add(OWN);
     mockHub = null;
+    mockChannelGuild.clear();
 });
 afterAll(() => notes.useFile(null));
 
@@ -123,6 +126,17 @@ describe("services/vermerke/orgaSignupNotice", () => {
         mockVisible.delete(HUB);
         await notice.postBatch("A", [item(U)], { config: config("warning", { categorySignupNoteChannel: { c1: OWN } }), base: BASE });
         expect(discord.postPayload.mock.calls[0][0]).toBe(OWN);
+    });
+
+    it("falls back to the server's channel when the category's own channel lives on another server", async () => {
+        notes.addEntry("A", U, { level: "warning", reason: "behavior" }, by);
+        mockChannelGuild.set(OWN, "B").set(ORGA, "A");
+        const res = await notice.postBatch("A", [item(U)], { config: config("warning", { categorySignupNoteChannel: { c1: OWN } }), base: BASE });
+        expect(res).toEqual({ posted: 1, lines: 1, noChannel: 0 });
+        expect(discord.postPayload.mock.calls[0][0]).toBe(ORGA);
+        // the server's default on another server as well: nowhere
+        mockChannelGuild.set(ORGA, "B");
+        expect(notice.channelFor("c1", "A", config("warning", { categorySignupNoteChannel: { c1: OWN } }))).toBe("");
     });
 
     it("only logs without a channel", async () => {

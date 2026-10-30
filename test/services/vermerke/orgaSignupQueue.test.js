@@ -52,10 +52,27 @@ describe("services/vermerke/orgaSignupQueue", () => {
         expect(queue.isFirstSignup(null, null)).toBe(false);
     });
 
-    it("queues nothing while the server's switch is off, and sets no mark", () => {
+    it("queues nothing while the server's switch is off, but sets the mark", () => {
         expect(queue.noteSignup(raid(), U, null, signedUp, { now: NOW, config: {} })).toBe(false);
         expect(queue.pendingCounts()).toEqual({});
-        expect(marks.hasMark("e1", U)).toBe(false);
+        expect(marks.hasMark("e1", U)).toBe(true);
+    });
+
+    it("no line when the switch goes on after the first signup and the person signs off and up again", () => {
+        queue.setFlushHandler(jest.fn());
+        expect(queue.noteSignup(raid(), U, null, signedUp, { now: NOW, config: {} })).toBe(false);
+        expect(queue.noteSignup(raid(), U, signedUp, absence, { now: NOW, config: on() })).toBe(false);
+        expect(queue.noteSignup(raid(), U, absence, signedUp, { now: NOW, config: on() })).toBe(false);
+        expect(queue.pendingCounts()).toEqual({});
+    });
+
+    it("no line when the orga entered the person, also not after a sign-off and a signup of their own", () => {
+        queue.setFlushHandler(jest.fn());
+        expect(queue.noteSignup(raid(), U, null, signedUp, { now: NOW, config: on(), byOrga: true })).toBe(false);
+        expect(marks.hasMark("e1", U)).toBe(true);
+        expect(queue.noteSignup(raid(), U, signedUp, absence, { now: NOW, config: on() })).toBe(false);
+        expect(queue.noteSignup(raid(), U, absence, signedUp, { now: NOW, config: on() })).toBe(false);
+        expect(queue.pendingCounts()).toEqual({});
     });
 
     it("batches the first signups of a server and hands them over after two minutes", async () => {
@@ -63,7 +80,7 @@ describe("services/vermerke/orgaSignupQueue", () => {
         queue.setFlushHandler(handler);
         expect(queue.noteSignup(raid(), U, null, signedUp, { now: NOW, config: on(), name: "Zed" })).toBe(true);
         jest.advanceTimersByTime(60 * 1000);
-        expect(queue.noteSignup(raid({ id: "e2" }), V, null, signedUp, { now: NOW, config: on() })).toBe(true);
+        expect(queue.noteSignup(raid({ id: "e2" }), V, null, { status: "primary" }, { now: NOW, config: on(), name: "Vee" })).toBe(true);
         expect(queue.pendingCounts()).toEqual({ A: 2 });
         jest.advanceTimersByTime(queue.BUFFER_MS - 60 * 1000 - 1);
         expect(handler).not.toHaveBeenCalled();
@@ -71,9 +88,10 @@ describe("services/vermerke/orgaSignupQueue", () => {
         await Promise.resolve();
         expect(handler).toHaveBeenCalledTimes(1);
         expect(handler).toHaveBeenCalledWith("A", [
-            { eventId: "e1", categoryId: "c1", title: "Karazhan", startTime: 1800000000, userId: U, name: "Zed", at: NOW },
-            // no account name: the character
-            expect.objectContaining({ eventId: "e2", userId: V, name: "Zedchar" }),
+            // the character wins over the account name (web and bot alike)
+            { eventId: "e1", categoryId: "c1", title: "Karazhan", startTime: 1800000000, userId: U, name: "Zedchar", at: NOW },
+            // no character: the display name
+            expect.objectContaining({ eventId: "e2", userId: V, name: "Vee" }),
         ]);
         expect(queue.pendingCounts()).toEqual({});
     });
