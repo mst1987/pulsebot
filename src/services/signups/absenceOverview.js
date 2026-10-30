@@ -32,6 +32,8 @@ const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
+const { scopeCovers, scopeOf, scopeView, charactersView } = require("./availabilityScope");
+const { categoryContext, displayServerOf } = require("../categories/categoryGuild");
 
 const HINT_MIN = 3;
 const HINT_OF = 4;
@@ -95,11 +97,53 @@ function categoryNameOf(categoryId, categoryNames, events = []) {
     return hit ? str(hit.categoryName) : "";
 }
 
-/** Whether an entry covers a raid: its day and, for an entry of one category, that category. */
+/** Whether an entry covers a raid: its day and its scope (server + category, availabilityScope.js). */
 function entryCovers(entry, event) {
     const day = dayOf(event.startTime);
     if (day < entry.from || day > entry.to) return false;
-    return !entry.categoryId || entry.categoryId === str(event.categoryId);
+    return scopeCovers(entry, event);
+}
+
+/** The categories an entry names, or null when it covers every category of a server (or every raid). */
+function entryCategories(entry) {
+    const scope = scopeOf(entry);
+    if (!scope || scope.some((s) => !s.categoryIds.length)) return null;
+    return [...new Set(scope.flatMap((s) => s.categoryIds))];
+}
+
+/**
+ * The active categories of each server (displayServerOf), read lazily and once
+ * per overview: the category context reads several stores, so only an entry
+ * covering a whole server asks for it.
+ */
+function serverCategoryIndex(config) {
+    let ctx = null;
+    const memo = new Map();
+    return (guildId) => {
+        const gid = str(guildId);
+        if (!memo.has(gid)) {
+            if (!ctx) ctx = categoryContext(config);
+            memo.set(gid, gid ? activeCategories(config).filter((id) => displayServerOf(id, ctx) === gid) : []);
+        }
+        return memo.get(gid);
+    };
+}
+
+/**
+ * Whether an entry shows in an overview filtered by category. A part naming
+ * categories shows when one of them is picked; a part covering a whole server
+ * stands for that server's categories only - never for another server's. Only
+ * an older entry without any scope (scopeOf -> null) shows everywhere; with no
+ * filter, a server-wide part whose server lists no active category still shows.
+ */
+function entryInFilter(entry, { picked, inPick, inCategory, serverCategories }) {
+    const scope = scopeOf(entry);
+    if (!scope) return true;
+    return scope.some((s) => {
+        const ids = s.categoryIds.length ? s.categoryIds : serverCategories(s.guildId);
+        if (!s.categoryIds.length && !ids.length) return !picked.length;
+        return ids.some((id) => inPick(id) && inCategory(id));
+    });
 }
 
 /** What a raider plays, as the overview shows them: the signup's first character, else the profile's first. */
@@ -169,6 +213,7 @@ function latestSignup(userId, raids, signups) {
 
 function periodView(entry, { withReasons, categoryNames, now }) {
     const today = todayOf(now);
+    const cats = entryCategories(entry);
     return {
         id: entry.id,
         kind: entry.kind,
@@ -176,8 +221,9 @@ function periodView(entry, { withReasons, categoryNames, now }) {
         to: entry.to,
         days: lengthOf(entry.from, entry.to),
         comment: withReasons ? entry.comment : "",
-        categoryId: entry.categoryId,
-        categoryName: entry.categoryId ? (categoryNames[entry.categoryId] || "") : "",
+        // one named category keeps the older single fields; several are joined, "every" leaves them empty
+        categoryId: cats && cats.length === 1 ? cats[0] : "",
+        categoryName: cats ? cats.map((id) => categoryNames[id] || "").filter(Boolean).join(", ") : "",
         byOrga: !!entry.createdBy && entry.createdBy !== entry.userId,
         state: entry.to < today ? "past" : entry.from > today ? "planned" : "running",
     };
@@ -259,10 +305,11 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.
     const picked = (Array.isArray(categoryId) ? categoryId : str(categoryId).split(",")).map(str).filter(Boolean);
     const inPick = (id) => !picked.length || picked.includes(str(id));
 
+    const serverCategories = serverCategoryIndex(cfg);
+    const inCategory = (id) => inOverview(cfg, id);
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
-        .filter((e) => !e.categoryId || inPick(e.categoryId))
-        .filter((e) => !e.categoryId || inOverview(cfg, e.categoryId));
+        .filter((e) => entryInFilter(e, { picked, inPick, inCategory, serverCategories }));
     // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
     const allRaids = raidsBetween(from, to, { config: cfg, versionId: version });
     const raids = allRaids.filter((e) => inPick(e.categoryId));
@@ -356,15 +403,18 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", now = Date.
  * One raider: every entry with what it did, and the last HISTORY raids of the
  * categories they raid in (a signup there in the last 120 days) — in, off, or
  * no answer. Raids of one game version (`versionId`, #740; the main version when none is named).
+ * Each entry carries its readable `scope` and its `characters` (availabilityScope.scopeView /
+ * charactersView), named by `servers` (guildId -> name) and `categoryNames` (id -> name).
  */
-function raiderDetail(userId, { versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {} } = {}) {
+function raiderDetail(userId, { versionId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, servers = {} } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
     const version = versionFor(versionId, cfg);
     const cats = activeCategories(cfg);
     const entries = store.listEntries({ userId: uid }).map((e) => {
         const applied = Object.values(e.applied || {});
-        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec };
+        return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec,
+            scope: scopeView(e, { servers, categories: categoryNames }), characters: charactersView(e) };
     }).sort((a, b) => b.from.localeCompare(a.from));
     const past = eventStore.listEvents("", { sinceSeconds: Math.floor(now / 1000) - 120 * 86400 })
         .filter((e) => e && e.startTime && e.status !== "cancelled" && Number(e.startTime) * 1000 < now)

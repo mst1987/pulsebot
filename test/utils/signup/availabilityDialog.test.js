@@ -153,6 +153,17 @@ describe("Auswahl, Liste, Ergebnis", () => {
         expect(embedOf(dialog.listPayload([])).description).toBe("Keine Ab- oder Anwesenheit eingetragen.");
     });
 
+    it("die Liste nennt den Ort und mehrere Charaktere (neues Format)", () => {
+        const entry = {
+            id: "e3", kind: "presence", from: "2030-04-01", to: "2030-04-01", scope: [{ guildId: "g1", categoryIds: [] }],
+            characters: [{ character: "Zibbo", spec: "Priest-Holy", versionId: "tbc" }, { character: "Zibbowar", spec: "Warrior-Protection", versionId: "tbc" }],
+        };
+        const payload = dialog.listPayload([entry], { lang: "en", placeOf: (e) => (e.id === "e3" ? "Pulse" : "") });
+        expect(embedOf(payload).description).toContain("✅ **There** · Mon 1 Apr 2030 · Pulse · Zibbo · Holy, Zibbowar · Protection");
+        const del = payload.components[0].components[0].toJSON();
+        expect(del.options[0].description).toContain("Zibbowar · Protection");
+    });
+
     it("das Ergebnis sagt, wenn die DM nicht ankam", () => {
         const summary = { title: "Absence saved", description: "x" };
         expect(embedOf(dialog.savedPayload(summary, { kind: "absence", dm: true, lang: "en" })).description).toBe("x");

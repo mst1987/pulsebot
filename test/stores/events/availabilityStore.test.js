@@ -62,6 +62,25 @@ describe("Einträge", () => {
         expect(store.removeEntry(old.id)).toBeNull();
         expect(store.removeEntry(recent.id).id).toBe(recent.id);
     });
+
+    it("updateEntry: der Bearbeiter wird Ersteller und Herkunft, sonst bleiben beide", () => {
+        const { id } = store.addEntry(entry({ createdBy: "200000000000000009", via: "panel" })).entry;
+        const same = store.updateEntry(id, { comment: "Reise" }).entry;
+        expect(same).toMatchObject({ comment: "Reise", createdBy: "200000000000000009", via: "panel" });
+        const edited = store.updateEntry(id, { to: "2030-03-26" }, { createdBy: ANNA, via: "web" }).entry;
+        expect(edited).toMatchObject({ to: "2030-03-26", createdBy: ANNA, via: "web", userId: ANNA, kind: "absence" });
+        expect(store.updateEntry("missing", {}).error).toBe("Diesen Eintrag gibt es nicht (mehr).");
+    });
+
+    it("speichert den Geltungsbereich je Server, einen Teil ohne Server nur mit Kategorien (Altform)", () => {
+        const scope = [
+            { guildId: "g1", categoryIds: ["c1"] }, { guildId: "g1", categoryIds: [] },
+            { guildId: "", categoryIds: ["c9", "c9"] }, { guildId: "", categoryIds: ["c8"] }, { guildId: "" }, null,
+        ];
+        expect(store.addEntry(entry({ scope })).entry.scope).toEqual([
+            { guildId: "g1", categoryIds: [] }, { guildId: "", categoryIds: ["c9", "c8"] },
+        ]);
+    });
 });
 
 describe("Panels", () => {

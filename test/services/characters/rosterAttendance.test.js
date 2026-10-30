@@ -471,6 +471,15 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
         expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("vacation");
     });
 
+    it("counts Urlaub only for an entry of the raid's server (scope per server)", () => {
+        mockListRaidEvents.mockReturnValue([ev("a", 7, { signUps: [{ userId: "u1", status: "absence" }] })]);
+        const other = availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), scope: [{ guildId: "g2", categoryIds: [] }] });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("absence");
+        availabilityStore.removeEntry(other.entry.id);
+        availabilityStore.addEntry({ userId: "u1", kind: "absence", from: day(8), to: day(6), scope: [{ guildId: "g1", categoryIds: ["cat1"] }] });
+        expect(attendanceFor(buildAttendanceContext("g1", { now: NOW, versionId: "tbc" }), "cat1", "Anna", ["u1"]).raids[0].status).toBe("vacation");
+    });
+
     it("counts the setup's explicit bench as Bench — the approved lineup first, the pool never", () => {
         mockListOwnEvents.mockReturnValue([
             own("eh-draft", 7, { groups: [], bench: [{ userId: "u1" }], pool: [{ userId: "u2" }] }),

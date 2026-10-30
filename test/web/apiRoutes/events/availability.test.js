@@ -15,6 +15,8 @@ jest.mock("../../../../src/services/signups/availability", () => ({
     raidsInRange: jest.fn(() => [{ id: "eh-a", title: "Kara", startTime: 1900000000, categoryName: "Raids" }, { id: "eh-b", title: "Gruul", startTime: 1900100000 }]),
     createEntry: jest.fn(),
     deleteEntry: jest.fn(),
+    changeEntry: jest.fn(),
+    absentFor: jest.fn(() => false),
 }));
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({
     categoryNameFor: (id) => (id === "cat1" ? "Raids TBC" : ""),
@@ -44,6 +46,12 @@ jest.mock("../../../../src/web/availability/raiderAttendance", () => ({
 jest.mock("../../../../src/web/availability/entryCategories", () => ({
     entryCategories: jest.fn(() => [{ id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" }]),
     entryCategoryIds: jest.fn(() => ["cat1"]),
+    eventCategoryNames: jest.fn((ids) => Object.fromEntries(ids.filter((id) => id === "catEv").map((id) => [id, "Raids Forever"]))),
+}));
+const mockCat1 = { id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" };
+jest.mock("../../../../src/web/availability/entryServers", () => ({
+    entryServers: jest.fn(async () => [{ guildId: "g", name: "Pulse", icon: "", categories: [mockCat1] }, { guildId: "A", name: "Server A", icon: "", categories: [] }]),
+    serverNames: () => ({ g: "Pulse", A: "Server A" }),
 }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
@@ -55,6 +63,7 @@ const route = require("../../../../src/web/apiRoutes/events/availability");
 const absenceOverview = require("../../../../src/services/signups/absenceOverview");
 const { raiderAttendance } = require("../../../../src/web/availability/raiderAttendance");
 const entryCats = require("../../../../src/web/availability/entryCategories");
+const entryServersMod = require("../../../../src/web/availability/entryServers");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { mockRes, status, json } = require("../../../helpers/http");
 
@@ -99,23 +108,52 @@ describe("GET /api/availability", () => {
         const res = await call("GET", "/api/availability", ANNA);
         expect(status(res)).toBe(200);
         const data = json(res).data;
-        expect(data).toMatchObject({ userId: ANNA.id, orga: false, today: "2030-03-17", maxDays: 180 });
+        // activeGuildId: the server the web shows, picked when a new entry starts
+        expect(data).toMatchObject({ userId: ANNA.id, orga: false, today: "2030-03-17", maxDays: 180, activeGuildId: "g" });
         expect(data.entries[0]).toMatchObject({ id: "e1", kind: "absence", comment: "Urlaub", byOrga: false, done: 1, categoryName: "" });
         expect(data.entries[1]).toMatchObject({ kind: "presence", specLabel: "Arkan", categoryName: "Raids TBC", byOrga: true });
         expect(data.characters).toEqual([{ key: "nerathil", name: "Nerathil", className: "Mage", versionId: "tbc", specs: [{ key: "Mage-Arcane", label: "Arkan", gear: "ready" }] }]);
-        // the categories an entry can be limited to, named like the tabs of the Abwesenheiten page
-        expect(data.categories).toEqual([{ id: "cat1", name: "Raids TBC", icon: "achievement_boss_magtheridon", versionId: "tbc" }]);
-        expect(entryCats.entryCategories).toHaveBeenCalledWith(expect.objectContaining({ categoryNames: expect.objectContaining({}) }));
+        // one block per server the raider is on, each with its categories; the flat list for older clients
+        expect(data.servers.map((s) => [s.guildId, s.categories.map((c) => c.id)])).toEqual([["g", ["cat1"]], ["A", []]]);
+        expect(data.categories).toEqual([mockCat1]);
+        expect(entryServersMod.entryServers).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.any(Object) }));
+        // an older entry of one category: scope without a server, the one category kept
+        expect(data.entries[1]).toMatchObject({ scope: [{ guildId: "", categories: [{ id: "cat1", name: "Raids TBC" }] }], categoryId: "cat1" });
+        expect(data.entries[0].scope).toEqual([]);
     });
 
-    it("die eines anderen nur für die Orga", async () => {
+    it("die eines anderen nur für die Orga, mit den Servern des Raiders", async () => {
         expect(status(await call("GET", "/api/availability", ANNA, { query: "userId=200000000000000002" }))).toBe(403);
         const res = await call("GET", "/api/availability", ORGA, { query: `userId=${ANNA.id}` });
         expect(json(res).data).toMatchObject({ userId: ANNA.id, name: "Anna", orga: true });
         expect(availability.activeEntries).toHaveBeenCalledWith(ANNA.id);
-        // the categories are the caller's own list (the dialog reads them from there): not built for somebody else
-        expect(json(res).data.categories).toEqual([]);
-        expect(entryCats.entryCategories).not.toHaveBeenCalled();
+        expect(entryServersMod.entryServers).toHaveBeenCalledWith(ANNA.id, expect.anything());
+    });
+
+    it("zeigt Scope mit Servernamen und mehrere Charaktere", async () => {
+        availability.activeEntries.mockReturnValue([entry({
+            kind: "presence",
+            scope: [{ guildId: "g", categoryIds: [] }, { guildId: "A", categoryIds: ["catA"] }],
+            characters: [{ character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc" }, { character: "Heiler", spec: "Priest-Holy", versionId: "forever" }],
+        })]);
+        const e = json(await call("GET", "/api/availability", ANNA)).data.entries[0];
+        expect(e.scope).toEqual([{ guildId: "g", name: "Pulse", categories: [] }, { guildId: "A", name: "Server A", categories: [{ id: "catA", name: "" }] }]);
+        expect(e.characters.map((c) => [c.character, c.versionId])).toEqual([["Nerathil", "tbc"], ["Heiler", "forever"]]);
+        expect(e.characters[0].specLabel).toBe("Arkan");
+        // the first character and no single category for older readers
+        expect(e).toMatchObject({ character: "Nerathil", spec: "Mage-Arcane", categoryId: "" });
+    });
+
+    it("names a category Discord does not know by its events (as the dialog's list)", async () => {
+        const added = store.addEntry({ userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", scope: [{ guildId: "g", categoryIds: ["catEv"] }], createdBy: ANNA.id }).entry;
+        availability.activeEntries.mockReturnValue([added]);
+        const data = json(await call("GET", "/api/availability", ANNA)).data;
+        expect(data.entries[0].scope).toEqual([{ guildId: "g", name: "Pulse", categories: [{ id: "catEv", name: "Raids Forever" }] }]);
+        expect(data.entries[0]).toMatchObject({ categoryId: "catEv", categoryName: "Raids Forever" });
+        // the Discord name wins, the events are asked only for the unnamed ones
+        expect(entryCats.eventCategoryNames).toHaveBeenLastCalledWith(expect.not.arrayContaining(["cat1"]));
+        expect(entryServersMod.entryServers).toHaveBeenLastCalledWith(ANNA.id, expect.objectContaining({ categoryNames: expect.objectContaining({ catEv: "Raids Forever" }) }));
+        store.removeEntry(added.id);
     });
 });
 
@@ -133,11 +171,34 @@ describe("POST /api/availability/preview", () => {
 
     it("gibt die Kategorie an die Prüfung weiter, eine unbekannte ist ein 400", async () => {
         await call("POST", "/api/availability/preview", ANNA, { json: { kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "cat1" } });
-        expect(availability.checkInput).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryId: "cat1" }));
+        expect(availability.checkInput).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ categoryId: "cat1" }), expect.anything());
         const res = await call("POST", "/api/availability/preview", ANNA, { json: { kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "gone" } });
         expect(status(res)).toBe(400);
         expect(json(res).error.message).toMatch(/Raid-Kategorie gibt es nicht/);
         expect(availability.raidsInRange).toHaveBeenCalledTimes(1);
+    });
+
+    it("beim Bearbeiten: schon angewendete Raids und Abwesenheit ohne den Eintrag selbst", async () => {
+        const added = store.addEntry({ userId: ANNA.id, kind: "presence", from: "2030-03-20", to: "2030-03-25", characters: [{ character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc" }], scope: [{ guildId: "g", categoryIds: [] }], createdBy: ANNA.id });
+        const id = (added.entry || added).id;
+        store.markApplied(id, "eh-a", { ok: true });
+        availability.absentFor.mockImplementation((userId, e) => e.id === "eh-b");
+        const res = await call("POST", "/api/availability/preview", ANNA, { json: { id, kind: "absence", from: "2030-03-20", to: "2030-03-25" } });
+        expect(json(res).data.raids.map((r) => [r.id, r.applied, r.absent])).toEqual([["eh-a", true, false], ["eh-b", false, true]]);
+        expect(availability.absentFor).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ id: "eh-a" }), expect.objectContaining({ excludeId: id }));
+        // the kind stays the entry's
+        expect(availability.checkInput).toHaveBeenCalledWith(ANNA.id, expect.objectContaining({ kind: "presence" }), expect.anything());
+        availability.absentFor.mockReset();
+        availability.absentFor.mockReturnValue(false);
+        // somebody else's entry or an unknown one: 404
+        expect(status(await call("POST", "/api/availability/preview", ANNA, { json: { id: "nope", from: "2030-03-20" } }))).toBe(404);
+        expect(status(await call("POST", "/api/availability/preview", ORGA, { json: { id, from: "2030-03-20" } }))).toBe(404);
+    });
+
+    it("eine Scope-Kategorie, die es nicht gibt, ist ein 400", async () => {
+        const res = await call("POST", "/api/availability/preview", ANNA, { json: { kind: "absence", from: "2030-03-20", scope: [{ guildId: "g", categoryIds: ["gone"] }] } });
+        expect(status(res)).toBe(400);
+        expect(availability.raidsInRange).not.toHaveBeenCalled();
     });
 });
 
@@ -171,6 +232,91 @@ describe("POST /api/availability", () => {
         availability.createEntry.mockResolvedValue({ error: "Der Zeitraum liegt schon in der Vergangenheit." });
         const res = await call("POST", "/api/availability", ANNA, { json: {} });
         expect(status(res)).toBe(400);
+    });
+});
+
+describe("PUT /api/availability", () => {
+    const add = (over = {}) => {
+        const added = store.addEntry({ userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", scope: [{ guildId: "g", categoryIds: [] }], createdBy: ANNA.id, ...over });
+        return (added.entry || added).id;
+    };
+
+    it("ändert den eigenen Eintrag über den Service, mit den gewählten Raids", async () => {
+        const id = add();
+        availability.changeEntry.mockResolvedValue({ entry: entry({ id, scope: [{ guildId: "g", categoryIds: [] }] }), results: [{ eventId: "eh-c", ok: true }], dm: true });
+        const res = await call("PUT", "/api/availability", ANNA, { json: { id, from: "2030-03-21", to: "2030-03-28", scope: [{ guildId: "g", categoryIds: [] }], eventIds: ["eh-c", ""] } });
+        expect(status(res)).toBe(200);
+        expect(availability.changeEntry).toHaveBeenCalledWith(id, expect.objectContaining({ from: "2030-03-21" }), expect.objectContaining({ userId: ANNA.id, orga: false, eventIds: ["eh-c"] }));
+        expect(json(res).data).toMatchObject({ entry: { id, scope: [{ guildId: "g", name: "Pulse" }] }, results: [{ eventId: "eh-c", ok: true }], dm: true });
+    });
+
+    it("ein unbekannter oder fremder Eintrag ist ein 404, ein Prüffehler ein 400", async () => {
+        availability.changeEntry.mockResolvedValueOnce({ error: "Eintrag nicht gefunden.", code: "not_found" });
+        expect(status(await call("PUT", "/api/availability", ANNA, { json: { id: "nope" } }))).toBe(404);
+        availability.changeEntry.mockResolvedValueOnce({ error: "Bitte mindestens einen Server oder eine Kategorie wählen." });
+        const bad = await call("PUT", "/api/availability", ANNA, { json: { id: add(), scope: [] } });
+        expect([status(bad), json(bad).error.message]).toEqual([400, "Bitte mindestens einen Server oder eine Kategorie wählen."]);
+        const gone = await call("PUT", "/api/availability", ANNA, { json: { id: add(), scope: [{ guildId: "g", categoryIds: ["gone"] }] } });
+        expect(status(gone)).toBe(400);
+        expect(availability.changeEntry).toHaveBeenCalledTimes(2);
+    });
+
+    it("die Orga ändert fremde Einträge nur auf Servern, die sie nutzen darf", async () => {
+        const onA = add({ scope: [{ guildId: "A", categoryIds: [] }] });
+        expect(status(await call("PUT", "/api/availability", ORGA, { json: { id: onA, from: "2030-03-20" } }))).toBe(404);
+        const onG = add();
+        const moved = await call("PUT", "/api/availability", ORGA, { json: { id: onG, scope: [{ guildId: "g", categoryIds: [] }, { guildId: "A", categoryIds: [] }] } });
+        expect([status(moved), json(moved).error.code]).toEqual([403, "other_server"]);
+        expect(availability.changeEntry).not.toHaveBeenCalled();
+        availability.changeEntry.mockResolvedValueOnce({ entry: entry({ id: onG }), results: [], dm: false });
+        expect(status(await call("PUT", "/api/availability", ORGA, { json: { id: onG, scope: [{ guildId: "g", categoryIds: [] }] } }))).toBe(200);
+        expect(availability.changeEntry).toHaveBeenCalledWith(onG, expect.anything(), expect.objectContaining({ userId: ORGA.id, orga: true }));
+        // its owner changes it on any server
+        availability.changeEntry.mockResolvedValueOnce({ entry: entry({ id: onA }), results: [], dm: false });
+        expect(status(await call("PUT", "/api/availability", ANNA, { json: { id: onA, scope: [{ guildId: "A", categoryIds: [] }] } }))).toBe(200);
+    });
+
+    it("ein Raider bearbeitet einen Orga-Eintrag als er selbst: ohne Orga-Rechte, die Ablehnung kommt durch", async () => {
+        const id = add({ createdBy: ORGA.id, via: "web" });
+        availability.changeEntry.mockResolvedValueOnce({
+            entry: entry({ id, createdBy: ANNA.id, via: "web", scope: [{ guildId: "g", categoryIds: [] }] }),
+            results: [{ eventId: "eh-c", ok: false, error: "Die Anmeldung ist geschlossen." }],
+            dm: true,
+        });
+        const res = await call("PUT", "/api/availability", ANNA, { json: { id, from: "2030-03-20", to: "2030-03-28", scope: [{ guildId: "g", categoryIds: [] }] } });
+        expect(status(res)).toBe(200);
+        // the route hands over who edits - never the orga that once entered it
+        expect(availability.changeEntry).toHaveBeenCalledWith(id, expect.anything(), expect.objectContaining({ userId: ANNA.id, orga: false }));
+        expect(json(res).data.results).toMatchObject([{ eventId: "eh-c", ok: false, error: "Die Anmeldung ist geschlossen." }]);
+    });
+
+    it("gehört zum Bereich Anmeldung", () => {
+        expect(route.routes.find((r) => r.method === "PUT" && r.path === "/api/availability").area).toBe("signup");
+    });
+});
+
+describe("Rechte-Helfer", () => {
+    const { mayTouchEntry, mayUseScope, knownCategory } = route._internal;
+    const req = {};
+    it("mayTouchEntry: eigener, alles-Eintrag, Server und Alt-Kategorie", () => {
+        expect(mayTouchEntry(ORGA, req, { userId: ORGA.id, scope: [{ guildId: "A", categoryIds: [] }] })).toBe(true);
+        expect(mayTouchEntry(ORGA, req, { userId: ANNA.id, categoryId: "" })).toBe(true);
+        expect(mayTouchEntry(ORGA, req, { userId: ANNA.id, scope: [{ guildId: "g", categoryIds: [] }] })).toBe(true);
+        expect(mayTouchEntry(ORGA, req, { userId: ANNA.id, scope: [{ guildId: "g", categoryIds: [] }, { guildId: "A", categoryIds: [] }] })).toBe(false);
+        expect(mayTouchEntry(ORGA, req, { userId: ANNA.id, categoryId: "catA" })).toBe(false);
+        expect(mayTouchEntry(ORGA, req, { userId: ANNA.id, categoryId: "cat1" })).toBe(true);
+    });
+    it("mayUseScope: Scope-Server oder alte Kategorie", () => {
+        expect(mayUseScope(ORGA, req, { scope: [{ guildId: "g" }] })).toBe(true);
+        expect(mayUseScope(ORGA, req, { scope: [{ guildId: "A" }] })).toBe(false);
+        expect(mayUseScope(ORGA, req, { categoryId: "catA" })).toBe(false);
+        expect(mayUseScope(ORGA, req, {})).toBe(true);
+    });
+    it("knownCategory: alle Scope-Kategorien müssen bekannt sein", () => {
+        expect(knownCategory({ scope: [{ guildId: "g", categoryIds: ["cat1"] }] }, {})).toBe(true);
+        expect(knownCategory({ scope: [{ guildId: "g", categoryIds: ["cat1", "x"] }] }, {})).toBe(false);
+        expect(knownCategory({ scope: [{ guildId: "g", categoryIds: [] }] }, {})).toBe(true);
+        expect(knownCategory({ categoryId: "x" }, {})).toBe(false);
     });
 });
 
@@ -345,7 +491,7 @@ describe("the orga's overview", () => {
     it("answers one raider's detail and needs a raider", async () => {
         const res = await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1" });
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", canEdit: true });
-        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true }));
+        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true, servers: { g: "Pulse", A: "Server A" }, categoryNames: expect.any(Object) }));
         expect(status(await call("GET", "/api/availability/overview/raider", ORGA))).toBe(400);
     });
 
@@ -434,10 +580,31 @@ describe("rights per server (#925)", () => {
         expect(status(await call("DELETE", "/api/availability", ANNA, { json: { id } }))).toBe(200);
     });
 
+    it("offers the orga only the raider's servers it may use, the raider all of theirs", async () => {
+        let data = json(await call("GET", "/api/availability", ORGA, { query: `userId=${ANNA.id}` })).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g"]);
+        expect(data.categories).toEqual([mockCat1]);
+        data = json(await call("GET", "/api/availability", ANNA)).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g", "A"]);
+        data = json(await call("GET", "/api/availability", ADMIN, { query: `userId=${ANNA.id}` })).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g", "A"]);
+    });
+
     it("refuses an entry for somebody else in a category of another server", async () => {
         entryCats.entryCategoryIds.mockReturnValueOnce(["cat1", "catA"]);
         const res = await call("POST", "/api/availability", ORGA, { json: { userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "catA" } });
         expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
         expect(availability.createEntry).not.toHaveBeenCalled();
+    });
+
+    it("refuses an entry for somebody else whose scope names another server, the raider may", async () => {
+        const body = { userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", scope: [{ guildId: "g", categoryIds: [] }, { guildId: "A", categoryIds: [] }] };
+        const res = await call("POST", "/api/availability", ORGA, { json: body });
+        expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+        expect(availability.createEntry).not.toHaveBeenCalled();
+        availability.createEntry.mockResolvedValue({ entry: entry({ scope: body.scope }), results: [], dm: true });
+        const own = await call("POST", "/api/availability", ANNA, { json: { ...body, userId: "" } });
+        expect(status(own)).toBe(200);
+        expect(json(own).data.entry.scope.map((s) => s.name)).toEqual(["Pulse", "Server A"]);
     });
 });
