@@ -8,10 +8,10 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { GuildBankItem, GuildBankRequest, GuildBankStatus, GuildBankTab } from "../../api";
 import { Badge, IconButton, Segment } from "../../components/ui";
-import Popover from "../../components/ui/Popover";
+import Popover from "../../components/ui/overlay/Popover";
 import { panelPlacement } from "../../lib/ui/popoverPosition";
 import { ItemIcon } from "../../components/loot/LootBadges";
-import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/ui/icons";
+import { EyeIcon, EyeOffIcon, GiftIcon, SlidersIcon } from "../../components/ui/icons/icons";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { wowheadItemUrl } from "../../lib/wow/wowheadItems";
 import { tParts, useT } from "../../i18n";

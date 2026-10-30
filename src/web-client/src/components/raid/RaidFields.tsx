@@ -2,14 +2,14 @@ import type { ReactNode, CSSProperties } from "react";
 import type { EmbedImage, EmojiStyle, GameVersion, OverflowMode, RoleRange } from "../../api";
 import { OVERFLOW_MODES } from "../../api";
 import { EMBED_ACCENT, allowedSizes, instancesOf, leadInstance } from "../../lib/raids/raidTemplates";
-import Segment from "../ui/Segment";
-import Switch from "../ui/Switch";
+import Segment from "../ui/form/Segment";
+import Switch from "../ui/form/Switch";
 import Badge from "../ui/Badge";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { roleLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 import "../../styles/raid-templates.css";
-import { WarnIcon } from "../ui/icons";
+import { WarnIcon } from "../ui/icons/icons";
 
 // The fields of a raid plan besides CompositionEditor, shared by the "Event
 // anlegen" dialog (#261) and the Raid-Vorlagen editor (#266): instance chips from

@@ -1,10 +1,10 @@
 import { useState } from "react";
 import type { SystemStatus } from "../../api";
 import { useT } from "../../i18n";
-import { PartHead } from "../../components/ui/PartHead";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import Badge from "../../components/ui/Badge";
-import Bar from "../../components/ui/Bar";
-import Expand from "../../components/ui/Expand";
+import Bar from "../../components/ui/table/Bar";
+import Expand from "../../components/ui/layout/Expand";
 import { formatTime } from "../../lib/format";
 import { bytes, pct } from "../../lib/system/systemFormat";
 import PathText from "./PathText";

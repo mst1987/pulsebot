@@ -5,14 +5,14 @@ import {
 } from "../../../lib/settings/settingsLogic";
 import { t as translate, useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import Badge from "../../../components/ui/Badge";
 import Chip from "../../../components/ui/Chip";
-import Segment from "../../../components/ui/Segment";
-import PartHead from "../../../components/ui/PartHead";
-import WowIcon from "../../../components/ui/WowIcon";
-import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon } from "../../../components/ui/icons";
-import { FieldLabel, InfoTip } from "../../../components/ui/Field";
+import Segment from "../../../components/ui/form/Segment";
+import PartHead from "../../../components/ui/layout/PartHead";
+import WowIcon from "../../../components/ui/icons/WowIcon";
+import { EyeIcon, LockIcon, PenIcon, PlusIcon, TrashIcon } from "../../../components/ui/icons/icons";
+import { FieldLabel, InfoTip } from "../../../components/ui/form/Field";
 import { useDismiss } from "../../../hooks/useDismiss";
 import { assignableRoles } from "../../../lib/settings/assignableRoles";
 

@@ -12,7 +12,7 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { Button, Field, Modal } from "../../components/ui";
-import { SearchIcon, PlusIcon } from "../../components/ui/icons";
+import { SearchIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { changedRoleLines, errorText, searchChar } from "../../lib/roster/rosterEdit";
 import { initialOf } from "../../lib/roster/rosters";
 import { CharChip, Notice, RoleResults, StatusPicker } from "./RosterParts";

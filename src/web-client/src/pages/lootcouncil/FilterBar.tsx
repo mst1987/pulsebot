@@ -9,8 +9,8 @@
 import { useRef, useState } from "react";
 import type { LootCouncilData } from "../../api";
 import { Badge, Button, Segment, Switch } from "../../components/ui";
-import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons";
-import { ROLE_ICON, categoryNote, councilContent, roleLabel, rosterNote, type FilterView } from "./council";
+import { ChevronDownIcon, FunnelIcon } from "../../components/ui/icons/icons";
+import { ROLE_ICON, categoryNote, councilContent, roleLabel, rosterNote, type FilterView } from "./model/council";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
 

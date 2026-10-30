@@ -1,5 +1,5 @@
 // No single checkbox in the admin menu (Oct 2026): an on/off option is a switch
-// (components/ui/Switch.tsx, role="switch"). A checkbox is only for marking rows of
+// (components/ui/form/Switch.tsx, role="switch"). A checkbox is only for marking rows of
 // a list or picking several of a set — those stay checkboxes on purpose.
 //
 // So every type="checkbox" in the client is either inside the Switch component, in
@@ -13,9 +13,9 @@ const LIST_SELECTION = {
     "components/channels/ChannelTree.tsx": "channels and categories of the tree for the bulk bar",
     "components/signup/AvailabilityParts.tsx": "the raids a signup is available for",
     "components/shell/ViewAs.tsx": "the roles to view the menu as",
-    "pages/kader/ImportModal.tsx": "the members to import",
-    "pages/kader/OverviewView.tsx": "rows of the overview for a batch action, plus 'mark all'",
-    "pages/kader/PoolView.tsx": "rows of the pool for a batch action, plus 'mark all'",
+    "pages/kader/modals/ImportModal.tsx": "the members to import",
+    "pages/kader/views/OverviewView.tsx": "rows of the overview for a batch action, plus 'mark all'",
+    "pages/kader/views/PoolView.tsx": "rows of the pool for a batch action, plus 'mark all'",
     "pages/raid-detail/modals/NotifyModal.tsx": "the roles to ping",
     "pages/raid-detail/modals/SoftresModal.tsx": "the instances of the soft reserve",
     "components/raidplan/editor/ShareModal.tsx": "the bosses on the shared sheet",
@@ -30,7 +30,7 @@ describe("single checkboxes", () => {
     it("finds none: every on/off option is a switch", () => {
         const single = [];
         for (const [file, src] of sources) {
-            if (file === "components/ui/Switch.tsx" || LIST_SELECTION[file]) continue;
+            if (file === "components/ui/form/Switch.tsx" || LIST_SELECTION[file]) continue;
             const lines = src.split("\n");
             lines.forEach((line, i) => {
                 if (!line.includes("type=\"checkbox\"")) return;

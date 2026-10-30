@@ -13,12 +13,12 @@ import {
 } from "../../api";
 import { formatEventTime } from "../../lib/format";
 import { useDraftState } from "../../lib/ui/persistedState";
-import { Modal } from "../../components/ui/Modal";
+import { Modal } from "../../components/ui/overlay/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import Segment from "../../components/ui/Segment";
-import Expand from "../../components/ui/Expand";
-import IconTile from "../../components/ui/IconTile";
+import Segment from "../../components/ui/form/Segment";
+import Expand from "../../components/ui/layout/Expand";
+import IconTile from "../../components/ui/icons/IconTile";
 import { useToast } from "../../components/shell/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";

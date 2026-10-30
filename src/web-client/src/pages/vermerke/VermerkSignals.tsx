@@ -2,7 +2,7 @@ import { useState } from "react";
 import { getVermerkSignals, ignoreVermerkSignal, reasonOfSignal, type VermerkSignal } from "../../api/vermerke";
 import { useApi } from "../../hooks/useApi";
 import { Button, IconButton, InfoTip } from "../../components/ui";
-import { PlusIcon, EyeOffIcon, SlidersIcon } from "../../components/ui/icons";
+import { PlusIcon, EyeOffIcon, SlidersIcon } from "../../components/ui/icons/icons";
 import SignalSettingsDialog from "./SignalSettingsDialog";
 import type { VermerkDialogPreset } from "../../components/vermerke/VermerkDialog";
 import { useT } from "../../i18n";

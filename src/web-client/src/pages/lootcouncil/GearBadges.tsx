@@ -2,11 +2,11 @@ import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { CouncilCandidate, WornItem } from "../../api";
 import { Badge, Button } from "../../components/ui";
-import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/ui/icons";
+import { AlertIcon, EmptySlotIcon, ExternalIcon } from "../../components/ui/icons/icons";
 import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
-import { gearCounts, raiderHref, wornWowheadUrl } from "./council";
+import { gearCounts, raiderHref, wornWowheadUrl } from "./model/council";
 import { useWowheadPath } from "../../lib/settings/versionLinks";
 
 /** The shape `CouncilCandidate.gear` and `CouncilRaider.gear` share. */

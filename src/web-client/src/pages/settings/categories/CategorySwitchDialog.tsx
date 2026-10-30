@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getCategorySwitch, type ApiError, type CategorySwitchPreview, type Role, type RosterSwitchChoice } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { formatDayDate } from "../../../lib/format";
 import { useT } from "../../../i18n";
 import CategorySwitchRoster from "./CategorySwitchRoster";

@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { GameClass, GearLevel, ProfileCharacter, ProfileData, ProfileSpec } from "../../api";
 import { Badge, Button, buttonClass, IconButton, PartHead, Segment, WowIcon } from "../../components/ui";
 import { type AddWay } from "../../components/character/AddCharacterDialog";
-import { ChevronLeftIcon, ChevronRightIcon, EditIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons";
+import { ChevronLeftIcon, ChevronRightIcon, EditIcon, ExternalIcon, TrashIcon, WarnIcon, XIcon } from "../../components/ui/icons/icons";
 import { classLabel, roleLabel, specLabel } from "../../lib/wow/wowNames";
 import { tOr, useT } from "../../i18n";
 

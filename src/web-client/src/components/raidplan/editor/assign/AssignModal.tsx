@@ -2,7 +2,7 @@ import { useMemo, useState, type KeyboardEvent, type ReactNode } from "react";
 import { AlertTriangle, ArrowRight, Check, ChevronLeft, ChevronRight, LayoutGrid, MapPin, Minus, Plus, Search, Shield, Skull, Sparkles, Star, Swords, Trash2, Type, User, Wand2, X } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanPlayer } from "../../../../api";
 import { Button, Modal, Switch } from "../../../ui";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import ClassRefIcon from "../../ClassRefIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { PlayerName, TokenIcon } from "../../PlanBoard";

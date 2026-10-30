@@ -1,13 +1,13 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
 import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
-import { ConfirmProvider } from "./components/ui/Modal";
+import { ConfirmProvider } from "./components/ui/overlay/Modal";
 import { canAccessAny, canAccessAnywhere, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
 import { getLang, langReady, setLang, useT } from "./i18n";
 import { entryHref, firstAllowedTab } from "./lib/app/menu";
-import RaidLoader from "./components/ui/RaidLoader";
-import WowIcon from "./components/ui/WowIcon";
-import { BrandIcon, DiscordIcon, LockIcon } from "./components/ui/icons";
+import RaidLoader from "./components/ui/layout/RaidLoader";
+import WowIcon from "./components/ui/icons/WowIcon";
+import { BrandIcon, DiscordIcon, LockIcon } from "./components/ui/icons/icons";
 import LangToggle from "./components/shell/LangToggle";
 import ChunkErrorBoundary from "./components/shell/ChunkErrorBoundary";
 import { lazyWithReload } from "./lib/app/chunkReload";

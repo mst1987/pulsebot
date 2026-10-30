@@ -8,12 +8,12 @@ import {
     addRaiderToRaid, getRaiderCandidates, removeRaiderFromRaid,
     type ApiError, type ManageRaider, type SignupStatus } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
-import { Modal, useConfirm } from "../../../components/ui/Modal";
+import { Modal, useConfirm } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import { TrashIcon } from "../../../components/ui/icons";
+import { TrashIcon } from "../../../components/ui/icons/icons";
 import Badge from "../../../components/ui/Badge";
-import Segment from "../../../components/ui/Segment";
-import WowIcon from "../../../components/ui/WowIcon";
+import Segment from "../../../components/ui/form/Segment";
+import WowIcon from "../../../components/ui/icons/WowIcon";
 import { useToast } from "../../../components/shell/Jobs";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../../lib/signups/status";
 import { filterRaiders, orgaStatuses, raiderInputOk, specsOfClass } from "../../../lib/raids/eventManage";

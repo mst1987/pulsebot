@@ -2,10 +2,10 @@ import { useT } from "../../i18n";
 import { plannedSeats, withInstance, withSize, withVersion } from "../../lib/raids/eventPlan";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
-import Segment from "../ui/Segment";
+import Segment from "../ui/form/Segment";
 import CompositionEditor from "../raid/CompositionEditor";
 import { AppearanceFields, BuffPicker, InstancePicker, OverflowField, RoleRanges, SizePicker, SwitchRow } from "../raid/RaidFields";
-import { CheckIcon, SaveIcon } from "../ui/icons";
+import { CheckIcon, SaveIcon } from "../ui/icons/icons";
 import type { TemplateMode } from "./createHelpers";
 import type { RaidCreateForm } from "./useRaidCreateForm";
 

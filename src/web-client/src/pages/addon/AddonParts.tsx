@@ -5,7 +5,7 @@
 import { Link } from "react-router-dom";
 import type { AddonCard, AddonFile, ApiError } from "../../api";
 import { Badge, Button, buttonClass } from "../../components/ui";
-import { DownloadIcon, ExternalIcon, RefreshIcon, WarnIcon } from "../../components/ui/icons";
+import { DownloadIcon, ExternalIcon, RefreshIcon, WarnIcon } from "../../components/ui/icons/icons";
 import { TOKEN_SETTINGS_LINK, addonFolder, fileLabel } from "../../lib/addons/addonInstall";
 import { useT } from "../../i18n";
 

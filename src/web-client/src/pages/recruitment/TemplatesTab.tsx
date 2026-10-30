@@ -2,17 +2,17 @@ import { deleteRecruitmentTemplate, type ApiError, type RecruitmentData, type Re
 import type { CollectionEditor } from "../../lib/ui/collectionEditor";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { specsInContent } from "../../lib/discord/recruitmentSpecs";
-import { TrashIcon } from "../../components/ui/icons";
+import { TrashIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import DataTable from "../../components/ui/DataTable";
-import { PartHead } from "../../components/ui/PartHead";
+import DataTable from "../../components/ui/table/DataTable";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import { useT } from "../../i18n";
 import { ICONS } from "./shared";
 import { VersionTag, WantedIcons } from "./RecruitmentBits";
-import { EditIcon } from "../../components/ui/icons";
+import { EditIcon } from "../../components/ui/icons/icons";
 
 type TemplateSortKey = "name" | "wanted" | "button" | "posted";
 

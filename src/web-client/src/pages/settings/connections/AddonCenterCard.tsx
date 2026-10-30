@@ -4,11 +4,11 @@ import {
 } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { useToast } from "../../../components/shell/Jobs";
-import { useConfirm } from "../../../components/ui/Modal";
+import { useConfirm } from "../../../components/ui/overlay/Modal";
 import { Button, buttonClass } from "../../../components/ui/Button";
-import { FieldLabel } from "../../../components/ui/Field";
+import { FieldLabel } from "../../../components/ui/form/Field";
 import { ChannelPicker, RolePicker } from "../../../components/settings/settingsUi";
-import { ExternalIcon, SendIcon, TrashIcon } from "../../../components/ui/icons";
+import { ExternalIcon, SendIcon, TrashIcon } from "../../../components/ui/icons/icons";
 import { formatDate, formatTime } from "../../../lib/format";
 import { useT } from "../../../i18n";
 

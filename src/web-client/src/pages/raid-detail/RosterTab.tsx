@@ -12,9 +12,9 @@ import { wowIconUrl } from "../../lib/wow/wowIcon";
 import { CAN_ALSO } from "../../lib/signups/status";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import IconTile from "../../components/ui/IconTile";
-import Expand from "../../components/ui/Expand";
-import WowIcon from "../../components/ui/WowIcon";
+import IconTile from "../../components/ui/icons/IconTile";
+import Expand from "../../components/ui/layout/Expand";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { classColorProps } from "../../components/character/ClassSpec";
 import {
     ROLE_META, ROLE_ORDER, SIGNUP_META, SIGNUP_ORDER, byLabel, personLabel, personRef, slotRef,
@@ -23,7 +23,7 @@ import {
 import SpecTile from "./SpecTile";
 import type { VermerkShortMap } from "../../api/vermerke";
 import VermerkMark from "../../components/vermerke/VermerkMark";
-import { OrgaZone } from "../../components/ui/OrgaZone";
+import { OrgaZone } from "../../components/ui/layout/OrgaZone";
 import { t, useT } from "../../i18n";
 
 const norm = (s: string) => s.trim().toLowerCase();
@@ -291,7 +291,7 @@ export default function RosterTab({ ctx }: { ctx: RaidCtx }) {
         : null;
     // No card head repeating the tab: one line with where the lineup comes from. The orga's part —
     // why the attendance check cannot run, the tab's actions and the two lists — is a zone of its
-    // own below the lineup (components/ui/OrgaZone.tsx); a raider sees none of it.
+    // own below the lineup (components/ui/layout/OrgaZone.tsx); a raider sees none of it.
     const state = !orga || attendanceOk ? null : <AttendanceState ctx={ctx} />;
     const bar = source ? <div className="rd-toolbar rd-tabbar"><span className="rd-muted">{source}</span></div> : null;
     const lists = attendanceOk && (missing.length > 0 || notInSetup.length > 0);

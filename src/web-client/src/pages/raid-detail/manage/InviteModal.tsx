@@ -4,7 +4,7 @@
 // many are pinged, straight from the server's dry run, before anything goes out.
 import { useEffect, useState } from "react";
 import { callInvite, previewInviteCall, type ApiError } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/shell/Jobs";
 import type { RaidCtx } from "../meta";

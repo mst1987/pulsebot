@@ -2,7 +2,7 @@
 //   glyphs  — filled fantasy silhouettes in one of four tones for the app's
 //             areas (menu, settings): src/config/uiIcons.json
 //   lines   — plain line icons for actions and states (edit, delete, search …),
-//             stroked in currentColor like components/ui/icons.tsx:
+//             stroked in currentColor like components/ui/icons/icons.tsx:
 //             src/config/uiLineIcons.json
 //   brands  — the marks of the services the app talks to, never recoloured
 // Both JSON files hold the paths of the accepted design canvas (#951, board

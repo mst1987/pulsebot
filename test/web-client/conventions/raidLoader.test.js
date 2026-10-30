@@ -1,4 +1,4 @@
-// The menu's one loading state (components/ui/RaidLoader.tsx): a party at a
+// The menu's one loading state (components/ui/layout/RaidLoader.tsx): a party at a
 // raid boss instead of the grey "Lade…". What is guarded here is that it stays
 // the ONLY one — a page that quietly goes back to its own placeholder is the
 // regression this file exists for — and that it invents no icons.
@@ -10,7 +10,7 @@ const { CLIENT, read, sourceFiles } = require("../clientSource");
 /** Every .tsx of the client, so a new page cannot slip past this. */
 const tsxFiles = () => sourceFiles("", /\.tsx$/);
 
-const loader = read("components", "ui", "RaidLoader.tsx");
+const loader = read("components", "ui", "layout", "RaidLoader.tsx");
 const css = read("index.css");
 
 describe("RaidLoader", () => {
@@ -19,7 +19,7 @@ describe("RaidLoader", () => {
             .filter((f) => /Lade…|Lade\.\.\./.test(fs.readFileSync(f, "utf8")))
             .map((f) => path.relative(CLIENT, f))
             // the component's own default text and the comment explaining it
-            .filter((f) => f !== path.join("components", "ui", "RaidLoader.tsx"));
+            .filter((f) => f !== path.join("components", "ui", "layout", "RaidLoader.tsx"));
         expect(offenders).toEqual([]);
         for (const page of ["history/HistoryPage", "roster/RosterCharsPage", "settings/SettingsPage", "ChannelsPage", "raids/RaidsPage", "cla/ClaPage", "recruitment/RecruitmentPage", "dashboard/DashboardPage"]) {
             expect({ page, uses: read("pages", `${page}.tsx`).includes("<RaidLoader") }).toEqual({ page, uses: true });
@@ -34,7 +34,7 @@ describe("RaidLoader", () => {
 
     it("draws a raid's end boss with the icon the menu already checked, other bosses with a boss icon", () => {
         // the bosses per version live in lib/wow/loaderBosses.ts (no TBC boss in the Forever part)
-        expect(loader).toContain("from \"../../lib/wow/loaderBosses\";");
+        expect(loader).toContain("from \"../../../lib/wow/loaderBosses\";");
         expect(loader).toContain("<WowIcon name={boss.icon}");
         const bosses = read("lib", "wow", "loaderBosses.ts");
         expect(bosses).toContain("import { RAID_CONTENTS } from \"./raidIcons\";");

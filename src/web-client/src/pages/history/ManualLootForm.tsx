@@ -17,11 +17,11 @@ import {
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { useToast } from "../../components/shell/Jobs";
-import { Modal } from "../../components/ui/Modal";
+import { Modal } from "../../components/ui/overlay/Modal";
 import { Button } from "../../components/ui/Button";
 import { useDismiss } from "../../hooks/useDismiss";
 import { tParts, useT } from "../../i18n";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon } from "../../components/ui/icons/icons";
 
 // Bosses that are not an encounter, in the order tbcContent.js files them.
 const TRASH = "Trash";

@@ -1,4 +1,4 @@
-// Where a popover goes (#439): the pure half of components/ui/Popover.tsx.
+// Where a popover goes (#439): the pure half of components/ui/overlay/Popover.tsx.
 // Every function takes the anchor's rectangle, the box's measured size and the
 // viewport, and returns fixed coordinates — so they are tested
 // without a browser (src/web-client/src/lib/ui/__tests__/popoverPosition.popover.test.ts).
@@ -33,7 +33,7 @@ export function tipPosition(anchor: Rect, box: Size, viewport: Size, gap = 9): {
 
 /**
  * A tooltip to the right of its anchor, vertically centred on it — for a narrow
- * column of icon buttons (components/ui/SectionRail.tsx), where a box above would
+ * column of icon buttons (components/ui/layout/SectionRail.tsx), where a box above would
  * cover the button before it. Without room on the right it falls back to
  * tipPosition.
  */

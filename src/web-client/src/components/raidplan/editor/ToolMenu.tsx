@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { ChevronDown } from "lucide-react";
-import Popover from "../../ui/Popover";
+import Popover from "../../ui/overlay/Popover";
 import { belowEndPlacement, belowStartPlacement } from "../../../lib/ui/popoverPosition";
 
 /** One entry of a tool menu: an action, or (with `on`) a switch that shows its state. */

@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode, type CSSProperties } from "react";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { IconButton } from "../ui/Button";
-import { AlertIcon, CheckIcon, XIcon } from "../ui/icons";
+import { AlertIcon, CheckIcon, XIcon } from "../ui/icons/icons";
 import { t as translate, useT } from "../../i18n";
 
 // Background jobs + their toasts.

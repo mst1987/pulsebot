@@ -1,7 +1,7 @@
 import { useState, type FormEvent } from "react";
 import type { ChannelsData } from "../../api";
 import { Badge, Button, IconButton, Modal } from "../ui";
-import { TrashIcon, SaveIcon } from "../ui/icons";
+import { TrashIcon, SaveIcon } from "../ui/icons/icons";
 import { ChannelTypeIcon } from "./channelBits";
 import { archivedLabel, BULK_DELETE_WORD } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";

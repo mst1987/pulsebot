@@ -4,9 +4,9 @@ import OrgaLinksEditor from "./OrgaLinksEditor";
 import HubFeatureSwitches from "./HubFeatureSwitches";
 import { useToast } from "../../../components/shell/Jobs";
 import { Button, buttonClass } from "../../../components/ui/Button";
-import { useConfirm } from "../../../components/ui/Modal";
+import { useConfirm } from "../../../components/ui/overlay/Modal";
 import CategoryField from "./CategoryField";
-import { ExternalIcon, SendIcon, TrashIcon } from "../../../components/ui/icons";
+import { ExternalIcon, SendIcon, TrashIcon } from "../../../components/ui/icons/icons";
 import { formatDate } from "../../../lib/format";
 import { useT } from "../../../i18n";
 

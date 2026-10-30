@@ -19,12 +19,12 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Link } from "react-router-dom";
 import type { RaidDetailData, RaidGroup, RaidPrimaryAction, RaidStep, SessionUser } from "../../api";
-import { OrgaZone } from "../../components/ui/OrgaZone";
+import { OrgaZone } from "../../components/ui/layout/OrgaZone";
 import { eventTimeParts, relativeDayLabel } from "../../lib/format";
 import { eventPostUrl, raidplanUrl } from "../../lib/discord/discordLinks";
 import { Button, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useT } from "../../i18n";
 import PugBadge from "../../components/signup/PugBadge";
 

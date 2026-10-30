@@ -21,13 +21,13 @@ import { classLabel, roleLabel } from "../../lib/wow/wowNames";
 import { tParts, useT } from "../../i18n";
 import { BackButton, IconTile, Segment, WowIcon } from "../../components/ui";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { SearchIcon } from "../../components/ui/icons";
+import { SearchIcon } from "../../components/ui/icons/icons";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import "../../styles/roster-character.css";
 import "../../styles/rosters.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { RosterGroup, UNGROUPED } from "./RosterGroup";
 import { ClaimsBadge } from "./ClaimsBadge";
 

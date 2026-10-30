@@ -5,11 +5,11 @@ import { headLook, itemLabel, itemLink, itemTip, itemValue, statusLook } from ".
 import { useToast } from "../../../components/shell/Jobs";
 import { VersionDot } from "../../../components/shell/ContentSwitch";
 import Badge from "../../../components/ui/Badge";
-import Segment from "../../../components/ui/Segment";
-import Switch from "../../../components/ui/Switch";
-import RaidLoader from "../../../components/ui/RaidLoader";
-import { FieldLabel } from "../../../components/ui/Field";
-import { CheckMark, ChevronRightIcon, WarnIcon } from "../../../components/ui/icons";
+import Segment from "../../../components/ui/form/Segment";
+import Switch from "../../../components/ui/form/Switch";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
+import { FieldLabel } from "../../../components/ui/form/Field";
+import { CheckMark, ChevronRightIcon, WarnIcon } from "../../../components/ui/icons/icons";
 import { tParts, useT } from "../../../i18n";
 import type { GameVersionOption } from "./SettingsGameVersion";
 

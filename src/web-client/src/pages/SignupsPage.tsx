@@ -13,7 +13,7 @@ import RaidIcon from "../components/raid/RaidIcon";
 import SignupDialog from "../components/signup/SignupDialog";
 import BulkSignupDialog from "../components/signup/BulkSignupDialog";
 import AvailabilitySection from "../components/signup/AvailabilitySection";
-import { ExternalIcon, SignedIcon, XIcon } from "../components/ui/icons";
+import { ExternalIcon, SignedIcon, XIcon } from "../components/ui/icons/icons";
 import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
 import { specLabel } from "../lib/wow/wowNames";
 import { weekBands } from "../lib/raids/raidTime";

@@ -6,7 +6,7 @@ import { BADGE_SCALE_MAX, BADGE_SCALE_MIN, badgeScaleOf } from "../../../../lib/
 import GroupStyle from "./GroupStyle";
 import InspectorTabs from "./InspectorTabs";
 import { useT } from "../../../../i18n";
-import Switch from "../../../ui/Switch";
+import Switch from "../../../ui/form/Switch";
 
 type Edit = (fn: (b: RaidplanBoard) => RaidplanBoard, merge?: boolean) => void;
 type GroupTab = "group" | "look" | "badge";

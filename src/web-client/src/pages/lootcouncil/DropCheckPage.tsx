@@ -13,9 +13,9 @@ import {
     type ApiError, type CouncilCandidate, type CouncilFocus, type CouncilWeightsView, type ItemSearchResult } from "../../api";
 import { useJobs, useToast } from "../../components/shell/Jobs";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { Badge, Button, PartHead } from "../../components/ui";
-import { ChevronLeftIcon } from "../../components/ui/icons";
+import { ChevronLeftIcon } from "../../components/ui/icons/icons";
 import { t as translate, useT } from "../../i18n";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
@@ -23,11 +23,11 @@ import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import {
     CANDIDATE_SORT, FILTER_DEFAULT, VIEW_KEY, WOWHEAD, councilHref, dropHref, pickVerdict, raiderHref, useCouncilSim, waitedTip,
-    type CandidateSortKey, type FilterView } from "./council";
+    type CandidateSortKey, type FilterView } from "./model/council";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
-import { NeedWeightsProvider } from "./needWeights";
-import { useCategoryViews } from "./categoryViews";
+import { NeedWeightsProvider } from "./model/needWeights";
+import { useCategoryViews } from "./model/categoryViews";
 import { BisSpecs, ContentBadge, FoldRow, LootCount, RaiderIdent } from "./ItemBits";
 import { CandidateTable, ListBadge } from "./CandidateTable";
 import { NeedBar } from "./NeedBar";

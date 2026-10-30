@@ -21,7 +21,7 @@ import {
 } from "../../api";
 import { classColorProps } from "../../components/character/ClassSpec";
 import { Badge, Button, Field, Modal, Switch, WowIcon } from "../../components/ui";
-import { CheckIcon, LinkIcon, SearchIcon, WarnIcon } from "../../components/ui/icons";
+import { CheckIcon, LinkIcon, SearchIcon, WarnIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { classLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";

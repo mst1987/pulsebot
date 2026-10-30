@@ -2,7 +2,7 @@ import { useState } from "react";
 import { deleteAvailability, getAvailability, type ApiError, type AvailabilityEntry, type AvailabilityKind } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, IconButton, useConfirm } from "../ui";
-import { AbsenceIcon, SignedIcon, TrashIcon } from "../ui/icons";
+import { AbsenceIcon, SignedIcon, TrashIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import AvailabilityDialog from "./AvailabilityDialog";
 import { periodLabel } from "../../lib/signups/availability";

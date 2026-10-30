@@ -5,7 +5,7 @@ import { useApi } from "../../hooks/useApi";
 import { menuFamily } from "../../lib/app/menu";
 import { activeTab, discordTabOrder, scrollToShow } from "../../lib/discord/tabs";
 import { tOr, useT } from "../../i18n";
-import { ChevronLeftIcon, ChevronRightIcon } from "../ui/icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "../ui/icons/icons";
 import "../../styles/discord-tabs.css";
 
 // The tabs of System › Discord (Übersicht, Kanäle, Rollen, Mitglieder,

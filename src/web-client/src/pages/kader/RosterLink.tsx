@@ -20,8 +20,8 @@ import {
     type ApiError, type KaderLinkRoster, type KaderRosterCategory, type KaderRosterState,
 } from "../../api";
 import { Button, Field, Modal, Switch, buttonClass } from "../../components/ui";
-import { useConfirm } from "../../components/ui/Modal";
-import { PlusIcon, LinkIcon } from "../../components/ui/icons";
+import { useConfirm } from "../../components/ui/overlay/Modal";
+import { PlusIcon, LinkIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";

@@ -181,7 +181,7 @@ Routes (area `kader`, writes with CSRF):
 color ("#rrggbb", "" for none), gone }`, `category { id, name, gone }`; null before a takeover or with the bot
 offline.
 
-**The web assistant** (`pages/kader/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
+**The web assistant** (`pages/kader/modals/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
 übernehmen" in the stage bar of "Zusammensetzung" (only with `kader` write; locked with the blocker as tooltip while
 `canStart` is false) opens four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
 reason unless `iconPossible`, otherwise the picker has the section "Server" with the server's emojis first and the
@@ -435,7 +435,7 @@ leads taking turns on one interview stay two. Never an answer, a note or a comme
 after `rev` (at most 20; `more` when there may have been more) and who else is in this Kader; `gone: true` for a Kader
 that is not there. It never builds the view model: `kaderStore.liveState` keeps the revisions and logs per server in
 memory and reads the file again only when it changed (a stat per poll). `leave=1` takes the tab out at once.
-The page (`pages/kader/useKaderLive.ts`) asks every 5 s **only while the tab is visible** (`hooks/useVisiblePoll.ts`),
+The page (`pages/kader/live/useKaderLive.ts`) asks every 5 s **only while the tab is visible** (`hooks/useVisiblePoll.ts`),
 at once when the tab comes back, the page opens a Kader or opens something else; nothing for an account without
 `kader` read, nothing after leaving the Kader pages (then `leave=1`). When `rev` or `sharedRev` moved, it fetches
 again — only the Kader (`GET /api/kader/kader?kader=<id>`, `{ kader, kaders, sharedRev }`) when the change stayed
@@ -574,10 +574,10 @@ Deleting a Kader and switching the menu's version away from the open one land on
 - **Status icons** (`pages/kader/parts.tsx`): interview open = empty circle, running = a ring filled to x/n, held =
   check (also beside the name); answered question = check, required and open = "!"; state icons Pool = people,
   Vorauswahl = checklist, Vorläufig = hourglass, Roster = shield, Bench, Tentative = question mark; votes dafür =
-  check, unsicher = question mark, dagegen = x. Line icons come from `components/ui/icons.tsx`, always with text or a
+  check, unsicher = question mark, dagegen = x. Line icons come from `components/ui/icons/icons.tsx`, always with text or a
   label. Empty lists show a quiet icon above their text.
 - **Every table sorts** (Pool, Übersicht, the import's member list): each column head is the shared `SortLabel`
-  (`components/ui/SortTh.tsx`) inside a `SortHead` (`pages/kader/parts.tsx`) — a button, so the keyboard sorts too,
+  (`components/ui/table/SortTh.tsx`) inside a `SortHead` (`pages/kader/parts.tsx`) — a button, so the keyboard sorts too,
   `aria-sort` on the `role="columnheader"`, the chevron on the active column, a long label cut with "…" and the
   rule in the tooltip. `useTableSort` remembers the column per table (`kader-pool-sort`, `kader-overview-sort`,
   `kader-import-sort`); `lib/kader/sort.ts` turns a column into parts compared one after the other — numbers as
@@ -638,7 +638,7 @@ Deleting a Kader and switching the menu's version away from the open one land on
   spec is picked), Bench | Tentative (the current one pressed and off), the step back; the Verlauf behind the clock
   button in its head. The drawer is keyed by the player alone: a live change keeps a half-typed comment and a picked
   spec (the pick follows the stored decision until somebody picks).
-- **The spec picker** (`pages/kader/WishPicker.tsx`): the same menu in the drawer's decision and in every setup
+- **The spec picker** (`pages/kader/modals/WishPicker.tsx`): the same menu in the drawer's decision and in every setup
   slot — the player's wishes in wish order across classes (a decision outside them first, labelled
   "Entscheidung"), each row rank, spec icon, class in its colour and a check on the current one; the trigger shows
   the chosen spec's icon (and the class when there is room). Keyboard: Enter/ArrowDown opens, arrows move, Escape

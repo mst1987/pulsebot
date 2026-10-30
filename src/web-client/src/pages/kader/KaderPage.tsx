@@ -28,28 +28,28 @@ import { usePersistedState } from "../../lib/ui/persistedState";
 import { attendanceUnloaded, byId } from "../../lib/kader/model";
 import { liveToast } from "../../lib/kader/live";
 import { useToast } from "../../components/shell/Jobs";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import type { ShellContext } from "../../components/shell/Shell";
 import { useT } from "../../i18n";
 import {
     KaderContext, SUBS, type KaderCtx, type KaderFocus, type KaderFocusSource, type KaderModal, type KaderRunOptions, type KaderSub,
 } from "./kaderContext";
-import { useKaderLive } from "./useKaderLive";
-import ActivityModal from "./ActivityLog";
+import { useKaderLive } from "./live/useKaderLive";
+import ActivityModal from "./live/ActivityLog";
 import KaderHeader, { StageNav } from "./KaderHeader";
 import KaderOverview from "./KaderOverview";
 import KaderStart from "./KaderStart";
-import PoolView from "./PoolView";
-import InterviewsView from "./InterviewsView";
-import OverviewView from "./OverviewView";
-import DecisionView from "./DecisionView";
-import QuestionsView from "./QuestionsView";
-import SetupsView from "./SetupsView";
-import CompositionView from "./CompositionView";
-import AccountModal from "./AccountModal";
-import AddAccountModal from "./AddAccountModal";
-import ImportModal from "./ImportModal";
-import KaderSettingsModal from "./KaderSettingsModal";
+import PoolView from "./views/PoolView";
+import InterviewsView from "./views/InterviewsView";
+import OverviewView from "./views/OverviewView";
+import DecisionView from "./views/DecisionView";
+import QuestionsView from "./views/QuestionsView";
+import SetupsView from "./views/SetupsView";
+import CompositionView from "./views/CompositionView";
+import AccountModal from "./modals/AccountModal";
+import AddAccountModal from "./modals/AddAccountModal";
+import ImportModal from "./modals/ImportModal";
+import KaderSettingsModal from "./modals/KaderSettingsModal";
 import "../../styles/kader.css";
 
 /** Swaps an answer into the loaded view: the whole view, or `{ kader, kaders }` of a change inside one Kader. */

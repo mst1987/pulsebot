@@ -8,9 +8,9 @@ import RolePermissionsEditor from "./access/RolePermissions";
 import BotCommandAccess from "./access/BotCommandAccess";
 import FullAdminRoles from "./access/FullAdminRoles";
 import { accessPatch } from "../../lib/settings/accessPatch";
-import Segment from "../../components/ui/Segment";
+import Segment from "../../components/ui/form/Segment";
 import { useToast } from "../../components/shell/Jobs";
-import SectionRail, { RailLayout } from "../../components/ui/SectionRail";
+import SectionRail, { RailLayout } from "../../components/ui/layout/SectionRail";
 import CategoryMatrix from "./categories/CategoryMatrix";
 import ConnectionsSection from "./connections/SettingsConnections";
 import AddonsSection from "./connections/AddonsSection";
@@ -18,7 +18,7 @@ import DiscordServersSection from "./discord/SettingsDiscordServers";
 import RaidhelperServerSection from "./connections/SettingsRaidhelperServer";
 import WclGuildsSection from "./connections/SettingsWclGuilds";
 import { ChannelPicker, RolePicker } from "../../components/settings/settingsUi";
-import { FieldLabel, InfoTip } from "../../components/ui/Field";
+import { FieldLabel, InfoTip } from "../../components/ui/form/Field";
 import {
     sectionParamIds, sectionsFor, sectionElsewhere, SCOPE_PATH, resolveSection, groupedSections, savesWithForm, groupLabel, sectionCrumb, sectionLabel,
     type SettingsSection, type SettingsScope } from "../../lib/settings/settingsSections";
@@ -27,10 +27,10 @@ import { areaLabel, draftChanges, logChannelsChanged } from "../../lib/settings/
 import { sectionBadge, settingsNavCounts } from "../../lib/settings/settingsNav";
 import { tParts, useT } from "../../i18n";
 import { Button } from "../../components/ui/Button";
-import IconTile from "../../components/ui/IconTile";
-import PartHead from "../../components/ui/PartHead";
+import IconTile from "../../components/ui/icons/IconTile";
+import PartHead from "../../components/ui/layout/PartHead";
 import "../../styles/settings.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { LogChannelsField } from "./SettingsFields";
@@ -51,7 +51,7 @@ import ServerVersionLinksSection from "./versions/ServerVersionLinksSection";
 import TopItemsSection from "./versions/TopItemsSection";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
-import { XIcon, SaveIcon } from "../../components/ui/icons";
+import { XIcon, SaveIcon } from "../../components/ui/icons/icons";
 
 /** A module's fields on the panel card, each hint moved into its label's tooltip. */
 function ModuleCard({ children }: { children: ReactNode }) {

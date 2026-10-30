@@ -5,7 +5,7 @@ import {
 } from "../../api";
 import { Badge, Button, Modal, RaidLoader, Segment, WowIcon } from "../ui";
 import { classColorProps } from "./ClassSpec";
-import { SearchIcon, LinkIcon, PlusIcon } from "../ui/icons";
+import { SearchIcon, LinkIcon, PlusIcon } from "../ui/icons/icons";
 import { formatDate } from "../../lib/format";
 import type { CharacterSuggestion } from "../../lib/settings/raidhelperRetirement";
 import { classLabel, specLabel as specName } from "../../lib/wow/wowNames";

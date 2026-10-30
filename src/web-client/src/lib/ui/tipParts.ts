@@ -1,4 +1,4 @@
-// How a tooltip text splits into its bold head and its explanation (ui/Tip.tsx).
+// How a tooltip text splits into its bold head and its explanation (ui/overlay/Tip.tsx).
 
 /**
  * Head and explanation of a tip. A `data-tip` without a sub that is long or has

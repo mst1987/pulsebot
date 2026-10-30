@@ -7,7 +7,7 @@ import { useMemo } from "react";
 import { useT } from "../../i18n";
 import { emojiStyleOf, leadEmojiOf, setLeadEmoji } from "../../lib/discord/emoji";
 import { raidEmojiSuggestions } from "../../lib/raids/raidEmojis";
-import EmojiPicker, { type EmojiSection } from "../ui/EmojiPicker";
+import EmojiPicker, { type EmojiSection } from "../ui/overlay/EmojiPicker";
 
 export default function ChannelEmojiPicker({ value, onChange, channelNames = [], instanceIds = [], raidLabel = "", host = "dialog", disabled = false }: {
     /** The name (or schema) as it stands in the field. */

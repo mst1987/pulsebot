@@ -6,19 +6,19 @@ import ServerHeader from "./ServerHeader";
 import ContentSwitch from "./ContentSwitch";
 import ContentVersionProvider from "./ContentVersionProvider";
 import { ViewAsBanner, ViewAsButton } from "./ViewAs";
-import { BrandIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons";
-import Icon from "../ui/Icon";
-import RaidLoader from "../ui/RaidLoader";
+import { BrandIcon, BurgerIcon, LogoutIcon, BookIcon } from "../ui/icons/icons";
+import Icon from "../ui/icons/Icon";
+import RaidLoader from "../ui/layout/RaidLoader";
 import ChunkErrorBoundary from "./ChunkErrorBoundary";
 import { IconButton } from "../ui/Button";
-import { TipLayer } from "../ui/Tip";
+import { TipLayer } from "../ui/overlay/Tip";
 import { MENU, firstAllowedTab, isNeutralPage, menuBlocks, menuLabel, ownsPath, type MenuLine } from "../../lib/app/menu";
 import { canAccess, getVersion, type SessionUser, type SessionGuild, type ContentInfo } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { PageCrumbContext } from "../../hooks/usePageCrumb";
 import { deployLine } from "../../lib/app/deployVersion";
 import { pageAudience } from "../../lib/app/orgaArea";
-import { OrgaChip } from "../ui/OrgaZone";
+import { OrgaChip } from "../ui/layout/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
 export type ShellContext = { user: SessionUser };
@@ -60,7 +60,7 @@ function subCrumb(pathname: string, search: URLSearchParams): string | null {
 /**
  * The main menu: short and flat, one line per entry (design "C · Schmale
  * Icon-Leiste"). A page with sub sections carries them in its own icon rail
- * (components/ui/SectionRail.tsx) — Einstellungen its sections, Raid-Events the
+ * (components/ui/layout/SectionRail.tsx) — Einstellungen its sections, Raid-Events the
  * raid plan's pages — and its line here stays active on every one of them.
  *
  * Two blocks (#918, design A "Discord-Kopf"): the active server's pages under

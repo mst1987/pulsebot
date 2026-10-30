@@ -27,7 +27,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getLootCouncil, setCouncilExcluded, getCouncilExport, refreshCouncilArmory, setCouncilRole, canAccess, loadCouncilLogGear, type ApiError, type CouncilRaider, type CouncilRole, type CouncilExport, type LootCouncilData } from "../../api";
-import { useCategoryViews } from "./categoryViews";
+import { useCategoryViews } from "./model/categoryViews";
 import { refreshWowheadLinks } from "../../lib/wow/wowheadTooltips";
 import { useJobs, useToast } from "../../components/shell/Jobs";
 import type { ShellContext } from "../../components/shell/Shell";
@@ -35,27 +35,27 @@ import { fmtMs } from "../../lib/format";
 import { useT } from "../../i18n";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import { useTableSort } from "../../lib/ui/tableSort";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { BackButton, Button, PageHead, useConfirm } from "../../components/ui";
-import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, councilHref, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./council";
+import { CANDIDATE_SORT, ROSTER_SORT, VIEW_KEY, councilContent, councilHref, dropHref, roleLabel, useCouncilSim, type CandidateSortKey, type RosterSortKey } from "./model/council";
 import CouncilOverview from "./CouncilOverview";
 import { WowheadPathProvider } from "../../lib/settings/versionLinks";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import FilterBar from "./FilterBar";
 import RaiderDialog, { ExportDialog } from "./RaiderDialog";
 import "../../styles/loot-council.css";
-import type { View } from "./view";
-import { CouncilTabs } from "./CouncilTabs";
-import { RosterTab } from "./RosterTab";
-import { GapsTab } from "./GapsTab";
-import { BisListsTab } from "./BisListsTab";
-import { ManualBisTab } from "./ManualBisTab";
-import { CompareTab } from "./CompareTab";
-import { ProfilesTab } from "./ProfilesTab";
+import type { View } from "./model/view";
+import { CouncilTabs } from "./tabs/CouncilTabs";
+import { RosterTab } from "./tabs/RosterTab";
+import { GapsTab } from "./tabs/GapsTab";
+import { BisListsTab } from "./tabs/BisListsTab";
+import { ManualBisTab } from "./tabs/ManualBisTab";
+import { CompareTab } from "./tabs/CompareTab";
+import { ProfilesTab } from "./tabs/ProfilesTab";
 import { CouncilHead } from "./CouncilHead";
-import { pickValue } from "./profiles";
-import { useDroppedPick } from "./droppedPick";
-import { NeedWeightsProvider } from "./needWeights";
+import { pickValue } from "./model/profiles";
+import { useDroppedPick } from "./model/droppedPick";
+import { NeedWeightsProvider } from "./model/needWeights";
 
 const VIEW_DEFAULT: View = {
     role: "caster", tiers: [], contents: [], category: "", roster: "", bisTier: "", bench: false, tab: "roster",
@@ -90,7 +90,7 @@ function CouncilPage() {
     const toast = useToast();
     const [localView, setLocalView] = usePersistedState<View>(VIEW_KEY, VIEW_DEFAULT);
     // A picked category brings its own filters from the server (they drive the
-    // in-game council too): lootcouncil/categoryViews.ts.
+    // in-game council too): lootcouncil/model/categoryViews.ts.
     // The pick lives in the url (Oct 2026): ?roster=<id> or ?category=<id> - a tile of the
     // overview, the Kaderplaner's "Zum Loot-Council", the roster settings' "Profile verwalten"
     // (with ?tab=profiles, taken over once). A raider's link (?raider=) carries no pick: the

@@ -4,7 +4,7 @@
 // along and who is told. Two switches, one button.
 import { useEffect, useState } from "react";
 import { getMovePreview, moveRaid, type ApiError, type MovePlan } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import { SwitchRow } from "../../../components/raid/RaidFields";

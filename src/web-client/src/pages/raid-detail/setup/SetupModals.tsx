@@ -3,7 +3,7 @@ import { explainRaidSetup, getRaidSetupExplain, type SetupEditorData, type Store
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { useJobs } from "../../../components/shell/Jobs";
 import AllSettingsLink from "../../../components/settings/AllSettingsLink";
 import type { RaidCtx } from "../meta";

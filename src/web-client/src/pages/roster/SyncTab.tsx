@@ -19,7 +19,7 @@ import { classLabel } from "../../lib/wow/wowNames";
 import { CharChip, MemberAvatar, Notice } from "./RosterParts";
 import { useRosterAction } from "./useRosterAction";
 import type { AddPrefill } from "./AddMemberDialog";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon } from "../../components/ui/icons/icons";
 
 type LogChar = RosterSync["logCharsWithoutPerson"][number];
 

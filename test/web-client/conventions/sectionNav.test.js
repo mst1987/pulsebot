@@ -1,11 +1,11 @@
 // Conventions of the pages with sub sections that a render cannot show: the
-// icon rail (components/ui/SectionRail.tsx) turns into the chip row exactly where
+// icon rail (components/ui/layout/SectionRail.tsx) turns into the chip row exactly where
 // the main menu becomes the drawer, it stands outside the page's width budget,
 // and the main menu folds nothing out any more (design "C · Schmale
 // Icon-Leiste"). On the Einstellungen page every per-category setting has one
 // home (the category matrix), and explanations sit in tooltips instead of hint
 // paragraphs. What the rail, the sections and the save bar do is tested in
-// src/web-client/src/components/ui/__tests__/SectionRail.test.tsx, components/shell/__tests__/Shell.test.tsx,
+// src/web-client/src/components/ui/layout/__tests__/SectionRail.test.tsx, components/shell/__tests__/Shell.test.tsx,
 // lib/settings/__tests__/settingsSections.test.ts and pages/settings/__tests__/SettingsPage.sections.test.tsx;
 // the areas of Historie & Loot in pages/history/__tests__/HistoryPage.areas.test.tsx.
 const fs = require("fs");

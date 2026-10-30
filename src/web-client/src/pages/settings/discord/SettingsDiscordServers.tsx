@@ -8,20 +8,20 @@ import { linkKey, linkStatusBadge, linkStatusOf, linkSummary, raidCategoriesText
 import { useTableSort } from "../../../lib/ui/tableSort";
 import { usePersistedSearchParam } from "../../../lib/ui/persistedState";
 import { useToast } from "../../../components/shell/Jobs";
-import { CheckMark, CopyIcon, PenIcon, PlusIcon, RefreshIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../../components/ui/icons";
+import { CheckMark, CopyIcon, PenIcon, PlusIcon, RefreshIcon, SaveIcon, SendIcon, TrashIcon, WarnIcon } from "../../../components/ui/icons/icons";
 import RoleSyncPart from "./SettingsRoleSync";
 import PugOnboardingPart from "./PugOnboardingPart";
 import RemindersPart from "./SettingsReminders";
-import { Modal, useConfirm } from "../../../components/ui/Modal";
+import { Modal, useConfirm } from "../../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Chip from "../../../components/ui/Chip";
-import DataTable, { type Column } from "../../../components/ui/DataTable";
-import PartHead from "../../../components/ui/PartHead";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import DataTable, { type Column } from "../../../components/ui/table/DataTable";
+import PartHead from "../../../components/ui/layout/PartHead";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { AdminOnlyBadge, ChannelPicker } from "../../../components/settings/settingsUi";
-import { FieldLabel, InfoTip } from "../../../components/ui/Field";
-import Switch from "../../../components/ui/Switch";
+import { FieldLabel, InfoTip } from "../../../components/ui/form/Field";
+import Switch from "../../../components/ui/form/Switch";
 import { t as translate, useT } from "../../../i18n";
 import "../../../styles/discord-tabs.css";
 

@@ -1,7 +1,7 @@
 import type { SystemStatus } from "../../api";
 import { useT } from "../../i18n";
 import { findingText } from "../../lib/system/findings";
-import { AlertIcon, CheckIcon } from "../../components/ui/icons";
+import { AlertIcon, CheckIcon } from "../../components/ui/icons/icons";
 
 // The verdict at the top of the page: one headline in large type, then one
 // sentence per finding with the numbers it rests on and a recommendation. The

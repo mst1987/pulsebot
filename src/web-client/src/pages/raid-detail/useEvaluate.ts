@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { LogSection, RaidLogRow } from "../../api";
 import { evalLog } from "../../api";
 import { withIncompleteConfirm } from "../../lib/raids/confirmIncomplete";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import { useJobs } from "../../components/shell/Jobs";
 import { t } from "../../i18n";
 import { EVAL_SECONDS } from "./meta";

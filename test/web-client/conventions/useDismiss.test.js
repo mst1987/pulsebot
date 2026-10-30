@@ -53,7 +53,7 @@ describe("no hand-written click-outside listener is left", () => {
 
     test.each(VIA_POPOVER)("%s is dismissed by its Popover", (rel) => {
         expect(read(rel)).toMatch(/<Popover[\s\S]*onClose=/);
-        expect(read("components/ui/Popover.tsx")).toMatch(/useDismiss\(/);
+        expect(read("components/ui/overlay/Popover.tsx")).toMatch(/useDismiss\(/);
     });
 
     test("no component registers a document mousedown/click listener with a contains() check of its own", () => {

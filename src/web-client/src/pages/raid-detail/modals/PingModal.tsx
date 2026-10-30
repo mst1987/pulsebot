@@ -3,7 +3,7 @@
 // on that server gets a DM (#894).
 import { useState } from "react";
 import { pingMissingRaiders, type ApiError } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import { useToast } from "../../../components/shell/Jobs";
 import { channelHint } from "../../../lib/settings/settingsLogic";

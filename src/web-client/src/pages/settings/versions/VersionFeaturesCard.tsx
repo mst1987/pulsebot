@@ -1,5 +1,5 @@
-import Switch from "../../../components/ui/Switch";
-import { FieldLabel } from "../../../components/ui/Field";
+import Switch from "../../../components/ui/form/Switch";
+import { FieldLabel } from "../../../components/ui/form/Field";
 import { VersionDot } from "../../../components/shell/ContentSwitch";
 import { useT } from "../../../i18n";
 import { cellState, reasonKeys, setFeature, type CapabilityMatrix } from "../../../lib/settings/versionFeatures";

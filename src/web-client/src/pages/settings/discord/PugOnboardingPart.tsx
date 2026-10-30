@@ -8,17 +8,17 @@ import {
     toggleCategory, visibleChannelsOf, type PugSortKey,
 } from "../../../lib/settings/pugOnboarding";
 import { useTableSort } from "../../../lib/ui/tableSort";
-import { SortTh } from "../../../components/ui/SortTh";
+import { SortTh } from "../../../components/ui/table/SortTh";
 import { formatDateTime } from "../../../lib/format";
 import { useT } from "../../../i18n";
 import { useToast } from "../../../components/shell/Jobs";
-import { CheckMark, PlusIcon, SendIcon, WarnIcon, XIcon } from "../../../components/ui/icons";
-import { Modal } from "../../../components/ui/Modal";
+import { CheckMark, PlusIcon, SendIcon, WarnIcon, XIcon } from "../../../components/ui/icons/icons";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
-import Switch from "../../../components/ui/Switch";
-import PartHead from "../../../components/ui/PartHead";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import Switch from "../../../components/ui/form/Switch";
+import PartHead from "../../../components/ui/layout/PartHead";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { AdminOnlyBadge } from "../../../components/settings/settingsUi";
 
 // Einstellungen → Verbindungen → Discord-Server, part "Rollen & Onboarding" (#906).

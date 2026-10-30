@@ -5,7 +5,7 @@ import {
 } from "../../api/vermerke";
 import type { ApiError } from "../../api/client";
 import { Button, InfoTip, Modal, NumberStepper, Segment, Switch } from "../../components/ui";
-import { SaveIcon } from "../../components/ui/icons";
+import { SaveIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 
 // The settings of "Hinweise aus den Daten" for the active server. First the

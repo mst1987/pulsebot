@@ -9,7 +9,7 @@
 // draft with the series' fix; the save makes it happen (services/roster/rosterVersionSwitch.js).
 import type { CategorySwitchPreview, Role, RosterSwitchChoice } from "../../../api";
 import Chip from "../../../components/ui/Chip";
-import Switch from "../../../components/ui/Switch";
+import Switch from "../../../components/ui/form/Switch";
 import { useT } from "../../../i18n";
 import { assignableRoles } from "../../../lib/settings/assignableRoles";
 

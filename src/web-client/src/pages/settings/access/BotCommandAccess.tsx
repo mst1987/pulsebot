@@ -10,16 +10,16 @@ import {
 import { tParts, t as translate, useT } from "../../../i18n";
 import { useToast } from "../../../components/shell/Jobs";
 import { Button, IconButton } from "../../../components/ui/Button";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import Badge from "../../../components/ui/Badge";
-import Expand from "../../../components/ui/Expand";
-import IconTile from "../../../components/ui/IconTile";
-import PartHead from "../../../components/ui/PartHead";
-import Segment from "../../../components/ui/Segment";
-import Switch from "../../../components/ui/Switch";
-import RaidLoader from "../../../components/ui/RaidLoader";
-import { LockIcon, PenIcon, XIcon, SaveIcon } from "../../../components/ui/icons";
-import { FieldLabel } from "../../../components/ui/Field";
+import Expand from "../../../components/ui/layout/Expand";
+import IconTile from "../../../components/ui/icons/IconTile";
+import PartHead from "../../../components/ui/layout/PartHead";
+import Segment from "../../../components/ui/form/Segment";
+import Switch from "../../../components/ui/form/Switch";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
+import { LockIcon, PenIcon, XIcon, SaveIcon } from "../../../components/ui/icons/icons";
+import { FieldLabel } from "../../../components/ui/form/Field";
 import { assignableRoles } from "../../../lib/settings/assignableRoles";
 
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): who may use which

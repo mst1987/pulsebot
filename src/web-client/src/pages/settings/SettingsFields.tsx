@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type LogChannelInput, type TextChannel } from "../../api";
-import { XIcon, PlusIcon } from "../../components/ui/icons";
+import { XIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { ChannelPicker } from "../../components/settings/settingsUi";
 import { Button, IconButton } from "../../components/ui/Button";
 import { splitList } from "./settingsDraft";

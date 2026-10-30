@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { getCategoryDeactivate, type ApiError, type DeactivatedCategory } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { seriesWhen } from "../../../lib/settings/categoryLifecycle";
 import { useT } from "../../../i18n";
 

@@ -6,7 +6,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanPlayer } from "../../../../api";
 import { JobsProvider } from "../../../shell/Jobs";
-import { ConfirmProvider } from "../../../ui/Modal";
+import { ConfirmProvider } from "../../../ui/overlay/Modal";
 import { boardOf, emptyBoard } from "../../../../lib/raidplan";
 import BoardWorkspace from "../BoardWorkspace";
 import { useDraftHistory } from "../useDraftHistory";
