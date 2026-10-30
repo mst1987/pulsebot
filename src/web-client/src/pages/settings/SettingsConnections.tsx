@@ -416,6 +416,11 @@ function serverName(servers: IngestTokenServer[], guildId: string): string {
     return (s && (s.label || s.name)) || guildId;
 }
 
+/** Whose personal key (#1000) a token is: the owner's Discord name, else the id. */
+function ownerOf(tok: IngestToken): string {
+    return tok.ownerName || tok.ownerId || "";
+}
+
 /**
  * Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm.
  * Each token works on one Discord server (#994); the table lists every server's
@@ -487,7 +492,7 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
         switch (key) {
             case "name": return tok.name.toLowerCase();
             // a token without a server first: that is the one still to assign
-            case "server": return tok.guildId ? serverName(servers, tok.guildId).toLowerCase() : "";
+            case "server": return tok.ownerId ? `~${ownerOf(tok).toLowerCase()}` : tok.guildId ? serverName(servers, tok.guildId).toLowerCase() : "";
             case "created": return tok.createdAt || 0;
             case "uses": return tok.uses || 0;
             default: return tok.lastUsedAt || 0;
@@ -555,7 +560,11 @@ function TokensModal({ open, tokens, servers = [], activeGuildId = "", onClose, 
                                         <td><strong>{tok.name}</strong></td>
                                         <td className="mono">ehl_…{tok.hint}</td>
                                         <td className="small">
-                                            {tok.guildId ? serverName(servers, tok.guildId) : (
+                                            {tok.ownerId ? (
+                                                <span data-testid="token-owner" data-tip={t("settings.tokens.personalTip", { name: ownerOf(tok) })}>
+                                                    {t("settings.tokens.personal", { name: ownerOf(tok) })}
+                                                </span>
+                                            ) : tok.guildId ? serverName(servers, tok.guildId) : (
                                                 <select
                                                     className="gbs-select"
                                                     aria-label={t("settings.tokens.assignAria", { name: tok.name })}

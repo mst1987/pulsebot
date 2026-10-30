@@ -28,6 +28,8 @@ const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3 } = requi
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../loot/councilView");
 const { getConfig } = require("../../stores/settingsStore");
 const { serverIds } = require("../../services/discord/guildRoles");
+const { serversOfToken, orgaServersOf, isPersonToken, describeServers } = require("../../services/discord/ingestServers");
+const discord = require("../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../services/loot/lootServer");
 const { listKnownCategories } = require("../../services/discord/categoryNames");
 const { ingestScan } = require("../../services/guildbank/guildBankStock");
@@ -56,6 +58,27 @@ function requireToken(req, res) {
 }
 
 /**
+ * The servers the key may work on (services/discord/ingestServers.js): the owner's orga servers
+ * for a personal key (#1000), `[guildId]` for a server key (#994), null for an old key (the rules
+ * from before #994). A personal key whose owner is orga nowhere (any more) gets the 403
+ * `no_server` and `undefined` back - the caller stops.
+ * @returns {Promise<string[]|null|undefined>}
+ */
+async function requireServers(token, res) {
+    const servers = await serversOfToken(token);
+    if (Array.isArray(servers) && !servers.length) {
+        error(res, 403, "no_server", "Dieser Schlüssel gilt gerade für keinen Server: Du bist auf keinem Server Orga.");
+        return undefined;
+    }
+    return servers;
+}
+
+/** The servers a key searches: its list, else (old key) every configured one. */
+function searchServers(servers) {
+    return Array.isArray(servers) ? servers : serverIds(getConfig());
+}
+
+/**
  * When a session started, in ms. The addon's own session start is the honest
  * answer; the earliest award is the fallback for a payload that didn't carry one.
  */
@@ -74,11 +97,11 @@ function sessionTime(session) {
  * unreachable the upload still succeeds without a suggestion, because losing the
  * raid's loot to a failed API call would be far worse than losing the convenience.
  */
-async function suggestMatch(session, token) {
+async function suggestMatch(session, servers) {
     const at = sessionTime(session);
     if (!at) return null;
     try {
-        const all = await eventsOfServers(tokenServers(token));
+        const all = await eventsOfServers(searchServers(servers));
         const { match, candidates, ambiguous } = bestDayMatch(at, all.map((x) => x.ev));
         const shape = (ev) => {
             const found = all.find((x) => x.ev === ev);
@@ -100,20 +123,6 @@ async function suggestMatch(session, token) {
         console.error("ingest: event match failed:", (e && e.message) || e);
         return null;
     }
-}
-
-/**
- * The server of an upload key (#994), or "" for a key minted before #994: such
- * a key keeps the old rules (first server, or every server).
- */
-function tokenGuild(token) {
-    return String((token && token.guildId) || "").trim();
-}
-
-/** The servers a key searches: its own, else every configured one. */
-function tokenServers(token) {
-    const own = tokenGuild(token);
-    return own ? [own] : serverIds(getConfig());
 }
 
 /** The raids of the given servers, each with its group and server; a raid listed twice counts once. */
@@ -149,6 +158,8 @@ function cardServer(ctx, entry) {
 async function ingestLoot(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
 
     const body = await readJsonBody(req);
     let parsed;
@@ -160,7 +171,6 @@ async function ingestLoot(req, res) {
     touchToken(token.id);
 
     const { meta, sessions } = parsed;
-    const own = tokenGuild(token);
     const ctx = serverContext();
     const results = [];
     for (const session of sessions) {
@@ -173,13 +183,13 @@ async function ingestLoot(req, res) {
             results.push({ sessionId: session.sessionId, status: "dismissed", added: 0 });
             continue;
         }
-        // A key with a server (#994) never touches another server's loot: not the
-        // raid a session was accepted into, not an open card of the same session.
-        if (own) {
+        // A key with servers (#994; a personal key #1000) never touches another server's loot: not
+        // the raid a session was accepted into, not an open card of the same session.
+        if (servers) {
             const owner = prior && prior.action === "accepted" && prior.eventId
                 ? guildOfLootEvent(ctx, prior.eventId, prior.categoryId, prior.guildId)
                 : cardServer(ctx, listPending().find((p) => p.sessionId === String(session.sessionId || "")));
-            if (owner && owner !== own) {
+            if (owner && !servers.includes(owner)) {
                 results.push({ sessionId: session.sessionId, status: "other_server", added: 0 });
                 continue;
             }
@@ -214,15 +224,16 @@ async function ingestLoot(req, res) {
             continue;
         }
 
-        const match = await suggestMatch(session, token);
+        const match = await suggestMatch(session, servers);
         const { entry, added, created } = upsertPending(session, {
             realm: meta.realm,
             reporter: meta.reporter,
             addonVersion: meta.addonVersion,
             tokenId: token.id,
             tokenName: token.name,
-            // without a suggestion the card shows only on the key's server (#994)
-            guildId: tokenGuild(token),
+            // without a suggestion the card shows only on the key's server (#994); a personal
+            // key's on the first of its owner's servers (#1000) - never on every server
+            guildId: servers ? servers[0] : "",
             match,
         });
         results.push({
@@ -327,18 +338,21 @@ function computeRaidStatus(events, sessions, { lootedEventIds, pending, resoluti
 async function ingestRaidStatus(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
     touchToken(token.id);
 
     const body = await readJsonBody(req);
     const sessions = Array.isArray(body.sessions) ? body.sessions : [];
 
-    // No session behind the token: the key's server (#994), else the first server (#919), never a guess.
-    const { groups } = await loadEventGroups(tokenGuild(token) || serverWithoutSession(), { sinceSeconds: eventLookbackSince() });
-    const events = groups.flatMap((g) => g.events.map((ev) => ({
+    // No session behind the token: the key's servers (#994; a personal key every orga server of
+    // its owner together, #1000), else the first server (#919), never a guess.
+    const found = await eventsOfServers(servers || [serverWithoutSession()]);
+    const events = found.map(({ ev, g }) => ({
         ...ev,
         categoryId: g.categoryId || "",
         categoryName: g.categoryName || "",
-    })));
+    }));
 
     const raids = computeRaidStatus(events, sessions, {
         lootedEventIds: new Set(eventsWithLoot().map((e) => e.eventId)),
@@ -370,23 +384,26 @@ async function ingestRaidStatus(req, res) {
 async function ingestCouncil(req, res, url) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
     touchToken(token.id);
 
     const params = url ? url.searchParams : new URLSearchParams();
-    const own = tokenGuild(token);
     if (!params.has("category") && Number(params.get("v")) >= 3) {
-        return ok(res, councilSyncPayloadV3(await councilEntries(own)));
+        return ok(res, councilSyncPayloadV3(await councilEntries(servers)));
     }
     if (!params.has("category") && (params.get("v") === "2" || params.get("categories") === "council")) {
-        return ok(res, councilSyncPayloadV2(await councilEntries(own)));
+        return ok(res, councilSyncPayloadV2(await councilEntries(servers)));
     }
     // v1: only the two documented filters count; the tool never narrows by tier or version.
-    // No session: the key's server (#994), else the asked category's server, else the
-    // first server (#919). A key with a server never reads a category of another one.
+    // No session: the asked category's server when the key may work on it, else the key's (first)
+    // server (#994, #1000); an old key the asked category's server, else the first server (#919).
+    // A key with servers never reads a category of another server.
     const ctx = serverContext();
     const asked = params.get("category") || "";
-    const category = own && asked && serverWithoutSession(asked, ctx) !== own ? "" : asked;
-    const guildId = own || serverWithoutSession(category, ctx);
+    const askedServer = asked ? serverWithoutSession(asked, ctx) : "";
+    const category = servers && asked && !servers.includes(askedServer) ? "" : asked;
+    const guildId = servers ? (category ? askedServer : servers[0]) : serverWithoutSession(category, ctx);
     const opts = councilOptsFromQuery(new URLSearchParams({
         category,
         role: params.get("role") || "",
@@ -394,8 +411,8 @@ async function ingestCouncil(req, res, url) {
     const built = councilRoster(opts);
     ok(res, councilSyncPayload(built, {
         categoryId: opts.categoryId,
-        categories: own
-            ? categoryOptions(guildId).filter((c) => serverWithoutSession(c.id, ctx) === own)
+        categories: servers
+            ? categoryOptions(guildId).filter((c) => servers.includes(serverWithoutSession(c.id, ctx)))
             : categoryOptions(guildId),
         role: opts.role,
         bisTierDerived: !opts.bisTier,
@@ -414,20 +431,22 @@ async function ingestCouncil(req, res, url) {
  * left out: the addon picks a council by the raid's instances, and such a
  * roster has no raid template to name them (docs/loot-import.md).
  *
- * `guildId` (the upload key's server, #994): only the categories of that
- * server (the same rule categoryCouncil() places them by); "" = every server.
+ * `guildIds` (the upload key's servers, #994/#1000): only the categories of
+ * those servers (the same rule categoryCouncil() places them by); null = every
+ * server (an old key).
  */
-async function councilEntries(guildId = "") {
+async function councilEntries(guildIds = null) {
+    const list = Array.isArray(guildIds) ? guildIds : null;
     const config = getConfig();
     // Live names first, else the ones seen earlier (categoryNames.js). The token
     // request has no session and the categories span every server (#919): each
     // name comes from the server that has the category.
     const names = new Map();
-    for (const gid of guildId ? [guildId] : serverIds(config)) {
+    for (const gid of list || serverIds(config)) {
         for (const c of listKnownCategories(gid)) if (c.name && !names.has(c.id)) names.set(c.id, c.name);
     }
     const ctx = serverContext();
-    const ids = councilCategoryIds(config).filter((id) => !guildId || serverWithoutSession(id, ctx) === guildId);
+    const ids = councilCategoryIds(config).filter((id) => !list || list.includes(serverWithoutSession(id, ctx)));
     const entries = [];
     for (const id of ids) {
         const { opts, built, profile, roster } = await categoryCouncil(id);
@@ -446,11 +465,13 @@ async function councilEntries(guildId = "") {
 async function ingestGuildBank(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
 
     const body = await readJsonBody(req);
     let result;
     try {
-        result = ingestScan(body, { token });
+        result = ingestScan(body, { token, servers });
     } catch (e) {
         if (e instanceof GuildBankParseError) return error(res, 400, "parse_failed", e.message);
         throw e;
@@ -487,9 +508,11 @@ async function ingestGuildBank(req, res) {
 async function ingestHandoutList(req, res, url) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
     touchToken(token.id);
     const bankKey = url ? url.searchParams.get("bank") || "" : "";
-    ok(res, handoutList({ token, bankKey }));
+    ok(res, handoutList({ token, servers, bankKey }));
 }
 
 /**
@@ -500,10 +523,12 @@ async function ingestHandoutList(req, res, url) {
 async function ingestHandoutReport(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
+    const servers = await requireServers(token, res);
+    if (servers === undefined) return;
     const body = await readJsonBody(req);
     let result;
     try {
-        result = await reportHandouts(body, { token });
+        result = await reportHandouts(body, { token, servers });
     } catch (e) {
         if (e instanceof HandoutReportError) return error(res, 400, "parse_failed", e.message);
         throw e;
@@ -537,8 +562,45 @@ async function ingestLevelHelperRuns(req, res) {
     if (result.touched.length) postNewRecords({ versionId: result.versionId, touched: result.touched }).catch(() => {});
 }
 
+/**
+ * GET /api/ingest/me - who the sync app is connected as (#1000): the owner's name and every server
+ * the key works on with its Discord name, label, the owner's role there and its versions
+ * (`{ id, short, realm }`). `legacy: { guildId }` for a server key (its one server, role ""); null for
+ * a personal key and for an old key (which lists every server: the rules from before #994). A
+ * personal key whose owner is orga nowhere answers with an empty list, not a 403 - the app shows why.
+ */
+async function ingestMe(req, res) {
+    const token = requireToken(req, res);
+    if (!token) return;
+    touchToken(token.id);
+    const config = getConfig();
+    const own = String(token.guildId || "").trim();
+    let servers;
+    let name = "";
+    if (isPersonToken(token)) {
+        servers = await orgaServersOf(token.ownerId, { config });
+        for (const { guildId } of servers) {
+            try {
+                const names = (await discord.resolveUserNames(guildId, [token.ownerId])) || {};
+                name = String(names[token.ownerId] || "");
+            } catch {
+                name = "";
+            }
+            if (name) break;
+        }
+    } else {
+        servers = (own ? [own] : serverIds(config)).map((guildId) => ({ guildId, role: "" }));
+    }
+    ok(res, {
+        owner: { name: name || token.name || "" },
+        servers: describeServers(servers, { config }),
+        legacy: !isPersonToken(token) && own ? { guildId: own } : null,
+    });
+}
+
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
+    { method: "GET", path: "/api/ingest/me", handler: ingestMe, auth: "token" },
     { method: "POST", path: "/api/ingest/loot", handler: ingestLoot, auth: "token" },
     { method: "POST", path: "/api/ingest/raids", handler: ingestRaidStatus, auth: "token" },
     { method: "GET", path: "/api/ingest/council", handler: ingestCouncil, auth: "token" },
@@ -549,6 +611,6 @@ const routes = [
 ];
 
 module.exports = {
-    ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, ingestLevelHelperRuns,
+    ingestMe, ingestLoot, ingestRaidStatus, ingestCouncil, ingestGuildBank, ingestHandoutList, ingestHandoutReport, ingestLevelHelperRuns,
     computeRaidStatus, routes,
 };

@@ -7,7 +7,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../api";
 import type {
-    CalendarTokens, GameClass, GameSpec, ProfileCharacter, ProfileData, ProfilePatch, ProfileRaiding, RaiderAttendanceData, RaiderProfile, RaiderRef,
+    CalendarTokens, GameClass, SyncKeys, GameSpec, ProfileCharacter, ProfileData, ProfilePatch, ProfileRaiding, RaiderAttendanceData, RaiderProfile, RaiderRef,
 } from "../../api";
 import { t } from "../../i18n";
 import { switchLang } from "../../test/i18n";
@@ -23,6 +23,9 @@ vi.mock("../../api", async (orig) => ({
     getCalendarTokens: vi.fn(),
     createCalendarToken: vi.fn(),
     revokeCalendarToken: vi.fn(),
+    getSyncKeys: vi.fn(),
+    createSyncKey: vi.fn(),
+    deleteSyncKey: vi.fn(),
     getLogCharacters: vi.fn(),
     addProfileCharacter: vi.fn(),
     getRaiderAttendance: vi.fn(),
@@ -92,6 +95,7 @@ function profileData(p: RaiderProfile = profile()): ProfileData {
     };
 }
 
+const NO_SYNC: SyncKeys = { allowed: false, servers: [], keys: [], max: 10 };
 const NO_TOKENS: CalendarTokens = { tokens: [], max: 3, configured: true };
 const NO_ATTENDANCE: RaiderAttendanceData = { userId: "u1", name: "Admin", own: true, orga: false, categories: [] };
 const NO_RAIDING: ProfileRaiding = { versionId: "tbc", dungeonTimes: false, rosters: [], characters: {} };
@@ -122,6 +126,7 @@ function setup(p: RaiderProfile = profile(), calendar: CalendarTokens = NO_TOKEN
     let current = p;
     vi.mocked(api.getProfile).mockResolvedValue(profileData(p));
     vi.mocked(api.getCalendarTokens).mockResolvedValue(calendar);
+    vi.mocked(api.getSyncKeys).mockResolvedValue(NO_SYNC);
     vi.mocked(api.saveProfile).mockImplementation(async (patch) => {
         current = applyPatch(current, patch);
         return { profile: current };
@@ -730,6 +735,80 @@ describe("ProfilePage – Kalender-Abo (#312)", () => {
         await openFold(user, "calendar");
         expect(screen.getByText(t("profile.cal.noBaseUrl"))).toBeInTheDocument();
         expect(screen.queryByRole("button", { name: t("profile.cal.create") })).not.toBeInTheDocument();
+    });
+});
+
+describe("ProfilePage – Sync-App (#1000)", () => {
+    const SERVER = { guildId: "g1", name: "Pulse", label: "Pulse EU", role: "orga" };
+    const KEY = { id: "k1", name: "Laptop", hint: "cd34", createdAt: Date.UTC(2026, 9, 1), lastUsedAt: Date.UTC(2026, 9, 20), uses: 7 };
+    const ORGA = { allowed: true, servers: [SERVER], keys: [], max: 10 };
+
+    it("is missing for a raider who is orga nowhere", async () => {
+        setup();
+        await renderProfile();
+        await waitFor(() => expect(api.getSyncKeys).toHaveBeenCalled());
+        expect(screen.queryByText(t("profile.fold.syncKeys"))).not.toBeInTheDocument();
+    });
+
+    it("shows for orga, creates a key with a device name and shows the plaintext once", async () => {
+        const { user } = setup();
+        vi.mocked(api.getSyncKeys).mockResolvedValue(ORGA);
+        vi.mocked(api.createSyncKey).mockResolvedValue({ ...ORGA, keys: [KEY], token: "plain-123", record: KEY });
+        await renderProfile();
+
+        expect(await screen.findByText(t("profile.fold.syncKeysNone"))).toBeInTheDocument();
+        await openFold(user, "syncKeys");
+        expect(screen.getByText(t("profile.sync.empty"))).toBeInTheDocument();
+
+        const create = screen.getByRole("button", { name: t("profile.sync.create") });
+        expect(create).toBeDisabled();
+        await user.type(screen.getByRole("textbox", { name: t("profile.sync.device") }), "Laptop");
+        await user.click(create);
+
+        expect(api.createSyncKey).toHaveBeenCalledWith("Laptop");
+        expect(await screen.findByDisplayValue("plain-123")).toBeInTheDocument();
+        expect(screen.getByText(t("profile.sync.onlyNow"))).toBeInTheDocument();
+        // the table: name with hint, the servers it counts for, both dates with words
+        expect(screen.getByText(t("profile.sync.hint", { hint: "cd34" }))).toBeInTheDocument();
+        expect(screen.getByText("Pulse EU")).toHaveAttribute("data-tip", t("profile.sync.role.orga"));
+        expect(screen.getByText(t("profile.sync.uses", { count: 7 }))).toBeInTheDocument();
+        for (const col of ["colName", "colServers", "colCreated", "colLastUsed", "colRevoke"]) {
+            expect(screen.getByRole("columnheader", { name: new RegExp(t(`profile.sync.${col}`)) })).toBeInTheDocument();
+        }
+
+        // folded again, the summary counts the keys
+        await openFold(user, "syncKeys");
+        expect(screen.getByText(t("profile.fold.syncKeysActive", { count: 1 }))).toBeInTheDocument();
+    });
+
+    it("revokes a key only after asking, and the plaintext never comes back", async () => {
+        const { user } = setup();
+        vi.mocked(api.getSyncKeys).mockResolvedValue({ ...ORGA, keys: [KEY] });
+        vi.mocked(api.deleteSyncKey).mockResolvedValue(ORGA);
+        await renderProfile();
+
+        await screen.findByText(t("profile.fold.syncKeysActive", { count: 1 }));
+        await openFold(user, "syncKeys");
+        expect(screen.getByText("Laptop")).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("profile.sync.revoke") }));
+        const dialog = await findDialog(t("profile.sync.revokeTitle"));
+        expect(api.deleteSyncKey).not.toHaveBeenCalled();
+        await user.click(within(dialog).getByRole("button", { name: t("profile.sync.revoke") }));
+
+        await waitFor(() => expect(api.deleteSyncKey).toHaveBeenCalledWith("k1"));
+        expect(await screen.findByText(t("profile.sync.revoked"))).toBeInTheDocument();
+        expect(screen.getByText(t("profile.sync.empty"))).toBeInTheDocument();
+        expect(api.getSyncKeys).toHaveBeenCalledTimes(1);
+    });
+
+    it("stops taking new keys at the limit", async () => {
+        const { user } = setup();
+        vi.mocked(api.getSyncKeys).mockResolvedValue({ ...ORGA, keys: [KEY], max: 1 });
+        await renderProfile();
+        await screen.findByText(t("profile.fold.syncKeysActive", { count: 1 }));
+        await openFold(user, "syncKeys");
+        expect(screen.getByRole("textbox", { name: t("profile.sync.device") })).toBeDisabled();
+        expect(screen.getByText(t("profile.sync.max", { count: 1 }))).toBeInTheDocument();
     });
 });
 

@@ -68,7 +68,7 @@ describe("GET /api/ingest/guildbank/handouts", () => {
         const res = await get();
         expect(status(res)).toBe(200);
         expect(json(res).data).toEqual(LIST);
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, bankKey: "" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, servers: null, bankKey: "" });
         expect(touchToken).toHaveBeenCalledWith("t1");
     });
 
@@ -77,14 +77,14 @@ describe("GET /api/ingest/guildbank/handouts", () => {
         const own = { ...TOKEN, guildId: "g2" };
         verifyToken.mockReturnValue(own);
         await get();
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: own, bankKey: "" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: own, servers: ["g2"], bankKey: "" });
         await post({ done: ["r1"] });
-        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: own });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: own, servers: ["g2"] });
     });
 
     it("passes the bank filter through", async () => {
         await get({ bank: "tbc:spineshatter:die gilde" });
-        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, bankKey: "tbc:spineshatter:die gilde" });
+        expect(handouts.handoutList).toHaveBeenCalledWith({ token: TOKEN, servers: null, bankKey: "tbc:spineshatter:die gilde" });
     });
 });
 
@@ -99,7 +99,7 @@ describe("POST /api/ingest/guildbank/handouts", () => {
         const res = await post({ done: ["r1"] });
         expect(status(res)).toBe(200);
         expect(json(res).data).toEqual(REPORT);
-        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: TOKEN });
+        expect(handouts.reportHandouts).toHaveBeenCalledWith({ done: ["r1"] }, { token: TOKEN, servers: null });
         expect(touchToken).toHaveBeenCalledWith("t1");
     });
 

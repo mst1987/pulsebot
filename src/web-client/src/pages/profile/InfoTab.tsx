@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile } from "../../api";
+import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
 import { Badge, buttonClass, IconButton, NumberStepper, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { EyeOffIcon, XIcon } from "../../components/ui/icons";
@@ -9,11 +9,12 @@ import { stepTime, withDayTime } from "../../lib/profile/dayTimes";
 import { tOr, useT } from "../../i18n";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CalendarPart } from "./CalendarPart";
+import { SyncKeysPart } from "./SyncKeysPart";
 
 // The tab "Meine Infos": what belongs to the person, not to a character — in
 // three calm groups, every part folded to one line until it is opened:
 //   Raiden         the attendance of the shown version (GET /api/availability/attendance)
-//   Verknüpfungen  the calendar subscription
+//   Verknüpfungen  the calendar subscription; the sync app keys (#1000) only for orga of a server
 //   Vorlieben      weekdays, preferred raids, with whom (not), a note for the orga
 // Saving works as before: every change goes through `patch` (PUT /api/profile).
 
@@ -109,7 +110,7 @@ function DayTimes({ days, times, step, onChange }: {
     );
 }
 
-export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, attendance, attendanceFailed }: {
+export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, syncKeys = null, onSyncKeys, attendance, attendanceFailed }: {
     data: ProfileData;
     profile: RaiderProfile;
     fold: Fold[];
@@ -118,6 +119,9 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
     ask: ConfirmFn;
     calendar: CalendarTokens | null;
     onCalendar: (next: CalendarTokens) => void;
+    /** The own sync app keys; the part shows only when `allowed` (orga of at least one server). */
+    syncKeys?: SyncKeys | null;
+    onSyncKeys?: (next: SyncKeys) => void;
     /** The own attendance of the shown version, null while it loads. */
     attendance: RaiderAttendanceData | null;
     attendanceFailed: boolean;
@@ -144,6 +148,14 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                     >
                         <CalendarPart data={cal} onChange={onCalendar} />
                     </FoldPart>
+                    {syncKeys?.allowed && onSyncKeys && (
+                        <FoldPart
+                            id="syncKeys" open={fold} onToggle={onFold} title={t("profile.fold.syncKeys")}
+                            summary={syncKeys.keys.length === 0 ? t("profile.fold.syncKeysNone") : t("profile.fold.syncKeysActive", { count: syncKeys.keys.length })}
+                        >
+                            <SyncKeysPart data={syncKeys} onChange={onSyncKeys} />
+                        </FoldPart>
+                    )}
                 </Group>
             </div>
 

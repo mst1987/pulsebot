@@ -289,6 +289,38 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
+            // #1000: a person's key shows its owner; the stored name stands in when Discord knows none
+            it("names the owner of a person's key", async () => {
+                fullAdmin();
+                activeGuildFor.mockReturnValue("gA");
+                discord.resolveUserNames.mockResolvedValueOnce({ u1: "Anna" });
+                ingestTokens.listTokens.mockReturnValueOnce([
+                    { id: "t1", name: "PC", guildId: "gA", ownerId: "" },
+                    { id: "t2", name: "Laptop", guildId: "", ownerId: "u1", createdBy: "Anna alt" },
+                    { id: "t3", name: "Rechner", guildId: "", ownerId: "u2", createdBy: "Bert" },
+                ]);
+                const res = await get("/api/settings/ingest-tokens");
+                expect(json(res).data.tokens).toEqual([
+                    { id: "t1", name: "PC", guildId: "gA", ownerId: "" },
+                    { id: "t2", name: "Laptop", guildId: "", ownerId: "u1", createdBy: "Anna alt", ownerName: "Anna" },
+                    { id: "t3", name: "Rechner", guildId: "", ownerId: "u2", createdBy: "Bert", ownerName: "Bert" },
+                ]);
+                expect(discord.resolveUserNames).toHaveBeenLastCalledWith("gA", ["u1", "u2"]);
+                activeGuildFor.mockReturnValue("");
+            });
+
+            it("lets a full admin revoke a person's key, a limited settings user not", async () => {
+                limited();
+                let res = await post("/api/settings/ingest-tokens/delete", { id: "t2" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(ingestTokens.revokeToken).not.toHaveBeenCalled();
+                fullAdmin();
+                ingestTokens.revokeToken.mockReturnValueOnce(true);
+                res = await post("/api/settings/ingest-tokens/delete", { id: "t2" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(ingestTokens.revokeToken).toHaveBeenLastCalledWith("t2");
+            });
+
             it("mints a token for the active server", async () => {
                 fullAdmin();
                 activeGuildFor.mockReturnValue("gB");

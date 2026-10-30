@@ -65,7 +65,18 @@ function versionOfKnownBank({ realm, guild }) {
     return versions.size === 1 ? [...versions][0] : "";
 }
 
-function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
+/**
+ * The servers a token may write banks of: the given list (`servers`, the route asks
+ * services/discord/ingestServers.serversOfToken - a personal key's orga servers, #1000), else the
+ * token's own server, else null (an old key: every server).
+ */
+function serverListOf(token, servers) {
+    if (Array.isArray(servers)) return servers.map(String);
+    const own = serverOfToken(token);
+    return own ? [own] : null;
+}
+
+function ingestScan(body, { token = {}, servers, now = Date.now(), config } = {}) {
     let scan;
     try {
         scan = parseGuildBankScan(body, { fallbackVersion: versionOfKnownBank });
@@ -77,13 +88,15 @@ function ingestScan(body, { token = {}, now = Date.now(), config } = {}) {
     // game version is a bank of its own (key version:realm:guild), so the own
     // server's bank of another version is no conflict. A known bank without a
     // server (waiting, or taken back) takes the scan but stays without one.
-    const own = serverOfToken(token);
+    // A personal key (#1000) counts for several servers: a new bank gets one only when it is exactly
+    // one, else it waits for the assignment like a bank seen with several raid servers.
+    const list = serverListOf(token, servers);
     const known = store.getBank(scan.key);
-    if (own && known && String(known.guildId || "") && String(known.guildId) !== own) {
+    if (list && known && String(known.guildId || "") && !list.includes(String(known.guildId))) {
         console.warn(`[guildbank] Scan abgelehnt: Bank ${scan.key} gehört zu einem anderen Server.`);
         return { code: "other_server", error: "Diese Gildenbank gehört zu einem anderen Discord-Server.", scan };
     }
-    const guildId = known ? "" : (own || onlyEventServer(config));
+    const guildId = known ? "" : (list ? (list.length === 1 ? list[0] : "") : onlyEventServer(config));
     const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
     if (result.status === "stale") return { scan, ...result, lookups: [] };
     // new items and those with stale (German) meta: the local tables name them at once
@@ -121,4 +134,4 @@ function removeBank(key) {
     return store.removeBank(key) ? { ok: true } : { code: "not_found", error: "Gildenbank nicht gefunden." };
 }
 
-module.exports = { ingestScan, bankServers, assignBank, removeBank, serverOfToken, onlyEventServer };
+module.exports = { ingestScan, bankServers, assignBank, removeBank, serverOfToken, serverListOf, onlyEventServer };

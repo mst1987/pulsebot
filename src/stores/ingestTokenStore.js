@@ -18,6 +18,11 @@
 // /api/ingest/* route then works only on that server. A token minted before
 // #994 has none and keeps the old behaviour (first server / every server)
 // until a full admin assigns it one.
+//
+// A personal key (#1000, epic #999) belongs to a person instead (`ownerId`, the
+// Discord id): it holds no server of its own - it counts for every server its
+// owner is orga of right now (services/discord/ingestServers.js), asked anew on
+// every request. One person may hold several, one per device (`name`).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");
 const crypto = require("crypto");
@@ -58,6 +63,7 @@ function publicView(t) {
         lastUsedAt: t.lastUsedAt || 0,
         uses: t.uses || 0,
         guildId: t.guildId || "",
+        ownerId: t.ownerId || "",
     };
 }
 
@@ -73,7 +79,7 @@ function listTokens() {
  * stored, so it cannot be shown again later.
  * @returns {{ token: string, record: object }}
  */
-function createToken(name, createdBy = "", guildId = "") {
+function createToken(name, createdBy = "", guildId = "", ownerId = "") {
     const raw = TOKEN_PREFIX + crypto.randomBytes(TOKEN_BYTES).toString("hex");
     const record = {
         id: crypto.randomBytes(6).toString("hex"),
@@ -87,6 +93,7 @@ function createToken(name, createdBy = "", guildId = "") {
         lastUsedAt: 0,
         uses: 0,
         guildId: String(guildId || "").trim(),
+        ownerId: String(ownerId || "").trim(),
     };
     const tokens = readAll();
     tokens.push(record);
@@ -95,14 +102,37 @@ function createToken(name, createdBy = "", guildId = "") {
 }
 
 /**
+ * Mint a personal key (#1000): it belongs to `ownerId` and to no server. The
+ * plaintext is returned once, like createToken.
+ */
+function createPersonToken(name, ownerId, createdBy = "") {
+    const owner = String(ownerId || "").trim();
+    if (!owner) throw new Error("ownerId required");
+    return createToken(name, createdBy || owner, "", owner);
+}
+
+/** The personal keys of one person, newest first. */
+function listTokensOfOwner(ownerId) {
+    const owner = String(ownerId || "").trim();
+    if (!owner) return [];
+    return listTokens().filter((t) => t.ownerId === owner);
+}
+
+/** One token's public record by id, or null. */
+function getToken(id) {
+    const match = readAll().find((t) => t.id === String(id || ""));
+    return match ? publicView(match) : null;
+}
+
+/**
  * Assign a token to a Discord server (#994: for tokens minted without one).
  * The caller checks that the server is configured. Returns the public record,
- * or null for an unknown id.
+ * or null for an unknown id or a personal key (it follows its owner instead).
  */
 function assignTokenGuild(id, guildId) {
     const tokens = readAll();
     const match = tokens.find((t) => t.id === String(id || ""));
-    if (!match) return null;
+    if (!match || match.ownerId) return null;
     match.guildId = String(guildId || "").trim();
     writeAll(tokens);
     return publicView(match);
@@ -158,6 +188,6 @@ function bearerFrom(req) {
 }
 
 module.exports = {
-    listTokens, createToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom,
+    listTokens, listTokensOfOwner, getToken, createToken, createPersonToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom,
     TOKEN_PREFIX, useFile: store.useFile,
 };

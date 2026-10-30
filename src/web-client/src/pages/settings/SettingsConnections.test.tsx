@@ -77,6 +77,29 @@ describe("SettingsConnections — upload keys per server (#994)", () => {
         expect(dlg.getByRole("button", { name: /Server/ })).toBeInTheDocument();
     });
 
+    it("shows a personal key (#1000) with its owner instead of a server picker, and lets it be revoked", async () => {
+        vi.mocked(api.deleteIngestToken).mockReset().mockResolvedValue({ ok: true } as never);
+        const changed = show([token({ id: "p1", name: "Laptop", guildId: "", ownerId: "u7", ownerName: "Mara" })]);
+        const dlg = await openTokens(/Tokens verwalten/);
+        const row = dlg.getByText("Laptop").closest("tr") as HTMLElement;
+        const owner = within(row).getByTestId("token-owner");
+        expect(owner).toHaveTextContent("persönlich: Mara");
+        expect(owner.getAttribute("data-tip")).toContain("Mara");
+        expect(within(row).queryByRole("combobox")).toBeNull();
+
+        await userEvent.click(within(row).getByRole("button", { name: /ckziehen/i }));
+        const confirm = await screen.findAllByRole("button", { name: /ckziehen/i });
+        await userEvent.click(confirm[confirm.length - 1]);
+        await waitFor(() => expect(api.deleteIngestToken).toHaveBeenCalledWith("p1"));
+        await waitFor(() => expect(changed).toHaveBeenCalled());
+    });
+
+    it("falls back to the owner's Discord id without a name", async () => {
+        show([token({ id: "p2", name: "Tower", guildId: "", ownerId: "u8" })]);
+        const dlg = await openTokens(/Tokens verwalten/);
+        expect(dlg.getByTestId("token-owner")).toHaveTextContent("persönlich: u8");
+    });
+
     it("offers a server picker for a token without a server and binds it", async () => {
         const changed = show([token({ id: "t9", name: "Alt-PC", guildId: "" })]);
         const dlg = await openTokens(/Tokens verwalten/);

@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listTokens, createToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom, TOKEN_PREFIX,
+    listTokens, createToken, createPersonToken, listTokensOfOwner, getToken, assignTokenGuild, revokeToken, verifyToken, touchToken, bearerFrom, TOKEN_PREFIX,
 } = require("../../src/stores/ingestTokenStore.js");
 
 beforeEach(() => {
@@ -67,6 +67,41 @@ describe("stores/ingestTokenStore", () => {
             delete data.tokens[0].guildId;
             fs.__store.set([...fs.__store.keys()][0], JSON.stringify(data));
             expect(listTokens()[0].guildId).toBe("");
+        });
+    });
+
+    // #1000: a personal key belongs to a Discord account, not to a server.
+    describe("personal keys", () => {
+        it("stores the owner and no server", () => {
+            const { token, record } = createPersonToken("Laptop", "u1");
+            expect(record).toMatchObject({ name: "Laptop", ownerId: "u1", guildId: "", createdBy: "u1", uses: 0 });
+            expect(verifyToken(token).ownerId).toBe("u1");
+        });
+
+        it("refuses a key without an owner", () => {
+            expect(() => createPersonToken("Laptop", "")).toThrow();
+            expect(listTokens()).toEqual([]);
+        });
+
+        it("lists one owner's keys only and finds one by id", () => {
+            const anna = createPersonToken("Laptop", "u1", "Anna").record;
+            createPersonToken("PC", "u2");
+            createToken("Server-PC", "Admin", "gA");
+            expect(listTokensOfOwner("u1").map((t) => t.id)).toEqual([anna.id]);
+            expect(listTokensOfOwner("")).toEqual([]);
+            expect(getToken(anna.id)).toMatchObject({ ownerId: "u1", createdBy: "Anna" });
+            expect(getToken(anna.id)).not.toHaveProperty("hash");
+            expect(getToken("nope")).toBeNull();
+        });
+
+        it("never gets a server assigned", () => {
+            const { record } = createPersonToken("Laptop", "u1");
+            expect(assignTokenGuild(record.id, "gA")).toBeNull();
+            expect(getToken(record.id).guildId).toBe("");
+        });
+
+        it("reads an old record without an owner as a server or old key", () => {
+            expect(createToken("PC", "Admin", "gA").record.ownerId).toBe("");
         });
     });
 

@@ -561,6 +561,9 @@ export type IngestToken = {
     uses: number;
     /** The Discord server the token works on (#994); "" = minted before, sees every server. */
     guildId: string;
+    /** A personal key (#1000): the Discord account it belongs to, and that account's name. */
+    ownerId?: string;
+    ownerName?: string;
 };
 
 /** A configured server a token can be assigned to. */

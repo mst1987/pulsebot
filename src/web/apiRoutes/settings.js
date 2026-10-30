@@ -1530,13 +1530,30 @@ const deleteRaidsheetHandler = withUser({ csrf: true, body: true }, async ({ bod
 // "Einstellungen" must not be able to mint one.
 
 /**
+ * The personal keys (#1000) with their owner's name (`ownerName`): the Discord name on the active
+ * server, else the name stored at minting. A lookup that fails keeps the stored one.
+ */
+async function withOwnerNames(list, guildId) {
+    const owners = [...new Set(list.map((t) => t.ownerId).filter(Boolean))];
+    let names = {};
+    if (owners.length && guildId) {
+        try {
+            names = await discord.resolveUserNames(guildId, owners);
+        } catch (e) {
+            console.warn("resolveUserNames failed:", e.message);
+        }
+    }
+    return list.map((t) => (t.ownerId ? { ...t, ownerName: names[t.ownerId] || t.createdBy || t.ownerId } : t));
+}
+
+/**
  * GET /api/settings/ingest-tokens — the tokens, never their secrets, each with
  * its Discord server (#994, "" = minted before), and `servers`: the configured
  * servers a token without one can be assigned to.
  */
-const getIngestTokens = withUser({ full: true }, async ({ res }) => {
+const getIngestTokens = withUser({ full: true }, async ({ req, res }) => {
     ok(res, {
-        tokens: listIngestTokens(),
+        tokens: await withOwnerNames(listIngestTokens(), activeGuildFor(req)),
         servers: guildRoles.serverChoices(getConfig()).map((s) => ({ guildId: s.guildId, name: s.name, label: s.label })),
     });
 });
@@ -1578,7 +1595,10 @@ const assignIngestTokenHandler = withUser({ full: true, csrf: true, body: true }
     ok(res, { record });
 });
 
-/** POST /api/settings/ingest-tokens/delete — body: { id }. Revokes immediately. */
+/**
+ * POST /api/settings/ingest-tokens/delete — body: { id }. Revokes immediately: a server key, an old
+ * key or a person's key (#1000) - full admins only, like every token route.
+ */
 const deleteIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ body, res }) => {
     const id = String(body.id || "").trim();
     if (!id || !revokeIngestToken(id)) return error(res, 404, "not_found", "Token nicht gefunden.");
