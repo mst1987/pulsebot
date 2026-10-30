@@ -40,7 +40,7 @@ describe("web/http/apiResult", () => {
             expect(status(res)).toBe(400);
         });
 
-        // The per-route maps this table replaced (apiRoutes/setup.js, raidplan.js)
+        // The per-route maps this table replaced (apiRoutes/events/setup.js, raidplan.js)
         it("keeps the statuses those maps gave", () => {
             expect(HTTP_BY_CODE).toMatchObject({
                 not_found: 404, conflict: 409, invalid: 400, too_large: 413,

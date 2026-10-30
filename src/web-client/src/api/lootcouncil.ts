@@ -6,7 +6,7 @@ import type { RosterStatus } from "./roster";
 import { t } from "../i18n";
 
 // ── Loot-Council ─────────────────────────────────────────────────────────────
-// The caster council view (src/web/apiRoutes/lootCouncil.js). Two speeds: the
+// The caster council view (src/web/apiRoutes/loot/lootCouncil.js). Two speeds: the
 // page itself comes from stored data in one call, the DPS simulation runs as a
 // background job the client polls.
 
@@ -941,7 +941,7 @@ export function getCouncilExport(character: string, scope: CouncilSimScope = {})
 
 // ── Hand-maintained BiS lists (#760) ─────────────────────────────────────────
 // A version without BiS data of its own (WoW Forever) keeps its lists by hand,
-// per spec and slot (src/web/apiRoutes/lootCouncilBis.js).
+// per spec and slot (src/web/apiRoutes/loot/lootCouncilBis.js).
 
 /** An item of a hand list: name, icon and quality from Wowhead of the version ("" / null when Wowhead did not know it). */
 export type ManualBisItem = { id: number; name: string; iconUrl: string; quality: number | null; link: string };

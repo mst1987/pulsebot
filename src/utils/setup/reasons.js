@@ -297,7 +297,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
     const wishes = model.events.length > 1 ? wishCheck(model, state, null) : first.checks.wishes;
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));
     // No word about a shadowban (Vermerke, #981) in the output: it is stored as the setup (also as an
-    // automatic draft, eventStore.saveSetupDraft). The orga's answer names them (web/apiRoutes/setup.js).
+    // automatic draft, eventStore.saveSetupDraft). The orga's answer names them (web/apiRoutes/events/setup.js).
     return {
         version,
         versionId: model.versionId,

@@ -22,7 +22,7 @@
 //             once never share out the same amount. Posting the orga card and
 //             the raider's DM is services/signups/guildBank.advanceWaitlist.
 //
-// The orga keeps the list in the web (apiRoutes/guildBank.js, "Warteliste"):
+// The orga keeps the list in the web (apiRoutes/loot/guildBank.js, "Warteliste"):
 // add an entry, move it up or down, remove it, or import lines pasted from a
 // sheet ("Name<Tab>Item<Tab>Anzahl", also ; or ,). A name is matched to a
 // raider by the **confirmed** characters of the bank's game version in the

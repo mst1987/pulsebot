@@ -71,7 +71,7 @@ export default function HistoryPage() {
     // Two ways in: "history" opens the whole page, the narrower "loot" only the
     // loot views (see src/config/permissions.js). Everything below asks this one
     // flag; the server sends the loot-only caller a payload to match, so the
-    // hidden views would have nothing to show anyway (apiRoutes/history.js).
+    // hidden views would have nothing to show anyway (apiRoutes/loot/history.js).
     const fullHistory = canAccess(user, "history");
     const canWrite = canAccess(user, "history", "write");
     const allowedTabs = fullHistory ? TABS : LOOT_TABS;

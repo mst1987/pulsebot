@@ -765,7 +765,7 @@ function onRoleGained(roster, userId, { name = "" } = {}) {
 
 // Discord -> Kader: rosterRoleSync calls these when a member loses or gains
 // the role (registered, not required back - that would be a require cycle).
-// Loaded at start through web/apiRoutes/kader.js.
+// Loaded at start through web/apiRoutes/roster/kader.js.
 rosterRoleSync.setRoleLostHandler(onRoleLost);
 rosterRoleSync.setRoleGainedHandler(onRoleGained);
 

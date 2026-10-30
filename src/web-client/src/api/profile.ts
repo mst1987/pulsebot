@@ -4,7 +4,7 @@ import type { CharLootPreview } from "./history";
 import type { RosterStatus } from "./roster";
 import type { ItemSearchResult } from "./settings";
 
-// ---- Mein Profil (#255, src/web/apiRoutes/profile.js) ----
+// ---- Mein Profil (#255, src/web/apiRoutes/roster/profile.js) ----
 
 export type GearLevel = "none" | "usable" | "ready";
 
@@ -204,7 +204,7 @@ export function editProfileCharacter(key: string, input: CharacterEditInput): Pr
     return send("POST", "/api/profile/characters", { edit: key, ...input });
 }
 
-// ---- Alle Charaktere — the orga's tab on the profile page (src/web/apiRoutes/characters.js) ----
+// ---- Alle Charaktere — the orga's tab on the profile page (src/web/apiRoutes/roster/characters.js) ----
 
 /** One raider in the orga's list: the account and its characters. */
 export type CharacterOwner = { userId: string; name: string; characters: ProfileCharacter[] };

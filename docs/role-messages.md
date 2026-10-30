@@ -72,7 +72,7 @@ Befehlsrollen, Raider-Rollen der Kategorien, Roster-Rollen, Rollen des Rollen-Ab
 | `src/services/discord/roleMessages.js` | Prüfen, Posten, Bearbeiten (bei Kanal- oder Serverwechsel neu posten, alte löschen), Löschen, Auswahl-Listen, Knopf und Reaktionen |
 | `src/services/discord/selfRole.js` | `privilegedReason`, `roleProblem`, `changeSelfRole` — der eine Weg, eine Rolle selbst zu holen |
 | `src/commands/channels/roleMessageButton.js` | Einstieg der Knöpfe (Komponente ohne Slash-Befehl) |
-| `src/web/apiRoutes/roleMessages.js` | Die API, Antwortform im Kopfkommentar |
+| `src/web/apiRoutes/discord/roleMessages.js` | Die API, Antwortform im Kopfkommentar |
 | `src/web-client/src/pages/channels/RoleMessagesPage.tsx` | Die Web-Seite: Liste + Editor-Dialog (`?edit=<id\|new>`) |
 | `src/web-client/src/pages/channels/RoleMessagePreview.tsx` | Vorschau der Discord-Karte (Knöpfe zu je 5, Reaktionszeile) |
 | `src/web-client/src/lib/discord/roleMessages.ts` | Client-Logik ohne React: gesperrte Rollen, Formular-Probleme, Fehlercodes und Gründe in Worten |

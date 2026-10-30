@@ -6,7 +6,7 @@
 // roster) — no second list here.
 //
 // `newGrants` compares the config and the rosters before and after a save: only a right
-// the save adds is refused (apiRoutes/settings.js, roster/rosterSettings.js,
+// the save adds is refused (apiRoutes/system/settings.js, roster/rosterSettings.js,
 // roster/rosterCreate.js with the code "pug_onboarding_role"), an old one stays and is
 // what `leftovers` reports to the Bot-Check (services/discord/botCheck.js). Without
 // config.pugRoles nothing changes. A roster of another server does not count: the role

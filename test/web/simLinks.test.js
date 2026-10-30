@@ -33,7 +33,7 @@ describe("WoWSims links", () => {
     it("sends every caster spec to a page that exists", () => {
         // Der Priester-Pfad war der kaputte: /tbc/priest/dps/ gibt es, die
         // Spec-Varianten (/priest/shadow/) nicht.
-        const src = fs.readFileSync(path.join(SRC, "web/apiRoutes/lootCouncil.js"), "utf8");
+        const src = fs.readFileSync(path.join(SRC, "web/apiRoutes/loot/lootCouncil.js"), "utf8");
         const block = src.slice(src.indexOf("const SIM_URLS"), src.indexOf("};", src.indexOf("const SIM_URLS")));
         const urls = [...block.matchAll(/"(https:[^"]+)"/g)].map((m) => m[1]);
         expect(urls.length).toBeGreaterThanOrEqual(9);

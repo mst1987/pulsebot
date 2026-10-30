@@ -153,7 +153,7 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
         walk(SRC);
         return out.sort();
     }
-    const OWN = (rel) => rel.startsWith("services/kader/") || rel.startsWith("web/kader/") || rel === "web/apiRoutes/kader.js" || rel === "stores/kaderStore.js";
+    const OWN = (rel) => rel.startsWith("services/kader/") || rel.startsWith("web/kader/") || rel === "web/apiRoutes/roster/kader.js" || rel === "stores/kaderStore.js";
 
     // services/kader/kaderRoster.js (#657) is the one door to the raid rosters: it answers only
     // { userId, state, decision, characterName } per player (test/services/kader/kaderRoster.test.js).
@@ -161,7 +161,7 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
     // name out, the category id out of `attendanceCategories` in (test/services/kader/kaderCategories.test.js).
     it("is read by the Kaderplaner alone (and the start's migration)", () => {
         expect(modulesMatching(/require\(\s*["'][^"']*kaderStore["']\s*\)/))
-            .toEqual(["services/kader/kaderCategories.js", "services/kader/kaderRoster.js", "services/kader/kaderVersions.js", "stores/settingsMigration.js", "web/apiRoutes/kader.js"]);
+            .toEqual(["services/kader/kaderCategories.js", "services/kader/kaderRoster.js", "services/kader/kaderVersions.js", "stores/settingsMigration.js", "web/apiRoutes/roster/kader.js"]);
     });
 
     it("keeps its rules and its view to itself: nothing else requires them", () => {

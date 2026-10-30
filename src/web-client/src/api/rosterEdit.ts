@@ -2,7 +2,7 @@ import { get, send } from "./client";
 import type { RosterRole, RosterStatus } from "./roster";
 
 // ===== Raid rosters: editing (#655 members, #656 Discord roles, #657 create and settings) =====
-// The write routes of src/web/apiRoutes/rosterMembers.js, rosterRoles.js and
+// The write routes of src/web/apiRoutes/roster/rosterMembers.js, rosterRoles.js and
 // rosterAdmin.js plus the read routes of the tabs (Abgleich, Komposition,
 // Verlauf). A refusal arrives as { code, message }; the page translates the
 // code (lib/roster/rosterEdit.ts errorText), never shows the server's text.

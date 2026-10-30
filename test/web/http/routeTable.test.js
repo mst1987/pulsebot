@@ -14,8 +14,10 @@ describe("web/http/routeTable", () => {
         expect(now).toEqual([...golden].sort());
     });
 
-    it("collects every module under apiRoutes/ — a new file is not forgotten", () => {
-        const files = fs.readdirSync(path.join(__dirname, "..", "..", "..", "src", "web", "apiRoutes")).filter((f) => f.endsWith(".js")).map((f) => f.replace(/\.js$/, "")).sort();
+    it("collects every module under apiRoutes/ and its subfolders — a new file is not forgotten", () => {
+        const files = fs.readdirSync(path.join(__dirname, "..", "..", "..", "src", "web", "apiRoutes"), { recursive: true })
+            .map((f) => f.split(path.sep).join("/"))
+            .filter((f) => f.endsWith(".js")).map((f) => f.replace(/\.js$/, "")).sort();
         expect([...MODULES].sort()).toEqual(files);
     });
 
@@ -34,7 +36,7 @@ describe("web/http/routeTable", () => {
     });
 
     it("finds a route by method and path, and nothing for the wrong method", () => {
-        expect(find("GET", "/api/dashboard")).toMatchObject({ path: "/api/dashboard", area: ["dashboard", "signup"], module: "dashboard" });
+        expect(find("GET", "/api/dashboard")).toMatchObject({ path: "/api/dashboard", area: ["dashboard", "signup"], module: "system/dashboard" });
         expect(find("POST", "/api/dashboard")).toBeNull();
         expect(find("GET", "/api/nope")).toBeNull();
     });

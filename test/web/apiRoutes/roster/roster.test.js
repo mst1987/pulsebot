@@ -1,0 +1,478 @@
+const { json, routerClient } = require("../../../helpers/http");
+
+jest.mock("../../../../src/web/http/auth", () => ({
+    getUser: jest.fn(),
+    // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
+    getRealUser: jest.fn(),
+    setViewAs: jest.fn(() => true),
+    csrfToken: jest.fn(),
+    checkCsrf: jest.fn(),
+    setActiveGuild: jest.fn(),
+}));
+jest.mock("../../../../src/stores/reportStore", () => ({
+    listReports: jest.fn(() => []),
+    deleteReport: jest.fn(() => true),
+    getReport: jest.fn(() => null),
+    saveReport: jest.fn((report, id) => id || "new-id"),
+}));
+jest.mock("../../../../src/stores/settingsStore", () => ({
+    getConfig: jest.fn(() => ({})),
+    saveConfig: jest.fn((partial) => ({ ...partial })),
+    listRecruitment: jest.fn(() => []),
+    getRecruitment: jest.fn(),
+    saveRecruitment: jest.fn(),
+    deleteRecruitment: jest.fn(),
+    listRecruitmentPosts: jest.fn(() => []),
+    getRecruitmentPost: jest.fn(),
+    saveRecruitmentPost: jest.fn(),
+    deleteRecruitmentPost: jest.fn(),
+    listRaidsheets: jest.fn(() => []),
+    saveRaidsheet: jest.fn(),
+    deleteRaidsheet: jest.fn(),
+    listRaidTemplates: jest.fn(() => []),
+    getRaidTemplate: jest.fn(),
+    saveRaidTemplate: jest.fn(),
+    saveRaidTemplates: jest.fn(),
+    deleteRaidTemplate: jest.fn(),
+    listNotify: jest.fn(() => []),
+    getNotify: jest.fn(),
+    saveNotify: jest.fn(),
+    deleteNotify: jest.fn(),
+    getRaidsheet: jest.fn(),
+    // Default: no category sheet configured, so a raid links only its own copy.
+    resolveEventSheetLink: jest.fn((eventSheet) => (eventSheet && eventSheet.url
+        ? { url: eventSheet.url, name: eventSheet.sheetName || "", source: "event" }
+        : null)),
+}));
+jest.mock("../../../../src/web/characters/roster", () => {
+    const actual = jest.requireActual("../../../../src/web/characters/roster");
+    return { ...actual, rosterCharacter: jest.fn(actual.rosterCharacter) };
+});
+jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../../src/stores/raidEventStore", () => ({
+    getRaidEvent: jest.fn(() => null),
+    listRaidEvents: jest.fn(() => []),
+    saveRaidEvents: jest.fn(),
+}));
+// The routes label category ids through categoryNames.js, which merges the live
+// Discord list with the names it snapshots to disk. Reduced here to the live
+// list, so these route tests keep asserting against the discord mock alone and
+// touch no files; the merging itself is covered by categoryNames.test.js.
+jest.mock("../../../../src/services/discord/categoryNames", () => ({
+    listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
+    rememberCategories: jest.fn(),
+}));
+jest.mock("../../../../src/stores/logStore", () => ({
+    listLogs: jest.fn(() => []),
+    listLogsForEvent: jest.fn(() => []),
+    deleteLog: jest.fn(),
+    getLog: jest.fn(),
+    getByReportRefId: jest.fn(),
+    linkEvent: jest.fn(),
+    unlinkEvent: jest.fn(),
+    clearEvaluation: jest.fn(),
+    clearSection: jest.fn(),
+    // mirrors the real implementation (explicit sections win, legacy done = cla)
+    evaluatedSections: jest.fn((log) => {
+        if (!log) return [];
+        if (Array.isArray(log.sections) && log.sections.length) return log.sections;
+        return log.status === "done" ? ["cla"] : [];
+    }),
+}));
+jest.mock("../../../../src/classes/warcraftlogs", () => jest.fn());
+jest.mock("../../../../src/stores/lootStore", () => ({
+    addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
+    listByEvent: jest.fn(() => []),
+    listByCharacter: jest.fn(() => []),
+    listAll: jest.fn(() => []),
+    eventsWithLoot: jest.fn(() => []),
+    setEventCategory: jest.fn(() => 0),
+    removeItems: jest.fn(() => 0),
+    clearEvent: jest.fn(() => 0),
+    repairItemNames: jest.fn(() => Promise.resolve(0)),
+    decorate: jest.fn((it) => it),
+}));
+jest.mock("../../../../src/services/characters/characterInfo", () => ({
+    rememberFromLoot: jest.fn(),
+    annotatedCharacters: jest.fn(() => []),
+    resolveMissing: jest.fn(() => Promise.resolve({
+        fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
+    })),
+}));
+jest.mock("../../../../src/stores/characterStore", () => ({
+    getCharacter: jest.fn(() => null),
+    listCharacters: jest.fn(() => []),
+    characterMap: jest.fn(() => ({})),
+}));
+jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+    getCategoryAssignments: jest.fn(() => ({})),
+    listAllAssignments: jest.fn(() => ({})),
+    setCategoryAssignments: jest.fn(),
+    resolveAssignmentProfiles: jest.fn(() => ({})),
+}));
+// The report-file scan behind the gear-issue column has its own test
+// (charGearIssues.test.js) — here it is only an input to the roster join.
+jest.mock("../../../../src/web/characters/charGearIssues", () => ({
+    latestIssuesByCharacter: jest.fn(() => ({})),
+    issuesForCharacter: jest.fn(() => null),
+}));
+const mockIsConfigured = jest.fn(() => false);
+const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
+const mockGetEquipment = jest.fn(() => Promise.resolve(null));
+const mockResolve = jest.fn(() => ({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" }));
+const mockLastError = null;
+jest.mock("../../../../src/classes/blizzard", () =>
+    jest.fn().mockImplementation(() => ({
+        isConfigured: mockIsConfigured,
+        getCharacterSummary: mockGetCharacterSummary,
+        getEquipment: mockGetEquipment,
+        _resolve: mockResolve,
+        get lastError() { return mockLastError; },
+    })));
+jest.mock("../../../../src/utils/loot/lootImport", () => {
+    class LootParseError extends Error {}
+    const actual = jest.requireActual("../../../../src/utils/loot/lootImport");
+    return {
+        parseLoot: jest.fn(() => []),
+        detectImportDate: jest.fn(() => null),
+        enrichItemNames: jest.fn((items) => Promise.resolve(items)),
+        // Pure normalisation, no I/O: the roster keys its rows with
+        // characterKey, and buildManualItem's shape (dedup key included) is what
+        // the loot-add endpoint is tested for — a stub would test the stub.
+        characterKey: actual.characterKey,
+        characterKeyOf: actual.characterKeyOf,
+        nameKeyOf: actual.nameKeyOf,
+        splitPlayer: actual.splitPlayer,
+        buildManualItem: actual.buildManualItem,
+        LootParseError,
+    };
+});
+jest.mock("../../../../src/services/discord/discord", () => require("../../../helpers/discordMock").withClientHelpers({
+    listGuilds: jest.fn(() => []),
+    listCategories: jest.fn(() => []),
+    listAllChannels: jest.fn(() => []),
+    listTextChannels: jest.fn(() => []),
+    listRoles: jest.fn(() => []),
+    createChannel: jest.fn(),
+    duplicateChannel: jest.fn(),
+    listEmojis: jest.fn(() => []),
+    postRecruitment: jest.fn(),
+    editRecruitment: jest.fn(),
+    scanRecruitment: jest.fn(() => Promise.resolve([])),
+    listApplications: jest.fn(() => Promise.resolve({ applications: [], error: null })),
+    getClient: jest.fn(() => null),
+    getGuild: jest.fn(() => null),
+    getChannelCategoryMap: jest.fn(() => ({})),
+    listMembersWithRoles: jest.fn(() => Promise.resolve({ members: [], error: null })),
+    resolveUserNames: jest.fn(() => Promise.resolve({})),
+    postAnnouncement: jest.fn(),
+    postMissingPing: jest.fn(),
+    postLink: jest.fn(),
+    editLink: jest.fn(),
+}));
+jest.mock("../../../../src/utils/loot/wowhead", () => {
+    const actual = jest.requireActual("../../../../src/utils/loot/wowhead");
+    return {
+        searchItems: jest.fn(() => Promise.resolve([])),
+        // Pure URL builders, no network: the loot catalogue's icon and Wowhead
+        // links are exactly these strings, and stubbing them tests nothing.
+        iconUrl: actual.iconUrl,
+        itemLink: actual.itemLink,
+    };
+});
+const auth = require("../../../../src/web/http/auth");
+const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
+const discord = require("../../../../src/services/discord/discord");
+const lootStore = require("../../../../src/stores/lootStore");
+const characterInfo = require("../../../../src/services/characters/characterInfo");
+const characterStore = require("../../../../src/stores/characterStore");
+const raiderCharactersStore = require("../../../../src/stores/raiderCharactersStore");
+const charGearIssues = require("../../../../src/web/characters/charGearIssues");
+const rosterHidden = require("../../../../src/stores/rosterHiddenStore");
+const { emptyAccess } = require("../../../../src/config/permissions");
+const { tempStoreFile } = require("../../../helpers/tempStore");
+const { get, post } = routerClient(require("../../../../src/web/apiRoutes/roster/roster"));
+
+const ADMIN = { id: "1", name: "Admin", isAdmin: true };
+// a raider role holding `roster` read: opens the roster pages, but is no orga (epic #723)
+const RAIDER = { id: "5", name: "Raider", isAdmin: false, isOrga: false, access: { ...emptyAccess(), roster: { read: true, write: true } } };
+const ORGA_ROLE = { id: "6", name: "Orga", isAdmin: false, isOrga: true, access: { ...emptyAccess(), roster: { read: true, write: true } } };
+// Hiding writes for real, into a scratch file of this suite.
+rosterHidden.useFile(tempStoreFile("roster-hidden.json"));
+
+describe("web/apiRoutes/roster", () => {
+    describe("GET /api/roster", () => {
+        // clearMocks does not reset return values, so put the defaults back
+        // for the tests that follow.
+        afterEach(() => {
+            characterInfo.annotatedCharacters.mockReturnValue([]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({});
+            characterStore.characterMap.mockReturnValue({});
+            charGearIssues.latestIssuesByCharacter.mockReturnValue({});
+            lootStore.listAll.mockReturnValue([]);
+        });
+
+        it("returns 401 for an anonymous caller", async () => {
+            auth.getUser.mockReturnValue(null);
+            const res = await get("/api/roster");
+            expect(res.writeHead).toHaveBeenCalledWith(401, expect.any(Object));
+            expect(characterInfo.annotatedCharacters).not.toHaveBeenCalled();
+        });
+
+        it("joins loot characters, manual assignments and gear issues into one roster", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            characterInfo.annotatedCharacters.mockReturnValue([{
+                key: "anna", character: "Anna", realm: "Thunderstrike", count: 3,
+                categoryIds: ["cat1"], items: [{ itemId: 1, itemName: "Sword" }],
+                className: "Priest", spec: "Shadow", source: "wcl",
+            }]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({ cat2: { u1: "Bob" } });
+            characterStore.characterMap.mockReturnValue({ bob: { className: "Warrior", spec: "Fury", source: "manual" } });
+            charGearIssues.latestIssuesByCharacter.mockReturnValue({
+                anna: { issueCount: 1, issues: [{ label: "kein Item" }], reportRefId: "r1", generatedAt: 500 },
+            });
+            discord.listCategories.mockReturnValue([
+                { id: "cat1", name: "Montagsraid" }, { id: "cat2", name: "Pug" },
+            ]);
+
+            const res = await get("/api/roster");
+
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = json(res).data;
+            expect(data.activeGuildId).toBe("guild-1");
+            expect(data.categories).toEqual([{ id: "cat1", name: "Montagsraid" }, { id: "cat2", name: "Pug" }]);
+            expect(data.chars.map((c) => c.character)).toEqual(["Anna", "Bob"]);
+            expect(data.chars[0]).toMatchObject({
+                categoryIds: ["cat1"], lootCount: 3, className: "Priest", spec: "Shadow", assigned: false,
+                gear: { issueCount: 1, reportRefId: "r1" },
+            });
+            expect(data.chars[0].wclUrl).toContain("Anna");
+            expect(data.chars[1]).toMatchObject({
+                categoryIds: ["cat2"], lootCount: 0, className: "Warrior", assigned: true, raiderIds: ["u1"], gear: null,
+            });
+        });
+
+        it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, nie alle (#543, #741)", async () => {
+            const settingsStore = require("../../../../src/stores/settingsStore");
+            settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
+            auth.getUser.mockReturnValue(ADMIN);
+            characterInfo.annotatedCharacters.mockReturnValue([{
+                key: "anna", character: "Anna", realm: "", count: 1, categoryIds: ["cat1"], items: [{ itemId: 1, eventId: "rh-1" }],
+                className: "Priest", spec: "Shadow", source: "wcl",
+            }]);
+            raiderCharactersStore.listAllAssignments.mockReturnValue({ cat2: { u1: "Devi Res" } });
+            try {
+                const main = json(await get("/api/roster")).data;
+                expect(main.chars.map((c) => c.character)).toEqual(["Anna"]);
+                expect(main).toMatchObject({ version: "tbc", mainVersion: "tbc" });
+                expect(main.versions.map((v) => [v.id, v.count])).toEqual([["tbc", 1], ["forever", 1]]);
+
+                const forever = json(await get("/api/roster", { version: "forever" })).data;
+                expect(forever.chars.map((c) => [c.character, c.versionIds])).toEqual([["Devi Res", ["forever"]]]);
+                expect(forever.version).toBe("forever");
+
+                // streng getrennt (#741): "all" ist die Hauptversion, keine Mischliste
+                const all = json(await get("/api/roster", { version: "all" })).data;
+                expect(all.chars.map((c) => c.character)).toEqual(["Anna"]);
+                expect(all.version).toBe("tbc");
+                // an unknown version is the main version, never an empty page
+                expect(json(await get("/api/roster", { version: "gibtsnicht" })).data.version).toBe("tbc");
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
+
+        // #919, through the real router: the roster's loot characters come from the
+        // active server's loot only - A's raider on A, B's on B, nobody without a server.
+        it("lists only the loot characters of the active server (#919)", async () => {
+            auth.getUser.mockReturnValue(ADMIN);
+            lootStore.listAll.mockReturnValue([
+                { id: "a1", eventId: "rh-a", guildId: "gA", categoryId: "", itemId: 30000, character: "Arthas" },
+                { id: "b1", eventId: "rh-b", guildId: "gB", categoryId: "", itemId: 30001, character: "Bolvar" },
+            ]);
+            characterInfo.annotatedCharacters.mockImplementation(({ rows } = {}) => (rows || []).map((r) => ({
+                key: r.character.toLowerCase(), character: r.character, realm: "", count: 1, categoryIds: [], items: [r],
+            })));
+            const names = async (guildId) => {
+                activeGuildFor.mockReturnValue(guildId);
+                return json(await get("/api/roster")).data.chars.map((c) => c.character);
+            };
+            expect(await names("gA")).toEqual(["Arthas"]);
+            expect(await names("gB")).toEqual(["Bolvar"]);
+            expect(await names("")).toEqual([]);
+        });
+
+        it("backfills missing loot item names before answering", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            await get("/api/roster");
+            expect(lootStore.repairItemNames).toHaveBeenCalled();
+        });
+    });
+
+    describe("hidden characters", () => {
+        beforeEach(() => {
+            rosterHidden.reset();
+            auth.getUser.mockReturnValue(ADMIN);
+            auth.checkCsrf.mockReturnValue(true);
+            characterInfo.annotatedCharacters.mockReturnValue([
+                { key: "anna", character: "Anna", realm: "Thunderstrike", count: 1, categoryIds: ["cat1"], items: [] },
+                { key: "bob", character: "Bob", realm: "Thunderstrike", count: 2, categoryIds: ["cat1"], items: [] },
+            ]);
+        });
+        afterEach(() => characterInfo.annotatedCharacters.mockReturnValue([]));
+
+        it("lists a hidden character apart and leaves it out of the stats", async () => {
+            rosterHidden.hide("Bob", { reason: "left the guild", by: "Admin" });
+            const data = json(await get("/api/roster")).data;
+            expect(data.chars.map((c) => c.character)).toEqual(["Anna"]);
+            expect(data.hiddenChars).toHaveLength(1);
+            expect(data.hiddenChars[0]).toMatchObject({ character: "Bob", hidden: { character: "Bob", reason: "left the guild", by: "Admin" } });
+        });
+
+        it("hides a character with the reason and the name of whoever did it", async () => {
+            const res = await post("/api/roster/hide", { character: " Bob ", hide: true, reason: " twink " });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(json(res).data).toMatchObject({ character: "Bob", hidden: true, entry: { character: "Bob", reason: "twink", by: "Admin" } });
+            expect(rosterHidden.isHidden("bob")).toBe(true);
+        });
+
+        it("puts a character back and says whether anything changed", async () => {
+            rosterHidden.hide("Bob");
+            const first = json(await post("/api/roster/hide", { character: "Bob", hide: false })).data;
+            expect(first).toEqual({ character: "Bob", hidden: false, changed: true });
+            const again = json(await post("/api/roster/hide", { character: "Bob", hide: false })).data;
+            expect(again.changed).toBe(false);
+            expect(rosterHidden.isHidden("Bob")).toBe(false);
+        });
+
+        it("answers 400 without a character", async () => {
+            const res = await post("/api/roster/hide", { character: "  " });
+            expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+            expect(json(res).error).toEqual({ code: "bad_request", message: "Kein Charakter angegeben." });
+            expect(rosterHidden.listHidden()).toEqual({});
+        });
+
+        it("needs roster write access to hide someone", async () => {
+            auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), roster: { read: true, write: false } } });
+            const res = await post("/api/roster/hide", { character: "Anna" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(rosterHidden.isHidden("Anna")).toBe(false);
+        });
+    });
+
+    describe("orga only (epic #723)", () => {
+        it("shuts the all-characters list and the hide switch for a raider, opens them for an orga role", async () => {
+            auth.getUser.mockReturnValue(RAIDER);
+            const res = await get("/api/roster");
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(json(res).error.code).toBe("orga_only");
+            expect(characterInfo.annotatedCharacters).not.toHaveBeenCalled();
+            const hide = await post("/api/roster/hide", { character: "Anna", hide: true });
+            expect(json(hide).error.code).toBe("orga_only");
+            expect(rosterHidden.isHidden("Anna")).toBe(false);
+            auth.getUser.mockReturnValue(ORGA_ROLE);
+            expect((await get("/api/roster")).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        });
+    });
+
+    describe("GET /api/roster/char", () => {
+        beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("reads the facts in the page's version (#741), the main version while the others are hidden (#563), every one when none is asked", async () => {
+            const settingsStore = require("../../../../src/stores/settingsStore");
+            const rosterCharacter = require("../../../../src/web/characters/roster").rosterCharacter;
+            const lastVersion = () => rosterCharacter.mock.calls[rosterCharacter.mock.calls.length - 1][2].versionId;
+            try {
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("forever");
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastVersion()).toBe("");
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                await get("/api/roster/char", { name: "Nobody", version: "forever" });
+                expect(lastVersion()).toBe("tbc");
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
+
+        it("keeps other people's attendance from a raider, but not the drop sources; the own character stays whole", async () => {
+            const profiles = require("../../../../src/stores/raiderProfileStore");
+            auth.getUser.mockReturnValue(RAIDER);
+            const other = json(await get("/api/roster/char", { name: "Nobody", items: "28453" })).data;
+            expect(other).toMatchObject({ attendanceVisible: false, categories: [], attendance: {} });
+            expect(other.items[28453].boss).toBe("Attumen the Huntsman");
+            const spy = jest.spyOn(profiles, "getProfile").mockReturnValue({ characters: [{ key: "nobody", name: "Nobody", versionId: "tbc" }] });
+            const findSpy = jest.spyOn(profiles, "findCharacter").mockReturnValue({ key: "nobody" });
+            try {
+                expect(json(await get("/api/roster/char", { name: "Nobody" })).data.attendanceVisible).toBe(true);
+            } finally {
+                spy.mockRestore();
+                findSpy.mockRestore();
+            }
+            auth.getUser.mockReturnValue(ORGA_ROLE);
+            expect(json(await get("/api/roster/char", { name: "Nobody" })).data.attendanceVisible).toBe(true);
+        });
+
+        it("shows the own player every night neutral (#990), the orga every override and suggestion", async () => {
+            const profiles = require("../../../../src/stores/raiderProfileStore");
+            const { LEFT_EARLY_DISMISSED } = require("../../../../src/stores/attendanceOverridesStore");
+            const rosterCharacter = require("../../../../src/web/characters/roster").rosterCharacter;
+            const night = (eventId, extra) => ({ eventId, title: "Kara", startTime: 1, attended: true, status: "present", detail: "inLog", reason: "", ...extra });
+            const raids = [
+                night("e1", { status: "leftEarly", detail: "override", override: { status: "leftEarly", reason: "ging nach Boss 3", by: "Orga" } }),
+                night("e2", { override: { status: "present", reason: LEFT_EARLY_DISMISSED, by: "Orga" } }),
+                night("e3", { suggestion: { kind: "leftEarly", missedKills: 2, bosses: ["A", "B"] } }),
+                night("e4", { attended: false, status: "noShow", detail: "notInLog" }),
+            ];
+            const missed = [{ eventId: "e4", title: "Kara", startTime: 1, status: "noShow", detail: "notInLog", reason: "" }];
+            const facts = { character: "Nobody", role: "dps", categories: [{ id: "c1", name: "Kara" }], attendance: { c1: { attended: 3, total: 4, pct: 75, raids, missed } } };
+            rosterCharacter.mockImplementation(() => facts);
+            const spy = jest.spyOn(profiles, "getProfile").mockReturnValue({ characters: [{ key: "nobody", name: "Nobody", versionId: "tbc" }] });
+            const findSpy = jest.spyOn(profiles, "findCharacter").mockReturnValue({ key: "nobody" });
+            try {
+                auth.getUser.mockReturnValue(RAIDER);
+                const own = json(await get("/api/roster/char", { name: "Nobody" })).data.attendance.c1;
+                expect(own).toMatchObject({ attended: 3, total: 4, pct: 75 });
+                for (const n of own.raids) {
+                    expect(n).not.toHaveProperty("override");
+                    expect(n).not.toHaveProperty("suggestion");
+                }
+                expect(own.raids.slice(0, 3).map((n) => [n.status, n.attended])).toEqual([["present", true], ["present", true], ["present", true]]);
+                expect(own.raids[3]).toMatchObject({ status: "noShow", attended: false });
+                expect(own.missed).toEqual(missed);
+
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                const orga = json(await get("/api/roster/char", { name: "Nobody" })).data.attendance.c1;
+                expect(orga.raids[0].override).toMatchObject({ status: "leftEarly" });
+                expect(orga.raids[0].status).toBe("leftEarly");
+                expect(orga.raids[1].override.reason).toBe(LEFT_EARLY_DISMISSED);
+                expect(orga.raids[2].suggestion).toMatchObject({ kind: "leftEarly" });
+            } finally {
+                spy.mockRestore();
+                findSpy.mockRestore();
+                rosterCharacter.mockImplementation(jest.requireActual("../../../../src/web/characters/roster").rosterCharacter);
+            }
+        });
+
+        it("describes each worn item once: drop source and BiS specs", async () => {
+            // 28453 drops from Attumen in Karazhan (config/tbcContent.js)
+            const res = await get("/api/roster/char", { name: "Nobody", items: "28453, 28453,abc,-4,0" });
+            expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            const data = json(res).data;
+            expect(data).toMatchObject({ character: "Nobody", role: "", categories: [], attendance: {} });
+            expect(Object.keys(data.items)).toEqual(["28453"]);
+            expect(data.items[28453]).toMatchObject({ itemId: 28453, contentId: "kara", boss: "Attumen the Huntsman" });
+            expect(data.items[28453].content).not.toBe("");
+            expect(Array.isArray(data.items[28453].bisSpecs)).toBe(true);
+        });
+
+        it("reads an unknown item as empty facts and caps the list", async () => {
+            const ids = Array.from({ length: 40 }, (_, i) => 900000 + i).join(",");
+            const data = json(await get("/api/roster/char", { name: "", items: ids })).data;
+            expect(data.character).toBe("");
+            expect(Object.keys(data.items)).toHaveLength(30);
+            expect(data.items[900000]).toEqual({ itemId: 900000, contentId: "", content: "", boss: "", tier: "", bisSpecs: expect.any(Array) });
+        });
+    });
+});

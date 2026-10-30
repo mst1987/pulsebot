@@ -1,4 +1,4 @@
-// Shared by server.js's SSR CLA routes and apiRoutes/cla.js's JSON routes:
+// Shared by server.js's SSR CLA routes and apiRoutes/system/cla.js's JSON routes:
 // the events a detected log could plausibly belong to (for the assignment
 // dropdown / auto-match), and the fields stored when a log is linked to one.
 // Extracted out of server.js so both call sites re-resolve events the same

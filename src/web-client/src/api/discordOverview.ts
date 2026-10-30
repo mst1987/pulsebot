@@ -2,7 +2,7 @@ import type { ServerRoleUse } from "./discordRoles";
 import { get } from "./client";
 
 // The Discord overview of one server of the server list (System › Discord › Übersicht, #895): the
-// contract is the header of src/web/apiRoutes/discordOverview.js, the page
+// contract is the header of src/web/apiRoutes/discord/discordOverview.js, the page
 // docs/channels.md.
 
 export type BotRight = { key: string; label: string; ok: boolean | null };
