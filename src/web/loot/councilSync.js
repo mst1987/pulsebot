@@ -7,7 +7,8 @@
 // the query), version 2 (every Loot-Council category at once, each with its
 // stored page view) and version 3 (#670: version 2 plus every role, the roster
 // status, the loot points and the category's own weighting, so the addon can
-// weigh an award made after the sync like the server). The sync tool (repo
+// weigh an award made after the sync like the server) and version 4 (#1001:
+// the version 3 categories grouped by server and game version). The sync tool (repo
 // eventhelper-addon) and its addon read the same shape: when a field changes,
 // the version grows on both sides (docs/loot-import.md, "Council-Daten für das
 // Addon").
@@ -330,7 +331,19 @@ function raiderViewV3(row) {
  * @param {{ now?: number }} [ctx]
  */
 function councilSyncPayloadV3(entries, ctx = {}) {
-    const categories = (entries || []).map((entry) => ({
+    const categories = (entries || []).map(categoryV3);
+    return {
+        format: FORMAT,
+        version: VERSION_3,
+        generatedAt: seconds(ctx.now || Date.now()),
+        weights: categories.length ? categories[0].weights : weightsV3(null),
+        categories,
+    };
+}
+
+/** One category of version 3 (and, unchanged, of version 4). */
+function categoryV3(entry) {
+    return {
         ...categoryHead(entry, entry.opts.role || ""),
         // Where the values came from (#676): the roster this category's council
         // runs for (null without one) and its Loot-Council profile. Information
@@ -342,17 +355,63 @@ function councilSyncPayloadV3(entries, ctx = {}) {
         itemWeights: itemWeightsV3(entry.built),
         itemClasses: itemClassesFor(entry.instances),
         raiders: (entry.built.rows || []).map(raiderViewV3),
+    };
+}
+
+// ---- version 4 (#1001) --------------------------------------------------------
+
+const VERSION_4 = 4;
+
+/** A text field of a server or version head, never null. */
+const text = (v) => (v === undefined || v === null ? "" : String(v));
+
+/**
+ * Version 4 (#1001): the categories of version 3, unchanged, grouped by
+ * Discord server and below it by game version - a personal key (#1000) can
+ * work on several servers, and the addon picks the server by the WoW guild
+ * and realm it stands in, then the category by the raid's instances.
+ *
+ *   servers[]: { guildId, name, label, versions[] }
+ *   versions[]: { id, short, realm, guilds[{ name, realm, region }], categories[] }
+ *
+ * Every server of the key is listed (`versions: []` = no Loot-Council
+ * category there); a version only with at least one category. The top-level
+ * `weights` is the first category's (else the defaults), as in version 3.
+ *
+ * @param {{ guildId: string, name?: string, label?: string, versions: { id: string, short?: string,
+ *   realm?: string, guilds?: object[], entries: object[] }[] }[]} servers  entries as for version 2
+ * @param {{ now?: number }} [ctx]
+ */
+function councilSyncPayloadV4(servers, ctx = {}) {
+    let first = null;
+    const out = (servers || []).map((server) => ({
+        guildId: text(server.guildId),
+        name: text(server.name),
+        label: text(server.label),
+        versions: (server.versions || [])
+            .filter((v) => (v.entries || []).length)
+            .map((v) => {
+                const categories = v.entries.map(categoryV3);
+                if (!first) first = categories[0];
+                return {
+                    id: text(v.id),
+                    short: text(v.short) || text(v.id),
+                    realm: text(v.realm),
+                    guilds: (v.guilds || []).map((g) => ({ name: text(g.name), realm: text(g.realm), region: text(g.region) })),
+                    categories,
+                };
+            }),
     }));
     return {
         format: FORMAT,
-        version: VERSION_3,
+        version: VERSION_4,
         generatedAt: seconds(ctx.now || Date.now()),
-        weights: categories.length ? categories[0].weights : weightsV3(null),
-        categories,
+        weights: first ? first.weights : weightsV3(null),
+        servers: out,
     };
 }
 
 module.exports = {
-    councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, classFileFor, itemClassesFor,
-    FORMAT, VERSION, VERSION_2, VERSION_3, MAX_ITEMS, LEGACY_ROLES,
+    councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4, classFileFor, itemClassesFor,
+    FORMAT, VERSION, VERSION_2, VERSION_3, VERSION_4, MAX_ITEMS, LEGACY_ROLES,
 };

@@ -107,3 +107,25 @@ describe("describeServers", () => {
         expect(ids).toEqual(["tbc", "forever"]);
     });
 });
+
+describe("versionHead", () => {
+    it("names a version by its short name and the realm slug of that server", () => {
+        const config = {
+            ...CONFIG,
+            versionSettings: { tbc: { blizzardRealmSlug: "thunderstrike" } },
+            serverSettings: { g2: { versionOverrides: { tbc: { blizzardRealmSlug: "spineshatter" } } } },
+        };
+        expect(ingestServers.versionHead("tbc", "g1", config)).toEqual({ id: "tbc", short: "TBC", realm: "thunderstrike" });
+        expect(ingestServers.versionHead("tbc", "g2", config).realm).toBe("spineshatter");
+    });
+
+    it("falls back to the id for the short name of an unknown version", () => {
+        expect(ingestServers.versionHead("nope", "g1", CONFIG)).toEqual({ id: "nope", short: "nope", realm: expect.any(String) });
+    });
+
+    it("is what versionsOfServer lists", () => {
+        listKnownCategories.mockReturnValue([{ id: "c1" }]);
+        const config = { ...CONFIG, categoryVersion: { c1: "forever" } };
+        expect(ingestServers.versionsOfServer("g1", config)).toEqual([ingestServers.versionHead("forever", "g1", config)]);
+    });
+});

@@ -105,7 +105,7 @@ describe("handoutList", () => {
         // the unassigned bank is not listed
         expect(list.banks).toHaveLength(1);
         expect(list.banks[0]).toEqual({
-            key: KEY, gameVersion: "tbc", realm: "Spineshatter", guild: "Die Gilde", faction: "Alliance", scannedAt: 1791000000,
+            key: KEY, guildId: "g1", gameVersion: "tbc", realm: "Spineshatter", guild: "Die Gilde", faction: "Alliance", scannedAt: 1791000000,
             handouts: [{
                 id: r.id, itemId: RUBY, name: "Bold Living Ruby", icon: "inv_jewelcrafting_livingruby_03", quality: 3,
                 amount: 2, purpose: "Gruul",
