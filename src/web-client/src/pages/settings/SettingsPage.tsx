@@ -99,8 +99,10 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
     // The token list is full-admin-only; it feeds the Loot-Sync card and the
     // "Verbindungen" badge. A failed load counts as "no tokens", as before.
     const canManage = !!data?.canManageAccess;
-    const tokensData = useApi(() => getIngestTokens().then((r) => r.tokens), [], { enabled: canManage });
-    const tokens = tokensData.error ? null : tokensData.data;
+    const tokensData = useApi(() => getIngestTokens(), [], { enabled: canManage });
+    const tokens = tokensData.error || !tokensData.data ? null : tokensData.data.tokens;
+    // the servers a token without one can be assigned to (#994)
+    const tokenServers = (!tokensData.error && tokensData.data?.servers) || [];
     const loadTokens = tokensData.reload;
     // The absence/attendance panels per category: posted and removed at once, never through the draft.
     // The organizer's link buttons come with them and are saved the same way.
@@ -402,6 +404,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                 <ConnectionsSection
                     data={data}
                     tokens={tokens}
+                    tokenServers={tokenServers}
                     onConfig={(config) => setData({ ...data, config })}
                     onTokensChanged={loadTokens}
                     icon={activeSection.icon}

@@ -39,6 +39,7 @@
     "/api/settings/raidsheets/delete": "settings",
     "/api/settings/ingest-tokens": "settings",
     "/api/settings/ingest-tokens/delete": "settings",
+    "/api/settings/ingest-tokens/assign": "settings",
     "/api/bot-commands": "settings",
     "/api/settings/archive-export": "settings",
     "/api/settings/category-switch": "settings",

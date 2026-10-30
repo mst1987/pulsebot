@@ -782,7 +782,7 @@
         "created": "Token \"{name}\" created — copy it now, the server only keeps a hash.",
         "copy": "Copy token",
         "new": "New token",
-        "newSub": "One name per computer, so a single one can be revoked on its own.",
+        "newSub": "One name per computer, so a single one can be revoked on its own. The token only works for the active Discord server.",
         "namePlaceholder": "e.g. raid lead PC",
         "creating": "Creating…",
         "create": "Create token",
@@ -795,7 +795,13 @@
         "colUploads": "Uploads",
         "createdBy": "by {name}",
         "never": "never",
-        "revokeTip": "Revoke token"
+        "revokeTip": "Revoke token",
+        "colServer": "Server",
+        "colServerSub": "The token sees and writes raids, loot and categories on this Discord server only.",
+        "noServer": "no server – assign",
+        "noServerTip": "Created before the server split: the token still sees every server. Assign it to a server and it sees only that server's data.",
+        "assignAria": "Server for {name}",
+        "assigned": "Token “{name}” now belongs to {server}."
     },
     "permissions": {
         "orgaOn": "Orga",

@@ -107,6 +107,17 @@ describe("sessionInGuild (addon inbox cards, #919)", () => {
         expect(sessionInGuild(ctx, card({ eventId: "" }), "gB")).toBe(true);
     });
 
+    // #994: the upload key's server keeps a card without a suggestion at home.
+    it("shows a card without a suggestion only on the server of its upload key", () => {
+        const ctx = ctxOf();
+        const ofKey = { ...card(null), guildId: "gA" };
+        expect(sessionInGuild(ctx, ofKey, "gA")).toBe(true);
+        expect(sessionInGuild(ctx, ofKey, "gB")).toBe(false);
+        expect(sessionInGuild(ctx, { ...card({ eventId: "" }), guildId: "gB" }, "gA")).toBe(false);
+        // a suggestion still wins over the key's server
+        expect(sessionInGuild(ctx, { ...card({ eventId: "evA", guildId: "gB" }), guildId: "gA" }, "gB")).toBe(true);
+    });
+
     it("shows nothing without an active server, everything without a filter", () => {
         const ctx = ctxOf();
         expect(sessionInGuild(ctx, card(null), "")).toBe(false);

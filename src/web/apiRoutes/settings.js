@@ -22,6 +22,7 @@ const categoryLifecycle = require("../../services/events/categoryLifecycle");
 const categoryGuild = require("../../services/events/categoryGuild");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
+    assignTokenGuild: assignIngestTokenGuild,
 } = require("../../stores/ingestTokenStore");
 const discord = require("../../services/discord/discord");
 const guildRoles = require("../../services/discord/guildRoles");
@@ -1528,18 +1529,42 @@ const deleteRaidsheetHandler = withUser({ csrf: true, body: true }, async ({ bod
 // bypass the Discord login entirely, so someone with mere write access to
 // "Einstellungen" must not be able to mint one.
 
-/** GET /api/settings/ingest-tokens — the tokens, never their secrets. */
+/**
+ * GET /api/settings/ingest-tokens — the tokens, never their secrets, each with
+ * its Discord server (#994, "" = minted before), and `servers`: the configured
+ * servers a token without one can be assigned to.
+ */
 const getIngestTokens = withUser({ full: true }, async ({ res }) => {
-    ok(res, { tokens: listIngestTokens() });
+    ok(res, {
+        tokens: listIngestTokens(),
+        servers: guildRoles.serverChoices(getConfig()).map((s) => ({ guildId: s.guildId, name: s.name, label: s.label })),
+    });
 });
 
 /**
- * POST /api/settings/ingest-tokens — body: { name }. Mints a token and returns
- * the plaintext **once**; it is stored hashed and can never be shown again.
+ * POST /api/settings/ingest-tokens — body: { name }. Mints a token for the
+ * active Discord server (#994) and returns the plaintext **once**; it is stored
+ * hashed and can never be shown again.
  */
-const createIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ user, body, res }) => {
-    const { token, record } = createIngestToken(body.name, user.name || user.id || "");
+const createIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const { token, record } = createIngestToken(body.name, user.name || user.id || "", String(activeGuildFor(req) || ""));
     ok(res, { token, record }, 201);
+});
+
+/**
+ * POST /api/settings/ingest-tokens/assign — body: { id, guildId }. Binds a
+ * token to a configured Discord server (#994): for the tokens minted before
+ * they carried one. Full admins only, like every other token route.
+ */
+const assignIngestTokenHandler = withUser({ full: true, csrf: true, body: true }, async ({ body, res }) => {
+    const id = String(body.id || "").trim();
+    const guildId = String(body.guildId || "").trim();
+    if (!guildId || !guildRoles.serverIds(getConfig()).includes(guildId)) {
+        return error(res, 400, "unknown_server", "Nur ein Server aus der Serverliste.");
+    }
+    const record = id ? assignIngestTokenGuild(id, guildId) : null;
+    if (!record) return error(res, 404, "not_found", "Token nicht gefunden.");
+    ok(res, { record });
 });
 
 /** POST /api/settings/ingest-tokens/delete — body: { id }. Revokes immediately. */
@@ -1566,11 +1591,12 @@ const routes = [
     { method: "GET", path: "/api/settings/ingest-tokens", handler: getIngestTokens, area: "settings" },
     { method: "POST", path: "/api/settings/ingest-tokens", handler: createIngestTokenHandler, area: "settings" },
     { method: "POST", path: "/api/settings/ingest-tokens/delete", handler: deleteIngestTokenHandler, area: "settings" },
+    { method: "POST", path: "/api/settings/ingest-tokens/assign", handler: assignIngestTokenHandler, area: "settings" },
 ];
 
 module.exports = {
     getSettings, updateSettings, getItemSearch, getArchiveExport, getCategorySwitch, saveRaidsheetHandler, deleteRaidsheetHandler,
-    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, getDiscordServers,
+    getIngestTokens, createIngestTokenHandler, deleteIngestTokenHandler, assignIngestTokenHandler, getDiscordServers,
     getRoleSync, getReminders,
     publicConfig, viewConfig, ACCESS_KEYS, CREDENTIAL_KEYS, GUILD_KEYS, ROLE_SYNC_KEYS, ADDON_KEYS, REMINDER_KEYS, FULL_ADMIN_KEYS, SHARED_WRITE_KEYS, SERVER_SCOPED_KEYS,
     routes,

@@ -252,6 +252,25 @@ describe("POST /api/ingest/loot", () => {
             expect(meta.match.suggested).toMatchObject({ eventId: "eh-b", categoryId: "catB", guildId: "gB" });
         });
 
+        // #994: a key with a server matches only that server's raids, and its
+        // card carries the server so it never shows on another one.
+        it("searches only the raids of the key's server", async () => {
+            verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
+            loadEventGroups.mockImplementation(async (guildId) => (guildId === "gB" ? {
+                groups: [{ categoryId: "catB", categoryName: "Donnerstag", events: [{ id: "eh-b", source: "eventhelper", title: "BT", startTime: 1784574000 }] }],
+            } : { groups: [] }));
+            await upload(payload());
+            expect(loadEventGroups.mock.calls.map((c) => c[0])).toEqual(["gA"]);
+            const [, meta] = upsertPending.mock.calls[0];
+            expect(meta.match.suggested).toBeNull();
+            expect(meta.guildId).toBe("gA");
+        });
+
+        it("stores no server for a key minted without one", async () => {
+            await upload(payload());
+            expect(upsertPending.mock.calls[0][1].guildId).toBe("");
+        });
+
         it("flags two raids on the same day as ambiguous instead of guessing", async () => {
             loadEventGroups.mockResolvedValue({
                 groups: [{

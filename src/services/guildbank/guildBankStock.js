@@ -5,7 +5,7 @@
 // time goes to the one raid server when exactly one has raids set up; with
 // several it belongs to no server yet and waits for an assignment ("Wartet auf
 // Zuordnung") — it is stored all the same, so nothing scanned is lost. An
-// ingest token bound to a server (`token.guildId`; tokens carry none today)
+// ingest token bound to a server (`token.guildId`, #994; older tokens carry none)
 // assigns a new bank right away. Only a raid server can own a bank: that is
 // where the requests are made.
 //

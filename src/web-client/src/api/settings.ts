@@ -559,10 +559,20 @@ export type IngestToken = {
     createdBy: string;
     lastUsedAt: number;
     uses: number;
+    /** The Discord server the token works on (#994); "" = minted before, sees every server. */
+    guildId: string;
 };
 
-export function getIngestTokens(): Promise<{ tokens: IngestToken[] }> {
-    return get<{ tokens: IngestToken[] }>("/api/settings/ingest-tokens");
+/** A configured server a token can be assigned to. */
+export type IngestTokenServer = { guildId: string; name: string; label: string };
+
+export function getIngestTokens(): Promise<{ tokens: IngestToken[]; servers?: IngestTokenServer[] }> {
+    return get<{ tokens: IngestToken[]; servers?: IngestTokenServer[] }>("/api/settings/ingest-tokens");
+}
+
+/** Binds a token without a server to one (#994; full admins only). */
+export function assignIngestToken(id: string, guildId: string): Promise<{ record: IngestToken }> {
+    return send("POST", "/api/settings/ingest-tokens/assign", { id, guildId });
 }
 
 /** Mints a token. `token` is the plaintext and is returned exactly once. */

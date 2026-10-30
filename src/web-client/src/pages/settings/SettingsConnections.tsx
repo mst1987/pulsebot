@@ -1,7 +1,7 @@
 import { useState, type ReactNode } from "react";
 import {
-    updateSettings, createIngestToken, deleteIngestToken,
-    type AdminConfig, type ApiError, type IngestToken, type SettingsData,
+    updateSettings, createIngestToken, deleteIngestToken, assignIngestToken,
+    type AdminConfig, type ApiError, type IngestToken, type IngestTokenServer, type SettingsData,
 } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
@@ -134,9 +134,10 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
     return all.filter((card) => visible.includes(card.id));
 }
 
-export default function ConnectionsSection({ data, tokens, onConfig, onTokensChanged, icon, crumb }: {
+export default function ConnectionsSection({ data, tokens, tokenServers = [], onConfig, onTokensChanged, icon, crumb }: {
     data: SettingsData;
     tokens: IngestToken[] | null;
+    tokenServers?: IngestTokenServer[];
     onConfig: (config: AdminConfig) => void;
     onTokensChanged: () => void;
     icon: string;
@@ -205,6 +206,7 @@ export default function ConnectionsSection({ data, tokens, onConfig, onTokensCha
             <TokensModal
                 open={editing === "lootsync"}
                 tokens={tokens}
+                servers={tokenServers}
                 onClose={() => setEditing(null)}
                 onChanged={onTokensChanged}
             />
@@ -404,13 +406,25 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
     );
 }
 
-type TokenSortKey = "name" | "created" | "lastUsed" | "uses";
-const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = { name: "asc", created: "desc", lastUsed: "desc", uses: "desc" };
+type TokenSortKey = "name" | "server" | "created" | "lastUsed" | "uses";
+const TOKEN_SORT_DEFAULTS: Record<TokenSortKey, Dir> = { name: "asc", server: "asc", created: "desc", lastUsed: "desc", uses: "desc" };
 
-/** Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm. */
-function TokensModal({ open, tokens, onClose, onChanged }: {
+/** The name a server goes by in the token table: its label, else its Discord name, else the id. */
+function serverName(servers: IngestTokenServer[], guildId: string): string {
+    const s = servers.find((x) => x.guildId === guildId);
+    return (s && (s.label || s.name)) || guildId;
+}
+
+/**
+ * Loot-Sync tokens: mint one (shown exactly once), revoke one behind a confirm.
+ * Each token works on one Discord server (#994); the table lists every server's
+ * tokens (the page is "Alle Server", full admins only), a token minted before
+ * gets a server picker instead of a name.
+ */
+function TokensModal({ open, tokens, servers = [], onClose, onChanged }: {
     open: boolean;
     tokens: IngestToken[] | null;
+    servers?: IngestTokenServer[];
     onClose: () => void;
     onChanged: () => void;
 }) {
@@ -451,12 +465,25 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
         }
     };
 
+    const assign = async (tok: IngestToken, guildId: string) => {
+        if (!guildId) return;
+        try {
+            await assignIngestToken(tok.id, guildId);
+            onChanged();
+            toast(t("settings.tokens.assigned", { name: tok.name, server: serverName(servers, guildId) }));
+        } catch (err) {
+            toast((err as ApiError).message, "err");
+        }
+    };
+
     // Default "zuletzt benutzt": the question this table answers is usually
     // "welcher Rechner lädt eigentlich noch hoch?".
     const { sort, dir, onSort, apply } = useTableSort<TokenSortKey>("settings-ingest-tokens-sort", TOKEN_SORT_DEFAULTS, "lastUsed");
     const sorted = apply(tokens || [], (tok, key) => {
         switch (key) {
             case "name": return tok.name.toLowerCase();
+            // a token without a server first: that is the one still to assign
+            case "server": return tok.guildId ? serverName(servers, tok.guildId).toLowerCase() : "";
             case "created": return tok.createdAt || 0;
             case "uses": return tok.uses || 0;
             default: return tok.lastUsedAt || 0;
@@ -508,6 +535,7 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
                                 <tr>
                                     <SortTh sortKey="name" label={t("common.name")} sort={sort} dir={dir} onSort={onSort} />
                                     <th data-tip={t("settings.tokens.colToken")} data-tip-sub={t("settings.tokens.colTokenSub")}>{t("settings.tokens.colToken")}</th>
+                                    <SortTh sortKey="server" label={t("settings.tokens.colServer")} tip={t("settings.tokens.colServer")} tipSub={t("settings.tokens.colServerSub")} sort={sort} dir={dir} onSort={onSort} />
                                     <SortTh sortKey="created" label={t("settings.tokens.colCreated")} sort={sort} dir={dir} onSort={onSort} />
                                     <SortTh sortKey="lastUsed" label={t("settings.tokens.colLastUsed")} sort={sort} dir={dir} onSort={onSort} />
                                     <SortTh sortKey="uses" label={t("settings.tokens.colUploads")} sort={sort} dir={dir} onSort={onSort} />
@@ -519,6 +547,21 @@ function TokensModal({ open, tokens, onClose, onChanged }: {
                                     <tr key={tok.id}>
                                         <td><strong>{tok.name}</strong></td>
                                         <td className="mono">ehl_…{tok.hint}</td>
+                                        <td className="small">
+                                            {tok.guildId ? serverName(servers, tok.guildId) : (
+                                                <select
+                                                    className="gbs-select"
+                                                    aria-label={t("settings.tokens.assignAria", { name: tok.name })}
+                                                    data-tip={t("settings.tokens.noServer")}
+                                                    data-tip-sub={t("settings.tokens.noServerTip")}
+                                                    value=""
+                                                    onChange={(e) => { void assign(tok, e.target.value); }}
+                                                >
+                                                    <option value="">{t("settings.tokens.noServer")}</option>
+                                                    {servers.map((s) => <option key={s.guildId} value={s.guildId}>{s.label || s.name || s.guildId}</option>)}
+                                                </select>
+                                            )}
+                                        </td>
                                         <td className="small" data-tip={tok.createdBy ? t("settings.tokens.createdBy", { name: tok.createdBy }) : undefined}>{fmtMs(tok.createdAt)}</td>
                                         <td className="small">{tok.lastUsedAt ? fmtMs(tok.lastUsedAt) : t("settings.tokens.never")}</td>
                                         <td className="mono">{tok.uses || 0}</td>

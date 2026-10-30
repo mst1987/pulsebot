@@ -91,15 +91,19 @@ function eventInGuild(ctx, eventId, guildId, categoryId = "") {
 
 /**
  * An addon inbox card (a pending session) shows on the server of its suggested
- * raid - the server the upload's match stored, else the raid's own rule - and
- * one without a suggestion on every server: the addon does not know the server
- * (#919). Same `undefined`/"" meaning as lootInGuild.
+ * raid - the server the upload's match stored, else the raid's own rule. One
+ * without a suggestion shows on the server of its upload key (`session.guildId`,
+ * #994), and on every server when the key had none: the addon does not know
+ * the server (#919). Same `undefined`/"" meaning as lootInGuild.
  */
 function sessionInGuild(ctx, session, guildId) {
     if (guildId === undefined) return true;
     if (!str(guildId)) return false;
     const suggested = session && session.match && session.match.suggested;
-    if (!suggested || !str(suggested.eventId)) return true;
+    if (!suggested || !str(suggested.eventId)) {
+        const own = str(session && session.guildId);
+        return !own || own === str(guildId);
+    }
     if (str(suggested.guildId)) return str(suggested.guildId) === str(guildId);
     return eventInGuild(ctx, suggested.eventId, guildId, suggested.categoryId || "");
 }

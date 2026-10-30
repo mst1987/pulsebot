@@ -782,7 +782,7 @@
         "created": "Token „{name}“ erstellt — jetzt kopieren, er liegt nur als Hash auf dem Server.",
         "copy": "Token kopieren",
         "new": "Neues Token",
-        "newSub": "Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann.",
+        "newSub": "Ein Name pro Rechner, damit ein einzelner gezielt zurückgezogen werden kann. Das Token gilt nur für den aktiven Discord-Server.",
         "namePlaceholder": "z. B. Raidlead-PC",
         "creating": "Erstellt…",
         "create": "Token erstellen",
@@ -795,7 +795,13 @@
         "colUploads": "Uploads",
         "createdBy": "von {name}",
         "never": "nie",
-        "revokeTip": "Token zurückziehen"
+        "revokeTip": "Token zurückziehen",
+        "colServer": "Server",
+        "colServerSub": "Nur auf diesem Discord-Server sieht und schreibt das Token Raids, Loot und Kategorien.",
+        "noServer": "kein Server – zuordnen",
+        "noServerTip": "Vor der Server-Trennung erstellt: Das Token sieht noch alle Server. Ordne es einem Server zu, dann sieht es nur dessen Daten.",
+        "assignAria": "Server für {name}",
+        "assigned": "Token „{name}“ gehört jetzt zu {server}."
     },
     "permissions": {
         "orgaOn": "Orga",
