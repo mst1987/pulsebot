@@ -534,11 +534,11 @@ describe("stores/rosterStore versionId", () => {
 describe("stores/rosterStore setImageChannel", () => {
     it("remembers the last picture channel without a history line, also on a closed roster", () => {
         const r = createRoster({ name: "Kern", guildId: "g1" }, { now: NOW });
-        const lines = getRoster(r.id).history.length;
         rosterStore.closeRoster(r.id, { reason: "version_switch", now: NOW });
+        const lines = getRoster(r.id).history.length;
         expect(rosterStore.setImageChannel(r.id, "c42")).toBe(true);
         expect(getRoster(r.id).imageChannelId).toBe("c42");
-        expect(getRoster(r.id).history.length).toBe(lines + 1);
+        expect(getRoster(r.id).history.length).toBe(lines);
         expect(rosterStore.setImageChannel(r.id, "")).toBe(true);
         expect(stored().rosters[r.id].imageChannelId).toBeNull();
         expect(rosterStore.setImageChannel("nope", "c42")).toBe(false);

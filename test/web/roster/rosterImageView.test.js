@@ -23,6 +23,7 @@ const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
 const READER = { id: "9", name: "Leser", isAdmin: false };
+const MANAGER = { id: "200000000000000077", name: "Orga", isAdmin: false, access: { roster: { read: true, write: true } } };
 const CONFIG = { categoryIds: ["cat1"] };
 const NOW = Date.UTC(2026, 9, 30, 12);
 
@@ -47,7 +48,8 @@ describe("web/roster/rosterImageView modelFromDetail", () => {
         const m = modelFromDetail(view, { now: NOW });
         expect(m).toMatchObject({ name: "Kern", versionLabel: "TBC", stand: NOW, slots: { total: 10, tank: 2, healer: 3 } });
         expect(m.members[0]).toEqual({
-            name: "Thorgrim", status: "trial", trialUntil: "2026-11-14", classId: "Warrior", color: "#C79C6E",
+            // no trial date even when the view had one - the picture is the readers' view
+            name: "Thorgrim", status: "trial", classId: "Warrior", color: "#C79C6E",
             spec: "Warrior-Protection", specRole: "tank", role: "tank",
             extraChars: [
                 { classId: "Mage", color: "#69CCF0", spec: "Mage-Fire" },
@@ -60,7 +62,7 @@ describe("web/roster/rosterImageView modelFromDetail", () => {
     it("keeps a person without chars under their Discord name, else their id", () => {
         const m = modelFromDetail(view, { now: NOW });
         expect(m.members[1]).toMatchObject({ name: "Bert", classId: "", spec: "", specRole: "", extraChars: [] });
-        expect(m.members[2]).toMatchObject({ name: "u3", role: "dps", trialUntil: null });
+        expect(m.members[2]).toMatchObject({ name: "u3", role: "dps" });
     });
 
     it("copes with an empty view", () => {
@@ -78,7 +80,7 @@ describe("web/roster/rosterImageView rosterImageModel / rosterPicture", () => {
         characterStore.useFile(tempStoreFile(`img-characters-${count}.json`));
         profiles.addCharacter(ANNA, { name: "Thorgrim", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "ready" }] }, { name: "Anna" });
         profiles.addCharacter(BERT, { name: "Lunaria", className: "Paladin", specs: [{ key: "Paladin-Holy", gear: "ready" }] }, { name: "Bert" });
-        const r = rosterStore.createRoster({ guildId: G, name: "Raid Mo / Do", categoryId: "cat1", slots: { total: 25, tank: 3, healer: 7 } });
+        const r = rosterStore.createRoster({ guildId: G, name: "Raid Mo / Do", categoryId: "cat1", slots: { total: 25, tank: 3, healer: 7 }, managers: { userIds: [MANAGER.id], roleIds: [] } });
         rosterId = r.id;
         rosterStore.upsertMember(r.id, ANNA, { chars: ["Thorgrim"] });
         rosterStore.upsertMember(r.id, BERT, { chars: ["Lunaria"], status: "trial", trialUntil: "2026-11-14" });
@@ -90,18 +92,24 @@ describe("web/roster/rosterImageView rosterImageModel / rosterPicture", () => {
     });
 
     it("builds the model from the roster page's view, with the category's language", async () => {
-        const built = await rosterImageModel({ guildId: G, id: rosterId, user: ADMIN, config: CONFIG, now: NOW });
+        const built = await rosterImageModel({ guildId: G, id: rosterId, config: CONFIG, now: NOW });
         expect(built.lang).toBe("de");
         expect(built.roster.name).toBe("Raid Mo / Do");
         expect(built.model.slots).toMatchObject({ total: 25, tank: 3, healer: 7 });
         const thorgrim = built.model.members.find((x) => x.name === "Thorgrim");
         expect(thorgrim).toMatchObject({ classId: "Warrior", spec: "Warrior-Protection", specRole: "tank" });
-        expect(built.model.members.find((x) => x.name === "Lunaria").trialUntil).toBeTruthy();
+        expect(built.model.members.find((x) => x.name === "Lunaria")).toMatchObject({ status: "trial" });
+        expect(built.model.members.find((x) => x.name === "Lunaria").trialUntil).toBeUndefined();
     });
 
-    it("gives a reader no trial dates (the slim view)", async () => {
-        const built = await rosterImageModel({ guildId: G, id: rosterId, user: READER, config: CONFIG, now: NOW });
-        expect(built.model.members.find((x) => x.name === "Lunaria").trialUntil).toBeNull();
+    it("draws the readers' view for the roster's orga too: no trial date in the picture", async () => {
+        for (const user of [MANAGER, ADMIN, READER]) {
+            const { svg } = await rosterPicture({ guildId: G, id: rosterId, user, config: CONFIG, now: NOW });
+            expect(svg).toContain(">PROBE<");
+            expect(svg).toContain(">Lunaria<");
+            expect(svg).not.toContain("14.11.");
+            expect(svg).not.toContain(">bis ");
+        }
     });
 
     it("is null for an unknown roster or one of another server", async () => {

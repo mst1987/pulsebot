@@ -1,10 +1,10 @@
 // The roster as a picture ("Roster als Bild", docs/roster-profile.md): the PNG for the
 // dialog's preview and download, what the dialog may offer, and posting the picture into a
 // Discord channel. Area `roster` is the gate. Seeing and downloading the picture is open to
-// everybody who may read the roster on its server (the same view as the roster page, so a
-// reader gets no trial dates); posting needs the right to manage that one roster
-// (rosterAccess.canManageRosterLive) - a snapshot changes nothing, so a closed roster may be
-// posted too. The post is the picture and one short line, without a ping (postPayload).
+// everybody who may read the roster on its server (always the readers' view of the roster page,
+// without trial dates - also when the orga makes it); posting needs the right to manage that
+// one roster (rosterAccess.canManageRosterLive) - a snapshot changes nothing, so a closed
+// roster may be posted too. The post is the picture and one short line, without a ping (postPayload).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -13,7 +13,6 @@ const { mayUseChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const { getConfig } = require("../../../stores/settingsStore");
 const rosterStore = require("../../../stores/rosterStore");
 const discord = require("../../../services/discord/discord");
-const { withImages } = require("../../../services/discord/discordImage");
 const { canManageRosterLive } = require("../../../services/roster/rosterAccess");
 const { longDate } = require("../../../services/roster/rosterImage");
 const { tr } = require("../../../utils/i18n/botText");
@@ -26,11 +25,15 @@ const flag = (v) => v === true || v === 1 || ["1", "true"].includes(str(v));
 
 const NOT_FOUND = "Roster nicht gefunden.";
 const NO_ID = "Kein Roster angegeben.";
+const BOT_OFFLINE = "Der Bot ist gerade nicht verbunden.";
+
+/** The server of a roster; one from before rosters knew theirs belongs to the active server. */
+const guildOf = (roster, req) => roster.guildId || activeGuildFor(req);
 
 /** A failed post as a code the client translates, with its HTTP status and a German line. */
 function postFailure(err) {
     const code = err && err.code;
-    if (code === "bot_offline") return [503, "bot_offline", "Der Bot ist nicht verbunden."];
+    if (code === "bot_offline") return [503, "bot_offline", BOT_OFFLINE];
     if (code === "wrong_guild") return [403, "wrong_guild", "Der Kanal liegt auf einem anderen Server."];
     if (code === "channel_not_found" || code === 10003) return [404, "channel_not_found", "Kanal nicht gefunden oder kein Textkanal."];
     if (code === 50001 || code === 50013) return [403, "no_permission", "Der Bot darf in diesem Kanal nicht schreiben."];
@@ -42,11 +45,11 @@ function postFailure(err) {
  * `reserve` adds bench and pause, `chars` the further characters. 400 without id, 404 for
  * an unknown roster or one of another server.
  */
-const getRosterImage = withUser({}, async ({ req, res, user, query }) => {
+const getRosterImage = withUser({}, async ({ req, res, query }) => {
     const id = q.str(query, "id", { max: 64 });
     if (!id) return apiError(res, 400, "bad_request", NO_ID);
     const picture = await rosterPicture({
-        guildId: activeGuildFor(req), id, user, config: getConfig(),
+        guildId: activeGuildFor(req), id, config: getConfig(),
         showReserve: flag(query.get("reserve")), showMoreChars: flag(query.get("chars")),
     });
     if (!picture) return apiError(res, 404, "not_found", NOT_FOUND);
@@ -68,7 +71,7 @@ const getRosterImageInfo = withUser({}, async ({ req, res, user, query }) => {
     return ok(res, {
         canPost,
         channelId: canPost ? roster.imageChannelId || null : null,
-        channels: canPost ? discord.listTextChannels(roster.guildId) : [],
+        channels: canPost ? discord.listTextChannels(guildOf(roster, req)) : [],
     });
 });
 
@@ -86,17 +89,21 @@ const postRosterImage = withUser({ write: "roster", csrf: true, body: true }, as
     if (!roster) return apiError(res, 404, "not_found", NOT_FOUND);
     if (!(await canManageRosterLive(user, roster))) return apiError(res, 403, "not_manager", "Nur die Orga dieses Rosters darf das Bild posten.");
     if (!/^\d{5,25}$/.test(channelId)) return apiError(res, 400, "no_channel", "Kein Kanal gewählt.");
+    // offline the bot knows no channel, so the server check below would wrongly say "other server"
+    if (!discord.isOnline()) return apiError(res, 503, "bot_offline", BOT_OFFLINE);
     if (!mayUseChannel(user, req, channelId)) return apiError(res, 403, "other_server", OTHER_SERVER);
 
     const picture = await rosterPicture({
-        guildId: activeGuildFor(req), id, user, config: getConfig(),
+        guildId: activeGuildFor(req), id, config: getConfig(),
         showReserve: flag(body.reserve), showMoreChars: flag(body.chars),
     });
     if (!picture) return apiError(res, 404, "not_found", NOT_FOUND);
     const content = tr(picture.lang, "Roster {name} as of {date}", { name: picture.roster.name, date: longDate(Date.now(), picture.lang) });
     let posted;
     try {
-        posted = await discord.postPayload(channelId, withImages({ content, images: [{ name: "roster.png", svg: picture.svg }] }), { guildId: roster.guildId });
+        // the PNG already drawn, not drawn a second time (the server has one core)
+        const payload = { content, files: [{ attachment: picture.png, name: "roster.png" }], attachments: [] };
+        posted = await discord.postPayload(channelId, payload, { guildId: guildOf(roster, req) });
     } catch (err) {
         const [status, code, message] = postFailure(err);
         logger.warn(`Roster picture ${roster.id} -> ${channelId}: ${err && err.message}`);

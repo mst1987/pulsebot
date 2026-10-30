@@ -1,5 +1,5 @@
 // The roster as a drawn picture (services/roster/rosterImage.js): pure SVG.
-const { rosterImageSvg, panelOf, shortDate, longDate, WIDTH } = require("../../../src/services/roster/rosterImage");
+const { rosterImageSvg, panelOf, longDate, WIDTH } = require("../../../src/services/roster/rosterImage");
 const { PALETTE } = require("../../../src/utils/image/svg");
 const { iconDataUri, specIconDataUri } = require("../../../src/utils/image/specIcons");
 const { renderPng } = require("../../../src/services/discord/discordImage");
@@ -62,6 +62,30 @@ describe("services/roster/rosterImage", () => {
         expect(count(svg, "stroke-dasharray")).toBe(3);
     });
 
+    it("counts dps members without a panel as filling a dps place, never more free places than the total leaves", () => {
+        // 10 places, 2 tanks + 3 healers full, 3 dps with a spec and 2 dps hybrids without one
+        const { svg } = rosterImageSvg(model([
+            m("Brokk", "Warrior-Protection"), m("Thrall", "Warrior-Protection"),
+            m("Nera", "Priest-Holy"), m("Ilsa", "Priest-Holy"), m("Mo", "Priest-Holy"),
+            m("Zibbo", "Rogue-Combat"), m("Kalu", "Mage-Fire"), m("Vex", "Warlock-Destruction"),
+            m("Fenn", "", { classId: "Druid", role: "dps" }), m("Sola", "", { classId: "Paladin", role: "dps" }),
+        ]), { lang: "de" });
+        expect(svg).toContain(">10/10<");
+        expect(svg).toContain(">ROLLE OFFEN (2)<");
+        expect(svg).not.toMatch(/frei</);
+        expect(svg).not.toContain("stroke-dasharray");
+    });
+
+    it("caps the free places at what the total leaves after everybody placed", () => {
+        // 5 places, targets 2 + 3, but 4 healers already and nobody else: one place left, the tank's
+        const { svg } = rosterImageSvg(model([
+            m("Nera", "Priest-Holy"), m("Ilsa", "Priest-Holy"), m("Mo", "Priest-Holy"), m("Lia", "Priest-Holy"),
+        ], { total: 5, tank: 2, healer: 3 }), { lang: "de" });
+        expect(svg).toContain(">4/5<");
+        expect(svg).toContain(">1 Platz frei<");
+        expect(count(svg, "stroke-dasharray")).toBe(1);
+    });
+
     it("has no counts against a target nor free places when the roster has no slots", () => {
         const { svg } = rosterImageSvg(model([m("Brokk", "Warrior-Protection")], {}), { lang: "en" });
         expect(svg).not.toContain("free<");
@@ -70,21 +94,16 @@ describe("services/roster/rosterImage", () => {
         expect(svg).toContain("text-anchor=\"end\">1<");
     });
 
-    it("puts trial members under a Probe subhead with the end of their trial", () => {
+    it("puts trial members under a Probe subhead, never with the end of their trial", () => {
         const { svg } = rosterImageSvg(model([
             m("Brokk", "Warrior-Protection"),
             m("Ilsa", "Warrior-Protection", { status: "trial", trialUntil: "2026-11-14T10:00:00.000Z" }),
         ]), { lang: "de" });
         expect(count(svg, ">PROBE<")).toBe(1);
-        expect(svg).toContain(">bis 14.11.<");
+        expect(svg).not.toContain("14.11.");
+        expect(svg).not.toContain(">bis ");
         expect(svg.indexOf(">Brokk<")).toBeLessThan(svg.indexOf(">PROBE<"));
         expect(svg.indexOf(">PROBE<")).toBeLessThan(svg.indexOf(">Ilsa<"));
-    });
-
-    it("leaves the date out for a trial without one (the slim view)", () => {
-        const { svg } = rosterImageSvg(model([m("Ilsa", "Mage-Fire", { status: "trial", trialUntil: null })]), { lang: "en" });
-        expect(svg).toContain(">TRIAL<");
-        expect(svg).not.toContain("until");
     });
 
     it("keeps bench and pause out unless asked, then as a dashed box at the bottom", () => {
@@ -185,10 +204,6 @@ describe("services/roster/rosterImage", () => {
 
     describe("dates", () => {
         it("formats in server time, German and English", () => {
-            expect(shortDate("2026-11-14T23:30:00.000Z", "de")).toBe("15.11.");
-            expect(shortDate("2026-11-14T10:00:00.000Z", "en")).toBe("14 Nov");
-            expect(shortDate("", "de")).toBe("");
-            expect(shortDate("nonsense", "de")).toBe("");
             expect(longDate(Date.UTC(2026, 9, 30, 12), "de")).toBe("30.10.2026");
             expect(longDate(Date.UTC(2026, 9, 30, 12), "en")).toBe("30 Oct 2026");
             expect(longDate("nonsense", "de")).toBe("");

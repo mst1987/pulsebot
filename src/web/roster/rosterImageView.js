@@ -1,9 +1,9 @@
 // What the roster picture is drawn from ("Roster als Bild", docs/roster-profile.md): the
 // roster page's own detail view (rosterView.buildRosterDetail) turned into the model of the
 // pure builder services/roster/rosterImage.js. Reading the detail keeps the picture and the
-// page in step - the same first character with the same resolved spec and role, and the same
-// rule who sees what: the roster's orga gets the trial dates, everybody else the slim rows
-// without them (rosterView.slimMember).
+// page in step - the same first character with the same resolved spec and role. The picture is
+// always drawn in the readers' view (the slim rows of rosterView.slimMember, no trial dates),
+// whoever makes it: the orga downloads and posts it for the raiders.
 //
 // Only the first char of a person is a row; the further chars ride along as icons. A spec the
 // rule set does not know (a log's spec name in the character cache) is dropped to "", so the
@@ -31,7 +31,6 @@ function personOf(row, versionId) {
     return {
         name: str(first.name) || str(row.displayName) || str(row.userId),
         status: row.status,
-        trialUntil: row.trialUntil || null,
         classId: str(first.className),
         color: str(first.classColor),
         spec,
@@ -61,11 +60,12 @@ function modelFromDetail(view, { now = Date.now() } = {}) {
 /**
  * The picture's model and language for one roster, or null when the roster does not exist
  * or belongs to another server (the same answer as GET /api/rosters/roster).
- * @param {{ guildId: string, id: string, user: object, config: object, now?: number }} opts
+ * @param {{ guildId: string, id: string, config: object, now?: number }} opts the caller is not
+ *   passed on - the view is the readers' one for everybody
  * @returns {Promise<{ model: object, lang: string, roster: object }|null>}
  */
-async function rosterImageModel({ guildId = "", id = "", user = null, config = {}, now = Date.now() } = {}) {
-    const view = await buildRosterDetail({ guildId, id, user, config });
+async function rosterImageModel({ guildId = "", id = "", config = {}, now = Date.now() } = {}) {
+    const view = await buildRosterDetail({ guildId, id, user: null, config });
     if (!view) return null;
     const head = view.roster;
     const lang = categoryLang(head.categoryId, config, guildId);
@@ -74,8 +74,8 @@ async function rosterImageModel({ guildId = "", id = "", user = null, config = {
 
 /**
  * The drawn roster: SVG and PNG with the language they speak, or null (see rosterImageModel).
- * Not cached - the picture is a snapshot of the moment and the caller's view.
- * @param {{ guildId: string, id: string, user: object, config: object, showReserve?: boolean, showMoreChars?: boolean, now?: number }} opts
+ * Not cached - the picture is a snapshot of the moment.
+ * @param {{ guildId: string, id: string, config: object, showReserve?: boolean, showMoreChars?: boolean, now?: number }} opts
  * @returns {Promise<{ svg: string, png: Buffer, lang: string, roster: object }|null>}
  */
 async function rosterPicture({ showReserve = false, showMoreChars = false, ...opts } = {}) {

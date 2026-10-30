@@ -8,16 +8,18 @@
 //   ┌ TANK      2/2 ┐ ┌ HEILER    5/6 ┐ ┌ NAHKAMPF    9 ┐ ┌ FERNKAMPF   7 ┐
 //   │ [▣] Brokk     │ │ [▣] Nera      │ │ [▣] Zibbo  ▫▫ │ │ [▣] Kalu      │
 //   │ [▣] Thrall    │ │ PROBE         │ │ ...           │ │ [ ] 2 DD-     │
-//   │               │ │ [▣] Ilsa  bis │ │               │ │   Plätze frei │
+//   │               │ │ [▣] Ilsa      │ │               │ │   Plätze frei │
 //   └───────────────┘ └───────────────┘ └───────────────┘ └───────────────┘
 //   ┌ ─ ERSATZ (2)  [▣] Morn  [▣] Vex ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ─ ┐
 //
 // Four role panels; a person is one row with their spec icon (the class icon without a spec, a
 // square in the class colour without either - utils/image/specIcons.js) and the name in the
-// class colour, no spec text. Trial members stand under a "Probe" subhead with the date their
-// trial ends. A tank or healer panel counts "have/target" against the roster's slots (orange
-// while short) and shows the open places as a dashed box; the damage dealers share what the
-// total leaves after tanks and healers, shown once in the shorter of the two panels. Only the
+// class colour, no spec text. Trial members stand under a "Probe" subhead, without the day their
+// trial ends (the picture is always the readers' view). A tank or healer panel counts
+// "have/target" against the roster's slots (orange while short) and shows the open places as a
+// dashed box; the damage dealers share what the total leaves after tanks and healers (a dps
+// member in "Rolle offen" fills one of them too), shown once in the shorter of the two panels.
+// All free places together never exceed what the total leaves after everybody placed. Only the
 // first char of a person counts - further chars are small spec icons on the right of the row,
 // only when asked for (`showMoreChars`). Bench and pause stay out by default and come, when
 // asked for (`showReserve`), as a dashed box at the bottom like the setup picture's bench.
@@ -90,15 +92,6 @@ function panelOf(p) {
     return "";
 }
 
-/** "14.11." in German, "14 Nov" in English - the day a trial ends, in server time. */
-function shortDate(value, lang) {
-    const d = new Date(value);
-    if (!value || Number.isNaN(d.getTime())) return "";
-    return lang === "en"
-        ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: TIMEZONE }).format(d)
-        : new Intl.DateTimeFormat("de-DE", { day: "2-digit", month: "2-digit", timeZone: TIMEZONE }).format(d);
-}
-
 /** "30.10.2026" / "30 Oct 2026" - the day the picture was made. */
 function longDate(value, lang) {
     const d = new Date(value);
@@ -155,7 +148,7 @@ function flow(entries, width, gap) {
  * The picture of a roster.
  * @param {{ name?: string, versionLabel?: string, stand?: number|string|Date,
  *   slots?: { total?: number, tank?: number, healer?: number },
- *   members?: Array<{ name: string, status: "core"|"trial"|"bench"|"pause", trialUntil?: string|null,
+ *   members?: Array<{ name: string, status: "core"|"trial"|"bench"|"pause",
  *     classId?: string, color?: string, spec?: string, specRole?: string, role?: string,
  *     extraChars?: Array<{ classId?: string, color?: string, spec?: string }> }> }} model
  *   members in the order they are drawn; only the first char of a person is the row
@@ -195,8 +188,21 @@ function rosterImageSvg(model, { showReserve = false, showMoreChars = false, lan
     }
     const targets = { tank: Math.max(0, Number(slots.tank) || 0), healer: Math.max(0, Number(slots.healer) || 0) };
     const dpsTarget = total ? Math.max(0, total - targets.tank - targets.healer) : 0;
-    const dpsHave = byPanel.get("melee").length + byPanel.get("ranged").length;
-    const dpsFree = Math.max(0, dpsTarget - dpsHave);
+    // a dps member whose panel cannot be told (a hybrid without spec) still fills a dps place
+    const dpsHave = byPanel.get("melee").length + byPanel.get("ranged").length
+        + unplaced.filter((p) => p.role !== "tank" && p.role !== "healer").length;
+    // the free places of all panels together never exceed what the total leaves
+    let left = total ? Math.max(0, total - placed) : Infinity;
+    const take = (n) => {
+        const got = Math.min(Math.max(0, n), left);
+        left -= got;
+        return got;
+    };
+    const freeOf = {
+        tank: take(targets.tank - byPanel.get("tank").length),
+        healer: take(targets.healer - byPanel.get("healer").length),
+    };
+    const dpsFree = take(dpsTarget - dpsHave);
     const dpsFreeIn = byPanel.get("ranged").length < byPanel.get("melee").length ? "ranged" : "melee";
     const cols = ROLES.map((r) => {
         const list = byPanel.get(r.key);
@@ -204,7 +210,7 @@ function rosterImageSvg(model, { showReserve = false, showMoreChars = false, lan
         const trial = list.filter((p) => p.status === "trial");
         const target = targets[r.key] || 0;
         const free = r.key === "tank" || r.key === "healer"
-            ? Math.max(0, target - list.length)
+            ? freeOf[r.key]
             : (r.key === dpsFreeIn ? dpsFree : 0);
         const empty = !list.length && !free;
         const rows = core.length + trial.length + (free ? 1 : 0) + (empty ? 1 : 0);
@@ -224,16 +230,8 @@ function rosterImageSvg(model, { showReserve = false, showMoreChars = false, lan
             const mid = ry + ROW_H / 2;
             if (k) parts.push(rect(x + 16, ry, PANEL_W - 32, 1, { fill: PALETTE.line }));
             parts.push(personIcon(p, x + ICON_X, mid - ICON / 2, ICON, { clipId: clip() }));
-            // the right of the row, from the edge inwards: trial date, then the further chars
+            // the right of the row: the further chars, from the edge inwards
             let right = x + PANEL_W - 16;
-            if (p.status === "trial") {
-                const date = shortDate(p.trialUntil, lang);
-                if (date) {
-                    const label = tr(lang, "until {date}", { date });
-                    parts.push(text(right, mid + 6, label, { size: DATE_SIZE, fill: PALETTE.muted, anchor: "end" }));
-                    right -= textWidth(label, DATE_SIZE) + 10;
-                }
-            }
             if (showMoreChars) {
                 const fit = Math.floor((right - (x + NAME_X) - NAME_MIN - 6) / (MORE_ICON + MORE_GAP));
                 const { icons, rest } = moreCharsOf(p, fit);
@@ -307,4 +305,4 @@ function rosterImageSvg(model, { showReserve = false, showMoreChars = false, lan
     return { svg: svgDocument(WIDTH, height, parts.join("")), width: WIDTH, height };
 }
 
-module.exports = { rosterImageSvg, panelOf, shortDate, longDate, WIDTH };
+module.exports = { rosterImageSvg, panelOf, longDate, WIDTH };

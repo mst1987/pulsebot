@@ -9,7 +9,6 @@ module.exports = {
     "Melee": "Nahkampf",
     "Ranged": "Fernkampf",
     "Trial": "Probe",
-    "until {date}": "bis {date}",
     "1 slot free": "1 Platz frei",
     "{count} slots free": "{count} Plätze frei",
     "1 DPS slot free": "1 DD-Platz frei",

@@ -26,6 +26,10 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     getClient: jest.fn(() => ({ channels: { cache: mockChannels } })),
     postPayload: jest.fn(async (channelId) => ({ guildId: "g1", channelId, messageId: "m1", url: "https://discord.com/channels/g1/c/m1" })),
 }));
+jest.mock("../../../../src/services/discord/discordImage", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/discordImage");
+    return { ...actual, renderPng: jest.fn(actual.renderPng), withImages: jest.fn(actual.withImages) };
+});
 jest.mock("../../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
 jest.mock("../../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
 jest.mock("../../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
@@ -36,6 +40,7 @@ const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const rosterStore = require("../../../../src/stores/rosterStore");
 const raiderProfileStore = require("../../../../src/stores/raiderProfileStore");
 const discord = require("../../../../src/services/discord/discord");
+const discordImage = require("../../../../src/services/discord/discordImage");
 const routeModule = require("../../../../src/web/apiRoutes/roster/rosterImage");
 const { postFailure } = routeModule;
 const { get, post } = routerClient(routeModule);
@@ -66,6 +71,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     auth.checkCsrf.mockReturnValue(true);
     activeGuildFor.mockReturnValue("g1");
+    discord.isOnline.mockReturnValue(true);
     mockChannels.clear();
     mockChannels.set(CHANNEL, { id: CHANNEL, guildId: "g1" });
     mockChannels.set(FOREIGN, { id: FOREIGN, guildId: "g2" });
@@ -190,6 +196,42 @@ describe("POST /api/rosters/image", () => {
         expect(status(res)).toBe(403);
         expect(code(res)).toBe("other_server");
         expect(discord.postPayload).not.toHaveBeenCalled();
+    });
+
+    it("says the bot is offline instead of blaming the channel's server", async () => {
+        discord.isOnline.mockReturnValue(false);
+        const res = await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL });
+        expect(status(res)).toBe(503);
+        expect(code(res)).toBe("bot_offline");
+        expect(discord.postPayload).not.toHaveBeenCalled();
+    });
+
+    it("answers a full admin's post into another server's channel with 403 wrong_guild", async () => {
+        mockUser = ADMIN;
+        discord.postPayload.mockRejectedValueOnce(Object.assign(new Error("x"), { code: "wrong_guild" }));
+        const res = await post("/api/rosters/image", { id: roster.id, channelId: FOREIGN });
+        expect(status(res)).toBe(403);
+        expect(code(res)).toBe("wrong_guild");
+        expect(discord.postPayload).toHaveBeenCalledWith(FOREIGN, expect.any(Object), { guildId: "g1" });
+        expect(rosterStore.getRoster(roster.id).imageChannelId).toBeNull();
+    });
+
+    it("draws the picture once and sends that PNG as it is", async () => {
+        expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(200);
+        expect(discordImage.renderPng).toHaveBeenCalledTimes(1);
+        expect(discordImage.withImages).not.toHaveBeenCalled();
+        const payload = discord.postPayload.mock.calls[0][1];
+        expect(payload.files[0].attachment).toBe(discordImage.renderPng.mock.results[0].value);
+        expect(payload.attachments).toEqual([]);
+    });
+
+    it("takes the active server for a roster from before rosters knew theirs", async () => {
+        const old = rosterStore.createRoster({ name: "Alt", slots: { total: 10, tank: 2, healer: 3 }, managers: { userIds: [MANAGER.id], roleIds: [] } });
+        expect(rosterStore.getRoster(old.id).guildId || "").toBe("");
+        await get("/api/rosters/image/info", { id: old.id });
+        expect(discord.listTextChannels).toHaveBeenCalledWith("g1");
+        expect(status(await post("/api/rosters/image", { id: old.id, channelId: CHANNEL }))).toBe(200);
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1" });
     });
 
     it("answers a refused post with a clear code and keeps no channel", async () => {
