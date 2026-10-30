@@ -1,7 +1,7 @@
 /* ── Addons (pages/addon/AddonPage.tsx, #818) ──────────
    One card per addon: head, description, download buttons, "Was ist neu?",
    the install steps. Plus the few pieces of Einstellungen → Addons
-   (pages/settings/AddonsSection.tsx). Tokens only.
+   (pages/settings/connections/AddonsSection.tsx). Tokens only.
 
    The prefix is "dlp-" (download page), NEVER "ad-": ad blockers hide
    .ad-card and .ad-grid (EasyList's generic rules), and with them every card

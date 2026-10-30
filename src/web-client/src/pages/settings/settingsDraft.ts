@@ -1,5 +1,5 @@
 import type { AdminConfig, LogChannelInput, RolePermissions, Access, EventSource, PlanningMode } from "../../api";
-import { type CategorySheet } from "./CategoryMatrix";
+import { type CategorySheet } from "./categories/CategoryMatrix";
 import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLinks";
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
 import { DISCORD_VISUAL_KEYS, discordVisualsOf, type CategoryAttendance, type DiscordVisualKey } from "../../lib/settings/settingsLogic";

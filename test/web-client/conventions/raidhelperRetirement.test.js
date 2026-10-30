@@ -22,15 +22,15 @@ describe("the profile's suggestion from Raid-Helper", () => {
 });
 
 describe("the card on the page", () => {
-    const card = read("pages", "settings", "SettingsRaidhelperRetirement.tsx");
-    const section = read("pages", "settings", "SettingsRaidhelperServer.tsx");
+    const card = read("pages", "settings", "connections", "SettingsRaidhelperRetirement.tsx");
+    const section = read("pages", "settings", "connections", "SettingsRaidhelperServer.tsx");
     const sections = read("lib", "settings", "settingsSections.ts");
 
     // #927: per server, in Server > Raid-Helper (full admins only), shown while Raid-Helper is on there
     it("sits in the per-server Raid-Helper section, for full admins only", () => {
         expect(sections).toContain("{ id: \"raidhelper\", group: \"server\", icon: \"raidHelper\", adminOnly: true, standalone: true }");
         expect(section).toContain("{current.enabled && <RaidhelperRetirementCard key={`ret-${round}`} />}");
-        expect(read("pages", "settings", "SettingsConnections.tsx")).not.toContain("<RaidhelperRetirementCard");
+        expect(read("pages", "settings", "connections", "SettingsConnections.tsx")).not.toContain("<RaidhelperRetirementCard");
     });
 
     it("is one line per item with the explanation in the label's tooltip, not in a paragraph", () => {
@@ -45,9 +45,9 @@ describe("the card on the page", () => {
     });
 
     it("shows the categories still on Raid-Helper in the category list's head", () => {
-        const matrix = read("pages", "settings", "CategoryMatrix.tsx");
+        const matrix = read("pages", "settings", "categories", "CategoryMatrix.tsx");
         // the open card's tabs (CategoryDetail.tsx) pick the source with the same default
-        const detail = read("pages", "settings", "CategoryDetail.tsx");
+        const detail = read("pages", "settings", "categories", "CategoryDetail.tsx");
         expect(matrix).toContain("tParts(\"settings.categories.stillRh\", { count: stillRaidhelper.length })");
         expect(require("../clientSource").dictionary("de")["settings.categories.stillRh"]).toBe("{count} noch Raid-Helper");
         expect(matrix).toContain("categorySignupSource[r.id] || signupSourceDefault");

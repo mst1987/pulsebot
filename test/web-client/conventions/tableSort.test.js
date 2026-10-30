@@ -62,7 +62,7 @@ const ALLOWED_PLAIN_HEADERS = new Set(["Links", "WCL", "Token", "Wer", "Slot", "
 //     under the cursor and renumber the rows mid-edit. The row order is the
 //     entry order on purpose (an edit form, not a list to read).
 // Only for such edit forms - a table people read stays sortable (SortTh).
-const EDIT_FORM_TABLES = new Set(["pages/settings/SettingsWclGuilds.tsx"]);
+const EDIT_FORM_TABLES = new Set(["pages/settings/connections/SettingsWclGuilds.tsx"]);
 
 describe("table sorting", () => {
     it("reads a translated header by its German text", () => {
