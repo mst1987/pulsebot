@@ -1,5 +1,5 @@
 const mockGetConfig = jest.fn();
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: mockGetConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: mockGetConfig }));
 
 const MockRaidhelper = jest.fn().mockImplementation((opts) => ({
     opts,
@@ -10,7 +10,7 @@ const MockRaidhelper = jest.fn().mockImplementation((opts) => ({
 jest.mock("../../../src/classes/raidhelper", () => MockRaidhelper);
 
 const { tempStoreFile } = require("../../helpers/tempStore");
-const eventsStore = require("../../../src/stores/raidhelperEventsStore");
+const eventsStore = require("../../../src/stores/events/raidhelperEventsStore");
 const {
     createRaidhelperClient, raidhelperDisabled, setAfterWrite, NOT_SYNCED, DISABLED_MESSAGE,
 } = require("../../../src/utils/raidhelper/client");

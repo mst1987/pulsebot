@@ -6,15 +6,15 @@
 //   * the characters of the signup — "auto", nobody confirmed the link.
 // Whatever rests on a guess (signup characters only, or a class match in a log,
 // see rosterAttendance.attendanceForAccounts) is badged "auto".
-const signupStore = require("../../stores/signupStore");
-const profileStore = require("../../stores/raiderProfileStore");
-const characterStore = require("../../stores/characterStore");
-const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
+const signupStore = require("../../stores/events/signupStore");
+const profileStore = require("../../stores/roster/raiderProfileStore");
+const characterStore = require("../../stores/roster/characterStore");
+const { getCategoryAssignments } = require("../../stores/roster/raiderCharactersStore");
 const { buildAttendanceContext, attendanceForAccounts } = require("../../services/characters/rosterAttendance");
 const { raidContentIds, raidSize } = require("../../services/events/overview/raidListing");
 const { benchHistory } = require("../../services/setup/setupInput");
-const settingsStore = require("../../stores/settingsStore");
-const { categoryAttendanceFor } = require("../../stores/configSchema");
+const settingsStore = require("../../stores/settings/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 

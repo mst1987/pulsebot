@@ -2,14 +2,14 @@
 // (export -> stored evaluation -> Warcraft Log) and what gets cached, not I/O.
 const mockLootCharacters = jest.fn(() => []);
 const mockListByCharacter = jest.fn(() => []);
-jest.mock("../../../src/stores/lootStore", () => ({
+jest.mock("../../../src/stores/loot/lootStore", () => ({
     characters: (...a) => mockLootCharacters(...a),
     listByCharacter: (...a) => mockListByCharacter(...a),
 }));
 
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
     // the slim slice of the same report — the fixtures carry roster/players
@@ -17,7 +17,7 @@ jest.mock("../../../src/stores/reportStore", () => ({
 }));
 
 const mockListLogsForEvent = jest.fn(() => []);
-jest.mock("../../../src/stores/logStore", () => ({
+jest.mock("../../../src/stores/loot/logStore", () => ({
     listLogsForEvent: (...a) => mockListLogsForEvent(...a),
 }));
 
@@ -30,9 +30,9 @@ jest.mock("../../../src/classes/warcraftlogs", () => jest.fn().mockImplementatio
 }));
 
 // The store keeps real behaviour (merge rules matter here) but in memory.
-jest.mock("../../../src/stores/characterStore", () => {
+jest.mock("../../../src/stores/roster/characterStore", () => {
     const { characterKey } = jest.requireActual("../../../src/utils/loot/lootImport");
-    const actual = jest.requireActual("../../../src/stores/characterStore");
+    const actual = jest.requireActual("../../../src/stores/roster/characterStore");
     let rows = [];
     return {
         __reset: () => { rows = []; },
@@ -60,7 +60,7 @@ jest.mock("../../../src/stores/characterStore", () => {
     };
 });
 
-const charStore = require("../../../src/stores/characterStore");
+const charStore = require("../../../src/stores/roster/characterStore");
 const {
     annotatedCharacters, rememberFromLoot, resolveMissing, normalizeClassName, reportIdsForCharacter,
 } = require("../../../src/services/characters/characterInfo");

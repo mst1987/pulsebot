@@ -10,7 +10,7 @@
 // intent. Three answers: member, not a member (Discord says "unknown member"),
 // unknown (bot offline, other error, too slow) — only "not a member" shows the
 // note, a Discord hiccup never nags a raider.
-const settingsStore = require("../../stores/settingsStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
 const guildRoles = require("../discord/roles/guildRoles");
 // The invite of one link ("from:to"), sync, URL or "" (#905: made on a click in

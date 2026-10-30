@@ -1,11 +1,11 @@
 // Welche Spielversion ein Charakter im Roster und in der Loot-Historie hat (#543).
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices, charactersOfVersion } = require("../../../src/services/characters/characterVersions");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -43,7 +43,7 @@ describe("services/characters/characterVersions", () => {
 
     // #737: Loot eines gescannten Raid-Helper-Raids hat dessen gespeicherte Version.
     it("nimmt für Raid-Helper-Loot die gespeicherte Version des Schnappschusses", () => {
-        const raidEvents = require("../../../src/stores/raidEventStore");
+        const raidEvents = require("../../../src/stores/events/raidEventStore");
         raidEvents.useFile(tempStoreFile("eh-character-versions-raid-events.json"));
         try {
             raidEvents.saveRaidEvents([{ id: "rh-forever", title: "Ony", versionId: "forever" }]);

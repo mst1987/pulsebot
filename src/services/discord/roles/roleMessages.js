@@ -18,7 +18,7 @@
 // Button and reaction follow the same Bot-Befehle rule (command `rolemsg`, everyone by
 // default) and share a short cooldown per member and role (COOLDOWN_MS, in memory).
 //
-// The store is stores/roleMessageStore.js, the API web/apiRoutes/discord/roleMessages.js,
+// The store is stores/discord/roleMessageStore.js, the API web/apiRoutes/discord/roleMessages.js,
 // docs/role-messages.md the overview.
 const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDisplayBuilder } = require("discord.js");
 const discord = require("../discord");
@@ -27,8 +27,8 @@ const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("../botAccess");
 const { configForGuild } = require("../servers/serverAccess");
 const { langOfInteraction } = require("../botLanguage");
-const store = require("../../../stores/roleMessageStore");
-const { getConfig } = require("../../../stores/configStore");
+const store = require("../../../stores/discord/roleMessageStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const { card } = require("../../../utils/discord/card");
 const { parseButtonEmoji, buttonEmojiFor } = require("../../../utils/discord/buttonEmoji");
 const { tr } = require("../../../utils/i18n/botText");

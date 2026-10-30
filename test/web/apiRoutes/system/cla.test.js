@@ -11,14 +11,14 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
     setReportGuild: jest.fn(() => false),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -48,12 +48,12 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -109,12 +109,12 @@ jest.mock("../../../../src/utils/logcheck/report", () => {
     };
 });
 jest.mock("../../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../../src/stores/characterStore", () => ({
+jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -190,11 +190,11 @@ jest.mock("../../../../src/utils/loot/wowhead", () => {
     };
 });
 const auth = require("../../../../src/web/http/auth");
-const reportStore = require("../../../../src/stores/reportStore");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const reportStore = require("../../../../src/stores/loot/reportStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
-const logStore = require("../../../../src/stores/logStore");
+const logStore = require("../../../../src/stores/loot/logStore");
 const { reportsOfGuild } = require("../../../../src/services/logcheck/reportGuild");
 const reportList = require("../../../../src/services/logcheck/reportList");
 const logEventMatch = require("../../../../src/services/logcheck/logEventMatch");
@@ -392,7 +392,7 @@ describe("web/apiRoutes/cla", () => {
             const config = { mainVersion: "tbc", categoryVersion: { "cat-forever": "forever" } };
             settingsStore.getConfig.mockReturnValue(config);
             // the matchable events resolve their version from the stored config (mainVersion.js)
-            const configSpy = jest.spyOn(require("../../../../src/stores/configStore"), "getConfig").mockReturnValue(config);
+            const configSpy = jest.spyOn(require("../../../../src/stores/settings/configStore"), "getConfig").mockReturnValue(config);
             logStore.listLogs.mockReturnValue([{ id: "l1", guildId: "guild-1" }]);
             discord.getChannelCategoryMap.mockReturnValue({
                 c1: { name: "kara", categoryId: "cat-tbc", categoryName: "TBC" },

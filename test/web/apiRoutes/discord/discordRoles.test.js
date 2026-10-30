@@ -8,7 +8,7 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () =>
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockGuildId }));
 let mockGuildId = "900000000000000001";
 // the server list (#895): two equal servers
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";
@@ -27,7 +27,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 const svc = require("../../../../src/services/discord/servers/serverRoles");
 const members = require("../../../../src/services/discord/servers/serverMembers");
 const discord = require("../../../../src/services/discord/discord");
-const store = require("../../../../src/stores/roleMessageStore");
+const store = require("../../../../src/stores/discord/roleMessageStore");
 const route = require("../../../../src/web/apiRoutes/discord/discordRoles");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

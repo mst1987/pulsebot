@@ -3,7 +3,7 @@
 // fuer Gruppen-Plaetze; die gepostete Nachricht folgt — beim Raider sofort (in
 // der Warteschlange), bei der Orga gebuendelt etwas spaeter. "Alle bestaetigen".
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventSetupPost: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -17,7 +17,7 @@ jest.mock("../../../src/services/setup/setupMessage", () => ({
     scheduleSetupEdit: jest.fn(),
 }));
 
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { editSetupMessageQueued, scheduleSetupEdit } = require("../../../src/services/setup/setupMessage");
 const { setConfirmation, confirmAll } = require("../../../src/services/setup/setupConfirm");
 

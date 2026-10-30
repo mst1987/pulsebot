@@ -2,7 +2,7 @@
 // named set of council settings a roster with loot system Loot-Council uses.
 // Left the list (name, how many rosters use it), right the picked profile:
 // its view (role, Content, BiS list - what the page and the addon filter by)
-// and its weighting (stores/councilProfilesStore.js). One primary action,
+// and its weighting (stores/loot/councilProfilesStore.js). One primary action,
 // "Speichern"; "Neues Profil", "Umbenennen", "Kopieren" and "Löschen" are
 // quiet buttons. A profile a roster or category still uses cannot be deleted.
 // Writing takes `lootcouncil` write; a reader sees everything without controls.

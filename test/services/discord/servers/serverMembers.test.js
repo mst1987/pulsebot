@@ -3,7 +3,7 @@
 // channels it can see; the tab count; offline and a member list that fails or takes too long.
 const { PermissionsBitField } = require("discord.js");
 
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => {
     const actual = jest.requireActual("../../../../src/services/discord/roles/guildRoles");
     const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } };

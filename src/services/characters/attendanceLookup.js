@@ -6,9 +6,9 @@
 const { buildAttendanceContext, attendanceFor } = require("./rosterAttendance");
 const { mainVersionFor } = require("../versions/mainVersion");
 const { isCategoryActive } = require("../categories/categoryLifecycle");
-const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { listAllAssignments } = require("../../stores/roster/raiderCharactersStore");
 const { annotatedCharacters } = require("./characterInfo");
-const { listAll } = require("../../stores/lootStore");
+const { listAll } = require("../../stores/loot/lootStore");
 const { lootOfGuild } = require("../loot/lootServer");
 const { buildVersionContext, versionsOfCharacter } = require("./characterVersions");
 const { listKnownCategories } = require("../categories/categoryNames");

@@ -6,7 +6,7 @@
 const { extractWclLinks } = require("../../utils/logcheck/logLinks");
 const { eventStartMs } = require("../../services/logcheck/logEventMatch");
 const { eventLinkFields } = require("../../services/logcheck/matchableEvents");
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const { linkConflict } = require("../../services/logcheck/logVersion");
 const { guildOfEvent } = require("../../services/discord/servers/serverOf");
 

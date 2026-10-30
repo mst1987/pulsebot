@@ -21,11 +21,11 @@
 //     entry acts as the raider, one entered by the orga acts as the orga.
 // Deleting an entry stops it; the signups it made stay as they are.
 const { DateTime } = require("luxon");
-const store = require("../../stores/availabilityStore");
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
+const store = require("../../stores/events/availabilityStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const { submitSignup, signupWindow, checkRaiderRole } = require("./signupService");

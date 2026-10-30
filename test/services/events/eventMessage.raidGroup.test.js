@@ -3,13 +3,13 @@
 // (a redraw asked for it redraws the first raid's), and every raid's setup
 // message and DM say "Raid 2 of 2".
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     setEventMessage: jest.fn(),
     listEvents: (guildId, opts = {}) => [...mockEvents.values()].filter((e) => opts.siblings === true || !(e.raidGroupId && e.raidGroupId !== e.id)),
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 

@@ -26,7 +26,7 @@
 // resolveVersionQuery() ignores a `?version=` of another one. A direct link to
 // an event of a hidden version still opens it, read only (eventArchive.js).
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
-const raidEventStore = require("../../stores/raidEventStore");
+const raidEventStore = require("../../stores/events/raidEventStore");
 
 /** `id` when a rule set has it, else "". */
 function knownVersion(id) {
@@ -43,7 +43,7 @@ function knownVersion(id) {
 function configOf(config) {
     if (config && typeof config === "object") return config;
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }

@@ -40,9 +40,9 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const discord = require("../../../services/discord/discord");
 const serverRoles = require("../../../services/discord/servers/serverRoles");
 const serverMembers = require("../../../services/discord/servers/serverMembers");
-const roleMessageStore = require("../../../stores/roleMessageStore");
+const roleMessageStore = require("../../../stores/discord/roleMessageStore");
 const { roleMessageGuild } = require("../../../services/discord/roles/guildRoles");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const { serverFromQuery } = require("../../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

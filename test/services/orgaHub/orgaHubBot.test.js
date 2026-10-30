@@ -16,7 +16,7 @@ const { resolveAccess } = require("../../../src/services/discord/members/userAcc
 const bot = require("../../../src/services/orgaHub/orgaHubBot");
 const button = require("../../../src/commands/event/orgaHubButton");
 const { cardText } = require("../../helpers/cardText");
-const store = require("../../../src/stores/orgaHubStore");
+const store = require("../../../src/stores/discord/orgaHubStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 beforeAll(() => store.useFile(tempStoreFile("orga-hubs.json")));

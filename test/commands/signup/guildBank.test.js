@@ -24,7 +24,7 @@ jest.mock("../../../src/services/signups/guildBank", () => ({
 
 const { userMayAny } = require("../../../src/services/discord/members/userAccess");
 const guildBank = require("../../../src/services/signups/guildBank");
-const store = require("../../../src/stores/guildBankStore");
+const store = require("../../../src/stores/loot/guildBankStore");
 const command = require("../../../src/commands/signup/guildBank");
 const { kindOf } = require("../../../src/commands/loader");
 const { mockInteraction } = require("../../helpers/mockInteraction");

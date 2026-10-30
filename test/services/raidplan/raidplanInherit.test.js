@@ -1,9 +1,9 @@
 // The Standard of a template (src/services/raidplan/raidplanInherit.js): inherited by every boss, deviated from, applied to an event.
 const { tempStoreFile } = require("../../helpers/tempStore");
-const templates = require("../../../src/stores/raidplanTemplateStore");
+const templates = require("../../../src/stores/raidplan/raidplanTemplateStore");
 // the library is per server (#945)
 const S = "100000000000000001";
-const plans = require("../../../src/stores/raidplanStore");
+const plans = require("../../../src/stores/raidplan/raidplanStore");
 const inherit = require("../../../src/services/raidplan/raidplanInherit");
 const raidplan = require("../../../src/web/raidplan/raidplan");
 const board = require("../../../src/services/raidplan/raidplanBoard");

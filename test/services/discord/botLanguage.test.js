@@ -1,8 +1,8 @@
 // Which language the bot writes in: the raider's own choice, else the server's, else German.
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
-const userPrefs = require("../../../src/stores/userPrefsStore");
+const userPrefs = require("../../../src/stores/settings/userPrefsStore");
 const botLanguage = require("../../../src/services/discord/botLanguage");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

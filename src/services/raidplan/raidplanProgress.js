@@ -11,8 +11,8 @@
 //   answer is empty, so a plan opened the day after shows nothing of the night before.
 // The derivation itself is pure: utils/logcheck/bossProgress.js.
 
-const logStore = require("../../stores/logStore");
-const raidplanStore = require("../../stores/raidplanStore");
+const logStore = require("../../stores/loot/logStore");
+const raidplanStore = require("../../stores/raidplan/raidplanStore");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { eventStartMs } = require("../logcheck/logEventMatch");
 const { deriveProgress } = require("../../utils/logcheck/bossProgress");

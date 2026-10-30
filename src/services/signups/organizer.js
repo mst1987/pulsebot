@@ -4,10 +4,10 @@
 // "Next raid" reads the own events only — the ones absences and attendances
 // act on, and a store read rather than a Raid-Helper request every time the
 // panels are redrawn. A category still on Raid-Helper shows "no raid planned".
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
-const { listReports, getReportRoster } = require("../../stores/reportStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
 const { accountCount } = require("../../utils/signup/capacity");
 const { recordVersion } = require("../logcheck/logVersion");
 const { isVersionVisible } = require("../versions/mainVersion");

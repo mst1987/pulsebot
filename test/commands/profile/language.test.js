@@ -1,10 +1,10 @@
 // /language: the raider's own bot language, or back to the server's.
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const { MessageFlags } = require("discord.js");
-const userPrefs = require("../../../src/stores/userPrefsStore");
+const userPrefs = require("../../../src/stores/settings/userPrefsStore");
 const command = require("../../../src/commands/profile/language");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { answerOf } = require("../../helpers/signupMocks");

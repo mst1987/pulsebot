@@ -10,7 +10,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { charactersOfVersion } = require("../../services/characters/characterVersions");
-const { listByCharacter } = require("../../stores/lootStore");
+const { listByCharacter } = require("../../stores/loot/lootStore");
 const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");

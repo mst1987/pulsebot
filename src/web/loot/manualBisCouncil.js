@@ -2,7 +2,7 @@
 //
 // A version without content data (WoW Forever: no WoWSims, no generated item
 // table) measures its raiders against the lists the orga keeps in
-// stores/manualBisStore.js. What that can and cannot answer:
+// stores/loot/manualBisStore.js. What that can and cannot answer:
 //
 //   - "BiS 9 von 16" and the open BiS items: yes — a slot counts as done when
 //     the raider's last seen gear wears its BiS piece or one of its
@@ -16,7 +16,7 @@
 // The TBC council never comes here: `councilContent().manualBis` is false for a
 // version with BiS data of its own.
 
-const manualBisStore = require("../../stores/manualBisStore");
+const manualBisStore = require("../../stores/loot/manualBisStore");
 const { MANUAL_SLOTS } = manualBisStore;
 const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");

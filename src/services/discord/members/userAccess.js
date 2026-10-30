@@ -19,7 +19,7 @@
 //   resolveAccess(userId, { guildId })   the same, the base access when the lookup fails
 //   userMayAny(userId, areas, level, { guildId })   resolveAccess + permissions.userCanAny
 const { logcheckAdminIds } = require("../../../config/variables");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const guildRoles = require("../roles/guildRoles");
 const discord = require("../discord");
 const { accessSettings, accessGuildIds, fullAdminRoleIds } = require("../servers/serverAccess");

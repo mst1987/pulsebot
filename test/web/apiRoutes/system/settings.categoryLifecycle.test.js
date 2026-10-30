@@ -8,16 +8,16 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../../src/services/discord/languageChange", () => ({ afterServerLangChange: jest.fn(async () => ({})) }));
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({ refreshPanels: jest.fn(() => Promise.resolve({})) }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRaidsheets: jest.fn(() => []), saveRaidsheet: jest.fn(), deleteRaidsheet: jest.fn(),
     listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/rosterStore", () => ({ ...jest.requireActual("../../../../src/stores/rosterStore"), listRosters: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../../src/stores/events/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({ ...jest.requireActual("../../../../src/stores/roster/rosterStore"), listRosters: jest.fn(() => []) }));
 jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "mon", name: "Montag" }, { id: "gone", name: "TBC Montag" }]),
 }));
@@ -31,13 +31,13 @@ jest.mock("../../../../src/services/discord/discord", () => require("../../../he
 jest.mock("../../../../src/services/versions/contentVersions", () => ({
     upcomingByVersion: jest.fn(() => ({})), versionsWithData: jest.fn(() => new Set()), archiveExport: jest.fn(), archiveCsv: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventSeriesStore", () => ({
+jest.mock("../../../../src/stores/events/eventSeriesStore", () => ({
     getSeries: jest.fn((id) => (id === "gone" ? { categoryId: "gone", enabled: true, weekdays: [1], time: "19:30" } : null)),
     listSeries: jest.fn(() => ({ gone: { categoryId: "gone", enabled: true } })),
     deleteSeries: jest.fn(() => true),
 }));
-jest.mock("../../../../src/stores/configStore", () => ({
-    ...jest.requireActual("../../../../src/stores/configStore"),
+jest.mock("../../../../src/stores/settings/configStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/configStore"),
     dropCategoryEntries: jest.fn(() => ({ config: {}, removed: ["categoryIds", "categoryReminders"] })),
 }));
 // #925: the stored name snapshot - "gone" (deleted in Discord) and "mon" on g1, "far" on another server
@@ -48,14 +48,14 @@ jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
 jest.mock("../../../../src/services/kader/kaderCategories", () => ({ kadersCountingCategory: jest.fn(() => []), dropAttendanceCategory: jest.fn(() => 1) }));
 
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
-const { listRaidEvents } = require("../../../../src/stores/raidEventStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
+const { listRaidEvents } = require("../../../../src/stores/events/raidEventStore");
 const discord = require("../../../../src/services/discord/discord");
-const seriesStore = require("../../../../src/stores/eventSeriesStore");
-const configStore = require("../../../../src/stores/configStore");
+const seriesStore = require("../../../../src/stores/events/eventSeriesStore");
+const configStore = require("../../../../src/stores/settings/configStore");
 const { storedCategoryGuilds } = require("../../../../src/services/discord/servers/serverOf");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const { post, patch, get } = routerClient(require("../../../../src/web/apiRoutes/system/settings"));
 
 const CONFIG = {

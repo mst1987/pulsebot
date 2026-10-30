@@ -3,12 +3,12 @@
 let mockOwn = {};
 let mockSnapshots = {};
 let mockLists = {};
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: (id) => mockOwn[id] || null,
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: (id) => mockSnapshots[id] || null }));
-jest.mock("../../../src/stores/raidhelperEventsStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: (id) => mockSnapshots[id] || null }));
+jest.mock("../../../src/stores/events/raidhelperEventsStore", () => ({
     snapshotGuilds: () => Object.keys(mockLists),
     readSnapshot: (g) => mockLists[g] || { events: [] },
 }));
@@ -20,7 +20,7 @@ let mockClient = null;
 jest.mock("../../../src/services/discord/servers/serverOf", () => ({
     storedCategoryGuilds: () => new Map(Object.entries(mockSnapshotCats)),
 }));
-jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: (id) => mockSeries[id] || null }));
+jest.mock("../../../src/stores/events/eventSeriesStore", () => ({ getSeries: (id) => mockSeries[id] || null }));
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
 const { serverOfEntry, allOnServer, guildOfCategory } = require("../../../src/services/events/eventServer");

@@ -4,10 +4,10 @@
 // never the raids. The full entries are behind the area "vermerke" (read).
 //
 // This is the one door for code outside the Vermerke routes (the setup proposal,
-// the raid detail, #981): it alone reads stores/userNotesStore.js. Whatever goes
+// the raid detail, #981): it alone reads stores/roster/userNotesStore.js. Whatever goes
 // out of here goes to the orga only - never into an answer a raider gets
 // (test/services/vermerke/vermerkeNeverToPerson.test.js).
-const notes = require("../../stores/userNotesStore");
+const notes = require("../../stores/roster/userNotesStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

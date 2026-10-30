@@ -32,7 +32,7 @@ const REQUEST_TIMEOUT_MS = 60000;
  *   - commands/apply/applyModal   getParses (character rankings on the fresh
  *                                 host, analyzeApplicant), then report.js
  *   - services/characters/characterInfo.js        getSummary: the gear snapshot of a report
- *   - stores/logGearStore.js         getCasts: the gear of every raider
+ *   - stores/loot/logGearStore.js         getCasts: the gear of every raider
  *   - services/logcheck/logChannel.js           getFights for title and raid progress. v2 has
  *                                 both, but only with the optional OAuth client
  *                                 and in another shape (raidProgress reads v1's

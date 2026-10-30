@@ -2,7 +2,7 @@ jest.mock("fs", () => require("../../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { settingsPath } = require("../../../../src/config/paths");
-const configStore = require("../../../../src/stores/configStore");
+const configStore = require("../../../../src/stores/settings/configStore");
 const { cleanForeignRoles, loadedRoleIds, foreignRolesOf } = require("../../../../src/services/discord/roles/foreignRoleCleanup");
 
 const FILE = settingsPath("config.json");

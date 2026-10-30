@@ -2,7 +2,7 @@ jest.mock("axios", () => require("../helpers/axiosMock").mockAxios());
 
 const { transport, reply, fail, timeout, respond, sent } = require("../helpers/axiosMock");
 const { tempStoreFile } = require("../helpers/tempStore");
-const budgetStore = require("../../src/stores/raidhelperBudgetStore");
+const budgetStore = require("../../src/stores/events/raidhelperBudgetStore");
 const budget = require("../../src/utils/raidhelper/budget");
 const Raidhelper = require("../../src/classes/raidhelper.js");
 

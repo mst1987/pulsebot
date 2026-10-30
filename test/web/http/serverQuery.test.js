@@ -2,7 +2,7 @@
 // server by default (an old side=talk too, #897), and 400 unknown_guild for anything else.
 // Rights hold per server (#925): only a full admin picks any server; everybody else
 // reaches the server active in their session - another guildId answers 403 other_server.
-jest.mock("../../../src/stores/configStore", () => ({
+jest.mock("../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 let mockActive = "900000000000000002";

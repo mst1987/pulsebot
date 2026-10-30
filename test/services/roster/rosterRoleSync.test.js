@@ -12,7 +12,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => ({ id: "g1", roles: { cache: new Map([["main", {}], ["alt", {}], ["trial", {}]]) } })),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: jest.fn((userId) => ({ userId, name: "", characters: [] })),
     firstCharacter: jest.fn(() => null),
 }));
@@ -20,8 +20,8 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({
 const fs = require("fs");
 const memberRoles = require("../../../src/services/discord/roles/memberRoles");
 const discord = require("../../../src/services/discord/discord");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../src/stores/rosterStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const sync = require("../../../src/services/roster/rosterRoleSync");
 
 const ok = (roleId, changed = true) => ({ ok: true, code: changed ? "done" : "unchanged", changed, roleId, roleName: roleId.toUpperCase() });

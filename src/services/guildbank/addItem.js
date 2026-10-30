@@ -11,7 +11,7 @@
 //   addByHand    store.addItem + the meta chain (local tables at once, then
 //                the Wowhead lookup, awaited for a moment so the answer
 //                already carries the name and icon)
-const stockStore = require("../../stores/guildBankStockStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
 const wowhead = require("../../utils/loot/wowhead");
 const itemMeta = require("./itemMeta");
 const stockView = require("./stockView");

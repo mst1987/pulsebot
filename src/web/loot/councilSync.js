@@ -19,7 +19,7 @@
 const { NEED_WEIGHTS, DROUGHT_DAYS, droughtCounter } = require("./lootCouncil");
 const { itemClass, itemFacts } = require("../../services/loot/itemWeights");
 const { RAID_LOOT } = require("../../config/data/tbcContent");
-const councilWeights = require("../../stores/councilWeightsStore");
+const councilWeights = require("../../stores/loot/councilWeightsStore");
 const councilProfiles = require("../../services/loot/councilProfiles");
 
 /**

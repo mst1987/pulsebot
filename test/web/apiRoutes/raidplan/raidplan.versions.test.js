@@ -5,8 +5,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => null), getActiveGuild: jest.fn(() => "500000") }));
 const mockEvents = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh-")),
 }));
@@ -14,10 +14,10 @@ jest.mock("../../../../src/stores/eventStore", () => ({
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { ownEvent } = require("../../../factories/events");
-const plans = require("../../../../src/stores/raidplanStore");
-const profiles = require("../../../../src/stores/raidplanProfileStore");
-const templates = require("../../../../src/stores/raidplanTemplateStore");
-const catalog = require("../../../../src/stores/raidplanCatalogStore");
+const plans = require("../../../../src/stores/raidplan/raidplanStore");
+const profiles = require("../../../../src/stores/raidplan/raidplanProfileStore");
+const templates = require("../../../../src/stores/raidplan/raidplanTemplateStore");
+const catalog = require("../../../../src/stores/raidplan/raidplanCatalogStore");
 const raidplan = require("../../../../src/web/raidplan/raidplan");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const { mockRes, status, json } = require("../../../helpers/http");
@@ -153,7 +153,7 @@ describe("tactic profiles carry their game version", () => {
 describe("other versions hidden (#563)", () => {
     let spy;
     beforeEach(() => {
-        spy = jest.spyOn(require("../../../../src/stores/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        spy = jest.spyOn(require("../../../../src/stores/settings/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
     });
     afterEach(() => spy.mockRestore());
 

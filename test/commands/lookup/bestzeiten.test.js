@@ -1,15 +1,15 @@
 // /bestzeiten [dungeon]: the card for one dungeon or the overall ranking, and
 // the autocomplete of the stored dungeon names — per game version.
 jest.mock("../../../src/services/discord/botLanguage", () => ({ langOfInteraction: jest.fn(() => "de") }));
-jest.mock("../../../src/stores/configStore", () => ({
-    ...jest.requireActual("../../../src/stores/configStore"),
+jest.mock("../../../src/stores/settings/configStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/configStore"),
     getConfig: jest.fn(() => ({ mainVersion: "forever" })),
 }));
 
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/bestzeiten");
 const { langOfInteraction } = require("../../../src/services/discord/botLanguage");
-const store = require("../../../src/stores/dungeonRunStore");
+const store = require("../../../src/stores/roster/dungeonRunStore");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { cardText } = require("../../helpers/cardText");

@@ -7,19 +7,19 @@ const { tempStoreFile } = require("../../helpers/tempStore");
 let mockEvents = [];
 let mockOverrides = {};
 let mockSignups = {};
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn(() => mockEvents),
 }));
-jest.mock("../../../src/stores/attendanceOverridesStore", () => ({
+jest.mock("../../../src/stores/events/attendanceOverridesStore", () => ({
     listOverrides: jest.fn(() => mockOverrides),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     getSignup: jest.fn((eventId, userId) => (mockSignups[eventId] || {})[userId] || null),
 }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const signals = require("../../../src/stores/userSignalsStore");
-const notes = require("../../../src/stores/userNotesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signals = require("../../../src/stores/roster/userSignalsStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
 const { signalsFor, ignoreSignal, KIND_RULES } = require("../../../src/services/vermerke/userSignals");
 
 const DAY = 24 * 60 * 60 * 1000;

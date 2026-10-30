@@ -12,11 +12,11 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     getGuild: (id) => (mockGuild && mockGuild.id === id ? mockGuild : null),
     getClient: () => null,
 }));
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => mockConfig,
     saveConfig: (partial) => { mockSaved.push(partial); mockConfig = { ...mockConfig, ...partial }; return mockConfig; },
 }));
-jest.mock("../../../../src/stores/rosterStore", () => ({
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({
     listRosters: () => [],
     rosterForCategory: () => null,
     isClosed: () => false,

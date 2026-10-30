@@ -33,16 +33,16 @@
 // Places: core and trial members take a place ("n von m Plaetzen", the role
 // figures); bench and pause are counted per status only. The attendance average
 // is taken over everybody but the paused members.
-const rosterStore = require("../../stores/rosterStore");
-const profiles = require("../../stores/raiderProfileStore");
-const characterStore = require("../../stores/characterStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const characterStore = require("../../stores/roster/characterStore");
 const discord = require("../../services/discord/discord");
 const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { rulesFor } = require("../../config/gameVersions");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { mainVersionFor } = require("../../services/versions/mainVersion");
-const { categoryAttendanceFor } = require("../../stores/configSchema");
+const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { buildAttendanceContext, attendanceForAccounts, categoryInfo, categoryNights, roleFromSpec } = require("../../services/characters/rosterAttendance");
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");

@@ -12,7 +12,7 @@ const { parseLoot, detectImportDate, LootParseError, EH_FORMAT } = require("../.
 const { deriveContent } = require("./lootSessionContent");
 const { bestDayMatch } = require("./lootEventMatch");
 const { eventStartMs } = require("../../services/logcheck/logEventMatch");
-const { listAll } = require("../../stores/lootStore");
+const { listAll } = require("../../stores/loot/lootStore");
 
 const FORMAT_LABELS = { rclc: "RCLootcouncil", gargul: "Gargul", eventhelper: "EventHelper-Addon" };
 

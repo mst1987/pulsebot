@@ -19,9 +19,9 @@ const { resolveAccess } = require("../discord/members/userAccess");
 const { userIsOrga } = require("../../config/permissions");
 const { canManageRoster, canManageRosterLive } = require("./rosterAccess");
 const categoryRoster = require("./categoryRoster");
-const rosterStore = require("../../stores/rosterStore");
-const { getEvent, isOwnEventId } = require("../../stores/eventStore");
-const { getRaidEvent } = require("../../stores/raidEventStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const { getEvent, isOwnEventId } = require("../../stores/events/eventStore");
+const { getRaidEvent } = require("../../stores/events/raidEventStore");
 
 /** How long one Discord role lookup may take on a page request (docs/known-issues.md: member lookups need a limit). */
 const ROLE_FETCH_MS = 3000;

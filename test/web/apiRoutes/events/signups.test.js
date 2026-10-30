@@ -9,7 +9,7 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () =>
 let mockGroups = [];
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockRoleIds = null;
 let mockMembership = null;
 jest.mock("../../../../src/services/discord/discord", () => ({
@@ -17,17 +17,17 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     guildMembership: jest.fn(async () => mockMembership),
     resolveUserNames: jest.fn(async () => ({ "200000000000000001": "anna_discord" })),
 }));
-jest.mock("../../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: () => null }));
+jest.mock("../../../../src/stores/events/eventSoftresStore", () => ({ getEventSoftres: () => null }));
 
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const mockEvents = new Map();
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
 const mockSignups = new Map();
-jest.mock("../../../../src/stores/signupStore", () => {
-    const actual = jest.requireActual("../../../../src/stores/signupStore");
+jest.mock("../../../../src/stores/events/signupStore", () => {
+    const actual = jest.requireActual("../../../../src/stores/events/signupStore");
     const list = (eventId) => [...mockSignups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v);
     return {
         normalizeSignup: actual.normalizeSignup,
@@ -44,7 +44,7 @@ jest.mock("../../../../src/stores/signupStore", () => {
 });
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const profiles = require("../../../../src/stores/raiderProfileStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/events/signups");
 const memberRoleMemory = require("../../../../src/services/discord/roles/memberRoleMemory");
 const { tempStoreFile } = require("../../../helpers/tempStore");
@@ -390,7 +390,7 @@ describe("PUT /api/signups", () => {
     });
 
     it("weist außerhalb des Rosters mit 403 roster_only ab und markiert die Zeile vorab (#658)", async () => {
-        const rosterStore = require("../../../../src/stores/rosterStore");
+        const rosterStore = require("../../../../src/stores/roster/rosterStore");
         rosterStore.useFile(tempStoreFile("eh-signups-route-rosters.json"));
         try {
             const roster = rosterStore.createRoster({ name: "Kara", guildId: "g1", categoryId: "cat-kara", signupOnly: true });

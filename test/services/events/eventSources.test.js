@@ -1,17 +1,17 @@
 // The adapter: both sources in one shape. Stores mocked; the adapter is real.
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn(() => []),
     getEvent: jest.fn(() => null),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const { listSignups } = require("../../../src/stores/signupStore");
-const { listRaidEvents, getRaidEvent } = require("../../../src/stores/raidEventStore");
-const { getConfig } = require("../../../src/stores/settingsStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { listSignups } = require("../../../src/stores/events/signupStore");
+const { listRaidEvents, getRaidEvent } = require("../../../src/stores/events/raidEventStore");
+const { getConfig } = require("../../../src/stores/settings/settingsStore");
 const sources = require("../../../src/services/events/eventSources");
 const { specProfile } = require("../../../src/utils/setup/setupView");
 const { signupStatus } = require("../../../src/utils/attendance");
@@ -152,7 +152,7 @@ describe("services/events/eventSources", () => {
         it("lists the raids a user is signed up for, without those of a hidden version", () => {
             eventStore.listEvents.mockReturnValue([ownEvent({ id: "eh-1", versionId: "tbc" }), ownEvent({ id: "eh-2", versionId: "forever" })]);
             listSignups.mockReturnValue([{ userId: "u1", status: "signed" }]);
-            const spy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig");
+            const spy = jest.spyOn(require("../../../src/stores/settings/configStore"), "getConfig");
             try {
                 spy.mockReturnValue({ mainVersion: "tbc" });
                 expect(sources.ownSignedUpEvents("u1").map((e) => e.id)).toEqual(["eh-1", "eh-2"]);

@@ -7,7 +7,7 @@
 //
 // Kept apart from mainVersion.js because eventStore requires mainVersion.js
 // (a new event's version): asking eventStore from there would close a cycle.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { knownVersion, snapshotVersionOf } = require("./mainVersion");
 
 /**

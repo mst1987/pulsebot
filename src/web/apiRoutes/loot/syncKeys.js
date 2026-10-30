@@ -5,14 +5,14 @@
 // an orga role, a managed category or full admin rights gets `allowed: false` (403 `orga_only`).
 // One's own keys always show and can be revoked, also once the person is orga nowhere any more (they
 // then count for no server). Revoking: one's own keys, or any personal key as a full admin. The
-// plaintext comes back once, at creation, and is never stored (stores/ingestTokenStore.js).
+// plaintext comes back once, at creation, and is never stored (stores/loot/ingestTokenStore.js).
 // The servers come from the rights the session already holds (auth.sessionGuildAccess), never from
 // a fresh member lookup per page view (docs/known-issues.md: member lookups without a time limit).
 // The old server keys stay in Einstellungen › Verbindungen and never show here.
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { sessionGuildAccess } = require("../../http/auth");
-const tokens = require("../../../stores/ingestTokenStore");
+const tokens = require("../../../stores/loot/ingestTokenStore");
 const { orgaServersOf, describeServers } = require("../../../services/discord/servers/ingestServers");
 const { userIsOrga } = require("../../../config/permissions");
 

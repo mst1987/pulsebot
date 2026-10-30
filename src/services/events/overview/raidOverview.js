@@ -1,7 +1,7 @@
 // The raid overviews of the categories (design "C", Oct 2026): the messages
 // `/createoverview` posts into a category's channel, listing its upcoming raids
 // by raid ID (services/events/overview/raidOverviewPanel.js builds it). Where they sit is
-// remembered in stores/raidOverviewStore.js, so they keep themselves current:
+// remembered in stores/events/raidOverviewStore.js, so they keep themselves current:
 //
 //   - the sweep (startRaidOverviews): a minute after the start, then every five
 //     minutes - a raid that began falls out, the Raid-Helper sync brought news;
@@ -35,12 +35,12 @@
 // `/createoverview` or still carries the "update-events" button. The scan
 // pauses between channels, tolerates any failure and notes the server as done
 // only when it went through every channel.
-const store = require("../../../stores/raidOverviewStore");
+const store = require("../../../stores/events/raidOverviewStore");
 const { isRaidSibling } = require("../../../utils/raidGroup");
-const eventStore = require("../../../stores/eventStore");
-const signupStore = require("../../../stores/signupStore");
-const settingsStore = require("../../../stores/settingsStore");
-const { inServerOverview } = require("../../../stores/configSchema");
+const eventStore = require("../../../stores/events/eventStore");
+const signupStore = require("../../../stores/events/signupStore");
+const settingsStore = require("../../../stores/settings/settingsStore");
+const { inServerOverview } = require("../../../stores/settings/configSchema");
 const discord = require("../../discord/discord");
 const guildRoles = require("../../discord/roles/guildRoles");
 const { categoryLang, serverLang } = require("../../discord/botLanguage");

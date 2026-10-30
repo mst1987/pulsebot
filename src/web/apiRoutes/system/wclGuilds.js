@@ -5,7 +5,7 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { wclGuildsOf, entryKey } = require("../../../services/logcheck/wclGuildSettings");
 const wclGuildSync = require("../../../services/logcheck/wclGuildSync");
 

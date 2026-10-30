@@ -4,13 +4,13 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm1" })),
     listCategories: jest.fn(() => [{ id: "cat1", name: "╭・ TBC Montag" }]),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
 
 const discord = require("../../../src/services/discord/discord");
-const settingsStore = require("../../../src/stores/settingsStore");
-const userPrefs = require("../../../src/stores/userPrefsStore");
-const store = require("../../../src/stores/guildBankStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const userPrefs = require("../../../src/stores/settings/userPrefsStore");
+const store = require("../../../src/stores/loot/guildBankStore");
 const guildBank = require("../../../src/services/signups/guildBank");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { cardText, cardColor, cardButtons } = require("../../helpers/cardText");

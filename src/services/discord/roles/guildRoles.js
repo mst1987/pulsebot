@@ -10,8 +10,8 @@
 // menu's server switcher is independent of this: it still picks any server the
 // bot is on, and only shows these roles as a badge.
 const discord = require("../discord");
-const { getConfig } = require("../../../stores/settingsStore");
-const { normalizeDiscordServers } = require("../../../stores/configSchema");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { normalizeDiscordServers } = require("../../../stores/settings/configSchema");
 
 // getConfig() always hands over the federation shape; a block without
 // `servers` (an old `eventGuilds` block handed in directly) is migrated the

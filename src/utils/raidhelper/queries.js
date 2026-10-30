@@ -1,7 +1,7 @@
 const { createRaidhelperClient } = require("./client");
 const { getCategoryEvents } = require("./channelEvents");
 const { getCharacterIcon } = require("../discord/reply");
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 
 /**

@@ -6,7 +6,7 @@
 // list it answers a code ("offline", "members_unavailable") instead of an
 // empty list that would read as "nobody found".
 const discord = require("../discord/discord");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
 const { CLASSES } = require("../../config/gameVersions/classes");
 
 const MAX_RESULTS = 25;

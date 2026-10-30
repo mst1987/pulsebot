@@ -10,8 +10,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(),
 }));
 jest.mock("../../../../src/utils/loot/wowhead", () => ({
@@ -22,10 +22,10 @@ jest.mock("../../../../src/utils/loot/wowhead", () => ({
 
 const { body, status, routerClient } = require("../../../helpers/http");
 const { getUser } = require("../../../../src/web/http/auth");
-const { getConfig } = require("../../../../src/stores/settingsStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const wowhead = require("../../../../src/utils/loot/wowhead");
-const profiles = require("../../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get, request } = routerClient(require("../../../../src/web/apiRoutes/roster/profile"));
 

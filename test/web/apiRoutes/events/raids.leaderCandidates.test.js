@@ -1,12 +1,12 @@
 // The leader dropdown of the event dialog: the creator first, then the people signed up, each with a name.
 const mockEvents = [];
 const mockSignups = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     listEvents: () => mockEvents,
     getEvent: () => null,
     isOwnEventId: () => true,
 }));
-jest.mock("../../../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
+jest.mock("../../../../src/stores/events/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
 const mockNames = jest.fn();
 jest.mock("../../../../src/services/discord/discord", () => ({ resolveUserNames: (...a) => mockNames(...a), listGuilds: () => [] }));
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: () => 0 }));

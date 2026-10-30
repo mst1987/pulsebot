@@ -1,6 +1,6 @@
 // A LevelHelper upload into the store: new runs, the same run reported again
 // (by id, or by dungeon + group + start), merging and the achievement points.
-const store = require("../../../src/stores/dungeonRunStore");
+const store = require("../../../src/stores/roster/dungeonRunStore");
 const { ingestLevelHelper, mergeRun, sameGroup, findSameRun, START_WINDOW } = require("../../../src/services/dungeons/dungeonRuns");
 const { LevelHelperParseError, LH_FORMAT } = require("../../../src/utils/dungeons/levelHelperUpload");
 const { tempStoreFile } = require("../../helpers/tempStore");

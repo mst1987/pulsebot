@@ -68,7 +68,7 @@ function defaultDeps() {
     const { versionInfo } = require("../../src/web/http/version");
     const settings = () => {
         try {
-            return normalizeBackupSettings(require("../../src/stores/configStore").getConfig().backup);
+            return normalizeBackupSettings(require("../../src/stores/settings/configStore").getConfig().backup);
         } catch {
             return normalizeBackupSettings(null);
         }

@@ -16,7 +16,7 @@
 // The thresholds of the hints live per server in
 // config.serverSettings[guildId].vermerkeSignals (only the values a server set
 // itself; DEFAULT_THRESHOLDS for the rest).
-const signals = require("../../stores/userSignalsStore");
+const signals = require("../../stores/roster/userSignalsStore");
 const { groupEvents } = require("../events/raidGroup");
 const { approvedSetupOf } = require("../setup/setupCore");
 const { guildOfEvent } = require("../discord/servers/serverOf");

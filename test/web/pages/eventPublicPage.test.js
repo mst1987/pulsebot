@@ -3,8 +3,8 @@
 // leave: the payload is checked against VIEW_KEYS, and the rendered HTML is
 // searched for every personal thing a signup carries — user ids, comments,
 // wishes, "kann auch mit", the profile and a setup draft.
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(), setEventMessage: jest.fn(), listEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []), onSignupsChanged: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: jest.fn(() => null) }));
 // The server language: English here (the old assertions), German where a test says so.
 jest.mock("../../../src/services/discord/botLanguage", () => {
@@ -20,9 +20,9 @@ jest.mock("../../../src/services/signups/signupAccess", () => ({
     openToAll: jest.fn(() => false),
 }));
 
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const signupAccess = require("../../../src/services/signups/signupAccess");
-const signupStore = require("../../../src/stores/signupStore");
+const signupStore = require("../../../src/stores/events/signupStore");
 const page = require("../../../src/web/pages/eventPublicPage");
 const botLanguage = require("../../../src/services/discord/botLanguage");
 

@@ -9,24 +9,24 @@ let mockTemplates = [];
 let mockStored = [];
 let mockPlanners = {};
 
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: () => mockConfig,
     listRaidTemplates: () => mockTemplates,
 }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: () => mockEvents,
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: (id) => mockEvents.find((e) => e.id === id) || null,
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
     listRaidEvents: () => mockSnapshots,
     versionOfRaidEvent: (id) => ((mockSnapshots.find((e) => e.id === id) || {}).versionId || ""),
 }));
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: () => mockLoot }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: () => mockLoot }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => mockProfiles }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: () => mockStored }));
-jest.mock("../../../src/stores/kaderStore", () => ({
+jest.mock("../../../src/stores/roster/kaderStore", () => ({
     plannerGuildKeys: () => Object.keys(mockPlanners),
     readPlanner: (guildId) => mockPlanners[guildId],
 }));

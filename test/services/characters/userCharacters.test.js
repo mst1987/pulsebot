@@ -1,8 +1,8 @@
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ charactersForUser: jest.fn() }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ getProfile: jest.fn() }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ charactersForUser: jest.fn() }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ getProfile: jest.fn() }));
 
-const { charactersForUser } = require("../../../src/stores/raiderCharactersStore");
-const { getProfile } = require("../../../src/stores/raiderProfileStore");
+const { charactersForUser } = require("../../../src/stores/roster/raiderCharactersStore");
+const { getProfile } = require("../../../src/stores/roster/raiderProfileStore");
 const { myCharacters } = require("../../../src/services/characters/userCharacters");
 
 beforeEach(() => jest.clearAllMocks());

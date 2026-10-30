@@ -16,7 +16,7 @@ const { PermissionsBitField } = require("discord.js");
 const discord = require("../discord");
 const serverRoles = require("./serverRoles");
 const memberRelation = require("../members/memberRelation");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

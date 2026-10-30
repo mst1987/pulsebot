@@ -10,8 +10,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     // the active server: loot shows only on its own server (#919)
     getActiveGuild: jest.fn(() => "g1"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => ({ mainVersion: "forever" })),
 }));
 jest.mock("../../../../src/services/versions/storedVersion", () => ({
@@ -21,11 +21,11 @@ jest.mock("../../../../src/services/versions/storedVersion", () => ({
 
 const { body, status, routerClient } = require("../../../helpers/http");
 const { getUser } = require("../../../../src/web/http/auth");
-const { getConfig } = require("../../../../src/stores/settingsStore");
-const profiles = require("../../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const lootStore = require("../../../../src/stores/lootStore");
-const dungeonRuns = require("../../../../src/stores/dungeonRunStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const lootStore = require("../../../../src/stores/loot/lootStore");
+const dungeonRuns = require("../../../../src/stores/roster/dungeonRunStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get } = routerClient(require("../../../../src/web/apiRoutes/roster/profile"));
 

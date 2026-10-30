@@ -23,12 +23,12 @@
 // (versionOfEvent - each raid's stored version). The entries themselves belong
 // to no version: an absence covers the raids of every version.
 const { DateTime } = require("luxon");
-const store = require("../../stores/availabilityStore");
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const profiles = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
-const { categoryAttendanceFor } = require("../../stores/configSchema");
+const store = require("../../stores/events/availabilityStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { TIMEZONE } = require("../../config/timezone");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");

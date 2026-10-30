@@ -9,7 +9,7 @@ const mockConfig = {
     marker: 1,
     discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002", label: "Talk" }], links: [] },
 };
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     isOnline: () => true,
     getGuild: (id) => (id === "900000000000000001" ? { id, name: "Gilde", iconURL: () => "https://cdn/icon.png" } : null),

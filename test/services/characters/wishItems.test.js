@@ -1,6 +1,6 @@
 // Wish items of a character (services/characters/wishItems.js): only in a
 // Loot-Council roster of the character's version, only items its Wowhead knows.
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { wishItemsAllowed, anyWishItemsAllowed, resolveWishItems, searchWishItems, wishItemView } = require("../../../src/services/characters/wishItems");
 

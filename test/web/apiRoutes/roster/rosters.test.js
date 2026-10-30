@@ -12,7 +12,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => "g1"),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: ["cat1"] })) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: ["cat1"] })) }));
 jest.mock("../../../../src/web/roster/rosterView", () => ({
     buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true })),
     buildRosterDetail: jest.fn(async ({ id }) => (id === "r1" ? { roster: { id: "r1" }, members: [], canManage: false } : null)),

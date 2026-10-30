@@ -14,8 +14,8 @@
 // DELETE /api/addon-center   take it down
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
-const store = require("../../../stores/addonCenterStore");
+const { getConfig } = require("../../../stores/settings/configStore");
+const store = require("../../../stores/settings/addonCenterStore");
 const addonCenter = require("../../../services/addons/addonCenter");
 const discord = require("../../../services/discord/discord");
 const guildRoles = require("../../../services/discord/roles/guildRoles");

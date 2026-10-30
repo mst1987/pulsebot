@@ -20,9 +20,9 @@ const { roleUses } = require("../roles/selfRole");
 const { SENSITIVE: SENSITIVE_LIST } = require("../roles/roleHygiene");
 const { roleBelowBot } = require("../roles/memberRoles");
 const { listKnownCategories } = require("../../categories/categoryNames");
-const roleMessageStore = require("../../../stores/roleMessageStore");
-const addonCenterStore = require("../../../stores/addonCenterStore");
-const { getConfig } = require("../../../stores/configStore");
+const roleMessageStore = require("../../../stores/discord/roleMessageStore");
+const addonCenterStore = require("../../../stores/settings/addonCenterStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

@@ -5,7 +5,7 @@ const bes = require("../../../src/services/raidplan/raidplanBesetzung");
 const board = require("../../../src/services/raidplan/raidplanBoard");
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const raidplan = require("../../../src/web/raidplan/raidplan");
-const templateStore = require("../../../src/stores/raidplanTemplateStore");
+const templateStore = require("../../../src/stores/raidplan/raidplanTemplateStore");
 // the library is per server (#945)
 const S = "100000000000000001";
 const { tempStoreFile } = require("../../helpers/tempStore");

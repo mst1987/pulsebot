@@ -3,7 +3,7 @@
 // asks for more than is free gets the free part as an open request and the
 // rest waits; while somebody waits for an item, a new request waits behind
 // them in full (strict order). The entries are requests with status "waiting"
-// in stores/guildBankStore.js, ordered by `queueRank`.
+// in stores/loot/guildBankStore.js, ordered by `queueRank`.
 //
 //   free      stockView's `free` = Verfügbar minus the open (not yet confirmed)
 //             requests of the item — an open request is promised already, so a
@@ -37,9 +37,9 @@
 // names it starts: "Gentleowl", "Gentletwowl"), never linked on their own. An unknown item is never imported. A typo in the item
 // name is forgiven (, findItem): the one item within two letters (and a
 // fifth of the name) is taken, the preview marks the row `fuzzy`.
-const store = require("../../stores/guildBankStore");
-const stockStore = require("../../stores/guildBankStockStore");
-const profiles = require("../../stores/raiderProfileStore");
+const store = require("../../stores/loot/guildBankStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const stockView = require("./stockView");
 const linking = require("./linking");
 const { characterEvidence, seenIndex } = require("../characters/characterEvidence");

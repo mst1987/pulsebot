@@ -6,7 +6,7 @@ jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, che
 let mockActive = "900000000000000001";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 // the server list (#895): two equal servers
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";

@@ -28,7 +28,7 @@
 // fetches its list fresh ({ fresh: true }), so the window is the gateway's lag.
 const discord = require("../discord");
 const { canManageRoles } = require("./roleSync");
-const rosterStore = require("../../../stores/rosterStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
 
 const REASON = "EventHelper Roster";
 // Longer than the member cache's fresh window (60 s), so a reconcile never trusts a list older than the write.

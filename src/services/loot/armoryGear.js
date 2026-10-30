@@ -17,7 +17,7 @@
 // — all of them simply mean no answer, and the caller falls back to what the
 // logs know. Nothing here is ever the only source of a raider's gear.
 
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { blizzardFor, settingsForVersion } = require("../versions/versionSettings");
 const { situationalItem } = require("../../config/data/situationalItems");
 const { isPvpItem } = require("./gearProfile");

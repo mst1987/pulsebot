@@ -42,8 +42,8 @@
 //
 // Saving goes through signupStore.saveSignup, whose change event already edits
 // the event message (eventMessage.js) and feeds every other listener.
-const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
+const { getEvent, isOwnEventId, setEventState, appendEventLog } = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
 const characterRules = require("./signupCharacters");
 const { MAX_CHARACTERS, migrateSignup, characterStatus, exceedsCharacterLimit, characterLimitError } = characterRules;
 
@@ -51,8 +51,8 @@ const { MAX_CHARACTERS, migrateSignup, characterStatus, exceedsCharacterLimit, c
 const maxCharactersFor = (target, config) => characterRules.maxCharactersFor(target, config || settingsStore.getConfig());
 /** signupCharacters.pickLimitFor, the same way. */
 const pickLimitFor = (target, previous, config) => characterRules.pickLimitFor(target, previous, config || settingsStore.getConfig());
-const profiles = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const signupNotes = require("./signupNotes");
 const discord = require("../discord/discord");
 const { signupRoleIds } = require("./partnerJoinHint");

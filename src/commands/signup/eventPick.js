@@ -1,4 +1,4 @@
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { PICK_PREFIX, PICK_MINE, messageComponents } = require("../../services/events/eventMessage");
 const { onJoin, onClass, reply, emojisFor } = require("./eventButton");

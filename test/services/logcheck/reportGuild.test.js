@@ -1,8 +1,8 @@
-jest.mock("../../../src/stores/logStore", () => ({ getLog: jest.fn(), deleteLog: jest.fn(() => true), listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ setReportGuild: jest.fn(() => true), listReports: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ getLog: jest.fn(), deleteLog: jest.fn(() => true), listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ setReportGuild: jest.fn(() => true), listReports: jest.fn(() => []) }));
 
-const logStore = require("../../../src/stores/logStore");
-const reportStore = require("../../../src/stores/reportStore");
+const logStore = require("../../../src/stores/loot/logStore");
+const reportStore = require("../../../src/stores/loot/reportStore");
 const { reportGuild, reportGuildResolver, reportsOfGuild, deleteLogKeepingReportGuild } = require("../../../src/services/logcheck/reportGuild");
 
 describe("services/logcheck/reportGuild (#920)", () => {

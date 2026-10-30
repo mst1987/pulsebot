@@ -18,8 +18,8 @@
 // Discord path share it. It never blocks or fails a signup: posting is
 // fire-and-forget and a refused post is only logged.
 const discord = require("../discord/discord");
-const { getConfig } = require("../../stores/settingsStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmojis");
 const { messageUrl } = require("../events/eventAnnounce");
 const { embedAccentColor } = require("../../config/variables");

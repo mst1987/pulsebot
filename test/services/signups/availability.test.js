@@ -3,7 +3,7 @@
 // sagt es dem Raider per DM.
 
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     listEvents: (_guildId, { sinceSeconds = 0 } = {}) => [...mockEvents.values()].filter((e) => e.startTime >= sinceSeconds),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -11,8 +11,8 @@ jest.mock("../../../src/stores/eventStore", () => ({
     appendEventLog: jest.fn(),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => {
-    const actual = jest.requireActual("../../../src/stores/signupStore");
+jest.mock("../../../src/stores/events/signupStore", () => {
+    const actual = jest.requireActual("../../../src/stores/events/signupStore");
     return {
         normalizeSignup: actual.normalizeSignup,
         getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
@@ -27,7 +27,7 @@ jest.mock("../../../src/stores/signupStore", () => {
     };
 });
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => null),
     guildMembership: jest.fn(async () => null),
@@ -35,8 +35,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "m1" })),
 }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
-const store = require("../../../src/stores/availabilityStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const store = require("../../../src/stores/events/availabilityStore");
 const discord = require("../../../src/services/discord/discord");
 const availability = require("../../../src/services/signups/availability");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -177,7 +177,7 @@ describe("createEntry – Abwesenheit", () => {
 
     // #982: an absence from the panel is a sign-off like any other - a hint only when it comes late
     it("eine kurzfristige Abwesenheit wird ein Hinweis, eine frühe nicht (#982)", async () => {
-        const signals = require("../../../src/stores/userSignalsStore");
+        const signals = require("../../../src/stores/roster/userSignalsStore");
         signals.useFile(tempStoreFile("eh-availability-signals.json"));
         try {
             mockEvents.set("eh-soon", raid("eh-soon", 5 / 24, { guildId: "g1" }));

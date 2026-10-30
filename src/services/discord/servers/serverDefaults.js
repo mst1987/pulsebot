@@ -12,7 +12,7 @@ const { isSnowflake } = require("../../../utils/ids");
 const str = (value) => String(value === undefined || value === null ? "" : value).trim();
 const snowflakeOr = (value) => (isSnowflake(str(value)) ? str(value) : "");
 
-const cfgOf = (config) => config || require("../../../stores/settingsStore").getConfig();
+const cfgOf = (config) => config || require("../../../stores/settings/settingsStore").getConfig();
 
 /** One snowflake setting of one server ("" = none set, or no server given). */
 function serverChannel(guildId, key, { config } = {}) {

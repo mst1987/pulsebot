@@ -3,10 +3,10 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     botPermissionsIn: jest.fn(),
     fetchGuildMembersCached: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn() }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn() }));
 
 const discord = require("../../../../src/services/discord/discord");
-const { getConfig } = require("../../../../src/stores/settingsStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
 
 // Ids must look like snowflakes (5+ digits): the old-shape blocks are migrated by configSchema.

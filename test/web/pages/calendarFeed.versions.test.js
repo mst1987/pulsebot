@@ -1,11 +1,11 @@
 // The subscription calendar and game versions (#743): hidden versions are left out, `?version=` narrows.
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example" }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/signupStore", () => ({ signupsOfUser: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ signupsOfUser: jest.fn(() => ({})) }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const tokens = require("../../../src/stores/calendarTokenStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const tokens = require("../../../src/stores/events/calendarTokenStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { event: baseEvent, signup: baseSignup } = require("../../factories/events");
 const { feedFor, collectEntries, clearCache } = require("../../../src/web/pages/calendarFeed");

@@ -2,7 +2,7 @@
 // rule set, the tanks/healers a size proposes, the migration of the old
 // Raid-Helper list and the badges the list shows.
 let mockConfig = {};
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 
 const {
     isLegacy, migrateLegacy, normalizeTemplate, validateTemplate, proposeComposition, decorateTemplate, legacyId,

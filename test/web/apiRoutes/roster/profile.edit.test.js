@@ -6,17 +6,17 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () =>
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 const mockReports = [];
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: () => mockReports.map((r) => ({ id: r.id, generatedAt: r.generatedAt })),
     getReportRoster: (id) => mockReports.find((r) => r.id === id) || null,
 }));
-jest.mock("../../../../src/stores/characterStore", () => ({ listCharacters: () => [] }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../../src/stores/roster/characterStore", () => ({ listCharacters: () => [] }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 const mockEdit = jest.fn();
 jest.mock("../../../../src/services/characters/characterEdit", () => ({ editProfileCharacter: (...a) => mockEdit(...a) }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const store = require("../../../../src/stores/raiderProfileStore");
+const store = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/roster/profile");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { mockRes, status, json } = require("../../../helpers/http");

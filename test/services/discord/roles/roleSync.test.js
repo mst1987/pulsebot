@@ -10,7 +10,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     fetchGuildMembersCached: jest.fn(),
     listRoles: jest.fn(() => []),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../../../src/services/discord/discord");
 const roleSync = require("../../../../src/services/discord/roles/roleSync");
@@ -210,7 +210,7 @@ describe("runRoleSync", () => {
 });
 
 describe("member events", () => {
-    const cfgModule = require("../../../../src/stores/settingsStore");
+    const cfgModule = require("../../../../src/stores/settings/settingsStore");
 
     it("syncs the one member whose roles changed", async () => {
         cfgModule.getConfig.mockReturnValue(config([pair(A, ROLE_A, B, ROLE_B)]));

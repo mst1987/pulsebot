@@ -6,7 +6,7 @@
 // none at all).
 //
 // Keep this table in step with the `fail(...)` / `error:` / `notice` texts of
-// services/signups/signupService.js and stores/raiderProfileStore.js; the test runs the real
+// services/signups/signupService.js and stores/roster/raiderProfileStore.js; the test runs the real
 // service refusals through it and fails on a German leftover.
 
 const RULES = [
@@ -76,7 +76,7 @@ const RULES = [
     [/^Der Vorname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The first name has $1 letters – at most $2."],
     [/^Der Nachname hat (\d+) Buchstaben – höchstens (\d+)\.$/, "The last name has $1 letters – at most $2."],
     [/^Dieser Name ist nicht erlaubt – bitte einen anderen wählen\.$/, "This name is not allowed – please pick another one."],
-    // services/signups/availability.js + stores/availabilityStore.js (absences and attendances)
+    // services/signups/availability.js + stores/events/availabilityStore.js (absences and attendances)
     [/^Unbekannte Art – Abwesenheit oder Anwesenheit\.$/, "Unknown kind – absence or attendance."],
     [/^Bitte ein gültiges Von- und Bis-Datum angeben\.$/, "Please enter a valid start and end date (e.g. 24.10. or 2026-10-24)."],
     [/^Das Bis-Datum liegt vor dem Von-Datum\.$/, "The end date lies before the start date."],
@@ -97,7 +97,7 @@ const RULES = [
     [/^Der Schalter „(.+)“ muss an oder aus sein\.$/, "The switch “$1” must be on or off."],
     [/^Diese Spec hat der Charakter im Profil nicht\.$/, "Your profile does not have this spec for the character."],
     [/^Eintrag nicht gefunden\.$/, "Entry not found."],
-    // services/signups/guildBank.js + stores/guildBankStore.js (guild bank requests)
+    // services/signups/guildBank.js + stores/loot/guildBankStore.js (guild bank requests)
     [/^Die Gildenbank ist gerade nicht eingerichtet\.$/, "The guild bank is not set up right now."],
     [/^Bitte angeben, was du brauchst\.$/, "Please say what you need."],
     [/^Die Menge muss eine ganze Zahl von (\d+) bis (\d+) sein\.$/, "The amount must be a whole number from $1 to $2."],

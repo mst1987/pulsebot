@@ -3,7 +3,7 @@
 // roster, role sync), Discord permissions beyond @everyone or a channel.
 jest.mock("../../../../src/config/variables", () => ({ adminRoleIds: ["900000000000000009"] }));
 
-const rosterStore = require("../../../../src/stores/rosterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const { privilegedReason, roleUses } = require("../../../../src/services/discord/roles/selfRole");
 
 const ROLE = "200000000000000002";

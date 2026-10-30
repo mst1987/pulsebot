@@ -2,7 +2,7 @@
 // JSON, behind the menu login.
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock());
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
 const { requireAdmin } = require("../../../../src/web/http/apiMiddleware");
 const { getGameVersions } = require("../../../../src/web/apiRoutes/system/gameVersions");

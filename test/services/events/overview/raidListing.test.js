@@ -1,19 +1,19 @@
-jest.mock("../../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../../../src/services/events/raidEventScan", () => ({ scanRaidEvents: jest.fn(() => Promise.resolve({ error: null })) }));
 jest.mock("../../../../src/services/logcheck/logAutoLink", () => ({ autoLinkLogs: jest.fn(() => Promise.resolve()) }));
-jest.mock("../../../../src/stores/lootStore", () => ({ listByEvent: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
-jest.mock("../../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/loot/lootStore", () => ({ listByEvent: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/eventSoftresStore", () => ({ getEventSoftres: jest.fn(() => null) }));
+jest.mock("../../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../../src/services/logcheck/reportList", () => ({ logPostedAt: jest.fn((l) => l.postedAt || 0) }));
 
 const { cancelFields } = require("../../../../src/services/events/eventSources");
 const { raidContentIds, raidSize, upcomingRows, loadPastRaids } = require("../../../../src/services/events/overview/raidListing");
-const { listRaidEvents } = require("../../../../src/stores/raidEventStore");
+const { listRaidEvents } = require("../../../../src/stores/events/raidEventStore");
 const { scanRaidEvents } = require("../../../../src/services/events/raidEventScan");
 const { autoLinkLogs } = require("../../../../src/services/logcheck/logAutoLink");
-const { listByEvent } = require("../../../../src/stores/lootStore");
-const { getEventSoftres } = require("../../../../src/stores/eventSoftresStore");
-const { listLogs } = require("../../../../src/stores/logStore");
+const { listByEvent } = require("../../../../src/stores/loot/lootStore");
+const { getEventSoftres } = require("../../../../src/stores/events/eventSoftresStore");
+const { listLogs } = require("../../../../src/stores/loot/logStore");
 
 describe("services/events/overview/raidListing", () => {
     beforeEach(() => jest.clearAllMocks());

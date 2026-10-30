@@ -2,14 +2,14 @@
 // (with their version), the class cache (export/report/wcl, never manual), the
 // profile's own source, an armory answer or the orga's check. The report and
 // character stores are factory mocks.
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     getReportRoster: jest.fn(() => null),
 }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
 
-const { listReports, getReportRoster } = require("../../../src/stores/reportStore");
-const characterStore = require("../../../src/stores/characterStore");
+const { listReports, getReportRoster } = require("../../../src/stores/loot/reportStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const evidence = require("../../../src/services/characters/characterEvidence");
 
 const { characterEvidence, isVerified, armoryAnswered, seenIndex, buildSeenIndex, resetCache, REPORTS_WALKED, INDEX_TTL_MS } = evidence;

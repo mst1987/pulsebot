@@ -2,12 +2,12 @@
 // bieten nur die Charaktere der Event-Version an; wer nur Charaktere einer
 // anderen Version hat, bekommt den Hinweis mit Link aufs Profil (Englisch).
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const dialog = require("../../../src/utils/signup/signupDialog");
 const joinPicker = require("../../../src/utils/signup/joinPicker");
 const { toEnglish } = require("../../../src/utils/signup/botEnglish");

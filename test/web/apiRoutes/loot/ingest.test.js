@@ -10,12 +10,12 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../../src/stores/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../../src/stores/loot/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../../../src/stores/lootInboxStore", () => ({
+jest.mock("../../../../src/stores/loot/lootInboxStore", () => ({
     upsertPending: jest.fn(() => ({ entry: { id: "inbox1", itemCount: 1 }, added: 1, created: true })),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -24,7 +24,7 @@ jest.mock("../../../../src/stores/lootInboxStore", () => ({
     noteAppended: jest.fn(() => true),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 1, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -63,9 +63,9 @@ jest.mock("../../../../src/utils/loot/wowhead", () => ({
     searchItems: jest.fn(async () => []),
 }));
 
-const { verifyToken, touchToken } = require("../../../../src/stores/ingestTokenStore");
-const { upsertPending, resolutionFor } = require("../../../../src/stores/lootInboxStore");
-const { addImport } = require("../../../../src/stores/lootStore");
+const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestTokenStore");
+const { upsertPending, resolutionFor } = require("../../../../src/stores/loot/lootInboxStore");
+const { addImport } = require("../../../../src/stores/loot/lootStore");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
 const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
@@ -203,7 +203,7 @@ describe("POST /api/ingest/loot", () => {
                 status: "appended", eventId: "e1", added: 1,
             });
             // counted for the inbox's "+n nachgeliefert"
-            const { noteAppended } = require("../../../../src/stores/lootInboxStore");
+            const { noteAppended } = require("../../../../src/stores/loot/lootInboxStore");
             expect(noteAppended).toHaveBeenCalledWith(expect.any(String), 1);
         });
 
@@ -227,7 +227,7 @@ describe("POST /api/ingest/loot", () => {
 
         // #994: a re-upload with the same session id never takes over B's open card.
         it("A does not take over B's open card of the same session", async () => {
-            const { listPending } = require("../../../../src/stores/lootInboxStore");
+            const { listPending } = require("../../../../src/stores/loot/lootInboxStore");
             verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
             listPending.mockReturnValueOnce([{ id: "card-b", sessionId: "eh-1784574000-ssc", guildId: "gB", match: null }]);
             const res = await upload(payload());
@@ -245,7 +245,7 @@ describe("POST /api/ingest/loot", () => {
         });
 
         it("updates the key's own open card and a card of a key without server", async () => {
-            const { listPending } = require("../../../../src/stores/lootInboxStore");
+            const { listPending } = require("../../../../src/stores/loot/lootInboxStore");
             verifyToken.mockReturnValue({ ...TOKEN, guildId: "gA" });
             upsertPending.mockReturnValue({ entry: { id: "card-a", itemCount: 2 }, added: 1, created: false });
             listPending.mockReturnValueOnce([{ id: "card-a", sessionId: "eh-1784574000-ssc", guildId: "gA", match: null }]);
@@ -359,7 +359,7 @@ describe("POST /api/ingest/loot", () => {
 // #1000: a personal key works on every server its owner is orga of - here A (and C), never B.
 describe("POST /api/ingest/loot with a personal key", () => {
     const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
-    const { listPending } = require("../../../../src/stores/lootInboxStore");
+    const { listPending } = require("../../../../src/stores/loot/lootInboxStore");
 
     beforeEach(() => {
         verifyToken.mockReturnValue(PERSON);

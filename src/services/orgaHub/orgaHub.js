@@ -3,7 +3,7 @@
 // orga sees, listing the category's own raids of the next four weeks with
 // where each one stands (services/orgaHub/orgaStatus.js) and the way into the
 // web. services/orgaHub/orgaHubPanel.js builds it, the "Raid anlegen" button is
-// commands/event/orgaHubButton.js, the hubs live in stores/orgaHubStore.js.
+// commands/event/orgaHubButton.js, the hubs live in stores/discord/orgaHubStore.js.
 //
 // Posting again — into the same or another channel — replaces the category's
 // earlier hub. Each hub remembers a fingerprint of what it shows (`hash`); it
@@ -19,10 +19,10 @@
 //
 // Only own EventHelper events: a store read, never a Raid-Helper request.
 const crypto = require("crypto");
-const store = require("../../stores/orgaHubStore");
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const settingsStore = require("../../stores/settingsStore");
+const store = require("../../stores/discord/orgaHubStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
 const { appEmojiMap } = require("../discord/appEmojis");
 const { categoryNameFor } = require("../signups/availabilityPanel");

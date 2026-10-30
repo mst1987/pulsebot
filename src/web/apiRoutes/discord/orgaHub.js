@@ -11,11 +11,11 @@
 //                              body { categoryId, features: { newRaid?, links?, summary? } }; GET carries them too
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const orgaHubStore = require("../../../stores/orgaHubStore");
+const orgaHubStore = require("../../../stores/discord/orgaHubStore");
 const orgaHub = require("../../../services/orgaHub/orgaHub");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
-const settingsStore = require("../../../stores/settingsStore");
+const settingsStore = require("../../../stores/settings/settingsStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 

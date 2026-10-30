@@ -20,8 +20,8 @@
 // deleted role, maybe one Discord did not deliver) stays as it is. The file is
 // read fresh right before the write, so a change saved meanwhile is kept.
 // Idempotent: a second run finds nothing more to move and writes nothing.
-const configStore = require("../../../stores/configStore");
-const { serverSettingGuildIds, normalizeConfig } = require("../../../stores/configSchema");
+const configStore = require("../../../stores/settings/configStore");
+const { serverSettingGuildIds, normalizeConfig } = require("../../../stores/settings/configSchema");
 
 const isMap = (value) => value && typeof value === "object" && !Array.isArray(value);
 const clone = (value) => JSON.parse(JSON.stringify(value));

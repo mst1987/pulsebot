@@ -2,7 +2,7 @@
 // categories, on every server - and nothing of a Kader's players leaves through here.
 const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const kaderStore = require("../../../src/stores/kaderStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
 const { kadersCountingCategory, dropAttendanceCategory } = require("../../../src/services/kader/kaderCategories");
 
 const kader = (id, name, attendanceCategories) => ({

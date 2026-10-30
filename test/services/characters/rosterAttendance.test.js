@@ -1,18 +1,18 @@
 // Attendance and role are derived from three stores — all mocked, so this tests
 // the counting rules themselves (see the header of rosterAttendance.js).
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
     listRaidEvents: (...a) => mockListRaidEvents(...a),
 }));
 
 const mockListLogs = jest.fn(() => []);
-jest.mock("../../../src/stores/logStore", () => ({
+jest.mock("../../../src/stores/loot/logStore", () => ({
     listLogs: (...a) => mockListLogs(...a),
 }));
 
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
 }));
@@ -20,17 +20,17 @@ jest.mock("../../../src/stores/reportStore", () => ({
 // The EventHelper's own events reach attendance through the real adapter.
 const mockListOwnEvents = jest.fn(() => []);
 const mockListSignups = jest.fn(() => []);
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (...a) => mockListOwnEvents(...a),
     getEvent: jest.fn(),
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: (...a) => mockListSignups(...a) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 // the orga's character assignments over every category ({ categoryId: { userId: name } })
 const mockAssignments = jest.fn(() => ({}));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
-    ...jest.requireActual("../../../src/stores/raiderCharactersStore"),
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
+    ...jest.requireActual("../../../src/stores/roster/raiderCharactersStore"),
     listAllAssignments: (...a) => mockAssignments(...a),
 }));
 
@@ -303,8 +303,8 @@ describe("services/characters/rosterAttendance — attendanceForAccounts (per Di
 
 describe("services/characters/rosterAttendance — Status je Abend und Overrides (#677)", () => {
     const { tempStoreFile, removeTempStores } = require("../../helpers/tempStore");
-    const availabilityStore = require("../../../src/stores/availabilityStore");
-    const overridesStore = require("../../../src/stores/attendanceOverridesStore");
+    const availabilityStore = require("../../../src/stores/events/availabilityStore");
+    const overridesStore = require("../../../src/stores/events/attendanceOverridesStore");
     const { nightStatus } = require("../../../src/services/characters/rosterAttendance");
     const { DateTime } = require("luxon");
     const S = Math.floor(NOW / 1000);
@@ -545,7 +545,7 @@ describe("services/characters/rosterAttendance — Status je Abend und Overrides
 });
 
 describe("services/characters/rosterAttendance je Spielversion (#543, #740)", () => {
-    const configStore = require("../../../src/stores/configStore");
+    const configStore = require("../../../src/stores/settings/configStore");
     let getConfigSpy;
 
     beforeEach(() => {

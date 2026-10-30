@@ -10,23 +10,23 @@ const { AppError } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { mayUseServer } = require("../../http/serverQuery");
-const { listReports, deleteReport, getReport, saveReport } = require("../../../stores/reportStore");
+const { listReports, deleteReport, getReport, saveReport } = require("../../../stores/loot/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../../services/logcheck/reportList");
 const { deleteLogKeepingReportGuild, reportGuild } = require("../../../services/logcheck/reportGuild");
 const { contentsForText } = require("../../../config/data/tbcContent");
 const {
     listLogs, getLog, getByReportRefId, clearEvaluation, clearSection, evaluatedSections,
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
-} = require("../../../stores/logStore");
+} = require("../../../stores/loot/logStore");
 const { annotateMatches, autoMatches } = require("../../../services/logcheck/logEventMatch");
 const { evaluateLog, scanLogChannels, backfillLogTitles, refreshLogButton } = require("../../../services/logcheck/logChannel");
 const { startJob, getJob } = require("../../logcheck/evalJobs");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../../utils/logcheck/report");
 const { applyReview } = require("../../../utils/logcheck/recommendations");
 const { sendApproved, sendStatus } = require("../../logcheck/recommendationSend");
 const { phraseReport } = require("../../../utils/logcheck/recommendationText");
-const { listAllAssignments } = require("../../../stores/raiderCharactersStore");
+const { listAllAssignments } = require("../../../stores/roster/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../../services/logcheck/matchableEvents");
 const { linkLogByUrl } = require("../../logcheck/manualLog");
 const { linkConflict, inVersionList } = require("../../../services/logcheck/logVersion");

@@ -5,7 +5,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const discord = require("../../../src/services/discord/discord");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { buildRosterHistory, MAX_LIMIT } = require("../../../src/web/roster/rosterHistoryView");
 

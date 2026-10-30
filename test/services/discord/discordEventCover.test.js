@@ -2,7 +2,7 @@
 // "only when changed" rule on create/sync and that a failed fetch never fails the event.
 const mockEvents = new Map();
 jest.mock("axios", () => ({ get: jest.fn() }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     setEventDiscordEvent: jest.fn((id, patch) => {
         const e = mockEvents.get(id);
@@ -12,7 +12,7 @@ jest.mock("../../../src/stores/eventStore", () => ({
     }),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(), botCanManageEvents: jest.fn(() => true) }));
 
 const axios = require("axios");

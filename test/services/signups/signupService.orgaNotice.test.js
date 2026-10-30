@@ -4,7 +4,7 @@
 const fs = require("fs");
 
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     listEvents: (guildId, opts = {}) => [...mockEvents.values()].filter((e) => opts.siblings === true || !(e.raidGroupId && e.raidGroupId !== e.id)),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -12,8 +12,8 @@ jest.mock("../../../src/stores/eventStore", () => ({
     appendEventLog: jest.fn(),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => {
-    const actual = jest.requireActual("../../../src/stores/signupStore");
+jest.mock("../../../src/stores/events/signupStore", () => {
+    const actual = jest.requireActual("../../../src/stores/events/signupStore");
     return {
         normalizeSignup: actual.normalizeSignup,
         getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
@@ -28,7 +28,7 @@ jest.mock("../../../src/stores/signupStore", () => {
     };
 });
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => ({
     memberRoleIds: jest.fn(async () => null),
     postNotice: jest.fn(async () => ({})),
@@ -37,8 +37,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 
 const discord = require("../../../src/services/discord/discord");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const marks = require("../../../src/stores/orgaSignupNoticeStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const marks = require("../../../src/stores/discord/orgaSignupNoticeStore");
 const queue = require("../../../src/services/vermerke/orgaSignupQueue");
 const service = require("../../../src/services/signups/signupService");
 const { tempStoreFile } = require("../../helpers/tempStore");

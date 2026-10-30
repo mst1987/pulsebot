@@ -4,9 +4,9 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
-const characterStore = require("../../../src/stores/characterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { rosterComposition, memberCharacter } = require("../../../src/services/roster/rosterComposition");
 
 const add = (userId, name, className, spec) => raiderProfileStore.addCharacter(userId, { name, className, specs: [spec] });

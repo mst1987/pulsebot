@@ -3,7 +3,7 @@
 // longer somebody is part of the raid, the higher their claim.
 //
 // "Dabei seit" is the EARLIEST of what the bot knows:
-//   - the roster (stores/rosterStore.js): the member's `since` and the oldest
+//   - the roster (stores/roster/rosterStore.js): the member's `since` and the oldest
 //     history line about them. `since` is the date of the last *status* change,
 //     and every migrated roster carries the migration date for everyone, so on
 //     its own it would make a two-year veteran look new — the earliest date wins
@@ -21,9 +21,9 @@
 // category are opened (the roster slice of their report, reportStore.getReportRoster).
 // That reaches back far further than the default 90-day saturation needs.
 const { listStoredEvents } = require("../events/eventSources");
-const { listLogs } = require("../../stores/logStore");
-const { getReportRoster } = require("../../stores/reportStore");
-const { listRosters, rostersForCategory } = require("../../stores/rosterStore");
+const { listLogs } = require("../../stores/loot/logStore");
+const { getReportRoster } = require("../../stores/loot/reportStore");
+const { listRosters, rostersForCategory } = require("../../stores/roster/rosterStore");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
 
 const DAY = 24 * 60 * 60 * 1000;

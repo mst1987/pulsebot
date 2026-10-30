@@ -6,7 +6,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation((o
     isConfigured: () => Boolean(opts.clientId && opts.clientSecret),
 })));
 
-const { normalizeVersionSettings } = require("../../../src/stores/versionSettingsSchema");
+const { normalizeVersionSettings } = require("../../../src/stores/settings/versionSettingsSchema");
 const vs = require("../../../src/services/versions/versionSettings");
 
 const G1 = "111111111111111111";

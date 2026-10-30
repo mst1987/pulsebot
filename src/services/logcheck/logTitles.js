@@ -2,7 +2,7 @@
 // detail), read from one WCL request per log (report/fights). Split out of
 // logChannel.js so logAutoLink's background sweep can call it without a
 // require cycle (logChannel requires logAutoLink).
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const { wclApiSite, wclClientFor, recordVersion } = require("./logVersion");
 const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raidProgress");
 

@@ -4,8 +4,8 @@ const { MessageFlags } = require("discord.js");
 
 // The server language (Einstellungen): English for the old assertions, German by default.
 let mockConfig = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
-jest.mock("../../../src/stores/settingsStore", () => ({ ...jest.requireActual("../../../src/stores/settingsStore"), getConfig: () => mockConfig }));
-const store = require("../../../src/stores/raiderProfileStore");
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ ...jest.requireActual("../../../src/stores/settings/settingsStore"), getConfig: () => mockConfig }));
+const store = require("../../../src/stores/roster/raiderProfileStore");
 const command = require("../../../src/commands/profile/profil");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");

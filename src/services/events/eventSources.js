@@ -7,10 +7,10 @@
 // Raid-Helper events stay fully in use wherever one exists, also in a category
 // whose new events are created in the EventHelper (`categorySignupSource`):
 // nothing is imported, nothing expires, and one event has exactly one source.
-const { listEvents, getEvent, isOwnEventId } = require("../../stores/eventStore");
-const { listSignups } = require("../../stores/signupStore");
-const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
-const { getConfig } = require("../../stores/settingsStore");
+const { listEvents, getEvent, isOwnEventId } = require("../../stores/events/eventStore");
+const { listSignups } = require("../../stores/events/signupStore");
+const { listRaidEvents, getRaidEvent } = require("../../stores/events/raidEventStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { ALIASES } = require("../../config/data/classlist");
 const { categoryNameAt } = require("../categories/categoryEras");
 const { visibleRows, versionOfEvent } = require("../versions/mainVersion");
@@ -175,7 +175,7 @@ function placement(ev, catMap) {
 /** The stored config the section names come from, read once per list (categoryEras reads configStore). */
 function erasConfig() {
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }

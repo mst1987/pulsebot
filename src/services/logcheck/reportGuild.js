@@ -10,8 +10,8 @@
 // Works on the light metadata of reportStore.listReports() as well as on a full
 // report - only `id` and `guildId` are read, so filtering never opens a report file.
 
-const logStore = require("../../stores/logStore");
-const reportStore = require("../../stores/reportStore");
+const logStore = require("../../stores/loot/logStore");
+const reportStore = require("../../stores/loot/reportStore");
 
 /**
  * A function report -> server id, built once for a list of logs.

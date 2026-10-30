@@ -4,16 +4,16 @@
 // pool, one seat per person across the group, a proposal over every raid, a
 // setup (and approval) per raid — and a further raid without an approved setup
 // can be dissolved again, its raiders falling back into the pool.
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: () => null }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const { tempStoreFile } = require("../../helpers/tempStore");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
 const raidGroup = require("../../../src/services/events/raidGroup");
 const editor = require("../../../src/services/setup/setupEditor");
 const { collectSetupInput } = require("../../../src/services/setup/setupInput");

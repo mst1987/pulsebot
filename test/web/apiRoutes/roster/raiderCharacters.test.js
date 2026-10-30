@@ -9,7 +9,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -39,12 +39,12 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../../src/stores/characterStore", () => ({
+jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -102,12 +102,12 @@ jest.mock("../../../../src/utils/loot/wowhead", () => {
     };
 });
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
-const characterStore = require("../../../../src/stores/characterStore");
-const raiderCharactersStore = require("../../../../src/stores/raiderCharactersStore");
-const raiderProfileStore = require("../../../../src/stores/raiderProfileStore");
+const characterStore = require("../../../../src/stores/roster/characterStore");
+const raiderCharactersStore = require("../../../../src/stores/roster/raiderCharactersStore");
+const raiderProfileStore = require("../../../../src/stores/roster/raiderProfileStore");
 // no raider profile unless a test names some (characterVersions reads them for the version of a name)
 const listProfiles = jest.spyOn(raiderProfileStore, "listProfiles").mockReturnValue([]);
 const { post, get } = routerClient(require("../../../../src/web/apiRoutes/roster/raiderCharacters"));

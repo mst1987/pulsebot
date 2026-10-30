@@ -3,7 +3,7 @@
 // with every addon of the channel's game version, a "Herunterladen" button
 // and a "Patchnotes" link (to the web page) each; a click sends the file to the clicking member alone
 // (services/addons/addonCenterBot.js). The builders are addonCenterPanel.js, the
-// settings and what was posted stores/addonCenterStore.js.
+// settings and what was posted stores/settings/addonCenterStore.js.
 //
 // The job (startAddonCenter, every CHECK_MS, first FIRST_DELAY_MS after the
 // start) asks the release cache (addonReleases.releaseFor, 10 minutes) for each
@@ -19,8 +19,8 @@
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
 // Nothing runs while no centre is posted or the bot is offline.
 const crypto = require("crypto");
-const store = require("../../stores/addonCenterStore");
-const { getConfig } = require("../../stores/configStore");
+const store = require("../../stores/settings/addonCenterStore");
+const { getConfig } = require("../../stores/settings/configStore");
 const discord = require("../discord/discord");
 const { appEmojiMap } = require("../discord/appEmojis");
 const { versionLabel } = require("../versions/versionSettings");

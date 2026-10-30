@@ -4,12 +4,12 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../src/stores/rosterStore");
-const raiderCharactersStore = require("../../../src/stores/raiderCharactersStore");
-const signupStore = require("../../../src/stores/signupStore");
-const guildBankStore = require("../../../src/stores/guildBankStore");
-const availabilityStore = require("../../../src/stores/availabilityStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const raiderCharactersStore = require("../../../src/stores/roster/raiderCharactersStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const guildBankStore = require("../../../src/stores/loot/guildBankStore");
+const availabilityStore = require("../../../src/stores/events/availabilityStore");
 const { editProfileCharacter } = require("../../../src/services/characters/characterEdit");
 
 const A = "100000000000000001";

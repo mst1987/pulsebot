@@ -17,10 +17,10 @@ const { userIsOrga } = require("../../config/permissions");
 const { canSignUp } = require("./signupAccess");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { rosterOfEvent, currentRoster } = require("../roster/categoryRoster");
-const settingsStore = require("../../stores/settingsStore");
-const signupStore = require("../../stores/signupStore");
-const { getEvent, isOwnEventId } = require("../../stores/eventStore");
-const { getRaidEvent } = require("../../stores/raidEventStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const signupStore = require("../../stores/events/signupStore");
+const { getEvent, isOwnEventId } = require("../../stores/events/eventStore");
+const { getRaidEvent } = require("../../stores/events/raidEventStore");
 const { memberRolesRemembered } = require("../discord/roles/memberRoleMemory");
 const { orgaCategoryIds, ROLE_FETCH_MS } = require("../roster/categoryOrga");
 

@@ -14,12 +14,12 @@ jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMess
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/signups/signupNotes", () => ({ postSignupNote: jest.fn(async () => ({ posted: false })) }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
-jest.mock("../../../src/stores/settingsStore",() => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/settings/settingsStore",() => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: () => null }));
 
 const fs = require("fs");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const signupService = require("../../../src/services/signups/signupService");
 const setupEditor = require("../../../src/services/setup/setupEditor");
 const { signupEditView, changeSignupFromSetup } = require("../../../src/services/setup/setupSignup");

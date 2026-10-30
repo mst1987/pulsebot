@@ -12,10 +12,10 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => "g1"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
 // no roster anywhere: nobody is the orga of a category (#725), only the global orga
-jest.mock("../../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
 jest.mock("../../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }), attendanceForAccounts: () => new Map() }));
 jest.mock("../../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [] }));
 jest.mock("../../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
@@ -27,8 +27,8 @@ jest.mock("../../../../src/services/setup/setupMessage", () => ({
 
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const eventStore = require("../../../../src/stores/eventStore");
-const signupStore = require("../../../../src/stores/signupStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
 const { refreshEventMessage } = require("../../../../src/services/events/eventMessage");
 const route = require("../../../../src/web/apiRoutes/events/setup");
 const { checkAccess } = require("../../../../src/web/http/apiAccess");

@@ -8,14 +8,14 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm1" })),
     listCategories: jest.fn(() => [{ id: "cat1", name: "TBC Montag" }]),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
 
 const discord = require("../../../src/services/discord/discord");
-const settingsStore = require("../../../src/stores/settingsStore");
-const store = require("../../../src/stores/guildBankStore");
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const store = require("../../../src/stores/loot/guildBankStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const stockView = require("../../../src/services/guildbank/stockView");
 const handouts = require("../../../src/services/guildbank/handouts");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");

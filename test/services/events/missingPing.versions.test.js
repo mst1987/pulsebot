@@ -1,11 +1,11 @@
 // "Fehlende pingen" refuses a raid of a hidden game version (#743).
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn() }));
 jest.mock("../../../src/services/discord/discord", () => ({ listMembersWithRoles: jest.fn(), listHumanMembers: jest.fn(), postMissingPing: jest.fn() }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const settingsStore = require("../../../src/stores/settingsStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
 const { findMissingRaiders } = require("../../../src/services/events/missingPing");
 

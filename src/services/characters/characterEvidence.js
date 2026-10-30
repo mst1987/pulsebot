@@ -21,9 +21,9 @@
 //
 // Pure reads; the index of what the logs and the loot saw is remembered for
 // INDEX_TTL_MS, so a list of fifty requests walks the reports once.
-const { listReports, getReportRoster } = require("../../stores/reportStore");
-const characterStore = require("../../stores/characterStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
+const characterStore = require("../../stores/roster/characterStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 
 /** How many of the newest evaluations are walked (reportStore keeps as many rosters in its cache). */
 const REPORTS_WALKED = 60;

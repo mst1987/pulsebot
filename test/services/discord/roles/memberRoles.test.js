@@ -10,7 +10,7 @@ jest.mock("../../../../src/services/discord/roles/roleSync", () => ({ canManageR
 const fs = require("fs");
 const discord = require("../../../../src/services/discord/discord");
 const { canManageRoles } = require("../../../../src/services/discord/roles/roleSync");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const memberRoles = require("../../../../src/services/discord/roles/memberRoles");
 
 const { giveRole, takeRole, rosterRoleIds, recentWrite, roleBelowBot, codeOfError, WRITE_MEMORY_MS } = memberRoles;

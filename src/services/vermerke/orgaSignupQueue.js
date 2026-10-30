@@ -18,7 +18,7 @@
 // = a warning or a shadowban, "shadowban" = only a shadowban.
 const { guildOfEvent } = require("../discord/servers/serverOf");
 const { serverSetting } = require("../discord/servers/serverSettings");
-const marks = require("../../stores/orgaSignupNoticeStore");
+const marks = require("../../stores/discord/orgaSignupNoticeStore");
 
 const BUFFER_MS = 2 * 60 * 1000;
 const NOTICE_LEVELS = ["warning", "shadowban"];

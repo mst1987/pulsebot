@@ -1,8 +1,8 @@
 // The import forgives a typo in the item name: the one item within two
 // letters (and a fifth of the name) is taken, the preview marks it `fuzzy`.
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const store = require("../../../src/stores/guildBankStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const store = require("../../../src/stores/loot/guildBankStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const waitlist = require("../../../src/services/guildbank/waitlist");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

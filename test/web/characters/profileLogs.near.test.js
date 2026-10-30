@@ -2,11 +2,11 @@
 // zuerst vor, die nach einem Tippfehler des Charakters aussehen
 // (profileLogs.typoDistance, logSuggestions({ near })).
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReportRoster: () => null }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReportRoster: () => null }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: () => [] }));
 
 const fs = require("fs");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { typoDistance, logSuggestions } = require("../../../src/web/characters/profileLogs");
 
 const A = "100000000000000001";

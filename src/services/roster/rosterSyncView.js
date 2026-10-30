@@ -16,8 +16,8 @@
 const discord = require("../discord/discord");
 const { canManageRoles } = require("../discord/roles/roleSync");
 const memberRoles = require("../discord/roles/memberRoles");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
-const rosterHidden = require("../../stores/rosterHiddenStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
+const rosterHidden = require("../../stores/roster/rosterHiddenStore");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { takeFailedPending } = require("./rosterRoleSync");

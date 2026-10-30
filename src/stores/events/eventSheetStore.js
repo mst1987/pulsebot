@@ -1,0 +1,102 @@
+const { settingsPath } = require("../../config/paths");
+const { createJsonStore } = require("../jsonStore");
+
+// Records which Raid-Helper events had their setup written into a Google
+// raidsheet via the admin menu (POST /admin/raids/fill). Events themselves are
+// not persisted (they come from the Raid-Helper API each request), so this is
+// the only local trace of "the sheet was made" — keyed by the event id.
+const store = createJsonStore({ file: settingsPath("event-sheets.json"), defaults: { events: [] } });
+
+/** All recorded fills, newest first. */
+function listEventSheets() {
+    const data = store.read();
+    const events = Array.isArray(data.events) ? data.events : [];
+    return events.slice().sort((a, b) => (b.filledAt || 0) - (a.filledAt || 0));
+}
+
+/** The fill record for a single event id, or null. */
+function getEventSheet(eventId) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    return listEventSheets().find((e) => e.eventId === id) || null;
+}
+
+/**
+ * Record (or update) that an event's sheet was filled. Keyed by eventId so
+ * re-filling the same event just refreshes the timestamp/summary. Returns the
+ * saved record.
+ */
+function markEventSheetFilled(eventId, data = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const events = listEventSheets();
+    const match = events.find((e) => e.eventId === id);
+    const clean = {
+        eventId: id,
+        sheetId: String(data.sheetId || (match && match.sheetId) || "").trim(),
+        sheetName: String(data.sheetName || (match && match.sheetName) || "").trim(),
+        playerCount: Number(data.playerCount || (match && match.playerCount) || 0),
+        // Per-raid throwaway copy: the created Drive file, its share link, the
+        // source it was copied from, and when the cleanup sweeper should delete it.
+        spreadsheetId: String(data.spreadsheetId || (match && match.spreadsheetId) || "").trim(),
+        url: String(data.url || (match && match.url) || "").trim(),
+        sourceSheetId: String(data.sourceSheetId || (match && match.sourceSheetId) || "").trim(),
+        deleteAfter: Number(data.deleteAfter || (match && match.deleteAfter) || 0),
+    };
+    let saved;
+    if (match) {
+        saved = Object.assign(match, clean, { filledAt: Date.now() });
+    } else {
+        saved = Object.assign(clean, { filledAt: Date.now() });
+        events.push(saved);
+    }
+    store.write({ events });
+    return saved;
+}
+
+/**
+ * Record that the sheet link was posted (or re-posted) as a Discord message,
+ * so the event page can later edit that same message in place instead of
+ * posting a new one every time. Called after `discord.postLink`/`editLink`.
+ *
+ * `createIfMissing` covers the raid that links the fixed sheet assigned to its
+ * category (settingsStore's categorySheets) instead of an app-made copy: there
+ * is no fill record to hang the message ids on, but the posted message still
+ * has to be editable next time. The record it creates carries no sheet itself.
+ */
+function markEventSheetPosted(eventId, { channelId, messageId, message, createIfMissing } = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const events = listEventSheets();
+    let match = events.find((e) => e.eventId === id);
+    if (!match && createIfMissing) {
+        match = {
+            eventId: id, sheetId: "", sheetName: "", playerCount: 0,
+            spreadsheetId: "", url: "", sourceSheetId: "", deleteAfter: 0, filledAt: 0,
+        };
+        events.push(match);
+    }
+    if (!match) return null;
+    Object.assign(match, {
+        postedChannelId: String(channelId || "").trim(),
+        postedMessageId: String(messageId || "").trim(),
+        postedMessage: String(message || "").trim(),
+        postedAt: Date.now(),
+    });
+    store.write({ events });
+    return match;
+}
+
+/** Remove the record for an event id. Returns true if one was removed. */
+function deleteEventSheet(eventId) {
+    const id = String(eventId || "").trim();
+    const events = listEventSheets();
+    const next = events.filter((e) => e.eventId !== id);
+    if (next.length === events.length) return false;
+    store.write({ events: next });
+    return true;
+}
+
+module.exports = {
+    listEventSheets, getEventSheet, markEventSheetFilled, markEventSheetPosted, deleteEventSheet, useFile: store.useFile,
+};

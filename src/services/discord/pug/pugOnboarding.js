@@ -32,7 +32,7 @@
 const crypto = require("crypto");
 const { PermissionsBitField, SnowflakeUtil } = require("discord.js");
 const discord = require("../discord");
-const { getConfig, saveConfig } = require("../../../stores/configStore");
+const { getConfig, saveConfig } = require("../../../stores/settings/configStore");
 const { VERSIONS, rulesFor } = require("../../../config/gameVersions");
 const { CLASSES } = require("../../../config/gameVersions/classes");
 const { configuredRaidCategories } = require("../botCheck");
@@ -42,7 +42,7 @@ const { roleBelowBot } = require("../roles/memberRoles");
 const { discordErrorText } = require("../discordChannels");
 const { grantsOf } = require("./pugRoleGuard");
 const { accessSettings, fullAdminRoleIds } = require("../servers/serverAccess");
-const rosterStore = require("../../../stores/rosterStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
 
 const Flags = PermissionsBitField.Flags;
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

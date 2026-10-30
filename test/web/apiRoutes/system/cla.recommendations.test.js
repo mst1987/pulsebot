@@ -5,7 +5,7 @@ let mockBody = {};
 let mockUser = { id: "u1", name: "Lead", isAdmin: true };
 let mockCsrf = true;
 
-jest.mock("../../../../src/stores/reportStore.js", () => ({
+jest.mock("../../../../src/stores/loot/reportStore.js", () => ({
     getReport: (...a) => mockGetReport(...a),
     saveReport: (...a) => mockSaveReport(...a),
     listReports: jest.fn(() => []),
@@ -15,11 +15,11 @@ jest.mock("../../../../src/web/http/apiMiddleware.js", () => require("../../../h
 jest.mock("../../../../src/web/http/apiBody.js", () => require("../../../helpers/http").apiBodyMock({ body: () => mockBody }));
 jest.mock("../../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../../../src/services/logcheck/reportList.js", () => ({ prepareReportList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
-jest.mock("../../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
+jest.mock("../../../../src/stores/loot/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
 jest.mock("../../../../src/services/logcheck/logEventMatch.js", () => ({ annotateMatches: jest.fn(), autoMatches: jest.fn() }));
 jest.mock("../../../../src/services/logcheck/logChannel.js", () => ({ evaluateLog: jest.fn(), scanLogChannels: jest.fn(), backfillLogTitles: jest.fn() }));
 jest.mock("../../../../src/web/logcheck/evalJobs.js", () => ({ startJob: jest.fn(), getJob: jest.fn() }));
-jest.mock("../../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore.js", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../../src/utils/logcheck/report.js", () => ({ buildReport: jest.fn(), stripSection: jest.fn(), ReportError: class extends Error {} }));
 jest.mock("../../../../src/services/logcheck/matchableEvents.js", () => ({ loadMatchableEvents: jest.fn(), eventLinkFields: jest.fn() }));
 jest.mock("../../../../src/web/logcheck/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));

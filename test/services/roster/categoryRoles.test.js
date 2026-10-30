@@ -2,8 +2,8 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
-const rosterStore = require("../../../src/stores/rosterStore");
-const configStore = require("../../../src/stores/configStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const { expectedRoleIds, syncRosterRoleIds, mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
 
 const config = { categoryRoles: { c1: ["10", "11"], c2: ["20"] } };

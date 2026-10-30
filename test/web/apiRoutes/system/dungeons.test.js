@@ -9,14 +9,14 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => ({ mainVersion: "forever" })),
 }));
 
 const { getUser } = require("../../../../src/web/http/auth");
-const { getConfig } = require("../../../../src/stores/settingsStore");
-const store = require("../../../../src/stores/dungeonRunStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
+const store = require("../../../../src/stores/roster/dungeonRunStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get } = routerClient(require("../../../../src/web/apiRoutes/system/dungeons"));
 

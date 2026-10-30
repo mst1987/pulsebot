@@ -19,20 +19,20 @@ jest.mock("../../../src/web/http/auth", () => ({
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // cat1's voice preset sits in a shared voice category, cat2's inside cat2
 const mockConfig = { categoryVoiceChannel: { cat1: "v-shared", cat2: "v-cat2" }, serverSettings: { g1: { raidDefaults: { channelId: "c-gruul" } } } };
-jest.mock("../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../src/stores/settingsStore"),
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
     getConfig: () => mockConfig,
     listRaidTemplates: () => [],
     getRaidTemplate: () => null,
     getRaidsheet: () => null,
 }));
-jest.mock("../../../src/stores/channelArchiveStore", () => ({
-    ...jest.requireActual("../../../src/stores/channelArchiveStore"),
+jest.mock("../../../src/stores/discord/channelArchiveStore", () => ({
+    ...jest.requireActual("../../../src/stores/discord/channelArchiveStore"),
     getChannelConfig: () => ({ schemas: { cat1: { schema: "{date}-raid", templateChannelId: "t-schema" } } }),
 }));
 // Every category plays TBC now. cat1's TBC roster is managed by "mgr"; cat1 has a Forever roster
 // prepared already (open, not current yet) managed by "fmgr". cat2 has no roster.
-jest.mock("../../../src/stores/rosterStore", () => {
+jest.mock("../../../src/stores/roster/rosterStore", () => {
     const roster = (id, categoryId, versionId, userIds) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds: [] }, roleIds: [], members: {} });
     const rosters = {
         "cat1:tbc": roster("r1", "cat1", "tbc", ["mgr"]),
@@ -74,7 +74,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     ...jest.requireActual("../../../src/services/events/raidEventGroups"),
     loadEventGroups: jest.fn(async () => {
-        const events = require("../../../src/stores/eventStore").listEvents("");
+        const events = require("../../../src/stores/events/eventStore").listEvents("");
         const byCat = new Map();
         for (const e of events) {
             if (!byCat.has(e.categoryId)) byCat.set(e.categoryId, { categoryId: e.categoryId, events: [] });
@@ -112,8 +112,8 @@ jest.mock("../../../src/services/events/eventCreate", () => {
         updateEvent: jest.fn(async ({ body }) => ({ status: 200, body: { id: body.id } })),
     };
 });
-jest.mock("../../../src/stores/eventSeriesStore", () => ({
-    ...jest.requireActual("../../../src/stores/eventSeriesStore"),
+jest.mock("../../../src/stores/events/eventSeriesStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/eventSeriesStore"),
     deleteSeries: jest.fn(() => true),
     getRuns: jest.fn(() => ({})),
     clearRun: jest.fn(),
@@ -125,34 +125,34 @@ jest.mock("../../../src/web/events/eventSeries", () => ({
     saveSeriesFor: jest.fn(() => ({ series: { categoryId: "cat1", enabled: true } })),
     runSeries: jest.fn(async () => ({ created: 0, failed: 0, existing: 0, ignored: 0, error: null, results: [] })),
 }));
-jest.mock("../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => ({ url: "https://softres.it/raid/abc" })),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../src/stores/eventSheetStore", () => ({
+jest.mock("../../../src/stores/events/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../src/stores/eventLootSystemStore", () => ({
+jest.mock("../../../src/stores/events/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({ label: "Softres", softresExtra: false })),
 }));
 jest.mock("../../../src/utils/loot/wowhead", () => ({ searchItems: jest.fn(async () => []) }));
 
 const { tempStoreFile } = require("../../helpers/tempStore");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const seriesStore = require("../../../src/stores/eventSeriesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const seriesStore = require("../../../src/stores/events/eventSeriesStore");
 const { emptyAccess } = require("../../../src/config/permissions");
 const manage = require("../../../src/services/events/eventManage");
 const eventCreate = require("../../../src/services/events/eventCreate");
 const seriesService = require("../../../src/web/events/eventSeries");
-const softresStore = require("../../../src/stores/eventSoftresStore");
-const sheetStore = require("../../../src/stores/eventSheetStore");
-const lootSystemStore = require("../../../src/stores/eventLootSystemStore");
+const softresStore = require("../../../src/stores/events/eventSoftresStore");
+const sheetStore = require("../../../src/stores/events/eventSheetStore");
+const lootSystemStore = require("../../../src/stores/events/eventLootSystemStore");
 const wowhead = require("../../../src/utils/loot/wowhead");
 const discord = require("../../../src/services/discord/discord");
 const raidsRoutes = require("../../../src/web/apiRoutes/events/raids");

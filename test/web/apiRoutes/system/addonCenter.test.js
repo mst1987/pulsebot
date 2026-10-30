@@ -4,7 +4,7 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
 jest.mock("../../../../src/services/addons/addonCenter", () => ({ saveSettings: jest.fn(), postCenter: jest.fn(), removeCenter: jest.fn() }));
 let mockRights = {};
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => ({ mainVersion: "forever", categoryVersion: { "cat-tbc": "tbc" }, ...mockRights }) }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => ({ mainVersion: "forever", categoryVersion: { "cat-tbc": "tbc" }, ...mockRights }) }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ configuredGuildIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     isOnline: () => true,
@@ -18,7 +18,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 
 const addonCenter = require("../../../../src/services/addons/addonCenter");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
-const store = require("../../../../src/stores/addonCenterStore");
+const store = require("../../../../src/stores/settings/addonCenterStore");
 const route = require("../../../../src/web/apiRoutes/system/addonCenter");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

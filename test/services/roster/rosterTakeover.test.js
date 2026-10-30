@@ -22,7 +22,7 @@ jest.mock("../../../src/services/discord/discordChannels", () => ({
 jest.mock("../../../src/services/roster/rosterCreate", () => ({
     kaderCharacter: jest.fn((p) => (p.characterName ? [p.characterName] : undefined)),
 }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: jest.fn((userId) => ({ userId, name: "", characters: [] })),
     firstCharacter: jest.fn(() => null),
     charactersOfVersion: jest.fn(() => []),
@@ -35,7 +35,7 @@ jest.mock("../../../src/services/roster/categoryRoles", () => ({
     ...jest.requireActual("../../../src/services/roster/categoryRoles"),
     mirrorCategoryRoles: jest.fn(() => true),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ adminRoleIds: ["adm"], serverSettings: { g1: { orgaRoleIds: ["orga", "gone"] } } })),
 }));
 
@@ -45,14 +45,14 @@ const memberRoles = require("../../../src/services/discord/roles/memberRoles");
 const discord = require("../../../src/services/discord/discord");
 const { canManageRoles } = require("../../../src/services/discord/roles/roleSync");
 const { botCanManageChannels } = require("../../../src/services/discord/discordChannels");
-const kaderStore = require("../../../src/stores/kaderStore");
-const rosterStore = require("../../../src/stores/rosterStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const kaderRoster = require("../../../src/services/kader/kaderRoster");
 const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const takeover = require("../../../src/services/roster/rosterTakeover");
 const { rosterCategories } = require("../../../src/services/roster/rosterOptions");
 const { mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
-const { getConfig } = require("../../../src/stores/settingsStore");
+const { getConfig } = require("../../../src/stores/settings/settingsStore");
 
 const Flags = PermissionsBitField.Flags;
 const U = { a: "111111111111111111", b: "222222222222222222", c: "333333333333333333", d: "444444444444444444", e: "555555555555555555" };

@@ -56,7 +56,7 @@ describe("utils/raidhelper/channelEvents", () => {
     });
 
     it("getCategoryEvents leaves out the raids of a hidden version (#563)", async () => {
-        const spy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+        const spy = jest.spyOn(require("../../../src/stores/settings/configStore"), "getConfig").mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
         try {
             mockRh.getAllEvents.mockResolvedValue([
                 { id: "rh-1", channelId: "c1", startTime: 30, versionId: "forever" },

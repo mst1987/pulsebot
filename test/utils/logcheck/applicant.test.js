@@ -1,5 +1,5 @@
 const { analyzeApplicant, applicantSource } = require("../../../src/utils/logcheck/applicant");
-const { normalizeVersionSettings, normalizeBlock } = require("../../../src/stores/versionSettingsSchema");
+const { normalizeVersionSettings, normalizeBlock } = require("../../../src/stores/settings/versionSettingsSchema");
 
 const fights = { end: 100, fights: [{ id: 1, boss: 1, start_time: 0, end_time: 100 }] };
 

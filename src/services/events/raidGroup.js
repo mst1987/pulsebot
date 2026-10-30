@@ -8,7 +8,7 @@
 // The record fields and the pure readers are in utils/raidGroup.js. This module
 // is the store side: which raids form a group, who stands in which of them, how
 // a raid is added and how a further raid is dissolved again.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { raidGroupIdOf, isRaidSibling, signupEventIdOf, raidIndexOf, inRaidGroup } = require("../../utils/raidGroup");
 const { approvedSetupOf, benchAndPool } = require("../setup/setupCore");
 const { str } = require("../../utils/text");

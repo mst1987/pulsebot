@@ -7,12 +7,12 @@ jest.mock("../../../src/services/events/eventMessage", () => ({ redrawEventMessa
 jest.mock("../../../src/services/orgaHub/orgaHub", () => ({ onHubMessageDeleted: jest.fn((id) => id === "hub-msg") }));
 jest.mock("../../../src/services/events/overview/raidOverview", () => ({ onOverviewMessageDeleted: jest.fn((id) => id === "ov-msg") }));
 jest.mock("../../../src/services/addons/addonCenter", () => ({ onCenterMessageDeleted: jest.fn((id) => id === "center-msg") }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } })) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } })) }));
 
 const fs = require("fs");
 const { EventEmitter } = require("events");
-const eventStore = require("../../../src/stores/eventStore");
-const { setOverviewState } = require("../../../src/stores/talkOverviewStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { setOverviewState } = require("../../../src/stores/discord/talkOverviewStore");
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { redrawEventMessage } = require("../../../src/services/events/eventMessage");
 const linkWatch = require("../../../src/services/discord/linkWatch");
@@ -48,7 +48,7 @@ describe("services/discord/linkWatch", () => {
 
     it("notes a deleted raid category (#744) and nothing for any other category", () => {
         const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
-        const settingsStore = require("../../../src/stores/settingsStore");
+        const settingsStore = require("../../../src/stores/settings/settingsStore");
         settingsStore.getConfig.mockReturnValue({ categoryIds: ["cat"], discordServers: { servers: [{ guildId: "g1" }], links: [{ from: "g1", to: "g1", channelId: "ov" }] } });
         try {
             expect(linkWatch.onChannelDelete({ id: "cat", type: 4, guildId: "g1", name: "TBC Montag" })).toEqual([]);

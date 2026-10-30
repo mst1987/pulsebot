@@ -16,7 +16,7 @@ jest.mock("http", () => {
 jest.mock("../../../src/web/http/version", () => ({
     versionInfo: () => ({ commit: "c0ffee", short: "c0ffee", committedAt: "2026-09-01T00:00:00Z", subject: "Stand", startedAt: "2026-09-02T00:00:00Z" }),
 }));
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     getReport: jest.fn((id) => (id === "abc123" ? { id } : null)),
     deleteReport: jest.fn((id) => id === "abc123"),
 }));
@@ -74,16 +74,16 @@ jest.mock("../../../src/services/events/icsFeed", () => ({
     icsFileName: jest.fn((id) => `raid-${id}.ics`),
 }));
 jest.mock("../../../src/web/pages/calendarFeed", () => ({ feedFor: jest.fn((token) => (token === "ehc_ok" ? { body: `FEED:${token}` } : null)) }));
-jest.mock("../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../src/stores/eventStore"),
+jest.mock("../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => {
         if (id === "eh-1" || id === "eh-leer") return { id };
         // an event with an approved setup: the Comp link lands on its #setup section
         return id === "eh-setup" ? { id, setup: { status: "approved", approved: { version: 1, groups: [] } } } : null;
     }),
 }));
-jest.mock("../../../src/stores/raidplanStore", () => ({
-    ...jest.requireActual("../../../src/stores/raidplanStore"),
+jest.mock("../../../src/stores/raidplan/raidplanStore", () => ({
+    ...jest.requireActual("../../../src/stores/raidplan/raidplanStore"),
     readMap: jest.fn((key) => (key === "bt/supremus" || key === "t/abc/kara" ? { buffer: Buffer.from(`MAP:${key}`), mime: "image/png" } : null)),
 }));
 
@@ -100,7 +100,7 @@ jest.mock("../../../src/web/report/assets", () => ({
 
 const http = require("http");
 const auth = require("../../../src/web/http/auth");
-const reportStore = require("../../../src/stores/reportStore");
+const reportStore = require("../../../src/stores/loot/reportStore");
 const { startWebServer } = require("../../../src/web/http/server.js");
 
 const GOLDEN = path.join(__dirname, "fixtures", "serverRoutes.golden.json");

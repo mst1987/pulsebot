@@ -24,7 +24,7 @@
 const { PermissionsBitField } = require("discord.js");
 const { normalizeRolePermissions } = require("../../../config/permissions");
 const { allServersAccess, fullAdminRoleIds } = require("../servers/serverAccess");
-const rosterStore = require("../../../stores/rosterStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
 const { officerRoleIds } = require("../servers/serverDefaults");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

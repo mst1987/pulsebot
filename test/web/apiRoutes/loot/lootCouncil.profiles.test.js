@@ -13,9 +13,9 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 let mockUser = null;
 let mockBody = {};
 
-const councilProfilesStore = require("../../../../src/stores/councilProfilesStore");
-const rosterStore = require("../../../../src/stores/rosterStore");
-const configStore = require("../../../../src/stores/configStore");
+const councilProfilesStore = require("../../../../src/stores/loot/councilProfilesStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const configStore = require("../../../../src/stores/settings/configStore");
 const {
     getProfiles, getProfile, postProfileCreate, postProfileUpdate, postProfileDelete, getViews, postView,
 } = require("../../../../src/web/apiRoutes/loot/lootCouncil");
@@ -98,7 +98,7 @@ describe("profile CRUD", () => {
     });
 
     it("names a Forever profile's exceptions from the version's own items, never the TBC table (#760)", async () => {
-        const manualBisStore = require("../../../../src/stores/manualBisStore");
+        const manualBisStore = require("../../../../src/stores/loot/manualBisStore");
         manualBisStore.useFile(tempStoreFile("council-manual-bis.json"));
         manualBisStore.setSlot("forever", "Priest-Shadow", 0, [{ id: 900001, name: "Kapuze", icon: "inv_helmet_01", quality: 4 }]);
         mockUser = WRITER;

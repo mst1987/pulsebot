@@ -2,9 +2,9 @@
 // the raid window, the report lookup, the one-request-per-minute cache and the failure path.
 // WCL is never hit: the client is a stand-in (and the module mock makes a forgotten one fail loudly).
 jest.mock("../../../src/classes/warcraftlogs", () => jest.fn(() => ({ getFights: jest.fn(async () => { throw new Error("no real WCL in tests"); }) })));
-jest.mock("../../../src/stores/logStore", () => ({ listLogsForEvent: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogsForEvent: jest.fn(() => []) }));
 
-const logStore = require("../../../src/stores/logStore");
+const logStore = require("../../../src/stores/loot/logStore");
 const WarcraftLogs = require("../../../src/classes/warcraftlogs");
 const progress = require("../../../src/services/raidplan/raidplanProgress");
 

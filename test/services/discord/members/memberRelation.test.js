@@ -4,16 +4,16 @@
 const mockRosters = [];
 const mockProfiles = {};
 const mockAssignments = {};
-jest.mock("../../../../src/stores/rosterStore", () => ({
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({
     listRosters: () => mockRosters,
     isClosed: (r) => !!r.closedAt,
 }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({
     hasProfile: (uid) => !!mockProfiles[uid],
     getProfile: (uid) => mockProfiles[uid],
     findCharacter: (profile, key) => (profile.characters || []).find((c) => c.key === key) || null,
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     charactersForUser: (uid) => Object.values(mockAssignments)
         .filter((map) => map[uid])
         .map((map) => ({ character: map[uid], categoryIds: [] })),

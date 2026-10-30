@@ -42,8 +42,8 @@
 // be set) do not fail the save.
 const { ok, sendJson, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
-const store = require("../../../stores/roleMessageStore");
+const { getConfig } = require("../../../stores/settings/configStore");
+const store = require("../../../stores/discord/roleMessageStore");
 const roleMessages = require("../../../services/discord/roles/roleMessages");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { serverFromQuery, mayUseServer } = require("../../http/serverQuery");

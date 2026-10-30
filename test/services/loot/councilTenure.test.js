@@ -6,12 +6,12 @@ const mockRoster = jest.fn(() => null);
 const mockRosters = jest.fn(() => []);
 
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: (...a) => mockEvents(...a) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     getReportRoster: (id) => (id === "rep1" ? { roster: [{ name: "Devi-Thunderstrike" }] }
         : id === "rep2" ? { roster: [], players: [{ name: "Twink" }] } : null),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     // every roster of the category, of each version (#739); one by default
     rostersForCategory: (...a) => {
         const r = mockRoster(...a);

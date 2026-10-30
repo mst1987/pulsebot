@@ -4,11 +4,11 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "11111", name: "Event-Server" }, { id: "22222", name: "PvP" }, { id: "33333", name: "Talk" }]),
     getClient: () => ({ channels: { cache: mockChannels } }),
 }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
 
 const fs = require("fs");
 const stock = require("../../../src/services/guildbank/guildBankStock");
-const store = require("../../../src/stores/guildBankStockStore");
+const store = require("../../../src/stores/loot/guildBankStockStore");
 const { GB_FORMAT, GuildBankParseError } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

@@ -90,7 +90,7 @@ describe("src require graph", () => {
         expect(files.some((f) => f.includes(`${path.sep}web-client${path.sep}`))).toBe(false);
         expect(graph.get(path.join(SETUP, "setupMessage.js"))).toContain(path.join(SETUP, "setupCore.js"));
         // across the layers too: utils -> stores
-        expect(graph.get(path.join(SRC, "utils", "raidhelper", "queries.js"))).toContain(path.join(SRC, "stores", "eventStore.js"));
+        expect(graph.get(path.join(SRC, "utils", "raidhelper", "queries.js"))).toContain(path.join(SRC, "stores", "events", "eventStore.js"));
     });
 
     it("has no require cycle", () => {

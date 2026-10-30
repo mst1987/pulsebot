@@ -4,7 +4,7 @@
 const { PermissionsBitField } = require("discord.js");
 
 let mockConfig = {};
-jest.mock("../../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => {
     const actual = jest.requireActual("../../../../src/services/discord/roles/guildRoles");
     const cfg = { discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } };
@@ -25,9 +25,9 @@ const mockDiscord = {
 };
 jest.mock("../../../../src/services/discord/discord", () => mockDiscord);
 
-const rosterStore = require("../../../../src/stores/rosterStore");
-const roleMessageStore = require("../../../../src/stores/roleMessageStore");
-const addonCenterStore = require("../../../../src/stores/addonCenterStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
+const roleMessageStore = require("../../../../src/stores/discord/roleMessageStore");
+const addonCenterStore = require("../../../../src/stores/settings/addonCenterStore");
 const { listServerRoles, serverRoleDetail, roleCount, permissionKeys, SENSITIVE_PERMISSIONS, EVERYONE_MEMBERS_MAX } = require("../../../../src/services/discord/servers/serverRoles");
 
 const F = PermissionsBitField.Flags;

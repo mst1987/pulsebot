@@ -17,8 +17,8 @@
 // after the stored file is read back with every channel in place; a lookup
 // that fails for another reason (network, rate limit) leaves everything as it
 // is for the next start. Idempotent: without logChannelIds nothing happens.
-const configStore = require("../../stores/configStore");
-const { serverSettingGuildIds, mergeServerSettings } = require("../../stores/configSchema");
+const configStore = require("../../stores/settings/configStore");
+const { serverSettingGuildIds, mergeServerSettings } = require("../../stores/settings/configSchema");
 const { firstServerId } = require("../discord/servers/serverOf");
 const { mainVersionFor } = require("../versions/mainVersion");
 const { normalizeLogChannels } = require("./logChannelSettings");

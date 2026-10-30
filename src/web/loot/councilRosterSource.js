@@ -19,9 +19,9 @@
 // The member's profile character (raiderProfileStore) adds class and spec as
 // the last fallback: a new raider who has neither won anything nor been
 // logged is exactly who the roster knows and the data does not.
-const { getRoster } = require("../../stores/rosterStore");
+const { getRoster } = require("../../stores/roster/rosterStore");
 const { rosterOfCategory } = require("../../services/roster/categoryRoster");
-const { listProfiles } = require("../../stores/raiderProfileStore");
+const { listProfiles } = require("../../stores/roster/raiderProfileStore");
 const { nameKeyOf, splitPlayer } = require("../../utils/loot/lootImport");
 
 const CANDIDATE_STATUSES = ["core", "trial"];

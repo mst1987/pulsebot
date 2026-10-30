@@ -6,7 +6,7 @@ jest.mock("../../../src/services/backup/backupStatus", () => ({
 }));
 
 const status = require("../../../src/services/backup/backupStatus");
-const store = require("../../../src/stores/backupAlertStore");
+const store = require("../../../src/stores/settings/backupAlertStore");
 const alerts = require("../../../src/services/backup/backupAlerts");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

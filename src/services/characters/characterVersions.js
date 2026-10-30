@@ -17,7 +17,7 @@ const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { mainVersionFor, visibleVersions } = require("../versions/mainVersion");
 const { storedVersionOf } = require("../versions/storedVersion");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 
 /**
  * What the lookups need, read once per request.

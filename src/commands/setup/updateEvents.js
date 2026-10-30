@@ -1,7 +1,7 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { adoptMessage, refreshOverviews } = require("../../services/events/overview/raidOverview");
-const store = require("../../stores/raidOverviewStore");
+const store = require("../../stores/events/raidOverviewStore");
 
 // The "Update Events" button of the old overview messages. Such a message is registered and
 // redrawn in the new design (no buttons, refreshes itself, services/events/overview/raidOverview.js);

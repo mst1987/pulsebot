@@ -39,7 +39,7 @@ dialog's spell lists, the suggestions, the section's mobs and the read view only
   their `versionId`).
 - **Templates and tactic profiles** carry a `versionId` too (see below); a template's editor gets its version's catalog
   and its suggestions ask with that version (`POST /api/raidplan/suggest { versionId }` without an event).
-- Tests: `test/stores/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/raidplan/raidplan.versions.test.js`
+- Tests: `test/stores/settings/settingsMigration.versions.test.js` (migration, idempotent), `test/web/apiRoutes/raidplan/raidplan.versions.test.js`
   (templates, apply, catalog of a Forever plan, suggestions), `src/web-client/src/lib/raidplan/__tests__/versions.test.ts`,
   `RaidplanCatalogPage.versions.test.tsx` (switch, new entry), `RaidplanTab.versions.test.tsx` ("Vorlage anwenden").
 
@@ -109,7 +109,7 @@ dialog's spell lists, the suggestions, the section's mobs and the read view only
   files in the repo), picked by the kind of creature; the catalog marks them "Platzhalter-Icon" and an admin
   can override any of them (an override is not marked). The script requests every candidate (HTTP 200 and an
   image), takes the first that exists and writes the check of each icon into the JSON — nothing is entered
-  blind; `test/stores/raidplanCatalogStore.test.js` fails when a default mob has no icon or an icon that was not
+  blind; `test/stores/raidplan/raidplanCatalogStore.test.js` fails when a default mob has no icon or an icon that was not
   checked. Mapping kind -> icon: infernal spell_shadow_summoninfernal; doomguard spell_shadow_summonfelguard;
   demon spell_shadow_summonvoidwalker; fel spell_fire_felflamestrike; undead spell_shadow_animatedead;
   necromancer spell_shadow_deathcoil; caster spell_frost_frostbolt02; priest spell_holy_holybolt; rogue

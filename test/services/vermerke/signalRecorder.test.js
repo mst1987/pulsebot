@@ -10,7 +10,7 @@ jest.mock("../../../src/services/events/raidGroup", () => ({
     groupEvents: jest.fn((event) => mockGroup || [event]),
 }));
 
-const signals = require("../../../src/stores/userSignalsStore");
+const signals = require("../../../src/stores/roster/userSignalsStore");
 const recorder = require("../../../src/services/vermerke/signalRecorder");
 
 const HOUR = 60 * 60 * 1000;

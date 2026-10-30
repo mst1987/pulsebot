@@ -15,9 +15,9 @@
 //
 // Same shape as the version filter (characterVersions.eventVersion): one
 // context per request caches the snapshot and every event lookup.
-const eventStore = require("../../stores/eventStore");
-const raidEventStore = require("../../stores/raidEventStore");
-const { getConfig } = require("../../stores/settingsStore");
+const eventStore = require("../../stores/events/eventStore");
+const raidEventStore = require("../../stores/events/raidEventStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { firstServerId, storedCategoryGuilds, guildOfEvent } = require("../discord/servers/serverOf");
 
 const str = (value) => String(value === undefined || value === null ? "" : value).trim();

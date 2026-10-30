@@ -13,7 +13,7 @@
 // clicks never land out of order); the orga's marks only schedule it
 // (`edit: "later"`): several quick clicks become one edit a moment after the
 // last, and the editor gets its answer at once.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { approvedSetupOf, confirmationsFor, CONFIRM_STATUSES } = require("./setupCore");
 const { editSetupMessageQueued, scheduleSetupEdit } = require("./setupMessage");
 

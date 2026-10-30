@@ -11,7 +11,7 @@
 const { error: apiError } = require("./apiResponse");
 const { activeGuildFor } = require("./activeGuild");
 const { resolveServer } = require("../../services/discord/roles/guildRoles");
-const { getConfig } = require("../../stores/configStore");
+const { getConfig } = require("../../stores/settings/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const OTHER_SERVER = "Für diesen Server hast du hier keine Rechte.";

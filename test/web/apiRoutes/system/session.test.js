@@ -9,13 +9,13 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -46,7 +46,7 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
 // The account's menu language: none saved unless a test says otherwise.
-jest.mock("../../../../src/stores/userPrefsStore", () => ({
+jest.mock("../../../../src/stores/settings/userPrefsStore", () => ({
     getLang: jest.fn(() => ""),
     setLang: jest.fn((userId, lang) => (["de", "en"].includes(String(lang).trim().toLowerCase()) ? { lang: String(lang).trim().toLowerCase() } : { code: "unknown_lang" })),
 }));
@@ -68,7 +68,7 @@ jest.mock("../../../../src/web/dashboard/dashboardData", () => ({
 jest.mock("../../../../src/web/http/deployStatus", () => ({
     deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
 }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -81,7 +81,7 @@ jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -114,7 +114,7 @@ jest.mock("../../../../src/services/logcheck/logEventMatch", () => ({
     autoMatches: jest.fn(() => []),
 }));
 jest.mock("../../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -140,12 +140,12 @@ jest.mock("../../../../src/services/characters/characterInfo", () => ({
         fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
     })),
 }));
-jest.mock("../../../../src/stores/characterStore", () => ({
+jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -222,18 +222,18 @@ jest.mock("../../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../../src/stores/eventSheetStore", () => ({
+jest.mock("../../../../src/stores/events/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventLootSystemStore", () => ({
+jest.mock("../../../../src/stores/events/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -263,7 +263,7 @@ jest.mock("../../../../src/services/setup/setupEditor", () => ({
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
 const { AREA_IDS, emptyAccess, fullAccess } = require("../../../../src/config/permissions");
@@ -360,7 +360,7 @@ describe("web/apiRoutes/session", () => {
 
         // #729: the orga of a category - the client shows them the orga's parts of their raids
         it("names the categories whose current roster the caller manages - with the viewed roles under \"Ansicht als\"", async () => {
-            const rosterStore = require("../../../../src/stores/rosterStore");
+            const rosterStore = require("../../../../src/stores/roster/rosterStore");
             const categoryRoster = require("../../../../src/services/roster/categoryRoster");
             const roster = { id: "r1", categoryId: "cat1", guildId: "g1", managers: { userIds: ["7"], roleIds: [] } };
             const list = jest.spyOn(rosterStore, "listRosters").mockReturnValue([roster, { id: "r2", categoryId: "cat2", guildId: "g1", managers: { userIds: ["8"] } }]);
@@ -554,7 +554,7 @@ describe("web/apiRoutes/session", () => {
     });
 
     describe("POST /api/session/lang", () => {
-        const userPrefs = require("../../../../src/stores/userPrefsStore");
+        const userPrefs = require("../../../../src/stores/settings/userPrefsStore");
 
         it("saves the language for the caller's own account", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });

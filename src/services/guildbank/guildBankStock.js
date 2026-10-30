@@ -17,13 +17,13 @@
 //
 // Errors use the `{ code, error }` form (web/http/apiResult.js sendFailure),
 // messages in German.
-const store = require("../../stores/guildBankStockStore");
+const store = require("../../stores/loot/guildBankStockStore");
 const { parseGuildBankScan, bankKeyOf, GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const itemMeta = require("./itemMeta");
 const guildRoles = require("../discord/roles/guildRoles");
 const discord = require("../discord/discord");
 const { raidServerIds } = require("../discord/botCheck");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 
 /** The server an ingest token is bound to, "" when none. */
 function serverOfToken(token) {
