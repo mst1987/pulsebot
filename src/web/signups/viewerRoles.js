@@ -7,7 +7,7 @@
 //   * else the member's own roles on the server (memberRoleMemory: read live,
 //     a short memory over a Discord hiccup); `unknown: true` when they cannot
 //     be read at all.
-const { memberRolesRemembered } = require("../../services/discord/memberRoleMemory");
+const { memberRolesRemembered } = require("../../services/discord/roles/memberRoleMemory");
 
 /**
  * @param {string} guildId  the server the raids are on

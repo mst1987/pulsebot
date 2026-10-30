@@ -17,7 +17,7 @@ jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCa
 // loot in a raid nobody stored a version for is TBC: the character raided TBC before the category was switched
 jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: () => [{ eventId: "t1" }], listAll: () => [] }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: () => [{ character: "Elesham", categoryIds: ["fcat"] }] }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: () => ["g1"] }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: () => ["g1"] }));
 
 const configStore = require("../../../src/stores/configStore");
 const own = require("../../../src/commands/lookup/anwesenheit");

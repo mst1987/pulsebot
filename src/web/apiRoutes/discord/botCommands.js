@@ -6,7 +6,7 @@ const { getConfig } = require("../../../stores/settingsStore");
 const discord = require("../../../services/discord/discord");
 const { ruleFor } = require("../../../services/discord/botAccess");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { configForGuild } = require("../../../services/discord/serverAccess");
+const { configForGuild } = require("../../../services/discord/servers/serverAccess");
 const { BOT_COMMAND_GROUPS, normalizeRule, normalizeBotCommandAccess } = require("../../../config/botCommands");
 
 const COMMANDS_DIR = path.join(__dirname, "..", "..", "..", "commands");

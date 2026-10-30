@@ -21,7 +21,7 @@ const settingsStore = require("../../stores/settingsStore");
 const signupStore = require("../../stores/signupStore");
 const { getEvent, isOwnEventId } = require("../../stores/eventStore");
 const { getRaidEvent } = require("../../stores/raidEventStore");
-const { memberRolesRemembered } = require("../discord/memberRoleMemory");
+const { memberRolesRemembered } = require("../discord/roles/memberRoleMemory");
 const { orgaCategoryIds, ROLE_FETCH_MS } = require("../roster/categoryOrga");
 
 /** `promise`'s value, or null when it fails or takes longer than `ms`. */

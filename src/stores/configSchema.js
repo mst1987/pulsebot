@@ -45,7 +45,7 @@ const CONFIG_DEFAULTS = {
     // Settings per Discord server (#917, epic #926): { [guildId]: { key: value } }.
     // Only servers of discordServers (or pure link targets) keep a block, only the
     // keys of SERVER_SETTING_DEFAULTS survive. Read through
-    // services/discord/serverSettings.js; a missing key is that part's default.
+    // services/discord/servers/serverSettings.js; a missing key is that part's default.
     serverSettings: {},
     // Raid-Helper server id (raid-helper.xyz), used for all Raid-Helper API calls.
     // RAIDHELPER_API_KEY stays in .env — it's a real secret, this id isn't.
@@ -220,7 +220,7 @@ const CONFIG_DEFAULTS = {
     // Role sync between any two configured servers (#264, pairs since #896):
     // [{ fromGuildId, fromRoleId, toGuildId, toRoleId, direction }] with direction
     // "toTarget" | "toSource" | "both" (normalizeRoleSync). The sync only ever ADDS
-    // roles (src/services/discord/roleSync.js); a role lost on one server stays on
+    // roles (src/services/discord/roles/roleSync.js); a role lost on one server stays on
     // the other and shows up as a hint in the admin menu.
     roleSync: [],
     // Automatic reminders per raid category (#264): { [categoryId]:
@@ -466,7 +466,7 @@ function normalizeEventGuilds(list) {
 /**
  * One server of the federation (#890): `{ guildId, label }` plus `pug: true` when switched on,
  * null when the id is no snowflake. `pug` (#906): only a server with the switch "PuG-Server" gets
- * the roles & onboarding of a PuG server (services/discord/pugOnboarding.js); missing or anything
+ * the roles & onboarding of a PuG server (services/discord/pug/pugOnboarding.js); missing or anything
  * but `true` = off. Off is stored as no field at all, so existing configs read unchanged and the
  * start migration has nothing to write.
  */
@@ -976,7 +976,7 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // version its logs belong to: [{ channelId, versionId }].
     logChannels: Object.freeze([]),
     // #925: the rights of roles and accounts on this server, read (and normalised)
-    // through services/discord/serverAccess.js. A server without them grants nothing
+    // through services/discord/servers/serverAccess.js. A server without them grants nothing
     // but what full admins (global adminRoleIds, .env) have everywhere.
     rolePermissions: Object.freeze({}),
     baseAccess: Object.freeze({}),
@@ -999,7 +999,7 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // #961 the drawn pictures of this server's bot messages: only the switches the
     // server set itself ({ overviewWeekStrip?, setupImage?, eventCover?: boolean });
     // a switch it has not set follows config.discordVisuals, the global default
-    // (services/discord/serverSettings.js serverVisuals).
+    // (services/discord/servers/serverSettings.js serverVisuals).
     discordVisuals: Object.freeze({}),
     // #982 the thresholds of the hints from the data for the Vermerke: only the
     // values the server set itself ({ windowDays?, signoffAfterSetup?, lateSignoff?,

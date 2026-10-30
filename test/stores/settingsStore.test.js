@@ -41,7 +41,7 @@ describe("stores/settingsStore", () => {
         // normaliser, so a hand-edited config.json cannot smuggle in an area that
         // does not exist.
         it("keeps baseAccess per server and normalises it on read (#925)", () => {
-            const { accessSettings } = require("../../src/services/discord/serverAccess");
+            const { accessSettings } = require("../../src/services/discord/servers/serverAccess");
             expect(getConfig().baseAccess).toBeUndefined();
             saveConfig({
                 guildId: "1200000000000000001",

@@ -1,7 +1,7 @@
 // rosterOptions (#657): what the "Roster anlegen" dialog offers.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn() }));
-jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
 jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [
         { id: "700000000000000001", name: "Donnerstag" },

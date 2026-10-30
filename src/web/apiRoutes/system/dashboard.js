@@ -11,7 +11,7 @@ const {
 const { userCanAny, userIsOrga } = require("../../../config/permissions");
 const { buildTasks, zoneFor } = require("../../dashboard/dashboardOverview");
 const { loadPersonal } = require("../../dashboard/dashboardPersonal");
-const { loadDrift } = require("../../../services/discord/roleSync");
+const { loadDrift } = require("../../../services/discord/roles/roleSync");
 const { seriesFailures } = require("../../events/eventSeries");
 const { deployStatus } = require("../../http/deployStatus");
 const { readParts: readBackupParts } = require("../../../services/backup/backupStatus");

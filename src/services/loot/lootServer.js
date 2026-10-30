@@ -1,6 +1,6 @@
 // Loot of the active Discord server only (#919, epic #926).
 //
-// Loot belongs to a server over its raid (services/discord/serverOf.js):
+// Loot belongs to a server over its raid (services/discord/servers/serverOf.js):
 //   1. the raid of the row (own event or Raid-Helper snapshot) -> guildOfEvent
 //      (its guildId, else the server of its category),
 //   2. else the server a bucket without a raid was imported on (the row's
@@ -18,7 +18,7 @@
 const eventStore = require("../../stores/eventStore");
 const raidEventStore = require("../../stores/raidEventStore");
 const { getConfig } = require("../../stores/settingsStore");
-const { firstServerId, storedCategoryGuilds, guildOfEvent } = require("../discord/serverOf");
+const { firstServerId, storedCategoryGuilds, guildOfEvent } = require("../discord/servers/serverOf");
 
 const str = (value) => String(value === undefined || value === null ? "" : value).trim();
 

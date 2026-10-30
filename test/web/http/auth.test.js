@@ -16,11 +16,11 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 // settingsStore.getConfig()) — the mocked getConfig() above does not
 // replicate that, so this file mocks guildRoles directly instead, matching
 // every other test's single configured event server ("guild-1").
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
 
 const axios = require("axios");
 const { getConfig } = require("../../../src/stores/settingsStore");
-const guildRoles = require("../../../src/services/discord/guildRoles");
+const guildRoles = require("../../../src/services/discord/roles/guildRoles");
 const auth = require("../../../src/web/http/auth.js");
 const discord = require("../../../src/services/discord/discord");
 const fs = require("fs");

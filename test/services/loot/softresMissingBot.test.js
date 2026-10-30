@@ -21,7 +21,7 @@ jest.mock("../../../src/services/discord/botAccess", () => ({
     serverIds: jest.fn(() => ["g1"]),
 }));
 jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/services/discord/serverAccess", () => ({
+jest.mock("../../../src/services/discord/servers/serverAccess", () => ({
     configForGuild: jest.fn((cfg, gid) => ({ ...cfg, forGuild: gid })),
     interactionGuildId: jest.fn((i) => String((i && i.guildId) || "home")),
 }));

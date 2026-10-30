@@ -1,5 +1,5 @@
 // The roles of one server of the list (#895, System › Discord › Rollen,
-// services/discord/serverRoles.js, docs/channels.md) and the counts of the Discord tabs.
+// services/discord/servers/serverRoles.js, docs/channels.md) and the counts of the Discord tabs.
 // Area `channels`, read only: nothing here changes a role.
 //
 // GET /api/discord/roles?guildId=<one of the servers>   (none: the first server)
@@ -38,10 +38,10 @@ const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const discord = require("../../../services/discord/discord");
-const serverRoles = require("../../../services/discord/serverRoles");
-const serverMembers = require("../../../services/discord/serverMembers");
+const serverRoles = require("../../../services/discord/servers/serverRoles");
+const serverMembers = require("../../../services/discord/servers/serverMembers");
 const roleMessageStore = require("../../../stores/roleMessageStore");
-const { roleMessageGuild } = require("../../../services/discord/guildRoles");
+const { roleMessageGuild } = require("../../../services/discord/roles/guildRoles");
 const { getConfig } = require("../../../stores/configStore");
 const { serverFromQuery } = require("../../http/serverQuery");
 

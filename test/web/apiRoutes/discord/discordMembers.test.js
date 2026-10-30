@@ -11,12 +11,12 @@ jest.mock("../../../../src/stores/configStore", () => ({
 }));
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
-jest.mock("../../../../src/services/discord/serverMembers", () => ({
+jest.mock("../../../../src/services/discord/servers/serverMembers", () => ({
     listServerMembers: jest.fn(async (guildId) => ({ guildId, online: true, total: 0, roles: [], members: [] })),
     serverMemberDetail: jest.fn(),
 }));
 
-const svc = require("../../../../src/services/discord/serverMembers");
+const svc = require("../../../../src/services/discord/servers/serverMembers");
 const route = require("../../../../src/web/apiRoutes/discord/discordMembers");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { routerClient, status, body, json } = require("../../../helpers/http");

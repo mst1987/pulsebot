@@ -16,17 +16,17 @@ const mockGuard = jest.fn(async () => true);
 jest.mock("../src/services/discord/botAccess", () => ({ guardInteraction: (...args) => mockGuard(...args) }));
 jest.mock("dotenv", () => ({ config: jest.fn() }));
 const mockHandleReaction = jest.fn(async () => "given");
-jest.mock("../src/services/discord/roleMessages", () => ({
-    ...jest.requireActual("../src/services/discord/roleMessages"),
+jest.mock("../src/services/discord/roles/roleMessages", () => ({
+    ...jest.requireActual("../src/services/discord/roles/roleMessages"),
     handleReaction: (...args) => mockHandleReaction(...args),
     handleReactionsCleared: (...args) => mockReactionsCleared(...args),
 }));
 const mockReactionsCleared = jest.fn(async () => "synced");
 const mockMemberAdd = jest.fn();
 const mockMemberRemove = jest.fn();
-jest.mock("../src/services/discord/memberActivity", () => ({ onMemberAdd: (...a) => mockMemberAdd(...a), onMemberRemove: (...a) => mockMemberRemove(...a) }));
+jest.mock("../src/services/discord/members/memberActivity", () => ({ onMemberAdd: (...a) => mockMemberAdd(...a), onMemberRemove: (...a) => mockMemberRemove(...a) }));
 const mockPugInvites = { onMemberAdd: jest.fn(), onInviteCreate: jest.fn(), onInviteDelete: jest.fn(), startInviteCheck: jest.fn() };
-jest.mock("../src/services/discord/pugInvites", () => ({
+jest.mock("../src/services/discord/pug/pugInvites", () => ({
     onMemberAdd: (...a) => mockPugInvites.onMemberAdd(...a),
     onInviteCreate: (...a) => mockPugInvites.onInviteCreate(...a),
     onInviteDelete: (...a) => mockPugInvites.onInviteDelete(...a),

@@ -4,7 +4,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockCon
 let mockNext = null;
 jest.mock("../../../src/services/signups/organizer", () => ({ nextRaidSummary: jest.fn(() => mockNext) }));
 jest.mock("../../../src/logger", () => ({ warn: jest.fn(), debug: jest.fn(), info: jest.fn(), error: jest.fn() }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ eventGuildIds: () => ["g1", "g2"] }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: () => ["g1", "g2"] }));
 jest.mock("../../../src/services/discord/discord", () => ({
     listCategories: jest.fn((guildId) => (guildId === "g2" ? [{ id: "cat1", name: "Raids TBC" }] : [])),
     postPayload: jest.fn(async (channelId) => ({ guildId: "g2", channelId, messageId: `m-${channelId}`, url: `https://x/${channelId}` })),

@@ -7,7 +7,7 @@
 //   general:  { [guildId]: { code, channelId, createdAt, error, deleted } } — one
 //             general invite per server (the web hands it to non-members);
 //   channels: { [guildId]: channelId } — the channel the invites of a server
-//             point at ("" = the bot picks one, see services/discord/pugInvites.js).
+//             point at ("" = the bot picks one, see services/discord/pug/pugInvites.js).
 // }
 // Kept out of the settings config on purpose (like talkOverviewStore): the bot
 // writes it on its own, and a PATCH of the settings page must never race it.

@@ -22,7 +22,7 @@ const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { eventVersionTag } = require("../versions/versionTag");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("../discord/botAccess");
-const { configForGuild, interactionGuildId } = require("../discord/serverAccess");
+const { configForGuild, interactionGuildId } = require("../discord/servers/serverAccess");
 const { getConfig } = require("../../stores/configStore");
 const { SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, resolveEvent, readStatus, refreshSoftresCard } = require("./softresStatus");
 

@@ -41,8 +41,8 @@ jest.mock("../../../../src/stores/configStore", () => ({
     dropCategoryEntries: jest.fn(() => ({ config: {}, removed: ["categoryIds", "categoryReminders"] })),
 }));
 // #925: the stored name snapshot - "gone" (deleted in Discord) and "mon" on g1, "far" on another server
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: jest.fn(() => new Map([["mon", "g1"], ["gone", "g1"], ["far", "g2"]])),
 }));
 jest.mock("../../../../src/services/kader/kaderCategories", () => ({ kadersCountingCategory: jest.fn(() => []), dropAttendanceCategory: jest.fn(() => 1) }));
@@ -53,7 +53,7 @@ const { listRaidEvents } = require("../../../../src/stores/raidEventStore");
 const discord = require("../../../../src/services/discord/discord");
 const seriesStore = require("../../../../src/stores/eventSeriesStore");
 const configStore = require("../../../../src/stores/configStore");
-const { storedCategoryGuilds } = require("../../../../src/services/discord/serverOf");
+const { storedCategoryGuilds } = require("../../../../src/services/discord/servers/serverOf");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const rosterStore = require("../../../../src/stores/rosterStore");
 const { post, patch, get } = routerClient(require("../../../../src/web/apiRoutes/system/settings"));

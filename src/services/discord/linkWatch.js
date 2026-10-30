@@ -49,7 +49,7 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
     const config = getConfig() || {};
     if (channel.type === CATEGORY_TYPE && (config.categoryIds || []).map(String).includes(channelId)) {
         const guildId = String(channel.guildId || "");
-        if (require("./guildRoles").isEventGuild(guildId, config)) {
+        if (require("./roles/guildRoles").isEventGuild(guildId, config)) {
             logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
         } else {
             logger.info(`Kategorie ${channel.name || channelId} auf Server ${guildId || "?"} gelöscht — Server nicht eingetragen, nicht als gelöschte Raid-Kategorie gewertet`);

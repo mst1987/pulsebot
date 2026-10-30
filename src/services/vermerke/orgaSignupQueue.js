@@ -16,8 +16,8 @@
 // The switch per server: config.serverSettings[guildId].vermerkeOrgaNotice =
 // { enabled: boolean, level: "warning" | "shadowban" } - off by default; "warning"
 // = a warning or a shadowban, "shadowban" = only a shadowban.
-const { guildOfEvent } = require("../discord/serverOf");
-const { serverSetting } = require("../discord/serverSettings");
+const { guildOfEvent } = require("../discord/servers/serverOf");
+const { serverSetting } = require("../discord/servers/serverSettings");
 const marks = require("../../stores/orgaSignupNoticeStore");
 
 const BUFFER_MS = 2 * 60 * 1000;

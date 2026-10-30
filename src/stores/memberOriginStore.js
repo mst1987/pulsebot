@@ -1,5 +1,5 @@
 // Through which invite a member joined a server (#905, PuG server): the bot
-// records it on guildMemberAdd (services/discord/pugInvites.js), the settings
+// records it on guildMemberAdd (services/discord/pug/pugInvites.js), the settings
 // page counts per link how many joined and how many of them signed up.
 //
 // `data/settings/member-origins.json` =

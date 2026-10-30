@@ -1,7 +1,7 @@
-// The role messages (services/discord/roleMessages.js): a message the bot posts with
+// The role messages (services/discord/roles/roleMessages.js): a message the bot posts with
 // a title, a text, a big picture and one button plus one reaction per role; a click
 // on the button or a reaction gives or takes the role (self-service roles,
-// services/discord/selfRole.js).
+// services/discord/roles/selfRole.js).
 //
 // `data/settings/role-messages.json` =
 //   {

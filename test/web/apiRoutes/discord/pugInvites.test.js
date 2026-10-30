@@ -2,18 +2,18 @@
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: { id: "1" }, fullAdmin: () => mockFullAdmin }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/services/discord/discord", () => ({ getGuild: jest.fn(() => null), listTextChannels: jest.fn(() => []) }));
-jest.mock("../../../../src/services/discord/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ links: jest.fn(), serverIds: jest.fn() }));
 jest.mock("../../../../src/stores/eventStore", () => ({ listEvents: jest.fn(() => []) }));
 jest.mock("../../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const discord = require("../../../../src/services/discord/discord");
-const guildRoles = require("../../../../src/services/discord/guildRoles");
+const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
 const eventStore = require("../../../../src/stores/eventStore");
 const signupStore = require("../../../../src/stores/signupStore");
 const inviteStore = require("../../../../src/stores/discordInviteStore");
 const originStore = require("../../../../src/stores/memberOriginStore");
-const pugInvites = require("../../../../src/services/discord/pugInvites");
+const pugInvites = require("../../../../src/services/discord/pug/pugInvites");
 const { getPugInvites, postPugInvite, postInviteChannel, reconcileBriefly } = require("../../../../src/web/apiRoutes/discord/pugInvites");
 const { AREA_BY_PATH } = require("../../../../src/web/http/apiAccess");
 const { tempStoreFile } = require("../../../helpers/tempStore");

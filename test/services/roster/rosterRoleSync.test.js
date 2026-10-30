@@ -2,7 +2,7 @@
 // gives/takes roles after its store write, Discord role changes add/remove
 // members, the reconcile catches what the events missed. No loop, no mass wipe.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
-jest.mock("../../../src/services/discord/memberRoles", () => ({
+jest.mock("../../../src/services/discord/roles/memberRoles", () => ({
     giveRole: jest.fn(),
     takeRole: jest.fn(),
     recentWrite: jest.fn(() => undefined),
@@ -18,7 +18,7 @@ jest.mock("../../../src/stores/raiderProfileStore", () => ({
 }));
 
 const fs = require("fs");
-const memberRoles = require("../../../src/services/discord/memberRoles");
+const memberRoles = require("../../../src/services/discord/roles/memberRoles");
 const discord = require("../../../src/services/discord/discord");
 const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
 const rosterStore = require("../../../src/stores/rosterStore");

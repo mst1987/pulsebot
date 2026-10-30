@@ -3,7 +3,7 @@
 // afterwards Kader and Discord stay in step in both directions, without a loop.
 // Discord is a fake guild; the stores run on memoryFs.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
-jest.mock("../../../src/services/discord/memberRoles", () => ({
+jest.mock("../../../src/services/discord/roles/memberRoles", () => ({
     giveRole: jest.fn(),
     takeRole: jest.fn(),
     recentWrite: jest.fn(() => undefined),
@@ -14,7 +14,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
-jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
 jest.mock("../../../src/services/discord/discordChannels", () => ({
     botCanManageChannels: jest.fn(() => true),
     discordErrorText: jest.fn((e) => (e && e.message) || "?"),
@@ -41,9 +41,9 @@ jest.mock("../../../src/stores/settingsStore", () => ({
 
 const fs = require("fs");
 const { ChannelType, PermissionsBitField } = require("discord.js");
-const memberRoles = require("../../../src/services/discord/memberRoles");
+const memberRoles = require("../../../src/services/discord/roles/memberRoles");
 const discord = require("../../../src/services/discord/discord");
-const { canManageRoles } = require("../../../src/services/discord/roleSync");
+const { canManageRoles } = require("../../../src/services/discord/roles/roleSync");
 const { botCanManageChannels } = require("../../../src/services/discord/discordChannels");
 const kaderStore = require("../../../src/stores/kaderStore");
 const rosterStore = require("../../../src/stores/rosterStore");

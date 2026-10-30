@@ -2,7 +2,7 @@
 // loadEventGroups() like every page of the web menu, so whatever feeds that
 // (Raid-Helper today, EventHelper's own events later) reaches the bot too.
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { serverIds } = require("../discord/guildRoles");
+const { serverIds } = require("../discord/roles/guildRoles");
 const { signupStatus } = require("../../utils/attendance");
 
 /** What a signup status reads as in a reply. */

@@ -17,7 +17,7 @@ const raidOverviewStore = require("../../stores/raidOverviewStore");
 const talkOverviewStore = require("../../stores/talkOverviewStore");
 const roleMessageStore = require("../../stores/roleMessageStore");
 const addonCenterStore = require("../../stores/addonCenterStore");
-const { roleMessageGuild } = require("./guildRoles");
+const { roleMessageGuild } = require("./roles/guildRoles");
 const recruitmentStore = require("../../stores/recruitmentStore");
 const availabilityStore = require("../../stores/availabilityStore");
 

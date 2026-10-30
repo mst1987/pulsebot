@@ -73,8 +73,8 @@ const { userSeesEvent } = require("../../../services/signups/eventVisibility");
 const raidplanAccess = require("../../raidplan/raidplanAccess");
 const { requestCache } = require("../../../services/roster/categoryOrga");
 const { allOnServer } = require("../../../services/events/eventServer");
-const { resolveServer } = require("../../../services/discord/guildRoles");
-const { firstServerId } = require("../../../services/discord/serverOf");
+const { resolveServer } = require("../../../services/discord/roles/guildRoles");
+const { firstServerId } = require("../../../services/discord/servers/serverOf");
 
 // The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
 // tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.

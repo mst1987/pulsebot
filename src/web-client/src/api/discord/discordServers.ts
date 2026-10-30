@@ -102,7 +102,7 @@ export function repostTalkOverview(
     return send("POST", "/api/settings/talk-overview", { repost: true, key });
 }
 
-/** One link's invite (#905, src/services/discord/pugInvites.js): `url` "" = none yet, `error` a missing bot right first. */
+/** One link's invite (#905, src/services/discord/pug/pugInvites.js): `url` "" = none yet, `error` a missing bot right first. */
 export type PugLinkInvite = {
     key: string;
     from: string;

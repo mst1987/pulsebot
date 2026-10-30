@@ -15,7 +15,7 @@ const {
     isFullAdminAnywhere, resetAdminCache, recordGuildOf,
 } = require("../../../src/services/discord/botAccess");
 const { mockInteraction, makeCollection } = require("../../helpers/mockInteraction");
-const userAccess = require("../../../src/services/discord/userAccess");
+const userAccess = require("../../../src/services/discord/members/userAccess");
 
 const GUILD = "900000000000000001";
 const ORGA = "123456789012345678";

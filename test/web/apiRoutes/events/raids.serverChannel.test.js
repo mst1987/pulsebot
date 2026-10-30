@@ -28,8 +28,8 @@ jest.mock("../../../../src/services/events/eventMessage", () => ({
     ...jest.requireActual("../../../../src/services/events/eventMessage"),
     postEventMessage: jest.fn(async () => {}),
 }));
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map(),
 }));
 jest.mock("../../../../src/stores/eventSeriesStore", () => ({

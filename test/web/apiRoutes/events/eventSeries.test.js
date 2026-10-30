@@ -31,8 +31,8 @@ jest.mock("../../../../src/web/events/eventSeries", () => ({
 jest.mock("../../../../src/services/discord/discord", () => ({
     getClient: () => ({ channels: { cache: { get: (id) => (mockLive[id] ? { id, guildId: mockLive[id] } : null) } } }),
 }));
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map(),
 }));
 // the categories whose current roster the caller manages (#728) - the rule has its own tests

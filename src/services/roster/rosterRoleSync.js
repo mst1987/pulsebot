@@ -43,7 +43,7 @@
 // holds one of its roles keeps it until the orga removes it in Discord.
 const rosterStore = require("../../stores/rosterStore");
 const raiderProfileStore = require("../../stores/raiderProfileStore");
-const memberRoles = require("../discord/memberRoles");
+const memberRoles = require("../discord/roles/memberRoles");
 const discord = require("../discord/discord");
 const logger = require("../../logger").child("rosterRoles");
 

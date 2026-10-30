@@ -10,7 +10,7 @@ const { listRaidEvents } = require("../../stores/raidEventStore");
 const { ownMatchableEvents, withEraName } = require("../events/eventSources");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { LOG_WINDOW_BEFORE_MS } = require("../events/overview/recentEvents");
-const { guildOfEvent } = require("../discord/serverOf");
+const { guildOfEvent } = require("../discord/servers/serverOf");
 
 // Every row carries its raid's game version (#746): a log is matched only to a
 // raid of its own version (logEventMatch.js) and takes that version when linked.

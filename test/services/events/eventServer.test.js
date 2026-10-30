@@ -17,7 +17,7 @@ let mockSnapshotCats = {};
 let mockSeries = {};
 let mockLive = {};
 let mockClient = null;
-jest.mock("../../../src/services/discord/serverOf", () => ({
+jest.mock("../../../src/services/discord/servers/serverOf", () => ({
     storedCategoryGuilds: () => new Map(Object.entries(mockSnapshotCats)),
 }));
 jest.mock("../../../src/stores/eventSeriesStore", () => ({ getSeries: (id) => mockSeries[id] || null }));

@@ -7,8 +7,8 @@ jest.mock("../../../src/services/discord/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
     listRoles: jest.fn(() => [{ id: "main", name: "Raider", color: "#ff0000" }, { id: "trial", name: "Probe", color: "" }]),
 }));
-jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
-jest.mock("../../../src/services/discord/memberRoles", () => ({ recentWrite: jest.fn(() => undefined) }));
+jest.mock("../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../src/services/discord/roles/memberRoles", () => ({ recentWrite: jest.fn(() => undefined) }));
 jest.mock("../../../src/stores/raiderProfileStore", () => ({
     getProfile: jest.fn((userId) => ({ userId, name: userId === "100003" ? "Profilname" : "", characters: [] })),
     firstCharacter: jest.fn(() => null),
@@ -21,7 +21,7 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
-const memberRoles = require("../../../src/services/discord/memberRoles");
+const memberRoles = require("../../../src/services/discord/roles/memberRoles");
 const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
 const rosterHidden = require("../../../src/stores/rosterHiddenStore");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");

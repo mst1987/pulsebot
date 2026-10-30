@@ -10,7 +10,7 @@
 // server and say nothing about another).
 const { error: apiError } = require("./apiResponse");
 const { activeGuildFor } = require("./activeGuild");
-const { resolveServer } = require("../../services/discord/guildRoles");
+const { resolveServer } = require("../../services/discord/roles/guildRoles");
 const { getConfig } = require("../../stores/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

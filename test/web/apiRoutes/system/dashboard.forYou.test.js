@@ -45,7 +45,7 @@ jest.mock("../../../../src/web/http/deployStatus", () => ({ deployStatus: jest.f
 
 const { json, routerClient } = require("../../../helpers/http");
 const { knownChannels } = require("../../../helpers/linkCheck");
-const memberRoleMemory = require("../../../../src/services/discord/memberRoleMemory");
+const memberRoleMemory = require("../../../../src/services/discord/roles/memberRoleMemory");
 const { get } = routerClient(require("../../../../src/web/apiRoutes/system/dashboard"));
 
 const MO_ROLE = "300000000000000001";

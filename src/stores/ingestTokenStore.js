@@ -21,7 +21,7 @@
 //
 // A personal key (#1000, epic #999) belongs to a person instead (`ownerId`, the
 // Discord id): it holds no server of its own - it counts for every server its
-// owner is orga of right now (services/discord/ingestServers.js), asked anew on
+// owner is orga of right now (services/discord/servers/ingestServers.js), asked anew on
 // every request. One person may hold several, one per device (`name`).
 const { settingsPath } = require("../config/paths");
 const { createJsonStore } = require("./jsonStore");

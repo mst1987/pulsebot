@@ -27,10 +27,10 @@ const { councilOptsFromQuery, categoryOptions } = require("../../loot/councilQue
 const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4 } = require("../../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../../loot/councilView");
 const { getConfig } = require("../../../stores/settingsStore");
-const { serverIds, serverLabel } = require("../../../services/discord/guildRoles");
+const { serverIds, serverLabel } = require("../../../services/discord/roles/guildRoles");
 const { versionOfEvent, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { wclGuildsOf } = require("../../../services/logcheck/wclGuildSettings");
-const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/ingestServers");
+const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/servers/ingestServers");
 const discord = require("../../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../../services/loot/lootServer");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
@@ -60,7 +60,7 @@ function requireToken(req, res) {
 }
 
 /**
- * The servers the key may work on (services/discord/ingestServers.js): the owner's orga servers
+ * The servers the key may work on (services/discord/servers/ingestServers.js): the owner's orga servers
  * for a personal key (#1000), `[guildId]` for a server key (#994), null for an old key (the rules
  * from before #994). A personal key whose owner is orga nowhere (any more) gets the 403
  * `no_server` and `undefined` back - the caller stops.

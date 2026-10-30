@@ -16,7 +16,7 @@ const { categoryNameAt } = require("../categories/categoryEras");
 const { visibleRows, versionOfEvent } = require("../versions/mainVersion");
 const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
 const { raidhelperActive, activeRaidhelperGuilds } = require("../../utils/raidhelper/servers");
-const { firstServerId, storedCategoryGuilds } = require("../discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../discord/servers/serverOf");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";

@@ -1891,7 +1891,7 @@ describe("web/apiRoutes/settings", () => {
                     const { mergeServerSettings } = jest.requireActual("../../../../src/stores/configSchema");
                     const merged = JSON.parse(JSON.stringify(mergeServerSettings(withVisuals().serverSettings, saved.serverSettings)));
                     expect(merged[PUGS]).toEqual({});
-                    const { serverVisuals } = jest.requireActual("../../../../src/services/discord/serverSettings");
+                    const { serverVisuals } = jest.requireActual("../../../../src/services/discord/servers/serverSettings");
                     expect(serverVisuals(PUGS, { config: { ...withVisuals(), serverSettings: merged } })).toEqual({ ...ON, eventCover: false });
                 });
 

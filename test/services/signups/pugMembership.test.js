@@ -12,7 +12,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockCon
 let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({ guildMembership: jest.fn(async () => mockMembership) }));
 let mockInvites = {};
-jest.mock("../../../src/services/discord/pugInvites", () => ({ generalInviteUrl: jest.fn((guildId) => mockInvites[guildId] || "") }));
+jest.mock("../../../src/services/discord/pug/pugInvites", () => ({ generalInviteUrl: jest.fn((guildId) => mockInvites[guildId] || "") }));
 
 const discord = require("../../../src/services/discord/discord");
 const {

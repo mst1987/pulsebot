@@ -10,7 +10,7 @@
 //
 // Before #921 the channels were one global list (config.logChannelIds); the bot
 // hands that list to the servers once it is online (logChannelMigration.js).
-const { serverSetting } = require("../discord/serverSettings");
+const { serverSetting } = require("../discord/servers/serverSettings");
 const { knownVersion, mainVersionFor } = require("../versions/mainVersion");
 
 /**

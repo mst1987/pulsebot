@@ -1,6 +1,6 @@
 // Who joined or left a configured Discord server, for the
 // Discord overview of the web admin (docs/discord-servers.md "Discord-Übersicht").
-// The bot records it from guildMemberAdd / guildMemberRemove (services/discord/memberActivity.js).
+// The bot records it from guildMemberAdd / guildMemberRemove (services/discord/members/memberActivity.js).
 //
 // `data/settings/member-activity.json` =
 //   { entries: [{ guildId, userId, name, at, kind: "join"|"leave", roles: [{ id, name }] }] }

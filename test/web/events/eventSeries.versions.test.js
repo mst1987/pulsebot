@@ -23,7 +23,7 @@ jest.mock("../../../src/services/discord/channelNaming", () => ({
     namingContext: jest.fn(() => ({})),
     describeResult: jest.fn(() => ({ name: "", source: "schema", label: "", detail: "", design: "" })),
 }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(async () => ({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 1),

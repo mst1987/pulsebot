@@ -14,7 +14,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     ownUpcomingRaw: jest.fn(() => []),
 }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [], error: null })) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/stores/eventStore", () => ({ appendEventLog: jest.fn() }));
 jest.mock("../../../src/stores/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["cat1"], categoryRaidTemplate: {} })),

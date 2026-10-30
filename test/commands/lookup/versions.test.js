@@ -1,6 +1,6 @@
 // The lookup commands answer for one game version (#743): the option, else the channel's category, else the main version.
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 0) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => ["event-guild"]) }));
 jest.mock("../../../src/stores/lootStore", () => ({ listByCharacter: jest.fn(() => []), listAll: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({
     serverContext: () => ({}),
