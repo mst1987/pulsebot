@@ -2,8 +2,8 @@ import { X } from "lucide-react";
 import type { RaidplanPublicBoss, RaidplanScene } from "../../../api";
 import type { AssignCtx } from "../../../lib/raidplan/assign/assign";
 import Mentions from "../../../components/raidplan/Mentions";
-import ReadTables from "../../../components/raidplan/editor/ReadTables";
-import ReadSteps from "../../../components/raidplan/editor/ReadSteps";
+import ReadTables from "../../../components/raidplan/editor/assign/ReadTables";
+import ReadSteps from "../../../components/raidplan/editor/steps/ReadSteps";
 import { Switch } from "../../../components/ui";
 import { useT } from "../../../i18n";
 

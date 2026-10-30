@@ -43,7 +43,7 @@
 .rp-sheet-stage.is-anim .rp-zoomctl { bottom: 96px; }
 @media (max-width: 720px) { .rp-sheet-stage.is-anim .rp-zoomctl { bottom: auto; } }
 
-/* ---- the editor's view "Animation" (components/raidplan/editor/AnimWorkspace.tsx, AnimPanel.tsx) ---- */
+/* ---- the editor's view "Animation" (components/raidplan/editor/anim/AnimWorkspace.tsx, AnimPanel.tsx) ---- */
 .rp-anim-work { display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
 .rp-anim-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
 .rp-anim-head .rp-anim-scene { display: inline-flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 13px; }

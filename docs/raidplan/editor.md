@@ -600,7 +600,7 @@ whether he played elemental or enhancement, and the council's mage tank was also
   of *Klassen*, next to "Für Vorschläge bevorzugen"; not shown on a row whose task implies a role (heal, tank,
   trash tank). The candidate list of a class card shows the ranked order (the other rows as context), so switching
   the role moves the resolved player at once. The read view is unchanged. Tests:
-  `src/web-client/src/components/raidplan/editor/__tests__/AssignModal.test.tsx`.
+  `src/web-client/src/components/raidplan/editor/assign/__tests__/AssignModal.test.tsx`.
 - **Changed on existing plans (on purpose)**: a class reference in a utility row can now resolve to another raider
   of the class than before when the first one tanks on that boss or has more tasks; the kick suggestion of the
   old test raid skips the warrior tank (`raidplanAssign.test.js`).
@@ -636,7 +636,7 @@ orga wanted one healer - a paladin, or a shaman when there is none.
   template one quiet chip with the count. The shared sheet gets the rows resolved by the server; an open place there reads as an
   open class place ("Paladin 1 fehlt").
 - Tests: `test/services/raidplan/raidplanPriority.test.js`, `src/web-client/src/lib/raidplan/assign/__tests__/classPriority.test.ts` (the same
-  cases on both twins, golden master, card items, preview, carry), `src/web-client/src/components/raidplan/editor/__tests__/AssignModal.prio.test.tsx`.
+  cases on both twins, golden master, card items, preview, carry), `src/web-client/src/components/raidplan/editor/assign/__tests__/AssignModal.prio.test.tsx`.
 
 ## The inspector in tabs (#528)
 
@@ -663,7 +663,7 @@ mark 210 px.
   skalieren" steps got their label on a line of their own and wrap (`.rp-insp-steps`) instead of one long line.
 - Nothing was dropped: every field and value is the one before, in a tab. At 390 px the dock sits under the map; no field
   leaves the column and the page does not scroll sideways (puppeteer at 1280 and 390 px).
-- Tests: `src/web-client/src/components/raidplan/editor/__tests__/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
+- Tests: `src/web-client/src/components/raidplan/editor/inspector/__tests__/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
   remembered tab, the badge fields, a short inspector without tabs).
 
 ## Groups in the plan: no bench in the assignments (#529)
@@ -697,7 +697,7 @@ assignment columns (healers, kicks, soulstones, debuffs) took raiders of a Raid-
 - Tests: `test/services/raidplan/raidplanGroups.test.js`, `test/web/apiRoutes/raidplan.groups.test.js` (25 + 3 bench + 2 pool: the
   editor payload, the read view's priority, named bench raider, slot refill, the toggle, suggestions, template apply),
   `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/assign/__tests__/planGroups.test.ts`,
-  `src/web-client/src/components/raidplan/editor/__tests__/PlanGroups.test.tsx`.
+  `src/web-client/src/components/raidplan/editor/assign/__tests__/PlanGroups.test.tsx`.
 
 ## The Allgemein section's raid-wide tasks (#536)
 
