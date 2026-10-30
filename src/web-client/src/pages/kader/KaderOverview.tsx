@@ -9,7 +9,7 @@ import type { CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState, KaderSummary, KaderView } from "../../api";
 import { Badge, Button, IconTile, PageHead, buttonClass } from "../../components/ui";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon } from "../../components/ui/icons/icons";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useT } from "../../i18n";
 import { leadHue } from "../../lib/kader/leads";

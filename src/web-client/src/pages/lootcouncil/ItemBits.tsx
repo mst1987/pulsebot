@@ -14,8 +14,8 @@ import { tParts, useT } from "../../i18n";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { specClassLabel } from "../../lib/wow/wowNames";
-import { WOWHEAD } from "./council";
-import { fmtPoints, lootLabel } from "./needWeights";
+import { WOWHEAD } from "./model/council";
+import { fmtPoints, lootLabel } from "./model/needWeights";
 import { useWowheadPath } from "../../lib/settings/versionLinks";
 
 /**

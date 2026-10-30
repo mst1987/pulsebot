@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { ArrowRight, Circle, CircleDashed, Diamond, MousePointerClick, RefreshCw, RotateCw } from "lucide-react";
-import Switch from "../../../ui/Switch";
+import Switch from "../../../ui/form/Switch";
 import { buttonClass } from "../../../ui/Button";
 import { BadgePicker, Row, Stepper } from "./AnimParts";
 import { needsWhere, type Wizard, type WizardWhat } from "./wizardState";

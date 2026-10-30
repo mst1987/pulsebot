@@ -12,14 +12,14 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { useToast } from "../../components/shell/Jobs";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
-import { ChevronLeftIcon, ChevronRightIcon } from "../../components/ui/icons";
+import WowIcon from "../../components/ui/icons/WowIcon";
+import { ChevronLeftIcon, ChevronRightIcon } from "../../components/ui/icons/icons";
 import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/history-loot.css";
-import RaidLoader from "../../components/ui/RaidLoader";
-import Segment from "../../components/ui/Segment";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import Segment from "../../components/ui/form/Segment";
 import { DismissedList, WaitingList } from "./InboxWaiting";
 import { tParts, useT } from "../../i18n";
 

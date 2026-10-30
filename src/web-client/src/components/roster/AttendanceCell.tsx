@@ -15,8 +15,8 @@ import { EDIT_ORDER, countsAsPresent, statusHint, statusLabel, statusLetter, sta
 import { VIEWPORT_MARGIN, belowStartPosition, type Placement } from "../../lib/ui/popoverPosition";
 import { useToast } from "../shell/Jobs";
 import { Button } from "../ui/Button";
-import Popover from "../ui/Popover";
-import { SaveIcon } from "../ui/icons";
+import Popover from "../ui/overlay/Popover";
+import { SaveIcon } from "../ui/icons/icons";
 
 /** A night as the field reads it: the server's night of any attendance answer. */
 export type AttendanceNight = {

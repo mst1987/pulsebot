@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { searchRaiders, type GameClass, type ProfileData, type RaiderProfile, type RaiderRef } from "../../api";
 import { Expand, IconButton, Segment, WowIcon } from "../../components/ui";
 import { classColorProps } from "../../components/character/ClassSpec";
-import { XIcon, SearchIcon } from "../../components/ui/icons";
+import { XIcon, SearchIcon } from "../../components/ui/icons/icons";
 import { instanceName } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 

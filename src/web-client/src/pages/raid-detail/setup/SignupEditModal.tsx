@@ -16,12 +16,12 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
-import { SaveIcon } from "../../../components/ui/icons";
-import Field from "../../../components/ui/Field";
-import { Modal } from "../../../components/ui/Modal";
-import Segment from "../../../components/ui/Segment";
-import WowIcon from "../../../components/ui/WowIcon";
-import RaidLoader from "../../../components/ui/RaidLoader";
+import { SaveIcon } from "../../../components/ui/icons/icons";
+import Field from "../../../components/ui/form/Field";
+import { Modal } from "../../../components/ui/overlay/Modal";
+import Segment from "../../../components/ui/form/Segment";
+import WowIcon from "../../../components/ui/icons/WowIcon";
+import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 

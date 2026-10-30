@@ -17,10 +17,10 @@ import {
     type ApiError, type InboxCandidate, type InboxDismissedSession, type InboxWaitingBank, type InboxWaitingSession,
 } from "../../api";
 import type { ShellContext } from "../../components/shell/Shell";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import { CheckIcon, RefreshIcon, TrashIcon } from "../../components/ui/icons";
+import { CheckIcon, RefreshIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDateTime, formatEventTime } from "../../lib/format";
 import { tParts, useT } from "../../i18n";

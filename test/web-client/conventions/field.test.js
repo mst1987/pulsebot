@@ -1,4 +1,4 @@
-// components/ui/Field.tsx (#439): label with its info tooltip, the control, a
+// components/ui/form/Field.tsx (#439): label with its info tooltip, the control, a
 // hint and an error line — one building block instead of each module wiring
 // FieldLabel by hand. The wrappers keep their module's class (field, set-field,
 // dlg-field, …); what is inside looks the same everywhere.
@@ -6,7 +6,7 @@ const fs = require("fs");
 const path = require("path");
 const { read, sourceFiles } = require("../clientSource");
 
-const field = read("components/ui/Field.tsx");
+const field = read("components/ui/form/Field.tsx");
 const settingsUi = read("components/settings/settingsUi.tsx");
 const indexCss = read("index.css");
 const settingsCss = read("styles/settings.css");
@@ -25,12 +25,12 @@ describe("ui/Field", () => {
         expect(field).toMatch(/export function FieldLabel\(/);
         expect(field).toMatch(/export function InfoTip\(/);
         expect(settingsUi).not.toMatch(/function (FieldLabel|InfoTip)\(/);
-        expect(read("components/ui/index.ts")).toContain("export { default as Field, FieldLabel, InfoTip } from \"./Field\";");
+        expect(read("components/ui/index.ts")).toContain("export { default as Field, FieldLabel, InfoTip } from \"./form/Field\";");
     });
 
     it("is the only FieldLabel: the raid fields' label with the tooltip on its text is TipLabel", () => {
         const others = sourceFiles()
-            .filter((file) => !file.endsWith(path.join("components", "ui", "Field.tsx")))
+            .filter((file) => !file.endsWith(path.join("components", "ui", "form", "Field.tsx")))
             .filter((file) => /function FieldLabel\(/.test(fs.readFileSync(file, "utf8")));
         expect(others).toEqual([]);
         expect(read("components/raid/RaidFields.tsx")).toMatch(/export function TipLabel\(/);
@@ -48,7 +48,7 @@ describe("ui/Field", () => {
 
     it.each([
         ["pages/settings/RaidsheetsSection.tsx", "<Field className=\"set-field\" htmlFor=\"rs-name\""],
-        ["pages/settings/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
+        ["pages/settings/discord/SettingsReminders.tsx", "<Field className=\"dlg-field\" htmlFor=\"rem-missing\""],
     ])("%s uses it", (file, needle) => {
         expect(read(file)).toContain(needle);
     });

@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { AttendanceCategory, CalendarTokens, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
 import { Badge, buttonClass, IconButton, NumberStepper, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
-import { EyeOffIcon, XIcon } from "../../components/ui/icons";
+import { EyeOffIcon, XIcon } from "../../components/ui/icons/icons";
 import { nightsInOrder } from "../../lib/roster/absences";
 import { stepTime, withDayTime } from "../../lib/profile/dayTimes";
 import { tOr, useT } from "../../i18n";

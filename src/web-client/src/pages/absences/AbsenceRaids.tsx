@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import type { AbsenceOverview, AbsenceRaid } from "../../api";
 import { categoryTone, signedShare, upcomingRaids } from "../../lib/roster/absences";
 import { eventTimeParts } from "../../lib/format";
-import { ExternalIcon } from "../../components/ui/icons";
+import { ExternalIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 
 // "Pro Raid": one calm card per coming raid — when, which, and how full it is.

@@ -20,7 +20,7 @@ import {
     type ApiError, type GuildBankCharacterChoice, type GuildBankItem, type GuildBankWaitingEntry, type GuildBankWaitlist,
 } from "../../api";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
-import { ChevronDownIcon, ChevronUpIcon, LinkIcon, TrashIcon } from "../../components/ui/icons";
+import { ChevronDownIcon, ChevronUpIcon, LinkIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { useToast } from "../../components/shell/Jobs";
 import { useApi } from "../../hooks/useApi";

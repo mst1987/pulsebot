@@ -4,7 +4,7 @@ import {
     type BulkSignupResult, type OwnSignupRow, type SignupClass, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal } from "../ui";
-import { CheckIcon, XIcon } from "../ui/icons";
+import { CheckIcon, XIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import SignupCharacterPicks from "./SignupCharacterPicks";
 import { formatEventTime } from "../../lib/format";

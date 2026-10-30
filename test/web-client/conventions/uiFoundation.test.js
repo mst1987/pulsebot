@@ -72,7 +72,7 @@ describe("building blocks", () => {
         expect(shell).toContain("<TipLayer />");
         expect(shell).toContain("<IconButton className=\"menu-toggle\"");
         expect(read("components/shell/ThemeToggle.tsx")).toContain("<IconButton");
-        expect(read("components/ui/Pager.tsx")).toMatch(/<IconButton size="sm" icon=\{<ChevronLeftIcon \/>\}/);
+        expect(read("components/ui/table/Pager.tsx")).toMatch(/<IconButton size="sm" icon=\{<ChevronLeftIcon \/>\}/);
         const guild = read("components/shell/ServerHeader.tsx");
         expect(guild).toContain("const GUILD_ICON = \"inv_misc_tabardpvp_01\";");
         expect(guild).not.toContain("← bitte zuerst einen Server wählen");
@@ -80,8 +80,8 @@ describe("building blocks", () => {
     });
 
     it("swaps the glyphs of pager, sort header and toast for icons", () => {
-        expect(read("components/ui/Pager.tsx")).not.toMatch(/‹ Zurück|Weiter ›/);
-        const sort = read("components/ui/SortTh.tsx");
+        expect(read("components/ui/table/Pager.tsx")).not.toMatch(/‹ Zurück|Weiter ›/);
+        const sort = read("components/ui/table/SortTh.tsx");
         expect(sort).not.toMatch(/▲|▼/);
         expect(sort).toContain("<ChevronDownIcon />");
         expect(sort).toMatch(/\n\s+tip\?: string;/);
@@ -165,7 +165,7 @@ describe("tooltips and modal dialogs", () => {
         const sources = Object.fromEntries(clientSources());
         // the one other layer: the public plan page (/p/<token>) renders without the menu shell (App.tsx answers it before the session),
         // so it mounts the same TipLayer itself (#503) - still one layer per page
-        const shells = ["components/shell/Shell.tsx", "components/ui/Tip.tsx", "pages/raidplan/PlanPublicPage.tsx"];
+        const shells = ["components/shell/Shell.tsx", "components/ui/overlay/Tip.tsx", "pages/raidplan/PlanPublicPage.tsx"];
         const layers = Object.entries(sources)
             .filter(([name, src]) => shells.indexOf(name) < 0 && /<TipLayer\s*\/>/.test(src))
             .map(([name]) => name);

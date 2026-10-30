@@ -8,7 +8,7 @@ import {
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { Badge, Button, PageHead, RaidLoader, useConfirm } from "../../components/ui";
-import { PlusIcon } from "../../components/ui/icons";
+import { PlusIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AddCharacterDialog, { type AddWay } from "../../components/character/AddCharacterDialog";
 import EditCharacterDialog from "../../components/character/EditCharacterDialog";

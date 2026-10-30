@@ -4,17 +4,17 @@ import type { CollectionEditor } from "../../lib/ui/collectionEditor";
 import { useTableSort, type Dir } from "../../lib/ui/tableSort";
 import { specsInContent } from "../../lib/discord/recruitmentSpecs";
 import { messageLink } from "../../lib/discord/discordLinks";
-import { SortTh } from "../../components/ui/SortTh";
-import { ExternalIcon, TrashIcon } from "../../components/ui/icons";
+import { SortTh } from "../../components/ui/table/SortTh";
+import { ExternalIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { useJobs, useToast } from "../../components/shell/Jobs";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import { PartHead } from "../../components/ui/PartHead";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import { useT } from "../../i18n";
 import { ICONS, openExternal, shortStamp } from "./shared";
 import { VersionTag, WantedIcons } from "./RecruitmentBits";
-import { EditIcon } from "../../components/ui/icons";
+import { EditIcon } from "../../components/ui/icons/icons";
 
 type PostSortKey = "channel" | "wanted" | "template" | "source" | "updated";
 

@@ -7,7 +7,7 @@ import { Link } from "react-router-dom";
 import type { CouncilHead as Head } from "../../api";
 import { Badge, buttonClass } from "../../components/ui";
 import { useT } from "../../i18n";
-import { pickFields } from "./profiles";
+import { pickFields } from "./model/profiles";
 
 export function CouncilHead({ head, value, onPick, onProfiles }: {
     head: Head;

@@ -1,4 +1,4 @@
-// The takeover assistant's logic (pages/kader/TakeoverWizard.tsx, docs/kaderplaner.md
+// The takeover assistant's logic (pages/kader/modals/TakeoverWizard.tsx, docs/kaderplaner.md
 // "Übernahme"): the draft the four steps fill (role → channels → who → result),
 // what keeps a step from going on, the body POST /api/kader/takeover takes, the
 // reason a takeover cannot start, and the players still waiting for the role

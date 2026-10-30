@@ -4,10 +4,10 @@ import { getVermerke, NOTE_LEVELS, type NoteLevel, type VermerkPerson } from "..
 import { useApi } from "../../hooks/useApi";
 import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, Button, PageHead, Segment } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { SortTh } from "../../components/ui/SortTh";
-import Icon from "../../components/ui/Icon";
-import { LockIcon, PlusIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { SortTh } from "../../components/ui/table/SortTh";
+import Icon from "../../components/ui/icons/Icon";
+import { LockIcon, PlusIcon } from "../../components/ui/icons/icons";
 import LevelMark from "../../components/vermerke/LevelMark";
 import { ReasonIcons } from "../../components/vermerke/ReasonIcon";
 import VermerkDialog, { type VermerkDialogPreset } from "../../components/vermerke/VermerkDialog";

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { switchGuild, type ApiError, type SessionGuild } from "../../api";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useToast } from "./Jobs";
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import Badge from "../ui/Badge";
-import { ChevronDownIcon, CheckIcon } from "../ui/icons";
+import { ChevronDownIcon, CheckIcon } from "../ui/icons/icons";
 import { t, useT } from "../../i18n";
 
 // The crest in front of a server's name when it has no Discord icon (or it does not load).

@@ -1,6 +1,6 @@
 import { Send } from "lucide-react";
 import { Button, Modal, useConfirm } from "../../ui";
-import { CheckIcon, CopyIcon } from "../../ui/icons";
+import { CheckIcon, CopyIcon } from "../../ui/icons/icons";
 import type { RaidplanBoard, RaidplanBoss } from "../../../api";
 import { sheetIncluded, sheetKeysFor } from "../../../lib/raidplan";
 import { useToast } from "../../shell/Jobs";

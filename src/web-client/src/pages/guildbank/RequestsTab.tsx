@@ -14,7 +14,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { linkGuildBankRequest, reassignGuildBankRequest, verifyGuildBankRequest, type ApiError, type GuildBankCharacterChoice, type GuildBankItem, type GuildBankRequest } from "../../api";
 import { Badge, Button, IconButton, Modal, WowIcon } from "../../components/ui";
-import { LinkIcon } from "../../components/ui/icons";
+import { LinkIcon } from "../../components/ui/icons/icons";
 import { ItemIcon } from "../../components/loot/LootBadges";
 import { useToast } from "../../components/shell/Jobs";
 import type { UseApi } from "../../hooks/useApi";

@@ -4,7 +4,7 @@
 import { useState } from "react";
 import { addGuildBankWaiting, type ApiError, type GuildBankItem, type GuildBankWaitlist } from "../../api";
 import { Button, Field, Modal, WowIcon } from "../../components/ui";
-import { MinusIcon, PlusIcon } from "../../components/ui/icons";
+import { MinusIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { useT } from "../../i18n";
 import { WAITLIST_ICON, itemName, waitlistItems } from "./bankView";

@@ -9,10 +9,10 @@
 import { useRef, useState } from "react";
 import { manageMenu, type ManageAction, type ManageMenuEntry, type ManageState } from "../../../lib/raids/eventManage";
 import { Button } from "../../../components/ui/Button";
-import WowIcon from "../../../components/ui/WowIcon";
-import { ChevronDownIcon } from "../../../components/ui/icons";
+import WowIcon from "../../../components/ui/icons/WowIcon";
+import { ChevronDownIcon } from "../../../components/ui/icons/icons";
 import { useT } from "../../../i18n";
-import Popover from "../../../components/ui/Popover";
+import Popover from "../../../components/ui/overlay/Popover";
 import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
 
 /** `entries` replaces the own event's menu (a Raid-Helper event has only its raid plan switch); `tipSub` the button's second line. */

@@ -1,4 +1,4 @@
-import Icon from "../ui/Icon";
+import Icon from "../ui/icons/Icon";
 import { useT } from "../../i18n";
 import { NOTE_REASONS, type NoteReason } from "../../api/vermerke";
 

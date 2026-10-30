@@ -27,16 +27,16 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 const readAll = (names) => names.map((f) => read("pages", "lootcouncil", f)).join("\n");
 
 /** The page: its component, its tabs and the view it keeps. */
-const PAGE_FILES = ["LootCouncilPage.tsx", "view.ts", "CouncilTabs.tsx", "RosterTab.tsx", "GapsTab.tsx", "GapCard.tsx", "Part.tsx", "BisListsTab.tsx", "CompareTab.tsx"];
+const PAGE_FILES = ["LootCouncilPage.tsx", "model/view.ts", "tabs/CouncilTabs.tsx", "tabs/RosterTab.tsx", "tabs/GapsTab.tsx", "tabs/GapCard.tsx", "Part.tsx", "tabs/BisListsTab.tsx", "tabs/CompareTab.tsx"];
 /** The building blocks both routes draw (formerly parts.tsx). */
 const PART_FILES = ["NeedBar.tsx", "ItemBits.tsx", "GearBadges.tsx", "CandidateTable.tsx"];
 
 const files = {
     page: readAll(PAGE_FILES),
-    council: read("pages", "lootcouncil", "council.ts"),
+    council: read("pages", "lootcouncil", "model", "council.ts"),
     parts: readAll(PART_FILES),
     filterBar: read("pages", "lootcouncil", "FilterBar.tsx"),
-    roster: read("pages", "lootcouncil", "RosterList.tsx"),
+    roster: read("pages", "lootcouncil", "tabs", "RosterList.tsx"),
     dialog: read("pages", "lootcouncil", "RaiderDialog.tsx"),
     drop: read("pages", "lootcouncil", "DropCheckPage.tsx"),
     css: read("styles", "loot-council.css"),

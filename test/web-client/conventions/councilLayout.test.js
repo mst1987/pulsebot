@@ -290,13 +290,13 @@ describe("loot council — icons, buttons, tooltips", () => {
     });
 
     it("uses the shared building blocks", () => {
-        for (const src of [page, parts, filterBar, roster, dialog, drop]) expect(src).toMatch(/from "\.\.\/\.\.\/components\/ui";/);
+        for (const src of [page, parts, filterBar, roster, dialog, drop]) expect(src).toMatch(/from "(\.\.\/){2,3}components\/ui";/);
     });
 
     it("draws the rich tooltips in the shared tooltip box", () => {
         // the shared <RichTip> (components/ui, also the roster's attendance) with the council's own class for what is inside
         expect(parts).toMatch(/<RichTip className="lc-rtip"/);
-        const tip = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/components/ui/RichTip.tsx"), "utf8");
+        const tip = require("fs").readFileSync(require("path").join(__dirname, "../../../src/web-client/src/components/ui/overlay/RichTip.tsx"), "utf8");
         expect(tip).toContain("className={`tip on rtip");
         // Inside an open dialog, or it would sit behind the backdrop.
         expect(tip).toMatch(/host="dialog"/);

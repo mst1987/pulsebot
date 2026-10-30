@@ -6,7 +6,7 @@
 const { read } = require("../clientSource");
 
 describe("ui/DataTable", () => {
-    const src = read("components/ui/DataTable.tsx");
+    const src = read("components/ui/table/DataTable.tsx");
 
     it("sorts through the shared comparator and header", () => {
         expect(src).toContain("sort.apply(rows, sortValue)");
@@ -27,7 +27,7 @@ describe("ui/DataTable", () => {
     });
 
     it("is exported with the other building blocks", () => {
-        expect(read("components/ui/index.ts")).toContain("export { default as DataTable, type Column } from \"./DataTable\";");
+        expect(read("components/ui/index.ts")).toContain("export { default as DataTable, type Column } from \"./table/DataTable\";");
     });
 });
 

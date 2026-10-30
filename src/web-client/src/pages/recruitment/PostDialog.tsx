@@ -3,10 +3,10 @@ import { postRecruitmentTemplate, type ApiError, type RecruitmentData, type Recr
 import { useDraftState } from "../../lib/ui/persistedState";
 import DiscordPreview from "./DiscordPreview";
 import { useToast } from "../../components/shell/Jobs";
-import { Modal } from "../../components/ui/Modal";
+import { Modal } from "../../components/ui/overlay/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import Segment from "../../components/ui/Segment";
+import Segment from "../../components/ui/form/Segment";
 import { useT } from "../../i18n";
 import { TipLabel, WantedIcons } from "./RecruitmentBits";
 import { LinkButtonFields } from "./LinkButtonFields";

@@ -8,7 +8,7 @@
 import type { CharLootPreview } from "../../api";
 import { fmtMs } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
-import { HoverPanel } from "../../components/ui/HoverPanel";
+import { HoverPanel } from "../../components/ui/overlay/HoverPanel";
 import { LootResponseBadge } from "../../components/loot/LootTable";
 import { useT } from "../../i18n";
 

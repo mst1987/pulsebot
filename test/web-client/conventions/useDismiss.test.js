@@ -42,7 +42,7 @@ describe("no hand-written click-outside listener is left", () => {
     const USERS = [
         "components/loot/LootFilters.tsx", "pages/cla/RowMenu.tsx", "pages/lootcouncil/FilterBar.tsx",
         "pages/recruitment/EmojiPicker.tsx", "components/loot/ItemSearchPicker.tsx", "pages/history/ManualLootForm.tsx", "components/raidplan/Flyout.tsx",
-        "pages/settings/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
+        "pages/settings/access/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
         "components/raidplan/editor/ViewControls.tsx", "components/ui/Button.tsx",
     ];
     const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "components/raidplan/editor/inspector/ContextMenu.tsx"];
@@ -53,7 +53,7 @@ describe("no hand-written click-outside listener is left", () => {
 
     test.each(VIA_POPOVER)("%s is dismissed by its Popover", (rel) => {
         expect(read(rel)).toMatch(/<Popover[\s\S]*onClose=/);
-        expect(read("components/ui/Popover.tsx")).toMatch(/useDismiss\(/);
+        expect(read("components/ui/overlay/Popover.tsx")).toMatch(/useDismiss\(/);
     });
 
     test("no component registers a document mousedown/click listener with a contains() check of its own", () => {

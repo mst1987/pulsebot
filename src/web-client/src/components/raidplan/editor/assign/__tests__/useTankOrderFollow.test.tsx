@@ -5,7 +5,7 @@ import { useState } from "react";
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 import type { Besetzung, RaidplanBoard, RaidplanPlayer } from "../../../../../api";
-import { ConfirmProvider } from "../../../../ui/Modal";
+import { ConfirmProvider } from "../../../../ui/overlay/Modal";
 import { boardOf, ensureBesetzung } from "../../../../../lib/raidplan";
 import { DEFAULTS_KEY } from "../../../../../lib/raidplan/inherit";
 import { assignOrSwap } from "../../../../../lib/raidplan/assign/rosterAssign";

@@ -7,7 +7,7 @@ import { act, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Besetzung, RaidplanBoard, RaidplanBoss, RaidplanPlayer, RaidplanSlot, RaidplanZone } from "../../../../api";
 import { JobsProvider } from "../../../shell/Jobs";
-import { ConfirmProvider } from "../../../ui/Modal";
+import { ConfirmProvider } from "../../../ui/overlay/Modal";
 import { boardOf, emptyBoard } from "../../../../lib/raidplan";
 import { badgeMetrics } from "../../../../lib/raidplan/board/labelScale";
 import BoardWorkspace from "../BoardWorkspace";

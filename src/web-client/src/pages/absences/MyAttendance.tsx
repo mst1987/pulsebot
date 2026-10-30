@@ -8,8 +8,8 @@ import {
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, BackButton, Button, IconButton, WowIcon, useConfirm, type Tone } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { AbsenceIcon, CheckIcon, CheckMark, PlusIcon, TrashIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { AbsenceIcon, CheckIcon, CheckMark, PlusIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";

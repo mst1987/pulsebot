@@ -10,15 +10,15 @@
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
-import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons";
+import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons/icons";
 import { BackButton, IconButton, IconTile, buttonClass } from "../../components/ui";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
 import { StateIcon } from "./parts";
-import { HeaderPeople } from "./Presence";
+import { HeaderPeople } from "./live/Presence";
 import RosterLink from "./RosterLink";
-import { TakeoverEntry, TakeoverLine } from "./TakeoverWizard";
+import { TakeoverEntry, TakeoverLine } from "./modals/TakeoverWizard";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */

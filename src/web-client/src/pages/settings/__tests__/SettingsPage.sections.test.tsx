@@ -4,7 +4,7 @@
 // save bar follows the draft — sending the access fields only when the server
 // would accept them and never the connection blocks (each modal saves its own).
 //
-// The sections are the page's icon rail (components/ui/SectionRail.tsx) left of
+// The sections are the page's icon rail (components/ui/layout/SectionRail.tsx) left of
 // the page; below 900 px the same markup is a chip row — that switch is CSS
 // (test/web-client/conventions/sectionNav.test.js).
 //
@@ -14,7 +14,7 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { MemoryRouter, Outlet, Route, Routes, useLocation } from "react-router-dom";
 import { JobsProvider } from "../../../components/shell/Jobs";
-import { ConfirmProvider } from "../../../components/ui/Modal";
+import { ConfirmProvider } from "../../../components/ui/overlay/Modal";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
 import type { AdminConfig, SettingsData } from "../../../api";
@@ -34,13 +34,13 @@ vi.mock("../../../api", async (orig) => ({
     closeCategory: vi.fn(),
 }));
 
-vi.mock("../RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
-vi.mock("../BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
-vi.mock("../SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
-vi.mock("../SettingsRaidhelperRetirement", () => ({ default: () => null }));
+vi.mock("../access/RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
+vi.mock("../access/BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
+vi.mock("../discord/SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
+vi.mock("../connections/SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
-vi.mock("../CategoryMatrix", () => ({
+vi.mock("../categories/CategoryMatrix", () => ({
     default: ({ onSheet, onPlanning, availabilityPanels, onToggleCategory, missing = [], onCloseCategory, closeBlocked }: {
         onSheet: (id: string, sheet: { url: string; name: string }) => void;
         onPlanning?: (id: string, mode: "raidplan" | "sheet") => void;

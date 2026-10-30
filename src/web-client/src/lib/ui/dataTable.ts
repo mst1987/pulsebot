@@ -1,4 +1,4 @@
-// The pure half of components/ui/DataTable.tsx (#439): which rows a page of a
+// The pure half of components/ui/table/DataTable.tsx (#439): which rows a page of a
 // client-side paged table shows. Kept free of React, tested in
 // src/web-client/src/lib/ui/__tests__/dataTable.test.ts.
 

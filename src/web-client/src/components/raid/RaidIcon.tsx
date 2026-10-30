@@ -1,4 +1,4 @@
-import WowIcon from "../ui/WowIcon";
+import WowIcon from "../ui/icons/WowIcon";
 import { useT } from "../../i18n";
 import { knownContents, raidIconName, raidLabel, raidSourceText, RAID_ICON_FALLBACK } from "../../lib/wow/raidIcons";
 

@@ -2,11 +2,11 @@ import { createReport } from "../../api";
 import { withIncompleteConfirm } from "../../lib/raids/confirmIncomplete";
 import { useDraftState } from "../../lib/ui/persistedState";
 import { useJobs } from "../../components/shell/Jobs";
-import { useConfirm, Modal } from "../../components/ui/Modal";
+import { useConfirm, Modal } from "../../components/ui/overlay/Modal";
 import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import Tip from "../../components/ui/Tip";
-import WowIcon from "../../components/ui/WowIcon";
+import Tip from "../../components/ui/overlay/Tip";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useT } from "../../i18n";
 import { SECTION_CHOICES, type SectionChoice } from "./shared";
 

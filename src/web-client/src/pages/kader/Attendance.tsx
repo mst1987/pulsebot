@@ -9,8 +9,8 @@
 // nights): they are named with their version ("TBC · Mo Raider") everywhere.
 import { useEffect, useRef, useState, type KeyboardEvent } from "react";
 import { updateKader, type KaderPlayer, type KaderRaidCategory, type KaderView } from "../../api";
-import Popover from "../../components/ui/Popover";
-import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons";
+import Popover from "../../components/ui/overlay/Popover";
+import { AlertIcon, CheckIcon, ChevronDownIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 import { formatDayMonth } from "../../lib/format";
 import { belowStartPlacement } from "../../lib/ui/popoverPosition";

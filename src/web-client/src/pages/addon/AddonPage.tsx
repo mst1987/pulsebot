@@ -22,7 +22,7 @@ import { useEffect, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { getAddons, type AddonCard, type AddonsData } from "../../api";
 import { AsyncView, Badge, Expand, PageHead, RaidLoader, WowIcon, buttonClass } from "../../components/ui";
-import { NotesIcon, WarnIcon } from "../../components/ui/icons";
+import { NotesIcon, WarnIcon } from "../../components/ui/icons/icons";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { formatDate, formatDateTime } from "../../lib/format";

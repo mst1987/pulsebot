@@ -3,7 +3,7 @@ import { searchProfileItems, type ItemSearchResult, type ProfessionList, type Pr
 import { Badge, Chip, IconButton, NumberStepper, WowIcon } from "../../components/ui";
 import ItemSearchPicker from "../../components/loot/ItemSearchPicker";
 import { ItemIcon } from "../../components/loot/LootBadges";
-import { EyeOffIcon, SearchIcon, XIcon } from "../../components/ui/icons";
+import { EyeOffIcon, SearchIcon, XIcon } from "../../components/ui/icons/icons";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { useLang, useT, type Lang } from "../../i18n";
 import { type Fold, FoldPart } from "./ProfileParts";

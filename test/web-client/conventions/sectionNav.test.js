@@ -1,11 +1,11 @@
 // Conventions of the pages with sub sections that a render cannot show: the
-// icon rail (components/ui/SectionRail.tsx) turns into the chip row exactly where
+// icon rail (components/ui/layout/SectionRail.tsx) turns into the chip row exactly where
 // the main menu becomes the drawer, it stands outside the page's width budget,
 // and the main menu folds nothing out any more (design "C · Schmale
 // Icon-Leiste"). On the Einstellungen page every per-category setting has one
 // home (the category matrix), and explanations sit in tooltips instead of hint
 // paragraphs. What the rail, the sections and the save bar do is tested in
-// src/web-client/src/components/ui/__tests__/SectionRail.test.tsx, components/shell/__tests__/Shell.test.tsx,
+// src/web-client/src/components/ui/layout/__tests__/SectionRail.test.tsx, components/shell/__tests__/Shell.test.tsx,
 // lib/settings/__tests__/settingsSections.test.ts and pages/settings/__tests__/SettingsPage.sections.test.tsx;
 // the areas of Historie & Loot in pages/history/__tests__/HistoryPage.areas.test.tsx.
 const fs = require("fs");
@@ -105,7 +105,7 @@ describe("page width", () => {
 describe("Einstellungen conventions", () => {
     it("configures each per-category setting in exactly one place", () => {
         // the list and its open card (CategoryDetail.tsx) together
-        const matrix = readClient("pages", "settings", "CategoryMatrix.tsx") + readClient("pages", "settings", "CategoryDetail.tsx");
+        const matrix = readClient("pages", "settings", "categories", "CategoryMatrix.tsx") + readClient("pages", "settings", "categories", "CategoryDetail.tsx");
         for (const prop of ["categoryRoles", "categoryLootTool", "categorySheets"]) {
             expect(matrix).toContain(prop);
             const renderedElsewhere = settingsSrc.includes(`value={draft.${prop}}`);
@@ -119,9 +119,9 @@ describe("Einstellungen conventions", () => {
     it("turns the hint paragraphs into tooltips", () => {
         const files = {
             "SettingsPage.tsx": settingsSrc,
-            "RolePermissions.tsx": readClient("pages", "settings", "RolePermissions.tsx"),
-            "CategoryMatrix.tsx": readClient("pages", "settings", "CategoryMatrix.tsx"),
-            "CategoryDetail.tsx": readClient("pages", "settings", "CategoryDetail.tsx"),
+            "RolePermissions.tsx": readClient("pages", "settings", "access", "RolePermissions.tsx"),
+            "CategoryMatrix.tsx": readClient("pages", "settings", "categories", "CategoryMatrix.tsx"),
+            "CategoryDetail.tsx": readClient("pages", "settings", "categories", "CategoryDetail.tsx"),
         };
         for (const [name, src] of Object.entries(files)) {
             expect({ name, hint: src.includes("className=\"hint\""), note: src.includes("<p className=\"note\">") })

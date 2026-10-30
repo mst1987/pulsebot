@@ -2,9 +2,9 @@ import type { ReactNode } from "react";
 import type { Application, RecruitmentData } from "../../api";
 import { specsInContent, specEmojiUrl } from "../../lib/discord/recruitmentSpecs";
 import { SpecImg } from "./SpecPicker";
-import { CheckIcon } from "../../components/ui/icons";
+import { CheckIcon } from "../../components/ui/icons/icons";
 import Badge from "../../components/ui/Badge";
-import WowIcon from "../../components/ui/WowIcon";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useT } from "../../i18n";
 
 

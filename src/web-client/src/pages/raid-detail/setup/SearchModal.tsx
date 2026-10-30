@@ -4,10 +4,10 @@ import { addRole, groupSearchBuffs, removeBuffs, searchNeedsFrom, stepRole, togg
 import { roleLabel, rolePluralLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import { Button, IconButton } from "../../../components/ui/Button";
-import { Modal } from "../../../components/ui/Modal";
-import WowIcon from "../../../components/ui/WowIcon";
+import { Modal } from "../../../components/ui/overlay/Modal";
+import WowIcon from "../../../components/ui/icons/WowIcon";
 import { useJobs } from "../../../components/shell/Jobs";
-import { XIcon } from "../../../components/ui/icons";
+import { XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 
 /**

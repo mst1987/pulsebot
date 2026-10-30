@@ -1,5 +1,5 @@
 // The app's own icon set (#951) for server-rendered HTML — the CommonJS twin of
-// src/web-client/src/lib/ui/iconSet.ts + components/ui/Icon.tsx. The glyphs are
+// src/web-client/src/lib/ui/iconSet.ts + components/ui/icons/Icon.tsx. The glyphs are
 // uiIcons.json (the paths of the accepted canvas of #951, changed only there first): one even-odd path on a
 // 24 × 24 grid and one of four tones, drawn in `var(--icon-<tone>)`. The line
 // icons are uiLineIcons.json (same source): stroke paths in currentColor for

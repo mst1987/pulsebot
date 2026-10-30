@@ -1,7 +1,7 @@
 // Small pieces the start page and its raid-details modal share.
 import type { DashboardRole } from "../../api";
-import Bar from "../../components/ui/Bar";
-import WowIcon from "../../components/ui/WowIcon";
+import Bar from "../../components/ui/table/Bar";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import { useT } from "../../i18n";
 import { roleLabel } from "../../lib/wow/wowNames";
 

@@ -4,10 +4,10 @@
 // badge and menu entry are offered (src/web/lootSystem.js).
 import { useEffect, useState } from "react";
 import { setRaidLootSystem, type ApiError, type LootSystemKey } from "../../../api";
-import { Modal } from "../../../components/ui/Modal";
+import { Modal } from "../../../components/ui/overlay/Modal";
 import { Button } from "../../../components/ui/Button";
-import { SaveIcon } from "../../../components/ui/icons";
-import Segment from "../../../components/ui/Segment";
+import { SaveIcon } from "../../../components/ui/icons/icons";
+import Segment from "../../../components/ui/form/Segment";
 import { SwitchRow } from "../../../components/raid/RaidFields";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT, type TFunction } from "../../../i18n";

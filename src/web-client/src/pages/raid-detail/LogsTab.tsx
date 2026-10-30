@@ -4,12 +4,12 @@
 import { useState } from "react";
 import type { LogSection, RaidLogRow } from "../../api";
 import { resetEval, unlinkLog, type ApiError } from "../../api";
-import { PartHead } from "../../components/ui/PartHead";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
-import IconTile from "../../components/ui/IconTile";
-import { useConfirm } from "../../components/ui/Modal";
-import { CheckIcon, ExternalIcon, RefreshIcon, XIcon } from "../../components/ui/icons";
+import IconTile from "../../components/ui/icons/IconTile";
+import { useConfirm } from "../../components/ui/overlay/Modal";
+import { CheckIcon, ExternalIcon, RefreshIcon, XIcon } from "../../components/ui/icons/icons";
 import { LOG_ANALYSES, type RaidCtx } from "./meta";
 import type { Evaluator } from "./useEvaluate";
 import { useT } from "../../i18n";

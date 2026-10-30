@@ -1,0 +1,297 @@
+import { Fragment, useCallback, useEffect, useState } from "react";
+import { getRaiderCharacters, type Category, type MissingCategory, type Role } from "../../../api";
+import { usePersistedState } from "../../../lib/ui/persistedState";
+import { raiderRoleOptions } from "../../../lib/settings/categoryLifecycle";
+import { Button } from "../../../components/ui/Button";
+import {
+    categoryRows, splitCategoryRows, summarizeRaiderChars, signupNoteMode, signupCharactersOf, planningOf, SIGNUP_CHARACTERS,
+    type CategoryRow, type RaiderCharSummary,
+} from "../../../lib/settings/settingsLogic";
+import { tParts, useT } from "../../../i18n";
+import Badge from "../../../components/ui/Badge";
+import Expand from "../../../components/ui/layout/Expand";
+import PartHead from "../../../components/ui/layout/PartHead";
+import Segment from "../../../components/ui/form/Segment";
+import RaiderCharactersModal from "./RaiderCharactersModal";
+import CategoryDetail, { type CategorySettings, type CategoryTab } from "./CategoryDetail";
+import { WarnIcon } from "../../../components/ui/icons/icons";
+
+// Everything that is configured *per raid category*, as one list instead of a
+// card per Discord category: active switch, raider roles, where new events are
+// created (Raid-Helper / EventHelper), loot addon, how the raids are planned
+// (raid plan or sheet) and the raider → character assignment, which used to be
+// a section of its own with a second category picker. One row opens at a time;
+// its settings sit in four tabs (CategoryDetail.tsx).
+//
+// The guild's Discord holds far more categories than raid ones (typically 13 of
+// 17 are not), so the inactive ones fold away under one line; the part head's
+// segment shows them all. A configured id Discord no longer knows stays visible
+// with a `bad` badge — dropping it would delete its settings on the next save.
+// When the bot sees every server and the id is really gone (#744,
+// `missing`), the badge says "in Discord gelöscht" and the row offers
+// "Kategorie abschließen" (CategoryCloseDialog.tsx).
+//
+// #926: the list is the active server's. Categories configured for another
+// server are left out (`otherServer`); one without a proven, configured server
+// shows on the first server with an "unproven" badge and is never closable —
+// the prod incident of 2026-10-27 closed a whole server's categories that way.
+
+export type { CategorySheet } from "./CategoryDetail";
+
+export default function CategoryMatrix(props: CategorySettings & {
+    categories: Category[];
+    roles: Role[];
+    categoryIds: string[];
+    onToggleCategory: (id: string) => void;
+    /** #744: configured categories Discord no longer has, and the close action (disabled while the page has unsaved changes). */
+    missing?: MissingCategory[];
+    onCloseCategory?: (category: MissingCategory) => void;
+    closeBlocked?: boolean;
+    /** #926: active categories without a proven server (marked, never closable) and categories of other servers (left out). */
+    unproven?: string[];
+    otherServer?: string[];
+    /** #926: false when the active server is not in the server list -- nothing here can be proven gone then. */
+    serverListed?: boolean;
+    icon: string;
+    crumb: string;
+}) {
+    const {
+        categories, roles, categoryIds, categoryRoles, categoryLootTool, categorySignupSource = {}, signupSourceDefault = "raidhelper",
+        categorySetupDms = {}, categoryLanguage = {}, categoryAttendance = {}, categoryAnnounce = {}, categorySheets, categoryPlanning = {}, savedCategoryRoles,
+        categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
+        categorySignupCharacters = {}, categoryServerOverview = {}, missing = [], onCloseCategory, closeBlocked = false,
+        unproven = [], otherServer = [], serverListed = true,
+        onToggleCategory, icon, crumb,
+    } = props;
+    const missingById = new Map(missing.map((m) => [m.categoryId, m]));
+    const unprovenIds = new Set(unproven);
+    const otherServerIds = new Set(otherServer);
+    const t = useT();
+    const [showAll, setShowAll] = usePersistedState("settings-categories-all", false);
+    const [openId, setOpenId] = useState("");
+    // The open tab of each category's card; the first one until another is picked.
+    // Remembered like every tab of the menu, so reopening a card lands where one worked last.
+    const [tabs, setTabs] = usePersistedState<Record<string, CategoryTab>>("settings-category-tabs", {});
+    const [foldOpen, setFoldOpen] = useState(false);
+    const [assigning, setAssigning] = useState<CategoryRow | null>(null);
+    const [chars, setChars] = useState<Record<string, RaiderCharSummary>>({});
+
+    const configured = [
+        ...categoryIds,
+        ...Object.keys(categoryRoles),
+        ...Object.keys(categoryLootTool),
+        ...Object.keys(categoryLootSystem).filter((id) => categoryLootSystem[id]),
+        ...Object.keys(categorySignupSource),
+        ...Object.keys(categorySetupDms).filter((id) => categorySetupDms[id]),
+        ...Object.keys(categoryLanguage).filter((id) => categoryLanguage[id]),
+        ...Object.keys(categoryAttendance),
+        ...Object.keys(categoryDiscordEvent).filter((id) => categoryDiscordEvent[id]),
+        ...Object.keys(categoryServerOverview).filter((id) => categoryServerOverview[id] === false),
+        ...Object.keys(categoryVoiceChannel).filter((id) => categoryVoiceChannel[id]),
+        ...Object.keys(categoryAnnounce).filter((id) => categoryAnnounce[id] && categoryAnnounce[id].enabled),
+        ...Object.keys(categorySignupNotes).filter((id) => signupNoteMode(categorySignupNotes, id) !== "optional"),
+        ...Object.keys(categorySignupNoteChannel).filter((id) => categorySignupNoteChannel[id]),
+        ...Object.keys(categorySignupCharacters).filter((id) => signupCharactersOf(categorySignupCharacters, id) !== SIGNUP_CHARACTERS.default),
+        ...Object.keys(categorySheets),
+        ...Object.keys(categoryPlanning),
+        // a series or a Loot-Council profile entry is enough to be listed as deleted in Discord (#744)
+        ...missing.map((m) => m.categoryId),
+    ].filter((id) => !otherServerIds.has(id)); // #926: another server's categories are edited there
+    // A category deleted in Discord (#744) is an unknown row (always shown) under the last name the server knows.
+    const rows = categoryRows(categories, configured)
+        .map((r) => (r.unknown && missingById.has(r.id) ? { ...r, name: missingById.get(r.id)!.name || t("settings.categoryClose.unknownName") } : r));
+    const { shown, folded } = splitCategoryRows(rows, categoryIds, showAll);
+    // Only roles whose name says "raid" are offered — plus any a category already
+    // uses, by id, so a renamed raider role stays (#744) — to keep a guild's
+    // dozens of cosmetic roles out of the picker.
+    const roleOptions = raiderRoleOptions(roles, categoryRoles);
+
+    // The "22 / 25" of every category that has saved raider roles. One request
+    // per category, best-effort: a failure leaves the cell at "–".
+    const savedKey = JSON.stringify(savedCategoryRoles);
+    const loadChars = useCallback((ids: string[]) => {
+        for (const id of ids) {
+            getRaiderCharacters(id)
+                .then((info) => setChars((prev) => ({ ...prev, [id]: summarizeRaiderChars(info) })))
+                .catch(() => undefined);
+        }
+    }, []);
+    useEffect(() => {
+        const withRoles = Object.entries(JSON.parse(savedKey) as Record<string, string[]>)
+            .filter(([, ids]) => ids && ids.length)
+            .map(([id]) => id);
+        loadChars(withRoles);
+    }, [savedKey, loadChars]);
+
+    const activeCount = categoryIds.filter((id) => rows.some((r) => r.id === id)).length;
+    // #291: the raid categories whose new events still go to Raid-Helper — one
+    // badge in the head, the names in its tooltip, the way out in Verbindungen.
+    // #927: on a server without Raid-Helper no category still creates there
+    const stillRaidhelper = props.raidhelperActive === false ? []
+        : rows.filter((r) => categoryIds.includes(r.id) && (categorySignupSource[r.id] || signupSourceDefault) === "raidhelper");
+
+    const partHead = (
+        <PartHead
+            icon={icon}
+            tone="settings"
+            title={t("settings.sections.kategorien.label")}
+            crumb={stillRaidhelper.length ? (
+                <>
+                    {`${t("settings.crumb", { crumb })} `}
+                    <Badge
+                        tone="mid"
+                        icon={<WarnIcon />}
+                        tip={t("settings.categories.stillRhTip", { count: stillRaidhelper.length })}
+                        tipSub={t("settings.categories.stillRhSub", { names: stillRaidhelper.map((r) => r.name).join(", ") })}
+                    >
+                        {tParts("settings.categories.stillRh", { count: stillRaidhelper.length })}
+                    </Badge>
+                </>
+            ) : t("settings.crumb", { crumb })}
+            action={(
+                <Segment
+                    size="sm"
+                    ariaLabel={t("settings.categories.whichAria")}
+                    value={showAll ? "all" : "raid"}
+                    onChange={(v) => setShowAll(v === "all")}
+                    options={[
+                        { value: "raid", label: t("settings.categories.raidOnes", { count: activeCount }) },
+                        { value: "all", label: t("settings.categories.allOnes", { count: rows.length }) },
+                    ]}
+                />
+            )}
+        />
+    );
+
+    // #926: a server missing from the server list proves nothing gone -- said once, above the list.
+    const notListed = serverListed ? null : (
+        <div className="note is-bad" role="status"><strong>{t("settings.categories.notListed")}</strong> {t("settings.categories.notListedSub")}</div>
+    );
+
+    if (!rows.length) {
+        return (
+            <>
+                {partHead}
+                {notListed}
+                <div className="empty">{t("settings.categories.empty")}</div>
+            </>
+        );
+    }
+
+    /** The head's planning pill: the raid plan, or the sheet (its name and link in the tooltip). */
+    const planningBadge = (catId: string) => {
+        if (planningOf(catId, categoryPlanning, categorySheets) === "raidplan") {
+            return <Badge tone="accent" icon="raidplan" tip={t("settings.categories.planningRaidplanTip")} tipSub={t("settings.categories.planningRaidplanSub")}>{t("settings.planning.raidplan")}</Badge>;
+        }
+        const sheet = categorySheets[catId] || { url: "", name: "" };
+        return sheet.url
+            ? <Badge tone="ok" icon="googleSheets" tip={sheet.name || t("settings.categories.fixedSheet")} tipSub={sheet.url}>{t("settings.planning.sheet")}</Badge>
+            : <Badge tone="ok" icon="googleSheets" tip={t("settings.categories.planningCopiesTip")} tipSub={t("settings.categories.planningCopiesSub")}>{t("settings.planning.sheet")}</Badge>;
+    };
+
+    const row = (cat: CategoryRow) => {
+        const active = categoryIds.includes(cat.id);
+        const assigned = categoryRoles[cat.id] || [];
+        const tool = categoryLootTool[cat.id] || "";
+        const summary = chars[cat.id];
+        const isOpen = openId === cat.id && active;
+        const openCount = summary ? summary.members - summary.assigned : 0;
+        const gone = missingById.get(cat.id);
+        return (
+            <Fragment key={cat.id}>
+                <div className={`cat-row${active ? " is-on" : ""}${isOpen ? " is-open" : ""}`} data-category={cat.id}>
+                    <label className="switch" data-tip={active ? t("settings.categories.isRaid") : t("settings.categories.notRaid")} data-tip-sub={t("settings.categories.switchSub")}>
+                        <input type="checkbox" checked={active} onChange={() => onToggleCategory(cat.id)} aria-label={t("settings.categories.switchAria", { name: cat.name })} />
+                        <span className="switch-track"><span className="switch-thumb" /></span>
+                    </label>
+                    <div className="cat-name">
+                        <span>{cat.name}</span>
+                        {cat.unknown && gone && (
+                            <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categoryClose.badgeTip")} tipSub={t("settings.categoryClose.badgeSub")}>
+                                {t("settings.categoryClose.badge")}
+                            </Badge>
+                        )}
+                        {cat.unknown && gone && onCloseCategory && (
+                            <span data-tip={closeBlocked ? t("settings.categoryClose.saveFirst") : undefined}>
+                                <Button size="sm" variant="danger" disabled={closeBlocked} onClick={() => onCloseCategory(gone)}>{t("settings.categoryClose.action")}</Button>
+                            </span>
+                        )}
+                        {cat.unknown && !gone && unprovenIds.has(cat.id) && (
+                            <Badge tone="mid" icon={<WarnIcon />} tip={t("settings.categories.unprovenTip")} tipSub={t("settings.categories.unprovenSub")}>
+                                {t("settings.categories.unproven")}
+                            </Badge>
+                        )}
+                        {cat.unknown && !gone && !unprovenIds.has(cat.id) && (
+                            <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categories.unknownTip")} tipSub={t("settings.categories.unknownSub")}>
+                                {t("settings.categories.unknown")}
+                            </Badge>
+                        )}
+                    </div>
+                    {active ? (
+                        <>
+                            <div className="cat-cell">{assigned.length
+                                ? <Badge tone="accent">{t("settings.categories.roleCount", { count: assigned.length })}</Badge>
+                                : <Badge tone="bad" icon={<WarnIcon />}>{t("settings.categories.noRoles")}</Badge>}
+                            </div>
+                            <div className="cat-cell">{tool
+                                ? <Badge icon="loot">{tool === "gargul" ? "Gargul" : "RCLootcouncil"}</Badge>
+                                : <Badge tone="mid" icon={<WarnIcon />}>{t("settings.categories.missing")}</Badge>}
+                            </div>
+                            <div className="cat-cell">{planningBadge(cat.id)}</div>
+                            <div className="cat-cell">{summary && summary.members
+                                ? <Badge tone={openCount ? "mid" : "ok"} tip={t("settings.categories.chars")} tipSub={t("settings.categories.charsSub", { assigned: summary.assigned, members: summary.members })}>{summary.assigned} / {summary.members}</Badge>
+                                : <Badge>–</Badge>}
+                            </div>
+                            <Expand open={isOpen} onToggle={() => setOpenId(isOpen ? "" : cat.id)} showLabel={!isOpen} />
+                        </>
+                    ) : <div className="cat-off note">{t("settings.categories.noRaidEvents")}</div>}
+                </div>
+                {isOpen && (
+                    <CategoryDetail
+                        cat={cat} s={props} roles={roleOptions} summary={summary}
+                        tab={tabs[cat.id] || "raider"} onTab={(tab) => setTabs((prev) => ({ ...prev, [cat.id]: tab }))}
+                        onAssign={() => setAssigning(cat)}
+                    />
+                )}
+            </Fragment>
+        );
+    };
+
+    return (
+        <>
+            {partHead}
+            {notListed}
+            <div className="cat-list table-scroll">
+                <div className="cat-inner">
+                    <div className="cat-row cat-head" aria-hidden="true">
+                        <span>{t("settings.categories.colActive")}</span><span>{t("settings.categories.colCategory")}</span><span>{t("settings.categories.raiderRoles")}</span><span>{t("settings.categories.lootAddon")}</span><span>{t("settings.categories.colPlanning")}</span><span>{t("settings.categories.colChars")}</span><span />
+                    </div>
+                    {shown.map(row)}
+                    {!shown.length && <div className="empty">{t("settings.categories.noneShown")}</div>}
+                    {folded.length > 0 && (
+                        <>
+                            <div className="cat-fold">
+                                <span className="note">{t("settings.categories.folded", { count: folded.length })}</span>
+                                <span className="cat-fold-names mono">{folded.slice(0, 4).map((c) => c.name).join(", ")}{folded.length > 4 ? " …" : ""}</span>
+                                <Expand open={foldOpen} onToggle={() => setFoldOpen(!foldOpen)} />
+                            </div>
+                            {foldOpen && folded.map(row)}
+                        </>
+                    )}
+                </div>
+            </div>
+
+            {assigning && (
+                <RaiderCharactersModal
+                    categoryId={assigning.id}
+                    categoryName={assigning.name}
+                    onClose={() => setAssigning(null)}
+                    onSaved={(info) => {
+                        setChars((prev) => ({ ...prev, [assigning.id]: summarizeRaiderChars(info) }));
+                        setAssigning(null);
+                    }}
+                />
+            )}
+        </>
+    );
+}

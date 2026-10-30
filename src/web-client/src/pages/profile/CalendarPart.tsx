@@ -2,7 +2,7 @@ import { useState } from "react";
 import { createCalendarToken, revokeCalendarToken, type ApiError, type CalendarToken, type CalendarTokens } from "../../api";
 import { Badge, Button, IconButton, RaidLoader, useConfirm } from "../../components/ui";
 import { useToast } from "../../components/shell/Jobs";
-import { TrashIcon, CopyIcon, CheckIcon, PlusIcon } from "../../components/ui/icons";
+import { TrashIcon, CopyIcon, CheckIcon, PlusIcon } from "../../components/ui/icons/icons";
 import { formatDate } from "../../lib/format";
 import { useT } from "../../i18n";
 

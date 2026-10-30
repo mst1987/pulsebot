@@ -3,18 +3,18 @@ import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom
 import { getHistoryEvent, clearHistoryEvent, deleteLootItems, canAccess, type ApiError, type LootItem } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useFollowVersion } from "../../hooks/useFollowVersion";
-import AsyncView from "../../components/ui/AsyncView";
+import AsyncView from "../../components/ui/layout/AsyncView";
 import { LootTable } from "../../components/loot/LootTable";
 import ManualLootForm from "./ManualLootForm";
 import type { ShellContext } from "../../components/shell/Shell";
-import { ChevronLeftIcon, TrashIcon } from "../../components/ui/icons";
+import { ChevronLeftIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
-import { useConfirm } from "../../components/ui/Modal";
+import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
-import { PartHead } from "../../components/ui/PartHead";
+import { PartHead } from "../../components/ui/layout/PartHead";
 import Badge from "../../components/ui/Badge";
 import "../../styles/history-loot.css";
-import RaidLoader from "../../components/ui/RaidLoader";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { tParts, useT } from "../../i18n";
 
 export default function HistoryEventPage() {

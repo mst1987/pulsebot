@@ -2,7 +2,7 @@ import { useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { Check, Minus, Plus, Search, Trash2, X } from "lucide-react";
 import type { Catalog, RaidplanAssignment, RaidplanBoard, RaidplanMobRef, RaidplanPlayer, RaidplanStep, RaidplanStepTarget, RaidplanTiming } from "../../../../api";
 import { Button, Modal } from "../../../ui";
-import WowIcon from "../../../ui/WowIcon";
+import WowIcon from "../../../ui/icons/WowIcon";
 import ClassRefIcon from "../../ClassRefIcon";
 import RoleGlyph from "../../RoleGlyph";
 import { MarkIcon } from "../../MarkIcon";

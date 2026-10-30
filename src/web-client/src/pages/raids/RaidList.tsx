@@ -7,12 +7,12 @@ import { formatDateTime, relativeDayLabel } from "../../lib/format";
 import { eventDay, monthBands, weekBands, type TimeBand } from "../../lib/raids/raidTime";
 import { withRaidGroups } from "../../lib/raids/raidGroups";
 import RaidIcon from "../../components/raid/RaidIcon";
-import WowIcon from "../../components/ui/WowIcon";
+import WowIcon from "../../components/ui/icons/WowIcon";
 import Badge from "../../components/ui/Badge";
-import Bar from "../../components/ui/Bar";
-import Expand from "../../components/ui/Expand";
+import Bar from "../../components/ui/table/Bar";
+import Expand from "../../components/ui/layout/Expand";
 import { IconButton } from "../../components/ui/Button";
-import { ChevronDownIcon, ChevronRightIcon } from "../../components/ui/icons";
+import { ChevronDownIcon, ChevronRightIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 
 // The Raid-Events list: one grid list (.glist), grouped by time — coming raids

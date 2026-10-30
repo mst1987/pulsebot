@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
 import type { ClaRaid } from "../../api";
 import Badge from "../ui/Badge";
-import { CheckIcon } from "../ui/icons";
+import { CheckIcon } from "../ui/icons/icons";
 import { raidCount, raidIcon } from "../../lib/raids/logRaids";
 import { useT } from "../../i18n";
 import "../../styles/logcheck.css";

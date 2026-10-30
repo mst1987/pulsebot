@@ -6,7 +6,7 @@
 import { useState } from "react";
 import type { GuildBankItem, GuildBankItemPatch } from "../../api";
 import { Button, Field, Modal } from "../../components/ui";
-import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons";
+import { MinusIcon, PlusIcon, SaveIcon } from "../../components/ui/icons/icons";
 import { useT } from "../../i18n";
 import { itemName, PORTION_MAX, PORTION_MIN, validPortion, wholeNumber } from "./bankView";
 

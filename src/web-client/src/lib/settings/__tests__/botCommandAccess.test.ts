@@ -1,5 +1,5 @@
 // Einstellungen → Berechtigungen → Bot-Befehle (issue #252): the rules in
-// lib/settings/botCommandAccess.ts. The view (pages/settings/BotCommandAccess.tsx) is
+// lib/settings/botCommandAccess.ts. The view (pages/settings/access/BotCommandAccess.tsx) is
 // checked on its source in test/web-client/botCommandAccess.test.js.
 import { describe, expect, it } from "vitest";
 import * as logic from "../botCommandAccess";

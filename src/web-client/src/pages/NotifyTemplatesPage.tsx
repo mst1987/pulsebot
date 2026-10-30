@@ -7,14 +7,14 @@ import { formatTime } from "../lib/format";
 import { useDraftState } from "../lib/ui/persistedState";
 import { useCollectionEditor } from "../lib/ui/collectionEditor";
 import { useTableSort, type Dir } from "../lib/ui/tableSort";
-import { SaveIcon, TrashIcon, BrandIcon, ChevronDownIcon } from "../components/ui/icons";
+import { SaveIcon, TrashIcon, BrandIcon, ChevronDownIcon } from "../components/ui/icons/icons";
 import { useToast } from "../components/shell/Jobs";
-import { Modal, useConfirm } from "../components/ui/Modal";
+import { Modal, useConfirm } from "../components/ui/overlay/Modal";
 import { Button, IconButton } from "../components/ui/Button";
-import IconTile from "../components/ui/IconTile";
+import IconTile from "../components/ui/icons/IconTile";
 import Badge from "../components/ui/Badge";
 import "../styles/raid-events.css";
-import RaidLoader from "../components/ui/RaidLoader";
+import RaidLoader from "../components/ui/layout/RaidLoader";
 import { tParts, t as tr, useT } from "../i18n";
 
 // Aufruf-Vorlagen: the list first, the editor as a dialog over it. The open

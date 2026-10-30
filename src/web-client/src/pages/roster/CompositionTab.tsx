@@ -12,8 +12,8 @@ import { getRosterComposition, type RosterComposition, type RosterDetail, type S
 import { useApi } from "../../hooks/useApi";
 import { useLang, useT } from "../../i18n";
 import { AsyncView, Button, IconTile, WowIcon, buttonClass } from "../../components/ui";
-import RaidLoader from "../../components/ui/RaidLoader";
-import { AlertIcon, CheckIcon, XIcon } from "../../components/ui/icons";
+import RaidLoader from "../../components/ui/layout/RaidLoader";
+import { AlertIcon, CheckIcon, XIcon } from "../../components/ui/icons/icons";
 import { canAccess } from "../../lib/app/access";
 import { classLabel, roleLabel, rolePluralLabel } from "../../lib/wow/wowNames";
 import { ROLE_ICONS } from "../../lib/roster/rosters";
