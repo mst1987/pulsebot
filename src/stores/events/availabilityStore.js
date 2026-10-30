@@ -211,6 +211,36 @@ function updateEntry(id, patch = {}, editor = {}) {
     return { entry };
 }
 
+/** An entry of before the scope per server that held for every raid: no category, no scope. */
+const unscoped = (e) => !str(e.categoryId) && !scopeList(e.scope).length;
+
+/**
+ * The entries that still hold everywhere (no `categoryId`, no `scope`), expired
+ * ones included: `[{ id, userId }]` (services/signups/availabilityMigration.js).
+ */
+function listUnscoped() {
+    return store.read().entries.filter(unscoped).map((e) => ({ id: str(e.id), userId: str(e.userId) }));
+}
+
+/**
+ * Give entries a server: `assignments` = `{ [entryId]: guildId }`; each one that
+ * still holds everywhere gets `scope: [{ guildId, categoryIds: [] }]`, nothing
+ * else changes (`applied`, `skip`, who entered it). One write.
+ * @returns {number} how many entries changed
+ */
+function assignServers(assignments = {}) {
+    const data = store.read();
+    let changed = 0;
+    data.entries.forEach((e, i) => {
+        const guildId = str(assignments[str(e.id)]);
+        if (!guildId || !unscoped(e)) return;
+        data.entries[i] = { ...e, scope: [{ guildId, categoryIds: [] }] };
+        changed += 1;
+    });
+    if (changed) store.write(data);
+    return changed;
+}
+
 /** Remove an entry. Returns the removed entry or null. */
 function removeEntry(id) {
     const data = store.read();
@@ -450,6 +480,7 @@ function removePanel(categoryId) {
 module.exports = {
     KINDS, VIAS, MAX_ENTRIES, MAX_CHARACTERS, COMMENT_MAX,
     listEntries, getEntry, addEntry, updateEntry, removeEntry, renameCharacter, markApplied, prune, entryProblem,
+    listUnscoped, assignServers,
     listPanels, getPanel, setPanel, markPanelDrawn, removePanel, useFile,
     MAX_LINKS, LINK_LABEL_MAX, checkLinks, readLinks, getLinks, listLinks, setLinks,
     FEATURE_KEYS, readFeatures, checkFeatures, mergeFeatures, getFeatures, listFeatures, setFeatures,
