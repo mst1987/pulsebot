@@ -136,7 +136,7 @@ const putSignup = withUser({ csrf: true, body: true, archived: (body) => body.ev
         newCharacter: body.newCharacter && typeof body.newCharacter === "object"
             ? { name: String(body.newCharacter.name || ""), spec: String(body.newCharacter.spec || "") }
             : undefined,
-    }, { byOrga, memberOnly: true, accountName: String(user.name || "") });
+    }, { byOrga, actorId: user.id, memberOnly: true, accountName: String(user.name || "") });
     if (result.error) return signupError(res, result);
     ok(res, {
         signup: signupSummary(result.signup),
@@ -167,6 +167,7 @@ const postSignupsBulk = withUser({ csrf: true, body: true, archived: (body) => (
     const results = await submitSignups(user.id, eventIds.map((eventId) => ({ eventId, characters, status })), {
         // per raid (#727): the orga of one raid's category is exempt there, not in the others
         byOrga: (event) => canOrgaRaid(user, event, req),
+        actorId: user.id,
         memberOnly: true,
     });
     ok(res, {

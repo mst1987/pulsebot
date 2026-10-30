@@ -12,7 +12,7 @@ notes when he switches characters).
 | Field | Values |
 |---|---|
 | `level` | `hint` (Hinweis), `warning` (Warnung), `shadowban` — in this order of weight |
-| `reason` | `left_early`, `no_show`, `late_signoff`, `behavior`, `loot`, `other` (an unknown reason reads as `other`) |
+| `reason` | `left_early`, `no_show`, `late_signoff`, `left_server`, `behavior`, `loot`, `other` (an unknown reason reads as `other`; `left_server` since #982, the matching reason for the hint "left the server") |
 | `text` | the note, at most 1000 characters (longer is refused on write, cut on read) |
 | `eventIds` | the raids it is about (unique, may be empty) |
 | `expiresAt` | ms timestamp, or `null` = **never** expires |
@@ -45,8 +45,8 @@ When A takes `shared` back, B's hide mark stays in the store; should A share the
   hidden: { [guildId]: { [entryId]: { by, at } } } }
 ```
 
-Only two modules read it: the routes (`src/web/apiRoutes/vermerke.js`) and the short form
-(`src/services/vermerke/vermerkeShort.js`). Nothing of a note is ever logged. Both are held by
+Only three modules read it: the routes (`src/web/apiRoutes/vermerke.js`), the short form
+(`src/services/vermerke/vermerkeShort.js`) and the hints (`src/services/vermerke/userSignals.js`, see below). Nothing of a note is ever logged. Both are held by
 `test/stores/userNotesStore.test.js`.
 
 ## Rights
@@ -109,6 +109,66 @@ character, else the id.
 It is computed live per answer and **never stored** in the setup (`saveSetupDraft` keeps the rest of the view).
 The proposal itself skips shadowbans (docs/setup.md "Shadowban"); placing by hand stays allowed. A roster manager
 gets the short form for every person of the server, a shared note shows everything on every server.
+
+## Hints from the data (#982)
+
+The bot **never makes a note itself** — it only proposes. The word is always "Hinweis", never "auffällig".
+
+| Kind | Source | Default threshold |
+|---|---|---|
+| `signoff_after_setup` | sign-off while placed in the **approved** setup (`event.setup.approved`, for a raid group any raid of the group, noted at the first) — every way: web, bot, several raids at once, the orga for somebody | 2 in 60 days |
+| `late_signoff` | sign-off of an existing signup less than `lateHours` (12) before the start, not placed | 2 in 60 days |
+| `no_show` | **computed**, not stored: `noShow` in the attendance overrides (`attendanceOverridesStore`) of the server's own raids inside the window; a raid group (#811) is **one night** — an override at a further raid counts for the group's first raid, a person once per night; `at` is the start of the night | 2 in 60 days |
+| `left_server` | leaving the Discord server (`memberActivity.onMemberRemove`) for somebody **tied to that server**: in an open roster of it (`roster.guildId`) or signed up at one of its own raids. Characters alone, a roster or a signup of another server, a Raid-Helper raid do not count | 1 |
+
+`left_early` is **not** detected: there is no attendance per fight, wipes, raid groups, several logs and character
+switches blur it, and Warcraft Logs has no events outside fights — own issue #990. A first
+answer "abwesend" (no signup before) is no sign-off; removing a raider by the orga (`removeRaider`) is no hint
+either. An absence entered via `availability.js` (the panel, `/abwesenheit`, the web) goes through `submitSignup` and
+counts like any sign-off: a hint only when it is one — after the setup, or late (`lateHours`); an early absence is none.
+
+**Limits (known, wanted for now).** The **automatic** "Nicht erschienen" (computed from the logs, no override of the
+orga) makes no `no_show` hint — only an override the orga set counts. Sign-offs at **Raid-Helper** raids make no hint
+either (they never pass `submitSignup`).
+
+**Recording** (`src/services/vermerke/signalRecorder.js`, called at the end of `submitSignup`): only when the new
+status is `absence`, the old one was not, before the start and on a known server; a failure is caught — the raider's
+sign-off and answer never change (`test/services/signups/signupService.signals.test.js`). Stored: the raid, when, the
+hours before the start (`hoursBefore`) and `byOrga` — only when somebody else than the raider entered it: the callers
+hand `actorId` (the web user, the orga in Discord or the setup, `createdBy` of an absence); an orga signing
+themselves off is a raider (`byOrga` stays away). A sign-off already noted for that raid is turned away before
+anything is written (signing off, back on and off again is one sign-off).
+
+**Store** `src/stores/userSignalsStore.js`, file `data/settings/user-signals.json` (sensitive, kept **180 days**,
+at most 60 events per person and server; what is older is dropped on every write and, on reading, at most once a
+day — and then only written when there is something to drop, `pruneDaily`):
+
+```
+{ guilds:  { [guildId]: { [userId]: { name, events: [{ kind, eventId, title, startTime, at, hoursBefore?, byOrga? }] } } },
+  ignored: { [guildId]: { [userId]: { [kind]: at } } } }
+```
+
+**Reading** (`src/services/vermerke/userSignals.js`, loaded by the Vermerke routes only): per kind the events inside
+the window; shown only from the threshold on, newest first. "Ausblenden" (`ignored`) and an **active Vermerk with
+the matching reason** (`late_signoff` for both sign-off kinds, `no_show`, `left_server`) hold a hint back until a newer
+event of that kind (`at` after the Ausblenden / the note). Then it comes back and counts **every** event inside the
+window, the older ones too — the threshold is about the person, not about what came since. A no-show of an old raid
+entered only after the Ausblenden does not bring it back (its `at` is the start of the raid). A **shared Vermerk of
+another server** with the matching reason holds the hint back as well (it counts on this server — wanted). No-shows cost one
+`listEvents(server, { siblings, sinceSeconds })` and one read of the overrides per request — no scan over all signups.
+
+**Thresholds per server** in `serverSettings[guildId].vermerkeSignals` (`DEFAULT_THRESHOLDS` / `THRESHOLD_LIMITS`
+in `signalRecorder.js`): `windowDays` 60 (7–180), `signoffAfterSetup` 2, `lateSignoff` 2, `noShow` 2 (1–20 each),
+`lateHours` 12 (1–72), `leftServer` 1 (1–5). The page comes with #980. Empty, `null` or left out = the default
+again; a value that is no whole number in its range answers 400 `bad_threshold` with `fields` (the keys) and saves
+nothing; unknown keys are dropped.
+
+| Route | Right | What |
+|---|---|---|
+| `GET /api/vermerke/signals` | read | `{ signals: [{ userId, name, kind, count, windowDays, events: [{ eventId, title, startTime }], lastAt }], thresholds }` |
+| `POST /api/vermerke/signals/ignore` | write | `{ userId, kind }` → `{ ignored }`; 400 `bad_user` / `bad_kind` |
+| `GET /api/vermerke/signals/settings` | read | `{ guildId, thresholds, own, defaults, limits }` |
+| `POST /api/vermerke/signals/settings` | write | `{ thresholds, serverSettingsGuildId }` → same + saved; 409 `server_switched` for a stale tab |
 
 ## Never to the person
 

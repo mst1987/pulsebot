@@ -23,7 +23,7 @@ const { createJsonStore } = require("./jsonStore");
 const { newId } = require("../utils/ids");
 
 const LEVELS = ["hint", "warning", "shadowban"];
-const REASONS = ["left_early", "no_show", "late_signoff", "behavior", "loot", "other"];
+const REASONS = ["left_early", "no_show", "late_signoff", "left_server", "behavior", "loot", "other"];
 const MAX_TEXT = 1000;
 const MAX_ENTRIES = 50;
 const MAX_EVENTS = 20;

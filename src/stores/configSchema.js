@@ -1001,6 +1001,11 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // a switch it has not set follows config.discordVisuals, the global default
     // (services/discord/serverSettings.js serverVisuals).
     discordVisuals: Object.freeze({}),
+    // #982 the thresholds of the hints from the data for the Vermerke: only the
+    // values the server set itself ({ windowDays?, signoffAfterSetup?, lateSignoff?,
+    // lateHours?, noShow?, leftServer? }); the rest are the defaults of
+    // services/vermerke/signalRecorder.js DEFAULT_THRESHOLDS.
+    vermerkeSignals: Object.freeze({}),
 });
 
 /**

@@ -108,6 +108,15 @@ The message in an own event's channel is built like Raid-Helper's, with icons in
 - **Every answer is an embed (#508, `src/utils/signup/signupReply.js`).** No part of the signup flow answers with plain `content` any more: `answerEmbed(text, { event, title })` turns a text into an embed — one line → description only, several lines → the first as title (bold marks removed), the rest as description; every line through `toEnglish()` first; colour of the raid (`embedLook.embedColor`, accent colour without an event). `answerPayload()` is the ephemeral reply/follow-up, `answerUpdate()` turns the member's own message into the answer (`content: ""`, no components) — `eventButton.reply/done`, `eventJoin`, `eventSignup`, `signupDialog.plainUpdate`, `signupMulti`, `talkSignup` (Raid-Helper: title „Sign up at Raid-Helper“ plus link button), `talkSignupMulti/All` all go through it; the pickers of `signupButtons.js` carry the raid colour too. Limits and `EmbedBuilder` are `utils/discord/reply.buildEmbed` (docs/bot-commands.md). The „(edited)“ Discord showed under the old text was Discord's own mark of an updated message, not part of our text. Tests assert on `embeds[0]` through `answerOf()` from `test/helpers/signupMocks.js` (`body` = description without the moving timestamp line); `test/utils/signup/signupReply.test.js` holds the embed structure of the main cases.
 - **Older messages keep working** until their next redraw: the buttons *Anmelden* / *Klasse wählen* of #302 (`event-btn:<id>:join|class`, same handler), the select `event-join:<eventId>` of #287 (`commands/signup/eventJoin.js` with the character select of `utils/signup/joinPicker.js`, still used for „Mehrere Charaktere …“) and the button `event-signup:<eventId>` of #254 (`eventSignup.js`, the #258 dialog). Tests: `test/services/events/eventMessage.test.js`, `test/commands/signup/eventPick.test.js`, `eventButton.test.js`, `eventJoin.test.js`.
 
+## Abmeldung als Hinweis für die Vermerke (#982)
+
+Meldet sich jemand ab, der im **freigegebenen Setup** steht (`signoff_after_setup`), oder kurz vor dem Start (unter
+`lateHours`, Standard 12 h: `late_signoff`), notiert `submitSignup` das über `services/vermerke/signalRecorder.js`
+für die Vermerke-Hinweise — gleich auf welchem Weg (Web, Bot, mehrere Raids, Orga für jemanden, Raid-Gruppe). Die
+Abmeldung und die Antwort an den Raider bleiben **unverändert**; ein Fehler beim Notieren wird geschluckt
+(`test/services/signups/signupService.signals.test.js`). Der Bot legt nie selbst einen Vermerk an. Details:
+[vermerke.md](vermerke.md) „Hints from the data“.
+
 ## Nachricht bei Vielleicht / Absagen (`src/services/signups/signupNotes.js`)
 
 Wer „Vielleicht“ oder „Absagen“ wählt, kann der Raidleitung eine kurze Nachricht hinterlassen; der Bot postet sie in einen Kanal.
