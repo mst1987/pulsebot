@@ -93,6 +93,33 @@ describe("AvailabilitySection", () => {
         expect(screen.getByText(t("signups.availability.dialog.titlePresence"), { selector: ".dlg-title" })).toBeInTheDocument();
     });
 
+    it("shows where an entry holds and every character of an attendance", async () => {
+        await show({
+            ...DATA,
+            entries: [entry({
+                id: "av3", kind: "presence", comment: "",
+                scope: [{ guildId: "g1", name: "Pulse", categories: [{ id: "c1", name: "Kara" }] }],
+                characters: [
+                    { character: "Zibbo", spec: "Priest-Holy", versionId: "tbc", specLabel: "Holy" },
+                    { character: "Zibbowar", spec: "Warrior-Protection", versionId: "tbc", specLabel: "Protection" },
+                ],
+            })],
+        });
+        expect(screen.getByText("Pulse · Kara")).toBeInTheDocument();
+        expect(screen.getByText(`Zibbo · ${specLabel("Priest-Holy", "Holy")}`, { exact: false })).toBeInTheDocument();
+        expect(screen.getByText(`Zibbowar · ${specLabel("Warrior-Protection", "Protection")}`, { exact: false })).toBeInTheDocument();
+    });
+
+    it("opens an entry for editing with the button beside its bin", async () => {
+        const user = userEvent.setup();
+        await show();
+        const [edit] = screen.getAllByRole("button", { name: t("signups.availability.edit") });
+        expect(edit.parentElement).toBe(screen.getAllByRole("button", { name: t("signups.availability.remove") })[0].parentElement);
+        await user.click(edit);
+        expect(screen.getByText(t("signups.availability.dialog.titleEditAbsence"), { selector: ".dlg-title" })).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("signups.availability.dialog.saveEdit") })).toHaveClass("btn-go");
+    });
+
     it("says it in English too", async () => {
         await switchLang("en");
         await show();

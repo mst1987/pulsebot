@@ -3,19 +3,19 @@ import Chip from "../../components/ui/Chip";
 import { usePersistedState } from "../../lib/ui/persistedState";
 import {
     deleteAvailability, getAvailability, getRaiderAttendance,
-    type ApiError, type AttendanceCategory, type AvailabilityEntry, type SignupStatus,
+    type ApiError, type AttendanceCategory, type AvailabilityEntry, type AvailabilityKind, type SignupStatus,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, BackButton, Button, IconButton, WowIcon, useConfirm, type Tone } from "../../components/ui";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
-import { AbsenceIcon, CheckIcon, CheckMark, PlusIcon, TrashIcon } from "../../components/ui/icons/icons";
+import { AbsenceIcon, CheckIcon, CheckMark, EditIcon, PlusIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";
 import { countsAsPresent, countsForQuota, statusLabel, statusOf, verdictTip } from "../../lib/roster/attendanceStatus";
 import AttendanceCell from "../../components/roster/AttendanceCell";
-import { periodLabel } from "../../lib/signups/availability";
+import { entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -40,7 +40,8 @@ export default function MyAttendance({ userId = "", onBack }: {
     // the entries of whoever is shown; the caller's own data feeds the dialog when that is somebody else
     const entries = useApi(() => getAvailability(userId), [userId]);
     const caller = useApi(() => getAvailability(), [], { enabled: !!userId });
-    const [dialog, setDialog] = useState(false);
+    // the dialog: a new entry (entryId "") or one to edit
+    const [dialog, setDialog] = useState<{ kind: AvailabilityKind; entryId: string } | null>(null);
     // one category or all of them; remembered, and ignored once that category is no longer offered
     const [picked, setPicked] = usePersistedState("absences-mine-category", "");
 
@@ -71,7 +72,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                     <h3>{other ? t("absences.mine.entriesOf", { name }) : t("absences.mine.entries")}</h3>
                     {own && (
                         // neutral (ghost, no meaning colour): absence and attendance alike, the kind is picked in the dialog
-                        <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setDialog(true)} data-tip={t("absences.enterTip")}>
+                        <Button variant="ghost" size="sm" icon={<PlusIcon />} onClick={() => setDialog({ kind: "absence", entryId: "" })} data-tip={t("absences.enterTip")}>
                             {other ? t("absences.drawer.enterFor", { name }) : t("absences.enter")}
                         </Button>
                     )}
@@ -79,6 +80,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                 {entries.data && (
                     <EntryList
                         entries={entries.data.entries} today={entries.data.today} known={known}
+                        onEdit={(e) => setDialog({ kind: e.kind, entryId: e.id })}
                         onRemoved={() => { void entries.reload(); }}
                     />
                 )}
@@ -113,11 +115,13 @@ export default function MyAttendance({ userId = "", onBack }: {
 
             {own && (
                 <AvailabilityDialog
-                    kind={dialog ? "absence" : null}
+                    key={dialog ? `${dialog.kind}:${dialog.entryId}` : "closed"}
+                    kind={dialog ? dialog.kind : null}
+                    entryId={dialog ? dialog.entryId : ""}
                     own={own}
                     target={other ? { userId, name, character: "", className: "" } : null}
                     categoryId={pick}
-                    onClose={() => setDialog(false)}
+                    onClose={() => setDialog(null)}
                     onSaved={() => { void entries.reload(); void attendance.reload(); }}
                 />
             )}
@@ -125,23 +129,31 @@ export default function MyAttendance({ userId = "", onBack }: {
     );
 }
 
-function EntryList({ entries, today, known, onRemoved }: { entries: AvailabilityEntry[]; today: string; known: Record<string, { icon: string; name: string }>; onRemoved: () => void }) {
+function EntryList({ entries, today, known, onEdit, onRemoved }: {
+    entries: AvailabilityEntry[]; today: string; known: Record<string, { icon: string; name: string }>;
+    onEdit: (entry: AvailabilityEntry) => void; onRemoved: () => void;
+}) {
     const t = useT();
     const shown = entries.filter((e) => entryState(e, today) !== "past");
     if (!shown.length) return <p className="ab-note">{t("absences.mine.noEntries")}</p>;
     return (
         <ul className="ab-entries">
-            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} category={known[e.categoryId]} onRemoved={onRemoved} />)}
+            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} category={known[e.categoryId]} onEdit={() => onEdit(e)} onRemoved={onRemoved} />)}
         </ul>
     );
 }
 
-function OwnEntry({ entry, today, category, onRemoved }: { entry: AvailabilityEntry; today: string; category?: { icon: string; name: string }; onRemoved: () => void }) {
+function OwnEntry({ entry, today, category, onEdit, onRemoved }: {
+    entry: AvailabilityEntry; today: string; category?: { icon: string; name: string }; onEdit: () => void; onRemoved: () => void;
+}) {
     const t = useT();
     const ask = useConfirm();
     const toast = useToast();
     const state = entryState(entry, today);
-    const wording = entryWording({ kind: entry.kind, categoryName: entry.categoryName || (category && category.name) || "" });
+    // an entry with servers says where it holds in its own line; an older one names its category in the heading
+    const scoped = !!(entry.scope && entry.scope.length);
+    const wording = entryWording({ kind: entry.kind, categoryName: scoped ? "" : entry.categoryName || (category && category.name) || "" });
+    const chars = entry.kind === "presence" ? entryCharacters(entry) : [];
     const remove = async () => {
         if (!(await ask({ title: t("absences.drawer.removeTitle"), text: t("absences.drawer.removeText", { period: periodLabel(entry.from, entry.to) }), action: t("common.delete") }))) return;
         try {
@@ -165,6 +177,8 @@ function OwnEntry({ entry, today, category, onRemoved }: { entry: AvailabilityEn
                     <span>{periodLabel(entry.from, entry.to)}</span>
                     <span className="ab-entry-days">{t("absences.days", { count: entryDays(entry) })}</span>
                 </div>
+                {scoped && <div className="ab-entry-sub ab-entry-scope"><span>{scopeLabel(entry)}</span></div>}
+                {chars.length > 0 && <div className="ab-entry-sub ab-entry-chars">{chars.map((c) => <span key={c}>{c}</span>)}</div>}
                 {(entry.comment || entry.byOrga) && (
                     <div className="ab-entry-sub">
                         {entry.comment && <span>{t("common.quoted", { text: entry.comment })}</span>}
@@ -172,7 +186,10 @@ function OwnEntry({ entry, today, category, onRemoved }: { entry: AvailabilityEn
                     </div>
                 )}
             </div>
-            <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("absences.drawer.remove")} onClick={() => void remove()} />
+            <div className="ab-entry-acts">
+                <IconButton size="sm" icon={<EditIcon />} tip={t("signups.availability.edit")} onClick={onEdit} />
+                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("absences.drawer.remove")} onClick={() => void remove()} />
+            </div>
         </li>
     );
 }

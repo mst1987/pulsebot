@@ -21,7 +21,8 @@ import { pageAudience } from "../../lib/app/orgaArea";
 import { OrgaChip } from "../ui/layout/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
-export type ShellContext = { user: SessionUser };
+/** What every page gets from the shell: the user, and the Discord server the web shows (`activeGuildId`, "" none). */
+export type ShellContext = { user: SessionUser; activeGuildId?: string };
 
 // The menu entries come from src/config/menu.json, the one list the SSR chrome
 // of the report pages (src/web/adminChrome.js) renders too. `areas` are the
@@ -233,7 +234,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         <PageCrumbContext.Provider value={setCrumb}>
                             <ChunkErrorBoundary resetKey={location.pathname}>
                                 <Suspense fallback={<RaidLoader />}>
-                                    <Outlet context={{ user } satisfies ShellContext} />
+                                    <Outlet context={{ user, activeGuildId } satisfies ShellContext} />
                                 </Suspense>
                             </ChunkErrorBoundary>
                         </PageCrumbContext.Provider>

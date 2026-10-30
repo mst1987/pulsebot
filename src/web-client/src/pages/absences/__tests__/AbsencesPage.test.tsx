@@ -81,6 +81,10 @@ const OWN: AvailabilityData = {
         { id: "old", kind: "absence", from: "2026-09-01", to: "2026-09-03", comment: "", character: "", spec: "", specLabel: "", versionId: "", categoryId: "", categoryName: "", byOrga: false, done: 0 },
     ],
     categories: [{ id: "mon", name: "TBC Montag", icon: "", versionId: "tbc" }, { id: "wed", name: "TBC Mittwoch", icon: "", versionId: "tbc" }],
+    servers: [{
+        guildId: "g1", name: "Pulse", icon: "",
+        categories: [{ id: "mon", name: "TBC Montag", icon: "", versionId: "tbc" }, { id: "wed", name: "TBC Mittwoch", icon: "", versionId: "tbc" }],
+    }],
 };
 
 const night = (eventId: string, day: string, attended: boolean, reason: string, status?: AttendanceStatus, detail?: string) => (
@@ -242,7 +246,7 @@ describe("Abwesenheiten: Zeitleiste", () => {
         await waitFor(() => expect(gets("/api/availability?userId=203")).toHaveLength(1));
         // the hint is about one category: the dialog starts on it
         expect(within(dialog).getByRole("button", { name: "TBC Montag" })).toHaveAttribute("aria-pressed", "true");
-        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ categoryId: "mon", userId: "203" })));
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ scope: [{ guildId: "g1", categoryIds: ["mon"] }], userId: "203" })));
     });
 
     it("opens the dialog from the head for the raid lead, and has neither button nor hint button for anyone else", async () => {
@@ -257,8 +261,8 @@ describe("Abwesenheiten: Zeitleiste", () => {
         const dialog = await screen.findByRole("dialog");
         expect(within(dialog).getByText(t("signups.availability.dialog.titleAbsence"))).toBeInTheDocument();
         expect(within(dialog).getByRole("button", { name: t("signups.availability.dialog.forRaider") })).toBeInTheDocument();
-        // no category filter on the page: the dialog starts on every category
-        expect(within(dialog).getByRole("button", { name: t("signups.availability.dialog.allCategories") })).toHaveAttribute("aria-pressed", "true");
+        // no category filter on the page: the dialog starts on every category of the active server
+        expect(within(dialog).getByRole("button", { name: t("signups.availability.dialog.allOfServer") })).toHaveAttribute("aria-pressed", "true");
         view.unmount();
         vi.mocked(client.get).mockClear();
 
@@ -329,6 +333,28 @@ describe("Abwesenheiten: Raider", () => {
         await waitFor(() => expect(client.send).toHaveBeenCalledWith("DELETE", "/api/availability", { id: "p1" }));
         await waitFor(() => expect(gets("/api/availability/overview/raider?")).toHaveLength(2));
         expect(gets("/api/availability/overview?")).toHaveLength(2);
+    });
+
+    it("edits a planned entry of the raider from the drawer, with the raider's data", async () => {
+        const user = userEvent.setup();
+        vi.mocked(client.get).mockImplementation((path: string) => {
+            if (path.startsWith("/api/availability/overview/raider?")) return Promise.resolve(DETAIL);
+            if (path.startsWith("/api/availability/overview?")) return Promise.resolve(data);
+            if (path.startsWith("/api/availability?userId=201")) return Promise.resolve({ ...OWN, userId: "201", name: "Anna", entries: [{ ...OWN.entries[0], id: "p1" }] });
+            if (path.startsWith("/api/availability")) return Promise.resolve(OWN);
+            return Promise.reject({ code: "not_mocked", message: path });
+        });
+        await show();
+        await user.click(row("Tankadin"));
+        const drawer = await screen.findByRole("complementary", { name: t("absences.drawer.aria") });
+        // only the planned entry: a past one can neither be changed nor deleted
+        const edits = await within(drawer).findAllByRole("button", { name: t("signups.availability.edit") });
+        expect(edits).toHaveLength(1);
+        await user.click(edits[0]);
+        const dialog = await screen.findByRole("dialog");
+        expect(await within(dialog).findByText(t("signups.availability.dialog.titleEditAbsence"))).toBeInTheDocument();
+        expect(within(dialog).getByText(t("signups.availability.dialog.hintEditFor", { name: "Anna" }))).toBeInTheDocument();
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ id: "p1", userId: "201" })));
     });
 
     it("enters an absence for the raider from the drawer", async () => {
@@ -433,7 +459,26 @@ describe("Abwesenheiten: Meine Anwesenheit", () => {
         await user.click(enter);
         const dialog = await screen.findByRole("dialog");
         expect(within(dialog).getByRole("button", { name: "TBC Mittwoch" })).toHaveAttribute("aria-pressed", "true");
-        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ categoryId: "wed" })));
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("POST", "/api/availability/preview", expect.objectContaining({ scope: [{ guildId: "g1", categoryIds: ["wed"] }] })));
+    });
+
+    it("edits an own entry in the same dialog, filled in, and saves it by PUT", async () => {
+        const user = userEvent.setup();
+        await showMine();
+        const own = screen.getByRole("region", { name: t("absences.mine.entries") });
+        await within(own).findByText("Urlaub", { exact: false });
+        const edit = within(own).getByRole("button", { name: t("signups.availability.edit") });
+        // right beside the bin
+        expect(edit.parentElement).toBe(within(own).getByRole("button", { name: t("absences.drawer.remove") }).parentElement);
+        await user.click(edit);
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).getByText(t("signups.availability.dialog.titleEditAbsence"))).toBeInTheDocument();
+        expect(within(dialog).getByLabelText(t("signups.availability.dialog.reason"), { exact: false })).toHaveValue("Urlaub");
+        const save = within(dialog).getByRole("button", { name: t("signups.availability.dialog.saveEdit") });
+        expect(save).toHaveClass("btn-go");
+        await waitFor(() => expect(save).toBeEnabled());
+        await user.click(save);
+        await waitFor(() => expect(client.send).toHaveBeenCalledWith("PUT", "/api/availability", expect.objectContaining({ id: "own1", kind: "absence", comment: "Urlaub" })));
     });
 
     it("offers no filter for a single category", async () => {

@@ -217,6 +217,8 @@ button.ab-tl-raider:focus-visible { outline: 2px solid var(--accent); outline-of
 .ab-entry-period { display: flex; align-items: center; gap: 6px 8px; flex-wrap: wrap; font-size: 13.5px; }
 .ab-entry-days { font-size: 12px; color: var(--muted); }
 .ab-entry-sub { display: flex; flex-wrap: wrap; gap: 2px 10px; margin-top: 3px; font-size: 12px; color: var(--muted); }
+.ab-entry-scope, .ab-entry-chars { color: var(--text); }
+.ab-entry-acts { flex: 0 0 auto; display: flex; gap: 4px; }
 .ab-hist { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 8px; }
 .ab-hist-dot { width: 16px; height: 16px; border-radius: 50%; flex: 0 0 auto; }
 .ab-hist-dot.ab-h-in { background: var(--accent); }

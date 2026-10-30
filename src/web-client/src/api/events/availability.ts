@@ -27,7 +27,30 @@ export type AvailabilityEntry = {
     byOrga: boolean;
     /** How many raids it changed so far. */
     done: number;
+    /**
+     * Where it holds: one part per server, no categories = every category there. An older entry of one
+     * category has `guildId` "" (that category wherever it is); an older entry for everything an empty list.
+     */
+    scope?: AvailabilityEntryScope[];
+    /** Attendance: every character it signs up with, in its order (`character` = the stored name). */
+    characters?: AvailabilityEntryCharacter[];
 };
+
+export type AvailabilityEntryScope = { guildId: string; name: string; categories: { id: string; name: string }[] };
+
+export type AvailabilityEntryCharacter = { character: string; spec: string; versionId: string; specLabel: string };
+
+/** A server an entry can hold for (src/web/availability/entryServers.js): only those the raider is a member of. */
+export type AvailabilityServer = {
+    guildId: string;
+    name: string;
+    /** The server icon's URL, "" none. */
+    icon: string;
+    categories: AvailabilityCategory[];
+};
+
+/** One part of an entry's reach: a server, all its categories (empty list) or only these. */
+export type AvailabilityScopePart = { guildId: string; categoryIds: string[] };
 
 export type AvailabilityCharacter = {
     key: string;
@@ -51,6 +74,8 @@ export type AvailabilityData = {
     characters: AvailabilityCharacter[];
     /** The raid categories an entry can be limited to (src/web/availability/entryCategories.js). */
     categories: AvailabilityCategory[];
+    /** The servers of the raider the data is for, each with its categories; missing on an older server. */
+    servers?: AvailabilityServer[];
 };
 
 /** A raid category an entry can be limited to; named and pictured like the tabs of "Meine Anwesenheit". */
@@ -72,8 +97,14 @@ export type AvailabilityInput = {
     spec?: string;
     /** Only the raids of this category; missing = every category. */
     categoryId?: string;
+    /** Where it holds: one part per server (replaces `categoryId`). */
+    scope?: AvailabilityScopePart[];
+    /** Attendance: the characters (key) with their spec, at most 12. */
+    characters?: { character: string; spec: string }[];
     /** Somebody else's account — the orga only. */
     userId?: string;
+    /** Editing this entry (preview: `applied`/`absent` per raid). */
+    id?: string;
 };
 
 export type AvailabilityRaid = {
@@ -85,6 +116,10 @@ export type AvailabilityRaid = {
     /** The raider's current signup in it, "" = none. */
     status: SignupStatus | "";
     url: string;
+    /** Editing: the entry already changed this raid — it stays as it is. */
+    applied?: boolean;
+    /** Editing: another absence covers this raid, so an attendance stays out. */
+    absent?: boolean;
 };
 
 export type AvailabilitySkip = "" | "already_absent" | "already_signed" | "absent";
@@ -115,6 +150,15 @@ export function saveAvailability(input: AvailabilityInput & { comment: string; e
     dm: boolean;
 }> {
     return send("POST", "/api/availability", input);
+}
+
+/** Change an entry (`id`, its kind stays): the raids it already touched stay, newly covered ones (`eventIds`) are applied now. */
+export function updateAvailability(input: AvailabilityInput & { id: string; comment: string; eventIds: string[] }): Promise<{
+    entry: AvailabilityEntry;
+    results: AvailabilityResult[];
+    dm: boolean;
+}> {
+    return send("PUT", "/api/availability", input);
 }
 
 export function deleteAvailability(id: string): Promise<{ id: string }> {
@@ -262,7 +306,7 @@ export type AbsenceOverview = {
 export type AbsenceHistoryStatus = "in" | "off" | "none" | "other";
 
 export type AbsenceRaiderDetail = AbsenceIdentity & {
-    entries: (AbsencePeriod & { done: number; character: string; spec: string })[];
+    entries: (AbsencePeriod & { done: number; character: string; spec: string; characters?: { character: string; spec: string; versionId: string; specLabel?: string }[] })[];
     /** The last raids of their categories, oldest first. */
     history: { eventId: string; day: string; title: string; status: AbsenceHistoryStatus }[];
     counts: Record<AbsenceHistoryStatus, number>;
