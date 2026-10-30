@@ -178,6 +178,7 @@
     "/api/recruitment/delete": "recruitment",
     "/api/recruitment/post": "recruitment",
     "/api/recruitment/post-update": "recruitment",
+    "/api/recruitment/invite": "recruitment",
     "/api/recruitment/post-delete": "recruitment",
     "/api/recruitment/scan": "recruitment",
     "/api/history": [

@@ -5,6 +5,8 @@ module.exports = {
     "There was an error executing this command!": "Beim Ausführen des Befehls ist ein Fehler aufgetreten!",
     "Open profile": "Profil öffnen",
     "Cancel": "Abbrechen",
+    // link button of a recruitment post: its default label, in the language of the server it is posted on
+    "Join server": "Server beitreten",
     // /language
     "Bot language: **German**.": "Bot-Sprache: **Deutsch**.",
     "Bot language: **English**.": "Bot-Sprache: **Englisch**.",

@@ -215,4 +215,15 @@ describe("the roster's sub pages (#654)", () => {
         showWithPage("/roster/chars");
         expect(within(document.querySelector(".crumbs") as HTMLElement).getByText("Alle Charaktere")).toBeInTheDocument();
     });
+
+    it.each([
+        ["/recruitment?editpost=new", "Nachricht posten"],
+        ["/recruitment?view=templates&editpost=new", "Nachricht posten"],
+        ["/recruitment?editpost=abc123", "Nachricht bearbeiten"],
+    ])("names the recruitment dialog of %s in the crumbs", (route, crumb) => {
+        showShell(adminUser(), route);
+        const crumbs = document.querySelector(".crumbs") as HTMLElement;
+        expect(within(crumbs).getByText(crumb)).toBeInTheDocument();
+        expect(within(crumbs).queryByText(crumb === "Nachricht posten" ? "Nachricht bearbeiten" : "Nachricht posten")).toBeNull();
+    });
 });

@@ -40,11 +40,13 @@ describe("Recruitment page conventions", () => {
         expect(read("index.css")).not.toContain(".applist");
     });
 
-    it("gives the preview's button the same default label as the message the bot posts", () => {
-        const preview = read("pages", "recruitment", "DiscordPreview.tsx").match(/buttonLabel\.trim\(\) \|\| "([^"]+)"/);
-        const bot = fs.readFileSync(path.join(ROOT, "src", "services", "discord", "discord.js"), "utf8").match(/template\.buttonLabel \|\| "([^"]+)"/);
-        expect(preview).not.toBeNull();
-        expect(bot).not.toBeNull();
-        expect(preview[1]).toBe(bot[1]);
+    it("gives the preview's buttons the same default labels as the message the bot posts", () => {
+        // Two kinds of button (apply and link): every default label the bot uses
+        // must show up in the preview, and the preview invents none of its own.
+        const labels = (src, re) => [...src.matchAll(re)].map((m) => m[1]).sort();
+        const preview = labels(read("pages", "recruitment", "DiscordPreview.tsx"), /buttonLabel\.trim\(\) \|\| "([^"]+)"/g);
+        const bot = labels(fs.readFileSync(path.join(ROOT, "src", "services", "discord", "discord.js"), "utf8"), /template\.buttonLabel \|\| "([^"]+)"/g);
+        expect(bot).toEqual(["Jetzt bewerben", "Server beitreten"]);
+        expect(preview).toEqual(bot);
     });
 });
