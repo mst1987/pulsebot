@@ -254,5 +254,6 @@ td.sub.hl-msg-cell.hl-msg-bad { color: var(--high); }
 @media (max-width: 600px) {
     .hl-wait-row { flex-wrap: wrap; gap: 6px 10px; }
     .hl-wait-when { flex-basis: 100%; }
-    .hl-wait-row .btn { margin-left: auto; }
+    /* A long raid name in "<raid> zuordnen" wraps inside the button instead of widening the page. */
+    .hl-wait-row .btn { margin-left: auto; max-width: 100%; white-space: normal; text-align: left; height: auto; }
 }

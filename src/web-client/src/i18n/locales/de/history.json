@@ -129,6 +129,7 @@
         "suggested": "Vorschlag",
         "suggestedTip": "Die meisten Teilnehmer dieses Uploads waren in diesem Raid angemeldet",
         "assign": "{raid} zuordnen",
+        "assignShort": "Zuordnen",
         "otherServer": "nur Orga von {server}",
         "otherServerTip": "Dieser Raid gehört zu {server}; zuordnen kann ihn nur die Orga dort",
         "unknownServer": "Unbekannter Server",

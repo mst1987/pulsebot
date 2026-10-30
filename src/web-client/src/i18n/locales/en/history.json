@@ -129,6 +129,7 @@
         "suggested": "Suggestion",
         "suggestedTip": "Most participants of this upload were signed up for this raid",
         "assign": "Assign {raid}",
+        "assignShort": "Assign",
         "otherServer": "{server} orga only",
         "otherServerTip": "This raid belongs to {server}; only the orga there can assign it",
         "unknownServer": "Unknown server",

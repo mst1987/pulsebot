@@ -56,21 +56,25 @@ function FootNote({ servers }: { servers: number }) {
 /** One candidate raid: when, which server and raid, how many participants; the button if it is ours. */
 function CandidateRow({ c, busy, onAssign }: { c: InboxCandidate; busy: boolean; onAssign: () => void }) {
     const t = useT();
+    const server = c.serverName || t("history.waiting.unknownServer");
     return (
         <div className={`hl-wait-row${c.suggested ? " is-best" : ""}`}>
             <span className="hl-wait-when mono">{formatEventTime(c.startTime)}</span>
             <span className="hl-wait-what">
                 <b>{c.eventLabel}</b>
                 <small>
-                    {[c.serverName || t("history.waiting.unknownServer"), c.categoryName].filter(Boolean).join(" · ")}
+                    {[server, c.categoryName].filter(Boolean).join(" · ")}
                     {" · "}
                     {t("history.waiting.participants", { matched: c.matched, count: c.total })}
                 </small>
             </span>
             {c.suggested && <Badge tone="ok" tip={t("history.waiting.suggestedTip")}>{t("history.waiting.suggested")}</Badge>}
             {c.ownServer
-                ? <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={onAssign}>{t("history.waiting.assign", { raid: c.eventLabel })}</Button>
-                : <span className="hl-wait-other" data-tip={t("history.waiting.otherServerTip", { server: c.serverName || "?" })}>{t("history.waiting.otherServer", { server: c.serverName || "?" })}</span>}
+                // Short label: the raid name already stands in the row; the full text is the tooltip and name.
+                ? <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={onAssign}
+                    aria-label={t("history.waiting.assign", { raid: c.eventLabel })}
+                    data-tip={t("history.waiting.assign", { raid: c.eventLabel })}>{t("history.waiting.assignShort")}</Button>
+                : <span className="hl-wait-other" data-tip={t("history.waiting.otherServerTip", { server })}>{t("history.waiting.otherServer", { server })}</span>}
         </div>
     );
 }
@@ -203,15 +207,18 @@ export function WaitingBank({ bank, onDone }: { bank: InboxWaitingBank; onDone: 
                     bank.uploadedBy ? t("history.waiting.from", { name: bank.uploadedBy }) : "",
                 ]} />
             </div>
-            {bank.servers.map((s) => (
-                <div className="hl-wait-row" key={s.guildId}>
-                    <span className="hl-wait-when">{t("history.waiting.server")}</span>
-                    <span className="hl-wait-what"><b>{s.name || t("history.waiting.unknownServer")}</b>{s.ownServer && <small>{t("history.waiting.thisServer")}</small>}</span>
-                    {(s.ownServer || fullAdmin)
-                        ? <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={() => assign(s.guildId, s.name)}>{t("history.waiting.bankAssign", { server: s.name || "?" })}</Button>
-                        : <span className="hl-wait-other">{t("history.waiting.otherServer", { server: s.name || "?" })}</span>}
-                </div>
-            ))}
+            {bank.servers.map((s) => {
+                const server = s.name || t("history.waiting.unknownServer");
+                return (
+                    <div className="hl-wait-row" key={s.guildId}>
+                        <span className="hl-wait-when">{t("history.waiting.server")}</span>
+                        <span className="hl-wait-what"><b>{server}</b>{s.ownServer && <small>{t("history.waiting.thisServer")}</small>}</span>
+                        {(s.ownServer || fullAdmin)
+                            ? <Button variant="go" size="sm" icon={<CheckIcon />} disabled={busy} onClick={() => assign(s.guildId, server)}>{t("history.waiting.bankAssign", { server })}</Button>
+                            : <span className="hl-wait-other">{t("history.waiting.otherServer", { server })}</span>}
+                    </div>
+                );
+            })}
         </section>
     );
 }
