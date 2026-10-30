@@ -14,6 +14,7 @@ export * from "./system/versionLaunch";
 export * from "./discord/botCommands";
 export * from "./roster/roster";
 export * from "./roster/rosterEdit";
+export * from "./roster/rosterImage";
 export * from "./events/raids";
 export * from "./events/raidTemplates";
 export * from "./events/notifyTemplates";

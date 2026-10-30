@@ -332,7 +332,8 @@
         "edit": "Bearbeiten",
         "giveRole": "Rolle geben",
         "openTip": "Öffnet das Mitglied mit Status, Charakteren, Rollen und Verlauf",
-        "missingRoleManage": "„Rolle geben“ gibt ihr die Rolle des Rosters im Discord"
+        "missingRoleManage": "„Rolle geben“ gibt ihr die Rolle des Rosters im Discord",
+        "asImage": "Als Bild"
     },
     "drawer": {
         "aria": "Mitglied {name}",
@@ -832,6 +833,35 @@
             "logs": "Log",
             "profile": "Profil",
             "class": "Klasse"
+        }
+    },
+    "image": {
+        "title": "Roster als Bild",
+        "alt": "Roster {name} als Bild",
+        "loading": "Bild wird erstellt …",
+        "previewFailed": "Das Bild konnte nicht erstellt werden.",
+        "show": "Im Bild zeigen",
+        "showReserve": "Ersatz und Pause zeigen",
+        "showChars": "Weitere Chars zeigen",
+        "showCharsTip": "Als kleine Symbole hinter dem Namen. Es zählt nur der erste Char.",
+        "channel": "Kanal",
+        "pickChannel": "— Kanal wählen —",
+        "channelHint": "Das Bild mit einer kurzen Zeile, ohne Ping.",
+        "download": "Bild herunterladen",
+        "post": "In Kanal posten",
+        "posted": "In #{channel} gepostet.",
+        "openMessage": "Nachricht öffnen",
+        "err": {
+            "no_channel": "Bitte zuerst einen Kanal wählen.",
+            "other_server": "Der Kanal gehört nicht zum Server dieses Rosters.",
+            "wrong_guild": "Der Kanal gehört nicht zum Server dieses Rosters.",
+            "channel_not_found": "Kanal nicht gefunden oder kein Textkanal.",
+            "no_permission": "Der Bot darf in diesem Kanal nicht schreiben oder keine Dateien anhängen.",
+            "bot_offline": "Der Bot ist gerade nicht verbunden. Später noch einmal versuchen.",
+            "not_manager": "Posten darf nur die Orga dieses Rosters.",
+            "not_found": "Das Roster gibt es auf diesem Server nicht mehr.",
+            "post_failed": "Discord hat das Bild nicht angenommen.",
+            "unknown": "Posten fehlgeschlagen (Fehler {code})."
         }
     }
 }

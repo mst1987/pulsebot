@@ -332,7 +332,8 @@
         "edit": "Edit",
         "giveRole": "Give role",
         "openTip": "Opens the member with status, characters, roles and history",
-        "missingRoleManage": "“Give role” gives them the roster's role in Discord"
+        "missingRoleManage": "“Give role” gives them the roster's role in Discord",
+        "asImage": "As image"
     },
     "drawer": {
         "aria": "Member {name}",
@@ -832,6 +833,35 @@
             "logs": "log",
             "profile": "profile",
             "class": "class"
+        }
+    },
+    "image": {
+        "title": "Roster as image",
+        "alt": "Roster {name} as an image",
+        "loading": "Drawing the image …",
+        "previewFailed": "The image could not be drawn.",
+        "show": "Show in the image",
+        "showReserve": "Show bench and pause",
+        "showChars": "Show further chars",
+        "showCharsTip": "As small icons after the name. Only the first char counts.",
+        "channel": "Channel",
+        "pickChannel": "— pick a channel —",
+        "channelHint": "The image with one short line, no ping.",
+        "download": "Download image",
+        "post": "Post to channel",
+        "posted": "Posted in #{channel}.",
+        "openMessage": "Open message",
+        "err": {
+            "no_channel": "Pick a channel first.",
+            "other_server": "The channel does not belong to this roster's server.",
+            "wrong_guild": "The channel does not belong to this roster's server.",
+            "channel_not_found": "Channel not found or not a text channel.",
+            "no_permission": "The bot may not write or attach files in this channel.",
+            "bot_offline": "The bot is not connected right now. Try again later.",
+            "not_manager": "Only this roster's orga may post.",
+            "not_found": "This roster no longer exists on this server.",
+            "post_failed": "Discord did not accept the image.",
+            "unknown": "Posting failed (error {code})."
         }
     }
 }
