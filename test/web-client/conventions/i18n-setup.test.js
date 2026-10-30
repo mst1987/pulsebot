@@ -1,7 +1,7 @@
 // The setup editor in two languages (#i18n): pages/raid-detail/setup/ and
 // lib/signups/setupEditor.ts take every text from the "setup" namespace, never at load
 // time (#435: the source half of the former test/web-client/i18n-setup.test.js;
-// the texts are tested in src/web-client/src/i18n/setup.test.ts).
+// the texts are tested in src/web-client/src/i18n/__tests__/setup.test.ts).
 const { read, clientSources } = require("../clientSource");
 
 // the editor and its parts (#438), and the moves behind it

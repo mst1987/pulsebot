@@ -1,6 +1,6 @@
 // The "Standard" of a raid plan template and of an event plan (#524) on the client (the server's twin is
 // src/services/raidplan/raidplanInherit.js): rows entered once for every boss, inherited by each section, deviated from or switched off
-// per boss. Pure. Tests: src/web-client/src/lib/raidplan/inherit.test.ts.
+// per boss. Pure. Tests: src/web-client/src/lib/raidplan/__tests__/inherit.test.ts.
 import type { RaidplanAssignment, RaidplanAssignTarget, RaidplanBoard, RaidplanMobRef } from "../../api";
 import { newRowId } from "./model.ts";
 

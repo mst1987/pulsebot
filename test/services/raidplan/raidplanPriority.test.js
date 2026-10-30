@@ -1,6 +1,6 @@
 // Rows with a count and a class priority (#525): "1 x Paladin > Shaman" takes the first free paladin healer, else a shaman, else the place
 // stays open; rows of the same kind of task share nobody while somebody else is free (twice rather than open); a row without a class list
-// resolves exactly as before (golden master). The client twin runs the same cases: src/web-client/src/lib/raidplan/classPriority.test.ts.
+// resolves exactly as before (golden master). The client twin runs the same cases: src/web-client/src/lib/raidplan/__tests__/classPriority.test.ts.
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const inherit = require("../../../src/services/raidplan/raidplanInherit");
 

@@ -2,8 +2,8 @@
 // speak German and English (#i18n): their texts live in the raidModals and
 // raidManage namespaces, none is computed at module load (#435: the source half
 // of the former test/web-client/i18n-raidModals.test.js; the texts are tested
-// in src/web-client/src/i18n/raidModals.test.ts, the call-template sentence in
-// pages/raid-detail/modals/NotifyModal.test.tsx).
+// in src/web-client/src/i18n/__tests__/raidModals.test.ts, the call-template sentence in
+// pages/raid-detail/modals/__tests__/NotifyModal.test.tsx).
 const { read } = require("../clientSource");
 
 const MODALS = ["LogAssignModal", "LootAddModal", "LootSystemModal", "NotifyModal", "PingModal", "PlayerModal", "SheetModal", "SoftresModal"]

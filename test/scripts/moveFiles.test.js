@@ -66,6 +66,15 @@ describe("planMove - relative paths", () => {
         expect(out["web/lib/__tests__/a.test.ts"]).toBe("vi.mock(\"../a\");\nimport { a } from \"../a\";\n");
     });
 
+    test("a bare \".\" or \"..\" naming a module follows the move; split(\".\") stays", () => {
+        const { out } = plan({
+            "web/i18n/index.ts": "",
+            "web/i18n/x.test.ts": "import { t } from \".\";\nvi.mock(\"..\");\nconst p = \"a.b\".split(\".\");\n",
+            "web/index.ts": "",
+        }, { "web/i18n/x.test.ts": "web/i18n/__tests__/" });
+        expect(out["web/i18n/__tests__/x.test.ts"]).toBe("import { t } from \"..\";\nvi.mock(\"../..\");\nconst p = \"a.b\".split(\".\");\n");
+    });
+
     test("a folder path in a moved file is rewritten for the new depth", () => {
         const { out } = plan({
             "src/web-client/src/x.ts": "",

@@ -1,0 +1,563 @@
+// The rules behind the Einstellungen page (lib/settings/settingsLogic.ts): the tri-state
+// cells of the permission matrix, the save bar's change list, the connection
+// cards' status and the PATCH body of a connection modal.
+import { describe, expect, it } from "vitest";
+import * as mod from "../settingsLogic";
+import { inLang } from "../../../test/i18n";
+import { t } from "../../../i18n";
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- the tests hand the lib loose fixtures, as the Jest version did
+const logic: any = mod;
+
+describe("settingsLogic loader", () => {
+    it("finds the functions the page uses", () => {
+        for (const name of ["levelOf", "nextLevel", "withLevel", "areaCounts", "isDiscordId", "permissionChanges",
+            "draftChanges", "connectionState", "connectionPatch", "categoryRows", "splitCategoryRows"]) {
+            expect({ name, type: typeof logic[name] }).toEqual({ name, type: "function" });
+        }
+    });
+});
+
+describe("permission matrix cells", () => {
+    it("cycles aus › Lesen › Schreiben › aus", () => {
+        expect(logic.nextLevel("none")).toBe("read");
+        expect(logic.nextLevel("read")).toBe("write");
+        expect(logic.nextLevel("write")).toBe("none");
+    });
+
+    it("stores Schreiben with Lesen included, so the rule holds without a second switch", () => {
+        expect(logic.withLevel({}, "raids", "write")).toEqual({ raids: { read: true, write: true } });
+        expect(logic.withLevel({}, "raids", "read")).toEqual({ raids: { read: true, write: false } });
+    });
+
+    it("reads a legacy write-only grant as Schreiben", () => {
+        expect(logic.levelOf({ read: false, write: true })).toBe("write");
+        expect(logic.levelOf(undefined)).toBe("none");
+    });
+
+    it("drops the area entry on the way back to aus instead of storing two falses", () => {
+        const grants = { raids: { read: true, write: true }, cla: { read: true, write: false } };
+        const back = logic.withLevel(grants, "raids", logic.nextLevel(logic.levelOf(grants.raids)));
+        expect(back).toEqual({ cla: { read: true, write: false } });
+        // ...and never mutates what it was handed
+        expect(grants.raids).toEqual({ read: true, write: true });
+    });
+
+    it("counts read and write holders per column", () => {
+        const maps = [{ loot: { read: true, write: false } }, { loot: { read: true, write: true } }, {}];
+        expect(logic.areaCounts(maps, "loot")).toEqual({ read: 1, write: 1 });
+    });
+
+    it("checks a Discord id as a 17–20 digit snowflake", () => {
+        expect(logic.isDiscordId("123456789012345678")).toBe(true);
+        expect(logic.isDiscordId(" 12345678901234567 ")).toBe(true);
+        expect(logic.isDiscordId("1234")).toBe(false);
+        expect(logic.isDiscordId("abc456789012345678")).toBe(false);
+    });
+});
+
+describe("save bar change list", () => {
+    const names = {
+        role: (id: string) => `@${id}`,
+        user: (id: string) => `Konto ${id}`,
+        area: (id: string) => ({ history: "Historie", channels: "Kanäle" } as Record<string, string>)[id] || id,
+        category: (id: string) => ({ c1: "Hyjal & BT" } as Record<string, string>)[id] || id,
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- drafts grow fields per test, as in the Jest version
+    const base = (): any => ({
+        adminRoleIds: ["a1"], rolePermissions: { raidlead: { history: { read: true, write: false } } },
+        baseAccess: {}, userPermissions: {},
+        officerRoleId: "", applicationChannelId: "",
+        categoryIds: ["c1"], categoryRoles: { c1: ["r1", "r2"] }, logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2", versionId: "" }],
+        raidChannelId: "",
+        categoryLootTool: {}, categorySheets: {}, categoryRaidTemplate: { c1: "tpl1" },
+    });
+
+    it("tells a changed log channel list from an unchanged one, version included (#921)", () => {
+        expect(logic.logChannelsChanged(base(), base())).toBe(false);
+        // the order does not count
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [...base().logChannels].reverse() })).toBe(false);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "forever" }, { channelId: "l2", versionId: "" }] })).toBe(true);
+        // "Nach Log-Seite" ("") is not "Aus der Kategorie" (no version)
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [{ channelId: "l1", versionId: "tbc" }, { channelId: "l2" }] })).toBe(true);
+        expect(logic.logChannelsChanged(base(), { ...base(), logChannels: [] })).toBe(true);
+        expect(logic.logChannelsChanged({}, {})).toBe(false);
+    });
+
+    it("names a role made orga and one set back to a raider role", () => {
+        const saved = { ...base(), orgaRoleIds: ["raidlead"] };
+        const draft = { ...base(), orgaRoleIds: ["officer"] };
+        const lines = logic.draftChanges(saved, draft, names);
+        expect(lines).toContain(t("settings.changes.orgaAdded", { name: names.role("officer") }));
+        expect(lines).toContain(t("settings.changes.orgaRemoved", { name: names.role("raidlead") }));
+        expect(logic.draftChanges(saved, { ...base(), orgaRoleIds: ["raidlead"] }, names)).toEqual([]);
+    });
+
+    it("names a switched picture of the bot messages; a missing switch counts as on", () => {
+        const draft = { ...base(), discordVisuals: { overviewWeekStrip: false, setupImage: true, eventCover: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Bilder in Bot-Nachrichten · Raid-Übersicht mit Wochenleiste aus"]);
+        expect(logic.draftChanges({ ...base(), discordVisuals: { setupImage: false } }, { ...base(), discordVisuals: logic.discordVisualsOf(undefined) }, names))
+            .toEqual(["Bilder in Bot-Nachrichten · Setup als Grafik an"]);
+        expect(logic.draftChanges(base(), { ...base(), discordVisuals: logic.discordVisualsOf({}) }, names)).toEqual([]);
+        expect(logic.discordVisualsOf({ eventCover: false })).toEqual({ overviewWeekStrip: true, setupImage: true, eventCover: false });
+    });
+
+    it("names a changed planning per category: the picked mode, else the fixed sheet's default", () => {
+        const draft = base();
+        draft.categoryPlanning = { c1: "sheet" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Planung → Sheet"]);
+        // picking what the default already was is no change
+        const same = base();
+        same.categoryPlanning = { c1: "raidplan" };
+        expect(logic.draftChanges(base(), same, names)).toEqual([]);
+    });
+
+    it("names a changed default raid template per category, and ignores an emptied entry", () => {
+        const draft = base();
+        draft.categoryRaidTemplate = { c1: "tpl2", c9: "" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Standard-Vorlage"]);
+    });
+
+    it("names the main version and a category that plays another one (#541)", () => {
+        const version = (id: string) => ({ tbc: "TBC", forever: "Forever" } as Record<string, string>)[id] || id;
+        const draft = { ...base(), mainVersion: "forever", categoryVersion: { c1: "tbc" } };
+        // a config from before the setting reads as TBC — no change there
+        expect(logic.draftChanges(base(), { ...base(), mainVersion: "tbc", categoryVersion: { c1: "" } }, { ...names, version })).toEqual([]);
+        expect(logic.draftChanges(base(), draft, { ...names, version })).toEqual(["Hauptversion → Forever", "Hyjal & BT · Spielversion → TBC"]);
+        // back on the main version; without version names the id stands in
+        expect(logic.draftChanges(draft, { ...draft, categoryVersion: {} }, names)).toEqual(["Hyjal & BT · Spielversion → Hauptversion"]);
+        expect(logic.draftChanges(base(), { ...base(), mainVersion: "classic" }, names)).toEqual(["Hauptversion → classic"]);
+    });
+
+    it("names a version whose features were switched (#761), not one whose list only changed its order", () => {
+        const version = (id: string) => ({ tbc: "TBC" } as Record<string, string>)[id] || id;
+        const saved = { ...base(), versionDisabled: { tbc: ["logcheck", "softres"] } };
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres", "logcheck"] } }, { ...names, version })).toEqual([]);
+        expect(logic.draftChanges(saved, { ...base(), versionDisabled: { tbc: ["softres"] } }, { ...names, version })).toEqual(["Funktionen je Version · TBC"]);
+    });
+
+    it("is empty when nothing changed, even if the order of a list or an empty entry differs", () => {
+        const draft = base();
+        draft.categoryRoles = { c1: ["r2", "r1"] };
+        draft.logChannels = [{ channelId: "l2", versionId: "" }, { channelId: "l1", versionId: "tbc" }];
+        draft.categoryLootTool = { c1: "" };
+        draft.categorySheets = { c1: { url: " ", name: "" } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual([]);
+    });
+
+    it("names the log channels once a channel or its version changes (#921)", () => {
+        const versioned = base();
+        versioned.logChannels = [{ channelId: "l1", versionId: "forever" }, { channelId: "l2", versionId: "" }];
+        expect(logic.draftChanges(base(), versioned, names)).toEqual(["Log-Kanäle"]);
+        const added = base();
+        added.logChannels = [...base().logChannels, { channelId: "l3" }];
+        expect(logic.draftChanges(base(), added, names)).toEqual(["Log-Kanäle"]);
+        const auto = base();
+        auto.logChannels = [{ channelId: "l1" }, { channelId: "l2", versionId: "" }];
+        expect(logic.draftChanges(base(), auto, names)).toEqual(["Log-Kanäle"]);
+    });
+
+    it("names each change once", () => {
+        const draft = base();
+        draft.rolePermissions = { raidlead: { history: { read: true, write: true }, channels: { read: true, write: false } } };
+        draft.categoryLootTool = { c1: "gargul" };
+        draft.officerRoleId = "o1";
+        const changes = logic.draftChanges(base(), draft, names);
+        expect(changes).toEqual([
+            "@raidlead · Historie → Schreiben",
+            "@raidlead · Kanäle → Lesen",
+            "Hyjal & BT · Loot-Addon → Gargul",
+            "Offizier-Rolle",
+        ]);
+    });
+
+    it("names a changed loot system, and treats a missing one as automatisch", () => {
+        const draft = base();
+        draft.categoryLootSystem = { c1: "lootcouncil", c2: "" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Lootsystem → Loot-Council"]);
+        const saved = { ...base(), categoryLootSystem: { c1: "gdkp" } };
+        expect(logic.draftChanges(saved, { ...base(), categoryLootSystem: { c1: "" } }, names)).toEqual(["Hyjal & BT · Lootsystem → automatisch"]);
+    });
+
+    it("names a switched event source, and treats a missing one as Raid-Helper", () => {
+        const draft = base();
+        draft.categorySignupSource = { c1: "eventhelper", c2: "raidhelper" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Neue Events → EventHelper"]);
+    });
+
+    it("names the message look, and treats a missing one as raid picture on, title large", () => {
+        const draft = base();
+        draft.categoryMessageLook = { c1: { raidArt: false, titleSize: "huge" }, c2: { raidArt: true, titleSize: "large" } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Raid-Bild aus", "Hyjal & BT · Titelgröße → sehr groß"]);
+        expect(logic.messageLook(undefined, "c1")).toEqual({ raidArt: true, titleSize: "large" });
+        expect(logic.messageLook({ c1: { titleSize: "quatsch" } }, "c1")).toEqual({ raidArt: true, titleSize: "large" });
+    });
+
+    it("names the setup DM switch, and treats a missing one as off (#290)", () => {
+        const draft = base();
+        draft.categorySetupDms = { c1: true, c2: false };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Setup-DMs an"]);
+        const saved = { ...base(), categorySetupDms: { c1: true } };
+        expect(logic.draftChanges(saved, { ...base(), categorySetupDms: { c1: false } }, names)).toEqual(["Hyjal & BT · Setup-DMs aus"]);
+        // the language of a category's posts
+        expect(logic.draftChanges({ ...base(), categoryLanguage: {} }, { ...base(), categoryLanguage: { c1: "en" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: English"]);
+        expect(logic.draftChanges({ ...base(), categoryLanguage: { c1: "en" } }, { ...base(), categoryLanguage: { c1: "" } }, names)).toEqual(["Hyjal & BT · Sprache der Posts: Wie Server"]);
+        // attendance per category: one line per changed setting, a missing entry is the default
+        expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: false, window: 8, absences: false } } }, names)).toEqual([
+            "Hyjal & BT · Anwesenheit ausgeblendet", "Hyjal & BT · Quote über 8 Raids", "Hyjal & BT · nicht in Abwesenheiten",
+        ]);
+        expect(logic.draftChanges(base(), { ...base(), categoryAttendance: { c1: { show: true, window: 11, absences: true } } }, names)).toEqual([]);
+        // any whole number from 1 to 50 counts; anything else is the default 11
+        expect(logic.attendanceOf({ c1: { window: 5 } }, "c1")).toEqual({ show: true, window: 5, absences: true });
+        expect(logic.attendanceOf({ c1: { window: 50 } }, "c1").window).toBe(50);
+        for (const bad of [0, 51, 7.5, Number.NaN]) expect(logic.attendanceOf({ c1: { window: bad } }, "c1").window).toBe(11);
+        expect(logic.validAttendanceWindow(1)).toBe(true);
+        expect(logic.validAttendanceWindow(0)).toBe(false);
+    });
+
+    it("names the Discord-Event switch and the voice channel per category (#305)", () => {
+        const draft = base();
+        draft.categoryDiscordEvent = { c1: true, c2: false };
+        draft.categoryVoiceChannel = { c1: "123456789012345678" };
+        expect(logic.draftChanges(base(), draft, names)).toEqual([
+            "Hyjal & BT · Discord-Event an",
+            "Hyjal & BT · Sprachkanal gesetzt",
+        ]);
+        const saved = { ...base(), categoryDiscordEvent: { c1: true }, categoryVoiceChannel: { c1: "123456789012345678" } };
+        expect(logic.draftChanges(saved, { ...base(), categoryDiscordEvent: { c1: false }, categoryVoiceChannel: { c1: "" } }, names)).toEqual([
+            "Hyjal & BT · Discord-Event aus",
+            "Hyjal & BT · Sprachkanal entfernt",
+        ]);
+    });
+
+    it("names the server overview switch per category, missing = shown", () => {
+        const draft = base();
+        draft.categoryServerOverview = { c1: false, c2: true };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · nicht in der Server-Übersicht"]);
+        const saved = { ...base(), categoryServerOverview: { c1: false } };
+        expect(logic.draftChanges(saved, { ...base(), categoryServerOverview: { c1: true } }, names)).toEqual(["Hyjal & BT · in der Server-Übersicht"]);
+        expect(logic.draftChanges(saved, { ...base(), categoryServerOverview: { c1: false } }, names)).toEqual([]);
+    });
+
+    it("names the create announcement, missing = off (#306; #894: always the event channel)", () => {
+        const draft = base();
+        draft.categoryAnnounce = { c1: { enabled: true } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual(["Hyjal & BT · Ankündigung → Event-Kanal"]);
+        const saved = { ...base(), categoryAnnounce: { c1: { enabled: true } } };
+        expect(logic.draftChanges(saved, { ...base(), categoryAnnounce: { c1: { enabled: false } } }, names))
+            .toEqual(["Hyjal & BT · Ankündigung → aus"]);
+        expect(logic.announceMode(undefined)).toBe("");
+        expect(logic.announceMode({ enabled: true })).toBe("event");
+    });
+
+    it("names the characters per signup, missing = 8, clamped into 1..8", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 8 } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupCharacters: { c1: 3 } }, names))
+            .toEqual(["Hyjal & BT · Charaktere je Anmeldung → 3"]);
+        expect(logic.signupCharactersOf(undefined, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 20 }, "c1")).toBe(8);
+        expect(logic.signupCharactersOf({ c1: 0 }, "c1")).toBe(1);
+        expect(logic.validSignupCharacters(9)).toBe(false);
+        expect(logic.validSignupCharacters(1)).toBe(true);
+    });
+
+    it("names the message mode with Vielleicht/Absage, missing = optional", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "optional" } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNotes: { c1: "required" } }, names))
+            .toEqual(["Hyjal & BT · Nachricht bei Vielleicht/Absage → Pflicht"]);
+        expect(logic.draftChanges({ ...base(), categorySignupNotes: { c1: "none" } }, { ...base(), categorySignupNotes: { c1: "optional" } }, names))
+            .toEqual(["Hyjal & BT · Nachricht bei Vielleicht/Absage → optional"]);
+        expect(logic.signupNoteMode(undefined, "c1")).toBe("optional");
+        expect(logic.signupNoteMode({ c1: "odd" }, "c1")).toBe("optional");
+    });
+
+    it("names the message channel per category (#335)", () => {
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "" } }, names)).toEqual([]);
+        expect(logic.draftChanges(base(), { ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage gesetzt"]);
+        expect(logic.draftChanges({ ...base(), categorySignupNoteChannel: { c1: "123456789012345678" } }, { ...base(), categorySignupNoteChannel: { c1: "" } }, names))
+            .toEqual(["Hyjal & BT · Kanal für Vielleicht/Absage → Standard"]);
+    });
+
+    it("labels the default choice and marks an own channel out of reach (#335)", () => {
+        const channels = [{ id: "1", name: "abmeldungen" }, { id: "2", name: "raid-orga" }];
+        expect(logic.noteChannelPick(channels, "1", "")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "2")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "1", "9")).toEqual({ defaultLabel: "Standard (#abmeldungen)", unreachable: true });
+        expect(logic.noteChannelPick(channels, "", "")).toEqual({ defaultLabel: "Standard (nicht gesetzt)", unreachable: false });
+        expect(logic.noteChannelPick(channels, "9", "")).toEqual({ defaultLabel: "Standard (nicht erreichbar)", unreachable: false });
+        // bot offline: no list, nothing is judged
+        expect(logic.noteChannelPick([], "1", "9")).toEqual({ defaultLabel: "Standard", unreachable: false });
+    });
+
+    it("counts admin roles, the base access, accounts and categories", () => {
+        const draft = base();
+        draft.adminRoleIds = ["a2"];
+        draft.baseAccess = { loot: { read: true, write: false } };
+        draft.userPermissions = { u1: {} };
+        draft.categoryIds = [];
+        expect(logic.draftChanges(base(), draft, names)).toEqual([
+            "Admin-Rolle @a1 entfernt",
+            "Admin-Rolle @a2 hinzugefügt",
+            "Basiszugang · loot → Lesen",
+            "Konto u1 hinzugefügt",
+            "Hyjal & BT deaktiviert",
+        ]);
+    });
+});
+
+describe("connection cards", () => {
+    it("says what is missing for a client + secret connection", () => {
+        expect(logic.connectionState("wcl", { warcraftlogsV2: { clientId: "x", hasClientSecret: false } }))
+            .toEqual({ tone: "mid", label: "Secret fehlt", missing: true });
+        expect(logic.connectionState("battlenet", { blizzard: { clientId: "x", hasClientSecret: true } }))
+            .toEqual({ tone: "ok", label: "Verbunden", missing: false });
+        expect(logic.connectionState("battlenet", { blizzard: { clientId: "" } }).missing).toBe(true);
+    });
+
+    it("never counts the Discord connection or unknown token numbers as missing", () => {
+        expect(logic.connectionState("discord", { botOnline: false }).missing).toBe(false);
+        expect(logic.connectionState("lootsync", { tokenCount: null }).missing).toBe(false);
+        expect(logic.connectionState("lootsync", { tokenCount: 0 }).missing).toBe(true);
+        expect(logic.connectionState("lootsync", { tokenCount: 2 })).toEqual({ tone: "accent", label: "2 Tokens", missing: false });
+    });
+
+    it("sends only its own block from a modal", () => {
+        expect(logic.connectionPatch("wcl", { clientId: " id ", model: "ignored" }, undefined))
+            .toEqual({ warcraftlogsV2: { clientId: "id" } });
+        expect(logic.connectionPatch("anthropic", { model: "claude-opus-5", clientId: "ignored" }, "sk"))
+            .toEqual({ anthropic: { model: "claude-opus-5", apiKey: "sk" } });
+        // The server itself moved to Discord-Server (#251): the card no longer sends guildId.
+        expect(logic.connectionPatch("discord", { guildId: "1", raidhelperServerId: "2" }, "never"))
+            .toEqual({ raidhelperServerId: "2" });
+    });
+
+    it("keeps the secret contract: undefined keeps, empty clears", () => {
+        // the realm is per game version since #542: the Battle.net card sends only the credentials
+        expect(logic.connectionPatch("battlenet", { clientId: "c", realmSlug: "Thunderstrike" }, undefined)).toEqual({
+            blizzard: { clientId: "c" },
+        });
+        expect(logic.connectionPatch("battlenet", {}, "").blizzard.clientSecret).toBe("");
+    });
+
+    it("has a GitHub card for the addon downloads (#818): only the token, full admins only", () => {
+        expect(logic.connectionState("github", { github: { hasToken: true } })).toEqual({ tone: "ok", label: "Token hinterlegt", missing: false });
+        expect(logic.connectionState("github", {})).toEqual({ tone: "mid", label: "Token fehlt", missing: true });
+        expect(logic.connectionPatch("github", {}, " t ".trim())).toEqual({ github: { token: "t" } });
+        expect(logic.connectionPatch("github", {}, "")).toEqual({ github: { token: "" } });
+        expect(logic.connectionPatch("github", {}, undefined)).toEqual({});
+        expect(logic.visibleConnections(true)).toContain("github");
+        expect(logic.visibleConnections(false)).not.toContain("github");
+    });
+});
+
+describe("Discord-Server cards (#251, #361)", () => {
+    const card = (over = {}) => ({ connected: true, permissions: [{ label: "Rollen verwalten", ok: true }], missing: [], ...over });
+
+    it("says what a server card needs, without counting unknown rights", () => {
+        expect(logic.serverCardState(null, false)).toEqual({ tone: "mid", label: "Kein Server gewählt", missing: true });
+        expect(logic.serverCardState(null, true)).toEqual({ tone: "", label: "Kein zweiter Server", missing: false });
+        expect(logic.serverCardState(card({ connected: false }), true).label).toBe("Bot nicht auf dem Server");
+        expect(logic.serverCardState(card({ permissions: null }), false)).toEqual({ tone: "", label: "Rechte unbekannt", missing: false });
+        expect(logic.serverCardState(card({ missing: ["Rollen verwalten"] }), false).label).toBe("1 Recht fehlt");
+        expect(logic.serverCardState(card({ missing: ["a", "b"] }), false).label).toBe("2 Rechte fehlen");
+        expect(logic.serverCardState(card(), false)).toEqual({ tone: "ok", label: "Verbunden", missing: false });
+    });
+
+    it("counts the cards that need attention for the sidebar badge, an empty server list scoring 0", () => {
+        expect(logic.serverIssues(null)).toBe(0);
+        expect(logic.serverIssues({ events: [] })).toBe(0);
+        expect(logic.serverIssues({ events: [card()] })).toBe(0);
+        expect(logic.serverIssues({ events: [card({ missing: ["x"] }), card(), card({ connected: false })] })).toBe(2);
+    });
+
+    it("says a link's language and versions in one short line (#891)", () => {
+        const versions = [{ id: "tbc", short: "TBC" }, { id: "forever", short: "Forever" }];
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        expect(logic.linkSummary(link, versions)).toBe("Serversprache · alle Versionen");
+        expect(logic.linkSummary({ ...link, lang: "en", versions: ["tbc"] }, versions)).toBe("Englisch · nur TBC");
+        expect(logic.linkSummary({ ...link, lang: "de", versions: ["tbc", "forever", "x"] }, versions)).toBe("Deutsch · nur TBC, Forever, x");
+    });
+
+    it("finds a link's status by its key from:to, a second link of the same source keeping its own, and words it", () => {
+        const link = { from: "1", to: "2", channelId: "21", lang: "", versions: [] };
+        const second = { ...link, to: "3", channelId: "31" };
+        const base = { key: "1:2", from: "1", to: "2", guildId: "1", label: "", configured: true, channelId: "21", messageId: "m", messageUrl: "", postedAt: 1000, editedAt: 0, checkedAt: 0, error: "" };
+        const other = { ...base, key: "1:3", to: "3", channelId: "31", messageId: "", error: "x" };
+        expect(logic.linkKey(link)).toBe("1:2");
+        expect(logic.linkStatusOf(link, [other])).toBeNull();
+        expect(logic.linkStatusOf(link, [other, base])).toBe(base);
+        expect(logic.linkStatusOf(second, [base, other])).toBe(other);
+        // No fallback to the source alone: same source and channel but another key is not this link's status.
+        expect(logic.linkStatusOf(link, [{ ...base, key: "1:9" }])).toBeNull();
+        expect(logic.linkStatusBadge(null, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge({ ...base, messageId: "" }, 2000).label).toBe("noch nicht gepostet");
+        expect(logic.linkStatusBadge(base, 2000)).toMatchObject({ label: "Aktuell", tone: "ok" });
+        expect(logic.linkStatusBadge({ ...base, error: "Bot darf nicht schreiben" }, 2000))
+            .toMatchObject({ label: "Fehler", tone: "mid", tipSub: "Bot darf nicht schreiben" });
+    });
+
+    it("words the raid categories of a server, none being a normal state", () => {
+        expect(logic.raidCategoriesText(0)).toBe("keine");
+        expect(logic.raidCategoriesText(1)).toBe("1 Raid-Kategorie");
+        expect(logic.raidCategoriesText(3)).toBe("3 Raid-Kategorien");
+    });
+});
+
+describe("planningOf: raid plan or sheet", () => {
+    it("takes the picked mode, else the sheet when a fixed one is set, else the raid plan", () => {
+        expect(mod.planningOf("c1", { c1: "raidplan" }, { c1: { url: "https://x" } })).toBe("raidplan");
+        expect(mod.planningOf("c1", { c1: "sheet" }, {})).toBe("sheet");
+        expect(mod.planningOf("c1", {}, { c1: { url: "https://x" } })).toBe("sheet");
+        expect(mod.planningOf("c1", { c1: "both" }, { c1: { url: " " } })).toBe("raidplan");
+        expect(mod.planningOf("c1", undefined, undefined)).toBe("raidplan");
+    });
+
+    it("names the two modes in both languages", async () => {
+        expect([mod.planningLabel("raidplan"), mod.planningLabel("sheet")]).toEqual(["Raidplan", "Sheet"]);
+        expect(await inLang("en", () => mod.planningLabel("raidplan"))).toBe("Raid plan");
+    });
+});
+
+describe("category list", () => {
+    const categories = [{ id: "c1", name: "Hyjal" }, { id: "c2", name: "Allgemein" }];
+
+    it("keeps configured ids Discord no longer knows, marked unknown", () => {
+        expect(logic.categoryRows(categories, ["c1", "gone", "gone"])).toEqual([
+            { id: "c1", name: "Hyjal", unknown: false },
+            { id: "c2", name: "Allgemein", unknown: false },
+            { id: "gone", name: "gone", unknown: true },
+        ]);
+    });
+
+    it("folds the inactive categories away unless all are asked for, but never an unknown id", () => {
+        const rows = logic.categoryRows(categories, ["gone"]);
+        const { shown, folded } = logic.splitCategoryRows(rows, ["c1"], false);
+        expect(shown.map((r) => r.id)).toEqual(["c1", "gone"]);
+        expect(folded.map((r) => r.id)).toEqual(["c2"]);
+        expect(logic.splitCategoryRows(rows, ["c1"], true).folded).toEqual([]);
+    });
+});
+
+// Pings, reminders and role sync across both servers (#264).
+describe("ping targets, role sync and reminders", () => {
+    it("says in the modal head which channel the ping goes to (#894: always the raid's own)", () => {
+        expect(logic.channelHint("kara-mi")).toBe("in #kara-mi");
+        expect(logic.channelHint("")).toBeUndefined();
+    });
+
+    it("sends only complete role pairs between two servers, once per pair", () => {
+        expect(logic.roleSyncPatch([
+            { fromGuildId: " g1 ", fromRoleId: " 1 ", toGuildId: "g2", toRoleId: "2", direction: "both" },
+            { fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "toSource" },
+            { fromGuildId: "g1", fromRoleId: "3", toGuildId: "g2", toRoleId: "", direction: "toTarget" },
+            { fromGuildId: "g1", fromRoleId: "4", toGuildId: "g1", toRoleId: "5", direction: "toTarget" },
+            { fromGuildId: "", fromRoleId: "6", toGuildId: "g2", toRoleId: "7", direction: "toTarget" },
+        ])).toEqual({ roleSync: [{ fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "both" }] });
+    });
+
+    it("replaces an edited pair in place and appends a new one", () => {
+        const rules = [{ fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "2", direction: "toTarget" as const }];
+        const changed = { fromGuildId: "g1", fromRoleId: "1", toGuildId: "g2", toRoleId: "9", direction: "both" as const };
+        expect(logic.withRoleRule(rules, 0, changed)).toEqual([changed]);
+        expect(logic.withRoleRule(rules, -1, changed)).toEqual([rules[0], changed]);
+        expect(rules[0].toRoleId).toBe("2");
+    });
+
+    it("knows when a pair is ready, which servers it writes to and its overlap", () => {
+        const rule = { fromGuildId: "g2", fromRoleId: "1", toGuildId: "g1", toRoleId: "2", direction: "toTarget" as const };
+        expect(logic.roleRuleReady(rule)).toBe(true);
+        expect(logic.roleRuleReady({ ...rule, toGuildId: "g2" })).toBe(false);
+        expect(logic.roleRuleReady({ ...rule, fromRoleId: "" })).toBe(false);
+        expect(logic.writtenGuilds(rule)).toEqual(["g1"]);
+        expect(logic.writtenGuilds({ ...rule, direction: "toSource" })).toEqual(["g2"]);
+        expect(logic.writtenGuilds({ ...rule, direction: "both" })).toEqual(["g2", "g1"]);
+        // the server sorts each pair, the lookup does the same
+        const overlap = { fromGuildId: "g1", toGuildId: "g2", both: 3 };
+        expect(logic.overlapOf([overlap], rule)).toBe(overlap);
+        expect(logic.overlapOf([overlap], { ...rule, toGuildId: "g3" })).toBeNull();
+    });
+
+    it("badges the drift: nothing, a count, or unknown", () => {
+        expect(logic.driftBadge(0, null)).toMatchObject({ tone: "ok", label: "Keine Abweichung" });
+        expect(logic.driftBadge(3, null)).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
+        expect(logic.driftBadge(1, null).label).toBe("1 Abweichung");
+        expect(logic.driftBadge(0, "Intent fehlt")).toMatchObject({ tone: "", tip: "Intent fehlt" });
+    });
+
+    it("keeps the count when only some servers could not be read and names them in the tip", () => {
+        const partial = logic.driftBadge(3, null, ["Der Bot ist nicht auf PuG."]);
+        expect(partial).toMatchObject({ tone: "mid", label: "3 Abweichungen" });
+        expect(partial.tip).toContain("Der Bot ist nicht auf PuG.");
+        expect(logic.driftBadge(0, null, ["Intent fehlt"])).toMatchObject({ tone: "ok", label: "Keine Abweichung" });
+    });
+
+    it("sums a reminder rule up in one short line", () => {
+        expect(logic.reminderSummary(undefined)).toBe("aus");
+        expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h vor Schluss · 1 h vor Raid");
+        expect(logic.reminderSummary({ missingHours: 0, signedHours: 2 })).toBe("2 h vor Raid");
+    });
+
+    it("sets one category's reminders and removes a switched-off one", () => {
+        const current = { a: { missingHours: 24, signedHours: 0 } };
+        expect(logic.remindersPatch(current, "b", { missingHours: "12", signedHours: 999 })).toEqual({
+            categoryReminders: { a: current.a, b: { missingHours: 12, signedHours: 168 } },
+        });
+        expect(logic.remindersPatch(current, "a", { missingHours: 0, signedHours: -1 })).toEqual({ categoryReminders: {} });
+        expect(current.a.missingHours).toBe(24);
+    });
+});
+
+describe("raid list of a link (#257, #892)", () => {
+    const NOW = 10_000_000;
+    const base = { configured: true, channelId: "ov", messageId: "m1", messageUrl: "u", postedAt: 0, editedAt: 0, checkedAt: 0, error: "" };
+
+    it("says how long ago, short", () => {
+        expect(logic.agoText(0, NOW)).toBe("");
+        expect(logic.agoText(NOW - 10_000, NOW)).toBe("gerade eben");
+        expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("vor 5 Min.");
+        expect(logic.agoText(NOW - 3 * 3600000, NOW)).toBe("vor 3 Std.");
+    });
+
+    it("shows one badge with the times in the tooltip", () => {
+        expect(logic.talkOverviewBadge(null, NOW)).toMatchObject({ label: "nicht eingestellt", tone: "" });
+        expect(logic.talkOverviewBadge({ ...base, messageId: "" }, NOW)).toMatchObject({ label: "noch nicht gepostet", tone: "" });
+        const posted = logic.talkOverviewBadge({ ...base, postedAt: NOW - 120000, checkedAt: NOW - 60000 }, NOW);
+        expect(posted).toMatchObject({ label: "gepostet vor 2 Min.", tone: "ok" });
+        expect(posted.tipSub).toContain("Zuletzt geprüft vor 1 Min.");
+        expect(logic.talkOverviewBadge({ ...base, postedAt: NOW - 7200000, editedAt: NOW - 60000 }, NOW).label).toBe("bearbeitet vor 1 Min.");
+        const failed = logic.talkOverviewBadge({ ...base, error: "Bot nicht verbunden." }, NOW);
+        expect(failed).toMatchObject({ label: "Fehler", tone: "mid" });
+        expect(failed.tipSub).toContain("Bot nicht verbunden.");
+    });
+});
+
+describe("the labels in English", () => {
+    const NOW = 10_000_000;
+    const names = { role: (id: string) => `@${id}`, user: (id: string) => id, area: (id: string) => id, category: () => "Hyjal & BT" };
+    const draft = () => ({ adminRoleIds: [], rolePermissions: {}, baseAccess: {}, userPermissions: {}, officerRoleId: "", applicationChannelId: "",
+        categoryIds: [], categoryRoles: {}, logChannels: [], raidChannelId: "", categoryLootTool: {}, categorySheets: {} });
+
+    it("words the save bar, the badges and the times in English once the page is switched", async () => {
+        await inLang("en", () => {
+            expect(logic.levelLabel("write")).toBe("Write");
+            expect(logic.draftChanges(draft(), { ...draft(), categorySetupDms: { c1: true }, raidChannelId: "1" }, names))
+                .toEqual(["Hyjal & BT · setup DMs on", "Default channel"]);
+            expect(logic.connectionState("lootsync", { tokenCount: 2 }).label).toBe("2 tokens");
+            expect(logic.serverCardState({ connected: true, permissions: [], missing: ["a", "b"] }, false).label).toBe("2 permissions missing");
+            expect(logic.driftBadge(1, null).label).toBe("1 drift");
+            expect(logic.reminderSummary({ missingHours: 24, signedHours: 1 })).toBe("24 h before close · 1 h before raid");
+            expect(logic.reminderSummary(undefined)).toBe("off");
+            expect(logic.agoText(NOW - 5 * 60000, NOW)).toBe("5 min ago");
+            expect(logic.noteChannelPick([], "", "").defaultLabel).toBe("Default (not set)");
+            expect(logic.areaLabel({ id: "history", label: "Historie & Loot" })).toBe("History & loot");
+            expect(logic.areaLabel({ id: "brandnew", label: "Neu vom Server" })).toBe("Neu vom Server");
+        });
+    });
+
+    it("tells an unset reminder apart without reading its text", () => {
+        expect(logic.reminderOff(undefined)).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 0 })).toBe(true);
+        expect(logic.reminderOff({ missingHours: 0, signedHours: 2 })).toBe(false);
+    });
+});

@@ -572,7 +572,7 @@ function poolOf(q, type, roster, roles) {
 
 // ---- ranking of candidates (#501) ----------------------------------------------------------------
 // Who of several raiders who COULD do a task should do it. The client twin is lib/raidplan/classRefs.ts (rankCandidates ...), the
-// same cases run on both (test/services/raidplan/raidplanRank.test.js, src/web-client/src/lib/raidplan/rank.test.ts). Pure.
+// same cases run on both (test/services/raidplan/raidplanRank.test.js, src/web-client/src/lib/raidplan/__tests__/rank.test.ts). Pure.
 
 /** The points of the ranking: the row's role wins over a spell of the catalog, that over the tank and healer penalties, those over the load. */
 const RANK_POINTS = { role: 100, spell: 50, tank: -40, healer: -20, load: -3, loadCap: 6 };

@@ -87,7 +87,7 @@ lines and open slots stay as they are. `.rp-gdim` only sets `--rp-gf: var(--rp-g
 !important`, `styles/raidplan/objects.css`). An opacity on `.rp-groupwrap` itself does nothing - it is
 `display: contents` - which is why the chips had no effect before (since the bar exists, also on 6449f731; not
 a regression). The editor shares it through the inspector's group focus (`BoardWorkspace`).
-Tests: `src/web-client/src/pages/raidplan/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/groupFocus.test.js`.
+Tests: `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.groupFocus.test.tsx`, `test/web-client/conventions/groupFocus.test.js`.
 
 **Sections marked where the visitor is assigned (#503):** in the section menu every section where the visitor is
 **personally** assigned says "Aufgabe für dich" (`raidBoard.stage.tagMine`, in `--accent`), and "Deine Aufgaben"
@@ -131,9 +131,9 @@ the event.
   server cache and a minute of polling. A report linked to the wrong event shows that raid's kills — correct the link on the event
   page. Only the newest linked log with a report id is read.
 - Tests: `test/utils/logcheck/bossProgress.test.js`, `test/services/raidplan/raidplanProgress.test.js`,
-  `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/useRaidProgress.test.tsx`,
-  `lib/raidplan/progress.test.ts`, `stage/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
-  `pages/raidplan/PlanPublicPage.stage.test.tsx`, `lib/raidplan/stage.test.ts`.
+  `test/web/apiRoutes/raidplan.progress.test.js`, `src/web-client/src/hooks/__tests__/useRaidProgress.test.tsx`,
+  `lib/raidplan/__tests__/progress.test.ts`, `stage/__tests__/StageBar.test.tsx`, `SectionStrip.test.tsx`; the stage as a whole:
+  `pages/raidplan/__tests__/PlanPublicPage.stage.test.tsx`, `lib/raidplan/__tests__/stage.test.ts`.
 
 ## Live updates and the section in the address (#555)
 
@@ -160,8 +160,8 @@ The read view takes a changed plan without a reload, and a reload lands on the b
   reload during the raid still turns to the boss being pulled. The editor (`RaidplanTab`) writes the same hash; its
   router drops it when another tab is chosen.
 - Tests: `test/web/http/apiResponse.test.js`, `test/web/apiRoutes/raidplan.test.js` (ETag / 304),
-  `lib/raidplan/sectionUrl.test.ts`, `hooks/useVisiblePoll.test.tsx`, `api/client.test.ts`,
-  `pages/raidplan/PlanPublicPage.live.test.tsx`.
+  `lib/raidplan/__tests__/sectionUrl.test.ts`, `hooks/__tests__/useVisiblePoll.test.tsx`, `api/__tests__/client.test.ts`,
+  `pages/raidplan/__tests__/PlanPublicPage.live.test.tsx`.
 
 ## Einteilungen in den Event-Kanal posten (#502)
 

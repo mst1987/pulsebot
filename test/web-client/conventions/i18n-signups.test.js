@@ -3,7 +3,7 @@
 // i18n/locales/<lang>/signups.json instead of German literals (#435: the source
 // half of the former test/web-client/i18n-signups.test.js; the texts and the
 // labels following a language switch are tested in
-// src/web-client/src/i18n/signups.test.ts).
+// src/web-client/src/i18n/__tests__/signups.test.ts).
 const { read } = require("../clientSource");
 
 const FILES = [

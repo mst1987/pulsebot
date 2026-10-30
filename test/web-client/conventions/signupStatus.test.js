@@ -3,7 +3,7 @@
 // styles/raid-detail.css, and every theme carries the colours the word uses
 // (#435: the CSS half of the former
 // test/web-client/signupStatus.test.js; the display itself is tested in
-// src/web-client/src/pages/raid-detail/RosterTab.test.tsx and meta.test.ts).
+// src/web-client/src/pages/raid-detail/__tests__/RosterTab.test.tsx and meta.test.ts).
 const { read } = require("../clientSource");
 const { SIGNUP_STATUSES } = require("../../../src/utils/attendance");
 

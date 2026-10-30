@@ -1,8 +1,8 @@
 // The shared menu (src/config/menu.json) and where the client is served from
 // (#435: the structural half of the former test/web-client/menuAccess.test.js).
 // What the sidebar draws and which account may open what is tested by
-// rendering: src/web-client/src/App.test.tsx, components/shell/Shell.test.tsx and
-// pages/history/HistoryPage.access.test.tsx.
+// rendering: src/web-client/src/__tests__/App.test.tsx, components/shell/__tests__/Shell.test.tsx and
+// pages/history/__tests__/HistoryPage.access.test.tsx.
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read } = require("../clientSource");

@@ -2,8 +2,8 @@
 // languages (#i18n, namespace `raids`): the German literals moved into
 // locales/<lang>/raids.json, and nothing is translated at module load (#435:
 // the source half of the former test/web-client/i18n-raids.test.js; the texts
-// are tested in src/web-client/src/i18n/raids.test.ts, the time bands in
-// lib/raids/raidTime.test.ts).
+// are tested in src/web-client/src/i18n/__tests__/raids.test.ts, the time bands in
+// lib/raids/__tests__/raidTime.test.ts).
 const { read } = require("../clientSource");
 
 const FILES = [

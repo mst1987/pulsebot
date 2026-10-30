@@ -1,6 +1,6 @@
 // The pure half of hooks/useDismiss.ts: what counts as "inside" an open
 // popover, menu or picker. Kept free of React and of DOM classes; tested in
-// src/web-client/src/lib/ui/dismiss.useDismiss.test.ts.
+// src/web-client/src/lib/ui/__tests__/dismiss.useDismiss.test.ts.
 
 /** A part of the page that counts as inside: a ref, a node, or nothing (yet). */
 export type DismissTarget = { current: Node | null } | Node | null | undefined;

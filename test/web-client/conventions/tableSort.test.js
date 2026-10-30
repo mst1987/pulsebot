@@ -1,8 +1,8 @@
 // Guards for the admin client's table sorting across every table
 // (src/web-client/src/lib/ui/tableSort.ts, components/ui/SortTh.tsx and their users;
 // #435: the structural half of the former test/web-client/tableSort.test.js —
-// the comparator and the remembered sort are tested in lib/ui/tableSort.test.ts,
-// the header in components/ui/SortTh.test.tsx):
+// the comparator and the remembered sort are tested in lib/ui/__tests__/tableSort.test.ts,
+// the header in components/ui/__tests__/SortTh.test.tsx):
 //   * every column header is sortable — a plain <th> is only allowed for the
 //     documented exceptions (button/link columns and the permission matrix),
 //   * nobody re-implements the sort header or the comparator locally again

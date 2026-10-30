@@ -74,7 +74,7 @@ reachable, it only moved. Designs: canvas boards `Plan` and `PlanKarte` (notes `
   even with a full setup (the earlier rule hid them all, which made splitting unusable) and the "Nicht
   platziert" list still lists such players; once a member's slot is dragged onto the map, the ring token of
   that person disappears (no duplicate). Own-character highlight is unchanged. Tests:
-  `src/web-client/src/lib/raidplan/groupTag.test.ts`.
+  `src/web-client/src/lib/raidplan/__tests__/groupTag.test.ts`.
 
 - **Layout** (`BoardWorkspace.tsx`, `styles/raidplan/` (`index.css` over its parts), one component for the template and the event
   editor): tool bar and boss chips (sticky), then the **bands** above the board (palette as one horizontal
@@ -102,7 +102,7 @@ reachable, it only moved. Designs: canvas boards `Plan` and `PlanKarte` (notes `
   entry shows a tally `placed/total` and is greyed out when all are placed (`slotTally`). Existing boards are
   repaired when opened (`repairSlots`, part of `ensureBesetzung`): duplicate slots of a role above the count
   are merged into the free ones or removed, references stay valid. Regression tests in
-  `src/web-client/src/lib/raidplan/raidplan.slots.test.ts`.
+  `src/web-client/src/lib/raidplan/__tests__/raidplan.slots.test.ts`.
 - **Chips of the Besetzung are draggable** (`dropChip`, pure): an unplaced chip dragged onto the map places
   the slot exactly there (ghost at the pointer, Esc cancels, a drop outside the map does nothing); a placed
   chip dragged onto the bar leaves the map, dragged onto the map moves; a plain click on a chip opens its
@@ -282,7 +282,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
 
 - **One resolution, two twins.** `expandClassRefs` in `src/services/raidplan/raidplanAssign.js` (sheet `/p/<token>`,
   suggestions) and in `src/web-client/src/lib/raidplan/classRefs.ts` (editor, template editor, facing, "Meine
-  Aufgaben") are the same algorithm; `src/web-client/src/lib/raidplan/classCount.test.ts` runs both on the same boards and
+  Aufgaben") are the same algorithm; `src/web-client/src/lib/raidplan/__tests__/classCount.test.ts` runs both on the same boards and
   compares. Per board and **kind of task**: raiders named by hand (`user:`, a filled slot, `picks`) are taken
   first; then the references of a **named class** in row order; then the **"Any"** references. A reference
   starts at its own number in its pool and takes the first raider nobody of that task has yet; nobody free =
@@ -327,7 +327,7 @@ the icons that are imported end up in the bundle, about 10 KB), as inline SVG co
   paladin row is served first, "any tank" takes the next free tank) and a third misdirect row at the council
   that stays open (two hunters, both already misdirect there).
 - Tests: `test/services/raidplan/raidplanRoundRobin.test.js` (2 hunters / 3 rows, count, general tank without a ret paladin,
-  no fallback, allow several, migration, suggestions with `keep`), `src/web-client/src/lib/raidplan/classCount.test.ts`
+  no fallback, allow several, migration, suggestions with `keep`), `src/web-client/src/lib/raidplan/__tests__/classCount.test.ts`
   (count, carry, candidates, twin check, dialog structure), updated `raidplanClassRefs.test.js` /
   `classRefs.test.js`.
 
@@ -405,7 +405,7 @@ Both follow the Raidplan canvas (boards `Modal-B`, `Modal-Klassen`, `Zeilen-Cont
   Einteilungen" (`openAssignments` over every section with its Besetzung, `missingNames`), a click lists them
   per section (a click on a section opens it); applying a template ends with a toast "2 Einteilungen offen:
   Magier, Jäger fehlen". The sheet shows only the chip. A template has no setup and no such warning.
-- Tests: `src/web-client/src/lib/raidplan/assignModal.test.ts` (categories, people list and filter, counters, class counts,
+- Tests: `src/web-client/src/lib/raidplan/__tests__/assignModal.test.ts` (categories, people list and filter, counters, class counts,
   preview, row states, card counter, any-spec roles and names, open rows plan-wide, twin check, structure,
   texts), `classCount.test.js` (count / role of a class in the dialog), `test/services/raidplan/raidplanRoundRobin.test.js`
   (mage tank with `any`, no fallback, healing keeps its role, `any` saved).
@@ -512,7 +512,7 @@ dot (`lib/raidplan.dirtyKeys`, its label says "ungespeichert"). The tab title st
 saves (the browser's "save page" is suppressed), leaving the page (reload, close, another address) asks via
 `beforeunload`. Saved: a calm green "Gespeichert" with a short flash. A conflict (409) is red instead of
 amber. In-app navigation inside the menu (the router is a plain BrowserRouter without blockers) is not
-intercepted. Tests: `src/web-client/src/lib/raidplan/saveState.test.ts`.
+intercepted. Tests: `src/web-client/src/lib/raidplan/__tests__/saveState.test.ts`.
 
 ## Round 13 (feature/raidplan-13): one mob of several, the zoom as in the sheet, options of a multi-selection
 
@@ -542,7 +542,7 @@ mob in the board's order), stored for the label where the map is not at hand.
   the kind and each icon once; `raidplanBoard.cleanBoard` drops an `oid` whose icon is gone or stands for
   another mob (the target means the kind again, its `n` stays); `reidBoard` (a template applied) moves the
   `oid` to the icon's new id.
-- Tests: `src/web-client/src/lib/raidplan/mobInstances.test.ts`, the `oid` part of `test/services/raidplan/raidplanBoard.test.js`.
+- Tests: `src/web-client/src/lib/raidplan/__tests__/mobInstances.test.ts`, the `oid` part of `test/services/raidplan/raidplanBoard.test.js`.
 
 ### The zoom as in the sheet
 
@@ -565,7 +565,7 @@ Tank drehen" or one of the eight directions for all) and the **arrow** (size, hi
 `setLookSelection`, `setColorSelection`, `setFacingSelection`, `patchArrowSelection` apply a change to every
 selected object that has the option (locked ones keep theirs) — one board change, so one undo step. "Zum
 eigenen Tank" follows the rule above: with several Flames each turns to the tank of that very icon. No native
-selects; the compass is buttons. Tests: `src/web-client/src/lib/raidplan/multiOptions.test.ts`.
+selects; the compass is buttons. Tests: `src/web-client/src/lib/raidplan/__tests__/multiOptions.test.ts`.
 
 ## Smarter suggestions: the row's role, no tanks for utility, load (#501)
 
@@ -574,7 +574,7 @@ whether he played elemental or enhancement, and the council's mage tank was also
 
 - **One ranking, two twins.** `rankCandidates(row, candidates, ctx)` / `scoreCandidate` in
   `src/services/raidplan/raidplanAssign.js` and `src/web-client/src/lib/raidplan/classRefs.ts` (the same cases run
-  on both: `test/services/raidplan/raidplanRank.test.js`, `lib/raidplan/rank.test.ts`, which also compares a full
+  on both: `test/services/raidplan/raidplanRank.test.js`, `lib/raidplan/__tests__/rank.test.ts`, which also compares a full
   board of both twins). Points per raider: the row's **role** fits +100 (`preferredRole` against `playerRole`: a
   flex role on the boss wins, a tank / healer placed as such stays one, else the SPEC's role `specRole` =
   `roleOfSpec`, which `rosterFrom` now sends with every player), his class has a **spell of the catalog** for the
@@ -600,7 +600,7 @@ whether he played elemental or enhancement, and the council's mage tank was also
   of *Klassen*, next to "Für Vorschläge bevorzugen"; not shown on a row whose task implies a role (heal, tank,
   trash tank). The candidate list of a class card shows the ranked order (the other rows as context), so switching
   the role moves the resolved player at once. The read view is unchanged. Tests:
-  `src/web-client/src/components/raidplan/editor/AssignModal.test.tsx`.
+  `src/web-client/src/components/raidplan/editor/__tests__/AssignModal.test.tsx`.
 - **Changed on existing plans (on purpose)**: a class reference in a utility row can now resolve to another raider
   of the class than before when the first one tanks on that boss or has more tasks; the kick suggestion of the
   old test raid skips the warrior tank (`raidplanAssign.test.js`).
@@ -635,8 +635,8 @@ orga wanted one healer - a paladin, or a shaman when there is none.
   nobody fills as ONE yellow chip "1 x [icon] Paladin › [icon] Schamane fehlt" (counted in "n offene Einteilungen"); in a
   template one quiet chip with the count. The shared sheet gets the rows resolved by the server; an open place there reads as an
   open class place ("Paladin 1 fehlt").
-- Tests: `test/services/raidplan/raidplanPriority.test.js`, `src/web-client/src/lib/raidplan/classPriority.test.ts` (the same
-  cases on both twins, golden master, card items, preview, carry), `src/web-client/src/components/raidplan/editor/AssignModal.prio.test.tsx`.
+- Tests: `test/services/raidplan/raidplanPriority.test.js`, `src/web-client/src/lib/raidplan/__tests__/classPriority.test.ts` (the same
+  cases on both twins, golden master, card items, preview, carry), `src/web-client/src/components/raidplan/editor/__tests__/AssignModal.prio.test.tsx`.
 
 ## The inspector in tabs (#528)
 
@@ -663,7 +663,7 @@ mark 210 px.
   skalieren" steps got their label on a line of their own and wrap (`.rp-insp-steps`) instead of one long line.
 - Nothing was dropped: every field and value is the one before, in a tab. At 390 px the dock sits under the map; no field
   leaves the column and the page does not scroll sideways (puppeteer at 1280 and 390 px).
-- Tests: `src/web-client/src/components/raidplan/editor/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
+- Tests: `src/web-client/src/components/raidplan/editor/__tests__/Inspector.tabs.test.tsx` (the tabs of each kind, their fields, the
   remembered tab, the badge fields, a short inspector without tabs).
 
 ## Groups in the plan: no bench in the assignments (#529)
@@ -696,8 +696,8 @@ assignment columns (healers, kicks, soulstones, debuffs) took raiders of a Raid-
   An own event's sheet (`raidHelperSlots`) never had the bench or the pool.
 - Tests: `test/services/raidplan/raidplanGroups.test.js`, `test/web/apiRoutes/raidplan.groups.test.js` (25 + 3 bench + 2 pool: the
   editor payload, the read view's priority, named bench raider, slot refill, the toggle, suggestions, template apply),
-  `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/planGroups.test.ts`,
-  `src/web-client/src/components/raidplan/editor/PlanGroups.test.tsx`.
+  `test/utils/setup/fillSetup.test.js`, `src/web-client/src/lib/raidplan/__tests__/planGroups.test.ts`,
+  `src/web-client/src/components/raidplan/editor/__tests__/PlanGroups.test.tsx`.
 
 ## The Allgemein section's raid-wide tasks (#536)
 
@@ -742,9 +742,9 @@ thunder clap, demoralizing shout, buff and other.
   sunder while another debuff goes to a damage dealer; `debuff` is damage dealers' utility (a healer only when nobody else can).
 - Existing plans are unchanged (nothing is migrated; the golden masters pass); an Allgemein section shows the four new default cards
   empty in the editor, the read view only cards with content.
-- Tests: `test/services/raidplan/raidplanGeneralTypes.test.js`, `src/web-client/src/lib/raidplan/rank.test.ts` ("the raid-wide tasks",
+- Tests: `test/services/raidplan/raidplanGeneralTypes.test.js`, `src/web-client/src/lib/raidplan/__tests__/rank.test.ts` ("the raid-wide tasks",
   both twins), `assign.test.ts` (types per scope, default and addable cards), `mineView.test.ts`, `planTables.test.ts`,
-  `src/web-client/src/components/raidplan/editor/GeneralCards.test.tsx` (the cards render, a debuff row, "Karte hinzufügen").
+  `src/web-client/src/components/raidplan/editor/__tests__/GeneralCards.test.tsx` (the cards render, a debuff row, "Karte hinzufügen").
 
 ## Long class priorities stack, every block folds and remembers it (#556)
 
@@ -769,8 +769,8 @@ thunder clap, demoralizing shout, buff and other.
     (`eh.raidplan.collapse.assign`, `isFolded(type)`/`toggleFold(type)`).
   - The fold is remembered per block TYPE, not per boss/section: collapsing the Heal card stays collapsed when switching bosses or
     reloading the page, matching how Besetzung/Taktik/the mobs bar (one instance each, always the same key) already behaved.
-  - Tests: `hooks/useCollapse.test.tsx` (both hooks, the localStorage round trip, several ids under one key not clobbering each other, a
-    blocked `localStorage.setItem` not throwing), `lib/raidplan/collapse.test.ts` (pure parsing), `Besetzung.test.tsx` and
+  - Tests: `hooks/__tests__/useCollapse.test.tsx` (both hooks, the localStorage round trip, several ids under one key not clobbering each other, a
+    blocked `localStorage.setItem` not throwing), `lib/raidplan/__tests__/collapse.test.ts` (pure parsing), `Besetzung.test.tsx` and
     `AssignPanel.test.tsx` (the chevron folds the block, `aria-expanded`, remembered across a remount).
 
 ## Cards tidied, the chevron in the head line (#559, sections 3 and 4)
@@ -805,7 +805,7 @@ the resolution and the sheet are untouched.
   the assignment cards grow a little (Heilen 414 -> 453 px at 1440) by the column header and the stacked classes; no horizontal scroll at 1440 / 390.
 - Tests: `AssignLine.test.tsx` (stack from 2 classes, rank + dot, deviation badge, the "..." menu), `AssignPanel.test.tsx` (chevron first in the head,
   text buttons, column header, deviating count), `Besetzung.test.tsx` (chevron in the head line, folded summary), `MobsBar.test.tsx`,
-  `lib/raidplan/cardSummary.test.ts`, `EventStandard.test.tsx` (hide via the menu).
+  `lib/raidplan/__tests__/cardSummary.test.ts`, `EventStandard.test.tsx` (hide via the menu).
 
 ## Role glyphs: "Ring und Linie" (#559, section 1)
 

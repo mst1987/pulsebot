@@ -4,7 +4,7 @@
 // root and in both light blocks of tokens.css and a [data-opt] mapping in
 // kader.css, and the weekday mapping is shared with the raider profile (one
 // place, the values in tokens.css). How the page uses them is rendered in
-// src/web-client/src/pages/kader/KaderPage.test.tsx.
+// src/web-client/src/pages/kader/__tests__/KaderPage.test.tsx.
 const { read } = require("../clientSource");
 const { OPTION_COLORS } = require("../../../src/services/kader/kaderModel");
 

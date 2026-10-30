@@ -2,7 +2,7 @@
 // stores it once, send() puts it on every mutating request. No page, dialog
 // or api function takes it as a parameter or prop any more — the 361 places
 // that used to hand it down are what this guards against coming back.
-// The token store itself runs in src/web-client/src/api/csrf.test.ts (Vitest).
+// The token store itself runs in src/web-client/src/api/__tests__/csrf.test.ts (Vitest).
 const fs = require("fs");
 const path = require("path");
 const { CLIENT, read, sourceFiles } = require("../clientSource");

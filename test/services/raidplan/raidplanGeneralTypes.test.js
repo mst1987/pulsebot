@@ -1,7 +1,7 @@
 // The raid-wide tasks of the "Allgemein" section (#536): the new types debuff, blessing, aura, totem and brez - their catalog spells, the
 // validation of a save, the ranking (Sunder Armor by the warrior tank is fine) and the suggestions (one blessing per paladin, an aura / a
 // totem per paladin / shaman for his group by his role, the debuffs on the boss). The client twin of the ranking rule runs in
-// src/web-client/src/lib/raidplan/rank.test.ts.
+// src/web-client/src/lib/raidplan/__tests__/rank.test.ts.
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
 const { ASSIGN_TYPES, CLASS_IDS } = assign;

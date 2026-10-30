@@ -176,7 +176,7 @@ Einstellungen → Spielversion, Karte **„Neue Version starten“** (`pages/set
 
 - **Von Hand abhaken:** `config.versionLaunch = { [versionId]: { [itemId]: { at, byName } } }`, normalisiert in `configSchema.normalizeVersionLaunch` (bekannte Versionen, nur die Punkte aus `VERSION_LAUNCH_MANUAL`). Der Schalter („erledigt“, `ui/Switch`) speichert sofort, nicht über die Speicherleiste; die berechneten Punkte haben keinen Schalter. Die Karte liest nach jedem Speichern der Seite neu (sie rechnet mit dem gespeicherten Stand).
 - **Links:** jeder Punkt führt dorthin, wo er erledigt wird: eine Karte weiter oben auf derselben Seite („Hier oben“: `#gv-main`, `#gv-links`), Raid-Vorlagen, Serien, Roster, Verbindungen (Gildenbanken), Discord-Server, Systemstatus oder der CSV-Download.
-- **Tests:** `test/services/events/versionLaunch.test.js` (jeder Punkt offen und erledigt, Felder, Marken), `test/web/apiRoutes/versionLaunch.test.js`, im Client `lib/settings/versionLaunch.test.ts` und `pages/settings/VersionLaunchCard.test.tsx`.
+- **Tests:** `test/services/events/versionLaunch.test.js` (jeder Punkt offen und erledigt, Felder, Marken), `test/web/apiRoutes/versionLaunch.test.js`, im Client `lib/settings/__tests__/versionLaunch.test.ts` und `pages/settings/__tests__/VersionLaunchCard.test.tsx`.
 
 ## Runbook für den Umstiegstag
 
