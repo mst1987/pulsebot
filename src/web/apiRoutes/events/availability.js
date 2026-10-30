@@ -49,6 +49,7 @@ const { entryServers, serverNames } = require("../../availability/entryServers")
 const { scopeOf, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { activeGuildFor } = require("../../http/activeGuild");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -163,6 +164,8 @@ const getAvailability = withUser({}, async ({ user, req, query, res }) => {
         entries: entries.map((e) => entryView(e, names)),
         characters: characterChoices(profile, config),
         servers,
+        // the server the web shows: a new entry starts with it picked
+        activeGuildId: activeGuildFor(req),
         // the flat list of before the server blocks (older clients)
         categories: servers.flatMap((s) => s.categories),
     });

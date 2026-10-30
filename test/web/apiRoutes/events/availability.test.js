@@ -108,7 +108,8 @@ describe("GET /api/availability", () => {
         const res = await call("GET", "/api/availability", ANNA);
         expect(status(res)).toBe(200);
         const data = json(res).data;
-        expect(data).toMatchObject({ userId: ANNA.id, orga: false, today: "2030-03-17", maxDays: 180 });
+        // activeGuildId: the server the web shows, picked when a new entry starts
+        expect(data).toMatchObject({ userId: ANNA.id, orga: false, today: "2030-03-17", maxDays: 180, activeGuildId: "g" });
         expect(data.entries[0]).toMatchObject({ id: "e1", kind: "absence", comment: "Urlaub", byOrga: false, done: 1, categoryName: "" });
         expect(data.entries[1]).toMatchObject({ kind: "presence", specLabel: "Arkan", categoryName: "Raids TBC", byOrga: true });
         expect(data.characters).toEqual([{ key: "nerathil", name: "Nerathil", className: "Mage", versionId: "tbc", specs: [{ key: "Mage-Arcane", label: "Arkan", gear: "ready" }] }]);

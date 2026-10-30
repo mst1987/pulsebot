@@ -11,7 +11,6 @@ const { clientSources } = require("../../clientSource");
 const LIST_SELECTION = {
     "components/channels/ArchiveTab.tsx": "archived channels to restore or delete, plus 'select all'",
     "components/channels/ChannelTree.tsx": "channels and categories of the tree for the bulk bar",
-    "components/signup/AvailabilityParts.tsx": "the raids a signup is available for",
     "components/shell/ViewAs.tsx": "the roles to view the menu as",
     "pages/kader/modals/ImportModal.tsx": "the members to import",
     "pages/kader/views/OverviewView.tsx": "rows of the overview for a batch action, plus 'mark all'",

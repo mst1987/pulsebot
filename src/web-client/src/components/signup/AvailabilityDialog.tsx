@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useOutletContext } from "react-router-dom";
 import {
     getAvailability, previewAvailability, saveAvailability, updateAvailability,
     type ApiError, type AvailabilityData, type AvailabilityEntry, type AvailabilityInput, type AvailabilityKind,
@@ -10,7 +9,6 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { Button, Modal, Segment } from "../ui";
 import { AbsenceIcon, CheckIcon, SignedIcon, XIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
-import type { ShellContext } from "../shell/Shell";
 import { CharacterRows, RaidChecklist, RaiderPick, ResultList, ScopePicker } from "./AvailabilityParts";
 import {
     characterGroups, charactersInput, charsFromEntry, countResults, effectiveChars, initialScope, nextTo, pickedVersions,
@@ -50,14 +48,13 @@ export default function AvailabilityDialog({ kind, own, target = null, categoryI
     categoryId?: string;
     /** Edit this entry (of `target`, else the caller's own) instead of entering a new one. */
     entryId?: string;
-    /** The server the web shows; missing = the shell's. */
+    /** The server the web shows; missing = the one GET /api/availability names. */
     activeGuildId?: string;
     onClose: () => void;
     /** After a save: the section and the raid list reload. */
     onSaved: () => void;
 }) {
-    const shell = useOutletContext<ShellContext | undefined>();
-    const guildId = activeGuildId ?? shell?.activeGuildId ?? "";
+    const guildId = activeGuildId ?? own.activeGuildId ?? "";
     // a fresh form per opening: every field starts from scratch
     if (!kind) return null;
     const forOther = own.orga ? target : null;

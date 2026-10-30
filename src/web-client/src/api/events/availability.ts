@@ -76,6 +76,8 @@ export type AvailabilityData = {
     categories: AvailabilityCategory[];
     /** The servers of the raider the data is for, each with its categories; missing on an older server. */
     servers?: AvailabilityServer[];
+    /** The server the web shows ("" none): a new entry starts with it picked. */
+    activeGuildId?: string;
 };
 
 /** A raid category an entry can be limited to; named and pictured like the tabs of "Meine Anwesenheit". */
