@@ -750,6 +750,21 @@ describe("ProfilePage – Sync-App (#1000)", () => {
         expect(screen.queryByText(t("profile.fold.syncKeys"))).not.toBeInTheDocument();
     });
 
+    it("still lists one's own keys without orga, says they count for no server and offers revoking, not creating", async () => {
+        const { user } = setup();
+        vi.mocked(api.getSyncKeys).mockResolvedValue({ allowed: false, servers: [], keys: [KEY], max: 10 });
+        await renderProfile();
+
+        await screen.findByText(t("profile.fold.syncKeysActive", { count: 1 }));
+        await openFold(user, "syncKeys");
+        expect(screen.getByText(t("profile.sync.notOrga"))).toBeInTheDocument();
+        expect(screen.getByText("Laptop")).toHaveAttribute("data-tip", "Laptop");
+        expect(screen.getByText(t("profile.sync.noServer"))).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("profile.sync.revoke") })).toBeInTheDocument();
+        expect(screen.queryByRole("textbox", { name: t("profile.sync.device") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("profile.sync.create") })).not.toBeInTheDocument();
+    });
+
     it("shows for orga, creates a key with a device name and shows the plaintext once", async () => {
         const { user } = setup();
         vi.mocked(api.getSyncKeys).mockResolvedValue(ORGA);

@@ -52,6 +52,11 @@ jest.mock("../../../src/services/discord/guildRoles", () => ({
     ...jest.requireActual("../../../src/services/discord/guildRoles"),
     serverIds: jest.fn(() => ["gA", "gB"]),
 }));
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
@@ -62,6 +67,7 @@ const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStor
 const { upsertPending, resolutionFor } = require("../../../src/stores/lootInboxStore");
 const { addImport } = require("../../../src/stores/lootStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../src/utils/loot/lootImport");
 
@@ -347,5 +353,57 @@ describe("POST /api/ingest/loot", () => {
             expect(upsertPending).toHaveBeenCalledTimes(1);
             expect(upsertPending.mock.calls[0][1].match).toBeNull();
         });
+    });
+});
+
+// #1000: a personal key works on every server its owner is orga of - here A (and C), never B.
+describe("POST /api/ingest/loot with a personal key", () => {
+    const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+    const { listPending } = require("../../../src/stores/lootInboxStore");
+
+    beforeEach(() => {
+        verifyToken.mockReturnValue(PERSON);
+    });
+
+    it("never appends to a raid of a server its owner is not orga of", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA"]);
+        resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gB" });
+        const res = await upload(payload());
+        expect(serversOfToken).toHaveBeenCalledWith(PERSON);
+        expect(addImport).not.toHaveBeenCalled();
+        expect(upsertPending).not.toHaveBeenCalled();
+        expect(json(res).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+    });
+
+    it("appends to a raid of any of its owner's servers, not only the first", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
+        resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gC" });
+        const res = await upload(payload());
+        expect(addImport).toHaveBeenCalledWith("e1", expect.any(Array), { categoryId: "cat1", eventLabel: "SSC", guildId: "gC" });
+        expect(json(res).data.results[0]).toMatchObject({ status: "appended", added: 1 });
+    });
+
+    it("never takes over an open card of another server", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA"]);
+        listPending.mockReturnValueOnce([{ id: "card-b", sessionId: "eh-1784574000-ssc", guildId: "gB", match: null }]);
+        const res = await upload(payload());
+        expect(upsertPending).not.toHaveBeenCalled();
+        expect(json(res).data.results[0]).toMatchObject({ status: "other_server", added: 0 });
+    });
+
+    it("puts a new card without a suggestion on the first of its owner's servers", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA", "gC"]);
+        const res = await upload(payload());
+        expect(status(res)).toBe(201);
+        expect(upsertPending).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({ guildId: "gA", tokenId: "p1" }));
+    });
+
+    it("refuses a key whose owner is orga nowhere with 403 no_server", async () => {
+        serversOfToken.mockResolvedValueOnce([]);
+        const res = await upload(payload());
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("no_server");
+        expect(upsertPending).not.toHaveBeenCalled();
+        expect(touchToken).not.toHaveBeenCalled();
     });
 });

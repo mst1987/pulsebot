@@ -79,15 +79,22 @@ describe("GET /api/ingest/me", () => {
         verifyToken.mockReturnValue({ id: "t1", name: "Laptop", ownerId: "u1" });
         const res = await call("GET", "/api/ingest/me");
         expect(status(res)).toBe(200);
-        expect(json(res).data).toEqual({ owner: { name: "Laptop" }, servers: [], legacy: null });
+        expect(json(res).data).toEqual({ owner: { name: "" }, servers: [], legacy: null });
         expect(resolveUserNames).not.toHaveBeenCalled();
+    });
+
+    it("falls back to the owner name saved with the key, never to the device name", async () => {
+        verifyToken.mockReturnValue({ id: "t1", name: "Laptop", ownerId: "u1", createdBy: "Anna" });
+        expect(json(await call("GET", "/api/ingest/me")).data.owner).toEqual({ name: "Anna" });
+        verifyToken.mockReturnValue({ id: "t1", name: "Laptop", ownerId: "u1", createdBy: "u1" });
+        expect(json(await call("GET", "/api/ingest/me")).data.owner).toEqual({ name: "" });
     });
 
     it("gives a server key its one server and legacy", async () => {
         verifyToken.mockReturnValue({ id: "t2", name: "Server-PC", guildId: "gA" });
         const data = json(await call("GET", "/api/ingest/me")).data;
         expect(data).toEqual({
-            owner: { name: "Server-PC" },
+            owner: null,
             servers: [{ guildId: "gA", name: "Server gA", label: "", role: "", versions: VERSIONS }],
             legacy: { guildId: "gA" },
         });
@@ -97,7 +104,7 @@ describe("GET /api/ingest/me", () => {
     it("lists every server for an old key, legacy null", async () => {
         verifyToken.mockReturnValue({ id: "t3", name: "Alt" });
         const data = json(await call("GET", "/api/ingest/me")).data;
-        expect(data.owner).toEqual({ name: "Alt" });
+        expect(data.owner).toBeNull();
         expect(data.servers.map((s) => s.guildId)).toEqual(["gA", "gB"]);
         expect(data.legacy).toBeNull();
     });

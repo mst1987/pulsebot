@@ -430,6 +430,7 @@
             "other": "{count} Abrufe"
         },
         "noServer": "zurzeit kein Server",
+        "notOrga": "Deine Schlüssel gelten derzeit für keinen Server – du bist nirgends Orga. Neue Schlüssel legt nur die Orga an; widerrufen kannst du deine jederzeit.",
         "empty": "Noch kein Schlüssel – lege einen für das Gerät an, auf dem die Sync-App läuft.",
         "role": {
             "admin": "als Admin",

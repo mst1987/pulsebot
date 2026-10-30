@@ -29,7 +29,9 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
  * `role` "admin" | "orga" | "category".
  * @param {string} userId
  * @param {{ config?: object, guildAccess?: object, cache?: object, memberRoleIds?: Function }} [opts]
- *   `guildAccess`: a computeGuildAccess() result to reuse (tests, the profile route)
+ *   `guildAccess`: a computeGuildAccess() result to reuse instead of asking Discord. The profile
+ *   route (web/apiRoutes/syncKeys.js) passes the session's (auth.sessionGuildAccess), so a page view
+ *   never waits on a member lookup; the /api/ingest/* routes leave it out and ask anew.
  */
 async function orgaServersOf(userId, { config, guildAccess, cache, memberRoleIds } = {}) {
     const uid = str(userId);

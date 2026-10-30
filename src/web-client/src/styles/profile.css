@@ -303,6 +303,24 @@
 .pf-sync-name .kicker { font-weight: 400; }
 .pf-sync-servers { display: flex; flex-wrap: wrap; gap: 2px 10px; }
 .pf-sync-wrap td.pf-sync-act { width: 1%; text-align: center; }
+/* a long device name ends in an ellipsis, the full name in the tooltip */
+.pf-sync-device { display: block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pf-sync-none { margin: 0; font-size: 13px; color: var(--text); }
+@media (max-width: 640px) {
+    /* one block per key: the device with the revoke button beside it, the rest labelled below */
+    .pf-sync-wrap { overflow-x: visible; }
+    .pf-sync-wrap thead { display: none; }
+    .pf-sync-wrap table, .pf-sync-wrap tbody, .pf-sync-wrap td { display: block; width: auto; }
+    .pf-sync-wrap tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .pf-sync-wrap td { grid-column: 1; padding: 1px 0; border: 0; }
+    .pf-sync-wrap td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .pf-sync-wrap td:first-child::before { content: none; }
+    .pf-sync-wrap td.pf-sync-act { grid-column: 2; grid-row: 1; width: auto; align-self: start; }
+    .pf-sync-wrap td.pf-sync-act::before { content: none; }
+    .pf-sync-wrap td .pf-sync-name { display: inline-grid; vertical-align: top; }
+    .pf-sync-wrap td .pf-sync-servers { display: inline-flex; }
+    .pf-sync-device { max-width: 100%; }
+}
 
 .pf-note { display: grid; gap: 4px; }
 .pf-note textarea {

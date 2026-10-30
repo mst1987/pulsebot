@@ -111,6 +111,9 @@ describe("services/guildbank/guildBankStock", () => {
         expect(foreign).toMatchObject({ code: "other_server" });
         expect(stock.serverListOf({ guildId: "22222" })).toEqual(["22222"]);
         expect(stock.serverListOf({})).toBeNull();
+        // fail closed: a personal key without its list gets no server, never every one
+        expect(stock.serverListOf(person)).toEqual([]);
+        expect(stock.serverListOf({ ownerId: "u1", guildId: "22222" })).toEqual([]);
         warn.mockRestore();
     });
 

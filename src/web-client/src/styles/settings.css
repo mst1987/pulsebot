@@ -156,6 +156,25 @@
 .set-card > table.idx tr:last-child td { border-bottom: 0; }
 table.idx td.cell-act { text-align: right; white-space: nowrap; width: 1%; }
 table.idx td.cell-act > * + * { margin-left: 6px; }
+/* the sync keys (Tokens verwalten): seven columns in a 720 px dialog, so tighter cells,
+   the hint on one line and long names cut with the full one in the tooltip */
+.conn-tok table.idx th, .conn-tok table.idx td { padding: 7px 8px; }
+.conn-tok table.idx td.conn-tok-hint { white-space: nowrap; }
+.conn-tok-name strong, .conn-tok-srv > span { display: block; max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conn-tok table.idx td.conn-tok-srv select { max-width: 150px; }
+.conn-tok table.idx td.conn-tok-date { white-space: normal; min-width: 76px; }
+@media (max-width: 760px) {
+    /* one block per key: the name with the revoke button beside it, the rest labelled below */
+    .conn-tok { overflow-x: visible; }
+    .conn-tok thead { display: none; }
+    .conn-tok table, .conn-tok tbody, .conn-tok td { display: block; width: auto; }
+    .conn-tok tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    .conn-tok table.idx td { grid-column: 1; padding: 2px 0; border: 0; white-space: normal; }
+    .conn-tok td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .conn-tok table.idx td.conn-tok-act { grid-column: 2; grid-row: 1; width: auto; align-self: start; }
+    .conn-tok-name strong, .conn-tok-srv > span { display: inline; max-width: none; white-space: normal; }
+    .conn-tok table.idx td.conn-tok-srv select { max-width: 100%; }
+}
 table.idx td.cell-act .ibtn { vertical-align: middle; }
 
 .inline-add { display: flex; gap: 8px; max-width: 520px; }

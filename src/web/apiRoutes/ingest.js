@@ -549,6 +549,8 @@ async function ingestHandoutReport(req, res) {
 async function ingestLevelHelperRuns(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
+    // the runs are not tied to a server, but a personal key whose owner is orga nowhere stops here
+    if (await requireServers(token, res) === undefined) return;
     const body = await readJsonBody(req);
     let result;
     try {
@@ -563,7 +565,8 @@ async function ingestLevelHelperRuns(req, res) {
 }
 
 /**
- * GET /api/ingest/me - who the sync app is connected as (#1000): the owner's name and every server
+ * GET /api/ingest/me - who the sync app is connected as (#1000): `owner: { name }` for a personal key
+ * (its Discord name, else the name saved at creation; null for a server or an old key) and every server
  * the key works on with its Discord name, label, the owner's role there and its versions
  * (`{ id, short, realm }`). `legacy: { guildId }` for a server key (its one server, role ""); null for
  * a personal key and for an old key (which lists every server: the rules from before #994). A
@@ -576,8 +579,9 @@ async function ingestMe(req, res) {
     const config = getConfig();
     const own = String(token.guildId || "").trim();
     let servers;
-    let name = "";
+    let owner = null;
     if (isPersonToken(token)) {
+        let name = "";
         servers = await orgaServersOf(token.ownerId, { config });
         for (const { guildId } of servers) {
             try {
@@ -588,11 +592,13 @@ async function ingestMe(req, res) {
             }
             if (name) break;
         }
+        const saved = String(token.createdBy || "").trim();
+        owner = { name: name || (saved !== String(token.ownerId) ? saved : "") };
     } else {
         servers = (own ? [own] : serverIds(config)).map((guildId) => ({ guildId, role: "" }));
     }
     ok(res, {
-        owner: { name: name || token.name || "" },
+        owner,
         servers: describeServers(servers, { config }),
         legacy: !isPersonToken(token) && own ? { guildId: own } : null,
     });

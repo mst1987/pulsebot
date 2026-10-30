@@ -68,10 +68,12 @@ function versionOfKnownBank({ realm, guild }) {
 /**
  * The servers a token may write banks of: the given list (`servers`, the route asks
  * services/discord/ingestServers.serversOfToken - a personal key's orga servers, #1000), else the
- * token's own server, else null (an old key: every server).
+ * token's own server, else null (an old key: every server). Fail closed: a personal key without
+ * the list gets none, never every server.
  */
 function serverListOf(token, servers) {
     if (Array.isArray(servers)) return servers.map(String);
+    if (token && String(token.ownerId || "").trim()) return [];
     const own = serverOfToken(token);
     return own ? [own] : null;
 }

@@ -1,5 +1,5 @@
 // "Mein Profil › Sync-App" (src/web/apiRoutes/syncKeys.js, #1000) through the real router: only the
-// orga sees and mints keys, revoking only one's own or as a full admin, the plaintext once.
+// orga mints keys, everyone sees and revokes their own (a full admin any person's), the plaintext once.
 let mockUser = null;
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
@@ -9,6 +9,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => "g1"),
+    sessionGuildAccess: jest.fn(() => null),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1"), pickActiveGuild: jest.fn(async () => "g1") }));
 jest.mock("../../../src/services/discord/ingestServers", () => ({
@@ -21,6 +22,7 @@ const { routerClient, status, json } = require("../../helpers/http");
 const { emptyAccess } = require("../../../src/config/permissions");
 const tokens = require("../../../src/stores/ingestTokenStore");
 const { orgaServersOf } = require("../../../src/services/discord/ingestServers");
+const { sessionGuildAccess } = require("../../../src/web/http/auth");
 const route = require("../../../src/web/apiRoutes/syncKeys");
 
 const api = routerClient(route);
@@ -63,9 +65,38 @@ describe("GET /api/profile/sync-keys", () => {
 
     it("counts the viewed rights in \"Ansicht als Raider\"", async () => {
         orgaOf({ u9: [{ guildId: "g1", role: "admin" }] });
+        tokens.createPersonToken("Admin-PC", "u9");
         mockUser = { ...ADMIN, isAdmin: false, access: raiderAccess(), viewAs: { roleIds: ["r"], at: Date.now() } };
-        expect(json(await api.get("/api/profile/sync-keys")).data.allowed).toBe(false);
+        const data = json(await api.get("/api/profile/sync-keys")).data;
+        expect(data).toEqual({ allowed: false, servers: [], keys: [], max: route.MAX_KEYS });
         expect(orgaServersOf).not.toHaveBeenCalled();
+    });
+
+    it("still lists and revokes one's own keys when orga nowhere any more", async () => {
+        const { record } = tokens.createPersonToken("Laptop", "u1");
+        mockUser = ANNA;
+        const data = json(await api.get("/api/profile/sync-keys")).data;
+        expect(data.allowed).toBe(false);
+        expect(data.servers).toEqual([]);
+        expect(data.keys.map((k) => k.name)).toEqual(["Laptop"]);
+        const res = await api.post("/api/profile/sync-keys/delete", { id: record.id });
+        expect(status(res)).toBe(200);
+        expect(json(res).data.keys).toEqual([]);
+        expect(tokens.getToken(record.id)).toBeNull();
+    });
+
+    it("reads the servers from the session's rights, no member lookup per page view", async () => {
+        const access = { isAdmin: false, guilds: { g1: { access: raiderAccess(), isOrga: true } } };
+        sessionGuildAccess.mockReturnValueOnce(access);
+        mockUser = ANNA;
+        await api.get("/api/profile/sync-keys");
+        expect(orgaServersOf).toHaveBeenCalledWith("u1", { guildAccess: access });
+    });
+
+    it("falls back to the base access when the session has none yet", async () => {
+        mockUser = ANNA;
+        await api.get("/api/profile/sync-keys");
+        expect(orgaServersOf).toHaveBeenCalledWith("u1", { guildAccess: { isAdmin: false, guilds: {} } });
     });
 });
 

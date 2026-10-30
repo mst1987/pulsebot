@@ -28,6 +28,11 @@ jest.mock("../../../src/services/discord/serverOf", () => ({
     ...jest.requireActual("../../../src/services/discord/serverOf"),
     storedCategoryGuilds: jest.fn(() => new Map([["c2", "gB"]])),
 }));
+// A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
+jest.mock("../../../src/services/discord/ingestServers", () => {
+    const actual = jest.requireActual("../../../src/services/discord/ingestServers");
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+});
 jest.mock("../../../src/web/loot/lootCouncil", () => ({
     ...jest.requireActual("../../../src/web/loot/lootCouncil"),
     councilRoster: jest.fn(),
@@ -37,6 +42,7 @@ const { verifyToken, touchToken } = require("../../../src/stores/ingestTokenStor
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { getConfig } = require("../../../src/stores/settingsStore");
 const { listCategories } = require("../../../src/services/discord/discord");
+const { serversOfToken } = require("../../../src/services/discord/ingestServers");
 const ingest = require("../../../src/web/apiRoutes/ingest");
 
 const { get, handle, urlFor } = routerClient(ingest);
@@ -183,6 +189,42 @@ describe("GET /api/ingest/council", () => {
             const res = await authed("/api/ingest/council", { category: "c2" });
             expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2", guildId: "gB" });
             expect(body(res).categories.map((c) => c.id)).toEqual(["c2"]);
+        });
+
+        // #1000: a personal key whose owner is orga on A, not on B.
+        describe("personal key", () => {
+            const PERSON = { id: "p1", name: "Laptop", ownerId: "u1", guildId: "" };
+            beforeEach(() => verifyToken.mockReturnValue(PERSON));
+
+            it("lists only its owner's servers' categories in v2 and v3", async () => {
+                serversOfToken.mockResolvedValueOnce(["gA"]).mockResolvedValueOnce(["gA"]);
+                expect(body(await authed("/api/ingest/council", { v: "2" })).categories.map((c) => c.id)).toEqual(["c1"]);
+                expect(body(await authed("/api/ingest/council", { v: "3" })).categories.map((c) => c.id)).toEqual(["c1"]);
+                expect(councilRoster.mock.calls.every(([opts]) => opts.categoryId === "c1")).toBe(true);
+                expect(serversOfToken).toHaveBeenCalledWith(PERSON);
+            });
+
+            it("drops a v1 category of B and reads A", async () => {
+                serversOfToken.mockResolvedValueOnce(["gA"]);
+                const res = await authed("/api/ingest/council", { category: "c2" });
+                expect(status(res)).toBe(200);
+                expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "", guildId: "gA" });
+                expect(body(res).categories.map((c) => c.id)).toEqual(["c1"]);
+            });
+
+            it("reads a v1 category of its second server", async () => {
+                serversOfToken.mockResolvedValueOnce(["gA", "gB"]);
+                const res = await authed("/api/ingest/council", { category: "c2" });
+                expect(status(res)).toBe(200);
+                expect(councilRoster.mock.calls[0][0]).toMatchObject({ categoryId: "c2", guildId: "gB" });
+            });
+
+            it("answers 403 no_server when its owner is orga nowhere", async () => {
+                serversOfToken.mockResolvedValueOnce([]);
+                const res = await authed("/api/ingest/council", { v: "3" });
+                expect(status(res)).toBe(403);
+                expect(councilRoster).not.toHaveBeenCalled();
+            });
         });
 
         it("keeps every server's categories for a key without a server", async () => {

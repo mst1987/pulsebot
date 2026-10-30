@@ -85,7 +85,7 @@ export function SyncKeysPart({ data, onChange }: {
             id: "name", label: t("profile.sync.colName"), sortKey: "name",
             cell: (k) => (
                 <span className="pf-sync-name">
-                    {k.name}
+                    <span className="pf-sync-device" data-tip={k.name}>{k.name}</span>
                     <span className="kicker mono">{t("profile.sync.hint", { hint: k.hint })}</span>
                 </span>
             ),
@@ -132,7 +132,9 @@ export function SyncKeysPart({ data, onChange }: {
                 </div>
             )}
 
-            <form className="pf-sync-new" onSubmit={(e) => { e.preventDefault(); create(); }}>
+            {!data.allowed && <p className="pf-sync-none">{t("profile.sync.notOrga")}</p>}
+
+            {data.allowed && <form className="pf-sync-new" onSubmit={(e) => { e.preventDefault(); create(); }}>
                 <input
                     type="text"
                     value={name}
@@ -145,8 +147,8 @@ export function SyncKeysPart({ data, onChange }: {
                 <Button type="submit" variant="go" icon={<PlusIcon />} disabled={busy || full || !name.trim()}>
                     {busy ? t("profile.sync.creating") : t("profile.sync.create")}
                 </Button>
-            </form>
-            {full && <p className="pf-muted">{t("profile.sync.max", { count: data.max })}</p>}
+            </form>}
+            {data.allowed && full && <p className="pf-muted">{t("profile.sync.max", { count: data.max })}</p>}
 
             <DataTable
                 rows={data.keys}

@@ -148,7 +148,7 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                     >
                         <CalendarPart data={cal} onChange={onCalendar} />
                     </FoldPart>
-                    {syncKeys?.allowed && onSyncKeys && (
+                    {syncKeys && (syncKeys.allowed || syncKeys.keys.length > 0) && onSyncKeys && (
                         <FoldPart
                             id="syncKeys" open={fold} onToggle={onFold} title={t("profile.fold.syncKeys")}
                             summary={syncKeys.keys.length === 0 ? t("profile.fold.syncKeysNone") : t("profile.fold.syncKeysActive", { count: syncKeys.keys.length })}

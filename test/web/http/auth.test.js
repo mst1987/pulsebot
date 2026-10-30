@@ -302,6 +302,17 @@ describe("web/http/auth", () => {
             expect(auth.getUser(req).isOrga).toBeUndefined();
         });
 
+        // #1000: the profile's sync keys read the servers from the session, no member lookup per view.
+        it("hands out the session's rights per server, none without a session", async () => {
+            getConfig.mockImplementation(() => onServer({ orgaRoleIds: ["role-lead"] }));
+            discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles("role-lead"))).client);
+            const { req } = await loginAs("561");
+            const access = auth.sessionGuildAccess(req);
+            expect(access.isAdmin).toBe(false);
+            expect(access.guilds["guild-1"]).toMatchObject({ isOrga: true });
+            expect(auth.sessionGuildAccess({ headers: {} })).toBeNull();
+        });
+
         it("re-checks only once per cache window", async () => {
             getConfig.mockImplementation(() => onServer({ adminRoleIds: ["role-1"] }));
             const fetch = jest.fn().mockResolvedValue(memberWithRoles("role-1"));

@@ -430,6 +430,7 @@
             "other": "{count} requests"
         },
         "noServer": "no server right now",
+        "notOrga": "Your keys currently count for no server – you are orga nowhere. Only the orga creates new keys; you can revoke yours at any time.",
         "empty": "No key yet – create one for the device the sync app runs on.",
         "role": {
             "admin": "as admin",
