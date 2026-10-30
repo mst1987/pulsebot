@@ -2,7 +2,7 @@
 // that already exist (data/reports/*.json — see reportStore.js).
 //
 // Every stored report carries its whole roster with the armory that
-// utils/logcheck/gearIssues.js built from the Warcraft-Logs casts table: item
+// utils/logcheck/gear/gearIssues.js built from the Warcraft-Logs casts table: item
 // id, item level, gems and the permanent-enchant id per equip slot. That is
 // exactly the shape a WoWSims loadout needs, so the loot council can compare
 // and simulate gear without a single extra API call — and without asking anyone
@@ -25,7 +25,7 @@
 // fields, and a stored report is mostly timeline (see reportStore.js).
 const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
-const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
+const { SLOT_NAMES } = require("../../utils/logcheck/gear/gearIssues");
 const { gearProfile, fitsRole, isPvpSet } = require("./gearProfile");
 const { situationalItem } = require("../../config/data/situationalItems");
 const { armoryItemInSlot, armorySetFor } = require("./armoryGear");
@@ -106,7 +106,7 @@ function armoryItems(entry, character = "", scope) {
  *   1. the armory — what is on the character *now*, which is the only source
  *      that knows what they wear when nobody is logging,
  *   2. the same raid night, one boss over, where the evaluation recorded it
- *      (utils/logcheck/gearVariants.js).
+ *      (utils/logcheck/gear/gearVariants.js).
  *
  * An older evaluation is tried after this, back in gearByCharacter, because
  * that one needs the whole walk. And if none of the three answers, the piece is

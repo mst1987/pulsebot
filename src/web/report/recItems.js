@@ -5,7 +5,7 @@
 // Wowhead tooltip with the item's own enchant and gems.
 const { esc } = require("./layout");
 const { wowheadItemLink, iconUrl } = require("./widgets");
-const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
+const { SLOT_NAMES } = require("../../utils/logcheck/gear/gearIssues");
 
 const QUALITY_COLOR = { 0: "#9d9d9d", 1: "#ffffff", 2: "#1eff00", 3: "#0070dd", 4: "#a335ee", 5: "#ff8000" };
 

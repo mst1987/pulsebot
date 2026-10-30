@@ -63,7 +63,7 @@ const INSTANCE_PATTERNS = [
 ];
 
 // The boss a raid night is *over* with — what the logcheck guard looks for
-// before it lets an evaluation run (see utils/logcheck/raidProgress.js).
+// before it lets an evaluation run (see utils/logcheck/raid/raidProgress.js).
 // Matched against the encounter names Warcraft Logs reports, which arrive in
 // English or German depending on the client the log came from, so both are
 // listed.
@@ -291,7 +291,7 @@ function normalizeBoss(name) {
 // Encounters that are not a boss of their own on the count a raid lead keeps
 // ("Kara 11/11"): Karazhan's opera bosses are one encounter — only one of them
 // is up on a night — and its three rare trash spawns are no encounter at all.
-// Lives here rather than in utils/logcheck/raidProgress.js because the game
+// Lives here rather than in utils/logcheck/raid/raidProgress.js because the game
 // version rule set (config/gameVersions/tbc.js) lists the same encounters.
 const OPERA = ["The Wizard of Oz", "The Big Bad Wolf", "Romulo and Julianne", "Opera Hall"];
 const NOT_COUNTED = new Set(["Hyakiss the Lurker", "Shadikith the Glider", "Rokad the Ravager", ...OPERA].map(normalizeBoss));

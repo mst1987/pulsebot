@@ -192,7 +192,7 @@ drawn with "Weg zeichnen" in its sentence. The mechanics below are unchanged.
 `src/web-client/src/pages/raidplan/__tests__/PlanPublicPage.anim.test.tsx` (the player in the sheet, a step's "Animation", the group highlight),
 `src/web-client/src/lib/raidplan/anim/__tests__/sceneEdit.test.ts` (editing on the timeline),
 `src/web-client/src/lib/raidplan/anim/__tests__/sceneActions.test.ts` (actors, the ring of a group, sentences, directions, one action
-for several), `test/web-client/conventions/controls.test.js` (a disabled text field carries no dropdown arrow),
+for several), `test/web-client/conventions/ui/controls.test.js` (a disabled text field carries no dropdown arrow),
 `src/web-client/src/components/raidplan/editor/__tests__/BoardWorkspace.anim.test.tsx` (the editor's view: create, drag and read
 it as a sentence, the assistant for a debuff, walking and a loop, a group vs. a single raider by click, Alt + click and
 "Wer?", changing and removing an action, preview, the step a scene stands at, delete).

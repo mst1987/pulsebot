@@ -3,7 +3,7 @@
 // Raid-Helper raids pointing to Discord, the dialog in the url, and several own
 // raids at once through the bulk dialog. The dialog itself is tested in
 // components/signup/__tests__/SignupDialog.test.tsx; the stylesheet and routing promises that
-// cannot be rendered stay in test/web-client/conventions/signupsPage.test.js.
+// cannot be rendered stay in test/web-client/conventions/events/signupsPage.test.js.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";

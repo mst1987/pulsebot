@@ -23,9 +23,9 @@ const { evaluateLog, scanLogChannels, backfillLogTitles, refreshLogButton } = re
 const { startJob, getJob } = require("../../logcheck/evalJobs");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { buildReport, stripSection, ReportError } = require("../../../utils/logcheck/report");
-const { applyReview } = require("../../../utils/logcheck/recommendations");
+const { applyReview } = require("../../../utils/logcheck/recommendations/recommendations");
 const { sendApproved, sendStatus } = require("../../logcheck/recommendationSend");
-const { phraseReport } = require("../../../utils/logcheck/recommendationText");
+const { phraseReport } = require("../../../utils/logcheck/recommendations/recommendationText");
 const { listAllAssignments } = require("../../../stores/roster/raiderCharactersStore");
 const { loadMatchableEvents, eventLinkFields } = require("../../../services/logcheck/matchableEvents");
 const { linkLogByUrl } = require("../../logcheck/manualLog");
@@ -162,7 +162,7 @@ const createReport = withUser({ csrf: true, body: true }, async ({ req, body, re
     const link = q.str(body, "link");
     if (!link) return error(res, 400, "build_failed", "Kein Report-Link angegeben.");
     // Sent once the client has asked whether a raid that is still running should
-    // be evaluated regardless (see utils/logcheck/raidProgress.js).
+    // be evaluated regardless (see utils/logcheck/raid/raidProgress.js).
     const force = !!body.force;
     // Which halves to build: both by default, or the one the form picked.
     const sections = Array.isArray(body.sections) ? body.sections.filter((s) => s === "cla" || s === "rpb") : undefined;
@@ -263,7 +263,7 @@ const evalLog = withUser({ csrf: true, body: true }, async ({ user, req, body, r
     }
 
     // Set once the client has asked whether a raid that is still running should
-    // be evaluated regardless (see utils/logcheck/raidProgress.js).
+    // be evaluated regardless (see utils/logcheck/raid/raidProgress.js).
     const force = !!body.force;
     const { alreadyRunning } = startJob(logId, section, () => evaluateLog(logId, section, { force }));
     ok(res, { status: "running", section, logId, alreadyRunning }, 202);

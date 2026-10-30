@@ -155,7 +155,7 @@ describe("utils/wowsims — what the binary gets wrong, and what we do about it"
         });
 
         it("uses the same rule as the gear check, so the two cannot disagree", () => {
-            const { metaGemActive } = require("../../../src/utils/logcheck/gearIssues");
+            const { metaGemActive } = require("../../../src/utils/logcheck/gear/gearIssues");
             expect(metaGemActive(34220, 0, 0, 2)).toBe(true);
             expect(metaGemActive(34220, 3, 0, 0)).toBe(false);
             expect(META).toBeGreaterThan(0);

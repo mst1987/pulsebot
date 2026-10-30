@@ -1,0 +1,169 @@
+// Guards for the redesigned "Historie & Loot" module (design issue #225).
+//
+// No React renderer here, so what is checked are the source invariants the
+// design rests on and that would regress silently:
+//   * no native title= tooltips and no window.confirm in the loot components,
+//   * no hover panels left where the item dialog took over,
+//   * the import is a dialog that keeps its draft and shows a preview,
+//   * the addon inbox is its own page with the cards and the linked list,
+//   * the shared building blocks are used, the module CSS is its own file.
+const fs = require("fs");
+const path = require("path");
+
+const CLIENT = path.join(__dirname, "..", "..", "..", "..", "src", "web-client", "src");
+const { read, dictionary } = require("../../clientSource");
+
+const MODULE_FILES = [
+    "pages/history/HistoryPage.tsx",
+    "pages/history/LootEventsTab.tsx",
+    "pages/history/LogsTab.tsx",
+    "pages/history/CharactersTab.tsx",
+    "pages/history/HistoryEventPage.tsx",
+    "pages/history/HistoryInboxPage.tsx",
+    "pages/history/LatestLootTab.tsx",
+    "pages/history/LootItemsTab.tsx",
+    "pages/history/LootReasonsTab.tsx",
+    "pages/history/LootInboxTab.tsx",
+    "components/loot/LootBadges.tsx",
+    "components/loot/LootTable.tsx",
+    "components/loot/LootFilters.tsx",
+    "pages/history/ItemAwardsDialog.tsx",
+    "pages/history/ImportLootDialog.tsx",
+    "pages/history/ManualLootForm.tsx",
+];
+const src = Object.fromEntries(MODULE_FILES.map((f) => [f, read(...f.split("/"))]));
+
+describe("Historie & Loot module", () => {
+    it("uses the tooltip box, never a native title, and never window.confirm", () => {
+        for (const [file, code] of Object.entries(src)) {
+            // on an HTML element; a component's own `title` prop (Modal) is not the native box
+            expect({ file, title: /<[a-z][\w-]*\s[^<>]*?\btitle=["{]/.test(code) }).toEqual({ file, title: false });
+            expect({ file, confirm: /window\.confirm|(^|[^\w.])confirm\(/.test(code) }).toEqual({ file, confirm: false });
+        }
+    });
+
+    it("opens every award of an item in one dialog instead of a hover panel per recipient", () => {
+        for (const file of ["pages/history/LootItemsTab.tsx", "pages/history/LootReasonsTab.tsx", "components/loot/LootBadges.tsx"]) {
+            expect({ file, hover: src[file].includes("HoverPanel") }).toEqual({ file, hover: false });
+        }
+        expect(src["pages/history/LootItemsTab.tsx"]).toContain("<ItemAwardsDialog");
+        expect(src["pages/history/LootReasonsTab.tsx"]).toContain("<RaiderReasonDialog");
+        // the whole row opens it, and a square icon button does too
+        expect(src["pages/history/LootItemsTab.tsx"]).toMatch(/className="hl-grid items hl-row"[\s\S]*?onClick=\{open\}/);
+        expect(src["pages/history/LootItemsTab.tsx"]).toContain("tip={t(\"history.items.details\")}");
+        expect(dictionary("de")["history.items.details"]).toBe("Details");
+    });
+
+    it("deletes a single award from the dialog only with write access and behind the confirm dialog", () => {
+        const dlg = src["pages/history/ItemAwardsDialog.tsx"];
+        expect(dlg).toContain("const ask = useConfirm();");
+        expect(dlg.match(/if \(!\(await ask\(\{ title: /g)).toHaveLength(1);
+        expect(dlg).toContain("deleteLootItems([awardId])");
+        expect(dlg).toMatch(/\{canEdit && a\.id\s*\?/);
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("canEdit={canWrite}");
+    });
+
+    it("draws reasons as a stacked bar in the reason colours and counts as WCL bars", () => {
+        expect(src["components/loot/LootBadges.tsx"]).toContain("export function StackBar(");
+        expect(src["components/loot/LootBadges.tsx"]).toContain("`var(--reason-${tone})`");
+        for (const file of ["pages/history/LootItemsTab.tsx", "pages/history/LootReasonsTab.tsx"]) {
+            expect(src[file]).toContain("<StackBar");
+            expect(src[file]).toContain("<Bar ");
+        }
+    });
+
+    it("names the raid by boss icon and label instead of the Content/Boss columns", () => {
+        const items = src["pages/history/LootItemsTab.tsx"];
+        expect(items).not.toMatch(/label="Content"|label="Boss"/);
+        expect(items).toContain("contentIcon(it.contentId)");
+        expect(items).not.toContain("Hover zeigt");
+    });
+
+    it("keeps the rare filters behind one Filter button and lists them as removable badges", () => {
+        const items = src["pages/history/LootItemsTab.tsx"];
+        expect(items).toContain("<RaidSelect");
+        expect(items).toContain("<FilterPopover");
+        expect(items).toContain("<ActiveFilters");
+        // removable through the shared Badge (ui/Badge onRemove, #439)
+        expect(src["components/loot/LootFilters.tsx"]).toContain("onRemove={f.onRemove} removeLabel={t(\"history.filters.removeLabel\", { label: f.label })}");
+        expect(dictionary("de")["history.filters.removeLabel"]).toBe("Filter „{label}\" entfernen");
+    });
+
+    it("imports in a dialog that keeps the draft and previews before saving", () => {
+        const dlg = src["pages/history/ImportLootDialog.tsx"];
+        expect(dlg).toContain("useDraftState<ImportDraft>(\"history-import\", IMPORT_DRAFT_DEFAULT)");
+        expect(dlg).toContain("previewLootImport({ data: text, tool, event: eventId })");
+        expect(dlg).toContain("importLoot({ data: text, tool, event: eventId, manualLabel, categoryId })");
+        // the six help paragraphs went into tooltips
+        expect(dlg).not.toContain("className=\"hint\"");
+        expect(src["pages/history/HistoryPage.tsx"]).not.toContain("function ImportForm(");
+    });
+
+    it("routes the addon inbox to its own page with cards and the linked list", () => {
+        const page = src["pages/history/HistoryInboxPage.tsx"];
+        expect(page).toContain("<InboxSessionCard");
+        expect(page).toContain("<LinkedSessions linked={linked} />");
+        expect(read("App.tsx")).toContain("<Route path=\"history/inbox\" element={<Guard user={user} areas={[\"history\"]}><HistoryInboxPage /></Guard>} />");
+        const card = src["pages/history/LootInboxTab.tsx"];
+        // no "btn ghost" typo class, no star option, dismiss behind the dialog
+        expect(card).not.toContain("className=\"btn ghost\"");
+        expect(card).not.toContain("★");
+        expect(card.match(/if \(!\(await ask\(\{ title: /g)).toHaveLength(1);
+        // an ambiguous day preselects nothing
+        expect(card).toContain("useState(match?.ambiguous ? \"\" : (match?.suggested?.eventId || \"\"))");
+    });
+
+    it("builds on the shared UI blocks and keeps its CSS in the module file", () => {
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("<PageHead");
+        expect(src["pages/history/HistoryPage.tsx"]).toContain("<Segment<RaidsView>");
+        for (const file of ["pages/history/HistoryPage.tsx", "pages/history/HistoryEventPage.tsx", "pages/history/HistoryInboxPage.tsx"]) {
+            expect(src[file]).toContain("import \"../../styles/history-loot.css\";");
+        }
+        expect(fs.existsSync(path.join(CLIENT, "styles", "history-loot.css"))).toBe(true);
+        expect(read("index.css")).not.toContain(".hl-");
+    });
+
+    // The Raids tab used to stack both lists with the coming raids on top —
+    // the list nobody opens this page for above the one they do. Now a switch
+    // inside the tab picks one list at a time (and the loot per raid and the logs).
+    it("opens the Raids tab on the past raids and switches between its lists", () => {
+        const page = src["pages/history/HistoryPage.tsx"].replace(/\r\n/g, "\n");
+        expect(page).toContain("usePersistedState<RaidsView>(\"history-raids-view\", \"past\")");
+        expect(page).toContain("<Segment<RaidsView>");
+        const view = page.match(/\{tab === "raids" && \(raidsView === "past"[\s\S]*?\n {12}\)\}/)[0];
+        expect((view.match(/<RaidTable/g) || []).length).toBe(2);
+        expect(view).toContain("raidsView === \"past\"");
+        // One card with one table at a time, and no card header repeating the tab.
+        expect((view.match(/dash-card hl-card/g) || []).length).toBe(1);
+        expect(page).not.toContain("<PartHead");
+    });
+
+    it("has one tab row and no card headers repeating the tab", () => {
+        const page = src["pages/history/HistoryPage.tsx"];
+        expect((page.match(/role="tablist"/g) || []).length).toBe(1);
+        expect(page).toContain("const TABS: Tab[] = [\"awards\", \"items\", \"raids\", \"chars\"];");
+        for (const file of MODULE_FILES.filter((f) => f.startsWith("pages/history/") && !f.includes("Dialog") && !f.includes("Form") && !f.includes("Inbox") && !f.includes("EventPage"))) {
+            expect({ file, partHead: src[file].includes("<PartHead") }).toEqual({ file, partHead: false });
+        }
+    });
+
+    // Every search on this page is the module's own field (icon, tokens, focus
+    // ring). The Charaktere view held the one bare <input> that was left, and
+    // it wore the browser's own look next to controls that did not.
+    it("searches with the module's own field, never a bare input", () => {
+        const page = src["pages/history/CharactersTab.tsx"].replace(/\r\n/g, "\n");
+        expect(page).toContain("<SearchBox id=\"chars-search\"");
+        expect(page).toContain("import { SearchBox } from \"../../components/loot/LootFilters\";");
+        for (const [file, code] of Object.entries(src)) {
+            // the box itself is where that one input belongs
+            if (file === "components/loot/LootFilters.tsx") continue;
+            expect({ file, bare: /<input[^>]*type="search"/.test(code) }).toEqual({ file, bare: false });
+        }
+    });
+
+    it("reads the raid icons from the shared table, not an icon list of its own (#749)", () => {
+        const badges = src["components/loot/LootBadges.tsx"];
+        expect(badges).toContain("from \"../../lib/wow/raidIcons\"");
+        expect(badges).not.toMatch(/achievement_boss_/);
+    });
+});

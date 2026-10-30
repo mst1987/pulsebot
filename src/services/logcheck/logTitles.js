@@ -4,7 +4,7 @@
 // require cycle (logChannel requires logAutoLink).
 const logStore = require("../../stores/loot/logStore");
 const { wclApiSite, wclClientFor, recordVersion } = require("./logVersion");
-const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raidProgress");
+const { analyzeRaidProgress, raidSummary } = require("../../utils/logcheck/raid/raidProgress");
 
 // A log whose raid was not finished when its fight list was read is read again —
 // it may have been a live log — but only while the post is fresh: a raid that was

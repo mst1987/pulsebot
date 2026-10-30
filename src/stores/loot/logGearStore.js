@@ -17,9 +17,9 @@
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 const WarcraftLogs = require("../../classes/warcraftlogs");
-const { buildArmory } = require("../../utils/logcheck/gearIssues");
+const { buildArmory } = require("../../utils/logcheck/gear/gearIssues");
 const { selectPlayers } = require("../../utils/logcheck/common");
-const { resolveSituationalGear } = require("../../utils/logcheck/gearVariants");
+const { resolveSituationalGear } = require("../../utils/logcheck/gear/gearVariants");
 const { listLogs } = require("./logStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
 

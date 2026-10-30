@@ -24,10 +24,10 @@ describe("config/logcheckTables", () => {
     });
 
     it("is what the analyzers export under their old names", () => {
-        expect(require("../../../src/utils/logcheck/potions").POTION_TYPES).toBe(tables.POTION_TYPES);
-        expect(require("../../../src/utils/logcheck/drums").DRUM_TYPE).toBe(tables.DRUM_TYPE);
-        expect(require("../../../src/utils/logcheck/cooldownTimeline").LUST_IDS).toBe(tables.LUST_IDS);
-        expect(require("../../../src/utils/logcheck/shadowResi").SR_ENCHANT).toBe(tables.SR_ENCHANT);
+        expect(require("../../../src/utils/logcheck/consumables/potions").POTION_TYPES).toBe(tables.POTION_TYPES);
+        expect(require("../../../src/utils/logcheck/consumables/drums").DRUM_TYPE).toBe(tables.DRUM_TYPE);
+        expect(require("../../../src/utils/logcheck/fights/cooldownTimeline").LUST_IDS).toBe(tables.LUST_IDS);
+        expect(require("../../../src/utils/logcheck/consumables/shadowResi").SR_ENCHANT).toBe(tables.SR_ENCHANT);
         expect(require("../../../src/utils/logcheck/rpb/validate").ZONE_TAGS).toBe(tables.ZONE_TAGS);
     });
 });

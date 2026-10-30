@@ -1,6 +1,6 @@
 // What the three views of the report page share, computed once per request:
 // links, review rights, the reviewed recommendations, roles and per-raider slices.
-const { applyReview } = require("../../utils/logcheck/recommendations");
+const { applyReview } = require("../../utils/logcheck/recommendations/recommendations");
 const { analyzersFor } = require("../../utils/logcheck/rules");
 const { recordVersion } = require("../../services/logcheck/logVersion");
 const { canReview } = require("./recommendations");

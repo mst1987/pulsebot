@@ -22,7 +22,7 @@ Helpers, factories, mock convention and coverage thresholds in full:
 - Every backend module is loaded by at least one test: `test/docs/testMirror.test.js` fails
   otherwise; its allowlist is for pure data tables (with a reason).
 - The React client has its own suite: Vitest, `*.test.ts(x)` in the `__tests__/` folder next to the
-  module (docs/testing.md, „Web-Client“; `test/web-client/conventions/testsDir.test.js`).
+  module (docs/testing.md, „Web-Client“; `test/web-client/conventions/app/testsDir.test.js`).
 - A code folder holds at most 25 modules (`test/docs/folderSize.test.js`); past that it gets sub
   folders by topic, moved with `npm run move` (scripts/README.md).
 

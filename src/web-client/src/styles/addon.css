@@ -6,7 +6,7 @@
    The prefix is "dlp-" (download page), NEVER "ad-": ad blockers hide
    .ad-card and .ad-grid (EasyList's generic rules), and with them every card
    of this page, while the rest of it stayed - a page with a head and a foot
-   and nothing between. test/web-client/conventions/adBlockClasses.test.js. */
+   and nothing between. test/web-client/conventions/ui/adBlockClasses.test.js. */
 
 .dlp-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; align-items: start; }
 .dlp-card { scroll-margin-top: 16px;

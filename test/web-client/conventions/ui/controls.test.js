@@ -1,0 +1,129 @@
+// Guards for the admin client's shared control system (src/web-client/src/index.css).
+//
+// These are style rules, so there is no behaviour to call — what is worth
+// protecting are the invariants that break silently and only show up as a
+// crooked filter row or an invisible dropdown arrow in one theme:
+//   * every theme block carries its own chevron (a data URI cannot read a
+//     custom property, so the light theme has to restate it),
+//   * the controls that share a line take their height from the same token
+//     instead of each hardcoding its own px value,
+//   * the filter bars use the shared class rather than re-inlining the layout.
+const fs = require("fs");
+const path = require("path");
+
+const CLIENT = path.join(__dirname, "..", "..", "..", "..", "src", "web-client", "src");
+const css = require("../../clientSource").read("index.css");
+
+// The blocks that define the palette: :root (dark) plus the two the light theme
+// needs — the prefers-color-scheme one and the explicit [data-theme="light"].
+function themeBlocks() {
+    return css
+        .split(/\n(?=:root|@media|\S)/)
+        .filter((block) => block.includes("--accent:") && !block.includes("data-version"));
+}
+
+describe("web-client control styles", () => {
+    it("gives every theme its own select chevron", () => {
+        const blocks = themeBlocks();
+        expect(blocks.length).toBe(3);
+        for (const block of blocks) {
+            expect(block).toContain("--ctl-arrow:");
+            expect(block).toContain("--ctl-arrow-hi:");
+        }
+    });
+
+    it("pins color-scheme per theme so the native popup follows the app, not the OS", () => {
+        expect(css).toContain("color-scheme: dark;");
+        expect(css.match(/color-scheme: light;/g)).toHaveLength(2);
+    });
+
+    it("drops the OS select widget and draws the chevron itself", () => {
+        const rule = css.match(/\nselect \{[^}]+\}/);
+        expect(rule).not.toBeNull();
+        expect(rule[0]).toContain("appearance: none");
+        expect(rule[0]).toContain("background-image: var(--ctl-arrow)");
+        expect(rule[0]).toContain("min-height: var(--ctl-h)");
+    });
+
+    it("gives the chevron to a disabled select only, never to a disabled text field (it tiled across the field)", () => {
+        const shared = css.match(/select:disabled, \.field input:disabled, \.inp-sm:disabled \{[^}]+\}/);
+        expect(shared).not.toBeNull();
+        expect(shared[0]).not.toContain("background-image");
+        expect(css).toMatch(/\nselect:disabled \{ background-image: var\(--ctl-arrow\); \}/);
+    });
+
+    it("never sets the control background through the shorthand", () => {
+        // The shorthand resets background-image, and it does so from a selector
+        // list that outranks the plain `select` rule — .sel-sm loses its chevron.
+        const base = css.match(/select,\s*\.field input[^{]+\{[^}]+\}/);
+        expect(base).not.toBeNull();
+        expect(base[0]).toContain("background-color: var(--bg)");
+        expect(base[0]).not.toMatch(/[^-]background:/);
+    });
+
+    it("sizes every control that shares a line from the height tokens", () => {
+        expect(css).toMatch(/--ctl-h:\s*\d+px/);
+        expect(css).toMatch(/--ctl-h-sm:\s*\d+px/);
+        for (const selector of [".btn ", ".btn-sm ", ".sel-sm ", ".inp-sm ", ".ibtn "]) {
+            const rule = css.match(new RegExp(`\\n\\${selector}\\{[^}]+\\}`));
+            expect(rule).not.toBeNull();
+            expect(rule[0]).toMatch(/var\(--ctl-h(-sm)?\)/);
+        }
+    });
+
+    it("bottom-aligns the filter bar so labelless cells land on the control line", () => {
+        const rule = css.match(/\n\.filter-bar \{[^}]+\}/);
+        expect(rule[0]).toContain("align-items: flex-end");
+        expect(css).toContain(".filter-bar .field > label:only-child");
+    });
+
+    it("centres table cells and keeps rows with a control from stacking padding", () => {
+        expect(css).toContain("table.idx td { vertical-align: middle; }");
+        expect(css).toMatch(/table\.idx td:has\(select\)[\s\S]*?padding-top: 5px/);
+        // The card override may only change the inset, else it outranks the rule above.
+        expect(css).toContain(".dash-card table.idx th, .dash-card table.idx td { padding-left: 16px; padding-right: 16px; }");
+    });
+
+    it("shows a log's raid assignment as a badge, removed only inside the assignment dialog", () => {
+        // The Log-Auswertung (#217) dropped the removable chip: the assignment is an
+        // accent badge, and "Zuordnung entfernen" is the danger button in the dialog.
+        const src = require("../../clientSource").read("pages/cla");
+        expect(src).not.toContain("chip-x");
+        expect(src).not.toContain("pill-chip");
+        expect(src).toContain("tone=\"accent\" icon=\"raids\" className=\"plain la-event\"");
+        // the button's text lives in the dictionary since the page is translated (#440)
+        expect(src).toMatch(/<Button variant="danger"[^\n]*>\{t\("cla\.assign\.unlink"\)\}<\/Button>/);
+        expect(require("../../clientSource").dictionary("de")["cla.assign.unlink"]).toBe("Zuordnung entfernen");
+        // the classes went with it
+        expect(css).not.toMatch(/\n\.chip-x \{/);
+        expect(css).not.toMatch(/\n\.pill-chip \{/);
+    });
+
+    it("has every filter bar in the client use the shared class", () => {
+        // The roster's filter row is its own design (search, role segment, class
+        // chips — rosterCharakter.test.js holds it), not the generic filter bar.
+        const pages = ["pages/history/CharactersTab.tsx", "pages/history/LootItemsTab.tsx", "pages/history/LootReasonsTab.tsx"];
+        for (const file of pages) {
+            const src = fs.readFileSync(path.join(CLIENT, file), "utf8");
+            // the loot views add their own row modifier (hl-filters) on top
+            expect(src).toMatch(/className="filter-bar( [\w-]+)*"/);
+            // the inline copy of .filter-bar's layout that these used to carry
+            expect(src).not.toContain("padding: \"14px 16px\", borderBottom");
+        }
+    });
+
+    it("styles the item picker's own input, not only the one inside a .field", () => {
+        // The picker is dropped straight into a Section on the Loot-Council page,
+        // where no .field wrapper lends it the control look — it rendered as a bare
+        // browser input there while looking right everywhere else.
+        const base = css.match(/select,\s*\.field input[^{]+\{[^}]+\}/);
+        expect(base[0]).toContain(".hr-picker input");
+        expect(css).toMatch(/select:focus,[^{]*\.hr-picker input:focus \{/);
+        const rule = css.match(/\n\.hr-picker input \{[^}]+\}/);
+        expect(rule).not.toBeNull();
+        expect(rule[0]).toContain("min-height: var(--ctl-h)");
+        // it hangs off the wrapper, so no caller can forget a class on the input
+        const src = fs.readFileSync(path.join(CLIENT, "components/loot/ItemSearchPicker.tsx"), "utf8");
+        expect(src).toContain("className=\"hr-picker\"");
+    });
+});

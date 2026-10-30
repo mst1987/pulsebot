@@ -5,7 +5,7 @@ const { esc } = require("../layout");
 const { pctCell, hicon, classColorOf } = require("../widgets");
 const { topicTable } = require("../fightTopics");
 
-// ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/raidBuffs.js) ----
+// ---- Buffs: the raid buffs on the players of a fight (f.buffs, utils/logcheck/buffs/raidBuffs.js) ----
 //   paladins, expected[]  · players[] { name, type, role, diedAt, buffs: [{ key, label, icon, status: full|late|partial|none, uptimePct, expected, wrong, bands }], missing[], late[], partial[], wrong[] }
 //   (`late` — set after the pull, then kept — and `partial` — not there throughout: ran out or had a hole — were one
 //   status before Sept 2026; a stored report may lack `late` and its counters, so every read of them has a fallback;

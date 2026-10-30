@@ -1,7 +1,7 @@
 // "Mein Profil" (#255) as the raider sees it: the page renders against a
 // mocked profile API and every check is about what is on screen and which
 // request a click sends. The stylesheet and routing promises that cannot be
-// rendered stay in test/web-client/conventions/profilePage.test.js.
+// rendered stay in test/web-client/conventions/roster/profilePage.test.js.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

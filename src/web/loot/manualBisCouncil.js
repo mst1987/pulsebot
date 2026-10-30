@@ -18,7 +18,7 @@
 
 const manualBisStore = require("../../stores/loot/manualBisStore");
 const { MANUAL_SLOTS } = manualBisStore;
-const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
+const { SLOT_NAMES } = require("../../utils/logcheck/gear/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
 const { specByKey } = require("../../config/data/councilSpecs");
 const wowhead = require("../../utils/loot/wowhead");

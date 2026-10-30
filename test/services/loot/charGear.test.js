@@ -164,7 +164,7 @@ describe("services/loot/charGear", () => {
         it("prefers what they wore on another boss of the same night", () => {
             // Die beste Auskunft, die es gibt: derselbe Raider, derselbe Abend,
             // einen Boss weiter. Die Auswertung hat das beim Bauen mitgeschrieben
-            // (utils/logcheck/gearVariants.js), also muss der Griff in ältere
+            // (utils/logcheck/gear/gearVariants.js), also muss der Griff in ältere
             // Auswertungen gar nicht erst passieren.
             const withAlternate = casterSet(MOTC);
             withAlternate[12].alternate = {
