@@ -58,6 +58,7 @@ und Bot erlaubt. MoP und andere neue Versionen erst nach dem Runbook „Neue Ver
 | Rollen verwalten | Versions- und Klassenrollen, Rechte der Kategorien | Server-Karte, „Rollen & Onboarding“ |
 | Server verwalten | Onboarding schreiben, Einladungen lesen (Herkunft) | „Rollen & Onboarding“, Bot-Check „Einladungen“ |
 | Einladung erstellen | Einladungen je Verknüpfung und allgemein | Bot-Check „Einladungen“ |
+| Events verwalten | Discord-Event je Raid (Schalter „Discord-Event“ der Kategorie) | Warnung beim Speichern des Raids, Raid-Helper-Umstieg |
 | Bot-Rolle **über** allen Klassen- und Versionsrollen | Rollen vergeben und umfärben | 409 `role_above_bot` |
 | GuildMembers-Intent (privilegiert, ist aktiv) | Mitgliederliste, Herkunft, Web-Mitgliedschaft | Server-Karte „Mitglieder lesen“ |
 
@@ -65,6 +66,11 @@ Das Discord-Onboarding schaltet die Orga selbst ein (Server-Einstellungen › On
 **7 Standard-Kanäle**, alle für @everyone sichtbar. Ein Standard-Kanal in einer PuG-Kategorie bricht das Übernehmen
 mit 409 `default_channel_hidden` ab. Der Bot schickt Einschalten, Modus und Standard-Kanäle unverändert zurück und
 ersetzt nur die Fragen – fremde Fragen gehen dabei verloren, die Vorschau nennt sie.
+
+**Nie „Unlock“ drücken** bei gesperrten Kanälen in der Auswahl der Standard-Kanäle: Discord nimmt dann in jedem
+einzelnen Kanal die Sperre für @everyone heraus. Die Kategorie bleibt gesperrt, aber ein Kanal mit eigenen Rechten
+erbt nichts von ihr – Raid-, Orga- und interne Kanäle sind danach für alle sichtbar. Reparieren: in jedem Kanal
+„Mit Kategorie synchronisieren“ bzw. @everyone „Kanal ansehen“ wieder verweigern.
 
 ## Checkliste: einen PuG-Server einrichten
 
