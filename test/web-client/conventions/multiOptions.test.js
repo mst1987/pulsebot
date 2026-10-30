@@ -11,7 +11,7 @@ const read = (f) => fs.readFileSync(path.join(dir, f), "utf8").replace(/\r\n/g, 
 
 describe("the options a multi-selection shares", () => {
     it("the inspector shows them, one mark per option ('gemischt' in the label), no native select", () => {
-        const src = read("components/raidplan/editor/MultiInspector.tsx");
+        const src = read("components/raidplan/editor/inspector/MultiInspector.tsx");
         expect(src).toContain("{has.facing && (");
         expect(src).toContain("setFacingSelection(b, sel, { rotation: a })");
         expect(src).toContain("patchArrowSelection(b, sel, { color: e.target.value })");

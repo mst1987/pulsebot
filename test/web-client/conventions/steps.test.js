@@ -8,9 +8,9 @@ describe("structure and texts", () => {
     const read = (f) => fs.readFileSync(path.join(dir, f), "utf8");
     it("the card, the dialog, the library and the sheet are wired", () => {
         expect(read("BoardWorkspace.tsx")).toContain("<StepsCard");
-        expect(read("StepsCard.tsx")).toMatch(/e\.altKey && \(e\.key === "ArrowUp"/);
-        expect(read("StepModal.tsx")).toContain("role=\"combobox\"");
-        expect(read("StepModal.tsx")).toContain("className=\"rp-stm dlg-flush dlg-sheet\"");
+        expect(read("steps/StepsCard.tsx")).toMatch(/e\.altKey && \(e\.key === "ArrowUp"/);
+        expect(read("steps/StepModal.tsx")).toContain("role=\"combobox\"");
+        expect(read("steps/StepModal.tsx")).toContain("className=\"rp-stm dlg-flush dlg-sheet\"");
         expect(read("ProfileModals.tsx")).toContain("export function LibraryModal");
         // the sheet's steps stand in the stage's "Alle Aufgaben" (Oct 2026)
         expect(fs.readFileSync(path.join(__dirname, "../../../src/web-client/src/pages/raidplan/stage/TasksPanel.tsx"), "utf8")).toContain("<ReadSteps");

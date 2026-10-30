@@ -108,7 +108,7 @@ objects - mapping them onto another board (by slot kind and number) is a follow-
 ## In the editor (view "Animation", #711)
 
 The third view of a section next to "Aufgaben | Karte" (`#view=anim` in the address, remembered like the others; Standard
-and Allgemein have none, "Karte aus" shows the note). `components/raidplan/editor/AnimWorkspace.tsx` +
+and Allgemein have none, "Karte aus" shows the note). `components/raidplan/editor/anim/AnimWorkspace.tsx` +
 `AnimPanel.tsx`, the pure editing in `lib/raidplan/anim/sceneEdit.ts`; template editor and event plan alike.
 
 - **No scene yet:** an explanation (what an animation is, the three steps) and "Neue Animation".

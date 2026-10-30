@@ -45,7 +45,7 @@ describe("no hand-written click-outside listener is left", () => {
         "pages/settings/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
         "components/raidplan/editor/ViewControls.tsx", "components/ui/Button.tsx",
     ];
-    const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "components/raidplan/editor/ContextMenu.tsx"];
+    const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "components/raidplan/editor/inspector/ContextMenu.tsx"];
 
     test.each(USERS)("%s uses useDismiss", (rel) => {
         expect(read(rel)).toMatch(/useDismiss\(/);

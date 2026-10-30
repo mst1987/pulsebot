@@ -8,7 +8,7 @@ import { myPlayer } from "../../../lib/raidplan/view/stage";
 import { MINE_HOME, dragMinePos, nudgeMinePos, type MinePos } from "../../../lib/raidplan/view/sheetLayout";
 import { MarkIcon } from "../../../components/raidplan/MarkIcon";
 import { PlayerName, TokenIcon } from "../../../components/raidplan/PlanBoard";
-import { MineBlocks } from "../../../components/raidplan/editor/ReadTables";
+import { MineBlocks } from "../../../components/raidplan/editor/assign/ReadTables";
 import { useT } from "../../../i18n";
 
 /**

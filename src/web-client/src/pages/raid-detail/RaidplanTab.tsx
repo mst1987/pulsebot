@@ -25,11 +25,11 @@ import { applyTactic, stepsOf } from "../../lib/raidplan/steps";
 import ShareModal from "../../components/raidplan/editor/ShareModal";
 import type { MapRow } from "../../components/raidplan/editor/MapPanel";
 import { useDraftHistory } from "../../components/raidplan/editor/useDraftHistory";
-import { useTankOrderFollow } from "../../components/raidplan/editor/useTankOrderFollow";
+import { useTankOrderFollow } from "../../components/raidplan/editor/assign/useTankOrderFollow";
 import "../../styles/raidplan/index.css";
 import RaidplanBoundary from "../../components/raidplan/RaidplanBoundary";
 import RhSource from "../../components/raidplan/editor/RhSource";
-import PlanGroups from "../../components/raidplan/editor/PlanGroups";
+import PlanGroups from "../../components/raidplan/editor/assign/PlanGroups";
 import { includedGroups, splitRoster } from "../../lib/raidplan/assign/planGroups";
 import { ofVersion, splitByVersion, versionLabel } from "../../lib/raidplan/versions";
 
