@@ -34,13 +34,13 @@ vi.mock("../../../api", async (orig) => ({
     closeCategory: vi.fn(),
 }));
 
-vi.mock("../RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
-vi.mock("../BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
-vi.mock("../SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
-vi.mock("../SettingsRaidhelperRetirement", () => ({ default: () => null }));
+vi.mock("../access/RolePermissions", () => ({ default: () => <div>Panel Berechtigungen</div> }));
+vi.mock("../access/BotCommandAccess", () => ({ default: () => <div>Panel Bot-Befehle</div> }));
+vi.mock("../discord/SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
+vi.mock("../connections/SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
 // stand-in clears the first category's sheet url the way its field would.
-vi.mock("../CategoryMatrix", () => ({
+vi.mock("../categories/CategoryMatrix", () => ({
     default: ({ onSheet, onPlanning, availabilityPanels, onToggleCategory, missing = [], onCloseCategory, closeBlocked }: {
         onSheet: (id: string, sheet: { url: string; name: string }) => void;
         onPlanning?: (id: string, mode: "raidplan" | "sheet") => void;

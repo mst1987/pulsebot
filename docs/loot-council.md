@@ -88,7 +88,7 @@ The "big" drops a server cares about. They feed the dashboard ("Neuer Loot" / "T
 
 - **Store** — `config.serverSettings[guildId].topItems = { tbc, classic, forever }`, one list of `{ id, name, iconUrl, quality }` per version, at most 500 per version (`services/loot/topItems.js`, `MAX_TOP_ITEMS`). No icon cache: the icon URL is stored with the item.
 - **Readers match each loot row against its own raid**: `web/loot/lootAwards.js` checks an award against the list of the raid's server **and** version, never a global or the main version's list. A raid of server A never lights up because server B picked the item.
-- **Page** — System › Einstellungen › <Server> › Top-Items (`pages/settings/TopItemsSection.tsx`, design canvas variant B "Boss-Schalter"):
+- **Page** — System › Einstellungen › <Server> › Top-Items (`pages/settings/versions/TopItemsSection.tsx`, design canvas variant B "Boss-Schalter"):
   - a version segment, each with "n gewählt", starting on the server's main version;
   - left, the raids and bosses of the version's loot table with "n gewählt";
   - right, the whole loot of one boss, each item with a switch that saves at once (no save bar, `standalone` in `settingsSections.ts`), its icon in quality colour and the Wowhead tooltip;
@@ -100,7 +100,7 @@ The "big" drops a server cares about. They feed the dashboard ("Neuer Loot" / "T
   - `PUT /api/settings/top-items { versionId, item, on, serverSettingsGuildId }` switches one item for the **active** server.
   - Errors: 400 `no_active_server` / `bad_version` / `bad_item` / `too_many`; 403 without `settings` write; 409 `server_switched` when the session moved to another server in another tab. The page then locks its switches and says so.
 - **Migration** (`settingsMigration.js`, once): the old global `config.topItems` becomes the TBC list of every server whose categories play TBC, else of the first server. The old list stays as `topItemsLegacy` for one release, then goes. Log line "… (#952)".
-- **Tests:** `test/services/loot/topItems.test.js`, `test/web/apiRoutes/topItems.test.js` (real router), the migration cases in `test/stores/settingsMigration*.test.js`, client `lib/settings/__tests__/topItems.test.ts` and `pages/settings/__tests__/TopItemsSection.test.tsx`.
+- **Tests:** `test/services/loot/topItems.test.js`, `test/web/apiRoutes/topItems.test.js` (real router), the migration cases in `test/stores/settingsMigration*.test.js`, client `lib/settings/__tests__/topItems.test.ts` and `pages/settings/versions/__tests__/TopItemsSection.test.tsx`.
 
 ## Profile je Roster (#676)
 

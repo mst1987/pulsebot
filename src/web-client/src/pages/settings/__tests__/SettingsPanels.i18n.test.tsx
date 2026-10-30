@@ -9,10 +9,10 @@ import * as api from "../../../api";
 import type { BotCommandsData, DiscordServersData } from "../../../api";
 import { renderPage } from "../../../test/render";
 import { switchLang } from "../../../test/i18n";
-import RolePermissionsEditor from "../RolePermissions";
-import CategoryMatrix from "../CategoryMatrix";
-import BotCommandAccess from "../BotCommandAccess";
-import DiscordServersSection from "../SettingsDiscordServers";
+import RolePermissionsEditor from "../access/RolePermissions";
+import CategoryMatrix from "../categories/CategoryMatrix";
+import BotCommandAccess from "../access/BotCommandAccess";
+import DiscordServersSection from "../discord/SettingsDiscordServers";
 
 vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),

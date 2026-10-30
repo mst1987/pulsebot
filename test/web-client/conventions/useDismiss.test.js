@@ -42,7 +42,7 @@ describe("no hand-written click-outside listener is left", () => {
     const USERS = [
         "components/loot/LootFilters.tsx", "pages/cla/RowMenu.tsx", "pages/lootcouncil/FilterBar.tsx",
         "pages/recruitment/EmojiPicker.tsx", "components/loot/ItemSearchPicker.tsx", "pages/history/ManualLootForm.tsx", "components/raidplan/Flyout.tsx",
-        "pages/settings/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
+        "pages/settings/access/RolePermissions.tsx", "pages/recruitment/SpecPicker.tsx",
         "components/raidplan/editor/ViewControls.tsx", "components/ui/Button.tsx",
     ];
     const VIA_POPOVER = ["pages/raid-detail/manage/ManageMenu.tsx", "components/raidplan/editor/ContextMenu.tsx"];

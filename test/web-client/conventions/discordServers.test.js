@@ -13,7 +13,7 @@ const path = require("path");
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").replace(/\r\n/g, "\n");
 
-const section = read("pages", "settings", "SettingsDiscordServers.tsx");
+const section = read("pages", "settings", "discord", "SettingsDiscordServers.tsx");
 const switcher = read("components", "shell", "ServerHeader.tsx");
 const api = read("api", "discordServers.ts");
 // The texts live in the dictionaries since #440; the source names their keys.

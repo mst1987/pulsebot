@@ -21,7 +21,6 @@ const ALLOWED = {
     "src/web/apiRoutes": "#1012",
     "src/web-client/src/api": "#1012",
     "src/web-client/src/components/raidplan/editor": "#1009",
-    "src/web-client/src/pages/settings": "#1010",
     "src/web-client/src/components/ui": "#1011",
     "src/web-client/src/pages/kader": "#1011",
     "src/web-client/src/pages/lootcouncil": "#1011",

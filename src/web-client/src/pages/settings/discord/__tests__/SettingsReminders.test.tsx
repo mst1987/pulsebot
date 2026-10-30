@@ -1,0 +1,101 @@
+// Einstellungen, part "Erinnerungen" (SettingsReminders, #264): one line per
+// raid category with what is set, the details in a dialog, no target (#894:
+// always the raid's own server), and never a bare category id (#435: formerly
+// source scans in test/web-client/pingsRoleSync.test.js).
+import { screen, waitFor, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import * as api from "../../../../api";
+import type { AdminConfig, RemindersData } from "../../../../api";
+import { renderPage } from "../../../../test/render";
+import { switchLang } from "../../../../test/i18n";
+import RemindersPart from "../SettingsReminders";
+
+vi.mock("../../../../api", async (orig) => ({
+    ...(await orig<typeof import("../../../../api")>()),
+    getReminders: vi.fn(),
+    updateSettings: vi.fn(),
+}));
+
+const UNKNOWN_ID = "123456789012345678";
+
+function reminders(over: Partial<RemindersData> = {}): RemindersData {
+    return {
+        categoryReminders: { c1: { missingHours: 24, signedHours: 1 } },
+        categories: [{ id: "c1", name: "Raids Mittwoch", roleCount: 1 }, { id: "c2", name: "Raids Sonntag", roleCount: 1 }],
+        lastRun: null,
+        ...over,
+    };
+}
+
+async function show(data: RemindersData) {
+    vi.mocked(api.getReminders).mockResolvedValue(data);
+    const onConfig = vi.fn();
+    renderPage(<RemindersPart onConfig={onConfig} />);
+    await screen.findByText(data.categories[0].name || "Unbekannte Kategorie");
+    return onConfig;
+}
+
+const row = (name: string) => screen.getByText(name).closest("li")!;
+
+beforeEach(() => {
+    vi.mocked(api.updateSettings).mockResolvedValue({ config: { saved: true } as unknown as AdminConfig });
+});
+afterEach(() => switchLang("de"));
+
+describe("Erinnerungen part", () => {
+    it("is one line per category with the summary, details in a modal", async () => {
+        const user = userEvent.setup();
+        const onConfig = await show(reminders());
+        expect(within(row("Raids Mittwoch")).getByText("24 h vor Schluss · 1 h vor Raid")).toBeInTheDocument();
+        expect(within(row("Raids Sonntag")).getByText("aus")).toBeInTheDocument();
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+        await user.click(within(row("Raids Sonntag")).getByRole("button", { name: "Erinnerungen bearbeiten" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByText("Raids Sonntag")).toBeInTheDocument();
+        await user.type(within(dialog).getByLabelText("Fehlende · h vorher"), "12");
+        await user.click(within(dialog).getByRole("button", { name: "Speichern" }));
+
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({
+            categoryReminders: {
+                c1: { missingHours: 24, signedHours: 1 },
+                c2: { missingHours: 12, signedHours: 0 },
+            },
+        }));
+        await waitFor(() => expect(onConfig).toHaveBeenCalledWith({ saved: true }));
+    });
+
+    it("never shows a bare category id: an unknown category is named as such, the id in the tooltip", async () => {
+        await show(reminders({ categories: [{ id: UNKNOWN_ID, name: "", roleCount: 0 }], categoryReminders: {} }));
+        const unknown = screen.getByText("Unbekannte Kategorie");
+        expect(unknown).toHaveAttribute("data-tip", "Unbekannte Kategorie");
+        expect(unknown.getAttribute("data-tip-sub")).toContain(`Kategorie-ID ${UNKNOWN_ID}`);
+        expect(screen.queryByText(UNKNOWN_ID, { exact: false })).not.toBeInTheDocument();
+    });
+
+    it("offers no target in the dialog: reminders go to the raid's own server", async () => {
+        const user = userEvent.setup();
+        await show(reminders());
+        await user.click(within(row("Raids Mittwoch")).getByRole("button", { name: "Erinnerungen bearbeiten" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).queryByRole("radiogroup")).not.toBeInTheDocument();
+        await user.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalledWith({
+            categoryReminders: { c1: { missingHours: 24, signedHours: 1 } },
+        }));
+    });
+
+    it("speaks English once the page is switched", async () => {
+        await switchLang("en");
+        const user = userEvent.setup();
+        await show(reminders());
+        expect(screen.getByText("Reminders")).toBeInTheDocument();
+        expect(within(row("Raids Mittwoch")).getByText("24 h before close · 1 h before raid")).toBeInTheDocument();
+        expect(within(row("Raids Sonntag")).getByText("off")).toBeInTheDocument();
+        await user.click(within(row("Raids Sonntag")).getByRole("button", { name: "Edit reminders" }));
+        const dialog = screen.getByRole("dialog");
+        expect(within(dialog).getByLabelText("Missing · h before")).toBeInTheDocument();
+        expect(within(dialog).getByRole("button", { name: "Save" })).toBeInTheDocument();
+    });
+});

@@ -1,7 +1,7 @@
 import type { Tone } from "../../components/ui/Badge";
 import type { PugCategory, PugItemStatus, PugOnboardingOverview, PugPrerequisite, PugPrompt, PugPromptOption, PugRole } from "../../api";
 
-// Roles & onboarding of a PuG server (#906, pages/settings/PugOnboardingPart.tsx):
+// Roles & onboarding of a PuG server (#906, pages/settings/discord/PugOnboardingPart.tsx):
 // what the page shows as blocked, what the button may do and what the preview
 // lists. Pure functions over the overview of GET /api/discord/pug-onboarding.
 

@@ -1,4 +1,4 @@
-// Guards for Einstellungen → Kategorien (src/web-client/src/pages/settings/CategoryMatrix.tsx
+// Guards for Einstellungen → Kategorien (src/web-client/src/pages/settings/categories/CategoryMatrix.tsx
 // and the .cat-* rules in src/web-client/src/styles/settings.css).
 //
 // The page used to show one card per Discord category — typically 13 of 17
@@ -16,9 +16,9 @@ const path = require("path");
 
 const CLIENT = path.join(__dirname, "..", "..", "..", "src", "web-client", "src");
 const css = fs.readFileSync(path.join(CLIENT, "styles", "settings.css"), "utf8");
-const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryMatrix.tsx"), "utf8");
-const detail = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryDetail.tsx"), "utf8").replace(/\r\n/g, "\n");
-const field = fs.readFileSync(path.join(CLIENT, "pages", "settings", "CategoryField.tsx"), "utf8");
+const matrix = fs.readFileSync(path.join(CLIENT, "pages", "settings", "categories", "CategoryMatrix.tsx"), "utf8");
+const detail = fs.readFileSync(path.join(CLIENT, "pages", "settings", "categories", "CategoryDetail.tsx"), "utf8").replace(/\r\n/g, "\n");
+const field = fs.readFileSync(path.join(CLIENT, "pages", "settings", "categories", "CategoryField.tsx"), "utf8");
 const page = fs.readFileSync(path.join(CLIENT, "pages", "settings", "SettingsPage.tsx"), "utf8");
 // The texts live in the dictionaries since #440; the source names their keys.
 const de = require("../clientSource").dictionary("de");
@@ -82,7 +82,7 @@ describe("Kategorien list", () => {
         expect(detail).toContain("icon=\"profile\"");
         expect(matrix).toContain("onAssign={() => setAssigning(cat)}");
         expect(matrix).toContain("categoryId={assigning.id}");
-        const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "RaiderCharactersModal.tsx"), "utf8");
+        const modal = fs.readFileSync(path.join(CLIENT, "pages", "settings", "categories", "RaiderCharactersModal.tsx"), "utf8");
         // the category is a prop now, never a second picker
         expect(modal).not.toContain("<select");
         expect(page).not.toContain("RaiderCharactersTab");
