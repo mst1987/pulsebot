@@ -53,7 +53,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
   (Ratchet in `ci.yml`, nur senken), `npm run lint:css` (Stylelint: Farben nur in `tokens.css`).
 - Wächter: `test/docs/testMirror.test.js` (jedes Backend-Modul von einem Test geladen),
   `test/docs/layering.test.js`, `test/docs/claudeMd.test.js` (Doku-Index, Pfad-Wächter, CLAUDE.md
-  ≤ 180 Zeilen/12 KB, `paths:`-Frontmatter der Regeln), `test/web/noCycles.test.js`, `test/web-client/conventions/` (Quelltext-Scans),
+  ≤ 180 Zeilen/12 KB, `paths:`-Frontmatter der Regeln), `test/docs/folderSize.test.js` (≤ 25 Module je
+  Ordner, sonst Unterordner; verschieben mit `npm run move`), `test/web/noCycles.test.js`, `test/web-client/conventions/` (Quelltext-Scans),
   `test/claude-hooks/` (Hooks). `test/setup/noNetwork.js` lässt jeden echten Netzaufruf scheitern.
 - Stores in Tests über `tempStoreFile()` (`test/helpers/tempStore.js`) oder `memoryFs.js`, nie
   `os.tmpdir()`. Discord/API-Clients immer gemockt (`test/helpers/`).
