@@ -107,12 +107,12 @@
     },
     "inbox": {
         "infoTip": "Uploads vom WoW-Addon",
-        "infoSub": "Das Sync-Tool schickt jede Raid-Session hierher. Einmal übernehmen genügt: weiterer Loot desselben Raids landet danach automatisch im gewählten Event.",
+        "infoSub": "Das Sync-Tool schickt jeden Raid-Upload hierher. Einmal übernehmen genügt: weiterer Loot desselben Raids landet danach automatisch im gewählten Event.",
         "manageToken": "Sync-Token verwalten",
         "loadError": "Inbox konnte nicht geladen werden: {message}",
         "loading": "Inbox wird geladen",
         "empty": "Keine offenen Addon-Uploads.",
-        "emptyHint": "Das Sync-Tool lädt Raid-Sessions hoch; ein Token dafür gibt es unter",
+        "emptyHint": "Das Sync-Tool lädt Raid-Uploads hoch; ein Token dafür gibt es unter",
         "emptyLink": "Einstellungen → Loot-Sync",
         "emptyWaiting": { "one": "{count} Upload wartet auf seinen Raid.", "other": "{count} Uploads warten auf ihren Raid." },
         "emptyWaitingLink": "„Wartet auf Zuordnung“ öffnen"
@@ -188,7 +188,7 @@
         "titlePlaceholder": "Titel, z.B. SSC/TK — 12.07.",
         "categorySub": "Nur wirksam ohne zugeordnetes Event — sonst gilt die Kategorie des Events.",
         "loot": "Loot",
-        "dismissTip": "Session verwerfen",
+        "dismissTip": "Upload verwerfen",
         "dismissSub": "Wird nicht erneut angeboten — mit Rückfrage.",
         "modalTitle": "{title} · {count} Items",
         "linked": "Verknüpft · laufen automatisch weiter",

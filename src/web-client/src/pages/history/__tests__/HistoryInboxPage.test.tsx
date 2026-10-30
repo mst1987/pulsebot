@@ -34,6 +34,9 @@ describe("HistoryInboxPage", () => {
         expect(await screen.findByText(/Keine offenen Addon-Uploads./)).toBeInTheDocument();
         expect(screen.getByRole("heading", { name: "Addon-Inbox" })).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Sync-Token verwalten/ })).toHaveAttribute("href", "/settings/all?section=verbindungen");
+        // #1002: the whole inbox speaks of uploads, never of sessions
+        expect(screen.getByText(/Das Sync-Tool lädt Raid-Uploads hoch/)).toBeInTheDocument();
+        expect(screen.queryByText(/Session/)).toBeNull();
     });
 
     // #957 review: the sync tokens live on "Alle Server", which only full admins open
@@ -51,6 +54,8 @@ describe("HistoryInboxPage", () => {
         expect(screen.getByRole("heading", { name: "Addon inbox" })).toBeInTheDocument();
         expect(screen.getByRole("link", { name: /Manage sync tokens/ })).toBeInTheDocument();
         expect(screen.getByRole("link", { name: "Settings → Loot sync" })).toBeInTheDocument();
+        expect(screen.getByText(/The sync tool sends raid uploads here/)).toBeInTheDocument();
+        expect(screen.queryByText(/session/i)).toBeNull();
     });
 });
 

@@ -107,12 +107,12 @@
     },
     "inbox": {
         "infoTip": "Uploads from the WoW addon",
-        "infoSub": "The sync tool sends every raid session here. Accepting once is enough: further loot from the same raid then lands in the chosen event by itself.",
+        "infoSub": "The sync tool sends every raid upload here. Accepting once is enough: further loot from the same raid then lands in the chosen event by itself.",
         "manageToken": "Manage sync tokens",
         "loadError": "Could not load the inbox: {message}",
         "loading": "Loading inbox",
         "empty": "No open addon uploads.",
-        "emptyHint": "The sync tool uploads raid sessions; you get a token for it under",
+        "emptyHint": "The sync tool sends raid uploads here; you get a token for it under",
         "emptyLink": "Settings → Loot sync",
         "emptyWaiting": { "one": "{count} upload is waiting for its raid.", "other": "{count} uploads are waiting for their raid." },
         "emptyWaitingLink": "Open “Awaiting assignment”"
@@ -188,7 +188,7 @@
         "titlePlaceholder": "Title, e.g. SSC/TK — 12.07.",
         "categorySub": "Only applies without an assigned event — otherwise the event's category counts.",
         "loot": "Loot",
-        "dismissTip": "Discard session",
+        "dismissTip": "Discard upload",
         "dismissSub": "Will not be offered again — asks first.",
         "modalTitle": "{title} · {count} items",
         "linked": "Linked · keep flowing in by themselves",
