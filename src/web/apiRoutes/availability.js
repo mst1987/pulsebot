@@ -323,6 +323,8 @@ const getAttendance = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
     const view = raiderAttendance(target.userId, {
         versionId: versionOf(query, config), config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e),
+        // #990: the raider's own view never shows "left early"; the orga's view of somebody else does
+        neutral: String(target.userId) === String(user.id),
     });
     const profile = profiles.getProfile(target.userId);
     const named = await namerFor([target.userId], config);

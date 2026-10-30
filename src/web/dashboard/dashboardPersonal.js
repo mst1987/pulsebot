@@ -125,7 +125,8 @@ function reportFor(eventId, names) {
  * attendance never mixes versions.
  */
 function loadAttendance(userId, { config, now, names, versionId = "" }) {
-    const view = raiderAttendance(userId, { now, config, versionId: versionId || mainVersionFor({ config }) });
+    // always the raider's own nights: "left early" reads as present (#990)
+    const view = raiderAttendance(userId, { now, config, versionId: versionId || mainVersionFor({ config }), neutral: true });
     const counted = ((view && view.categories) || []).filter((c) => c.total > 0);
     const nights = counted
         .flatMap((c) => (c.raids || []).map((r) => ({ ...r, categoryName: c.name || "" })))

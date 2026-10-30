@@ -366,8 +366,8 @@ describe("Vermerke: hints from the data", () => {
     });
 });
 
-const DEFAULTS = { windowDays: 60, signoffAfterSetup: 2, lateSignoff: 2, lateHours: 12, noShow: 2, leftServer: 1 };
-const LIMITS = { windowDays: [7, 180], signoffAfterSetup: [1, 20], lateSignoff: [1, 20], lateHours: [1, 72], noShow: [1, 20], leftServer: [1, 5] } as api.SignalSettings["limits"];
+const DEFAULTS = { windowDays: 60, signoffAfterSetup: 2, lateSignoff: 2, lateHours: 12, noShow: 2, leftEarly: 2, leftEarlyBosses: 2, leftServer: 1 };
+const LIMITS = { windowDays: [7, 180], signoffAfterSetup: [1, 20], lateSignoff: [1, 20], lateHours: [1, 72], noShow: [1, 20], leftEarly: [1, 20], leftEarlyBosses: [1, 5], leftServer: [1, 5] } as api.SignalSettings["limits"];
 function settings(own: Partial<api.SignalThresholds> = {}): api.SignalSettings {
     return { guildId: "g1", thresholds: { ...DEFAULTS, ...own }, own, defaults: DEFAULTS, limits: LIMITS };
 }
@@ -400,6 +400,9 @@ describe("Vermerke: thresholds of the hints", () => {
         expect(within(line(dlg, "noShow")).getByText("ab 3-mal")).toBeInTheDocument();
         expect(within(line(dlg, "noShow")).getByRole("button", { name: "Standard" })).toBeInTheDocument();
         expect(within(line(dlg, "windowDays")).queryByRole("button", { name: "Standard" })).not.toBeInTheDocument();
+        // #990: the hint "left early" and how many of the last kills the log must miss
+        expect(within(line(dlg, "leftEarly")).getByText("ab 2-mal")).toBeInTheDocument();
+        expect(within(line(dlg, "leftEarlyBosses")).getByText("letzte 2 Kills fehlen")).toBeInTheDocument();
         // nothing changed yet: saving is off
         expect(within(dlg).getByRole("button", { name: "Speichern" })).toBeDisabled();
     });

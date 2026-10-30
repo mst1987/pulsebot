@@ -94,7 +94,7 @@ describe("AttendanceTab", () => {
         const user = userEvent.setup();
         await user.click(cellsOf("Bert")[1]);
         const menu = screen.getByRole("dialog", { name: "Abend korrigieren" });
-        expect(within(menu).getAllByRole("radio")).toHaveLength(6);
+        expect(within(menu).getAllByRole("radio")).toHaveLength(7);
         expect(within(menu).getByRole("radio", { name: /Nicht erschienen/ })).toHaveAttribute("aria-checked", "true");
         // "Automatisch" only where there is something to undo
         expect(within(menu).getByRole("button", { name: "Automatisch" })).toBeDisabled();
@@ -134,11 +134,11 @@ describe("AttendanceTab", () => {
         expect(screen.queryByRole("dialog")).toBeNull();
     });
 
-    it("lists the six statuses in the legend", () => {
+    it("lists the seven statuses in the legend", () => {
         show();
         const legend = screen.getByRole("list", { name: "Legende" });
         expect(within(legend).getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-            "DDabei", "BBench", "UUrlaub", "AAbgemeldet", "?Nicht angemeldet", "XNicht erschienen",
+            "DDabei", "FFrüh gegangen", "BBench", "UUrlaub", "AAbgemeldet", "?Nicht angemeldet", "XNicht erschienen",
         ]);
     });
 
@@ -148,6 +148,68 @@ describe("AttendanceTab", () => {
         unmount();
         renderPage(<AttendanceTab data={detail([ANNA], { nights: [] })} onOpen={vi.fn()} onChanged={vi.fn()} />);
         expect(screen.getByText("Noch keine gezählten Raids in dieser Kategorie.")).toBeInTheDocument();
+    });
+});
+
+describe("AttendanceTab — the log's suggestion \"left early\" (#990)", () => {
+    const SUGGESTION = { kind: "leftEarly" as const, missedKills: 2, bosses: ["Vashj", "Kael'thas"] };
+    const DORA = member("Dora", {
+        attendance: { attended: 1, total: 1, pct: 100, missed: [], present: [n("n3", "present", { suggestion: SUGGESTION })] },
+    });
+    const showDora = (over = {}) => show({ members: [DORA, BERT], ...over });
+
+    it("marks the cell, says it in the tooltip and counts the suggestions above the grid", () => {
+        showDora();
+        const cell = cellsOf("Dora")[2];
+        expect(cell).toHaveAttribute("data-att", "present");
+        expect(cell).toHaveClass("has-suggest");
+        expect(cell.getAttribute("data-tip-sub")).toContain("Vorschlag aus dem Log: früh gegangen · Fehlt bei den letzten 2 Kills: Vashj, Kael'thas");
+        expect(screen.getByText("1 Vorschlag aus dem Log")).toBeInTheDocument();
+        expect(cellsOf("Bert").some((c) => c.classList.contains("has-suggest"))).toBe(false);
+    });
+
+    it("shows no count without a suggestion", () => {
+        show();
+        expect(screen.queryByText(/aus dem Log/)).toBeNull();
+    });
+
+    it("confirms: the night becomes \"left early\"", async () => {
+        const { onChanged } = showDora();
+        const user = userEvent.setup();
+        await user.click(cellsOf("Dora")[2]);
+        const menu = screen.getByRole("dialog", { name: "Abend korrigieren" });
+        expect(within(menu).getByText("Laut Log früh gegangen")).toBeInTheDocument();
+        await user.click(within(menu).getByRole("button", { name: "Bestätigen" }));
+        await waitFor(() => expect(api.setAttendanceOverride).toHaveBeenCalledWith({ eventId: "n3", userId: "u-dora", status: "leftEarly" }));
+        expect(onChanged).toHaveBeenCalled();
+        expect(await screen.findByText(/als früh gegangen bestätigt/)).toBeInTheDocument();
+    });
+
+    it("dismisses: the night stays present and the server ends the suggestion", async () => {
+        showDora();
+        const user = userEvent.setup();
+        await user.click(cellsOf("Dora")[2]);
+        await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: "Verwerfen" }));
+        await waitFor(() => expect(api.setAttendanceOverride).toHaveBeenCalledWith({ eventId: "n3", userId: "u-dora", status: "present", dismiss: "leftEarly" }));
+        expect(await screen.findByText(/Vorschlag für .* verworfen/)).toBeInTheDocument();
+    });
+
+    it("shows a reader the marked cell but no buttons", () => {
+        showDora({ canEditAttendance: false });
+        expect(cellsOf("Dora")[2].tagName).toBe("SPAN");
+        expect(cellsOf("Dora")[2]).toHaveClass("has-suggest");
+        expect(screen.queryByRole("button", { name: "Bestätigen" })).toBeNull();
+    });
+
+    it("words the suggestion in English", async () => {
+        await switchLang("en");
+        showDora();
+        expect(screen.getByText("1 suggestion from the log")).toBeInTheDocument();
+        await userEvent.setup().click(cellsOf("Dora")[2]);
+        const menu = screen.getByRole("dialog", { name: "Correct this night" });
+        expect(within(menu).getByText("Misses the last 2 kills: Vashj, Kael'thas")).toBeInTheDocument();
+        expect(within(menu).getByRole("button", { name: "Confirm" })).toBeInTheDocument();
+        expect(within(menu).getByRole("button", { name: "Dismiss" })).toBeInTheDocument();
     });
 });
 

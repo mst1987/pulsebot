@@ -57,6 +57,11 @@ describe("services/vermerke/signalRecorder", () => {
                 .toEqual({ value: { windowDays: 30, lateHours: 6 }, fields: [] });
             expect(recorder.validateThresholds({ windowDays: 3, lateHours: 6.5, noShow: 21, lateSignoff: "x", signoffAfterSetup: " ", leftServer: 1 }))
                 .toEqual({ value: { leftServer: 1 }, fields: ["windowDays", "signoffAfterSetup", "lateSignoff", "lateHours", "noShow"] });
+            // #990: nights left early 1-20, the log's missed kills 1-5
+            expect(recorder.DEFAULT_THRESHOLDS).toMatchObject({ leftEarly: 2, leftEarlyBosses: 2 });
+            expect(recorder.validateThresholds({ leftEarly: 20, leftEarlyBosses: 5 })).toEqual({ value: { leftEarly: 20, leftEarlyBosses: 5 }, fields: [] });
+            expect(recorder.validateThresholds({ leftEarly: 21, leftEarlyBosses: 6 })).toEqual({ value: {}, fields: ["leftEarly", "leftEarlyBosses"] });
+            expect(recorder.normalizeThresholds({ leftEarly: 0, leftEarlyBosses: 9 })).toEqual({ leftEarly: 1, leftEarlyBosses: 5 });
             expect(recorder.validateThresholds(undefined)).toEqual({ value: {}, fields: [] });
             expect(recorder.validateThresholds(null)).toEqual({ value: {}, fields: [] });
             expect(recorder.validateThresholds([1])).toEqual({ value: {}, fields: ["thresholds"] });

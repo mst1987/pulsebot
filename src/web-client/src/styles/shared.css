@@ -662,6 +662,7 @@ nav.menu::-webkit-scrollbar { display: none; }
    (present, bench) filled, the missed ones as a ring on a tint - so the status never rests on hue
    alone - with the status letter inside and a corner dot when the orga set it by hand. */
 [data-att="present"] { --att: var(--att-present); }
+[data-att="leftEarly"] { --att: var(--att-leftearly); }
 [data-att="bench"] { --att: var(--att-bench); }
 [data-att="vacation"] { --att: var(--att-vacation); }
 [data-att="absence"] { --att: var(--att-absence); }
@@ -684,6 +685,8 @@ button.att-sq:hover { transform: scale(1.12); }
 button.att-sq:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .att-sq.is-sm { width: 16px; height: 16px; flex-basis: 16px; border-radius: 4px; font-size: 0; }
 .att-sq.is-sm.is-manual::after { top: -3px; right: -3px; width: 6px; height: 6px; }
+/* the log suggests "left early" (#990): a dashed ring around the field until the orga confirms or dismisses */
+.att-sq.has-suggest { outline: 2px dashed var(--att-leftearly); outline-offset: 2px; }
 /* the edit menu of a night (components/roster/AttendanceCell.tsx): the six statuses with their meaning, a reason, save or automatic */
 .att-menu {
     /* left/top from the field (AttendanceCell.tsx): portalled into <body>, above the member drawer */
@@ -708,4 +711,8 @@ button.att-sq:focus-visible { outline: 2px solid var(--accent); outline-offset: 
 .att-menu-reason input { min-height: var(--ctl-h); padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--ctl-radius); background: var(--panel2); color: var(--text); font: inherit; font-size: 13px; }
 .att-menu-reason input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 .att-menu-foot { display: flex; justify-content: space-between; gap: 8px; }
+/* the log's suggestion on top of the menu: what it saw, then dismiss or confirm */
+.att-suggest { display: flex; flex-direction: column; gap: 4px; padding: 8px 0 10px 10px; border-left: 3px solid var(--att); border-bottom: 1px solid var(--line); font-size: 12.5px; color: var(--muted); }
+.att-suggest b { font-size: 13.5px; color: var(--text); }
+.att-suggest-acts { display: flex; justify-content: flex-end; gap: 8px; margin-top: 4px; }
 @media (max-width: 420px) { .att-menu-opts { grid-template-columns: 1fr; } }
