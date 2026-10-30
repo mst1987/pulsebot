@@ -1,8 +1,9 @@
 // A raid group (#811) in the setup editor: the tabs "Raid 1 | Raid 2" over the
 // editor (a click switches, a raider dropped on a tab — or picked, then the tab
 // clicked — goes into that raid), "Weiteren Raid hinzufügen" (a calm line under
-// the bar while overbooked, else under "Mehr", with the title "<Titel> 2" to edit) and
-// dissolving a further raid. The API is mocked at its transport.
+// the bar while overbooked, else under "Mehr", with the title "<Titel> 2" to edit;
+// several at once with −/+ and "Danach automatisch füllen", #1035) and dissolving
+// a further raid. The API is mocked at its transport.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -120,10 +121,63 @@ describe("Weiteren Raid hinzufügen", () => {
         expect(input).toHaveValue("Karazhan Donnerstag 2");
         await user.clear(input);
         await user.type(input, "Kara B");
+        // without "Danach automatisch füllen" the editor switches to the new raid
+        await user.click(screen.getByRole("switch", { name: t("setup.raidGroup.fill") }));
         await user.click(screen.getByRole("button", { name: t("setup.raidGroup.create") }));
         await waitFor(() => expect(calls("/api/raids/setup/raid-add")).toHaveLength(1));
         expect(calls("/api/raids/setup/raid-add")[0][2]).toEqual({ event: EVENT_ID, title: "Kara B" });
         expect(onSwitchRaid).toHaveBeenCalledWith("ev3");
+        expect(calls("/api/raids/setup/propose")).toHaveLength(0);
+    });
+
+    it("offers as many raids as the signups fill (#1035): the number with −/+, the titles as a preview, then fills the group", async () => {
+        const onSwitchRaid = vi.fn();
+        const user = userEvent.setup();
+        const tenMan = editorData({ signupCount: 50, suggestedRaids: 4 });
+        await show({ ...tenMan, event: { ...tenMan.event, size: 10 } }, { onSwitchRaid });
+        const hint = document.querySelector<HTMLElement>(".se-overbooked")!;
+        expect(hint).toHaveTextContent("50 Anmeldungen für 10 Plätze");
+        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.addMany", { count: 4 }) }));
+        const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
+        expect(stepper).toHaveTextContent("4");
+        expect(screen.queryByLabelText(t("setup.raidGroup.titleLabel"))).not.toBeInTheDocument();
+        expect(screen.getByTestId("se-addraid-preview")).toHaveTextContent("Karazhan Donnerstag 2 … Karazhan Donnerstag 5");
+        expect(screen.getByRole("switch", { name: t("setup.raidGroup.fill") })).toBeChecked();
+        // one more, one fewer: the preview follows
+        await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") }));
+        expect(screen.getByTestId("se-addraid-preview")).toHaveTextContent("Karazhan Donnerstag 2 … Karazhan Donnerstag 6");
+        await user.click(within(stepper).getByRole("button", { name: t("setup.raidGroup.countLess") }));
+        await user.click(within(screen.getByRole("dialog")).getByRole("button", { name: t("setup.raidGroup.addMany", { count: 4 }) }));
+        await waitFor(() => expect(calls("/api/raids/setup/propose")).toHaveLength(1));
+        expect(calls("/api/raids/setup/raid-add")[0][2]).toEqual({ event: EVENT_ID, count: 4 });
+        // the group already has placed raiders (GROUP: 3 in raid 1): only the free places are filled
+        expect(calls("/api/raids/setup/propose")[0][2]).toMatchObject({ event: EVENT_ID, keep: "placed" });
+        expect(onSwitchRaid).not.toHaveBeenCalled();
+    });
+
+    it("stops the number at 8 raids in all", async () => {
+        const user = userEvent.setup();
+        const full: RaidGroup = { ...GROUP, count: 7, raids: [...GROUP.raids, ...[3, 4, 5, 6, 7].map((i) => ({ ...GROUP.raids[1], id: `ev${i}`, index: i, title: `Karazhan Donnerstag ${i}` }))] };
+        await show(editorData({ signupCount: 200, suggestedRaids: 1, raidGroup: full }));
+        await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: t("setup.raidGroup.add") }));
+        const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
+        expect(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") })).toBeDisabled();
+        expect(screen.getByLabelText(t("setup.raidGroup.titleLabel"))).toHaveValue("Karazhan Donnerstag 8");
+    });
+
+    it("reads in English", async () => {
+        await switchLang("en");
+        try {
+            const user = userEvent.setup();
+            await show(editorData({ signupCount: 50, suggestedRaids: 3 }));
+            await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: "Create 3 raids" }));
+            expect(screen.getByRole("group", { name: "Number" })).toHaveTextContent("3");
+            expect(screen.getByText("New raids")).toBeInTheDocument();
+            expect(screen.getByRole("switch", { name: "Fill automatically afterwards" })).toBeChecked();
+            expect(within(screen.getByRole("dialog")).getByRole("button", { name: "Create 3 raids" })).toBeInTheDocument();
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("waits under \"Mehr\" while the places suffice", async () => {

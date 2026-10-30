@@ -345,21 +345,31 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         }
     };
 
-    /** "Weiteren Raid hinzufügen" (#811): the new raid is created and the editor switches to its tab. */
-    const addRaid = async (title: string) => {
+    /**
+     * "Weiteren Raid hinzufügen" (#811): `count` new raids at once (#1035). With
+     * `fill` a proposal runs right after over the whole group (raiders already
+     * placed stay) and the editor stays here - its answer refreshes every tab;
+     * without, the editor switches to the (first) new raid.
+     */
+    const addRaid = async (title: string, count = 1, fill = false) => {
         setGrouping(true);
+        let out: Awaited<ReturnType<typeof addGroupRaid>> | null = null;
         try {
             await chain.current;
-            const out = await addGroupRaid(eventId, title);
+            out = await addGroupRaid(eventId, title, count);
             setDialog(null);
-            ctx.onChanged(out.message || t("setup.raidGroup.created", { title: out.title }));
-            if (onSwitchRaid) onSwitchRaid(out.event);
-            else load();
+            ctx.onChanged(out.message || (count > 1 ? t("setup.raidGroup.createdMany", { count }) : t("setup.raidGroup.created", { title: out.title })));
         } catch (e) {
             jobs.notify((e as ApiError).message || t("setup.raidGroup.addFailed"), "err");
         } finally {
             setGrouping(false);
         }
+        if (!out) return;
+        if (fill) {
+            const anyPlaced = (out.raidGroup?.raids || []).some((r) => r.placed > 0);
+            await propose(undefined, anyPlaced ? "placed" : undefined);
+        } else if (onSwitchRaid) onSwitchRaid(out.event);
+        else load();
     };
 
     /** Dissolve this further raid (#811) — asked first; its raiders fall back into "Angemeldet". */
@@ -781,6 +791,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const isFurther = !!thisRaid && thisRaid.index > 1;
     const nextIndex = group ? Math.max(...group.raids.map((r) => r.index)) + 1 : 2;
     const primaryTitle = group ? (group.raids.find((r) => r.index === 1)?.title || data.event.title) : data.event.title;
+    // #1035: how many more raids the signups fill, and how many the group can still take (8 in all)
+    const roomForRaids = Math.max(0, 8 - (group ? group.count : 1));
+    const suggestedRaids = Math.min(roomForRaids, Math.max(0, data.suggestedRaids || 0));
     const groupItems: (MoreItem | "sep")[] = cancelled ? [] : [
         ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
         ...(isFurther ? [{
@@ -899,7 +912,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
                         onClick={() => setDialog("addRaid")}
                     >
-                        {t("setup.raidGroup.add")}
+                        {suggestedRaids > 1 ? t("setup.raidGroup.addMany", { count: suggestedRaids }) : t("setup.raidGroup.add")}
                     </Button>
                 </div>
             )}
@@ -984,7 +997,10 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             <FillModal open={dialog === "fill"} onClose={() => setDialog(null)} placed={placed} free={Math.max(0, (data.event.size || 0) - placed)} onFill={(keepPlaced) => void propose(undefined, keepPlaced ? "placed" : undefined)} />
             <WeightsModal open={dialog === "weights"} onClose={() => setDialog(null)} data={data} setup={setup} onApply={(w) => propose(w)} />
             <SearchModal open={dialog === "search"} onClose={() => setDialog(null)} ctx={raidCtx} search={data.search} />
-            <AddRaidModal open={dialog === "addRaid"} onClose={() => setDialog(null)} suggested={`${primaryTitle} ${nextIndex}`} running={grouping} onCreate={(title) => void addRaid(title)} />
+            <AddRaidModal open={dialog === "addRaid"} onClose={() => setDialog(null)} suggested={`${primaryTitle} ${nextIndex}`} primaryTitle={primaryTitle} nextIndex={nextIndex}
+                initialCount={Math.max(1, suggestedRaids)} max={roomForRaids} running={grouping}
+                onCreate={(title, count, fill) => void addRaid(title, count, fill)}
+            />
             {editPerson && <SignupEditModal key={editPerson.userId} eventId={eventId} person={editPerson} onClose={() => setEditing(null)} onSave={saveSignup} />}
             <ExplainModal open={dialog === "explain"} onClose={() => setDialog(null)} ctx={raidCtx} data={data} setup={setup} onDone={load} />
         </div>

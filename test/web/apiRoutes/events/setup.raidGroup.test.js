@@ -88,6 +88,35 @@ describe("POST /api/raids/setup/raid-add", () => {
         expect(refreshEventMessage).toHaveBeenCalledWith(primary.id);
     });
 
+    it("count 4 makes four further raids at once and redraws the signup message once (#1035)", async () => {
+        const r = await api.post("/api/raids/setup/raid-add", { event: primary.id, count: 4 });
+        expect(status(r)).toBe(200);
+        const out = body(r);
+        expect(out.events).toHaveLength(4);
+        expect(out.event).toBe(out.events[0]);
+        expect(out.raidGroup).toMatchObject({ count: 5, places: 50 });
+        expect(out.events.map((id) => eventStore.getEvent(id).raidGroupIndex)).toEqual([2, 3, 4, 5]);
+        expect(out.message).toMatch(/^4 Raids angelegt/);
+        expect(refreshEventMessage).toHaveBeenCalledTimes(1);
+        expect(refreshEventMessage).toHaveBeenCalledWith(primary.id);
+        expect(eventStore.getEvent(primary.id).log.filter((l) => l.action === "raidAdd")).toHaveLength(1);
+    });
+
+    it("refuses a count over the limit of 8 raids (400 too_many) and a bad count", async () => {
+        const over = await api.post("/api/raids/setup/raid-add", { event: primary.id, count: 8 });
+        expect(status(over)).toBe(400);
+        expect(body(over).error.code).toBe("too_many");
+        expect(status(await api.post("/api/raids/setup/raid-add", { event: primary.id, count: "zwei" }))).toBe(400);
+        expect(refreshEventMessage).not.toHaveBeenCalled();
+    });
+
+    it("the editor suggests how many raids the signups fill", async () => {
+        for (let i = 0; i < 30; i += 1) signupStore.saveSignup(primary.id, `x${i}`, { character: `X${i}`, spec: "Mage-Fire", status: "signed" }, { versionId: "tbc" });
+        const view = body(await api.get("/api/raids/setup", { event: primary.id }));
+        expect(view.signupCount).toBe(33);
+        expect(view.suggestedRaids).toBe(3);
+    });
+
     it("refuses a Raid-Helper id", async () => {
         // #925: a Raid-Helper event of the active server (on its synced list) - one of no known server answers 404
         const restore = onSyncedList("g1", ["12345"]);
