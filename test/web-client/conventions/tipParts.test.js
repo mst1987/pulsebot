@@ -1,7 +1,7 @@
 // lib/ui/tipParts.ts (#415): how a tooltip text splits into its bold head and its
 // explanation. Moved out of components/ui/Tip.tsx so that file exports
 // components only (react-refresh); the ui barrel still re-exports it.
-// The split itself runs in src/web-client/src/lib/ui/tipParts.test.ts (Vitest).
+// The split itself runs in src/web-client/src/lib/ui/__tests__/tipParts.test.ts (Vitest).
 const { read } = require("../clientSource");
 
 describe("tipParts", () => {

@@ -14,8 +14,8 @@ const read = (...parts) => fs.readFileSync(path.join(CLIENT, ...parts), "utf8").
 const EXPECTED = require("../fixtures/apiExports.json");
 const index = read("api", "index.ts");
 
-/** The api's own files (its tests left out). */
-const apiFiles = () => fs.readdirSync(API).filter((f) => !f.endsWith(".test.ts"));
+/** The api's own files (its tests in __tests__ left out). */
+const apiFiles = () => fs.readdirSync(API).filter((f) => f !== "__tests__" && !f.endsWith(".test.ts"));
 
 /** The names a module declares with `export` (types, functions, consts). */
 function exportedNames(src) {

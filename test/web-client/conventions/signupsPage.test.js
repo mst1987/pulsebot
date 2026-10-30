@@ -3,10 +3,10 @@
 // blocks, the page's own stylesheet and its column grid, none of which a
 // render in jsdom can show. What the page, the signup dialog, the bulk dialog
 // and the roster show and send is tested in Vitest:
-// src/web-client/src/pages/SignupsPage.test.tsx,
-// src/web-client/src/components/signup/SignupDialog.test.tsx,
-// src/web-client/src/pages/raid-detail/RosterTab.signups.test.tsx and
-// src/web-client/src/api/signups.test.ts.
+// src/web-client/src/pages/__tests__/SignupsPage.test.tsx,
+// src/web-client/src/components/signup/__tests__/SignupDialog.test.tsx,
+// src/web-client/src/pages/raid-detail/__tests__/RosterTab.signups.test.tsx and
+// src/web-client/src/api/__tests__/signups.test.ts.
 const fs = require("fs");
 const path = require("path");
 

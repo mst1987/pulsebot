@@ -1,6 +1,6 @@
 // Tokens on the board: the facing UI checked on the source. The logic of
 // tokens, sizes, icons, group markers and facing runs in Vitest
-// (src/web-client/src/lib/raidplan/raidplan.tokens.test.ts).
+// (src/web-client/src/lib/raidplan/__tests__/raidplan.tokens.test.ts).
 const fs = require("fs");
 const path = require("path");
 const { readWorkspace, read } = require("../clientSource");

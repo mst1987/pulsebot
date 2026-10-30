@@ -3,7 +3,7 @@
 // tooltips, the switch only for full admins, the import as a dry run first,
 // and the category list saying which categories still use Raid-Helper. The
 // rules (lib/settings/raidhelperRetirement.ts) run in Vitest
-// (src/web-client/src/lib/settings/raidhelperRetirement.test.ts).
+// (src/web-client/src/lib/settings/__tests__/raidhelperRetirement.test.ts).
 const fs = require("fs");
 const path = require("path");
 

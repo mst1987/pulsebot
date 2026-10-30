@@ -2,7 +2,7 @@
 // menu and its dialogs — which entries the menu shows, how a move preview and
 // a cancellation read, how the raider picker filters. No React in here, and
 // strippable (one-line signatures, no types inside bodies), so
-// src/web-client/src/lib/raids/eventManage.test.ts runs it for real.
+// src/web-client/src/lib/raids/__tests__/eventManage.test.ts runs it for real.
 import type { ManageCandidates, ManageDeletion, ManageRaider, ManageSpec, MovePlan, SignupStatus } from "../../api";
 import { t } from "../../i18n";
 import { DISPLAY_TZ } from "../format";

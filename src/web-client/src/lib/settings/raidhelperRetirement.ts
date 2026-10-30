@@ -3,7 +3,7 @@ import { t } from "../../i18n";
 
 // The rules behind the "Umstieg von Raid-Helper" card (#291): how a checklist
 // item reads, when the switch may be pressed, and what the import dialog says.
-// Kept free of React and strippable, so src/web-client/src/lib/settings/raidhelperRetirement.test.ts
+// Kept free of React and strippable, so src/web-client/src/lib/settings/__tests__/raidhelperRetirement.test.ts
 // runs it for real.
 
 export type BadgeLook = { tone: "ok" | "mid" | "bad" | "accent" | ""; label: string };

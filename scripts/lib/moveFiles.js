@@ -26,6 +26,8 @@ const RESOLVE = [
 ];
 // a path-like token that does not start in the middle of a longer one
 const TOKEN = /(?<![\w.@/-])(?:(?:\.{1,2}\/)+[\w.@-]+(?:\/[\w.@-]+)*|[\w.@-]+(?:\/[\w.@-]+)+)/g;
+// a bare "." or ".." (the folder's index) - only where a module is named, split(".") stays
+const BARE_DOTS = /((?:\bfrom\s*|\b(?:import|require|mock|doMock|requireActual|importActual)\s*\(\s*)["'])(\.{1,2})(?=["'])/g;
 
 const withoutExt = (file) => file.slice(0, file.length - path.extname(file).length);
 
@@ -168,7 +170,10 @@ function planMove(files, contents, mapping, options = {}) {
                 : rewriteAbsolute(token, file, code);
             return replaced + rest;
         });
-        if (next !== content) writes.set(newFile, next);
+        const final = code
+            ? next.replace(BARE_DOTS, (match, head, dots) => head + rewriteRelative(dots, file, newFile))
+            : next;
+        if (final !== content) writes.set(newFile, final);
     }
     return { moves: [...moves], writes, warnings };
 }

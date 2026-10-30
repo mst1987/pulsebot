@@ -100,7 +100,7 @@ The "big" drops a server cares about. They feed the dashboard ("Neuer Loot" / "T
   - `PUT /api/settings/top-items { versionId, item, on, serverSettingsGuildId }` switches one item for the **active** server.
   - Errors: 400 `no_active_server` / `bad_version` / `bad_item` / `too_many`; 403 without `settings` write; 409 `server_switched` when the session moved to another server in another tab. The page then locks its switches and says so.
 - **Migration** (`settingsMigration.js`, once): the old global `config.topItems` becomes the TBC list of every server whose categories play TBC, else of the first server. The old list stays as `topItemsLegacy` for one release, then goes. Log line "… (#952)".
-- **Tests:** `test/services/loot/topItems.test.js`, `test/web/apiRoutes/topItems.test.js` (real router), the migration cases in `test/stores/settingsMigration*.test.js`, client `lib/settings/topItems.test.ts` and `pages/settings/TopItemsSection.test.tsx`.
+- **Tests:** `test/services/loot/topItems.test.js`, `test/web/apiRoutes/topItems.test.js` (real router), the migration cases in `test/stores/settingsMigration*.test.js`, client `lib/settings/__tests__/topItems.test.ts` and `pages/settings/__tests__/TopItemsSection.test.tsx`.
 
 ## Profile je Roster (#676)
 

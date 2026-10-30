@@ -2,7 +2,7 @@
 // languages (namespaces raidCreate + raidPlan): the German literals moved into
 // the dictionaries and the files translate at render time (#435: the source
 // half of the former test/web-client/i18n-raidCreate.test.js; how the texts
-// read is tested in src/web-client/src/i18n/raidCreate.test.ts).
+// read is tested in src/web-client/src/i18n/__tests__/raidCreate.test.ts).
 const { read, stripComments } = require("../clientSource");
 
 const FILES = {

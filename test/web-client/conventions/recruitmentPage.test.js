@@ -2,7 +2,7 @@
 // its stylesheet, the CSS that keeps the tables' rows one line tall, the rule
 // that explanations sit in tooltips, and the apply button's default label being
 // the same in the preview and in the message the bot posts. What the page does
-// is tested in src/web-client/src/pages/recruitment/RecruitmentPage.test.tsx (and the
+// is tested in src/web-client/src/pages/recruitment/__tests__/RecruitmentPage.test.tsx (and the
 // editor pieces next to DiscordPreview.tsx / EmojiPicker.tsx).
 const fs = require("fs");
 const path = require("path");

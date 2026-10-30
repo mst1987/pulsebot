@@ -1,5 +1,5 @@
 // The pure rules behind the Einstellungen page, kept apart from the components so
-// src/web-client/src/lib/settings/settingsLogic.test.ts can run them in plain Node.
+// src/web-client/src/lib/settings/__tests__/settingsLogic.test.ts can run them in plain Node.
 //
 // Written so that stripping the signature's annotations leaves valid JavaScript:
 // every function is `export function name(params): Result {` on one line, and

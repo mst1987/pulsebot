@@ -1,7 +1,7 @@
 // Conventions of the Raid-Events module (design issue #222): what a render test
 // cannot see. The behaviour of the list, the create dialog and the Aufruf-Vorlagen
-// is tested in Vitest next to the components (pages/raids/RaidsPage.test.tsx,
-// components/raid-create/RaidCreateDialog.test.tsx, pages/NotifyTemplatesPage.test.tsx).
+// is tested in Vitest next to the components (pages/raids/__tests__/RaidsPage.test.tsx,
+// components/raid-create/__tests__/RaidCreateDialog.test.tsx, pages/__tests__/NotifyTemplatesPage.test.tsx).
 // a folder reads as all of its sources (components/raid-create/, #438)
 const { read } = require("../clientSource");
 

@@ -1,7 +1,7 @@
 // The raid ID — the lockout week from the Wednesday reset to the Tuesday after
 // it — in the guild's time zone, so a raid on Tuesday 23:30 does not slip into
 // the next ID for a viewer elsewhere. Written without typed consts, so the
-// tests run it as it is (src/web-client/src/lib/raids/raidId.test.ts).
+// tests run it as it is (src/web-client/src/lib/raids/__tests__/raidId.test.ts).
 
 import { isoDay } from "../format";
 

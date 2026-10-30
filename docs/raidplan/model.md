@@ -300,8 +300,8 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
   apply built it, edited by hand - a changed copy, a deleted copy, an own row in front, a moved tank; effective
   rows of every section identical before / after; idempotent; backup), `raidplanInherit.test.js` (apply, merge,
   twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan.test.js` (save, read
-  view), `src/web-client/src/lib/raidplan/inherit.test.ts` (client twin against the server) and
-  `components/raidplan/editor/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
+  view), `src/web-client/src/lib/raidplan/__tests__/inherit.test.ts` (client twin against the server) and
+  `components/raidplan/editor/__tests__/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
   hide / restore, auto tokens and lines of inherited rows).
 
 ## Permissions
@@ -336,7 +336,7 @@ globalByWrite: true, write: "raidplan" })`:
 
 Tests: `test/web/apiRoutes/raidplan.categoryOrga.test.js` (through the router, a table over every `orgaScoped`
 route against a raid of another category), `test/web/raidplan/raidplanAccess.test.js`, `globalByWrite` in
-`test/web/http/apiHandler.test.js`, `components/raidplan/editor/libraryRights.test.tsx`.
+`test/web/http/apiHandler.test.js`, `components/raidplan/editor/__tests__/libraryRights.test.tsx`.
 
 ## Test raid (dev)
 
@@ -470,5 +470,5 @@ restart.
 
 Tests: `test/web/raidplan/raidhelperRoster.test.js`, `test/web/raidplan/raidplanTitle.test.js`,
 `test/web/apiRoutes/raidplan.raidhelper.test.js` (switch, cache, fallbacks, gone raiders, names, template, switched-off
-Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `src/web-client/src/lib/raidplan/raidplanRaidhelper.test.ts`, plus the
+Raid-Helper), `test/utils/raidhelper/fixture.test.js`, `src/web-client/src/lib/raidplan/__tests__/raidplanRaidhelper.test.ts`, plus the
 store / board additions.

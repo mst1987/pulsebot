@@ -80,7 +80,7 @@
     /* ---- game versions (#563, #742): the colour of a version is the whole accent while it is shown (see the end of the file).
        The defaults here are the rule sets' colours (config/gameVersions/<id>.js); a colour changed in Einstellungen → Spielversion
        arrives as --vc-<id>-dark / -light / -ink-dark / -ink-light (lib/app/versionColor.ts) and wins. Every default reaches 4.5:1
-       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/versionColor.test.ts). ---- */
+       as text on every panel of its theme, and its ink 4.5:1 on it (lib/app/__tests__/versionColor.test.ts). ---- */
     --ver-forever: var(--vc-forever-dark, #4da3ff); --ver-forever-ink: var(--vc-forever-ink-dark, #0b0f14);
     --ver-tbc: var(--vc-tbc-dark, #9bd45a); --ver-tbc-ink: var(--vc-tbc-ink-dark, #0b0f14);
     --ver-classic: var(--vc-classic-dark, #9fb0c8); --ver-classic-ink: var(--vc-classic-ink-dark, #0b0f14);

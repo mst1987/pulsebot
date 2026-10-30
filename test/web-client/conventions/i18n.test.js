@@ -5,8 +5,8 @@
 //   * no hard-coded German text in ANY source file of the client (#440, the
 //     former i18n-phase1.test.js, which only knew a list of phase-1 files).
 // The core, the dictionaries and the keys the client asks for are tested in
-// Vitest (src/web-client/src/i18n/core.test.ts), the switch itself in
-// components/shell/LangToggle.test.tsx.
+// Vitest (src/web-client/src/i18n/__tests__/core.test.ts), the switch itself in
+// components/shell/__tests__/LangToggle.test.tsx.
 //
 // The text scan is deliberately small and quiet rather than clever:
 //   * no string literal and no JSX text carries an umlaut or ß — English and
