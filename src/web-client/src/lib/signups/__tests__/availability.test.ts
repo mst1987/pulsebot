@@ -5,7 +5,7 @@ import { t } from "../../../i18n";
 import { switchLang } from "../../../test/i18n";
 import {
     characterGroups, charactersInput, charsFromEntry, countResults, dayMs, effectiveChars, entryCharacters, firstSpec, initialScope,
-    nextTo, periodLabel, pickedVersions, raidFixed, resultSummary, scopeFromEntry, scopeLabel, scopeParts, setCharSpec, skipReason,
+    categoryNames, nextTo, periodLabel, pickedVersions, raidFixed, resultSummary, scopeFromEntry, scopeLabel, scopeParts, setCharSpec, skipReason,
     staysAsIs, toggleCategory, toggleChar, toggleServer,
 } from "../availability";
 import { formatDayDate } from "../../format";
@@ -132,6 +132,14 @@ describe("where an entry holds", () => {
             { guildId: "g1", name: "Pulse", categories: [{ id: "c1", name: "Kara" }, { id: "c2", name: "Forever" }] },
             { guildId: "g2", name: "PuGs", categories: [] },
         ] })).toBe(`Pulse · Kara, Forever / PuGs · ${t("signups.availability.dialog.allOfServer")}`);
+    });
+
+    it("fills a category the server sent without its name from the offered servers, never a bare known id", () => {
+        const names = categoryNames([{ categories: [{ id: "c1", name: "📅 Kara" }, { id: "c2", name: "" }] }]);
+        expect(names).toEqual({ c1: "📅 Kara" });
+        const entry = { categoryName: "", scope: [{ guildId: "g1", name: "Pulse", categories: [{ id: "c1", name: "" }, { id: "c9", name: "" }] }] };
+        expect(scopeLabel(entry, names)).toBe("Pulse · Kara, c9");
+        expect(scopeLabel(entry)).toBe("Pulse · c1, c9");
     });
 });
 

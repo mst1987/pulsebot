@@ -5,7 +5,7 @@ import { Badge, Button, IconButton, useConfirm } from "../ui";
 import { AbsenceIcon, EditIcon, SignedIcon, TrashIcon } from "../ui/icons/icons";
 import { useToast } from "../shell/Jobs";
 import AvailabilityDialog from "./AvailabilityDialog";
-import { entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
+import { categoryNames, entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
 import { useT } from "../../i18n";
 
 // "Ab- & Anwesenheit" on the signup page: the raider's entries that are not over
@@ -24,6 +24,7 @@ export default function AvailabilitySection({ onChanged }: { onChanged: () => vo
     // a calm page: the section appears once it is known, no loader of its own
     if (!state.data) return null;
     const data = state.data;
+    const names = categoryNames(data.servers);
 
     const removed = (id: string) => state.setData((d) => d && { ...d, entries: d.entries.filter((e) => e.id !== id) });
 
@@ -39,7 +40,7 @@ export default function AvailabilitySection({ onChanged }: { onChanged: () => vo
             {data.entries.length > 0 && (
                 <ul className="an-av-list">
                     {data.entries.map((e) => (
-                        <EntryRow key={e.id} entry={e} onEdit={() => setDialog({ kind: e.kind, entryId: e.id })} onRemoved={() => removed(e.id)} />
+                        <EntryRow key={e.id} entry={e} names={names} onEdit={() => setDialog({ kind: e.kind, entryId: e.id })} onRemoved={() => removed(e.id)} />
                     ))}
                 </ul>
             )}
@@ -56,7 +57,9 @@ export default function AvailabilitySection({ onChanged }: { onChanged: () => vo
 }
 
 /** One entry: the period large, below it the kind, where it holds and the reason or the characters. */
-export function EntryRow({ entry, onEdit, onRemoved }: { entry: AvailabilityEntry; onEdit: () => void; onRemoved: () => void }) {
+export function EntryRow({ entry, names = {}, onEdit, onRemoved }: {
+    entry: AvailabilityEntry; names?: Record<string, string>; onEdit: () => void; onRemoved: () => void;
+}) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
@@ -84,7 +87,7 @@ export function EntryRow({ entry, onEdit, onRemoved }: { entry: AvailabilityEntr
                 <div className="an-av-period">{periodLabel(entry.from, entry.to)}</div>
                 <div className="an-av-sub">
                     <span>{t(`signups.availability.kind.${entry.kind}`)}</span>
-                    <span className="an-av-scope">{scopeLabel(entry)}</span>
+                    <span className="an-av-scope">{scopeLabel(entry, names)}</span>
                     {absence && entry.comment && <span>{t("signups.quoted", { text: entry.comment })}</span>}
                     {entry.done > 0 && <span>{t("signups.availability.done", { count: entry.done })}</span>}
                     {entry.byOrga && <Badge size="sm" tone="accent" tip={t("signups.availability.byOrgaTip")}>{t("signups.availability.byOrga")}</Badge>}

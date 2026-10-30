@@ -12,6 +12,7 @@ import { raidFixed, skipReason, type CharPick, type ScopePick } from "../../lib/
 import { categoryIcon, plainCategoryName } from "../../lib/roster/absences";
 import { classIconName } from "../../lib/roster/rosterView";
 import { classColorOf } from "../../lib/discord/members";
+import { classColorProps } from "../character/ClassSpec";
 import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
@@ -116,14 +117,14 @@ export function CharacterRows({ groups, picked, versionName, onToggle, onSpec }:
                         {g.characters.map((c) => {
                             const spec = picked[c.key] || "";
                             const on = !!spec;
-                            const color = classColorOf(c.className);
+                            const colored = classColorProps(classColorOf(c.className));
                             return (
                                 <li key={c.key} className={on ? "an-av-char" : "an-av-char an-av-off"}>
                                     <button type="button" className="an-av-toggle" aria-pressed={on} onClick={() => onToggle(c)}
                                         aria-label={t("signups.availability.dialog.charAria", { name: c.name })}>
                                         <span className="an-av-mark">{on && <CheckMark />}</span>
                                         <WowIcon name={classIconName(c.className)} size={20} />
-                                        <span className="an-av-charname" style={color ? { color } : undefined}>{c.name}</span>
+                                        <span className={["an-av-charname", colored.className || ""].filter(Boolean).join(" ")} style={colored.style}>{c.name}</span>
                                     </button>
                                     <select className="inp-sm" value={spec || c.specs[0]?.key || ""} aria-label={t("signups.availability.dialog.specAria", { name: c.name })}
                                         onChange={(e) => onSpec(c.key, e.target.value)}>

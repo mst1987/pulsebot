@@ -238,13 +238,23 @@ export function charactersInput(pick: CharPick, offered: AvailabilityCharacter[]
     return offered.filter((c) => pick[c.key]).map((c) => ({ character: c.key, spec: pick[c.key] }));
 }
 
-/** Where an entry holds, in words: "Pulse · Alle Kategorien", "Pulse · Karazhan, Gruul"; servers apart by " / ". */
-export function scopeLabel(entry: Pick<AvailabilityEntry, "scope" | "categoryName">): string {
+/** Category id -> name from the servers the dialog offers (the fallback when an entry's scope lacks a name). */
+export function categoryNames(servers: { categories: { id: string; name: string }[] }[] = []): Record<string, string> {
+    const out: Record<string, string> = {};
+    for (const s of servers) for (const c of s.categories) if (c.name) out[c.id] = c.name;
+    return out;
+}
+
+/**
+ * Where an entry holds, in words: "Pulse · Alle Kategorien", "Pulse · Karazhan, Gruul"; servers apart by " / ".
+ * `names` (categoryNames) fills a category the server sent without its name — never a bare id when it is known.
+ */
+export function scopeLabel(entry: Pick<AvailabilityEntry, "scope" | "categoryName">, names: Record<string, string> = {}): string {
     const parts = entry.scope || [];
     if (!parts.length) return entry.categoryName ? plainCategoryName(entry.categoryName) : t("signups.availability.everywhere");
     return parts.map((p) => {
         const cats = p.categories.length
-            ? p.categories.map((c) => plainCategoryName(c.name || c.id)).join(", ")
+            ? p.categories.map((c) => plainCategoryName(c.name || names[c.id] || c.id)).join(", ")
             : t("signups.availability.dialog.allOfServer");
         return [p.name, cats].filter(Boolean).join(" · ");
     }).join(" / ");

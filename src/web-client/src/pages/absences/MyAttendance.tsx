@@ -15,7 +15,7 @@ import AvailabilityDialog from "../../components/signup/AvailabilityDialog";
 import { categoryIcon, entryDays, entryState, entryWording, nightsInOrder, plainCategoryName } from "../../lib/roster/absences";
 import { countsAsPresent, countsForQuota, statusLabel, statusOf, verdictTip } from "../../lib/roster/attendanceStatus";
 import AttendanceCell from "../../components/roster/AttendanceCell";
-import { entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
+import { categoryNames, entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { useT } from "../../i18n";
 
@@ -80,6 +80,7 @@ export default function MyAttendance({ userId = "", onBack }: {
                 {entries.data && (
                     <EntryList
                         entries={entries.data.entries} today={entries.data.today} known={known}
+                        names={{ ...Object.fromEntries(data.categories.map((c) => [c.id, c.name])), ...categoryNames(entries.data.servers) }}
                         onEdit={(e) => setDialog({ kind: e.kind, entryId: e.id })}
                         onRemoved={() => { void entries.reload(); }}
                     />
@@ -129,8 +130,8 @@ export default function MyAttendance({ userId = "", onBack }: {
     );
 }
 
-function EntryList({ entries, today, known, onEdit, onRemoved }: {
-    entries: AvailabilityEntry[]; today: string; known: Record<string, { icon: string; name: string }>;
+function EntryList({ entries, today, known, names, onEdit, onRemoved }: {
+    entries: AvailabilityEntry[]; today: string; known: Record<string, { icon: string; name: string }>; names: Record<string, string>;
     onEdit: (entry: AvailabilityEntry) => void; onRemoved: () => void;
 }) {
     const t = useT();
@@ -138,13 +139,13 @@ function EntryList({ entries, today, known, onEdit, onRemoved }: {
     if (!shown.length) return <p className="ab-note">{t("absences.mine.noEntries")}</p>;
     return (
         <ul className="ab-entries">
-            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} category={known[e.categoryId]} onEdit={() => onEdit(e)} onRemoved={onRemoved} />)}
+            {shown.map((e) => <OwnEntry key={e.id} entry={e} today={today} category={known[e.categoryId]} names={names} onEdit={() => onEdit(e)} onRemoved={onRemoved} />)}
         </ul>
     );
 }
 
-function OwnEntry({ entry, today, category, onEdit, onRemoved }: {
-    entry: AvailabilityEntry; today: string; category?: { icon: string; name: string }; onEdit: () => void; onRemoved: () => void;
+function OwnEntry({ entry, today, category, names, onEdit, onRemoved }: {
+    entry: AvailabilityEntry; today: string; category?: { icon: string; name: string }; names: Record<string, string>; onEdit: () => void; onRemoved: () => void;
 }) {
     const t = useT();
     const ask = useConfirm();
@@ -177,7 +178,7 @@ function OwnEntry({ entry, today, category, onEdit, onRemoved }: {
                     <span>{periodLabel(entry.from, entry.to)}</span>
                     <span className="ab-entry-days">{t("absences.days", { count: entryDays(entry) })}</span>
                 </div>
-                {scoped && <div className="ab-entry-sub ab-entry-scope"><span>{scopeLabel(entry)}</span></div>}
+                {scoped && <div className="ab-entry-sub ab-entry-scope"><span>{scopeLabel(entry, names)}</span></div>}
                 {chars.length > 0 && <div className="ab-entry-sub ab-entry-chars">{chars.map((c) => <span key={c}>{c}</span>)}</div>}
                 {(entry.comment || entry.byOrga) && (
                     <div className="ab-entry-sub">
