@@ -139,7 +139,11 @@ export type SetupLootCheck = {
 
 /** "Loot-Daten laden" of a raid group (#1037): the job, the armory progress while it runs, what is stored. */
 export type SetupLootStatus = {
-    job: (NonNullable<SetupJob> & { runningMs?: number }) | null;
+    /**
+     * `error: "failed_all"`: no source answered - `failed` names them, `hadPrevious` says whether
+     * the old data stayed; the editor builds the sentence (setup.loot.failedAll*)
+     */
+    job: (NonNullable<SetupJob> & { runningMs?: number; failed?: string[]; hadPrevious?: boolean }) | null;
     progress: { done: number; total: number } | null;
     counts: { signups: number; gear: number; softres: number; bis: number; spec: number } | null;
     /** when the stored data was gathered (ms), 0 = never */

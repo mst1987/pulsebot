@@ -128,9 +128,11 @@ describe("loot in GET /api/raids/setup (#1037)", () => {
 
     it("names the sources the last load could not reach and the time of the data that stayed", async () => {
         const sibling = await addRaid();
-        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], counts: { signups: 5 }, failed: ["softres"], keptAt: 1234 });
+        // the kept data counts the 30 days, so it has to be recent to show at all
+        const keptAt = Date.now() - 3600_000;
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], counts: { signups: 5 }, failed: ["softres"], keptAt });
         const view = body(await api.get("/api/raids/setup", { event: sibling }));
-        expect(view.loot).toMatchObject({ failed: ["softres"], keptAt: 1234 });
+        expect(view.loot).toMatchObject({ failed: ["softres"], keptAt });
         saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"] });
         expect(body(await api.get("/api/raids/setup", { event: sibling })).loot).toMatchObject({ failed: [], keptAt: 0 });
     });
@@ -176,6 +178,40 @@ describe("a manual save of a raid group keeps the loot (#1037)", () => {
         expect(other.checks.loot).toEqual(own.checks.loot);
         expect(other.groups[0].slots.map((s) => s.userId)).toEqual(["h2"]);
         expect(other.version).toBe(1);
+    });
+
+    it("loot data gone stale clears checks.loot and every loot reason in all raids of the group", async () => {
+        const sibling = await addRaid();
+        const fresh = {
+            versionId: "tbc", instanceIds: ["kara"],
+            wants: { u1: { u1: want }, h1: { h1: want }, h2: { h2: want } },
+            items: { [ITEM]: { name: "Testklinge", icon: "", quality: 4 } },
+        };
+        saveSetupLoot(primary.id, fresh);
+        expect(status(await put(sibling, 0, [{ userId: "h2", spec: "Priest-Holy" }]))).toBe(200);
+        expect(status(await put(primary.id, 0, [{ userId: "u1", spec: "Warrior-Fury" }, { userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+        const slotsOf = (id) => eventStore.getEvent(id).setup.groups.flatMap((g) => g.slots);
+        expect(eventStore.getEvent(sibling).setup.checks.loot).toBeDefined();
+        expect([...slotsOf(primary.id), ...slotsOf(sibling)].some((s) => s.lootReason)).toBe(true);
+        const otherBefore = eventStore.getEvent(sibling).setup;
+
+        // the data that stayed is older than 30 days: no group value any more
+        saveSetupLoot(primary.id, { ...fresh, keptAt: Date.now() - 31 * 24 * 60 * 60 * 1000 });
+        const own = eventStore.getEvent(primary.id).setup;
+        expect(status(await put(primary.id, own.version, [{ userId: "u1", spec: "Warrior-Fury" }, { userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+
+        for (const id of [primary.id, sibling]) {
+            expect(eventStore.getEvent(id).setup.checks.loot).toBeUndefined();
+            for (const s of slotsOf(id)) {
+                expect(s.lootReason).toBeUndefined();
+                expect((s.reasons || []).filter((r) => /Testklinge/.test(r))).toEqual([]);
+            }
+        }
+        // the other raid only lost its loot: placement, version and status as they were
+        const other = eventStore.getEvent(sibling).setup;
+        expect(other.groups[0].slots.map((s) => s.userId)).toEqual(["h2"]);
+        expect(other.version).toBe(otherBefore.version);
+        expect(other.status).toBe(otherBefore.status);
     });
 
     it("without loot data the save stays a single raid's evaluation", async () => {

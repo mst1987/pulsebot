@@ -86,6 +86,17 @@ describe("LootPanel (#1037)", () => {
         expect(screen.queryByText(t("setup.loot.failed", { error: "x" }))).toBeNull();
     });
 
+    it("words the code failed_all in the page's language, with and without old data", () => {
+        const failedJob = { status: "error" as const, error: "failed_all", failed: ["softres", "armory"], hadPrevious: false };
+        const sources = `${t("setup.loot.source.softres")}, ${t("setup.loot.source.armory")}`;
+        const { unmount } = render(<LootPanel status={{ job: failedJob, progress: null, counts: null, at: 0 }} check={undefined} busy={false} onLoad={() => {}} />);
+        expect(screen.getByText(t("setup.loot.failedAll", { sources }))).toBeInTheDocument();
+        expect(screen.queryByText(t("setup.loot.failed", { error: "failed_all" }))).toBeNull();
+        unmount();
+        render(<LootPanel status={{ ...STORED, job: { ...failedJob, failed: [], hadPrevious: true } }} check={CHECK} busy={false} onLoad={() => {}} />);
+        expect(screen.getByText(t("setup.loot.failedAllKept", { sources: t("setup.loot.source.all") }))).toBeInTheDocument();
+    });
+
     it("names an unreachable source without kept data", () => {
         render(<LootPanel status={{ ...STORED, failed: ["armory"], keptAt: 0 }} check={CHECK} busy={false} onLoad={() => {}} />);
         expect(screen.getByText(t("setup.loot.unreachableNoKept", { sources: t("setup.loot.source.armory") }))).toBeInTheDocument();

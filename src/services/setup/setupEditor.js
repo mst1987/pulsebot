@@ -430,25 +430,30 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const got = new Set(result.groups.flatMap((g) => g.slots.map((s) => String(s.userId))));
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
-    // #1037: loot spans the raid group - valued as a whole, this raid takes the group's loot
-    const group = groupLootOf(event, checked.value, { options, now, leaderUserId });
-    const own = group ? withGroupLoot(result, group.events.find((x) => x.eventId === event.id), group.checks.loot) : result;
+    // #1037: loot spans the raid group - valued as a whole, this raid takes the group's loot;
+    // without a group value (data gone after 30 days, or the others no longer value) no raid of
+    // the group keeps a loot check or loot reason: an old one would describe another setup
+    const others = groupOthers(event);
+    const group = others.length ? groupLootOf(event, checked.value, others, { options, now, leaderUserId }) : null;
+    const own = others.length ? withGroupLoot(result, group && group.events.find((x) => x.eventId === event.id), group && group.checks.loot) : result;
     const groups = inPlacedOrder(own.groups, checked.value.groups);
     const setup = nextSetup(prev, { ...own, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
     const saved = storeSetup(event, setup, { userId, now });
-    if (group && !saved.error) refreshGroupLoot(group);
+    if (others.length && !saved.error) refreshGroupLoot(group || { others, events: [], checks: {} });
     return saved;
+}
+
+/** The other raids of this raid's group (#811), empty outside one. */
+function groupOthers(event) {
+    return inRaidGroup(event) ? groupEvents(event).filter((e) => e.id !== event.id) : [];
 }
 
 /**
  * The raid group valued as a whole after a manual change of one raid (#1037): this raid as the
- * orga placed it, the others as they stand. Null outside a group, without loot data or when the
- * others no longer value (their own save tells why) - the raid then keeps its single evaluation.
+ * orga placed it, the others as they stand. Null without loot data or when the others no longer
+ * value (their own save tells why) - the group then shows no loot at all.
  */
-function groupLootOf(event, placement, { options, now, leaderUserId }) {
-    if (!inRaidGroup(event)) return null;
-    const others = groupEvents(event).filter((e) => e.id !== event.id);
-    if (!others.length) return null;
+function groupLootOf(event, placement, others, { options, now, leaderUserId }) {
     const input = collectSetupInput([event.id, ...others.map((e) => e.id)], { now });
     if (!input || !input.loot) return null;
     if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
@@ -476,20 +481,27 @@ function withSlotLoot(slot, fresh) {
     return { ...rest, reasons: reasons.includes(next.text) ? reasons : [...reasons, next.text], lootReason: next };
 }
 
-/** One raid's valued result with the group's loot: `checks.loot` and every slot's loot reason. */
+/**
+ * One raid's valued result with the group's loot: `checks.loot` and every slot's loot reason.
+ * Without `loot` (no group value) both go: no loot check, no loot reason.
+ */
 function withGroupLoot(result, part, loot) {
     const fresh = new Map();
     for (const g of (part && part.groups) || []) for (const s of g.slots || []) fresh.set(String(s.userId), s);
+    const checks = { ...result.checks };
+    if (loot) checks.loot = loot;
+    else delete checks.loot;
     return {
         ...result,
         groups: (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map((s) => withSlotLoot(s, fresh.get(String(s.userId)))) })),
-        checks: { ...result.checks, loot },
+        checks,
     };
 }
 
 /**
  * The other raids of the group after a manual change (#1037): only their loot check and loot
- * reasons follow - no new version, no status change, no repost, the leader untouched.
+ * reasons follow - no new version, no status change, no repost, the leader untouched. Without
+ * a group value (`events` empty, no `checks.loot`) both are cleared.
  */
 function refreshGroupLoot(group) {
     group.others.forEach((e) => {

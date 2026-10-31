@@ -16,7 +16,13 @@ function groupsOf(data) {
 
 const SOURCES = new Set(["softres", "armory", "logs", "all"]);
 
-const tooOld = (g, now) => !g || now - Number(g.at || 0) > MAX_AGE_MS;
+/**
+ * The time of the oldest data in a snapshot: `keptAt` when a raider still holds entries an
+ * earlier load fetched (carried over load after load), else `at`. The 30-day limit counts from here.
+ */
+const oldestOf = (g) => Number(g.keptAt) || Number(g.at || 0);
+
+const tooOld = (g, now) => !g || now - oldestOf(g) > MAX_AGE_MS;
 
 /** The sources a load could not reach (`softres`, `armory`, `logs`, `all`), once each. */
 function failedOf(list) {
@@ -42,15 +48,15 @@ function markSetupLootFailed(eventId, failed, { now = Date.now() } = {}) {
     const id = String(eventId || "").trim();
     const groups = { ...groupsOf(store.read()) };
     if (!id || tooOld(groups[id], now)) return null;
-    groups[id] = { ...groups[id], failed: failedOf(failed), failedAt: now, keptAt: groups[id].at };
+    groups[id] = { ...groups[id], failed: failedOf(failed), failedAt: now, keptAt: oldestOf(groups[id]) };
     store.write({ groups });
     return groups[id];
 }
 
 /**
  * Store (replace) the snapshot of a raid group; drops snapshots older than 30 days.
- * `failed`/`keptAt`: the sources this load could not reach and the time of the older
- * data a raider kept in their place (0 = nothing kept).
+ * `failed`/`keptAt`: the sources this load could not reach and the time of the oldest
+ * data a raider kept in their place (0 = nothing kept); the snapshot expires 30 days after it.
  */
 function saveSetupLoot(eventId, snapshot = {}) {
     const id = String(eventId || "").trim();

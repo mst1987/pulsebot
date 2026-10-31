@@ -464,7 +464,9 @@
         "raidsAria": "Who wants it in which raid",
         "more": { "one": "{count} more item", "other": "{count} more items" },
         "listAria": "Items several people want",
-        "failed": "Loot data could not be loaded: {error}"
+        "failed": "Loot data could not be loaded: {error}",
+        "failedAll": "Loot data could not be loaded – {sources} not reachable.",
+        "failedAllKept": "Loot data could not be loaded – {sources} not reachable. The old data stays."
     },
     "signupEdit": {
         "open": "Edit signup …",

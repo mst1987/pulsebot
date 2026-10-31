@@ -150,7 +150,33 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
 
     it("reports a failure instead of throwing", async () => {
         signupStore.listSignups.mockImplementation(() => { throw new Error("broken"); });
-        expect(await setupLoot.loadLootData(["a", "b"])).toEqual({ ok: false, error: expect.any(String), failed: ["all"] });
+        // a code, not a sentence: the editor words it in de/en (setup.loot.failedAll)
+        expect(await setupLoot.loadLootData(["a", "b"])).toEqual({ ok: false, error: "failed_all", failed: ["all"], hadPrevious: false });
+    });
+
+    it("carries the oldest kept data through a second partial load (keptAt stays the first load's)", async () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            signupStore.listSignups.mockReturnValue([
+                { userId: "u1", character: "Softy", spec: "Warrior-Fury" },
+                { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            ]);
+            getEventSoftres.mockImplementation((id) => (id === "a" ? { raidId: "sr1", token: "" } : null));
+            softresStatus.fetchRaidCached.mockResolvedValue({ reserves: [{ name: "Softy", items: [30000] }] });
+            now.mockReturnValue(1_000_000);
+            await setupLoot.loadLootData(["a", "b"]);
+            softresStatus.fetchRaidCached.mockRejectedValue(new Error("down"));
+            now.mockReturnValue(2_000_000);
+            await setupLoot.loadLootData(["a", "b"]);
+            expect(getSetupLoot("a", { now: 2_000_000 }).keptAt).toBe(1_000_000);
+            now.mockReturnValue(3_000_000);
+            await setupLoot.loadLootData(["a", "b"]);
+            const snap = getSetupLoot("a", { now: 3_000_000 });
+            expect(snap.at).toBe(3_000_000);
+            expect(snap.keptAt).toBe(1_000_000);
+        } finally {
+            now.mockRestore();
+        }
     });
 
     it("keeps the old Softres entry of a raider when softres.it is down, takes the rest fresh (partial)", async () => {
@@ -189,7 +215,7 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
 
         softresStatus.fetchRaidCached.mockRejectedValue(new Error("down"));
         const out = await setupLoot.loadLootData(["a", "b"]);
-        expect(out).toEqual({ ok: false, error: expect.any(String), failed: ["softres"] });
+        expect(out).toEqual({ ok: false, error: "failed_all", failed: ["softres"], hadPrevious: true });
         const snap = getSetupLoot("a");
         expect(snap.wants).toEqual(first.wants);
         expect(snap.at).toBe(first.at);

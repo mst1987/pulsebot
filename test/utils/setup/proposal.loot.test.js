@@ -136,6 +136,23 @@ describe("loot in the setup proposal (#1037)", () => {
         expect(out.checks.ok).toBe(true);
     });
 
+    it("never bundles a role shortage: tanks 1/2 + 1/4 stay so, not 2/2 + 0/4 (stress seed 69)", () => {
+        // the review's stress case: random input plus second characters and their wants
+        const random = rng(69);
+        const input = randomInput(random, { events: 2 });
+        const specs = ["Mage-Fire", "Priest-Holy", "Warrior-Protection", "Rogue-Combat"];
+        for (const s of input.signups) {
+            if (random() < 0.3) s.characters = [{ name: s.character, spec: s.spec }, { name: `${s.character}Alt`, spec: specs[Math.floor(random() * specs.length)] }];
+        }
+        for (const u of Object.keys(input.loot.wants)) {
+            const k = Object.keys(input.loot.wants[u])[0];
+            input.loot.wants[u][`${k}alt`] = input.loot.wants[u][k];
+        }
+        const tanks = (o) => o.events.map((ev) => `${ev.checks.roles.tank.count}/${ev.checks.roles.tank.min}`);
+        expect(tanks(buildSetupProposal({ ...input, loot: null }))).toEqual(["1/2", "1/4"]);
+        expect(tanks(buildSetupProposal(input))).toEqual(["1/2", "1/4"]);
+    });
+
     it("never puts anybody on the bench and never locks anybody for loot", () => {
         const input = group(2, base(2));
         input.signups.push(...["kara1", "kara2"].map((eventId) => su("x0", "Mage-Fire", { eventId, at: 999 })));
@@ -245,6 +262,9 @@ describe("loot in the setup proposal (#1037)", () => {
             expect(placed(withLoot)).toBeGreaterThanOrEqual(placed(without));
             const rolesOk = (out) => out.events.every((ev) => Object.values(ev.checks.roles).every((r) => r.ok));
             if (rolesOk(without)) expect(rolesOk(withLoot)).toBe(true);
+            // no raid lacks more of a role than without loot (no shortage moved between raids)
+            const gaps = (out) => out.events.map((ev) => Object.values(ev.checks.roles).map((r) => Math.max(0, r.min - r.count)));
+            gaps(withLoot).forEach((row, e) => row.forEach((v, k) => expect(v).toBeLessThanOrEqual(gaps(without)[e][k])));
             const leadersOk = (out) => out.events.filter((ev) => ev.checks.leader && ev.checks.leader.ok).length;
             expect(leadersOk(withLoot)).toBe(leadersOk(without));
             expect(ok(withLoot)).toHaveLength(input.events.length);

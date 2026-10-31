@@ -62,7 +62,33 @@ function placedIn(s, e) {
     return out;
 }
 
-/** Try a change; keep it when it is strictly better. `changes`: [c, o, g][]. */
+/**
+ * Per raid what its minimum rules still lack: the places short of each role's minimum, then 1
+ * when the raid has a leader rule and no leader (#1036). `[event][ROLES..., leader]`.
+ */
+function minimumGaps(s) {
+    const counts = s.events.map(() => ({ roles: ROLES.map(() => 0), leaders: 0 }));
+    for (let c = 0; c < s.n; c++) {
+        if (s.opt[c] < 0) continue;
+        const option = s.cands[c].options[s.opt[c]];
+        const k = counts[option.eventIdx];
+        k.roles[option.roleIdx]++;
+        if (s.cands[c].leadsIn && s.cands[c].leadsIn.has(option.eventIdx)) k.leaders++;
+    }
+    return s.events.map((event, e) => [
+        ...ROLES.map((r, i) => Math.max(0, event.limits[r].min - counts[e].roles[i])),
+        event.leaderRule && counts[e].leaders === 0 ? 1 : 0,
+    ]);
+}
+
+/** True when some raid lacks more for a minimum rule in `next` than in `prev`. */
+const gapRises = (prev, next) => next.some((gaps, e) => gaps.some((v, i) => v > prev[e][i]));
+
+/**
+ * Try a change; keep it when it is strictly better. `changes`: [c, o, g][]. With `s.gaps`
+ * (the loot phase, #1037) a change must also leave every raid's minimum gaps as they are or
+ * smaller: loot outweighing a tank short in one raid must not hand that raid's tank to the other.
+ */
 function attempt(s, changes) {
     const before = changes.map(([c]) => [c, s.opt[c], s.grp[c]]);
     for (const [c, o, g] of changes) {
@@ -70,8 +96,10 @@ function attempt(s, changes) {
         s.grp[c] = g;
     }
     const score = s.scorer.evaluate(s.opt, s.grp);
-    if (score > s.current + EPS) {
+    const gaps = score > s.current + EPS && s.gaps ? minimumGaps(s) : null;
+    if (score > s.current + EPS && !(gaps && gapRises(s.gaps, gaps))) {
         s.current = score;
+        if (gaps) s.gaps = gaps;
         return true;
     }
     for (const [c, o, g] of before) {
@@ -474,6 +502,7 @@ function search(model, scorer, lootScorer) {
     if (lootScorer) {
         s.scorer = lootScorer;
         s.current = lootScorer.evaluate(s.opt, s.grp);
+        s.gaps = minimumGaps(s);
         for (let pass = 0; pass < MAX_PASSES; pass++) {
             if (!lootPass(s)) break;
         }

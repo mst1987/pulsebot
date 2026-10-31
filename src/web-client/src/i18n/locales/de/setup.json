@@ -464,7 +464,9 @@
         "raidsAria": "Wer es in welchem Raid will",
         "more": { "one": "{count} weiteres Item", "other": "{count} weitere Items" },
         "listAria": "Items, die mehrere wollen",
-        "failed": "Loot-Daten konnten nicht geladen werden: {error}"
+        "failed": "Loot-Daten konnten nicht geladen werden: {error}",
+        "failedAll": "Loot-Daten konnten nicht geladen werden – {sources} nicht erreichbar.",
+        "failedAllKept": "Loot-Daten konnten nicht geladen werden – {sources} nicht erreichbar. Die alten Daten bleiben."
     },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",

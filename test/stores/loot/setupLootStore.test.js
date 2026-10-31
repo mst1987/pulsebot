@@ -68,4 +68,18 @@ describe("stores/loot/setupLootStore (#1037)", () => {
         expect(markSetupLootFailed("", ["all"])).toBeNull();
         expect(markSetupLootFailed("ev1", ["all"], { now: saved.at + MAX_AGE_MS + 1 })).toBeNull();
     });
+
+    it("counts the 30 days from the oldest kept data, not from the last load", () => {
+        const saved = saveSetupLoot("ev1", { versionId: "tbc", keptAt: Date.now() - 10 * 24 * 60 * 60 * 1000 });
+        // 25 days after this load the kept data is 35 days old: gone, though `at` is fresh
+        expect(getSetupLoot("ev1", { now: saved.at + 19 * 24 * 60 * 60 * 1000 })).not.toBeNull();
+        expect(getSetupLoot("ev1", { now: saved.keptAt + MAX_AGE_MS + 1 })).toBeNull();
+        expect(markSetupLootFailed("ev1", ["all"], { now: saved.keptAt + MAX_AGE_MS + 1 })).toBeNull();
+    });
+
+    it("keeps an older keptAt when a failed load marks the snapshot", () => {
+        const saved = saveSetupLoot("ev1", { versionId: "tbc", keptAt: Date.now() - 1000 });
+        const marked = markSetupLootFailed("ev1", ["softres"], { now: saved.at + 1 });
+        expect(marked.keptAt).toBe(saved.keptAt);
+    });
 });

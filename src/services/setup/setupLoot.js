@@ -254,7 +254,9 @@ function askedSources(events, bis) {
     return out;
 }
 
-const FAILED_ALL = "Loot-Daten konnten nicht geladen werden – die alten Daten bleiben.";
+// A load that reached none of its sources ends with this code, not with a text: the
+// editor builds the sentence in its language from `failed` and `hadPrevious` (#1037).
+const FAILED_ALL = "failed_all";
 
 /**
  * The background job of "Loot-Daten laden" (evalJobs, section "setup-loot"):
@@ -264,8 +266,9 @@ const FAILED_ALL = "Loot-Daten konnten nicht geladen werden – die alten Daten 
  * raider keeps the last run's entry where the failed source would have filled it,
  * and the snapshot names the failed sources (`failed`, `keptAt` = the old data's time).
  * When every source the run asked failed, nothing is replaced at all - the job ends as
- * an error and the old snapshot only learns `failed`.
- * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], partial?: boolean }>}
+ * an error (`error: "failed_all"`, `hadPrevious` = old data stayed) and the old snapshot
+ * only learns `failed`.
+ * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], hadPrevious?: boolean, partial?: boolean }>}
  */
 async function loadLootData(eventIds) {
     const events = [...new Set((eventIds || []).map(str).filter(Boolean))].map((id) => eventStore.getEvent(id)).filter(Boolean);
@@ -298,18 +301,19 @@ async function loadLootData(eventIds) {
         const failedList = ["softres", "armory", "logs"].filter((x) => failed.has(x));
         if (asked.length && asked.every((x) => failed.has(x))) {
             if (previous) markSetupLootFailed(groupId, failedList);
-            return { ok: false, error: FAILED_ALL, failed: failedList };
+            return { ok: false, error: FAILED_ALL, failed: failedList, hadPrevious: !!previous };
         }
         const { wants, counts, kept } = collectWants(raiders, { reserves, bis, gear, previous: previous && previous.wants, failed });
         saveSetupLoot(groupId, {
             versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts,
-            failed: failedList, keptAt: kept && previous ? previous.at : 0,
+            // the oldest kept data: entries kept load after load keep the time they were fetched
+            failed: failedList, keptAt: kept && previous ? (previous.keptAt || previous.at) : 0,
         });
         return { ok: true, counts, failed: failedList, partial: failedList.length > 0 };
     } catch (e) {
         logger.error(`loot data ${groupId}: ${e.message}`);
         if (previous) markSetupLootFailed(groupId, ["all"]);
-        return { ok: false, error: FAILED_ALL, failed: ["all"] };
+        return { ok: false, error: FAILED_ALL, failed: ["all"], hadPrevious: !!previous };
     } finally {
         progress.delete(groupId);
     }

@@ -24,6 +24,17 @@ function unreachableLine(t: T, status: SetupLootStatus): string {
         : t("setup.loot.unreachableNoKept", { sources });
 }
 
+/**
+ * The error of the last load: the code "failed_all" (no source answered) as a sentence in
+ * the page's language, with and without old data that stayed; any other error as it came.
+ */
+function jobErrorLine(t: T, job: SetupLootStatus["job"]): string {
+    if (!job || job.status !== "error") return "";
+    if (job.error !== "failed_all") return t("setup.loot.failed", { error: job.error });
+    const sources = (job.failed?.length ? job.failed : ["all"]).map((s) => t(`setup.loot.source.${s}`)).join(", ");
+    return t(job.hadPrevious ? "setup.loot.failedAllKept" : "setup.loot.failedAll", { sources });
+}
+
 /** "Kara 1: Heilbert softres, Berserker bis · Kara 3: …" - who wants the item in which raid. */
 function ItemRaids({ item, t }: { item: SetupLootItem; t: T }) {
     return (
@@ -67,6 +78,7 @@ export function LootPanel({ status, check, busy, onLoad, ready = false, onPropos
     const items = check?.items || [];
     const shown = items.slice(0, MAX_ITEMS);
     const unreachable = unreachableLine(t, status);
+    const jobError = jobErrorLine(t, status.job);
     return (
         <section className="se-loot" aria-label={t("setup.loot.title")}>
             <div className="se-side-row se-loot-head">
@@ -88,7 +100,7 @@ export function LootPanel({ status, check, busy, onLoad, ready = false, onPropos
                         : t("setup.loot.notLoaded")}
             </p>
             {!running && unreachable && <p className="se-loot-cap se-loot-bad">{unreachable}</p>}
-            {!running && !unreachable && status.job?.status === "error" && <p className="se-loot-cap se-loot-bad">{t("setup.loot.failed", { error: status.job.error })}</p>}
+            {!running && !unreachable && jobError && <p className="se-loot-cap se-loot-bad">{jobError}</p>}
             {ready && !running && onPropose && (
                 <div className="se-loot-ready">
                     <span>{t("setup.loot.loaded")}</span>
