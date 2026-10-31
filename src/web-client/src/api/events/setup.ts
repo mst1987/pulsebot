@@ -146,7 +146,11 @@ export type SetupEditorData = {
     /** By user id; only on the page load — the page keeps it across moves. */
     attendance?: Record<string, SetupAttendance>;
     signupCount?: number;
-    /** #1035: how many raids in total the signups fill (ceil(signups / size), at most 8); 0 without signups. */
+    /**
+     * #1035: how many raids in total the signups fill — ceil(signups / size), at most 8, then one less while they
+     * would fill a raid below SPLIT_MIN_FILL (70 %): 26 for a 25-man → 1, 35 → 2, 53 → 3. 0 without signups.
+     * Only a total above the existing raids is offered as a split; adding raids by hand always works.
+     */
     suggestedTotal?: number;
     absent?: number;
     /** The characters of those signed off — shown on demand under "Angemeldet". */
