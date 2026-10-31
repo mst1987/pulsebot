@@ -22,6 +22,9 @@
 //               plus the orga's choice `setup.leaderUserId` and the raid lead `event.leaderId` (#1036)
 //   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
 //               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
+//   loot        what "Loot-Daten laden" stored for a raid group of several raids (#1037,
+//               services/setup/setupLoot.js) - only while it still fits the raids' version
+//               and instances; one store read, never an API call
 //
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
@@ -38,6 +41,7 @@ const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
+const { lootInputFor } = require("./setupLoot");
 const { canLead, instanceChoices } = require("../roster/leaderFlags");
 
 // How many earlier nights per category go into the fairness history.
@@ -260,7 +264,14 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
         // services/vermerke/vermerkeShort.shadowbannedAmong): this module is loaded by pages a
         // raider reads, which must never load the Vermerke (vermerkeNeverToPerson.test.js).
         shadowbanned: typeof shadowbannedOf === "function" ? (shadowbannedOf(guildId, [...userIds], { now }) || []).map(String) : [],
+        ...lootOf(events, config),
     };
+}
+
+/** The stored loot data of a raid group (#1037) as `{ loot }`, or nothing - no key, so a single raid's input stays as it was. */
+function lootOf(events, config) {
+    const loot = lootInputFor(events, { config });
+    return loot ? { loot } : {};
 }
 
 /**

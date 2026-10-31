@@ -33,7 +33,7 @@
 // and "Freie Plätze füllen" run over every raid; approving and posting stay per raid.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
+import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, loadSetupLoot, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, asCharacter, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
@@ -493,6 +493,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     /** A proposal: everything anew (fixed places kept), or — `keep: "placed"`, "Freie Plätze füllen" — only the free places. */
     const propose = async (weights?: Record<string, number>, keep?: "placed") => {
         setDialog(null);
+        setLootReady(false);
         const avoid = await avoidAnswer();
         setBusy(true);
         await chain.current;
@@ -502,6 +503,36 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         setBusy(false);
         if (next) accept(next, next.message);
     };
+
+    // "Loot-Daten laden" (#1037): the job runs on the server; poll only its state. Once it is
+    // done the panel offers a new proposal (setup.loot.propose) - the setup itself never changes without a click.
+    const loadLoot = async () => {
+        setLootReady(false);
+        const next = await jobs.run({ label: t("setup.loot.load"), detail: data?.event.title || "", icon: "home", quiet: true }, () => loadSetupLoot(eventId));
+        if (next?.loot) {
+            lootPolled.current = true;
+            setData((prev) => (prev ? { ...prev, loot: next.loot } : prev));
+        }
+    };
+    const lootPolled = useRef(false);
+    const [lootReady, setLootReady] = useState(false);
+    const lootRunning = data?.loot?.job?.status === "running";
+    useEffect(() => {
+        if (!lootRunning) return undefined;
+        const timer = setInterval(() => {
+            // a failed poll is retried by the next tick; the job's own error shows in the status line
+            getRaidSetup(eventId, { light: true })
+                .then((next) => setData((prev) => (prev ? { ...prev, loot: next.loot } : prev)))
+                .catch(() => undefined);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [lootRunning, eventId, setData]);
+    const lootFinished = lootPolled.current && !!data?.loot?.job && !lootRunning ? data.loot.job.status : "";
+    useEffect(() => {
+        if (!lootFinished) return;
+        lootPolled.current = false;
+        if (lootFinished === "done") setLootReady(true);
+    }, [lootFinished]);
 
     const approve = async () => {
         if (!setup) return;
@@ -1089,6 +1120,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     onFairness={(on) => save(keep(), { fairness: on })}
                     onWishes={(on) => save(keep(), { wishes: on })}
                     onAvoid={(on) => save(keep(), { avoid: on })}
+                    onLoadLoot={() => void loadLoot()}
+                    lootReady={lootReady}
+                    onLootPropose={() => { setLootReady(false); void propose(); }}
                 />
             </EditorDialog>
             <FillModal open={dialog === "fill"} onClose={() => setDialog(null)} placed={placed} free={Math.max(0, (data.event.size || 0) - placed)} onFill={(keepPlaced) => void propose(undefined, keepPlaced ? "placed" : undefined)} />

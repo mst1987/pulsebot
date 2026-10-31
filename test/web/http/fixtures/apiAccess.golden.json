@@ -215,6 +215,8 @@
     "/api/history/inbox": "history",
     "/api/history/inbox-accept": "history",
     "/api/history/inbox-dismiss": "history",
+    "/api/history/inbox-restore": "history",
+    "/api/history/inbox-bank-assign": "history",
     "/api/history/loot-category": "history",
     "/api/history/loot-delete": "history",
     "/api/history/loot-picker": "history",

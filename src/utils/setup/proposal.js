@@ -62,7 +62,33 @@ function placedIn(s, e) {
     return out;
 }
 
-/** Try a change; keep it when it is strictly better. `changes`: [c, o, g][]. */
+/**
+ * Per raid what its minimum rules still lack: the places short of each role's minimum, then 1
+ * when the raid has a leader rule and no leader (#1036). `[event][ROLES..., leader]`.
+ */
+function minimumGaps(s) {
+    const counts = s.events.map(() => ({ roles: ROLES.map(() => 0), leaders: 0 }));
+    for (let c = 0; c < s.n; c++) {
+        if (s.opt[c] < 0) continue;
+        const option = s.cands[c].options[s.opt[c]];
+        const k = counts[option.eventIdx];
+        k.roles[option.roleIdx]++;
+        if (s.cands[c].leadsIn && s.cands[c].leadsIn.has(option.eventIdx)) k.leaders++;
+    }
+    return s.events.map((event, e) => [
+        ...ROLES.map((r, i) => Math.max(0, event.limits[r].min - counts[e].roles[i])),
+        event.leaderRule && counts[e].leaders === 0 ? 1 : 0,
+    ]);
+}
+
+/** True when some raid lacks more for a minimum rule in `next` than in `prev`. */
+const gapRises = (prev, next) => next.some((gaps, e) => gaps.some((v, i) => v > prev[e][i]));
+
+/**
+ * Try a change; keep it when it is strictly better. `changes`: [c, o, g][]. With `s.gaps`
+ * (the loot phase, #1037) a change must also leave every raid's minimum gaps as they are or
+ * smaller: loot outweighing a tank short in one raid must not hand that raid's tank to the other.
+ */
 function attempt(s, changes) {
     const before = changes.map(([c]) => [c, s.opt[c], s.grp[c]]);
     for (const [c, o, g] of changes) {
@@ -70,8 +96,10 @@ function attempt(s, changes) {
         s.grp[c] = g;
     }
     const score = s.scorer.evaluate(s.opt, s.grp);
-    if (score > s.current + EPS) {
+    const gaps = score > s.current + EPS && s.gaps ? minimumGaps(s) : null;
+    if (score > s.current + EPS && !(gaps && gapRises(s.gaps, gaps))) {
         s.current = score;
+        if (gaps) s.gaps = gaps;
         return true;
     }
     for (const [c, o, g] of before) {
@@ -444,7 +472,24 @@ function localSearchPass(s) {
     return improved;
 }
 
-function search(model, scorer) {
+/**
+ * The loot phase (#1037): only moves that keep the same people placed - a swap between
+ * the parallel raids and moves between groups. Loot decides who plays in which raid,
+ * never who gets a place: the first phase settled that without it.
+ */
+function lootPass(s) {
+    let improved = false;
+    if (tryEventSwaps(s)) improved = true;
+    if (tryGroupMoves(s)) improved = true;
+    return improved;
+}
+
+/**
+ * The search. With loot (`lootScorer`) it runs twice over: first without loot - who is
+ * placed, who stays in the pool -, then the loot phase on top with only the moves of
+ * `lootPass`, so pool and bench come out the same with and without loot data.
+ */
+function search(model, scorer, lootScorer) {
     const s = newSearchState(model, scorer);
     placeFixed(s);
     s.current = scorer.evaluate(s.opt, s.grp);
@@ -453,6 +498,14 @@ function search(model, scorer) {
     greedyFill(s);
     for (let pass = 0; pass < MAX_PASSES; pass++) {
         if (!localSearchPass(s)) break;
+    }
+    if (lootScorer) {
+        s.scorer = lootScorer;
+        s.current = lootScorer.evaluate(s.opt, s.grp);
+        s.gaps = minimumGaps(s);
+        for (let pass = 0; pass < MAX_PASSES; pass++) {
+            if (!lootPass(s)) break;
+        }
     }
     return { opt: s.opt, grp: s.grp, lockOpt: s.lockOpt, lockGrp: s.lockGrp, banned: s.banned, score: s.current };
 }
@@ -506,9 +559,15 @@ function search(model, scorer) {
  */
 function buildSetupProposal(input = {}, options = {}) {
     const { model, effective } = prepare(input, options);
-    const scorer = makeScorer(model);
-    const state = search(model, scorer);
-    return buildOutput(model, scorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
+    if (!(effective.loot > 0)) {
+        const scorer = makeScorer(model);
+        return buildOutput(model, scorer, search(model, scorer), { version: SETUP_PROPOSAL_VERSION, weights: effective });
+    }
+    // #1037: the places are settled without loot, the loot scorer only arranges the raids
+    const placeScorer = makeScorer({ ...model, weights: { ...model.weights, loot: 0 } });
+    const lootScorer = makeScorer(model);
+    const state = search(model, placeScorer, lootScorer);
+    return buildOutput(model, lootScorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
 }
 
 /** The model with the run's overrides applied, and the weights in effect. */
@@ -526,6 +585,8 @@ function prepare(input, options) {
     if (!wishOn) effective.wishes = 0;
     // without a roster in the category (#658) nobody has a status: the weight does nothing
     if (!model.hasRoster) effective.roster = 0;
+    // loot (#1037) only with parallel raids and loaded data of the raid's version (model.js)
+    if (!model.lootOn) effective.loot = 0;
     return { model, effective };
 }
 
@@ -535,7 +596,8 @@ function prepare(input, options) {
  * — has the same shape as a proposal, so the editor reads both alike.
  *
  * `placement` = `{ groups: [{ index, slots: [{ userId, spec, role?, locked? }] }], bench: [{ userId, locked? }] }`
- * for the first event of `input`. Every bench entry stays on the bench (#517);
+ * for the first event of `input`; `others` (`[{ eventId, groups }]`, #1037) places the further events
+ * of `input` the same way, so a raid group is valued as a whole. Every bench entry stays on the bench (#517);
  * a signup in neither list comes back in `pool`. manual.js validates it first; a placement
  * that still breaks a hard rule throws.
  */
@@ -548,6 +610,15 @@ function evaluateSetup(input = {}, placement = {}, options = {}) {
         for (const s of Array.isArray(g.slots) ? g.slots : []) {
             fixed.push({ userId: String(s.userId), eventId, group: Number(g.index), spec: s.spec || "", role: s.role || "", character: s.character || "" });
             if (s.locked) locked.add(String(s.userId));
+        }
+    }
+    // #1037: the other raids of a raid group as they stand (`others: [{ eventId, groups }]`), after
+    // this raid's places - the first fixation of a raider wins (model.applyFixed)
+    for (const other of Array.isArray(placement.others) ? placement.others : []) {
+        for (const g of Array.isArray(other && other.groups) ? other.groups : []) {
+            for (const s of Array.isArray(g.slots) ? g.slots : []) {
+                fixed.push({ userId: String(s.userId), eventId: String(other.eventId), group: Number(g.index), spec: s.spec || "", role: s.role || "", character: s.character || "" });
+            }
         }
     }
     // #517: every bench entry is the orga's explicit choice; who is neither placed nor benched is the pool

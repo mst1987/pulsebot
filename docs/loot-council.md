@@ -82,6 +82,10 @@ A version without BiS data of its own (today WoW Forever: WoWSims knows no Forev
 - **Addon** — `GET /api/ingest/council` carries the hand list unchanged in format (`bis: { tier: "", source: "manual", owned, total, missing }`, the addon reads `owned/total/missing` only); v3's `bisWeapons` stays empty for a hand list (no item table to tell a weapon, like the server's `noTable` weighting). ⚠️ **The format knows no alternatives:** `missing` names only the BiS piece of each open slot. The numbers at sync time are the server's (an alternative worn already counts in `owned`), but an award made **in game after the sync** only closes a slot when it is that BiS piece — an awarded alternative does not, until the next sync. So with hand lists the game does **not** always show the same numbers as the page (follow-up issue for the format).
 - **Tests:** `test/stores/loot/manualBisStore.test.js`, `test/web/loot/manualBisCouncil.test.js`, `test/web/apiRoutes/loot/lootCouncilBis.test.js` (real router), the hand-list cases in `lootCouncil.test.js` (route), `lootCouncil.profiles.test.js`, `councilSync.v3.test.js`, Vitest `ManualBisTab.test.tsx`, `LootCouncilPage.content.test.tsx`.
 
+## Loot im Setup-Vorschlag (#1037)
+
+Bei mehreren Raids gleichzeitig verteilt der Setup-Vorschlag Raider, die dasselbe Loot wollen (Softres, sonst BiS der Spec minus getragenes Gear, sonst die Spec), auf verschiedene Raids. Es nutzt die BiS-Daten dieses Bereichs (`councilSpecs`, `raidContent.sourceForItem`, nur TBC) und `charGear`, fragt aber nur über den Job „Loot-Daten laden“; Einzelheiten in [docs/setup.md](setup.md) unter „Loot verteilen“.
+
 ## Top-Items je Server und Version (#952)
 
 The "big" drops a server cares about. They feed the dashboard ("Neuer Loot" / "Top-Items") and Historie ("Neuester Loot"); the council itself does not read them.

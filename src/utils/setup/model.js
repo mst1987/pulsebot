@@ -10,6 +10,7 @@ const { rulesFor, ROLES } = require("../../config/gameVersions");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { characterKeyOf } = require("../loot/lootImport");
 const { str } = require("../text");
+const { attachLoot } = require("./lootWants");
 
 const GROUP_SIZE = 5;
 // How many earlier raid nights fairness looks back over, per raider.
@@ -560,8 +561,13 @@ function buildModel(input = {}, weights) {
     const pairs = namedPairs(cands, candByUser, "wishes").map((p) => ({ ...p, factor: p.mutual ? 1 : 0.5 }));
     const avoidPairs = namedPairs(cands, candByUser, "avoid");
     indexOptions(cands, specInfo, specDataCache(partyBuffs, raidBuffs));
+    // loot (#1037): only parallel raids and only data of this version - anything else changes nothing
+    const lootIn = input.loot && events.length > 1 && input.loot.versionId === rules.id ? input.loot : null;
+    const loot = lootIn ? attachLoot(cands, lootIn) : null;
 
     return {
+        loot,
+        lootOn: !!loot,
         versionId: rules.id,
         rules,
         events,

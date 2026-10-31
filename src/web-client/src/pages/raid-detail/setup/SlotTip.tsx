@@ -178,7 +178,10 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     const status = statusLabel(p.status);
     const brings = p.brings || [];
     // the state is the field in the header — a reason that only names it is dropped (tipReasons)
-    const reasons = [...new Set(tipReasons(p.reasons))];
+    // the loot reason (#1037) comes German from the server: shown in the page's language, in its place
+    const loot = p.lootReason;
+    const reasons = [...new Set(tipReasons(p.reasons))]
+        .map((r) => (loot && r === loot.text ? t(`setup.loot.reason.${loot.kind}`, loot) : r));
     const noteReasons = vermerk ? reasonSummary(t, vermerk.reasons || {}) : "";
     return (
         <aside

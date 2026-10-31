@@ -46,7 +46,8 @@
         "raidBuffs": { "label": "Raid buffs", "tip": "Every raid buff somebody in the raid brings." },
         "attendance": { "label": "Attendance", "tip": "Attendance in this category." },
         "roster": { "label": "Roster status", "tip": "Core before trial before bench, whoever is not in the roster after them. Only when the category has a roster." },
-        "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." }
+        "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." },
+        "loot": { "label": "Spread loot", "tip": "Only with several raids at once: raiders who want the same items go into different raids. Softres counts in full, BiS half, the spec a quarter. Needs \"Load loot data\"." }
     },
     "status": {
         "approvedSubSince": "Raiders see this setup · since {time}. Every change goes into the message right away.",
@@ -449,6 +450,42 @@
         "figure": "Leader",
         "figureOk": "The raid has a leader.",
         "figureMissing": "No leader in the raid. {count} of the signups may lead it."
+    },
+    "loot": {
+        "title": "Loot",
+        "line": { "one": "Loot: {count} item wanted twice in one raid", "other": "Loot: {count} items wanted twice in one raid" },
+        "lineTip": "Loot spread over the raids",
+        "lineSub": "Counts every item from Softres or BiS more than one person in a raid wants. The same spec only weighs quietly in the proposal.",
+        "conflicts": { "one": "{count} item twice", "other": "{count} items twice" },
+        "load": "Load loot data",
+        "reload": "Reload loot data",
+        "loadSub": "Reads Softres, BiS lists and the gear worn in the background. The setup stays until you propose again.",
+        "loaded": "Loot data loaded – propose again?",
+        "propose": "Propose again",
+        "proposeSub": "Replaces the proposal using the new loot data; locked places stay.",
+        "unreachable": "{sources} not reachable – the old data from {time} stays",
+        "unreachableNoKept": "{sources} not reachable",
+        "source": { "softres": "Softres", "armory": "Armory", "logs": "Logs", "all": "Loot data", "bis": "BiS" },
+        "reason": {
+            "only": "The only one in the raid interested in {item}",
+            "raid": "In {raid}, because {item} is already wanted in {other}",
+            "spec": "In {raid}, because someone with the same spec in {other} already needs loot"
+        },
+        "loading": "Loading …",
+        "progress": "Gear {done} of {total} checked",
+        "status": "Gear for {gear} of {signups} signups",
+        "statusAt": "As of {time}",
+        "notLoaded": "No loot data yet. Without it the proposal spreads no loot.",
+        "sources": "Softres {softres} · BiS {bis} · Spec {spec}",
+        "sourcesTip": "Where the wishes of the placed raiders come from",
+        "sourcesSub": "Per character the first source counts: Softres, else BiS minus what is worn, else the spec.",
+        "wanted": { "one": "{count} person wants it", "other": "{count} persons want it" },
+        "raidsAria": "Who wants it in which raid",
+        "more": { "one": "{count} more item", "other": "{count} more items" },
+        "listAria": "Items several people want",
+        "failed": "Loot data could not be loaded: {error}",
+        "failedAll": "Loot data could not be loaded – {sources} not reachable.",
+        "failedAllKept": "Loot data could not be loaded – {sources} not reachable. The old data stays."
     },
     "signupEdit": {
         "open": "Edit signup …",

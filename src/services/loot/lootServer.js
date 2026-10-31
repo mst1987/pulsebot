@@ -99,6 +99,12 @@ function eventInGuild(ctx, eventId, guildId, categoryId = "") {
 function sessionInGuild(ctx, session, guildId) {
     if (guildId === undefined) return true;
     if (!str(guildId)) return false;
+    // An upload waiting for the orga (#1002) shows on every candidate's server
+    // (its `servers`); with none (an old key without server) on every server.
+    if (session && session.waiting) {
+        const servers = Array.isArray(session.servers) ? session.servers.map(str).filter(Boolean) : [];
+        return !servers.length || servers.includes(str(guildId));
+    }
     const suggested = session && session.match && session.match.suggested;
     if (!suggested || !str(suggested.eventId)) {
         const own = str(session && session.guildId);

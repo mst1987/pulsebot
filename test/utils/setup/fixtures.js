@@ -123,7 +123,21 @@ function randomInput(random, { events = 1 } = {}) {
         if (random() < 0.3 && signups.length) ev.raidLeadId = signups[Math.floor(random() * signups.length)].userId;
         if (random() < 0.2 && signups.length) ev.leaderUserId = signups[Math.floor(random() * signups.length)].userId;
     }
-    return { versionId: "tbc", events: evs, signups, profiles, attendance, history, fixed };
+    // loot wants (#1037): drawn after the leaders so every input above stays as it was
+    const loot = { versionId: "tbc", wants: {}, items: {} };
+    if (random() < 0.7) {
+        const pool = [900001, 900002, 900003, 900004, 900005]; // test ids, not real items
+        const sources = ["softres", "bis", "spec"];
+        for (const s of signups) {
+            if (random() >= 0.6 || loot.wants[s.userId]) continue;
+            const source = sources[Math.floor(random() * sources.length)];
+            const items = source === "spec"
+                ? [{ itemId: `spec:${s.spec}`, weight: 0.25 }]
+                : pool.filter(() => random() < 0.4).map((itemId) => ({ itemId, weight: source === "softres" ? 1 : 0.5 }));
+            loot.wants[s.userId] = { [s.character.toLowerCase()]: { items, source } };
+        }
+    }
+    return { versionId: "tbc", events: evs, signups, profiles, attendance, history, fixed, loot };
 }
 
 module.exports = { su, rng, roster, randomInput, TANKS, HEALERS, MELEE, RANGED };

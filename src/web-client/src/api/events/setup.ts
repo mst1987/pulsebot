@@ -64,6 +64,8 @@ export type SetupPerson = {
     characters?: SetupCharacter[];
     /** #1036: leads this raid — exactly one slot per raid of the proposal carries it. */
     leader?: boolean;
+    /** #1037: why loot put them into this raid — the client says it in its own language. */
+    lootReason?: SetupLootReason;
     name: string;
     classColor: string;
     classLabel: string;
@@ -93,6 +95,65 @@ export type SetupChecks = {
      * `candidates` = user ids with a leader flag for the raid's version and instance.
      */
     leader?: { count: number; ok: boolean; candidates: string[] };
+    /** #1037 "Loot verteilen": only for parallel raids with loaded loot data and the weight above 0. */
+    loot?: SetupLootCheck;
+};
+
+/** Who wants a listed item in one raid (#1037), with where the wish comes from. */
+export type SetupLootRaid = {
+    eventId: string;
+    title: string;
+    raiders: { userId: string; character: string; source: "softres" | "bis" | "" }[];
+};
+
+/**
+ * A real item (Softres, BiS minus gear) more than one placed raider wants in the same raid (#1037).
+ * `conflictIn` = those raids, `raids` = every raid it is wanted in. Spec overlaps only weigh in the
+ * proposal and are never listed.
+ */
+export type SetupLootItem = {
+    itemId: number;
+    name: string;
+    icon: string;
+    quality: number | null;
+    count: number;
+    eventIds: string[];
+    conflictIn: string[];
+    raids: SetupLootRaid[];
+};
+
+/** A placed raider's loot reason (#1037), for the page's language; `text` is the German one in `reasons`. */
+export type SetupLootReason =
+    | { kind: "only"; text: string; item: string }
+    | { kind: "raid"; text: string; item: string; raid: string; other: string }
+    | { kind: "spec"; text: string; raid: string; other: string };
+
+export type SetupLootCheck = {
+    on: boolean;
+    /** the number of listed items */
+    conflicts: number;
+    items: SetupLootItem[];
+    /** how many placed raiders each source covers */
+    sources: { softres: number; bis: number; spec: number; none: number };
+};
+
+/** "Loot-Daten laden" of a raid group (#1037): the job, the armory progress while it runs, what is stored. */
+export type SetupLootStatus = {
+    /**
+     * `error: "failed_all"`: no source answered - `failed` names them, `hadPrevious` says whether
+     * the old data stayed; the editor builds the sentence (setup.loot.failedAll*)
+     */
+    job: (NonNullable<SetupJob> & { runningMs?: number; failed?: string[]; hadPrevious?: boolean }) | null;
+    progress: { done: number; total: number } | null;
+    counts: { signups: number; gear: number; softres: number; bis: number; spec: number } | null;
+    /** when the stored data was gathered (ms), 0 = never */
+    at: number;
+    /** the sources the last load could not reach (softres, armory, logs, all) */
+    failed?: string[];
+    /** when the older data that stayed in place was gathered (ms), 0 = nothing kept */
+    keptAt?: number;
+    /** the Wowhead section of the raid's version, "" = no item links */
+    wowheadPath?: string;
 };
 
 export type SetupWeights = Record<string, number>;
@@ -180,6 +241,8 @@ export type SetupEditorData = {
     shadowbanInPool?: { userId: string; name: string }[];
     /** Orga only (#1034): the raid's version, its instances and who of the raid leads which of them. */
     leaders?: LeadersView;
+    /** Orga only (#1037): "Loot-Daten laden" of the raid group; null for a single raid. */
+    loot?: SetupLootStatus | null;
     message?: string;
 };
 
@@ -421,6 +484,14 @@ export function leaveSetupPresence(eventId: string): Promise<{ left: boolean }> 
 
 export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean; keep?: "placed" } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/propose", { event: eventId, ...options });
+}
+
+/**
+ * "Loot-Daten laden" (#1037): starts the background job of the raid group (no route of its own:
+ * `loadLoot` on the propose POST). Proposes nothing; the editor polls GET and proposes when it is done.
+ */
+export function loadSetupLoot(eventId: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/propose", { event: eventId, loadLoot: true });
 }
 
 export function saveRaidSetup(eventId: string, input: SetupPlacementInput): Promise<SetupEditorData> {

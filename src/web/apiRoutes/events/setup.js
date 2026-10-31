@@ -10,7 +10,8 @@
 //                                              move-raid names both raids. "raids write" below means this.
 //   POST /api/raids/setup/presence            raids write: the open editor's heartbeat — who else
 //                                              is in it, the stored version, what changed
-//   POST /api/raids/setup/propose             raids write: new proposal, locked places kept
+//   POST /api/raids/setup/propose             raids write: new proposal, locked places kept;
+//                                              `loadLoot: true` starts "Loot-Daten laden" instead (#1037)
 //   PUT  /api/raids/setup                     raids write: the orga's own lineup — once the
 //                                              setup is posted, live into its message
 //   POST /api/raids/setup/approve             raids write: approve the shown version — and
@@ -64,7 +65,11 @@ const setupConfirm = require("../../../services/setup/setupConfirm");
 const setupPresence = require("../../../services/setup/setupPresence");
 const { approvedSetupOf, confirmationsFor } = require("../../../services/setup/setupCore");
 const raidGroup = require("../../../services/events/raidGroup");
-const { signupEventIdOf } = require("../../../utils/raidGroup");
+const { signupEventIdOf, inRaidGroup } = require("../../../utils/raidGroup");
+const setupLoot = require("../../../services/setup/setupLoot");
+const { getSetupLoot } = require("../../../stores/loot/setupLootStore");
+const { versionOfEvent } = require("../../../services/versions/mainVersion");
+const { versionLinks } = require("../../../services/versions/versionSettings");
 const { shortFor, shadowbannedAmong } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
 const { leadsForVersion, instanceChoices, eventLeadContext } = require("../../../services/roster/leaderFlags");
@@ -79,6 +84,8 @@ const BY_QUERY = (body, query) => query.get("event");
 const SOURCE_AND_TARGET = (body) => [body.event, body.target];
 
 const EXPLAIN_SECTION = "setup-explain";
+// "Loot-Daten laden" (#1037): one job per raid group, keyed by the group's first raid
+const LOOT_SECTION = "setup-loot";
 
 
 /** The signups that count for an event: a raid of a group (#811) reads its first raid's. */
@@ -130,11 +137,38 @@ async function view(event, user, { names = true, req = null } = {}) {
         // the short form only through the one rule (vermerkeAccess.js) - the setup's own write right is not enough
         if (await maySeeShort(user, fresh.guildId, { req })) Object.assign(out, await vermerkeOf(fresh, signups, out.setup));
         out.leaders = leadersOf(fresh, signups, out.setup);
+        out.loot = lootStatusOf(fresh);
     }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
     out.canEditEvent = write;
     return out;
+}
+
+/**
+ * "Loot verteilen" (#1037) of a raid group, for the editor: the background job of
+ * "Loot-Daten laden", its armory progress while it runs and what the stored data
+ * holds (`counts`, `at`). Null outside a raid group - one raid has nothing to spread.
+ * Reads one store file, never an API.
+ */
+function lootStatusOf(event) {
+    if (!inRaidGroup(event)) return null;
+    const groupId = signupEventIdOf(event);
+    const snapshot = getSetupLoot(groupId);
+    const config = getConfig();
+    const versionId = versionOfEvent(event, { config });
+    const links = versionLinks(versionId, { config });
+    return {
+        job: getJob(groupId, LOOT_SECTION),
+        progress: setupLoot.progressOf(groupId),
+        counts: (snapshot && snapshot.counts) || null,
+        at: (snapshot && snapshot.at) || 0,
+        // the sources the last load could not reach, and the time of the older data that stayed (#1037)
+        failed: (snapshot && Array.isArray(snapshot.failed) ? snapshot.failed : []),
+        keptAt: (snapshot && snapshot.keptAt) || 0,
+        // the items' Wowhead section is the raid's version ("" = no links, never TBC's in its place)
+        wowheadPath: links.versionId === versionId ? links.wowheadPath : "",
+    };
 }
 
 /**
@@ -302,10 +336,16 @@ async function followLive(result, user) {
     return post.code ? `Setup-Nachricht nicht aktualisiert: ${post.error}` : "";
 }
 
-/** POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen") */
+/**
+ * POST /api/raids/setup/propose — body `{ event, weights?, fairness?, wishes?, keep? }` (`keep: "placed"` = "Freie Plätze füllen");
+ * `{ event, loadLoot: true }` (#1037) proposes nothing: it starts "Loot-Daten laden" in the background
+ * (setupLoot.loadLootData - the only place that asks softres.it and the armory) and answers at once;
+ * the editor polls the GET for `loot.job` and proposes again once it is done.
+ */
 const postPropose = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
     const before = eventOf(res, body.event);
     if (!before) return;
+    if (body.loadLoot === true) return startLootJob({ res, user, req }, before);
     // a shadowban on the raid's server (Vermerke, #981) keeps the raider in the pool
     const result = setupEditor.proposeEventSetup(String(body.event).trim(), body, { userId: user.id, shadowbannedOf: shadowbannedAmong });
     if (!result.error) {
@@ -319,6 +359,15 @@ const postPropose = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true,
     const message = result.live ? `${done} Die gepostete Setup-Nachricht zeigt es schon.` : done;
     await answer({ res, user, req }, result, { message: failed ? `${done} ${failed}` : message });
 });
+
+/** "Loot-Daten laden": the job over every raid of the group; a second click while it runs joins it. */
+async function startLootJob({ res, user, req }, event) {
+    if (!inRaidGroup(event)) return error(res, 400, "no_raid_group", "Loot verteilen gibt es nur bei mehreren Raids gleichzeitig.");
+    const groupId = signupEventIdOf(event);
+    const started = startJob(groupId, LOOT_SECTION, () => setupLoot.loadLootData(raidGroup.groupEvents(event).map((e) => e.id)));
+    const message = started.alreadyRunning ? "Loot-Daten werden schon geladen." : "Loot-Daten werden geladen.";
+    ok(res, { ...(await view(event, user, { names: false, req })), message }, started.alreadyRunning ? 200 : 202);
+}
 
 /** PUT /api/raids/setup — body `{ event, version, groups, bench, weights?, fairness?, wishes? }` */
 const putSetup = withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, async ({ user, body, req, res }) => {
@@ -598,4 +647,4 @@ const routes = [
     { method: "POST", path: "/api/raids/setup/raid-remove", handler: postRaidRemove, area: "raids" },
 ];
 
-module.exports = { getSetup, postPresence, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, postMoveRaid, postRaidAdd, postRaidRemove, EXPLAIN_SECTION, routes };
+module.exports = { getSetup, postPresence, postPropose, putSetup, postApprove, postPublish, postPingText, postPing, postConfirm, postConfirmAll, postExtraRole, getSignupEdit, putSignupEdit, postSearchMessage, postSearchText, postExplain, getExplain, postMoveRaid, postRaidAdd, postRaidRemove, EXPLAIN_SECTION, LOOT_SECTION, routes };

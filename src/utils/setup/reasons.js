@@ -5,6 +5,7 @@
 
 const { ROLES, ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { moreAvailableThanFirst } = require("./score");
+const { SPEC_PREFIX } = require("./lootWants");
 
 const STATUS_TEXT = {
     late: "Kommt später",
@@ -62,36 +63,44 @@ function characterChoiceReason(model, facts, cand, o, byOrga = false) {
         : `Mit ${o.character} als ${ROLE_LABELS[o.role]} statt ${pref.character} (${why})`;
 }
 
-/** Reasons for a placed raider. */
-function slotReasons(model, facts, state, c, credits) {
+/** How the raider signed up: fixed, which character, off spec, status. */
+function signupReasons(model, facts, state, c, out) {
     const cand = model.cands[c];
     const o = cand.options[state.opt[c]];
-    const out = [];
     if (state.lockOpt[c]) out.push("Von der Orga fixiert");
     const choice = characterChoiceReason(model, facts, cand, o, !!state.lockOpt[c]);
     if (choice) out.push(choice);
     if (!o.main) out.push(`Zweitspec als ${ROLE_LABELS[o.role]}`);
     if (o.status === "bench") out.push("Als Ersatz angemeldet – aufgestellt, weil sonst ein Platz frei bliebe");
     else if (STATUS_TEXT[o.status]) out.push(STATUS_TEXT[o.status]);
-    const g = state.grp[c] + 1;
+}
+
+/** The group buff the raider brings most raiders, and a raid buff nobody else in the raid brings. */
+function buffReasons(model, facts, state, c, credits, out) {
+    const o = model.cands[c].options[state.opt[c]];
     const mine = credits
         .filter((cr) => cr.member.cand.idx === c && !cr.buff.universal)
         .sort((a, b) => b.count - a.count || a.buff.idx - b.buff.idx);
-    if (mine.length) {
-        const top = mine[0];
-        out.push(`Gr. ${g} wegen ${top.buff.label} (${top.count} profitieren)`);
-    }
-    // a raid buff nobody else in the raid brings
+    if (mine.length) out.push(`Gr. ${state.grp[c] + 1} wegen ${mine[0].buff.label} (${mine[0].count} profitieren)`);
     const ev = facts.events[o.eventIdx];
     const event = model.events[o.eventIdx];
     for (const b of o.data.raid) {
         const others = ev.groups.flat().filter((m) => m.cand.idx !== c && m.opt.data.raid.includes(b)).length;
         if (others) continue;
         const buff = model.raidBuffs[b];
-        const required = event.requiredRaid.includes(b);
-        out.push(required ? `Bringt ${buff.label} (Pflicht-Buff)` : `Bringt als Einziger ${buff.label}`);
+        out.push(event.requiredRaid.includes(b) ? `Bringt ${buff.label} (Pflicht-Buff)` : `Bringt als Einziger ${buff.label}`);
         break;
     }
+}
+
+/** Reasons for a placed raider. */
+function slotReasons(model, facts, state, c, credits, lootAt = null) {
+    const cand = model.cands[c];
+    const o = cand.options[state.opt[c]];
+    const event = model.events[o.eventIdx];
+    const out = [];
+    signupReasons(model, facts, state, c, out);
+    buffReasons(model, facts, state, c, credits, out);
     if (model.weightsEffective.fairness > 0) {
         if (cand.fairness.last === "bench") out.push("War zuletzt auf der Bank – hat Vorrang");
         else if (cand.fairness.benchCount >= 2) out.push(`${cand.fairness.benchCount}× auf der Bank in den letzten Raids`);
@@ -106,10 +115,19 @@ function slotReasons(model, facts, state, c, credits) {
             break;
         }
     }
-    if (cand.attendance !== null && cand.attendance >= 80 && model.weightsEffective.attendance > 0) out.push(`Anwesenheit ${Math.round(cand.attendance)} %`);
-    if (model.events.length > 1) out.push(`Eingeteilt in ${event.title || event.id}`);
+    closingReasons(model, state, c, lootAt, event, out);
     if (!out.length) out.push("Angemeldet mit Hauptspec");
     return out.slice(0, MAX_REASONS + (state.lockOpt[c] ? 1 : 0));
+}
+
+/** Loot (#1037, only where it is on), attendance and the raid; "Wegen Loot in PuG 3" names the raid itself. */
+function closingReasons(model, state, c, lootAt, event, out) {
+    const cand = model.cands[c];
+    const loot = model.weightsEffective.loot > 0 ? lootReason(model, state, lootAt, c) : null;
+    if (loot && !loot.raid) out.push(loot.text);
+    if (cand.attendance !== null && cand.attendance >= 80 && model.weightsEffective.attendance > 0) out.push(`Anwesenheit ${Math.round(cand.attendance)} %`);
+    if (loot && loot.raid) out.push(loot.text);
+    else if (model.events.length > 1) out.push(`Eingeteilt in ${event.title || event.id}`);
 }
 
 /** Reasons for a raider on the bench. */
@@ -226,6 +244,132 @@ function avoidCheck(model, state) {
     return { on: model.avoidOverride === true, together, total: (model.avoidPairs || []).length };
 }
 
+/**
+ * Who wants which loot where (#1037): `[event][item] → candidate indexes`, placed raiders
+ * only (the bench and the pool never count). Null without loot.
+ */
+function lootPlacement(model, state) {
+    if (!model.lootOn) return null;
+    const byEvent = model.events.map(() => new Map());
+    for (const c of model.cands) {
+        const o = state.opt[c.idx];
+        if (o < 0) continue;
+        const option = c.options[o];
+        if (!option.loot) continue;
+        const map = byEvent[option.eventIdx];
+        for (const want of option.loot) {
+            if (!map.has(want.i)) map.set(want.i, []);
+            map.get(want.i).push(c.idx);
+        }
+    }
+    return byEvent;
+}
+
+/** An item's display name: the stored one, the spec's label for the spec fallback, else its id. */
+function lootItemName(model, item) {
+    if (item.spec) {
+        const key = String(item.itemId).slice(SPEC_PREFIX.length);
+        const spec = model.specInfo.get(key);
+        return (spec && spec.label) || key;
+    }
+    return item.name || `Item ${item.itemId}`;
+}
+
+/** How many placed raiders each source covers. */
+function lootSources(model, state) {
+    const sources = { softres: 0, bis: 0, spec: 0, none: 0 };
+    for (const c of model.cands) {
+        const o = state.opt[c.idx];
+        if (o < 0) continue;
+        const src = c.options[o].lootSource;
+        sources[src && sources[src] !== undefined ? src : "none"]++;
+    }
+    return sources;
+}
+
+/** One raid of a listed item: who wants it there, with the source of the wish. */
+function lootRaidOf(model, state, e, list) {
+    const event = model.events[e];
+    return {
+        eventId: event.id,
+        title: event.title || event.id,
+        raiders: list.map((c) => {
+            const o = model.cands[c].options[state.opt[c]];
+            return { userId: model.cands[c].userId, character: o.character, source: o.lootSource || "" };
+        }),
+    };
+}
+
+/**
+ * `checks.loot`: the real items (Softres, BiS minus gear) more than one placed raider wants
+ * in the same raid, each with every raid it is wanted in and who wants it there, and how many
+ * placed raiders each source covers. `conflicts` is the number of listed items, so the summary
+ * matches the list. Spec overlaps (the fallback without data) only weigh in the score: they name
+ * no item the orga could check. Only with loot on - otherwise the checks keep their old shape.
+ */
+function lootCheck(model, state, placement) {
+    const byItem = new Map();
+    placement.forEach((map, e) => {
+        for (const [i, list] of map) {
+            if (model.loot.items[i].spec) continue;
+            if (!byItem.has(i)) byItem.set(i, { count: 0, eventIds: [], conflictIn: [], raids: [] });
+            const entry = byItem.get(i);
+            entry.count += list.length;
+            entry.eventIds.push(model.events[e].id);
+            entry.raids.push(lootRaidOf(model, state, e, list));
+            if (list.length > 1) entry.conflictIn.push(model.events[e].id);
+        }
+    });
+    const items = [];
+    for (const [i, entry] of byItem) {
+        if (!entry.conflictIn.length) continue;
+        const item = model.loot.items[i];
+        items.push({ itemId: item.itemId, name: lootItemName(model, item), icon: item.icon, quality: item.quality, ...entry });
+    }
+    items.sort((a, b) => b.conflictIn.length - a.conflictIn.length || b.count - a.count || String(a.itemId).localeCompare(String(b.itemId)));
+    return { on: true, conflicts: items.length, items, sources: lootSources(model, state) };
+}
+
+/**
+ * The loot reason of a placed raider (#1037): the item they share with nobody in their raid
+ * while somebody in another raid wants it - in the first such raid "Als Einziger im Raid an
+ * Zwillingsklinge interessiert", in a later one "In PuG 3, weil Zwillingsklinge in PuG 1 schon
+ * gewollt wird"; for the spec fallback (no item to name) "In PuG 3, weil in PuG 1 schon jemand mit derselben Spec
+ * Loot braucht". Null when loot is off or explains nothing. `kind`, `item`, `raid` and `other` let the
+ * web client say it in the page's language (`text` is the German reason in `reasons`).
+ */
+function lootReason(model, state, placement, c) {
+    if (!placement) return null;
+    const o = model.cands[c].options[state.opt[c]];
+    if (!o.loot) return null;
+    const elsewhere = (want) => placement.findIndex((map, e) => e !== o.eventIdx && map.has(want.i));
+    const best = o.loot
+        .filter((want) => {
+            const here = placement[o.eventIdx].get(want.i);
+            return !!here && here.length === 1 && elsewhere(want) >= 0;
+        })
+        .sort((a, b) => b.w - a.w || a.i - b.i)[0];
+    if (!best) return null;
+    const item = model.loot.items[best.i];
+    const titleOf = (e) => model.events[e].title || model.events[e].id;
+    if (item.spec) {
+        const raid = titleOf(o.eventIdx);
+        const other = titleOf(elsewhere(best));
+        const text = `In ${raid}, weil in ${other} schon jemand mit derselben Spec Loot braucht`;
+        return { text, raid: true, field: { kind: "spec", text, raid, other } };
+    }
+    const name = lootItemName(model, item);
+    const before = placement.findIndex((map, e) => e < o.eventIdx && map.has(best.i));
+    if (before >= 0) {
+        const raid = titleOf(o.eventIdx);
+        const other = titleOf(before);
+        const text = `In ${raid}, weil ${name} in ${other} schon gewollt wird`;
+        return { text, raid: true, field: { kind: "raid", text, item: name, raid, other } };
+    }
+    const text = `Als Einziger im Raid an ${name} interessiert`;
+    return { text, raid: false, field: { kind: "only", text, item: name } };
+}
+
 function eventChecks(model, facts, state, e) {
     const event = model.events[e];
     const ev = facts.events[e];
@@ -317,10 +461,18 @@ function markLeader(slot, event) {
     return { ...slot, leader: true, reasons: [...slot.reasons.slice(0, at), reason, ...slot.reasons.slice(at)] };
 }
 
+/** The slot with its `lootReason` (#1037) when one stands in its reasons - no key otherwise. */
+function withLootReason(slot, model, state, lootAt, c) {
+    const loot = lootAt ? lootReason(model, state, lootAt, c) : null;
+    return loot && slot.reasons.includes(loot.text) ? { ...slot, lootReason: loot.field } : slot;
+}
+
 /** Turn the searched state into the serializable proposal. */
 function buildOutput(model, scorer, state, { version, weights }) {
     model.weightsEffective = weights;
     const facts = scorer.breakdown(state.opt, state.grp);
+    // loot (#1037): reasons and `checks.loot` only where it weighs - else the output stays as before
+    const lootAt = weights.loot > 0 ? lootPlacement(model, state) : null;
     const events = model.events.map((event, e) => {
         const ev = facts.events[e];
         const leader = leaderOf(model, state, e);
@@ -330,7 +482,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
                 .slice()
                 .sort((a, b) => ROLE_ORDER[a.opt.role] - ROLE_ORDER[b.opt.role] || a.cand.idx - b.cand.idx)
                 .map((m) => {
-                    const slot = slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits));
+                    const slot = withLootReason(slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits, lootAt)), model, state, lootAt, m.cand.idx);
                     return m.cand.idx === leader ? markLeader(slot, event) : slot;
                 }),
         }));
@@ -348,6 +500,8 @@ function buildOutput(model, scorer, state, { version, weights }) {
     const first = events[0] || { groups: [], checks: { ok: false, size: { count: 0, size: 0, ok: false }, roles: {}, buffs: { ok: true, required: [], raid: [], party: [] }, wishes: { met: 0, total: 0, pairs: [] } } };
     const wishes = model.events.length > 1 ? wishCheck(model, state, null) : first.checks.wishes;
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));
+    const checks = { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) };
+    if (lootAt) checks.loot = lootCheck(model, state, lootAt);
     // No word about a shadowban (Vermerke, #981) in the output: it is stored as the setup (also as an
     // automatic draft, eventStore.saveSetupDraft). The orga's answer names them (web/apiRoutes/events/setup.js).
     return {
@@ -356,7 +510,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
         groups: first.groups,
         bench,
         pool,
-        checks: { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) },
+        checks,
         events,
         weights,
         score: { total: round(facts ? facts.total : 0), parts },

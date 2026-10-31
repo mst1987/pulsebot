@@ -46,7 +46,8 @@
         "raidBuffs": { "label": "Raid-Buffs", "tip": "Jeder Raid-Buff, den jemand im Raid mitbringt." },
         "attendance": { "label": "Anwesenheit", "tip": "Anwesenheit in dieser Kategorie." },
         "roster": { "label": "Roster-Status", "tip": "Stamm vor Probe vor Ersatz, wer nicht im Roster ist, danach. Nur wenn die Kategorie ein Roster hat." },
-        "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." }
+        "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." },
+        "loot": { "label": "Loot verteilen", "tip": "Nur bei mehreren Raids gleichzeitig: wer dieselben Items will, kommt in verschiedene Raids. Softres zählt voll, BiS halb, die Spec ein Viertel. Braucht „Loot-Daten laden“." }
     },
     "status": {
         "approvedSubSince": "Raider sehen dieses Setup · seit {time}. Jede Änderung geht sofort in die Nachricht.",
@@ -449,6 +450,42 @@
         "figure": "Leader",
         "figureOk": "Der Raid hat einen Leader.",
         "figureMissing": "Kein Leader im Raid. Unter den Angemeldeten dürfen {count} leiten."
+    },
+    "loot": {
+        "title": "Loot",
+        "line": { "one": "Loot: {count} Item mehrfach in einem Raid", "other": "Loot: {count} Items mehrfach in einem Raid" },
+        "lineTip": "Loot über die Raids verteilt",
+        "lineSub": "Gezählt wird jedes Item aus Softres oder BiS, das in einem Raid mehr als eine Person will. Gleiche Specs zählen nur still im Vorschlag.",
+        "conflicts": { "one": "{count} Item mehrfach", "other": "{count} Items mehrfach" },
+        "load": "Loot-Daten laden",
+        "reload": "Loot-Daten neu laden",
+        "loadSub": "Liest Softres, BiS-Listen und das getragene Gear im Hintergrund. Das Setup bleibt, bis du neu vorschlägst.",
+        "loaded": "Loot-Daten geladen – Neu vorschlagen?",
+        "propose": "Neu vorschlagen",
+        "proposeSub": "Ersetzt den Vorschlag mit den neuen Loot-Daten; fixierte Plätze bleiben.",
+        "unreachable": "{sources} nicht erreichbar – alte Daten von {time} bleiben",
+        "unreachableNoKept": "{sources} nicht erreichbar",
+        "source": { "softres": "Softres", "armory": "Armory", "logs": "Logs", "all": "Loot-Daten", "bis": "BiS" },
+        "reason": {
+            "only": "Als Einziger im Raid an {item} interessiert",
+            "raid": "In {raid}, weil {item} in {other} schon gewollt wird",
+            "spec": "In {raid}, weil in {other} schon jemand mit derselben Spec Loot braucht"
+        },
+        "loading": "Lädt …",
+        "progress": "Gear {done} von {total} geprüft",
+        "status": "Gear für {gear} von {signups} Angemeldeten",
+        "statusAt": "Stand {time}",
+        "notLoaded": "Noch keine Loot-Daten. Ohne sie verteilt der Vorschlag kein Loot.",
+        "sources": "Softres {softres} · BiS {bis} · Spec {spec}",
+        "sourcesTip": "Woher die Wünsche der eingeteilten Raider kommen",
+        "sourcesSub": "Je Charakter zählt die erste Quelle: Softres, sonst BiS ohne das, was er schon trägt, sonst die Spec.",
+        "wanted": { "one": "{count} Person will es", "other": "{count} Personen wollen es" },
+        "raidsAria": "Wer es in welchem Raid will",
+        "more": { "one": "{count} weiteres Item", "other": "{count} weitere Items" },
+        "listAria": "Items, die mehrere wollen",
+        "failed": "Loot-Daten konnten nicht geladen werden: {error}",
+        "failedAll": "Loot-Daten konnten nicht geladen werden – {sources} nicht erreichbar.",
+        "failedAllKept": "Loot-Daten konnten nicht geladen werden – {sources} nicht erreichbar. Die alten Daten bleiben."
     },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",

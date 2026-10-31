@@ -285,6 +285,13 @@ describe("utils/loot/lootImport", () => {
             expect(meta.generatedAt).toBe(1784580000 * 1000);
         });
 
+        // #1002: the optional game version; missing or unknown means "as before".
+        it("reads a known game version and drops an unknown or missing one", () => {
+            expect(parseEventHelperSessions(payload({ gameVersion: " TBC " })).meta.gameVersion).toBe("tbc");
+            expect(parseEventHelperSessions(payload({ gameVersion: "wotlk-moon" })).meta.gameVersion).toBe("");
+            expect(parseEventHelperSessions(payload()).meta.gameVersion).toBe("");
+        });
+
         it("accepts an already-parsed object as well as a JSON string", () => {
             expect(parseEventHelperSessions(payload()).sessions).toHaveLength(1);
         });

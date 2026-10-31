@@ -4,6 +4,7 @@ import Badge from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { CheckIcon } from "../../../components/ui/icons/icons";
 import { buffState, leaderFigure, roleFigures, summaryOptions } from "./summaryFigures";
+import { LootPanel } from "./LootPanel";
 
 function Stat({ label, value, target, ok, tip }: { label: string; value: number; target: string; ok: boolean; tip: string }) {
     const t = useT();
@@ -52,6 +53,14 @@ export function SummaryLine({ data, setup, onDetails }: { data: SetupEditorData;
                     </span>
                 </>
             )}
+            {setup.checks.loot?.on && (
+                <>
+                    <span className="se-sumline-dot" aria-hidden="true">·</span>
+                    <span data-tip={t("setup.loot.lineTip")} data-tip-sub={t("setup.loot.lineSub")}>
+                        {t("setup.loot.line", { count: setup.checks.loot.conflicts })}
+                    </span>
+                </>
+            )}
             {setup.warnings.length > 0 && (
                 <>
                     <span className="se-sumline-dot" aria-hidden="true">·</span>
@@ -64,13 +73,18 @@ export function SummaryLine({ data, setup, onDetails }: { data: SetupEditorData;
 }
 
 /** "Details" of the summary line: the role tiles, buffs, and the switches for fairness, wishes and "nicht zusammen". */
-export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
+export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLoadLoot, lootReady = false, onLootPropose }: {
     data: SetupEditorData;
     setup: StoredSetup;
     busy: boolean;
     onFairness: (on: boolean) => void;
     onWishes: (on: boolean) => void;
     onAvoid: (on: boolean) => void;
+    /** "Loot-Daten laden" (#1037) — only a raid group's orga gets `data.loot` */
+    onLoadLoot?: () => void;
+    /** the loot job just finished: offer a new proposal instead of proposing on its own */
+    lootReady?: boolean;
+    onLootPropose?: () => void;
 }) {
     const t = useT();
     const { checks } = setup;
@@ -135,6 +149,7 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
             {!!setup.warnings.length && (
                 <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
             )}
+            {data.loot && onLoadLoot && <LootPanel status={data.loot} check={checks.loot} busy={busy} onLoad={onLoadLoot} ready={lootReady} onPropose={onLootPropose} />}
         </aside>
     );
 }

@@ -440,8 +440,15 @@ const postGuildBankTab = withUser({ write: "raids", csrf: true, body: true }, as
 
 // Rights per server (#925, docs/permissions.md): everybody but a full admin sees and changes the banks
 // of the active server and the waiting ones (no server yet), and assigns a bank to the active server
-// only. A waiting bank is forgotten by a full admin only - it may be any server's.
-const bankOnActiveServer = (user, req, bank) => !!bank && (bank.pending ? true : mayUseServer(user, req, bank.guildId));
+// only. A waiting bank is forgotten by a full admin only - it may be any server's. A bank that waits for
+// a list of servers (#1002) is seen by their orga only and goes to one of them only.
+const waitingList = (bank) => (Array.isArray(bank.waitingFor) ? bank.waitingFor : []);
+const pendingVisible = (user, req, bank) => {
+    if (user.isAdmin) return true;
+    const list = waitingList(bank);
+    return !list.length || list.includes(activeGuildFor(req));
+};
+const bankOnActiveServer = (user, req, bank) => !!bank && (bank.pending ? pendingVisible(user, req, bank) : mayUseServer(user, req, bank.guildId));
 const BANK_NOT_FOUND = { code: "not_found", error: "Gildenbank nicht gefunden." };
 const BANK_OTHER_SERVER = { code: "other_server", error: OTHER_SERVER };
 
@@ -461,6 +468,8 @@ const assignGuildBank = withUser({ csrf: true, body: true }, async ({ user, req,
     if (bank && !bankOnActiveServer(user, req, bank)) return sendFailure(res, BANK_NOT_FOUND);
     const target = String(body.guildId || "").trim();
     if (bank && target && !mayUseServer(user, req, target)) return sendFailure(res, BANK_OTHER_SERVER, { other_server: 403 });
+    const list = bank && bank.pending ? waitingList(bank) : [];
+    if (list.length && !list.includes(target)) return sendFailure(res, BANK_OTHER_SERVER, { other_server: 403 });
     const result = stock.assignBank(body.key, body.guildId);
     if (result.error) return sendFailure(res, result);
     ok(res, { bank: result.bank });

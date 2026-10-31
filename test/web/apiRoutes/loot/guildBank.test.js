@@ -299,6 +299,33 @@ describe("apiRoutes/guildBank", () => {
             mockUser = { id: "1", isAdmin: true };
             expect(status(await call(deleteGuildBank, { payload: { key: foreign.key } }))).toBe(200);
         });
+
+        it("shows a bank waiting for a list of servers to their orga only and assigns it to one of them (#1002)", async () => {
+            const scan = (name) => parseGuildBankScan({
+                format: GB_FORMAT, version: 1, client: { project: "tbc" }, guild: { name, realm: "Spineshatter" },
+                scannedAt: 1791000000, tabs: [{ index: 1, name: "A", items: [{ itemId: 22854, count: 3 }] }],
+            });
+            const bank = store.recordScan(scan("Delta"), { now: NOW, waitingFor: ["g1", "g3"] }).bank;
+            // orga of a server the bank does not wait for: neither listed nor assignable
+            mockUser = ORGA;
+            activeGuildFor.mockReturnValue("g2");
+            const data = body(await call(getGuildBanks, { url: "http://x/api/settings/guild-banks" }));
+            expect(data.banks.map((b) => b.guild)).toEqual([]);
+            let res = await call(assignGuildBank, { payload: { key: bank.key, guildId: "g2" } });
+            expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
+            expect(store.getBank(bank.key).pending).toBe(true);
+            // a full admin sees it, but may only pick one of its servers
+            mockUser = { id: "1", isAdmin: true };
+            expect(body(await call(getGuildBanks, { url: "http://x/api/settings/guild-banks" })).banks.map((b) => b.guild)).toEqual(["Delta"]);
+            res = await call(assignGuildBank, { payload: { key: bank.key, guildId: "g2" } });
+            expect([status(res), body(res).error.code]).toEqual([403, "other_server"]);
+            // the orga of a listed server sees and takes it
+            mockUser = ORGA;
+            activeGuildFor.mockReturnValue("g1");
+            expect(body(await call(getGuildBanks, { url: "http://x/api/settings/guild-banks" })).banks.map((b) => b.guild)).toEqual(["Delta"]);
+            res = await call(assignGuildBank, { payload: { key: bank.key, guildId: "g1" } });
+            expect(body(res).bank).toMatchObject({ guildId: "g1", pending: false });
+        });
     });
 
     it("POST delete forgets a bank, 404 for an unknown one", async () => {

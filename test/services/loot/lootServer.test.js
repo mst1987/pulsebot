@@ -107,6 +107,17 @@ describe("sessionInGuild (addon inbox cards, #919)", () => {
         expect(sessionInGuild(ctx, card({ eventId: "" }), "gB")).toBe(true);
     });
 
+    // #1002: a waiting upload shows for the orga of every candidate's server.
+    it("shows a waiting upload on each of its servers, on all without any", () => {
+        const ctx = ctxOf();
+        const waiting = { ...card({ eventId: "evA", guildId: "gB" }), guildId: "gB", waiting: true, servers: ["gA", "gC"] };
+        expect(sessionInGuild(ctx, waiting, "gA")).toBe(true);
+        expect(sessionInGuild(ctx, waiting, "gC")).toBe(true);
+        expect(sessionInGuild(ctx, waiting, "gB")).toBe(false);
+        expect(sessionInGuild(ctx, { ...card(null), waiting: true, servers: [] }, "gB")).toBe(true);
+        expect(sessionInGuild(ctx, { ...card(null), waiting: true }, "")).toBe(false);
+    });
+
     // #994: the upload key's server keeps a card without a suggestion at home.
     it("shows a card without a suggestion only on the server of its upload key", () => {
         const ctx = ctxOf();
