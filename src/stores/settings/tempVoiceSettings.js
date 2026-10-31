@@ -37,9 +37,15 @@ function minutes(value, min, max, fallback) {
     return Math.min(max, Math.max(min, Math.round(n)));
 }
 
-/** A name template as stored: one line, at most NAME_TEMPLATE_MAX characters; empty = the default. */
+// The English names of the placeholders ({date} = {datum}); stored is always the
+// German one, so a template means the same whichever language it was typed in.
+const PLACEHOLDER_ALIASES = Object.freeze({ no: "nr", date: "datum", time: "zeit" });
+const ALIAS_RE = new RegExp(`\\{(${Object.keys(PLACEHOLDER_ALIASES).join("|")})\\}`, "g");
+
+/** A name template as stored: one line, at most NAME_TEMPLATE_MAX characters, German placeholders; empty = the default. */
 function normalizeNameTemplate(value) {
-    const text = String(value === null || value === undefined ? "" : value).replace(/[\r\n\t]+/g, " ").trim().slice(0, NAME_TEMPLATE_MAX);
+    const text = String(value === null || value === undefined ? "" : value).replace(/[\r\n\t]+/g, " ").trim()
+        .replace(ALIAS_RE, (_all, alias) => `{${PLACEHOLDER_ALIASES[alias]}}`).slice(0, NAME_TEMPLATE_MAX);
     return text || DEFAULT_NAME_TEMPLATE;
 }
 
@@ -101,5 +107,5 @@ function normalizeVoicePlan(raw) {
 
 module.exports = {
     MODES, DEFAULT_NAME_TEMPLATE, NAME_TEMPLATE_MAX, LEAD_MIN, LEAD_MAX, CLOSE_AFTER_MIN, CLOSE_AFTER_MAX, EMPTY_CLOSE_MINUTES,
-    TEMP_VOICE_DEFAULTS, tempVoiceSettings, normalizeCategoryTempVoice, categoryTempVoiceFor, normalizeVoicePlan, normalizeNameTemplate,
+    TEMP_VOICE_DEFAULTS, PLACEHOLDER_ALIASES, tempVoiceSettings, normalizeCategoryTempVoice, categoryTempVoiceFor, normalizeVoicePlan, normalizeNameTemplate,
 };

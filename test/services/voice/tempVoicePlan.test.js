@@ -32,6 +32,12 @@ describe("services/voice/tempVoicePlan", () => {
             expect(plan.renderVoiceName("{raid} {foo}", { raid: "SSC" })).toBe("SSC {foo}");
             expect(plan.renderVoiceName("{raid}", { raid: "x".repeat(150) })).toHaveLength(100);
         });
+
+        it("fills the English placeholder names like the German ones", () => {
+            const values = { raid: "SSC", nr: "2", datum: "Sat 31.10.", zeit: "20:00" };
+            expect(plan.renderVoiceName("{raid} {no} · {date} {time}", values)).toBe("SSC 2 · Sat 31.10. 20:00");
+            expect(plan.renderVoiceName("{raid} {no} · {date}", { ...values, nr: "" })).toBe("SSC · Sat 31.10.");
+        });
     });
 
     it("spells day and time in the server's zone", () => {

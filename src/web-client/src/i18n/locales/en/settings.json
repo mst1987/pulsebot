@@ -991,7 +991,7 @@
         "tempPreviewTwo": "2 raids",
         "tempPreviewLeader": "with {tag}",
         "tempPreviewAnd": "and",
-        "tempNameHint": "{nr} is left out while there is only one raid. {raid} is the instance's short name.",
+        "tempNameHint": "{no} is left out while there is only one raid. {raid} is the instance's short name.",
         "tempLead": "Create",
         "tempLeadUnit": "minutes before the start",
         "tempLeadExample": "start 20:00, so at {time}",

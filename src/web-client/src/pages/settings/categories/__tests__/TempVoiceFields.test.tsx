@@ -7,6 +7,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Category } from "../../../../api/discord/channels";
 import { t } from "../../../../i18n";
 import { DEFAULT_NAME_TEMPLATE, type TempVoiceSettings } from "../../../../lib/discord/tempVoice";
+import { switchLang } from "../../../../test/i18n";
 import TempVoiceFields from "../TempVoiceFields";
 
 const cat = { id: "c1", name: "T6" } as Category;
@@ -94,6 +95,26 @@ describe("TempVoiceFields", () => {
         d.unmount();
         show({ mode: "temp", parentId: "p1" }, null);
         expect(screen.queryByTestId("temp-voice-rights")).toBeNull();
+    });
+
+    it("shows and takes the English placeholder names in the English UI, and stores the German ones", async () => {
+        await switchLang("en");
+        try {
+            const user = userEvent.setup();
+            const onChange = vi.fn();
+            render(<Harness stored={{ mode: "temp" }} onChange={onChange} />);
+            const input = screen.getByLabelText(t("settings.categories.tempName"));
+            expect(input).toHaveValue("{raid} {no} · {date}");
+            await user.click(screen.getByRole("button", { name: "{date}" }));
+            expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ nameTemplate: `${DEFAULT_NAME_TEMPLATE} {datum}` }));
+            await user.clear(input);
+            await user.type(input, "{{raid} {{time}");
+            expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ nameTemplate: "{raid} {zeit}" }));
+            expect(input).toHaveValue("{raid} {time}");
+            expect(screen.getByTestId("temp-voice-preview").textContent).toContain("SSC 20:00");
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("keeps an unknown stored parent selectable", () => {

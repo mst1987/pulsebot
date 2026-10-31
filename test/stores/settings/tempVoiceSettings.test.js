@@ -34,6 +34,12 @@ describe("stores/settings/tempVoiceSettings", () => {
         it("cuts a long name template to 100 characters", () => {
             expect(tempVoiceSettings({ nameTemplate: "x".repeat(150) }).nameTemplate).toHaveLength(100);
         });
+
+        it("stores the English placeholder names as the German ones", () => {
+            expect(tempVoiceSettings({ nameTemplate: "{raid} {no} - {date} {time}" }).nameTemplate).toBe("{raid} {nr} - {datum} {zeit}");
+            expect(tempVoiceSettings({ nameTemplate: "{raid} {nr} {datum}" }).nameTemplate).toBe("{raid} {nr} {datum}");
+            expect(tempVoiceSettings({ nameTemplate: "{dates} {No}" }).nameTemplate).toBe("{dates} {No}");
+        });
     });
 
     describe("normalizeCategoryTempVoice", () => {

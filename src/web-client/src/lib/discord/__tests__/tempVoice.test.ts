@@ -2,7 +2,7 @@
 // defaults, which raid gets a temporary channel, the name preview.
 import { describe, expect, it } from "vitest";
 import {
-    clockMinus, DEFAULT_NAME_TEMPLATE, isTemporary, renderVoiceName, tempVoiceFor, TEMP_VOICE_DEFAULTS, voiceDayLabel, voiceNameFor, voiceTimeLabel,
+    canonicalTemplate, clockMinus, DEFAULT_NAME_TEMPLATE, isTemporary, placeholderName, renderVoiceName, templateForLang, tempVoiceFor, TEMP_VOICE_DEFAULTS, voiceDayLabel, voiceNameFor, voiceTimeLabel,
 } from "../tempVoice";
 
 // Sat 31.10.2026 20:00 in Berlin (CET, UTC+1)
@@ -67,5 +67,22 @@ describe("clockMinus", () => {
         expect(clockMinus("00:15", 30)).toBe("23:45");
         expect(clockMinus("8:05", 5)).toBe("08:00");
         expect(clockMinus("abends", 30)).toBe("");
+    });
+});
+
+describe("placeholder names per UI language", () => {
+    it("shows the English names in the English UI and stores the German ones", () => {
+        expect(templateForLang(DEFAULT_NAME_TEMPLATE, "en")).toBe("{raid} {no} · {date}");
+        expect(templateForLang(DEFAULT_NAME_TEMPLATE, "de")).toBe(DEFAULT_NAME_TEMPLATE);
+        expect(canonicalTemplate("{raid} {no} · {date} {time} {leader}")).toBe("{raid} {nr} · {datum} {zeit} {leader}");
+        expect(canonicalTemplate(DEFAULT_NAME_TEMPLATE)).toBe(DEFAULT_NAME_TEMPLATE);
+        expect(placeholderName("datum", "en")).toBe("date");
+        expect(placeholderName("raid", "en")).toBe("raid");
+        expect(placeholderName("datum", "de")).toBe("datum");
+    });
+
+    it("fills the English names like the German ones", () => {
+        expect(renderVoiceName("{raid} {no} · {date}", { raid: "SSC", nr: "2", datum: "Sat 31.10." })).toBe("SSC 2 · Sat 31.10.");
+        expect(voiceNameFor("{raid} {time}", { raid: "SSC", start: SAT_20, index: 1, total: 1 })).toBe("SSC 20:00");
     });
 });

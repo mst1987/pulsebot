@@ -1,6 +1,6 @@
 import type { RaidCreateContext } from "../../api";
-import { useT } from "../../i18n";
-import { isTemporary, LEAD_MAX, NAME_TEMPLATE_MAX, voiceNameFor, type TempVoiceMode, type VoicePlan } from "../../lib/discord/tempVoice";
+import { useLang, useT } from "../../i18n";
+import { canonicalTemplate, isTemporary, LEAD_MAX, NAME_TEMPLATE_MAX, templateForLang, voiceNameFor, type TempVoiceMode, type VoicePlan } from "../../lib/discord/tempVoice";
 import { Button } from "../ui/Button";
 import NumberStepper from "../ui/form/NumberStepper";
 import Segment from "../ui/form/Segment";
@@ -16,6 +16,7 @@ import type { RaidCreateForm } from "./useRaidCreateForm";
  */
 export function VoicePlanField({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateContext }) {
     const t = useT();
+    const uiLang = useLang();
     const { form, patch, categoryVoice, categoryName, chosenInstances, startPreview } = f;
     const { voicePlan, voiceChannelId } = form;
     const voiceChannels = ctx.voiceChannels || [];
@@ -87,8 +88,8 @@ export function VoicePlanField({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateC
                 <>
                     <label className="re-voice-name">
                         <span className="kicker">{t("raidCreate.kanal.voiceName")}</span>
-                        <input type="text" className="re-mono" maxLength={NAME_TEMPLATE_MAX} value={voicePlan.nameTemplate}
-                            onChange={(e) => change({ nameTemplate: e.target.value })} />
+                        <input type="text" className="re-mono" maxLength={NAME_TEMPLATE_MAX} value={templateForLang(voicePlan.nameTemplate, uiLang)}
+                            onChange={(e) => change({ nameTemplate: canonicalTemplate(e.target.value) })} />
                     </label>
                     <span className="re-sub" data-testid="voice-preview">
                         {voicePlan.mode === "temp"

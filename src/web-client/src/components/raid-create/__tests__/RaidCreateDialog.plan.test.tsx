@@ -317,6 +317,10 @@ describe("Event anlegen: Kanal & Anmeldung", () => {
         const modes = screen.getByRole("radiogroup", { name: t("raidCreate.kanal.voice") });
         await user.click(within(modes).getByRole("radio", { name: t("raidCreate.kanal.voiceModeTemp") }));
         expect(screen.getByTestId("voice-preview").textContent).toMatch(/Kara/);
+        // an English placeholder name counts and goes out as the German one
+        const voiceName = screen.getByRole("textbox", { name: t("raidCreate.kanal.voiceName") });
+        await user.clear(voiceName);
+        await user.type(voiceName, "{{raid} {{date}");
         await user.click(screen.getByRole("button", { name: t("raidCreate.kanal.voiceMore") }));
         await user.click(next());
         await user.click(screen.getByRole("button", { name: t("raidCreate.footer.create") }));
@@ -324,7 +328,7 @@ describe("Event anlegen: Kanal & Anmeldung", () => {
         const body = vi.mocked(client.send).mock.calls[0][2] as { voicePlan: { mode: string; leadMinutes: number; nameTemplate: string } };
         expect(body.voicePlan.mode).toBe("temp");
         expect(body.voicePlan.leadMinutes).toBe(35);
-        expect(body.voicePlan.nameTemplate).toBeTruthy();
+        expect(body.voicePlan.nameTemplate).toBe("{raid} {datum}");
     });
 
     it("says in Prüfen that the raid has no planned end, and the duration with its end when there is one", async () => {

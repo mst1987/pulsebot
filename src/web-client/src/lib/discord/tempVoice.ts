@@ -29,6 +29,27 @@ export const CLOSE_AFTER_MAX = 360;
 export const EMPTY_CLOSE_MINUTES = 5;
 export const PLACEHOLDERS = ["raid", "nr", "datum", "zeit", "leader"] as const;
 
+// The English names of the placeholders (PLACEHOLDER_ALIASES in tempVoiceSettings.js):
+// the server stores the German one, the English UI shows and accepts the English one.
+const EN_NAMES: Record<string, string> = { nr: "no", datum: "date", zeit: "time" };
+const GERMAN_NAMES: Record<string, string> = Object.fromEntries(Object.entries(EN_NAMES).map(([de, en]) => [en, de]));
+
+/** A placeholder's name in the UI language: "datum" reads "date" in English. */
+export function placeholderName(tag: string, uiLang: string): string {
+    return uiLang === "en" ? EN_NAMES[tag] || tag : tag;
+}
+
+/** A stored template as the UI shows it: English placeholder names in the English UI. */
+export function templateForLang(template: string, uiLang: string): string {
+    if (uiLang !== "en") return template;
+    return String(template || "").replace(/\{(\w+)\}/g, (all, key: string) => (EN_NAMES[key] ? `{${EN_NAMES[key]}}` : all));
+}
+
+/** A typed template as the server stores it: English placeholder names become the German ones. */
+export function canonicalTemplate(template: string): string {
+    return String(template || "").replace(/\{(\w+)\}/g, (all, key: string) => (GERMAN_NAMES[key] ? `{${GERMAN_NAMES[key]}}` : all));
+}
+
 export const TEMP_VOICE_DEFAULTS: Omit<TempVoiceSettings, "mode"> = {
     fromRaid2: false,
     parentId: "",
@@ -60,9 +81,9 @@ const DOUBLE_RE = new RegExp(`([${SEPARATORS}])(\\s*[${SEPARATORS}])+`, "g");
 const VOICE_TYPE = 2;
 const WEEKDAYS = ["So", "Mo", "Di", "Mi", "Do", "Fr", "Sa"];
 
-/** A name template filled in; an empty placeholder goes with the separator next to it. */
+/** A name template filled in; an empty placeholder goes with the separator next to it. English names count too. */
 export function renderVoiceName(template: string, values: Record<string, string>): string {
-    let text = String(template || "").replace(/\{(\w+)\}/g, (all, key: string) => (Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] ?? "") : all));
+    let text = canonicalTemplate(template).replace(/\{(\w+)\}/g, (all, key: string) => (Object.prototype.hasOwnProperty.call(values, key) ? String(values[key] ?? "") : all));
     text = text.replace(/\s+/g, " ").replace(DOUBLE_RE, "$1").replace(EDGE_RE, "").replace(/\s+/g, " ");
     return normalizeForType(text, VOICE_TYPE);
 }

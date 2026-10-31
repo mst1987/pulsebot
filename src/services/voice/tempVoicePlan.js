@@ -12,7 +12,7 @@ const { instanceById } = require("../../config/gameVersions");
 const { WEEKDAYS, WEEKDAY_FORMS, normalizeForType } = require("../../utils/channelNames");
 const { plannedEndOrDefault } = require("../../utils/time");
 const { raidIndexOf } = require("../../utils/raidGroup");
-const { categoryTempVoiceFor, normalizeVoicePlan, EMPTY_CLOSE_MINUTES } = require("../../stores/settings/tempVoiceSettings");
+const { categoryTempVoiceFor, normalizeVoicePlan, EMPTY_CLOSE_MINUTES, PLACEHOLDER_ALIASES } = require("../../stores/settings/tempVoiceSettings");
 const { approvedSetupOf } = require("../setup/setupCore");
 
 const VOICE_TYPE = 2;
@@ -58,11 +58,13 @@ function raidLabel(event) {
 /**
  * A name template filled in. An empty placeholder goes with the separator next
  * to it ("{raid} {nr} · {datum}" with one raid = "SSC · Sa 31.10."), spaces
- * collapse, and the result follows Discord's voice channel rules.
+ * collapse, and the result follows Discord's voice channel rules. The English
+ * names ({date}, {time}, {no}) mean the same as the German ones.
  */
 function renderVoiceName(template, values = {}) {
-    let text = String(template || "").replace(/\{(\w+)\}/g, (all, key) => {
-        if (!Object.prototype.hasOwnProperty.call(values, key)) return all;
+    let text = String(template || "").replace(/\{(\w+)\}/g, (all, written) => {
+        const key = Object.prototype.hasOwnProperty.call(values, written) ? written : PLACEHOLDER_ALIASES[written];
+        if (!key || !Object.prototype.hasOwnProperty.call(values, key)) return all;
         const v = values[key];
         return v === undefined || v === null ? "" : String(v);
     });

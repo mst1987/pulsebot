@@ -1,10 +1,10 @@
 import type { Category } from "../../../api/discord/channels";
-import { useT } from "../../../i18n";
+import { useLang, useT } from "../../../i18n";
 import Chip from "../../../components/ui/Chip";
 import NumberStepper from "../../../components/ui/form/NumberStepper";
 import {
-    CLOSE_AFTER_MAX, clockMinus, EMPTY_CLOSE_MINUTES, isTemporary, LEAD_MAX, NAME_TEMPLATE_MAX,
-    tempVoiceFor, voiceNameFor, type TempVoiceMode, type TempVoiceSettings,
+    canonicalTemplate, CLOSE_AFTER_MAX, clockMinus, EMPTY_CLOSE_MINUTES, isTemporary, LEAD_MAX, NAME_TEMPLATE_MAX,
+    placeholderName, templateForLang, tempVoiceFor, voiceNameFor, type TempVoiceMode, type TempVoiceSettings,
 } from "../../../lib/discord/tempVoice";
 import CategoryField, { CategorySubField } from "./CategoryField";
 
@@ -56,6 +56,7 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
     onVoiceChannel: (categoryId: string, channelId: string) => void;
 }) {
     const t = useT();
+    const uiLang = useLang();
     const s = tempVoiceFor(stored, voiceChannelId);
     const set = (next: Partial<TempVoiceSettings>) => onChange(cat.id, { ...s, ...next });
     const showTemp = isTemporary(s, 2);
@@ -120,12 +121,12 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
                     </CategorySubField>
                     <div className="cat-subfield cat-voice-name">
                         <label className="cat-field-label" htmlFor={`catvoicename-${cat.id}`}>{t("settings.categories.tempName")}</label>
-                        <input id={`catvoicename-${cat.id}`} type="text" className="mono" maxLength={NAME_TEMPLATE_MAX} value={s.nameTemplate}
-                            onChange={(e) => set({ nameTemplate: e.target.value })} />
+                        <input id={`catvoicename-${cat.id}`} type="text" className="mono" maxLength={NAME_TEMPLATE_MAX} value={templateForLang(s.nameTemplate, uiLang)}
+                            onChange={(e) => set({ nameTemplate: canonicalTemplate(e.target.value) })} />
                         <div className="chip-row">
                             <span className="note">{t("settings.categories.tempNameInsert")}</span>
                             {TAGS.map((tag) => (
-                                <Chip key={tag} onClick={() => insert(tag)} tip={t("settings.categories.tempNameAdd", { tag: `{${tag}}` })}>{`{${tag}}`}</Chip>
+                                <Chip key={tag} onClick={() => insert(tag)} tip={t("settings.categories.tempNameAdd", { tag: `{${placeholderName(tag, uiLang)}}` })}>{`{${placeholderName(tag, uiLang)}}`}</Chip>
                             ))}
                         </div>
                         <dl className="cat-voice-preview" data-testid="temp-voice-preview">
