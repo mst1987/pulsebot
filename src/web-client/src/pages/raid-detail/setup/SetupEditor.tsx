@@ -873,14 +873,14 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const openAddRaid = () => setDialog("addRaid");
     // "Aktionen ▾" in four sections; a section without an entry is left out
     const sections: [string, MoreItem[]][] = [
-        [t("setup.more.sectionRaid"), cancelled ? [] : [
-            // the suggested split, high in the menu — only once the signups fill every raid to 70 %
+        [t("setup.more.sectionRaid"), [
+            // the suggested split, high in the menu — only once the signups fill every raid to 70 % (splitTotal is 0 when cancelled)
             ...(splitTotal ? [{ id: "split", label: t("setup.raidGroup.split", { count: splitTotal }), sub: t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces }), icon: "members", tone: "hot" as const, disabled: busy || grouping, onSelect: openAddRaid }] : []),
             // by hand at any time: how many raids and how they are filled is chosen in the dialog
-            { id: "addRaid", label: t("setup.raidGroup.addOrSplit"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping || raidCount >= MAX_GROUP_RAIDS, onSelect: openAddRaid },
+            ...(cancelled ? [] : [{ id: "addRaid", label: t("setup.raidGroup.addOrSplit"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping || raidCount >= MAX_GROUP_RAIDS, onSelect: openAddRaid }]),
             // the size is the event's own (PATCH /api/raids): only who may change the event (#725, the category orga with #728)
             ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), value: t("setup.more.sizeValue", { size: data.event.size || 0 }), icon: "members", disabled: busy, onSelect: () => setDialog("size") }] : []),
-            ...(isFurther ? [{
+            ...(isFurther && !cancelled ? [{
                 id: "removeRaid", label: t("setup.raidGroup.remove", { title: data.event.title }),
                 sub: thisRaid && thisRaid.approved ? t("setup.raidGroup.removeLocked", { title: data.event.title }) : t("setup.raidGroup.removeSub"),
                 icon: "cancel", tone: "danger" as const, disabled: busy || grouping || !!(thisRaid && thisRaid.approved), onSelect: () => void removeRaid(),

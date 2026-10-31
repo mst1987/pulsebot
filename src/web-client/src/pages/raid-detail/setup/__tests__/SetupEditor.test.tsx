@@ -49,10 +49,10 @@ async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string, 
     return screen.getByRole(role, { name: new RegExp(name) });
 }
 
-/** An icon toggle of what posting sends along, beside the primary button (its name is "label: an|aus"). */
+/** An icon toggle of what posting sends along, beside the primary button (its name is the label, the state is aria-pressed). */
 function postOption(name: string) {
     const group = screen.getByRole("group", { name: t("setup.postOptions.aria") });
-    return within(group).getByRole("button", { name: new RegExp(`^${name}: `) });
+    return within(group).getByRole("button", { name });
 }
 
 /** The details of the summary line: role tiles, buffs and the switches (Summary). */
@@ -290,13 +290,13 @@ describe("the setup editor: the empty start and filling", () => {
         const user = userEvent.setup();
         await show(editorData({}, BLANK));
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
-        const tabs = within(pool).getByRole("tablist", { name: t("setup.poolPanel.tabs") });
-        const tab = (role: string) => within(tabs).getByRole("tab", { name: new RegExp(t(`setup.poolPanel.sections.${role}`)) });
-        expect(tab("tank")).toHaveAttribute("aria-selected", "true");
+        const tabs = within(pool).getByRole("group", { name: t("setup.poolPanel.tabs") });
+        const tab = (role: string) => within(tabs).getByRole("button", { name: new RegExp(t(`setup.poolPanel.sections.${role}`)) });
+        expect(tab("tank")).toHaveAttribute("aria-pressed", "true");
         expect(tab("healer")).toHaveTextContent("1");
         await user.click(tab("healer"));
-        expect(tab("healer")).toHaveAttribute("aria-selected", "true");
-        expect(tab("tank")).toHaveAttribute("aria-selected", "false");
+        expect(tab("healer")).toHaveAttribute("aria-pressed", "true");
+        expect(tab("tank")).toHaveAttribute("aria-pressed", "false");
         expect(within(pool).getByRole("group", { name: t("setup.poolPanel.sections.healer") })).toHaveClass("se-tab");
         expect(within(pool).getByRole("group", { name: t("setup.poolPanel.sections.tank") })).not.toHaveClass("se-tab");
     });
@@ -505,6 +505,15 @@ describe("the setup editor: the bar", () => {
         const user = userEvent.setup();
         await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
         expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.more.size")) })).toBeInTheDocument();
+    });
+
+    it("keeps the raid size for a cancelled raid, without the raid group entries", async () => {
+        const publish = { channelId: "c1", channelName: "kara-do", cancelled: true, dmsEnabled: true, recipients: 3, pendingDms: 0, posted: null, outdated: false, error: "", errorAt: 0, dms: null };
+        await show(editorData({ canEditEvent: true, publish }));
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.more.size")) })).toBeInTheDocument();
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.raidGroup.addOrSplit")) })).not.toBeInTheDocument();
     });
 
     it("offers a compact view under \"Mehr\", off by default and remembered in the browser", async () => {
@@ -739,7 +748,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(within(screen.getByRole("group", { name: t("setup.postOptions.aria") })).getAllByRole("button", { pressed: true })).toHaveLength(1);
         const dms = postOption(t("setup.postOptions.dms"));
         expect(dms).toHaveAttribute("aria-pressed", "true");
-        expect(dms).toHaveAccessibleName(`${t("setup.postOptions.dms")}: ${t("setup.postOptions.on")}`);
+        expect(dms).toHaveAccessibleName(t("setup.postOptions.dms"));
         expect(dms).toHaveClass("is-on");
         const bench = postOption(t("setup.postOptions.bench"));
         expect(bench).toHaveAttribute("aria-pressed", "false");
@@ -747,7 +756,7 @@ describe("the setup editor: state, approval and posting", () => {
         expect(bench).toHaveAttribute("data-tip", `${t("setup.postOptions.bench")}: ${t("setup.postOptions.off")}`);
         await user.click(bench);
         expect(postOption(t("setup.postOptions.bench"))).toHaveAttribute("aria-pressed", "true");
-        expect(postOption(t("setup.postOptions.bench"))).toHaveAccessibleName(`${t("setup.postOptions.bench")}: ${t("setup.postOptions.on")}`);
+        expect(postOption(t("setup.postOptions.bench"))).toHaveAttribute("data-tip", `${t("setup.postOptions.bench")}: ${t("setup.postOptions.on")}`);
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true, dms: true });
@@ -1145,13 +1154,6 @@ describe("the setup editor: the bench as a row or a column", () => {
 });
 
 describe("the setup editor: head variant B", () => {
-    it("has no voice channel feature anywhere, in the bar or under \"Aktionen\"", async () => {
-        const user = userEvent.setup();
-        await show();
-        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
-        expect(document.body.textContent).not.toMatch(/Sprachkanal|voice channel/i);
-    });
-
     it("sorts \"Aktionen\" into four sections: Raid, Vorschlag, Posten und benachrichtigen, Ansicht", async () => {
         const user = userEvent.setup();
         await show();

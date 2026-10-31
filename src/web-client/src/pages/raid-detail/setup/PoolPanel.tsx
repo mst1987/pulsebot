@@ -155,9 +155,9 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
             </header>
             <div className="se-pp-body">
                 {pool.length > 0 && (
-                    <div className="se-pp-tabs" role="tablist" aria-label={t("setup.poolPanel.tabs")}>
+                    <div className="se-pp-tabs" role="group" aria-label={t("setup.poolPanel.tabs")}>
                         {columns.map((c) => (
-                            <button key={c.role} type="button" role="tab" className={`se-pp-tab${tab === c.role ? " is-on" : ""}`} aria-selected={tab === c.role} onClick={() => setTab(c.role)}>
+                            <button key={c.role} type="button" className={`se-pp-tab${tab === c.role ? " is-on" : ""}`} aria-pressed={tab === c.role} onClick={() => setTab(c.role)}>
                                 {t(`setup.poolPanel.sections.${c.role}`)} <small>{c.main}</small>
                             </button>
                         ))}

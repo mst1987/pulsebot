@@ -76,7 +76,7 @@ function PostToggle({ on, disabled, icon, label, sub, onChange }: { on: boolean;
     const state = `${label}: ${on ? t("setup.postOptions.on") : t("setup.postOptions.off")}`;
     return (
         <button
-            type="button" className={`se-post-toggle ${on ? "is-on" : "se-off"}`} aria-pressed={on} aria-label={state}
+            type="button" className={`se-post-toggle ${on ? "is-on" : "se-off"}`} aria-pressed={on} aria-label={label}
             data-tip={state} data-tip-sub={sub} disabled={disabled}
             onClick={() => onChange(!on)}
         >
