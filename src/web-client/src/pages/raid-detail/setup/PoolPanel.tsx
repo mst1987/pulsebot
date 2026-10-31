@@ -22,7 +22,8 @@ import { MARKED_STATUSES, markedStatus, matchesQuery, specText, statusLabel, sta
 // B ("Ansicht › Angemeldet als Seitenleiste", `side`): a 300px column left of the
 // groups that scrolls on its own, the status word on each line; below 1280px it
 // falls back to A (setup-editor.css).
-// Narrow (a phone): a sheet docked at the bottom with role tabs ("Tanks 3").
+// Narrow (a phone): a sheet docked at the bottom with role tabs ("Tanks 3"); it opens
+// on the first role somebody stands in (all empty: tanks), a tab picked by hand stays.
 //
 // Status: plain signups first in each column, then Spät, Vielleicht, Ersatz as word
 // sections at its end. Signed-off raiders never come into the setup — only a line
@@ -71,7 +72,8 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
     const [leadOnly, setLeadOnly] = useState(false);
     const [collapsed, setCollapsed] = useState(false);
     const [showAbsent, setShowAbsent] = useState(false);
-    const [tab, setTab] = useState<Role>("tank");
+    // the tab picked by hand stays, whatever the list does; until then the first role somebody stands in
+    const [picked, setTab] = useState<Role | null>(null);
     const leadSet = new Set(leaders || []);
     const leadCount = pool.filter((p) => leadSet.has(p.userId)).length;
     // the switch only while somebody in the pool may lead; switched on it stays (the count may drop to 0)
@@ -98,6 +100,7 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
             .sort((a, b) => statusRank(a.st) - statusRank(b.st));
         return { role, lines, main: lines.filter((l) => !l.alt).length, alts: lines.filter((l) => l.alt).length };
     });
+    const tab: Role = picked ?? columns.find((c) => c.lines.length > 0)?.role ?? "tank";
     const filtered = !!query.trim() || !!status || leadOnly;
     const nothing = pool.length > 0 && columns.every((c) => !c.lines.length);
     const absentList = absentNames || [];
