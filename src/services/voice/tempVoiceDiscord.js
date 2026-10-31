@@ -42,7 +42,16 @@ const channelUrl = (guildId, channelId) => linkCheck.channelLink(guildId, channe
  * checked in the Discord category when it is known. Null when nothing can be known
  * (bot not on the server or not connected).
  */
-function missingRights(guildId, { parentId = "", onlyAssigned = false } = {}) {
+function missingRights(guildId, options = {}) {
+    const keys = missingRightKeys(guildId, options);
+    return keys && keys.map((key) => [...RIGHTS, ...RIGHTS_ONLY_ASSIGNED].find((r) => r.key === key).label);
+}
+
+/**
+ * The same as Discord permission names ("MoveMembers"), for the settings page that
+ * names them in its own language. Null when nothing can be known.
+ */
+function missingRightKeys(guildId, { parentId = "", onlyAssigned = false } = {}) {
     const guild = discord.getGuild(guildId);
     const me = guild && guild.members ? guild.members.me : null;
     if (!guild || !me) return null;
@@ -50,7 +59,7 @@ function missingRights(guildId, { parentId = "", onlyAssigned = false } = {}) {
     const perms = parent && typeof parent.permissionsFor === "function" ? parent.permissionsFor(me) : me.permissions;
     if (!perms) return null;
     const wanted = onlyAssigned ? [...RIGHTS, ...RIGHTS_ONLY_ASSIGNED] : RIGHTS;
-    return wanted.filter((r) => !perms.has(F[r.key])).map((r) => r.label);
+    return wanted.filter((r) => !perms.has(F[r.key])).map((r) => r.key);
 }
 
 /**
@@ -280,6 +289,6 @@ function channelName(guildId, channelId) {
 }
 
 module.exports = {
-    RIGHTS, RIGHTS_ONLY_ASSIGNED, channelUrl, missingRights, onlyAssignedOverwrites, createVoice, renameVoice, syncMembers, setAccess,
+    RIGHTS, RIGHTS_ONLY_ASSIGNED, channelUrl, missingRights, missingRightKeys, onlyAssignedOverwrites, createVoice, renameVoice, syncMembers, setAccess,
     channelGone, findCreatedVoice, memberCount, closeVoice, memberName, channelName,
 };

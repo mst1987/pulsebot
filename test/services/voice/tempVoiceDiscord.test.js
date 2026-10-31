@@ -79,9 +79,16 @@ describe("services/voice/tempVoiceDiscord", () => {
             expect(voice.missingRights("g1", {})).toEqual([]);
         });
 
+        it("gives the Discord permission names for the settings page", () => {
+            mockGuild.channels.cache.set("p1", makeChannel(mockGuild, { id: "p1", permissionsFor: () => perms(F.MoveMembers) }));
+            expect(voice.missingRightKeys("g1", { parentId: "p1", onlyAssigned: true })).toEqual(["ManageChannels", "ManageRoles"]);
+            expect(voice.missingRightKeys("g1", { parentId: "p1" })).toEqual(["ManageChannels"]);
+        });
+
         it("knows nothing while the bot is not on the server", () => {
             mockGuild = null;
             expect(voice.missingRights("g1")).toBeNull();
+            expect(voice.missingRightKeys("g1")).toBeNull();
         });
     });
 

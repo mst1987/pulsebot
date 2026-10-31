@@ -26,6 +26,7 @@ const {
     assignTokenGuild: assignIngestTokenGuild,
 } = require("../../../stores/loot/ingestTokenStore");
 const discord = require("../../../services/discord/discord");
+const tempVoiceDiscord = require("../../../services/voice/tempVoiceDiscord");
 const guildRoles = require("../../../services/discord/roles/guildRoles");
 const roleSync = require("../../../services/discord/roles/roleSync");
 const pugRoleGuard = require("../../../services/discord/pug/pugRoleGuard");
@@ -467,6 +468,9 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
         noteChannels: noteChannels(config, guildId),
         bot: botStatus(guildId),
+        // "Sprachkanal je Raid": what the bot lacks for temporary channels, per Discord category
+        // they can go under ("" = none); null while the bot cannot tell.
+        tempVoiceRights: tempVoiceRights(guildId),
         // #744: configured categories Discord no longer has (only when the bot sees
         // every server), each with what "Kategorie abschließen" would remove.
         // #926: only the active server's part of config.categoryIds, plus those
@@ -729,6 +733,25 @@ function botStatus(guildId) {
         };
     } catch {
         return { online: false, readySince: 0, guildName: "" };
+    }
+}
+
+/**
+ * The rights the bot lacks for temporary voice channels (with "Nur Eingeteilte"), per
+ * Discord category of the server and "" for the server itself - Discord permission
+ * names, the page names them. Null while the bot is not on the server.
+ */
+function tempVoiceRights(guildId) {
+    try {
+        const out = {};
+        for (const parentId of ["", ...discord.listCategories(guildId).map((c) => c.id)]) {
+            const keys = tempVoiceDiscord.missingRightKeys(guildId, { parentId, onlyAssigned: true });
+            if (!keys) return null;
+            out[parentId] = keys;
+        }
+        return out;
+    } catch {
+        return null;
     }
 }
 

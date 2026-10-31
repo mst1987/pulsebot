@@ -563,6 +563,7 @@ describe("web/apiRoutes/raids", () => {
             activeGuildFor.mockReturnValue("guild-1");
             settingsStore.getConfig.mockReturnValue({
                 mainVersion: "tbc", categoryVoiceChannel: { cat1: "v1" }, categoryTempVoice: { cat2: { mode: "temp", leadMinutes: 15 } },
+                categoryLanguage: { cat2: "en" },
             });
             settingsStore.listRaidTemplates.mockReturnValue([]);
             discord.listTextChannels.mockReturnValue([]);
@@ -572,7 +573,8 @@ describe("web/apiRoutes/raids", () => {
             await handle("/api/raids/new", { method: "GET" }, res, new URL("http://x/api/raids/new"));
             const plans = json(res).data.categoryTempVoice;
             expect(plans.cat1).toMatchObject({ mode: "existing", voiceChannelId: "v1", leadMinutes: 30 });
-            expect(plans.cat2).toMatchObject({ mode: "temp", leadMinutes: 15 });
+            expect(plans.cat2).toMatchObject({ mode: "temp", leadMinutes: 15, lang: "en" });
+            expect(plans.cat1.lang).toBe("de");
             discord.listCategories.mockReturnValue([]);
         });
 

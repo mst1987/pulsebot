@@ -15,6 +15,7 @@ const { mainVersionFor, versionOfEvent, resolveVersionQuery, visibleVersions, kn
 const { versionChoices } = require("../../../services/characters/characterVersions");
 const { DEFAULT_SCHEMA } = require("../../../utils/channelNames");
 const { categoryTempVoiceFor } = require("../../../stores/settings/tempVoiceSettings");
+const { categoryLang } = require("../../../services/discord/botLanguage");
 const { deriveChannelName } = require("../../../services/discord/channelNaming");
 const { signupSourceFor } = require("../../../services/events/eventSources");
 const { listSignups } = require("../../../stores/events/signupStore");
@@ -276,10 +277,10 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         voiceChannels: safeList(() => discord.listVoiceChannels(guildId)).filter((c) => inScope(c.parentId) || ownPresets.has(String(c.id))),
         categoryVoiceChannel: Object.fromEntries(Object.entries(presetVoice).filter(([catId]) => inScope(catId))),
         // The voice plan per category (temporary channels): what a new event starts with and the
-        // dialog's "Vorgabe der Kategorie" line.
+        // dialog's "Vorgabe der Kategorie" line; `lang` the language its channel names use (weekday).
         categoryTempVoice: Object.fromEntries(safeList(() => discord.listCategories(guildId))
             .filter((c) => inScope(c.id))
-            .map((c) => [c.id, categoryTempVoiceFor(config, c.id)])),
+            .map((c) => [c.id, { ...categoryTempVoiceFor(config, c.id), lang: categoryLang(c.id, config, guildId) }])),
         // "Als Vorlage speichern" writes a raid template - global, area `raids` write (#728: not the category's)
         canSaveTemplate: userCan(user, "raids", "write"),
         templates,

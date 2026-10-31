@@ -1576,6 +1576,23 @@ describe("web/apiRoutes/settings", () => {
                 await getSettings({}, res2);
                 expect(body(res2).bot.online).toBe(false);
             });
+
+            it("names what the bot lacks for temporary voice channels, per Discord category", async () => {
+                const { PermissionsBitField } = require("discord.js");
+                const F = PermissionsBitField.Flags;
+                const me = { permissions: new PermissionsBitField([F.ManageChannels, F.MoveMembers, F.ManageRoles]) };
+                const parent = { permissionsFor: () => new PermissionsBitField([F.ManageChannels]) };
+                discord.getGuild.mockReturnValue({ name: "Pulse", members: { me }, channels: { cache: new Map([["p1", parent]]) } });
+                discord.listCategories.mockReturnValue([{ id: "p1", name: "Raids" }]);
+                const res = mockRes();
+                await getSettings({}, res);
+                expect(body(res).tempVoiceRights).toEqual({ "": [], p1: ["MoveMembers", "ManageRoles"] });
+                // the bot not on the server: nothing known
+                discord.getGuild.mockReturnValue(null);
+                const res2 = mockRes();
+                await getSettings({}, res2);
+                expect(body(res2).tempVoiceRights).toBeNull();
+            });
         });
 
         describe("default raid template per category (#266)", () => {
