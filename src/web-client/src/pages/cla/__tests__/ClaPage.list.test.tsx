@@ -384,7 +384,7 @@ describe("ClaPage only my raids", () => {
     });
 
     it("says why the list is empty, in German and English", async () => {
-        serve([]);
+        serve([], { counts: { all: 0, open: 0, unlinked: 0, done: 0 }, mine: true });
         const first = show("/cla?mine=1");
         expect(await screen.findByText("Keine Logs von Raids, bei denen du dabei warst.")).toBeInTheDocument();
         first.unmount();
@@ -393,6 +393,14 @@ describe("ClaPage only my raids", () => {
         show("/cla?mine=1");
         expect(await screen.findByRole("switch", { name: "Only my raids" })).toBeChecked();
         expect(screen.getByText("No logs of raids you were part of.")).toBeInTheDocument();
+        await switchLang("de");
+    });
+
+    it("keeps the tab's empty text when my raids exist, only not in this tab", async () => {
+        serve([], { counts: { all: 2, open: 0, unlinked: 0, done: 2 }, mine: true });
+        show("/cla?filter=open&mine=1");
+        expect(await screen.findByText("Kein Log wartet auf eine Auswertung.")).toBeInTheDocument();
+        expect(screen.queryByText("Keine Logs von Raids, bei denen du dabei warst.")).not.toBeInTheDocument();
     });
 });
 

@@ -102,16 +102,17 @@ const getClaData = withUser({}, async ({ req, res, query, user }) => {
         page: query.get("page"),
     };
     const reports = listReports();
-    // "Nur meine Raids": only the rows whose evaluation lists one of the account's characters or whose raid event the account was part of
+    const reportById = new Map(reports.map((r) => [r.id, r]));
+    // "Nur meine Raids": only the rows whose raid event the account was part of
+    // or whose evaluation lists one of its characters (read from the metadata)
     const mine = query.get("mine") === "1";
     const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
-        allLogs, inVersion, guildId, keep: mine ? mineFilter(user.id) : undefined,
+        allLogs, inVersion, guildId, keep: mine ? mineFilter(user.id, { reportById, guildId, config }) : undefined,
     });
 
     // Title and boss count of the logs on this page, read from WCL once, then
     // the rows rebuilt from the filled logs.
     const logById = new Map(logs.map((l) => [l.id, l]));
-    const reportById = new Map(reports.map((r) => [r.id, r]));
     const pageLogs = page.items.filter((row) => row.kind === "log").map((row) => logById.get(row.logId)).filter(Boolean);
     await backfillLogTitles(pageLogs);
     page.items = page.items.map((row) => (row.kind === "log" && logById.has(row.logId)

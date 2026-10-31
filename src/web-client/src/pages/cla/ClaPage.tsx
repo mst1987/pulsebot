@@ -290,7 +290,7 @@ export default function ClaPage() {
                             <Pager page={list} onPage={goToPage} />
                         </>
                     )
-                    : <div className="empty">{mine ? t("cla.mine.empty") : filterMeta(data.filter).empty}</div>}
+                    : <div className="empty">{mine && data.counts.all === 0 ? t("cla.mine.empty") : filterMeta(data.filter).empty}</div>}
             </div>
             <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />
