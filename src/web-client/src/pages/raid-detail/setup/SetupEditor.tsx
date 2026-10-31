@@ -43,6 +43,7 @@ import { useConfirm } from "../../../components/ui/overlay/Modal";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import WowIcon from "../../../components/ui/icons/WowIcon";
 import { useJobs } from "../../../components/shell/Jobs";
+import VoiceChannelRow from "./VoiceChannelRow";
 import { CrownIcon, LockIcon, XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
@@ -1040,6 +1041,8 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     {primary && <PostSplit button={primary} options={postOptions} />}
                 </div>
             </div>
+            {/* the raid's voice channel: one slim line under the head, never a card */}
+            <VoiceChannelRow eventId={eventId} canWrite={data.canWrite} />
 
             {/* Vermerke (#981): who in "Angemeldet" has a shadowban - only in an answer past maySeeShort */}
             <ShadowbanPoolLine people={data.shadowbanInPool} canOpen={canAccess(ctx.user ?? null, "vermerke", "read")} />

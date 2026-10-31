@@ -33,6 +33,7 @@ const { emojiStyleOf } = require("../discord/appEmojis");
 const { normalizeOverflow, normalizeLockAtLimit } = require("../../utils/signup/capacity");
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { toRaidHelperDate } = require("../../utils/time");
+const { categoryTempVoiceFor, normalizeVoicePlan } = require("../../stores/settings/tempVoiceSettings");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { fail } = require("../../web/http/apiResult");
@@ -259,12 +260,17 @@ function planFor(body, categoryId, title, startTime) {
     if (checked.error) return { error: fail(400, "invalid_plan", checked.error) };
     const signupDeadline = Number(merged.signupDeadline) || 0;
     if (signupDeadline && signupDeadline > startTime) return { error: fail(400, "invalid_plan", "Der Anmeldeschluss liegt nach dem Raidbeginn.") };
+    // The voice channel (#305): the body's choice, else the category's preset — the fixed
+    // channel only when the event (its own voice plan) or the category uses one.
+    const voicePlan = normalizeVoicePlan(body.voicePlan);
+    const voiceMode = voicePlan ? voicePlan.mode : categoryTempVoiceFor(config, categoryId).mode;
+    const presetVoice = voiceMode === "existing" ? ((config.categoryVoiceChannel || {})[categoryId] || "") : "";
     return {
         plan: {
             ...checked.value,
             signupDeadline,
-            // The voice channel (#305): the body's choice, else the category's preset.
-            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : ((config.categoryVoiceChannel || {})[categoryId] || "")).trim(),
+            voiceChannelId: String(given(body, "voiceChannelId") ? body.voiceChannelId : presetVoice).trim(),
+            voicePlan,
             fairness: merged.fairness === true,
             wishes: merged.wishes === true,
             autoSuggest: merged.autoSuggest === true,
@@ -603,7 +609,7 @@ const EDIT_FIELD_LABELS = {
     title: "Titel", description: "Beschreibung", leaderId: "Raidleitung", startTime: "Termin", versionId: "Spielversion",
     instanceIds: "Instanzen", size: "Größe", composition: "Zusammensetzung", compositionMax: "Zusammensetzung",
     requiredBuffs: "Pflicht-Buffs", signupDeadline: "Anmeldeschluss", fairness: "Fairness", wishes: "Wünsche",
-    durationMinutes: "Dauer", voiceChannelId: "Sprachkanal",
+    durationMinutes: "Dauer", voiceChannelId: "Sprachkanal", voicePlan: "Sprachkanal",
     autoSuggest: "Vorschlag bei Anmeldeschluss", overflow: "Bei voller Größe", lockAtLimit: "Sperre bei Voll",
     color: "Farbe", image: "Bild", emojiStyle: "Emoji-Stil",
 };
@@ -627,7 +633,7 @@ async function updateEvent({ guildId, body = {}, user = null, byName = "" }) {
     if (current.status === "cancelled") return fail(409, "cancelled", "Das Event ist abgesagt — erst die Absage zurücknehmen.");
 
     const patch = {};
-    for (const key of ["title", "description", "leaderId", "instanceIds", "voiceChannelId", ...PLAN_KEYS]) {
+    for (const key of ["title", "description", "leaderId", "instanceIds", "voiceChannelId", "voicePlan", ...PLAN_KEYS]) {
         if (body[key] !== undefined) patch[key] = body[key];
     }
     if (body.date !== undefined || body.time !== undefined) {

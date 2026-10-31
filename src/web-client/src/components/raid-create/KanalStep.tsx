@@ -12,6 +12,7 @@ import ChannelEmojiPicker from "../channels/ChannelEmojiPicker";
 import { SwitchRow } from "../raid/RaidFields";
 import type { ChannelMode } from "./createHelpers";
 import { Label } from "./CreateParts";
+import { VoicePlanField } from "./VoicePlanField";
 import type { RaidCreateForm } from "./useRaidCreateForm";
 
 /**
@@ -23,7 +24,7 @@ import type { RaidCreateForm } from "./useRaidCreateForm";
 export function KanalStep({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateContext }) {
     const t = useT();
     const { form, patch, changePlan, editing, canClone, sourceEvent, naming, schema, categoryName, categoryChannels, chosenInstances, eh, startPreview, rhTemplates, rhTemplate } = f;
-    const { categoryId, source, channelMode, channelId, channelName, channelTouched, voiceChannelId, announce, plan, templateId } = form;
+    const { categoryId, source, channelMode, channelId, channelName, channelTouched, announce, plan, templateId } = form;
     const channelNames = useMemo(() => categoryChannels.map((c) => c.name), [categoryChannels]);
     const deadlineAt = startPreview && plan.deadlineHours > 0 ? eventDay(startPreview - plan.deadlineHours * 3600) : null;
     const modes = [
@@ -87,21 +88,9 @@ export function KanalStep({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateContex
                             )}
                     </div>
                 )}
-            {eh && (
-                <div className="field">
-                    <Label text={t("raidCreate.kanal.voice")} htmlFor="re-voice" tip={t("raidCreate.kanal.voiceTip")} />
-                    {(ctx.voiceChannels || []).length
-                        ? (
-                            <select id="re-voice" value={voiceChannelId} onChange={(e) => patch({ voiceChannelId: e.target.value, voiceTouched: true })}>
-                                <option value="">{t("raidCreate.kanal.voiceNone")}</option>
-                                {(ctx.voiceChannels || []).map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
-                            </select>
-                        )
-                        : <span className="note">{t("raidCreate.kanal.voiceMissing")}</span>}
-                </div>
-            )}
+            {eh && <VoicePlanField f={f} ctx={ctx} />}
             {eh && !editing && (
-                <div className="rt-switches">
+                <div className="rt-switches re-announce">
                     <SwitchRow
                         label={t("raidCreate.kanal.announce")}
                         tip={t("raidCreate.kanal.announceTip")}

@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type 
 import { createPortal } from "react-dom";
 import { useDismiss, type DismissOptions } from "../../../hooks/useDismiss";
 import { nodeOf, type DismissTarget } from "../../../lib/ui/dismiss";
-import { popoverVars, samePosition, type Placement, type PopoverStyle } from "../../../lib/ui/popoverPosition";
+import { fixedViewport, popoverVars, samePosition, type Placement, type PopoverStyle } from "../../../lib/ui/popoverPosition";
 
 /**
  * The base of every floating box that belongs to an element on the page — a
@@ -47,7 +47,7 @@ export default function Popover({ anchor, place, onClose, dismiss = {}, follow =
         if (!el) return;
         const a = nodeOf(latest.current.anchor) as Element | null;
         const b = el.getBoundingClientRect();
-        const next = latest.current.place(a ? a.getBoundingClientRect() : null, { width: b.width, height: b.height }, { width: window.innerWidth, height: window.innerHeight });
+        const next = latest.current.place(a ? a.getBoundingClientRect() : null, { width: b.width, height: b.height }, fixedViewport());
         setPos((prev) => (samePosition(prev, next) ? prev : next));
     };
 

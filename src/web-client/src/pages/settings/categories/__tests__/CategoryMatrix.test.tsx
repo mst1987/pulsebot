@@ -86,6 +86,7 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             categoryServerOverview={serverOverview}
             onServerOverview={onServerOverview}
             onVoiceChannel={noop}
+            onTempVoice={noop}
             onMessageLook={noop}
             categoryLanguage={languages}
             onLanguage={onLanguage}
@@ -169,7 +170,7 @@ describe("CategoryMatrix: the open card's tabs", () => {
         const events = screen.getByRole("tabpanel");
         expect(within(events).getByRole("radiogroup", { name: t("settings.categories.newEventsAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
         expect(within(events).getByRole("checkbox", { name: t("settings.categories.discordEventAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
-        expect(within(events).getByText(t("settings.categories.voice"))).toBeInTheDocument();
+        expect(within(events).getByRole("radiogroup", { name: t("settings.categories.tempVoiceAria", { name: "Raids Mittwoch" }) })).toBeInTheDocument();
         expect(within(events).getByLabelText(t("settings.categories.template"))).toBeInTheDocument();
 
         // the signup message's look and the tentative/decline question sit together

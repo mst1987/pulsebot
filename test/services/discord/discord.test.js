@@ -976,7 +976,7 @@ describe("services/discord/discord botPermissionsIn", () => {
         const list = discord.botPermissionsIn("g1");
         expect(list.map((p) => p.key)).toEqual(discord.REQUIRED_BOT_PERMISSIONS.map((p) => p.key));
         expect(Object.fromEntries(list.map((p) => [p.key, p.ok]))).toEqual({
-            ManageChannels: false, SendMessages: true, EmbedLinks: true, ManageRoles: false, GuildMembers: true,
+            ManageChannels: false, SendMessages: true, EmbedLinks: true, ManageRoles: false, MoveMembers: false, GuildMembers: true,
         });
         expect(list.find((p) => p.key === "ManageRoles").label).toBe("Rollen verwalten");
     });

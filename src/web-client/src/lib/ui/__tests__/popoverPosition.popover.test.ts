@@ -93,6 +93,34 @@ describe("belowEndPosition", () => {
     it("keeps the margin to the right edge", () => {
         expect(lib.belowEndPosition(rect(1500, 100, 100, 40), VIEW).right).toBe(8);
     });
+
+    it("keeps the margin to the left edge once the box is measured (a button that wrapped left on a phone)", () => {
+        const phone = { width: 390, height: 844 };
+        const button = rect(20, 100, 85, 30);
+        const box = { width: 300, height: 200 };
+        // unmeasured: right-aligned to the button, the box would start at -175
+        expect(lib.belowEndPosition(button, phone).right).toBe(285);
+        // measured: moved right until its left edge sits at 8
+        const pos = lib.belowEndPosition(button, phone, 6, box);
+        expect(pos).toEqual({ top: 136, right: 82 });
+        expect(phone.width - pos.right - box.width).toBe(8);
+        // a box that fits stays on the button's right edge
+        expect(lib.belowEndPosition(rect(300, 100, 60, 30), phone, 6, box).right).toBe(30);
+        // wider than the viewport: the right margin wins
+        expect(lib.belowEndPosition(button, phone, 6, { width: 500, height: 200 }).right).toBe(8);
+        // the placement passes the measured box on
+        expect(lib.belowEndPlacement()(button, box, phone)).toEqual(pos);
+    });
+});
+
+describe("fixedViewport", () => {
+    it("leaves a classic scrollbar out, as fixed coordinates do", () => {
+        expect(lib.fixedViewport({ clientWidth: 375, clientHeight: 844 }, { innerWidth: 390, innerHeight: 844 })).toEqual({ width: 375, height: 844 });
+    });
+
+    it("falls back to the window where the root has no size (jsdom)", () => {
+        expect(lib.fixedViewport({ clientWidth: 0, clientHeight: 0 }, { innerWidth: 390, innerHeight: 844 })).toEqual({ width: 390, height: 844 });
+    });
 });
 
 describe("belowStartPosition", () => {
