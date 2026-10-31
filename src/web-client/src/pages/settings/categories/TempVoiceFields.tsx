@@ -32,7 +32,14 @@ function Toggle({ checked, onChange, ariaLabel }: { checked: boolean; onChange: 
     );
 }
 
-export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voiceChannels, parents, onChange, onVoiceChannel }: {
+/** What the bot lacks for temporary channels under the chosen parent (or on the server); ManageRoles only counts with "only assigned". */
+function lackedRights(rights: Record<string, string[]> | null | undefined, s: TempVoiceSettings): string[] {
+    if (!rights) return [];
+    const lacked = rights[s.parentId] ?? rights[""] ?? [];
+    return s.onlyAssigned ? lacked : lacked.filter((r) => r !== "ManageRoles");
+}
+
+export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voiceChannels, parents, lang, rights, onChange, onVoiceChannel }: {
     cat: Category;
     name: string;
     /** What the category stores (only what differs from the defaults). */
@@ -41,6 +48,10 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
     voiceChannels: { id: string; name: string; category?: string }[];
     /** The server's Discord categories, the parents a temporary channel can go under. */
     parents: Category[];
+    /** The language of the category's posts, for the weekday of the preview; missing = German. */
+    lang?: string;
+    /** What the bot lacks for temporary channels per Discord category ("" = the server); null/missing = unknown. */
+    rights?: Record<string, string[]> | null;
     onChange: (categoryId: string, value: TempVoiceSettings) => void;
     onVoiceChannel: (categoryId: string, channelId: string) => void;
 }) {
@@ -49,7 +60,8 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
     const set = (next: Partial<TempVoiceSettings>) => onChange(cat.id, { ...s, ...next });
     const showTemp = isTemporary(s, 2);
     const preview = (template: string, index: number, total: number, leader = "") =>
-        voiceNameFor(template, { raid: SAMPLE.raid, start: SAMPLE.start, index, total, leader });
+        voiceNameFor(template, { raid: SAMPLE.raid, start: SAMPLE.start, index, total, leader, lang });
+    const lacked = lackedRights(rights, s);
     const insert = (tag: string) => {
         const base = s.nameTemplate.trimEnd();
         set({ nameTemplate: `${base}${base ? " " : ""}{${tag}}`.slice(0, NAME_TEMPLATE_MAX) });
@@ -94,6 +106,11 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
             {source}
             <CategoryField label={t("settings.categories.tempChannels")} sub={t("settings.categories.tempChannelsShort")}>
                 <div className="cat-subfields cat-voice-temp">
+                    {lacked.length > 0 && (
+                        <div className="note is-bad" role="status" data-testid="temp-voice-rights">
+                            {t("settings.categories.tempRightsMissing", { rights: lacked.map((r) => t(`settings.categories.tempRight.${r}`)).join(", ") })}
+                        </div>
+                    )}
                     <CategorySubField label={t("settings.categories.tempParent")} htmlFor={`catvoiceparent-${cat.id}`}>
                         <select id={`catvoiceparent-${cat.id}`} value={s.parentId} onChange={(e) => set({ parentId: e.target.value })}>
                             <option value="">{t("settings.categories.tempParentNone")}</option>

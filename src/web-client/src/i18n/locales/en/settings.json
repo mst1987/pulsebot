@@ -1006,6 +1006,12 @@
         "tempCloseMore": "5 minutes more",
         "tempOnlyAssigned": "Only assigned raiders may join",
         "tempOnlyAssignedSub": "Off: everyone who sees the Discord category.",
+        "tempRightsMissing": "The bot lacks permissions for temporary channels: {rights}. Without them it creates none.",
+        "tempRight": {
+            "ManageChannels": "Manage Channels",
+            "MoveMembers": "Move Members",
+            "ManageRoles": "Manage Permissions"
+        },
         "noVoiceOption": "— none —",
         "noVoice": "No voice channels loaded (bot offline).",
         "lootAddon": "Loot addon",

@@ -396,6 +396,7 @@
         "closed": "closed",
         "closedAt": "closed at {time}",
         "failed": "not created: {error}",
+        "creating": "being created",
         "unknownError": "unknown error",
         "noName": "Voice channel",
         "missingRights": "The bot lacks in the Discord category: {rights}",

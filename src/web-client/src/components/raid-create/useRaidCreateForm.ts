@@ -54,7 +54,7 @@ const EMPTY_FORM = (): RaidForm => ({
 });
 
 /** A category's voice channel per raid; an older server without it: its fixed channel or none. */
-export function categoryVoiceOf(data: RaidCreateContext | null, catId: string): TempVoiceSettings & { voiceChannelId: string } {
+export function categoryVoiceOf(data: RaidCreateContext | null, catId: string): TempVoiceSettings & { voiceChannelId: string; lang?: string } {
     const given = ((data && data.categoryTempVoice) || {})[catId];
     if (given) return given;
     const fixed = ((data && data.categoryVoiceChannel) || {})[catId] || "";

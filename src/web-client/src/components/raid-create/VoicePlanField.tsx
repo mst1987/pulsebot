@@ -59,7 +59,7 @@ export function VoicePlanField({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateC
     const change = (next: Partial<VoicePlan>) => patch({ voicePlan: { ...voicePlan, ...next }, voiceTouched: true });
     const reset = () => patch({ voicePlan: null, voiceChannelId: categoryVoice.mode === "existing" ? categoryVoice.voiceChannelId : "", voiceTouched: false });
     const showTemp = isTemporary({ mode: voicePlan.mode, fromRaid2: categoryVoice.fromRaid2 }, 2);
-    const name = (index: number, total: number) => voiceNameFor(voicePlan.nameTemplate, { raid, start: startPreview || 0, index, total, leader });
+    const name = (index: number, total: number) => voiceNameFor(voicePlan.nameTemplate, { raid, start: startPreview || 0, index, total, leader, lang: categoryVoice.lang });
     return (
         <div className="field re-voice-plan">
             <div className="re-label-row">

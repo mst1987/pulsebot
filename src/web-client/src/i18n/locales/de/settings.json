@@ -1006,6 +1006,12 @@
         "tempCloseMore": "5 Minuten mehr",
         "tempOnlyAssigned": "Nur Eingeteilte dürfen beitreten",
         "tempOnlyAssignedSub": "Aus: alle, die die Discord-Kategorie sehen.",
+        "tempRightsMissing": "Dem Bot fehlen Rechte für temporäre Kanäle: {rights}. Ohne sie legt er keine an.",
+        "tempRight": {
+            "ManageChannels": "Kanäle verwalten",
+            "MoveMembers": "Mitglieder verschieben",
+            "ManageRoles": "Berechtigungen verwalten"
+        },
         "noVoiceOption": "— keiner —",
         "noVoice": "Keine Sprachkanäle geladen (Bot offline).",
         "lootAddon": "Loot-Addon",

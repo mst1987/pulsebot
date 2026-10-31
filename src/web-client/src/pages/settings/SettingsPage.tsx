@@ -453,6 +453,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     voiceChannels={data.voiceChannels || []}
                     categoryTempVoice={draft.categoryTempVoice}
                     voiceParents={data.categories}
+                    tempVoiceRights={data.tempVoiceRights}
                     categoryMessageLook={draft.categoryMessageLook}
                     onMessageLook={(id, look) => patch({ categoryMessageLook: { ...draft.categoryMessageLook, [id]: look } })}
                     categoryAnnounce={draft.categoryAnnounce}

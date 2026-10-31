@@ -365,6 +365,9 @@ export type SettingsData = {
     channels?: TextChannel[];
     // The server's voice channels, for the voice channel per category (#305).
     voiceChannels?: TextChannel[];
+    // What the bot lacks for temporary voice channels per Discord category ("" = the server),
+    // as Discord permission names; null = unknown (bot offline).
+    tempVoiceRights?: Record<string, string[]> | null;
     // The channel of "Vielleicht" / "Absagen" per category (#335): the text
     // channels of both servers and the default channel's id.
     noteChannels?: { defaultId: string; channels: TextChannel[] };

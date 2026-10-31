@@ -66,6 +66,36 @@ describe("TempVoiceFields", () => {
         expect(screen.getByText(t("settings.categories.tempLeadExample", { time: "19:25" }))).toBeInTheDocument();
     });
 
+    it("writes the preview's weekday in the category's language", () => {
+        render(<TempVoiceFields cat={cat} name="T6" stored={{ mode: "temp" }} voiceChannelId="" voiceChannels={voiceChannels} parents={parents}
+            lang="en" onChange={() => {}} onVoiceChannel={() => {}} />);
+        expect(screen.getByTestId("temp-voice-preview").textContent).toContain("SSC 2 · Sat 31.10.");
+    });
+
+    it("names the rights the bot lacks under the chosen parent, Manage Permissions only for only-assigned", () => {
+        const rights = { "": [], p1: ["MoveMembers", "ManageRoles"] };
+        const show = (stored: Partial<TempVoiceSettings>, given: Record<string, string[]> | null = rights) => render(
+            <TempVoiceFields cat={cat} name="T6" stored={stored} voiceChannelId="" voiceChannels={voiceChannels} parents={parents}
+                rights={given} onChange={() => {}} onVoiceChannel={() => {}} />,
+        );
+        const label = (keys: string[]) => t("settings.categories.tempRightsMissing", { rights: keys.map((k) => t(`settings.categories.tempRight.${k}`)).join(", ") });
+        const a = show({ mode: "temp" });
+        expect(screen.queryByTestId("temp-voice-rights")).toBeNull();
+        a.unmount();
+        const b = show({ mode: "temp", parentId: "p1" });
+        expect(screen.getByTestId("temp-voice-rights")).toHaveTextContent(label(["MoveMembers"]));
+        b.unmount();
+        const c = show({ mode: "temp", parentId: "p1", onlyAssigned: true });
+        expect(screen.getByTestId("temp-voice-rights")).toHaveTextContent(label(["MoveMembers", "ManageRoles"]));
+        c.unmount();
+        // a parent the answer does not name falls back to the server's rights; unknown rights warn about nothing
+        const d = show({ mode: "temp", parentId: "p9" }, { "": ["ManageChannels"] });
+        expect(screen.getByTestId("temp-voice-rights")).toHaveTextContent(label(["ManageChannels"]));
+        d.unmount();
+        show({ mode: "temp", parentId: "p1" }, null);
+        expect(screen.queryByTestId("temp-voice-rights")).toBeNull();
+    });
+
     it("keeps an unknown stored parent selectable", () => {
         render(<Harness stored={{ mode: "temp", parentId: "gone" }} />);
         expect(screen.getByLabelText(t("settings.categories.tempParent"))).toHaveValue("gone");

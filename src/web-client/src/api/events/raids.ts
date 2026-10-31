@@ -152,7 +152,7 @@ export type RaidCreateContext = {
     /** category id → the voice channel its raids meet in (#305) */
     categoryVoiceChannel?: Record<string, string>;
     /** category id → its voice channel per raid, defaults filled in, with its fixed channel */
-    categoryTempVoice?: Record<string, TempVoiceSettings & { voiceChannelId: string }>;
+    categoryTempVoice?: Record<string, TempVoiceSettings & { voiceChannelId: string; lang?: string }>;
     templates: RaidTemplate[];
     reusableEvents: ReusableEvent[];
     /** category id → "eventhelper" for categories whose new events live in the EventHelper */

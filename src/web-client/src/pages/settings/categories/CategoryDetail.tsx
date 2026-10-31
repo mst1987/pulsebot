@@ -77,6 +77,8 @@ export type CategorySettings = {
     categoryTempVoice?: Record<string, Partial<TempVoiceSettings>>;
     /** The Discord categories a temporary channel can go under. */
     voiceParents?: Category[];
+    /** What the bot lacks for temporary channels per Discord category ("" = the server); null = unknown. */
+    tempVoiceRights?: Record<string, string[]> | null;
     /** The category's voice settings, handed over whole. */
     onTempVoice?: (categoryId: string, value: TempVoiceSettings) => void;
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
@@ -319,7 +321,8 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
             out.push({ key: "voice", node: (
                 <TempVoiceFields cat={cat} name={name} stored={(s.categoryTempVoice || {})[cat.id]}
                     voiceChannelId={(s.categoryVoiceChannel || {})[cat.id] || ""} voiceChannels={s.voiceChannels || []}
-                    parents={s.voiceParents || []} onChange={s.onTempVoice} onVoiceChannel={onVoiceChannel} />
+                    parents={s.voiceParents || []} lang={(s.categoryLanguage || {})[cat.id]} rights={s.tempVoiceRights}
+                    onChange={s.onTempVoice} onVoiceChannel={onVoiceChannel} />
             ) });
         }
         if (onAnnounce) {

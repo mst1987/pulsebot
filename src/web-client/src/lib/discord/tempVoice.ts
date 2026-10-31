@@ -74,11 +74,12 @@ function berlinParts(seconds: number): Record<string, string> {
 
 const EN_WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
-/** "Sa 31.10." in Berlin time - German, like the channel the server creates. */
-export function voiceDayLabel(seconds: number): string {
+/** "Sa 31.10." in Berlin time ("Sat 31.10." for "en"), like the channel the server creates (dayLabel()). */
+export function voiceDayLabel(seconds: number, lang = "de"): string {
     if (!seconds) return "";
     const p = berlinParts(seconds);
-    return `${WEEKDAYS[Math.max(0, EN_WEEKDAYS.indexOf(p.weekday))]} ${p.day}.${p.month}.`;
+    const day = Math.max(0, EN_WEEKDAYS.indexOf(p.weekday));
+    return `${(lang === "en" ? EN_WEEKDAYS : WEEKDAYS)[day]} ${p.day}.${p.month}.`;
 }
 
 /** "20:00" in Berlin time. */
@@ -89,8 +90,8 @@ export function voiceTimeLabel(seconds: number): string {
 }
 
 /** The name of raid `index` of `total`: what the server will call the channel. */
-export function voiceNameFor(template: string, { raid, start, index, total, leader = "" }: { raid: string; start: number; index: number; total: number; leader?: string }): string {
-    const name = renderVoiceName(template, { raid, nr: total > 1 ? String(index) : "", datum: voiceDayLabel(start), zeit: voiceTimeLabel(start), leader });
+export function voiceNameFor(template: string, { raid, start, index, total, leader = "", lang = "de" }: { raid: string; start: number; index: number; total: number; leader?: string; lang?: string }): string {
+    const name = renderVoiceName(template, { raid, nr: total > 1 ? String(index) : "", datum: voiceDayLabel(start, lang), zeit: voiceTimeLabel(start), leader });
     return name || raid || "Raid";
 }
 

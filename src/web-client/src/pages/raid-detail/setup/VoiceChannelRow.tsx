@@ -50,7 +50,7 @@ export default function VoiceChannelRow({ eventId, canWrite = true }: { eventId:
 
     const isTemp = raid.kind === "temp";
     const items: { id: string; label: string; icon: string; onSelect: () => void }[] = [];
-    if (canWrite && isTemp && (raid.state === "planned" || raid.state === "failed")) {
+    if (canWrite && isTemp && (raid.canOpen ?? (raid.state === "planned" || raid.state === "failed"))) {
         items.push({ id: "open", label: t("channels.voiceRow.openNow"), icon: "channels", onSelect: () => act(openVoice) });
     }
     if (canWrite && isTemp && raid.state === "open") {

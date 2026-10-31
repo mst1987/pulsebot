@@ -6,6 +6,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as client from "../../../../api/client";
 import type { VoiceRaid } from "../../../../api";
 import { t } from "../../../../i18n";
+import { formatTime, formatWeekday } from "../../../../lib/format";
 import { renderPage } from "../../../../test/render";
 import VoiceChannelRow from "../VoiceChannelRow";
 import { voiceStateLine } from "../voiceState";
@@ -14,6 +15,9 @@ vi.mock("../../../../api/client", async (orig) => ({ ...(await orig<typeof impor
 
 const NOW = Math.floor(Date.now() / 1000);
 const base: VoiceRaid = { eventId: "ev1", index: 1, total: 2, mode: "temp", kind: "temp", state: "planned", name: "SSC 1 · Sa 31.10.", openAt: NOW + 600, endAt: NOW + 4 * 3600, limitAt: NOW + 5 * 3600, parentName: "Raids" };
+
+// Saturday 31.10.2026, open 19:30, end 23:00, close 23:30 (Berlin, UTC+1): one day.
+const SAT = { openAt: Date.UTC(2026, 9, 31, 18, 30) / 1000, endAt: Date.UTC(2026, 9, 31, 22, 0) / 1000, limitAt: Date.UTC(2026, 9, 31, 22, 30) / 1000 };
 
 function serve(raid: Partial<VoiceRaid> | null, botOnline = true) {
     const raids = raid ? [{ ...base, ...raid }, { ...base, eventId: "ev2", index: 2, name: "SSC 2" }] : [];
@@ -29,12 +33,22 @@ const show = (canWrite = true) => renderPage(<VoiceChannelRow eventId="ev1" canW
 
 describe("voiceStateLine", () => {
     const at = (sec: number) => new Date(sec * 1000).toTimeString().slice(0, 5);
+    it("names the weekday of a close past midnight", () => {
+        const sunday = SAT.endAt + 3600 + 1800; // Sunday 00:30 Berlin
+        const line = voiceStateLine({ ...base, ...SAT, limitAt: sunday, state: "open" }, t);
+        expect(line).toContain(t("channels.voiceRow.closesBy", { time: `${formatWeekday(sunday * 1000)} ${formatTime(sunday * 1000)}` }));
+        expect(formatTime(sunday * 1000)).toBe("00:30");
+        // without an open time the end is the day it is measured against
+        expect(voiceStateLine({ ...base, ...SAT, openAt: undefined, limitAt: sunday, state: "open" }, t)).toContain(formatWeekday(sunday * 1000));
+    });
+
     it("words every state", () => {
         expect(voiceStateLine({ ...base, kind: "fixed", state: "fixed", members: 3 }, t)).toBe(`${t("channels.voiceRow.fixed")} · ${t("channels.voiceRow.members", { count: 3 })}`);
         expect(voiceStateLine(base, t)).toContain(at(base.openAt!));
         expect(voiceStateLine(base, t)).toContain("Raids");
         expect(voiceStateLine({ ...base, parentName: undefined }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.planned", { time: at(base.openAt!) })}`);
-        expect(voiceStateLine({ ...base, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: at(base.limitAt!) })].join(" · "));
+        expect(voiceStateLine({ ...base, ...SAT, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: "23:30" })].join(" · "));
+        expect(voiceStateLine({ ...base, state: "creating" }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.creating")}`);
         expect(voiceStateLine({ ...base, state: "open", members: null }, t)).not.toContain(t("channels.voiceRow.members", { count: 0 }));
         expect(voiceStateLine({ ...base, state: "closed", closedAt: NOW }, t)).toBe(t("channels.voiceRow.closedAt", { time: at(NOW) }));
         expect(voiceStateLine({ ...base, state: "closed" }, t)).toBe(t("channels.voiceRow.closed"));
@@ -107,6 +121,20 @@ describe("VoiceChannelRow", () => {
         show(false);
         await userEvent.click(await screen.findByRole("button", { name: t("channels.voiceRow.menu") }));
         expect(screen.getAllByRole("menuitem").map((b) => b.textContent)).toEqual([t("channels.voiceRow.inDiscord")]);
+    });
+
+    it("follows the server's canOpen: offered after a close, not while creating", async () => {
+        serve({ state: "closed", closedAt: NOW, canOpen: true });
+        show();
+        await userEvent.click(await screen.findByRole("button", { name: t("channels.voiceRow.menu") }));
+        expect(screen.getByRole("menuitem", { name: t("channels.voiceRow.openNow") })).toBeInTheDocument();
+    });
+
+    it("has no menu while the channel is being created", async () => {
+        serve({ state: "creating", canOpen: false });
+        show();
+        expect(await screen.findByText(base.name!)).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("channels.voiceRow.menu") })).toBeNull();
     });
 
     it("has no menu for a planned channel without the right to write", async () => {

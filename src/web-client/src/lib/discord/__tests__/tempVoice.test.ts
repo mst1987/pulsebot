@@ -47,6 +47,8 @@ describe("labels in Berlin time", () => {
         expect(voiceDayLabel(SAT_20)).toBe("Sa 31.10.");
         expect(voiceTimeLabel(SAT_20)).toBe("20:00");
         expect(voiceDayLabel(0)).toBe("");
+        expect(voiceDayLabel(SAT_20, "en")).toBe("Sat 31.10.");
+        expect(voiceDayLabel(SAT_20, "de")).toBe("Sa 31.10.");
         expect(voiceTimeLabel(0)).toBe("");
     });
 
@@ -55,6 +57,7 @@ describe("labels in Berlin time", () => {
         expect(voiceNameFor(DEFAULT_NAME_TEMPLATE, { raid: "SSC", start: SAT_20, index: 2, total: 2 })).toBe("SSC 2 · Sa 31.10.");
         expect(voiceNameFor("{leader}", { raid: "SSC", start: SAT_20, index: 1, total: 1 })).toBe("SSC");
         expect(voiceNameFor("{leader}", { raid: "", start: SAT_20, index: 1, total: 1 })).toBe("Raid");
+        expect(voiceNameFor(DEFAULT_NAME_TEMPLATE, { raid: "SSC", start: SAT_20, index: 2, total: 2, lang: "en" })).toBe("SSC 2 · Sat 31.10.");
     });
 });
 

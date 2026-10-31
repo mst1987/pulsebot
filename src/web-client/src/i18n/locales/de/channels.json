@@ -396,6 +396,7 @@
         "closed": "geschlossen",
         "closedAt": "geschlossen um {time}",
         "failed": "nicht angelegt: {error}",
+        "creating": "wird gerade angelegt",
         "unknownError": "unbekannter Fehler",
         "noName": "Sprachkanal",
         "missingRights": "Dem Bot fehlt in der Discord-Kategorie: {rights}",

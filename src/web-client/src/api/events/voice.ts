@@ -13,7 +13,8 @@ export type VoiceRaid = {
     total: number;
     mode: "none" | "existing" | "temp";
     kind: "none" | "fixed" | "temp";
-    state: "none" | "fixed" | "planned" | "open" | "closed" | "failed";
+    /** "creating": the bot is creating the channel right now. */
+    state: "none" | "fixed" | "planned" | "creating" | "open" | "closed" | "failed";
     name?: string;
     channelId?: string;
     url?: string;
@@ -27,6 +28,8 @@ export type VoiceRaid = {
     missingRights?: string[];
     closeReason?: string;
     closedAt?: number;
+    /** Whether "Jetzt anlegen" is offered (not open, before the latest close); missing = an older server. */
+    canOpen?: boolean;
 };
 
 export type VoiceStatus = { botOnline: boolean; raids: VoiceRaid[] };
