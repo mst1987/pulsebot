@@ -7,6 +7,9 @@
 // whose instanceIds overlap and whose start falls in the same raid ID — past or
 // upcoming, any server of the Verbund, the other raids of a raid group too.
 // Cancelled events do not count, deleted ones are gone from the store.
+// Only weekly instances: one whose lockout resets on another rhythm (Classic
+// Era ZG/AQ20 3 days, Onyxia 5, TBC's Zul'Aman 3 - gameVersions.resetDaysOf)
+// has no raid ID to check, so it neither gets a hint nor counts for one.
 // Another server counts only when it plays on the same realm: region and realm
 // of the raid's version (settingsForVersion with that server's overrides) must
 // match - a guild on another realm has its own lockouts.
@@ -25,11 +28,13 @@ const { inRaidGroup, raidIndexOf } = require("../../utils/raidGroup");
 const profileStore = require("../../stores/roster/raiderProfileStore");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { settingsForVersion } = require("../versions/versionSettings");
+const { resetDaysOf } = require("../../config/gameVersions");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
 
+/** The event's weekly instances - the ones a raid ID locks (resetDaysOf 7). */
 function instancesOf(event) {
-    return new Set((Array.isArray(event && event.instanceIds) ? event.instanceIds : []).map(str).filter(Boolean));
+    return new Set((Array.isArray(event && event.instanceIds) ? event.instanceIds : []).map(str).filter((i) => i && resetDaysOf(i) === 7));
 }
 
 /** The raid ID of an event (its start in seconds), null without a start. */

@@ -102,6 +102,20 @@ describe("takenInRaidId", () => {
         expect(taken.has("arthas")).toBe(true);
     });
 
+    test("an instance that does not reset weekly is skipped - ZG, AQ20, Onyxia (Classic), Zul'Aman (TBC)", () => {
+        for (const inst of ["zg", "aq20", "ony", "za"]) {
+            mockEvents.length = 0;
+            mockEvents.push(ev({ id: "eh-b", instanceIds: [inst], setup: setupOf(["Jaina"]) }));
+            expect({ inst, taken: takenInRaidId(ev({ instanceIds: [inst] })).size }).toEqual({ inst, taken: 0 });
+            expect(takenKeysFor([ev({ instanceIds: [inst] })])).toEqual({});
+        }
+        // a weekly instance beside it still counts, the 3-day one never
+        mockEvents.length = 0;
+        mockEvents.push(ev({ id: "eh-b", instanceIds: ["zg"], setup: setupOf(["Jaina"]) }));
+        mockEvents.push(ev({ id: "eh-c", instanceIds: ["mc"], setup: setupOf(["Arthas"]) }));
+        expect([...takenInRaidId(ev({ instanceIds: ["zg", "mc"] })).keys()]).toEqual(["arthas"]);
+    });
+
     test("an event without an instance neither counts nor is checked", () => {
         mockEvents.push(ev({ id: "eh-b", instanceIds: [], setup: setupOf(["Jaina"]) }));
         expect(takenInRaidId(ev()).size).toBe(0);

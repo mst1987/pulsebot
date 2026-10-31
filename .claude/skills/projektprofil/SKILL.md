@@ -237,8 +237,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 28. Charakter-Abgleich über Server hinweg (Raid-ID-Hinweis): `characterKeyOf` kennt keinen Realm —
     gleicher Name auf einem anderen Server ist nur derselbe Charakter, wenn Realm und Region der
     Version dort gleich sind (`settingsForVersion(versionId, { guildId })`, #923). Raid-Resets sind
-    nicht überall wöchentlich (Classic Era ZG/AQ20 3 Tage, Onyxia 5 Tage): Rhythmus je Instanz aus dem
-    Regelsatz, nie pauschal `raidIdOf`.
+    nicht überall wöchentlich (Classic Era ZG/AQ20 3 Tage, Onyxia 5 Tage, TBC Zul'Aman 3 Tage): Rhythmus
+    je Instanz aus dem Regelsatz (`resetDays`, `gameVersions.resetDaysOf`), nie pauschal `raidIdOf`.
 
 ## Fach-Agenten
 

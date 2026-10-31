@@ -13,6 +13,13 @@
 // to be read. Boss names are Warcraft Logs' English encounter names; the final
 // boss also lists the German client name, since WCL hands back whatever the
 // uploading client called it. Tanks and healers are suggestions only.
+//
+// `resetDays`: how often an instance's lockout resets (gameVersions.resetDaysOf,
+// standard 7 = the weekly raid ID). Since patch 1.9 Onyxia resets every 5 days,
+// Zul'Gurub and the Ruins of Ahn'Qiraj every 3 days - sources:
+// https://warcraft.wiki.gg/wiki/Raid_lockout (patch 1.9.0 entry),
+// https://us.support.blizzard.com/en/article/262637 (ZG every 72 hours),
+// https://www.zockify.com/classic/calendar/ (Ony 5, ZG/AQ20 3 days).
 
 const { buildClasses } = require("./classes");
 const { buildBuffs } = require("./buffs");
@@ -33,6 +40,7 @@ const instances = [
         finalBoss: "Onyxia", finalBossNames: ["Onyxia"],
         composition: { 40: { tanks: 2, healers: 8 } },
         zoneNames: ["onyxia's lair", "onyxias hort"],
+        resetDays: 5,
         status: "complete",
     },
     {
@@ -76,6 +84,7 @@ const instances = [
         finalBoss: "Hakkar", finalBossNames: ["Hakkar"],
         composition: { 20: { tanks: 2, healers: 5 } },
         zoneNames: ["zul'gurub", "zulgurub"],
+        resetDays: 3,
         status: "complete",
     },
     {
@@ -90,6 +99,7 @@ const instances = [
         finalBoss: "Ossirian the Unscarred", finalBossNames: ["Ossirian the Unscarred", "Ossirian der Narbenlose"],
         composition: { 20: { tanks: 2, healers: 5 } },
         zoneNames: ["ruins of ahn'qiraj", "ruinen von ahn'qiraj"],
+        resetDays: 3,
         status: "complete",
     },
     {

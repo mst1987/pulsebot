@@ -74,6 +74,16 @@ function instanceById(id) {
     return INSTANCE_BY_ID.get(String(id || "")) || null;
 }
 
+/**
+ * How many days an instance's lockout lasts: its rule set's `resetDays`, else 7
+ * (the weekly raid ID). An unknown instance is weekly too.
+ */
+function resetDaysOf(id) {
+    const inst = instanceById(id);
+    const days = Number(inst && inst.resetDays);
+    return Number.isFinite(days) && days > 0 ? days : 7;
+}
+
 /** A spec of a version by its key ("Druid-Guardian"), or null. */
 function spec(specKey, versionId = DEFAULT_VERSION) {
     const rules = rulesFor(versionId);
@@ -218,7 +228,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, professionsOf, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
+    rulesFor, professionsOf, hasSheetLayout, instance, instanceById, resetDaysOf, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, iconOf, publicVersions,
 };

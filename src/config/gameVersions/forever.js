@@ -57,6 +57,8 @@ const buffs = buildBuffs(classic.classes, {
     sharedSlots: ["air"],
 });
 
+// Lockouts: all weekly (gameVersions.resetDaysOf standard 7) - unconfirmed,
+// check after launch and set `resetDays` per instance where it differs.
 const instances = [
     {
         id: "forever-barrow", name: "Barrow Deeps", short: "Barrow", sizes: [10], defaultSize: 10,

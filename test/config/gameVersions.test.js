@@ -291,3 +291,23 @@ describe("config/gameVersions", () => {
         });
     });
 });
+
+describe("resetDaysOf", () => {
+    test("Classic Era: Onyxia 5 days, ZG and AQ20 3 days, the rest weekly", () => {
+        expect(gv.resetDaysOf("ony")).toBe(5);
+        expect(gv.resetDaysOf("zg")).toBe(3);
+        expect(gv.resetDaysOf("aq20")).toBe(3);
+        for (const id of ["mc", "bwl", "aq40", "naxx"]) expect(gv.resetDaysOf(id)).toBe(7);
+    });
+
+    test("TBC: Zul'Aman 3 days, the rest weekly", () => {
+        expect(gv.resetDaysOf("za")).toBe(3);
+        for (const c of CONTENTS.filter((x) => x.id !== "za")) expect({ id: c.id, days: gv.resetDaysOf(c.id) }).toEqual({ id: c.id, days: 7 });
+    });
+
+    test("Forever stays weekly (unconfirmed), an unknown instance too", () => {
+        for (const i of gv.rulesFor("forever").instances) expect(gv.resetDaysOf(i.id)).toBe(7);
+        expect(gv.resetDaysOf("nope")).toBe(7);
+        expect(gv.resetDaysOf("")).toBe(7);
+    });
+});
