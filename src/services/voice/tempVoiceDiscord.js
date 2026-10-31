@@ -242,12 +242,31 @@ function memberCount(guildId, channelId) {
 }
 
 /**
+ * The channel to close: from the cache, else asked of Discord. Null only when Discord
+ * says it is gone (404/10003); a server that is not available or any other error throws,
+ * so the caller keeps its entry and tries again.
+ */
+async function channelToClose(guildId, channelId) {
+    const cached = channelOf(guildId, channelId);
+    if (cached) return cached;
+    if (!channelId) return null;
+    if (!discord.isGuildAvailable(guildId)) throw botOffline();
+    const guild = guildOf(guildId);
+    try {
+        return (await guild.channels.fetch(String(channelId), { force: true })) || null;
+    } catch (e) {
+        if (e && (e.code === UNKNOWN_CHANNEL || e.status === 404)) return null;
+        throw e;
+    }
+}
+
+/**
  * Close the channel: whoever is still in it moves to `moveTo` (the category's
  * fixed channel) when that exists and the bot may move, then the channel goes.
- * Returns `{ moved, deleted }`; a channel already gone counts as deleted.
+ * Returns `{ moved, deleted }`; a channel Discord proves gone counts as deleted.
  */
 async function closeVoice(guildId, channelId, { moveTo = "" } = {}) {
-    const channel = channelOf(guildId, channelId);
+    const channel = await channelToClose(guildId, channelId);
     if (!channel) return { moved: 0, deleted: true };
     const target = moveTo ? channelOf(guildId, moveTo) : null;
     let moved = 0;

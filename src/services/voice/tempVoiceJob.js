@@ -117,7 +117,14 @@ function open(event, plan, now, { manual = false } = {}) {
     return running;
 }
 
+/** Whether Discord can answer for the server now: before the login or in an outage "not in the cache" proves nothing. */
+const reachable = (guildId) => discord.isOnline() && discord.isGuildAvailable(guildId);
+
+const UNREACHABLE = "Discord ist gerade nicht erreichbar, der Kanal wird beim nächsten Lauf geschlossen.";
+
 async function close(eventId, entry, reason, now, { moveTo = "", remove = false } = {}) {
+    // The entry stays until Discord confirms the close; else the channel would be orphaned for good.
+    if (!reachable(entry.guildId)) return { ok: false, waiting: true, error: UNREACHABLE };
     try {
         const result = await voice.closeVoice(entry.guildId, entry.channelId, { moveTo });
         if (remove) tempVoiceStore.removeEntry(eventId);
@@ -189,13 +196,14 @@ async function keepInLine(eventId, entry, plan, now) {
 async function stepOpen(eventId, event, entry, plan, now, out) {
     const follow = alive(event) ? followedPlan(plan, entry) : null;
     if (!follow) {
+        if (!reachable(entry.guildId)) return null; // the entry stays, the next sweep closes it
         out.closed.push(eventId);
         return close(eventId, entry, "gone", now, { remove: true });
     }
     const count = voice.memberCount(entry.guildId, entry.channelId);
     if (count === null) {
         // Not in the cache: deleted in Discord - or the bot is not connected yet, or the cache is behind.
-        if (!discord.isOnline() || !discord.isGuildAvailable(entry.guildId)) return null;
+        if (!reachable(entry.guildId)) return null;
         if (!(await voice.channelGone(entry.guildId, entry.channelId))) return null;
         tempVoiceStore.updateEntry(eventId, { closedAt: now, closeReason: "missing", emptySince: 0 });
         out.closed.push(eventId);
@@ -300,7 +308,8 @@ async function closeNow(eventId, { now = nowSeconds() } = {}) {
     if (!isOpen(entry)) return { error: "Kein offener Kanal.", status: 409 };
     const fixed = event ? categoryTempVoiceFor(getConfig() || {}, (groupOf(event)[0] || event).categoryId).voiceChannelId : "";
     const result = await close(eventId, entry, "manual", now, { moveTo: fixed || entry.fixedChannelId });
-    return result.ok ? { ok: true } : { error: result.error, status: 502 };
+    if (result.ok) return { ok: true };
+    return { error: result.error, status: result.waiting ? 503 : 502 };
 }
 
 /** An open channel whose raid no longer plans one (the category's mode changed): it runs to its end. */

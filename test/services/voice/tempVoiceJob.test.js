@@ -220,6 +220,29 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-2")).toBeNull();
         });
 
+        it("keeps the entry of a deleted raid while Discord cannot answer and closes it once it can", async () => {
+            await openAt();
+            mockEvents.length = 0;
+            discord.isOnline.mockReturnValueOnce(false);
+            expect((await job.runTempVoice({ now: START - 1700 })).closed).toEqual([]);
+            discord.isGuildAvailable.mockImplementation(() => false);
+            expect((await job.runTempVoice({ now: START - 1600 })).closed).toEqual([]);
+            expect(voice.closeVoice).not.toHaveBeenCalled();
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", closedAt: 0 });
+            discord.isGuildAvailable.mockImplementation(() => true);
+            expect((await job.runTempVoice({ now: START - 1500 })).closed).toEqual(["eh-1"]);
+            expect(voice.closeVoice).toHaveBeenCalledWith("g1", "v-eh-1", { moveTo: "" });
+            expect(tempVoiceStore.getEntry("eh-1")).toBeNull();
+        });
+
+        it("keeps the entry when closing the channel fails", async () => {
+            mockEvents.push(raid({ status: "cancelled" }));
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", channelId: "v-old", limitAt: START + 14400 });
+            voice.closeVoice.mockRejectedValueOnce(new Error("Service Unavailable"));
+            await job.runTempVoice({ now: START - 1800 });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-old", closedAt: 0, error: "Service Unavailable" });
+        });
+
         it("opens again for a raid back from cancelled after its channel went", async () => {
             mockEvents.push(raid({ status: "cancelled" }));
             tempVoiceStore.updateEntry("eh-1", { guildId: "g1", channelId: "v-old", limitAt: START + 14400 });
@@ -378,6 +401,17 @@ describe("services/voice/tempVoiceJob", () => {
             // a manually closed channel does not come back by itself
             expect((await job.runTempVoice({ now: START - 1800 })).opened).toEqual([]);
             expect(await job.openNow("eh-1", { now: START - 1700 })).toEqual({ ok: true });
+        });
+
+        it("does not close by hand while Discord cannot answer: 503, the entry stays", async () => {
+            mockEvents.push(raid());
+            await job.runTempVoice({ now: START - 1800 });
+            discord.isGuildAvailable.mockImplementation(() => false);
+            expect(await job.closeNow("eh-1", { now: START })).toMatchObject({ status: 503, error: expect.stringContaining("nicht erreichbar") });
+            expect(voice.closeVoice).not.toHaveBeenCalled();
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", closedAt: 0, closeReason: "" });
+            discord.isGuildAvailable.mockImplementation(() => true);
+            expect(await job.closeNow("eh-1", { now: START + 60 })).toEqual({ ok: true });
         });
 
         it("creates one channel when 'Jetzt anlegen' meets the job", async () => {

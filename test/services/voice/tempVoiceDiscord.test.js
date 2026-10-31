@@ -262,11 +262,30 @@ describe("services/voice/tempVoiceDiscord", () => {
             expect(ch.delete).toHaveBeenCalled();
         });
 
-        it("deletes without a target and counts a gone channel as deleted", async () => {
+        it("deletes without a target and counts a channel Discord proves gone as deleted", async () => {
             const ch = makeChannel(mockGuild, { id: "v1", members: [{ id: "a", voice: { setChannel: jest.fn() } }] });
             mockGuild.channels.cache.set("v1", ch);
             expect(await voice.closeVoice("g1", "v1", { moveTo: "missing" })).toEqual({ moved: 0, deleted: true });
+            mockGuild.channels.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("Unknown Channel"), { code: 10003 }));
             expect(await voice.closeVoice("g1", "v1")).toEqual({ moved: 0, deleted: true });
+            expect(mockGuild.channels.fetch).toHaveBeenCalledWith("v1", { force: true });
+        });
+
+        it("asks Discord for a channel not in the cache and deletes it when it is there", async () => {
+            const ch = makeChannel(mockGuild, { id: "v1" });
+            mockGuild.channels.fetch = jest.fn().mockResolvedValue(ch);
+            expect(await voice.closeVoice("g1", "v1")).toEqual({ moved: 0, deleted: true });
+            expect(ch.delete).toHaveBeenCalled();
+        });
+
+        it("throws instead of counting it deleted on other errors or an unavailable server", async () => {
+            mockGuild.channels.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("Service Unavailable"), { status: 503 }));
+            await expect(voice.closeVoice("g1", "v1")).rejects.toThrow("Service Unavailable");
+            mockAvailable = false;
+            await expect(voice.closeVoice("g1", "v1")).rejects.toMatchObject({ code: "bot_offline" });
+            mockAvailable = true;
+            mockGuild = null;
+            await expect(voice.closeVoice("g1", "v1")).rejects.toMatchObject({ code: "bot_offline" });
         });
     });
 });
