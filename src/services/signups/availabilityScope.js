@@ -64,6 +64,25 @@ function scopeCovers(entry, event, { config } = {}) {
     });
 }
 
+/**
+ * Whether an entry belongs to a server's views (the signup page, "Meine Anwesenheit", the orga's
+ * overview of that server): a part of that server, an older part whose category lies there, or an
+ * older entry for everything. An older category whose server nobody knows stays visible - hiding
+ * it would leave the raider no page to see or delete it on.
+ * @param {(categoryId: string) => string} [guildOfCategory] category -> server ("" = unknown)
+ */
+function entryOnServer(entry, guildId, { guildOfCategory = categoryServer } = {}) {
+    const gid = str(guildId);
+    const scope = scopeOf(entry);
+    if (!gid || !scope) return true;
+    return scope.some((s) => (s.guildId ? s.guildId === gid : s.categoryIds.some((id) => [gid, ""].includes(str(guildOfCategory(id))))));
+}
+
+/** The server of a category (eventServer.guildOfCategory: live, series, snapshot), required lazily - it reads several stores. */
+function categoryServer(categoryId) {
+    return require("../events/eventServer").guildOfCategory(categoryId);
+}
+
 /** An attendance's characters `[{ character, spec, versionId }]`; an older entry's single one as a list. */
 function charactersOf(entry) {
     const list = Array.isArray(entry && entry.characters) ? entry.characters.filter((c) => c && str(c.character)) : [];
@@ -120,4 +139,4 @@ function charactersView(entry) {
     return charactersOf(entry).map((c) => ({ ...c, specLabel: c.spec ? specLabel(c.spec) : "" }));
 }
 
-module.exports = { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer, dayOf, specLabel, scopeView, charactersView };
+module.exports = { covers, scopeOf, scopeCovers, entryOnServer, charactersOf, charactersFor, eventServer, dayOf, specLabel, scopeView, charactersView };
