@@ -450,7 +450,9 @@
     .se-layout.se-pool-side > .se-poolpanel { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 12px; max-height: calc(100vh - 24px); }
     .se-pp-side .se-pp-head { flex-wrap: wrap; gap: 8px; }
     .se-pp-side .se-pp-tools { flex-direction: column; align-items: stretch; flex-basis: 100%; order: 3; }
-    .se-pp-side .se-pp-seg { align-self: flex-start; max-width: 100%; overflow-x: auto; }
+    /* 300 px: the four states fill the width in equal parts instead of being cut off at "Ersatz" */
+    .se-pp-side .se-pp-seg { display: flex; flex: 1 1 100%; max-width: 100%; }
+    .se-pp-side .se-pp-segbtn { flex: 1 1 auto; justify-content: center; padding: 0 5px; font-size: 12.5px; }
     .se-pp-side .se-pp-search { flex: 0 0 auto; margin-left: 0; }
     .se-pp-side .se-pp-toggle { margin-left: auto; }
     .se-pp-side .se-pp-body { overflow-y: auto; }
