@@ -653,7 +653,7 @@
 .se-addraid-form { display: grid; gap: 14px; }
 .se-addraid-preview { margin: 0; color: var(--text); font-weight: 600; }
 @media (max-width: 640px) {
-    .se-raidtab { flex: 1 1 100%; }
+    .se-raidtab { flex: 1 1 100%; flex-wrap: wrap; row-gap: 2px; min-width: 0; }
     .se-raidtab-title { max-width: none; flex: 1 1 auto; }
     .se-raidtabs-meta { margin-left: 0; }
 }
