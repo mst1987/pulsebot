@@ -51,7 +51,8 @@ bleiben, wie sie waren.
 | `onlyAssigned` | Nur die Eingeteilten (Gruppen ohne Bank) dürfen beitreten | aus |
 
 `{nr}` wird nur gefüllt, wenn die Gruppe mindestens zwei Raids hat; ein leerer Platzhalter fällt samt Trenner weg.
-Datum und Uhrzeit in Berliner Zeit, Wochentag deutsch.
+Datum und Uhrzeit in Berliner Zeit; der Wochentag in der Sprache der Kategorie (`eventLang`: „Sa 31.10." bzw. „Sat
+31.10."), die Vorschau in Einstellungen und Anlege-Dialog ebenso.
 
 **Je Event überschreiben:** im Schritt *Kanal & Anmeldung* des Anlege-Dialogs (`VoicePlanField.tsx`, „Für dieses Event
 ändern") — `event.voicePlan = { mode, nameTemplate, leadMinutes }` (`null` = wie die Kategorie). Discord-Kategorie,
@@ -61,30 +62,42 @@ Schließzeit und „Nur Eingeteilte" bleiben bei der Kategorie. Der Plan je Raid
 Event-Änderung.
 
 - Öffnet einen geplanten Kanal `leadMinutes` vor dem Start (bis zum spätesten Schließen; ein fehlgeschlagenes Anlegen
-  erst nach 10 Minuten wieder).
+  erst nach 10 Minuten wieder). Vor dem Anlegen markiert er den Eintrag als `creatingAt`: Stirbt der Bot dazwischen,
+  findet der nächste Lauf den Kanal an Name und Discord-Kategorie wieder, statt einen zweiten anzulegen. Ein zweiter
+  Aufruf (Job und „Jetzt anlegen" zugleich) wartet auf den laufenden.
 - Schließt einen offenen Kanal, wenn er **5 Minuten leer** war (`EMPTY_CLOSE_MINUTES`) — **nie vor dem Ende** des Raids
   — und **spätestens `closeAfterMinutes` nach dem Ende**: Wer dann noch drin ist, wird in den festen Kanal der
   Kategorie verschoben; ohne festen Kanal wird der Kanal mit ihnen gelöscht. Ohne Dauer gilt das Ende aus
   `plannedEndOrDefault()` (Start + 3 h).
-- Schließt sofort, wenn der Raid gelöscht, abgesagt oder in Raid 1 gemergt ist oder keinen temporären Kanal mehr bekommt
-  (`gone`), und vergisst ihn, wenn ihn jemand in Discord gelöscht hat (`missing`).
+- Schließt sofort, wenn der Raid gelöscht, abgesagt oder in Raid 1 gemergt ist (`gone`), und löscht einen leeren Kanal,
+  wenn der Raid später verschoben wurde (`moved`; er öffnet zur neuen Zeit wieder). Löscht ihn jemand in Discord
+  (belegt durch Discords „Unknown Channel"), schließt der Eintrag als `missing` und öffnet nicht von selbst wieder.
+- **Moduswechsel:** Gibt die Kategorie dem Raid keinen temporären Kanal mehr, läuft ein offener mit den Zeiten weiter,
+  mit denen er geöffnet wurde, und schließt wie sonst.
 - Der erste Lauf (eine Minute nach dem Start) räumt auf, was ein Neustart offen gelassen hat.
 - `voiceStateUpdate` (`bot.js`, Intent **GuildVoiceStates**) hält `emptySince` zwischen den Ticks genau.
-- Der Name zieht mit (Umbenennen bei geändertem Titel/Datum); „Nur Eingeteilte" setzt Connect-Overwrites für die
-  Eingeteilten und sperrt @everyone (`tempVoiceDiscord.onlyAssignedOverwrites`), sichtbar bleibt der Kanal.
+- Der Name zieht mit (Umbenennen bei geändertem Titel/Datum), höchstens alle 5 Minuten (`RENAME_SECONDS`; Discord
+  erlaubt 2 Umbenennungen je 10 Minuten), ein Ratelimit wartet bis zum nächsten Lauf. „Nur Eingeteilte" setzt
+  Connect-Overwrites für die Eingeteilten und sperrt @everyone (`tempVoiceDiscord.onlyAssignedOverwrites`), sichtbar
+  bleibt der Kanal; wer freigegeben wurde, steht in `granted`, so dass nur die Änderung an der Einteilung nachgezogen wird.
 
 **Zustand:** `data/settings/temp-voice.json` (`src/stores/events/tempVoiceStore.js`):
 `{ channels: { [eventId]: { guildId, channelId, name, createdAt, emptySince, closedAt, closeReason, manual, error } } }`,
-`closeReason` ∈ `empty`, `limit`, `manual`, `gone`, `missing`. Geschlossene Einträge bleiben 7 Tage (der
-Setup-Editor zeigt „geschlossen"), dann räumt `prune()` sie weg. Ein von Hand geschlossener Kanal öffnet nicht von selbst
-wieder.
+`closeReason` ∈ `empty`, `limit`, `manual`, `gone`, `moved`, `missing`; dazu `creatingAt`, `renameAt`, `granted`. Geschlossene Einträge bleiben 7 Tage (der
+Setup-Editor zeigt „geschlossen"), dann räumt `prune()` sie weg. Nach `limit`, `empty`, `manual` und `missing`
+öffnet der Job den Kanal nicht von selbst wieder; „Jetzt anlegen" geht bis zum spätesten Schließen.
 
 **Bot-Rechte** (`src/services/voice/tempVoiceDiscord.js`): **Kanäle verwalten** und **Mitglieder verschieben**, für
 „Nur Eingeteilte" zusätzlich **Berechtigungen verwalten**. Fehlt eines, nennt es die Setup-Zeile (`missingRights`); der Job schreibt den Fehler an den Eintrag statt zu werfen.
+Die Einstellungen zeigen es schon vorher: `GET /api/settings` liefert `tempVoiceRights` (je Discord-Kategorie, `""` = der
+Server, nur für den Server der Einstellungen; `null`, solange der Bot es nicht weiß), `TempVoiceFields` warnt unter der
+gewählten Kategorie. Eine neu gewählte Discord-Kategorie muss auf dem aktiven Server liegen (sonst 403 `other_server`;
+Voll-Admins ausgenommen).
 
 **Im Setup-Editor** (`pages/raid-detail/setup/VoiceChannelRow.tsx`, eine Zeile unter dem Kopf): Name und Zustand des
-Kanals des gewählten Raids (geplant ab …, offen mit Teilnehmerzahl und Link, geschlossen), dazu das Menü *Kanal* mit
-**Jetzt öffnen** und **Schließen**. Daten aus `GET /api/raids/voice?event=` (`{ botOnline, raids: [...] }` für alle
+Kanals des gewählten Raids (geplant ab …, wird gerade angelegt, offen mit Teilnehmerzahl und Link, geschlossen), dazu
+das Menü *Kanal* mit **Jetzt öffnen** (wenn der Server `canOpen` meldet) und **Schließen**. Liegt das späteste Schließen
+nach Mitternacht, steht der Wochentag davor („So 00:30"). Daten aus `GET /api/raids/voice?event=` (`{ botOnline, raids: [...] }` für alle
 Raids der Gruppe), Aktionen `POST /api/raids/voice/open` und `/close` mit `{ event }`
 (`src/web/apiRoutes/events/voice.js`, Bereich `raids`: Orga oder Manager der Kategorie; ein archivierter Raid nur
 lesend).
