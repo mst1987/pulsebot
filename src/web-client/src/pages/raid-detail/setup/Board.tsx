@@ -1,10 +1,10 @@
-import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useZone } from "./useZone";
 import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import type { VermerkShortMap } from "../../../api/roster/vermerke";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
-import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { balancedColumns, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
@@ -283,9 +283,27 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
  * The grid of the group cards. `count` (the number of groups) caps its width at that many cards of
  * --se-group-max, so a 10er's two groups are wide cards and a 25er still shows five side by side;
  * every head in a row is as tall as the tallest, so all places start on one line (setup-editor.css).
+ * Where not all fit in one row, the cards spread evenly over the rows (balancedColumns): 3 + 2, never 4 + 1.
  */
 export function GroupGrid({ count, children }: { count: number; children: ReactNode }) {
-    return <div className="se-groups" style={{ "--se-n": Math.max(1, count) } as CSSProperties}>{children}</div>;
+    const ref = useRef<HTMLDivElement>(null);
+    const [cols, setCols] = useState<number | null>(null);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el || typeof ResizeObserver === "undefined") return undefined;
+        const fit = () => {
+            const css = getComputedStyle(el);
+            const min = parseFloat(css.getPropertyValue("--se-col-min")) || 188;
+            const gap = parseFloat(css.columnGap) || 0;
+            if (el.clientWidth > 0) setCols(balancedColumns(count, el.clientWidth, min, gap));
+        };
+        fit();
+        const watch = new ResizeObserver(fit);
+        watch.observe(el);
+        return () => watch.disconnect();
+    }, [count]);
+    const style = { "--se-n": Math.max(1, count), ...(cols ? { "--se-cols": cols } : {}) } as CSSProperties;
+    return <div ref={ref} className={`se-groups${cols ? " se-fit" : ""}`} style={style}>{children}</div>;
 }
 
 /** "Tank 1 · Heiler 1 · Schaden 1" — the bench's roles at a glance (melee and ranged count as damage). */

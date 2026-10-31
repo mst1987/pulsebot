@@ -81,14 +81,16 @@
    buffs wrap) and every group's places start on the same line. No row gap here: the cards keep their distance below
    with a margin, so the two rows of one card sit flush. */
 .se-groups {
-    --se-n: 5; --se-group-max: 300px; --se-gap: 10px;
-    display: grid; grid-template-columns: repeat(auto-fit, minmax(188px, 1fr)); column-gap: var(--se-gap); row-gap: 0; margin-bottom: calc(-1 * var(--se-gap));
+    --se-n: 5; --se-group-max: 300px; --se-gap: 10px; --se-col-min: 188px;
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(var(--se-col-min), 1fr)); column-gap: var(--se-gap); row-gap: 0; margin-bottom: calc(-1 * var(--se-gap));
     max-width: calc(var(--se-n) * var(--se-group-max) + (var(--se-n) - 1) * var(--se-gap));
 }
 
 /* a group card, and every bench chunk (#354), share one look */
 .se-group { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; min-width: 0; transition: border-color .12s ease, box-shadow .12s ease; }
 /* one column that may shrink below its content (minmax(0, …)): a long spec line is cut with "…" inside the card, as before */
+/* measured (GroupGrid): the columns that fit, spread evenly over the rows - 3 + 2 instead of 4 + 1 */
+.se-groups.se-fit { grid-template-columns: repeat(var(--se-cols), minmax(0, 1fr)); }
 .se-groups > .se-group { display: grid; grid-row: span 2; grid-template-rows: subgrid; grid-template-columns: minmax(0, 1fr); row-gap: 0; margin-bottom: var(--se-gap); }
 .se-group.se-target { border-style: dashed; border-color: var(--accent); }
 .se-group.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
@@ -430,9 +432,15 @@
 @container se-stage (max-width: 719.98px) {
     .se-poolpanel { position: sticky; bottom: 0; z-index: 20; padding: 10px 12px; box-shadow: 0 -14px 32px -18px var(--shade-55); }
     .se-poolpanel.se-pp-none { position: static; box-shadow: none; }
-    .se-pp-head { flex-wrap: nowrap; gap: 8px; }
-    .se-pp-tools { flex-wrap: nowrap; overflow-x: auto; gap: 8px; }
-    .se-pp-search { flex: 0 0 150px; min-width: 0; margin-left: 0; }
+    /* the title and the fold arrow on top; the four states below over the full width (never cut off at "Viell"),
+       then "Nur Leader" and the search; folded, only the top line stays */
+    .se-pp-head { flex-wrap: wrap; gap: 8px; }
+    .se-pp-toggle { margin-left: auto; }
+    .se-pp-tools { order: 3; flex: 1 1 100%; flex-wrap: wrap; gap: 8px; }
+    .se-pp-seg { display: flex; flex: 1 1 100%; flex-wrap: wrap; max-width: 100%; }
+    .se-pp-segbtn { flex: 1 1 auto; justify-content: center; padding: 0 6px; }
+    .se-pp-search { flex: 1 1 150px; min-width: 0; margin-left: 0; }
+    .se-pp-collapsed .se-pp-tools { display: none; }
     .se-pp-tabs { display: flex; border-bottom: 1px solid var(--line-soft); }
     .se-pp-body { max-height: 46vh; }
     .se-pp-cols { display: block; overflow-y: auto; min-height: 0; }
@@ -505,7 +513,7 @@
 
 /* compact view (off by default, a switch in the bar): one-line raiders on narrower cards — for small screens or a very full raid.
    The spec line is in the raider panel. */
-.se-compact .se-groups { --se-gap: 8px; --se-group-max: 260px; grid-template-columns: repeat(auto-fit, minmax(158px, 1fr)); }
+.se-compact .se-groups { --se-gap: 8px; --se-group-max: 260px; --se-col-min: 158px; }
 .se-compact { --se-row: 32px; }
 .se-compact .se-slots { gap: 3px; padding: 4px; min-height: 30px; }
 .se-compact .se-slot { gap: 6px; padding: 0 5px 0 3px; }
@@ -563,7 +571,7 @@
     .se-bar-act { width: 100%; justify-content: flex-start; }
     .se-bar-act .se-post-split { margin-left: auto; }
 
-    .se-groups { --se-gap: 8px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .se-groups { --se-gap: 8px; --se-col-min: 140px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .se-group-head-top { padding: 8px 34px 8px 8px; justify-content: flex-start; }
     .se-group-head-top .se-count.se-num { right: 8px; font-size: 16px; }
     .se-group-buffs-row { padding: 0 8px 6px; }
