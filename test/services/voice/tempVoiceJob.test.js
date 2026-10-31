@@ -105,13 +105,35 @@ describe("services/voice/tempVoiceJob", () => {
 
         it("notes a failed create and tries again only after ten minutes", async () => {
             mockEvents.push(raid());
-            voice.createVoice.mockRejectedValueOnce(new Error("Missing Permissions"));
+            voice.createVoice.mockRejectedValueOnce(Object.assign(new Error("Missing Permissions"), { status: 403 }));
             await job.runTempVoice({ now: START - 1800 });
-            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "", error: "Missing Permissions" });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "", creatingAt: 0, error: "Missing Permissions" });
             await job.runTempVoice({ now: START - 1500 });
             expect(voice.createVoice).toHaveBeenCalledTimes(1);
             await job.runTempVoice({ now: START - 1200 });
             expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", error: "" });
+        });
+
+        it("keeps the mark after a network error, so the next run takes over a channel made anyway", async () => {
+            mockEvents.push(raid());
+            voice.createVoice.mockRejectedValueOnce(Object.assign(new Error("socket hang up"), { code: "ECONNRESET" }));
+            await job.runTempVoice({ now: START - 1800 });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "", creatingAt: START - 1800, error: "socket hang up" });
+            voice.findCreatedVoice.mockImplementation(() => ({ id: "v-late", name: "SSC · Sa 31.10." }));
+            await job.runTempVoice({ now: START - 1740 });
+            expect(voice.createVoice).toHaveBeenCalledTimes(1);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-late", creatingAt: 0, error: "" });
+        });
+
+        it("after a network error without a channel creates again only after ten minutes", async () => {
+            mockEvents.push(raid());
+            voice.createVoice.mockRejectedValueOnce(new Error("timeout"));
+            await job.runTempVoice({ now: START - 1800 });
+            await job.runTempVoice({ now: START - 1740 });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "", creatingAt: 0 });
+            expect(voice.createVoice).toHaveBeenCalledTimes(1);
+            await job.runTempVoice({ now: START - 1200 });
+            expect(voice.createVoice).toHaveBeenCalledTimes(2);
         });
 
         it("names the weekday in the raid's language", async () => {

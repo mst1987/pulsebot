@@ -84,6 +84,17 @@ const lastFailure = new Map();
 // eventId -> the running open(): a second caller (the job, "Jetzt anlegen") waits for it instead of creating twice.
 const opening = new Map();
 
+/**
+ * Whether a failed create surely made no channel: a rate limit, Discord's 4xx answer, or the
+ * bot not on the server (no request sent). A network error or timeout may have made one.
+ */
+function refused(e) {
+    if (discord.isRateLimitError(e)) return true;
+    if (e && e.code === "bot_offline") return true;
+    const status = Number(e && e.status);
+    return status >= 400 && status < 500;
+}
+
 async function create(event, plan, now, manual) {
     const before = tempVoiceStore.getEntry(event.id) || {};
     // Noted before the create: a crash before the id is saved finds the channel again (adoptCreated).
@@ -103,7 +114,10 @@ async function create(event, plan, now, manual) {
     } catch (e) {
         lastFailure.set(event.id, now);
         const error = discord.isRateLimitError(e) ? "Discord-Ratelimit beim Anlegen, nächster Versuch in 10 Minuten." : errorText(e);
-        tempVoiceStore.updateEntry(event.id, { creatingAt: 0, error, name: before.name || plan.name });
+        // Only a clear refusal proves there is no channel; after a network error or timeout it may
+        // exist, so the mark stays and the next run looks for it (adoptCreated).
+        const keep = !refused(e);
+        tempVoiceStore.updateEntry(event.id, { ...(keep ? {} : { creatingAt: 0 }), error, name: before.name || plan.name });
         logger.warn(`[tempVoice] Anlegen für ${event.id} fehlgeschlagen:`, errorText(e));
         return { ok: false, error };
     }
