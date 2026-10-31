@@ -24,12 +24,22 @@ let mockConfig = {};
 const mockParent = "222222222222222222";
 const mockFixed = "333333333333333333";
 jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
-jest.mock("../../../src/services/discord/discord", () => ({ getGuild: jest.fn(() => ({ id: "g1" })), isOnline: jest.fn(() => true) }));
+jest.mock("../../../src/services/discord/discord", () => ({
+    getGuild: jest.fn(() => ({ id: "g1" })),
+    isOnline: jest.fn(() => true),
+    isGuildAvailable: jest.fn(() => true),
+    isRateLimitError: jest.fn((e) => !!e && String(e.name || "").startsWith("RateLimitError")),
+}));
+let mockLang = "de";
+jest.mock("../../../src/services/discord/botLanguage", () => ({ eventLang: jest.fn(() => mockLang) }));
 jest.mock("../../../src/services/voice/tempVoiceDiscord", () => ({
-    createVoice: jest.fn(async (guildId, plan) => ({ id: `v-${plan.eventId}`, name: plan.name })),
+    createVoice: jest.fn(async (guildId, plan) => ({ id: `v-${plan.eventId}`, name: plan.name, granted: plan.onlyAssigned ? plan.members : [] })),
     renameVoice: jest.fn(async (g, c, name) => name),
     closeVoice: jest.fn(async () => ({ moved: 0, deleted: true })),
-    syncMembers: jest.fn(async () => 0),
+    syncMembers: jest.fn(async (g, c, members) => ({ granted: members, changed: 0 })),
+    setAccess: jest.fn(async (g, c, { onlyAssigned, members }) => ({ granted: onlyAssigned ? members : [] })),
+    channelGone: jest.fn(async () => true),
+    findCreatedVoice: jest.fn(() => null),
     memberCount: jest.fn(() => 0),
     missingRights: jest.fn(() => []),
     memberName: jest.fn((g, id) => (id === "u9" ? "Lahelo" : "")),
@@ -63,6 +73,10 @@ beforeEach(() => {
     setCategory({ mode: "temp" });
     voice.memberCount.mockImplementation(() => 0);
     discord.getGuild.mockImplementation(() => ({ id: "g1" }));
+    discord.isGuildAvailable.mockImplementation(() => true);
+    voice.channelGone.mockImplementation(async () => true);
+    voice.findCreatedVoice.mockImplementation(() => null);
+    mockLang = "de";
 });
 afterAll(() => {
     job._resetForTests();
@@ -100,9 +114,57 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", error: "" });
         });
 
+        it("names the weekday in the raid's language", async () => {
+            mockLang = "en";
+            mockEvents.push(raid());
+            await job.runTempVoice({ now: START - 1800 });
+            expect(voice.createVoice).toHaveBeenCalledWith("g1", expect.objectContaining({ name: "SSC · Sat 31.10." }));
+        });
+
+        it("says so when Discord's rate limit stops the create", async () => {
+            mockEvents.push(raid());
+            voice.createVoice.mockRejectedValueOnce(Object.assign(new Error("limited"), { name: "RateLimitError" }));
+            await job.runTempVoice({ now: START - 1800 });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "", creatingAt: 0, error: expect.stringContaining("Ratelimit") });
+        });
+
+        it("notes the create before it runs, so a crash in between finds the channel again", async () => {
+            mockEvents.push(raid());
+            let seen = null;
+            voice.createVoice.mockImplementationOnce(async (g, plan) => {
+                seen = tempVoiceStore.getEntry("eh-1");
+                return { id: "v1", name: plan.name, granted: [] };
+            });
+            await job.runTempVoice({ now: START - 1800 });
+            expect(seen).toMatchObject({ creatingAt: START - 1800, channelId: "", name: "SSC · Sa 31.10.", parentId: PARENT });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ creatingAt: 0, channelId: "v1" });
+        });
+
+        it("takes over a channel created before a crash instead of creating a second", async () => {
+            mockEvents.push(raid());
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", creatingAt: START - 1800, name: "SSC · Sa 31.10.", parentId: PARENT, limitAt: START + 14400 });
+            voice.findCreatedVoice.mockImplementation(() => ({ id: "v-found", name: "SSC · Sa 31.10." }));
+            await job.runTempVoice({ now: START - 1700 });
+            expect(voice.findCreatedVoice).toHaveBeenCalledWith("g1", { name: "SSC · Sa 31.10.", parentId: PARENT, since: START - 1800 });
+            expect(voice.createVoice).not.toHaveBeenCalled();
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-found", createdAt: START - 1800, creatingAt: 0, closedAt: 0 });
+        });
+
+        it("creates again when a crash left no channel behind, but not while the server is unavailable", async () => {
+            mockEvents.push(raid());
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", creatingAt: START - 1800, name: "SSC · Sa 31.10.", parentId: PARENT });
+            discord.isGuildAvailable.mockImplementation(() => false);
+            await job.runTempVoice({ now: START - 1700 });
+            expect(tempVoiceStore.getEntry("eh-1").creatingAt).toBe(START - 1800);
+            discord.isGuildAvailable.mockImplementation(() => true);
+            await job.runTempVoice({ now: START - 1600 });
+            expect(voice.createVoice).toHaveBeenCalledTimes(1);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", creatingAt: 0 });
+        });
+
         it("waits while the bot is not on the server", async () => {
             mockEvents.push(raid());
-            discord.getGuild.mockImplementation(() => null);
+            discord.isGuildAvailable.mockImplementation(() => false);
             expect((await job.runTempVoice({ now: START })).opened).toEqual([]);
             expect(voice.createVoice).not.toHaveBeenCalled();
         });
@@ -153,7 +215,45 @@ describe("services/voice/tempVoiceJob", () => {
             mockEvents[0] = raid({ raidGroupId: "eh-1", status: "cancelled" });
             const out = await job.runTempVoice({ now: START - 1700 });
             expect(out.closed.sort()).toEqual(["eh-1", "eh-2"]);
-            expect(tempVoiceStore.getEntry("eh-2").closeReason).toBe("gone");
+            expect(voice.closeVoice).toHaveBeenCalledTimes(2);
+            expect(tempVoiceStore.getEntry("eh-1")).toBeNull();
+            expect(tempVoiceStore.getEntry("eh-2")).toBeNull();
+        });
+
+        it("opens again for a raid back from cancelled after its channel went", async () => {
+            mockEvents.push(raid({ status: "cancelled" }));
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", channelId: "v-old", limitAt: START + 14400 });
+            await job.runTempVoice({ now: START - 1800 });
+            expect(tempVoiceStore.getEntry("eh-1")).toBeNull();
+            mockEvents[0] = raid();
+            expect((await job.runTempVoice({ now: START - 1700 })).opened).toEqual(["eh-1"]);
+        });
+
+        it("closes an empty channel when the raid moved later and opens it on the new time", async () => {
+            await openAt();
+            mockEvents[0] = raid({ startTime: START + 7200 });
+            expect((await job.runTempVoice({ now: START - 1700 })).closed).toEqual(["eh-1"]);
+            expect(tempVoiceStore.getEntry("eh-1")).toBeNull();
+            expect((await job.runTempVoice({ now: START + 5400 })).opened).toEqual(["eh-1"]);
+        });
+
+        it("keeps a channel with people in it when the raid moved later", async () => {
+            await openAt();
+            voice.memberCount.mockImplementation(() => 2);
+            mockEvents[0] = raid({ startTime: START + 7200 });
+            expect((await job.runTempVoice({ now: START - 1700 })).closed).toEqual([]);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ closedAt: 0, limitAt: START + 7200 + 240 * 60 });
+        });
+
+        it("lets an open channel run to its end when the category stops giving temporary channels", async () => {
+            await openAt();
+            setCategory({ mode: "none" });
+            expect((await job.runTempVoice({ now: START + 60 })).closed).toEqual([]);
+            expect(job.voiceStatus(mockEvents[0], { now: START + 60 })[0]).toMatchObject({ kind: "temp", state: "open", channelId: "v-eh-1", canOpen: false });
+            expect((await job.runTempVoice({ now: START + 186 * 60 })).closed).toEqual(["eh-1"]);
+            expect(tempVoiceStore.getEntry("eh-1").closeReason).toBe("empty");
+            // and once closed, nothing opens it again
+            expect((await job.runTempVoice({ now: START + 187 * 60 })).opened).toEqual([]);
         });
 
         it("renames raid 1 when the split is undone", async () => {
@@ -166,6 +266,20 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-1").name).toBe("SSC · Sa 31.10.");
         });
 
+        it("renames at most every five minutes and lives with a rate limit", async () => {
+            await openAt();
+            mockEvents[0] = raid({ title: "x", instanceIds: ["tk"] });
+            voice.renameVoice.mockRejectedValueOnce(Object.assign(new Error("limited"), { name: "RateLimitError" }));
+            await job.runTempVoice({ now: START - 1700 });
+            expect(voice.renameVoice).toHaveBeenCalledTimes(1);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ name: "SSC · Sa 31.10.", renameAt: START - 1700, closedAt: 0 });
+            await job.runTempVoice({ now: START - 1500 });
+            expect(voice.renameVoice).toHaveBeenCalledTimes(1);
+            await job.runTempVoice({ now: START - 1400 });
+            expect(voice.renameVoice).toHaveBeenCalledTimes(2);
+            expect(tempVoiceStore.getEntry("eh-1").name).toBe("TK · Sa 31.10.");
+        });
+
         it("marks a channel deleted in Discord as missing, but not while the bot is offline", async () => {
             await openAt();
             voice.memberCount.mockImplementation(() => null);
@@ -174,7 +288,20 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-1").closedAt).toBe(0);
             await job.runTempVoice({ now: START + 60 });
             expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ closedAt: START + 60, closeReason: "missing" });
+            expect(voice.channelGone).toHaveBeenCalledTimes(1);
             expect(voice.closeVoice).not.toHaveBeenCalled();
+        });
+
+        it("does not mark it missing without Discord's proof or while the server is unavailable", async () => {
+            await openAt();
+            voice.memberCount.mockImplementation(() => null);
+            voice.channelGone.mockImplementation(async () => false);
+            await job.runTempVoice({ now: START });
+            discord.isGuildAvailable.mockImplementation(() => false);
+            voice.channelGone.mockImplementation(async () => true);
+            await job.runTempVoice({ now: START + 60 });
+            expect(voice.channelGone).toHaveBeenCalledTimes(1);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ closedAt: 0, closeReason: "" });
         });
 
         it("keeps the assigned in sync with 'only assigned'", async () => {
@@ -183,7 +310,33 @@ describe("services/voice/tempVoiceJob", () => {
             await job.runTempVoice({ now: START - 1800 });
             expect(voice.createVoice).toHaveBeenCalledWith("g1", expect.objectContaining({ onlyAssigned: true, members: ["a"] }));
             await job.runTempVoice({ now: START - 1700 });
-            expect(voice.syncMembers).toHaveBeenCalledWith("g1", "v-eh-1", ["a"]);
+            expect(voice.syncMembers).toHaveBeenCalledWith("g1", "v-eh-1", ["a"], ["a"]);
+            expect(tempVoiceStore.getEntry("eh-1").granted).toEqual(["a"]);
+        });
+
+        it("notes which seats the bot gave when the assigned change", async () => {
+            setCategory({ mode: "temp", onlyAssigned: true });
+            mockEvents.push(raid({ setup: { groups: [{ index: 1, slots: [{ userId: "a" }] }] } }));
+            await job.runTempVoice({ now: START - 1800 });
+            mockEvents[0] = raid({ setup: { groups: [{ index: 1, slots: [{ userId: "b" }] }] } });
+            voice.syncMembers.mockResolvedValueOnce({ granted: ["b"], changed: 2 });
+            await job.runTempVoice({ now: START - 1700 });
+            expect(voice.syncMembers).toHaveBeenCalledWith("g1", "v-eh-1", ["b"], ["a"]);
+            expect(tempVoiceStore.getEntry("eh-1").granted).toEqual(["b"]);
+        });
+
+        it("opens or locks the open channel when 'only assigned' is switched", async () => {
+            mockEvents.push(raid({ setup: { groups: [{ index: 1, slots: [{ userId: "a" }] }] } }));
+            await job.runTempVoice({ now: START - 1800 });
+            setCategory({ mode: "temp", onlyAssigned: true });
+            await job.runTempVoice({ now: START - 1700 });
+            expect(voice.setAccess).toHaveBeenCalledWith("g1", "v-eh-1", { onlyAssigned: true, members: ["a"] });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ onlyAssigned: true, granted: ["a"] });
+            setCategory({ mode: "temp" });
+            await job.runTempVoice({ now: START - 1600 });
+            expect(voice.setAccess).toHaveBeenLastCalledWith("g1", "v-eh-1", { onlyAssigned: false, members: [] });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ onlyAssigned: false, granted: [] });
+            expect(voice.syncMembers).not.toHaveBeenCalled();
         });
     });
 
@@ -212,6 +365,32 @@ describe("services/voice/tempVoiceJob", () => {
             // a manually closed channel does not come back by itself
             expect((await job.runTempVoice({ now: START - 1800 })).opened).toEqual([]);
             expect(await job.openNow("eh-1", { now: START - 1700 })).toEqual({ ok: true });
+        });
+
+        it("creates one channel when 'Jetzt anlegen' meets the job", async () => {
+            mockEvents.push(raid());
+            let release;
+            voice.createVoice.mockImplementationOnce((g, plan) => new Promise((resolve) => {
+                release = () => resolve({ id: "v1", name: plan.name, granted: [] });
+            }));
+            const first = job.openNow("eh-1", { now: START - 1800 });
+            const second = job.openNow("eh-1", { now: START - 1800 });
+            const sweep = job.runTempVoice({ now: START - 1800 });
+            expect(job.voiceStatus(mockEvents[0], { now: START - 1800 })[0]).toMatchObject({ state: "creating", canOpen: false });
+            release();
+            expect(await first).toEqual({ ok: true });
+            expect(await second).toEqual({ ok: true });
+            await sweep;
+            expect(voice.createVoice).toHaveBeenCalledTimes(1);
+        });
+
+        it("offers 'Jetzt anlegen' again after a close, until the latest close", async () => {
+            mockEvents.push(raid());
+            await job.runTempVoice({ now: START - 1800 });
+            await job.closeNow("eh-1", { now: START });
+            expect(job.voiceStatus(mockEvents[0], { now: START + 60 })[0]).toMatchObject({ state: "closed", canOpen: true });
+            expect(job.voiceStatus(mockEvents[0], { now: START + 240 * 60 })[0]).toMatchObject({ canOpen: false });
+            expect(await job.openNow("eh-1", { now: START + 240 * 60 })).toMatchObject({ status: 409 });
         });
 
         it("refuses raids without a temporary channel", async () => {

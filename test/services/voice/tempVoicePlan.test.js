@@ -36,6 +36,7 @@ describe("services/voice/tempVoicePlan", () => {
 
     it("spells day and time in the server's zone", () => {
         expect(plan.dayLabel(START)).toBe("Sa 31.10.");
+        expect(plan.dayLabel(START, "en")).toBe("Sat 31.10.");
         expect(plan.timeLabel(START)).toBe("20:00");
         expect(plan.dayLabel(0)).toBe("");
     });

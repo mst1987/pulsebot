@@ -9,7 +9,7 @@
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { instanceById } = require("../../config/gameVersions");
-const { WEEKDAYS, normalizeForType } = require("../../utils/channelNames");
+const { WEEKDAYS, WEEKDAY_FORMS, normalizeForType } = require("../../utils/channelNames");
 const { plannedEndOrDefault } = require("../../utils/time");
 const { raidIndexOf } = require("../../utils/raidGroup");
 const { categoryTempVoiceFor, normalizeVoicePlan, EMPTY_CLOSE_MINUTES } = require("../../stores/settings/tempVoiceSettings");
@@ -35,11 +35,11 @@ function isTemporary(settings, index) {
     return settings.mode === "existing" && settings.fromRaid2 === true && index >= 2;
 }
 
-/** "Sa 31.10." in the server's zone; "" without a start. */
-function dayLabel(startTime) {
+/** "Sa 31.10." ("Sat 31.10." for "en") in the server's zone; "" without a start. */
+function dayLabel(startTime, lang = "de") {
     if (!startTime) return "";
     const dt = DateTime.fromSeconds(Number(startTime), { zone: TIMEZONE });
-    const wd = WEEKDAYS[dt.weekday % 7];
+    const wd = (lang === "en" ? WEEKDAY_FORMS.wday : WEEKDAYS)[dt.weekday % 7];
     return `${wd.charAt(0).toUpperCase()}${wd.slice(1)} ${dt.toFormat("dd.MM.")}`;
 }
 
@@ -83,12 +83,13 @@ function assignedUserIds(event) {
 /**
  * The plan for one raid of a group: `group` = every raid of it, sorted
  * (raidGroup.groupEvents), the primary first. `leaderName(userId)` names the
- * raid's leader for {leader}. Null when the raid gets no temporary channel.
+ * raid's leader for {leader}; `lang` the language of the raid's posts (eventLang), for
+ * the weekday in {datum}. Null when the raid gets no temporary channel.
  *
  *   { eventId, guildId, index, total, mode, name, parentId, onlyAssigned, members,
  *     openAt, startAt, endAt, limitAt, emptyMinutes, fixedChannelId, own }
  */
-function planFor(event, { group = [], config = {}, leaderName = () => "" } = {}) {
+function planFor(event, { group = [], config = {}, leaderName = () => "", lang = "de" } = {}) {
     if (!event || event.status === "cancelled") return null;
     const list = group.length ? group : [event];
     const primary = list[0] || event;
@@ -103,7 +104,7 @@ function planFor(event, { group = [], config = {}, leaderName = () => "" } = {})
     const name = renderVoiceName(settings.nameTemplate, {
         raid: raidLabel(event) || raidLabel(primary),
         nr: total > 1 ? String(index) : "",
-        datum: dayLabel(startAt),
+        datum: dayLabel(startAt, lang),
         zeit: timeLabel(startAt),
         leader: event.leaderId ? String(leaderName(event.leaderId) || "") : "",
     });

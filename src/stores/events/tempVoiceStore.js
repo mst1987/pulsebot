@@ -3,7 +3,8 @@
 //
 // `data/settings/temp-voice.json` = { channels: { [eventId]: entry } }
 //
-//   entry = { guildId, channelId, name, createdAt, emptySince, closedAt, closeReason, manual, error }
+//   entry = { guildId, channelId, name, createdAt, emptySince, closedAt, closeReason, manual, error,
+//             creatingAt, parentId, endAt, limitAt, fixedChannelId, onlyAssigned, granted, renameAt }
 //
 // `createdAt`/`emptySince`/`closedAt` are unix seconds (0 = not yet / not now).
 // `closeReason` says why the channel went: "empty", "limit" (the latest close
@@ -13,6 +14,15 @@
 // Discord refusal (create or delete), shown in the setup editor. A closed entry
 // stays, so the job never opens the same raid's channel twice; entries of raids
 // long over are dropped by `prune()`.
+//
+// `creatingAt` is written before the create call and cleared with the channel id
+// after it: a crash in between leaves it set, and the next run adopts the channel
+// made at that time (same name, same Discord category) instead of leaving it
+// orphaned. `endAt`/`limitAt`/`fixedChannelId` are the plan's times at the
+// opening, so a channel whose category stopped using temporary channels still
+// closes on its own schedule. `onlyAssigned` is how the channel was set up (a change
+// switches its access), `granted` the members the bot gave a seat itself (a seat set
+// by hand is never taken), `renameAt` the last rename attempt (renames are throttled).
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 
@@ -32,6 +42,14 @@ function normalizeEntry(raw) {
         closeReason: str(raw.closeReason),
         manual: raw.manual === true,
         error: str(raw.error).slice(0, 300),
+        creatingAt: num(raw.creatingAt),
+        parentId: str(raw.parentId),
+        endAt: num(raw.endAt),
+        limitAt: num(raw.limitAt),
+        fixedChannelId: str(raw.fixedChannelId),
+        onlyAssigned: raw.onlyAssigned === true,
+        granted: Array.isArray(raw.granted) ? [...new Set(raw.granted.map(str).filter(Boolean))] : [],
+        renameAt: num(raw.renameAt),
     };
     return entry.guildId ? entry : null;
 }
@@ -85,12 +103,13 @@ function removeEntry(eventId) {
     return true;
 }
 
-/** Drop closed entries older than `before` (unix seconds); returns how many went. */
+/** Drop closed entries older than `before` (unix seconds) and failed ones whose raid ended before it; returns how many went. */
 function prune(before) {
     const data = store.read();
     let dropped = 0;
     for (const [id, e] of Object.entries(data.channels)) {
-        if (e.closedAt && e.closedAt < before) {
+        const stale = !e.channelId && !e.creatingAt && e.limitAt && e.limitAt < before;
+        if ((e.closedAt && e.closedAt < before) || stale) {
             delete data.channels[id];
             dropped += 1;
         }

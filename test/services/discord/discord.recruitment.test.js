@@ -235,6 +235,31 @@ describe("services/discord/discord recruitment as forum post with a link button"
         });
     });
 
+    describe("failFastOnRateLimit", () => {
+        it("rejects a rate limit only for the given path while the call runs, also when two run at once", async () => {
+            const rest = { options: {} };
+            discord.setClient(dc.makeClient({ channels: [], user: { id: BOT }, rest }));
+            const ask = (url) => rest.options.rejectOnRateLimit({ url: `https://discord.com/api/v10${url}`, route: "" });
+            let release = null;
+            const first = discord.failFastOnRateLimit("/guilds/g1/channels", () => new Promise((r) => { release = r; }));
+            const second = discord.failFastOnRateLimit("/guilds/g1/channels", async () => "b");
+            await expect(second).resolves.toBe("b");
+            expect(await ask("/guilds/g1/channels")).toBe(true);
+            expect(await ask("/guilds/g2/channels")).toBe(false);
+            release("a");
+            await expect(first).resolves.toBe("a");
+            expect(await ask("/guilds/g1/channels")).toBe(false);
+        });
+
+        it("passes a refusal on and marks the rate limit as such", async () => {
+            discord.setClient(dc.makeClient({ channels: [], user: { id: BOT } }));
+            await expect(discord.failFastOnRateLimit("/x", async () => { throw new Error("Missing Permissions"); })).rejects.toThrow("Missing Permissions");
+            const err = await discord.failFastOnRateLimit("/x", async () => { throw Object.assign(new Error("429"), { name: "RateLimitError" }); }).catch((e) => e);
+            expect(discord.isRateLimitError(err)).toBe(true);
+            expect(discord.isRateLimitError(new Error("boom"))).toBe(false);
+        });
+    });
+
     it("lists forums (with both send rights) next to text channels, marked as forum", () => {
         const guild = dc.makeGuild({
             id: "g1",
