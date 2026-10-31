@@ -131,7 +131,7 @@ describe("commands/signup/eventJoin", () => {
         const i = pick("bench");
         await command.execute(i);
         expect(mocks.signups.size).toBe(0);
-        expect(buttonsOf(replyOf(i))[0]).toMatchObject({ label: "Save: Bench", custom_id: "signup-status:eh-kara:b:brokk:Warrior-Protection:" });
+        expect(buttonsOf(replyOf(i))[0]).toMatchObject({ label: "Save: Reserve", custom_id: "signup-status:eh-kara:b:brokk:Warrior-Protection:" });
     });
 
     it("signs off at once, keeping character and comment", async () => {

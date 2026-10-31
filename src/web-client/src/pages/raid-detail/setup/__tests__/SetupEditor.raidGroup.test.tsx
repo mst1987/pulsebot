@@ -1,9 +1,10 @@
 // A raid group (#811) in the setup editor: the tabs "Raid 1 | Raid 2" over the
 // editor (a click switches, a raider dropped on a tab — or picked, then the tab
-// clicked — goes into that raid), "Weiteren Raid hinzufügen" (a calm line under
-// the bar while overbooked, else under "Mehr", with the title "<Titel> 2" to edit;
-// several at once with −/+ and "Danach automatisch füllen", #1035) and dissolving
-// a further raid. The API is mocked at its transport.
+// clicked — goes into that raid), "Raids hinzufügen / aufteilen …" (always under
+// "Aktionen"; overbooked shows as a warn count, and from the 70 % rule on the
+// server's suggestion "Auf N Raids aufteilen" stands hot in the menu and the head;
+// the title "<Titel> 2" to edit, several at once with −/+ and "Danach automatisch
+// füllen", #1035) and dissolving a further raid. The API is mocked at its transport.
 import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,6 +36,12 @@ beforeEach(() => {
         return Promise.resolve(page);
     });
 });
+
+/** Opens "Aktionen" and finds an entry by its name. */
+async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string) {
+    await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+    return screen.getByRole("menuitem", { name: new RegExp(name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")) });
+}
 
 async function show(data: SetupEditorData, props: { raidId?: string; onSwitchRaid?: (id: string) => void } = {}) {
     page = data;
@@ -105,18 +112,21 @@ describe("the tabs of a raid group", () => {
     });
 });
 
-describe("Weiteren Raid hinzufügen", () => {
-    it("stands in a calm line under the bar while more signed up than there are places, asks for the title (\"<Titel> 2\") and switches to the new raid", async () => {
+describe("Raids hinzufügen / aufteilen", () => {
+    it("shows an overbooked evening below the 70 % rule as a warn count only, the manual entry under \"Aktionen\" asks for the title (\"<Titel> 2\") and switches to the new raid", async () => {
         const onSwitchRaid = vi.fn();
         const user = userEvent.setup();
-        await show(editorData({ signupCount: 30 }), { onSwitchRaid });
-        // not in the bar's actions and not under "Mehr": the hint line says why, the button sits in it
-        const hint = document.querySelector<HTMLElement>(".se-overbooked")!;
-        expect(hint).toHaveAttribute("role", "status");
-        expect(hint).toHaveTextContent(t("setup.raidGroup.overbookedHint", { count: 30, places: 25 }));
-        expect(t("setup.raidGroup.overbookedHint", { count: 30, places: 25 })).toBe("30 Anmeldungen für 25 Plätze");
-        expect(within(document.querySelector<HTMLElement>(".se-bar")!).queryByRole("button", { name: t("setup.raidGroup.add") })).not.toBeInTheDocument();
-        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.add") }));
+        // 30 for 25 places: two raids would be 60 % full, the server suggests no split (suggestedTotal 0)
+        await show(editorData({ signupCount: 30, suggestedTotal: 0 }), { onSwitchRaid });
+        const count = within(screen.getByRole("list", { name: t("setup.bar.countsAria") })).getByText(t("setup.bar.overbookedChip", { signed: 30, places: 25 })).closest<HTMLElement>("[role=listitem]")!;
+        expect(t("setup.bar.overbookedChip", { signed: 30, places: 25 })).toBe("30 Anmeldungen / 25 Plätze");
+        expect(count).toHaveClass("se-tone-mid");
+        expect(count).toHaveAttribute("data-tip-sub", t("setup.bar.overbookedSub"));
+        // no banner line, no split suggestion in the head or the menu
+        expect(document.querySelector(".se-overbooked")).toBeNull();
+        expect(document.querySelector(".se-split-hint")).toBeNull();
+        expect(screen.queryByRole("button", { name: /aufteilen$/ })).not.toBeInTheDocument();
+        await user.click(await moreItem(user, t("setup.raidGroup.addOrSplit")));
         const input = screen.getByLabelText(t("setup.raidGroup.titleLabel"));
         expect(input).toHaveValue("Karazhan Donnerstag 2");
         await user.clear(input);
@@ -135,10 +145,18 @@ describe("Weiteren Raid hinzufügen", () => {
         const user = userEvent.setup();
         const tenMan = editorData({ signupCount: 50, suggestedTotal: 5 });
         await show({ ...tenMan, event: { ...tenMan.event, size: 10 } }, { onSwitchRaid });
-        const hint = document.querySelector<HTMLElement>(".se-overbooked")!;
-        expect(hint).toHaveTextContent("50 Anmeldungen für 10 Plätze");
+        expect(screen.getByRole("list", { name: t("setup.bar.countsAria") })).toHaveTextContent("50 Anmeldungen / 10 Plätze");
         expect(t("setup.raidGroup.split", { count: 5 })).toBe("Auf 5 Raids aufteilen");
-        await user.click(within(hint).getByRole("button", { name: t("setup.raidGroup.split", { count: 5 }) }));
+        // from the 70 % rule on, the split stands in the head (a calm ghost button) …
+        const head = document.querySelector<HTMLElement>(".se-split-hint")!;
+        expect(head).toHaveTextContent(t("setup.raidGroup.split", { count: 5 }));
+        expect(head).toHaveClass("btn-ghost");
+        // … and hot at the top of "Aktionen", beside the manual entry
+        const hot = await moreItem(user, t("setup.raidGroup.split", { count: 5 }));
+        expect(hot).toHaveClass("se-tone-hot");
+        expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.raidGroup.addOrSplit").replace("…", "")) })).toBeInTheDocument();
+        await user.keyboard("{Escape}");
+        await user.click(head);
         const dialog = screen.getByRole("dialog");
         expect(dialog).toHaveTextContent(t("setup.raidGroup.splitTitle"));
         const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
@@ -172,7 +190,7 @@ describe("Weiteren Raid hinzufügen", () => {
         const user = userEvent.setup();
         const full: RaidGroup = { ...GROUP, count: 7, raids: [...GROUP.raids, ...[3, 4, 5, 6, 7].map((i) => ({ ...GROUP.raids[1], id: `ev${i}`, index: i, title: `Karazhan Donnerstag ${i}` }))] };
         await show(editorData({ signupCount: 200, suggestedTotal: 8, raidGroup: full }));
-        await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: t("setup.raidGroup.split", { count: 8 }) }));
+        await user.click(document.querySelector<HTMLElement>(".se-split-hint")!);
         const stepper = screen.getByRole("group", { name: t("setup.raidGroup.countLabel") });
         expect(stepper).toHaveTextContent("8");
         expect(within(stepper).getByRole("button", { name: t("setup.raidGroup.countMore") })).toBeDisabled();
@@ -185,7 +203,9 @@ describe("Weiteren Raid hinzufügen", () => {
         try {
             const user = userEvent.setup();
             await show(editorData({ signupCount: 50, suggestedTotal: 4 }));
-            await user.click(within(document.querySelector<HTMLElement>(".se-overbooked")!).getByRole("button", { name: "Split into 4 raids" }));
+            expect(screen.getByRole("list", { name: "Roles and places" })).toHaveTextContent("50 signups / 25 places");
+            expect(screen.getByRole("button", { name: "Actions" })).toBeInTheDocument();
+            await user.click(document.querySelector<HTMLElement>(".se-split-hint")!);
             expect(screen.getByRole("group", { name: "Raids in total" })).toHaveTextContent("4");
             expect(screen.getByText("New raids")).toBeInTheDocument();
             expect(screen.getByText("Split into several raids")).toBeInTheDocument();
@@ -196,13 +216,17 @@ describe("Weiteren Raid hinzufügen", () => {
         }
     });
 
-    it("waits under \"Mehr\" while the places suffice", async () => {
+    it("waits under \"Aktionen\" while the places suffice — always there, never hot, no warn count", async () => {
         const user = userEvent.setup();
         await show(editorData({ signupCount: 4 }));
-        expect(screen.queryByRole("button", { name: t("setup.raidGroup.add") })).not.toBeInTheDocument();
-        expect(document.querySelector(".se-overbooked")).toBeNull();
-        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
-        expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.raidGroup.add")) })).toBeInTheDocument();
+        expect(document.querySelector(".se-split-hint")).toBeNull();
+        expect(screen.getByRole("list", { name: t("setup.bar.countsAria") })).not.toHaveTextContent("Anmeldungen");
+        const add = await moreItem(user, t("setup.raidGroup.addOrSplit"));
+        expect(add).not.toHaveClass("se-tone-hot");
+        expect(screen.queryByRole("menuitem", { name: /Raids aufteilen$/ })).not.toBeInTheDocument();
+        // a manual split opens the dialog with one raid more than there are
+        await user.click(add);
+        expect(screen.getByRole("group", { name: t("setup.raidGroup.countLabel") })).toHaveTextContent("2");
     });
 });
 

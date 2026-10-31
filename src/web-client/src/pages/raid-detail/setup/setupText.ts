@@ -137,6 +137,46 @@ export function storeCompact(on: boolean) {
     }
 }
 
+// The bench as a sixth column beside the groups ("Ansicht › Bank als Spalte") instead
+// of a row under them — like the compact view a per-viewer choice, off by default.
+const BENCH_COLUMN_KEY = "eh-setup-bench-column";
+
+export function readBenchColumn(): boolean {
+    try {
+        return localStorage.getItem(BENCH_COLUMN_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+export function storeBenchColumn(on: boolean) {
+    try {
+        localStorage.setItem(BENCH_COLUMN_KEY, on ? "1" : "0");
+    } catch {
+        // private window or blocked storage — the choice just is not remembered
+    }
+}
+
+// "Angemeldet" as a 300px sidebar left of the groups (B, "Ansicht › Angemeldet als
+// Seitenleiste") instead of role columns under them (A) — per viewer, off by default.
+const POOL_SIDEBAR_KEY = "eh-setup-pool-sidebar";
+
+export function readPoolSidebar(): boolean {
+    try {
+        return localStorage.getItem(POOL_SIDEBAR_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+export function storePoolSidebar(on: boolean) {
+    try {
+        localStorage.setItem(POOL_SIDEBAR_KEY, on ? "1" : "0");
+    } catch {
+        // private window or blocked storage — the choice just is not remembered
+    }
+}
+
 /** One line of "Gerade eben" in words: "Taccop hat Cherrylol in Gruppe 2 gesetzt". */
 export function activityText(e: SetupActivity): string {
     const who = e.byName || "?";

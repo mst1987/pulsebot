@@ -79,6 +79,8 @@ export type ClaFilter = "all" | "open" | "unlinked" | "done";
 
 export type ClaData = {
     filter: ClaFilter;
+    /** "Nur meine Raids": only logs whose evaluation lists one of the caller's characters or whose raid event they were part of; the counts follow. */
+    mine?: boolean;
     page: ClaPage<ClaRow>;
     counts: Record<ClaFilter, number>;
     /** How many open logs "Automatisch zuordnen" would assign right now. */
@@ -88,7 +90,7 @@ export type ClaData = {
     activeGuildId: string;
 };
 
-export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?: number, version?: string): Promise<ClaData> {
+export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?: number, version?: string, mine?: boolean): Promise<ClaData> {
     const qs = new URLSearchParams();
     qs.set("filter", filter);
     if (sort) qs.set("sort", sort);
@@ -96,6 +98,8 @@ export function getClaData(filter: ClaFilter, sort?: string, dir?: string, page?
     if (page) qs.set("page", String(page));
     // the menu's content version (#741): a linked log of another version is not listed
     if (version) qs.set("version", version);
+    // "Nur meine Raids": only the logs the caller played in
+    if (mine) qs.set("mine", "1");
     return get<ClaData>(`/api/cla?${qs.toString()}`);
 }
 

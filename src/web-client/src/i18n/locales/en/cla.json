@@ -5,6 +5,11 @@
         "loading": "Loading logs",
         "loadError": "Error while loading: {message}"
     },
+    "mine": {
+        "label": "Only my raids",
+        "tip": "Logs whose evaluation lists one of your characters or whose raid event you were part of.",
+        "empty": "No logs of raids you were part of."
+    },
     "choices": {
         "bothSub": "Full evaluation on one report page",
         "claLabel": "CLA only",

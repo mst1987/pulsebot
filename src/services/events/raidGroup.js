@@ -16,6 +16,9 @@ const { str } = require("../../utils/text");
 // More raids than this from one signup is no longer one evening's split.
 const MAX_RAIDS = 8;
 const MAX_TITLE = 100;
+// A split is only suggested when the signups fill every one of the raids to at least this share (26 signups for a
+// 25-man are one too many, not a second raid of one). Adding raids by hand stays possible below it.
+const SPLIT_MIN_FILL = 0.7;
 
 const fail = (status, code, error) => ({ status, code, error });
 
@@ -185,17 +188,21 @@ function addRaids(eventId, { count = 1, titles = [], user = null, now = Date.now
 }
 
 /**
- * How many raids the group should have in total for the signups ("Auf 5 Raids
+ * How many raids the group should have in total for the signups ("Auf 3 Raids
  * aufteilen"): enough raids for everybody who is signed up (`active` = without
- * a decline or absence — "Vielleicht" and the bench count, as in the pool), at
- * most MAX_RAIDS. 0 without signups or size. The client subtracts the raids
- * the group already has.
+ * a decline or absence — "Vielleicht" and the bench count, as in the pool), but
+ * only as many as the signups fill to SPLIT_MIN_FILL each — 26 for a 25-man stay
+ * one raid, 35 make two, 52 still two, 53 three. At most MAX_RAIDS, at least 1;
+ * 0 without signups or size. The client suggests the split only above the raids
+ * the group already has; adding raids by hand stays possible below it.
  */
 function suggestedRaidTotal({ active = 0, size = 0 } = {}) {
     const people = Number(active) || 0;
     const seats = Number(size) || 0;
     if (people <= 0 || seats <= 0) return 0;
-    return Math.min(Math.ceil(people / seats), MAX_RAIDS);
+    let total = Math.min(Math.ceil(people / seats), MAX_RAIDS);
+    while (total > 1 && people < SPLIT_MIN_FILL * seats * total) total -= 1;
+    return total;
 }
 
 /** The group an add request grows (its primary, raids), or why not. */
@@ -318,5 +325,5 @@ function dissolveRaid(eventId, { user = null, now = Date.now() } = {}) {
 
 module.exports = {
     groupEvents, primaryOf, placedElsewhere, lineupMembers, groupSummary, groupPlaces, addRaid, addRaids, suggestedRaidTotal,
-    dissolveRaid, defaultTitle, closeUp, followPrimary, MAX_RAIDS,
+    dissolveRaid, defaultTitle, closeUp, followPrimary, MAX_RAIDS, SPLIT_MIN_FILL,
 };

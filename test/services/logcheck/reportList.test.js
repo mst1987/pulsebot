@@ -203,6 +203,14 @@ describe("prepareClaList — the Log-Auswertung's one list", () => {
         expect(page.items.some((r) => r.id === "report:r2")).toBe(false);
     });
 
+    it("keeps only the rows `keep` lets through, and counts the tabs over those (Nur meine Raids)", () => {
+        const keep = (row) => Boolean(row.report && row.report.id === "r1") || row.id === "report:r3";
+        const { page, counts } = prepareClaList(logs, reports, {}, { keep });
+        expect(page.items.map((r) => r.id)).toEqual(["half", "report:r3"]);
+        expect(counts).toEqual({ all: 2, open: 0, unlinked: 0, done: 2 });
+        expect(prepareClaList(logs, reports, { filter: "open" }, { keep }).page.items).toEqual([]);
+    });
+
     it("carries the report's numbers and raids on the log's row, and reads a legacy done log as CLA", () => {
         const { page } = prepareClaList(logs, reports, {});
         const half = page.items.find((r) => r.id === "half");

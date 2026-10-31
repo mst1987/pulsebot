@@ -203,7 +203,7 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const [raidRow, statusRow, goRow] = payload.components;
         expect(raidRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:r`, min_values: 1, max_values: 7 });
         expect(raidRow.components[0].options.every((o) => o.default)).toBe(false);
-        expect(statusRow.components[0].options.map((o) => o.label)).toEqual(["Sign up", "Tentative", "Late", "Bench", "Absence"]);
+        expect(statusRow.components[0].options.map((o) => o.label)).toEqual(["Sign up", "Tentative", "Late", "Reserve", "Absence"]);
         expect(goRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:0`, label: "Next: characters", disabled: true });
     });
 

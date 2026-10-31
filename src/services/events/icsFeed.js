@@ -32,7 +32,7 @@ const PRODID = "-//EventHelper//Raid-Kalender//DE";
 // The raider's own status, in the words the bot uses in Discord (English, like
 // every raider-facing text; the calendar client renders the times itself).
 const STATUS_LABELS = {
-    signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence",
+    signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Reserve", absence: "Absence",
 };
 // A description longer than this is clipped — a calendar entry is a reminder,
 // not the event page; the URL below it leads to the whole text.

@@ -82,7 +82,7 @@ describe("changeSignupFromSetup", () => {
         expect(signupStore.getSignup(event.id, BENCHER)).toMatchObject({ status: "signed", character: "Wartebank", spec: "Mage-Arcane" });
         const log = eventStore.getEvent(event.id).log.at(-1);
         expect(log).toMatchObject({ action: "signupEdit", by: ORGA.id, byName: "Orga" });
-        expect(log.detail).toBe("Wartebank · Bank → Dabei");
+        expect(log.detail).toBe("Wartebank · Ersatz → Dabei");
         // still in "Angemeldet" (nobody is placed by a status), now as "Dabei"
         const pool = eventStore.getEvent(event.id).setup.pool;
         expect(pool.find((p) => p.userId === BENCHER)).toMatchObject({ status: "signed" });

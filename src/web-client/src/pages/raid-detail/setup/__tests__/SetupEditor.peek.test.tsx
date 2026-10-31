@@ -124,7 +124,7 @@ describe("the peek: a raider's info on hover and focus", () => {
         const user = userEvent.setup();
         await show();
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
-        const line = within(pool).getByRole("group", { name: t("setup.poolPanel.sections.healer") }).querySelector<HTMLElement>(".se-alt[data-character=\"Zibbowar\"]")!;
+        const line = within(pool).getByRole("group", { name: t("setup.poolPanel.sections.tank") }).querySelector<HTMLElement>(".se-slot[data-character=\"Zibbowar\"]")!;
         await user.hover(line);
         const peek = await findPeek();
         expect(within(peek).getByText("Zibbowar")).toBeInTheDocument();

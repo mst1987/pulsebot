@@ -13,7 +13,7 @@
         "waitlist": "waiting list",
         "refuse": "refuse",
         "lineNone": "full: no limit, picked in the setup",
-        "lineWaitlist": "full: waiting list (bench)",
+        "lineWaitlist": "full: waiting list (reserve)",
         "lineRefuse": "full: no more signups",
         "lock": "{full} · signups close when full"
     },

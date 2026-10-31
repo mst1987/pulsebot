@@ -172,6 +172,23 @@ export function withAllGroups(groups: SetupEditorGroup[], count: number): SetupE
     return out;
 }
 
+/**
+ * How many group cards stand side by side: as many as fit (each at least `min` wide, `gap` between), but
+ * spread evenly over the rows they need, so no row is left with one lonely card — 5 groups where 4 fit
+ * become 3 + 2, 7 become 4 + 3, 8 stay 4 + 4.
+ */
+export function balancedColumns(count: number, width: number, min: number, gap: number): number {
+    const n = Math.max(1, count);
+    const spread = (fit: number) => Math.ceil(n / Math.ceil(n / Math.min(fit, n)));
+    const fit = Math.max(1, Math.floor((width + gap) / (min + gap)));
+    const cols = spread(fit);
+    // still one card alone in the last row (5 on two columns): squeeze one more column in
+    // when the cards stay at least 90 % of their usual width
+    const lonely = n > cols && n % cols === 1;
+    if (lonely && (width - fit * gap) / (fit + 1) >= min * 0.9) return spread(fit + 1);
+    return cols;
+}
+
 /** Where a raider stands in a save request: `{ group }`, `{ bench: true }` or null. */
 export function positionOf(input: SetupPlacementInput, userId: string) {
     for (const g of input.groups) {

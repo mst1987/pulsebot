@@ -1,5 +1,5 @@
-// Several characters per raider (#293) in the setup editor: "Angemeldet" shows ONE
-// card per person with every signed character, a drag or pick of a further
+// Several characters per raider (#293) in the setup editor: "Angemeldet" shows every
+// signed character in its role's column ("2. Char von …"), a drag or pick of a further
 // character places exactly that one, "Charakter wechseln" in the raider panel
 // switches a placed raider without taking them out. The API is mocked at its
 // transport (api/client), so the tests pin the requests. The moves behind it:
@@ -50,9 +50,9 @@ const block = (role: string) => within(pool()).getByRole("group", { name: t(`set
 const group = (index: number) => screen.getByRole("region", { name: t("setup.group.title", { index }) });
 const panel = () => screen.getByRole("complementary", { name: t("setup.person.tip.aria") });
 const calls = (method: string, path: string) => vi.mocked(client.send).mock.calls.filter(([m, p]) => m === method && p === path);
-/** A further character's line in "Angemeldet" (inside one block, when given). */
+/** A further character's line in "Angemeldet" (inside one role column, when given). */
 const line = (character: string, inside: HTMLElement = pool()) => {
-    const el = inside.querySelector<HTMLElement>(`.se-alt[data-character="${character}"]`);
+    const el = inside.querySelector<HTMLElement>(`.se-slot[data-character="${character}"]`);
     if (!el) throw new Error(`no line for ${character}`);
     return el;
 };
@@ -66,40 +66,39 @@ const slotOf = (body: SetupPlacementInput, userId: string) => body.groups.flatMa
 /** Group 1: Bruno, Ignis; group 2: Lumen — and Zibbo and Messer in "Angemeldet". */
 const withPool = () => editorData({}, { pool: [ZIBBO, ROGUE] });
 
-describe("Angemeldet: one card per person with every signed character", () => {
-    it("shows the further characters under the first, quiet, with their order number and an own status dot", async () => {
+describe("Angemeldet: every signed character in its own role column", () => {
+    it("shows a further character in its role's column, marked as the second char of the first", async () => {
         await show(withPool());
-        const healers = block("healer");
-        // the card's line: the first character, number 1
-        expect(within(healers).getByText("Zibbo")).toBeInTheDocument();
-        const war = line("Zibbowar", healers);
+        // the character they stand as: a plain line in the healer column
+        expect(within(block("healer")).getByText("Zibbo")).toBeInTheDocument();
+        expect(block("healer").querySelector(".se-slot[data-character]")).toBeNull();
+        // Zibbowar stands under Tanks only, "2. Char von Zibbo" where the spec stands
+        const war = line("Zibbowar", block("tank"));
         expect(war).toHaveTextContent("Zibbowar");
-        expect(war).toHaveTextContent("Schutz");
-        expect(war).toHaveTextContent("2");
-        expect(line("Zibbomage", healers)).toHaveTextContent("3");
-        // "Spät" differs from the card's line: its own dot
-        expect(within(war).getByRole("img", { name: t("signups.status.late") })).toBeInTheDocument();
-        expect(within(line("Zibbomage", healers)).queryByRole("img")).not.toBeInTheDocument();
+        expect(war).toHaveTextContent(t("setup.poolPanel.altOf", { n: 2, character: "Zibbo" }));
+        expect(within(block("healer")).queryByText("Zibbowar")).not.toBeInTheDocument();
+        expect(line("Zibbomage", block("ranged"))).toHaveTextContent(t("setup.poolPanel.altOf", { n: 3, character: "Zibbo" }));
+        // its spec is in the line's name, so a screen reader hears what it places
+        expect(war).toHaveAccessibleName(t("setup.chars.lineAria", { character: "Zibbowar", spec: "Schutz", n: 2 }));
     });
 
-    it("lists a person in every role block one of their characters fits, led there by it — the head counts persons", async () => {
+    it("counts persons in the head and characters per column, further characters apart", async () => {
         await show(withPool());
         // two persons, not four characters
         expect(within(pool()).getByText("2", { selector: ".se-pp-count" })).toBeInTheDocument();
-        // the tank block is led by Zibbowar, the priest stands under it
-        const tanks = block("tank");
-        expect(tanks.querySelector(".se-slot .se-name")).toHaveTextContent("Zibbowar");
-        expect(line("Zibbo", tanks)).toBeInTheDocument();
-        expect(block("ranged").querySelector(".se-slot .se-name")).toHaveTextContent("Zibbomage");
-        expect(block("melee").querySelector(".se-slot .se-name")).toHaveTextContent("Messer");
-        // the role chips count persons who have a character for the role
-        const chip = (f: string) => within(pool()).getByRole("button", { name: new RegExp(`^${t(`setup.poolPanel.filters.${f}`)}`) });
-        expect(chip("all")).toHaveTextContent("2");
-        expect(chip("tank")).toHaveTextContent("1");
-        expect(chip("dps")).toHaveTextContent("2");
-        await userEvent.setup().click(chip("tank"));
-        expect(within(pool()).queryByRole("group", { name: t("setup.poolPanel.sections.healer") })).not.toBeInTheDocument();
-        expect(block("tank")).toBeInTheDocument();
+        const head = (role: string) => block(role).querySelector<HTMLElement>(".se-pp-col-head")!;
+        expect(head("healer").querySelector("b")).toHaveTextContent("1");
+        expect(head("melee").querySelector("b")).toHaveTextContent("1");
+        // the tank column: nobody stands as a tank, one further character
+        expect(head("tank").querySelector("b")).toHaveTextContent("0");
+        expect(head("tank")).toHaveTextContent(t("setup.poolPanel.altCount", { count: 1 }));
+        expect(head("healer").querySelector(".se-pp-alts")).toBeNull();
+    });
+
+    it("shows an empty column as a dash", async () => {
+        await show(editorData({}, { pool: [ROGUE] }));
+        expect(within(block("tank")).getByLabelText(t("setup.poolPanel.emptyCol"))).toHaveTextContent("–");
+        expect(within(block("melee")).queryByLabelText(t("setup.poolPanel.emptyCol"))).not.toBeInTheDocument();
     });
 
     it("finds a person by any of their characters", async () => {
@@ -114,14 +113,14 @@ describe("Angemeldet: one card per person with every signed character", () => {
 describe("placing a further character", () => {
     it("drags exactly that character into a group: its name, spec and role, locked", async () => {
         await show(withPool());
-        fireEvent.dragStart(line("Zibbowar", block("healer")), { dataTransfer: { setData: () => undefined } });
+        fireEvent.dragStart(line("Zibbowar", block("tank")), { dataTransfer: { setData: () => undefined } });
         await act(() => new Promise((r) => setTimeout(r, 5)));
         fireEvent.drop(group(2), { dataTransfer: { getData: () => ZIBBO.userId } });
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(slotOf(saved(), ZIBBO.userId)).toMatchObject({ character: "Zibbowar", spec: "warrior-protection", role: "tank", locked: true });
     });
 
-    it("drags the leading line of a block as that block's character", async () => {
+    it("drags the ranged column's line as that column's character", async () => {
         await show(withPool());
         const lead = block("ranged").querySelector<HTMLElement>(".se-slot")!;
         fireEvent.dragStart(lead, { dataTransfer: { setData: () => undefined } });
@@ -134,9 +133,9 @@ describe("placing a further character", () => {
     it("places it without a mouse: pick the line, then a free place", async () => {
         const user = userEvent.setup();
         await show(withPool());
-        line("Zibbomage", block("healer")).focus();
+        line("Zibbomage", block("ranged")).focus();
         await user.keyboard("{Enter}");
-        expect(line("Zibbomage", block("healer"))).toHaveAttribute("aria-pressed", "true");
+        expect(line("Zibbomage", block("ranged"))).toHaveAttribute("aria-pressed", "true");
         await user.click(within(group(2)).getAllByRole("button", { name: new RegExp(t("setup.group.here")) })[0]);
         await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
         expect(slotOf(saved(), ZIBBO.userId)).toMatchObject({ character: "Zibbomage", spec: "mage-fire", role: "ranged", locked: true });

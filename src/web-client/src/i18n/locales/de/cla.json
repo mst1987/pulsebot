@@ -5,6 +5,11 @@
         "loading": "Logs werden geladen",
         "loadError": "Fehler beim Laden: {message}"
     },
+    "mine": {
+        "label": "Nur meine Raids",
+        "tip": "Logs, in deren Auswertung einer deiner Charaktere steht oder bei deren Raid-Event du dabei warst.",
+        "empty": "Keine Logs von Raids, bei denen du dabei warst."
+    },
     "choices": {
         "bothSub": "Komplette Auswertung auf einer Report-Seite",
         "claLabel": "nur CLA",

@@ -264,8 +264,8 @@ describe("web/pages/eventPublicPage", () => {
             expect(html).toContain("until 22:30 server time");
             expect(html).toContain("Wed 23 Sep 2026, 19:30");
             expect(html).toContain("25-man");
-            for (const word of ["<b>2</b> signed up", "Signup deadline", "Priest", "Warrior", "Bench", "Signups", "Healers 1/6", "DPS 0/17"]) expect(html).toContain(word);
-            for (const german of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Bank", " Uhr", "Termin"]) expect(html).not.toContain(german);
+            for (const word of ["<b>2</b> signed up", "Signup deadline", "Priest", "Warrior", "Reserve", "Signups", "Healers 1/6", "DPS 0/17"]) expect(html).toContain(word);
+            for (const german of ["Angemeldet", "Anmeldeschluss", "Priester", "Krieger", "Ersatz", " Uhr", "Termin"]) expect(html).not.toContain(german);
             expect(html).not.toContain("<t:");
         });
 

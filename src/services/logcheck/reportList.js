@@ -265,7 +265,8 @@ const CLA_SORT_KEYS = {
  *   report whose log lives in another guild is not mistaken for a link report; inVersion(row):
  *   whether a row belongs to the version shown (#741, logVersion.inVersionList) — counted
  *   and listed are only those; guildId: the active server (#920) - given, only the link reports
- *   evaluated on it are listed (none for ""); left out, every one (as before)
+ *   evaluated on it are listed (none for ""); left out, every one (as before); keep(row): narrows the rows
+ *   before anything is counted ("Nur meine Raids", myLogs.mineFilter), so the counts follow it
  * @returns {{ page, filter, counts: {all,open,unlinked,done} }}
  */
 function prepareClaList(logs, reports, query = {}, opts = {}) {
@@ -279,7 +280,7 @@ function prepareClaList(logs, reports, query = {}, opts = {}) {
     const rows = [
         ...(logs || []).map((l) => claRowFromLog(l, reportById.get(l.reportRefId))),
         ...(reports || []).filter((r) => !referenced.has(r.id) && ownServer(r)).map(claRowFromReport),
-    ].filter(inVersion);
+    ].filter(inVersion).filter(typeof opts.keep === "function" ? opts.keep : () => true);
     const counts = {};
     for (const f of CLA_FILTERS) counts[f] = rows.filter(CLA_FILTER_TESTS[f]).length;
     const filter = CLA_FILTERS.includes(query.filter) ? query.filter : "all";

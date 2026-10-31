@@ -871,6 +871,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         // "Auf 5 Raids aufteilen" (#1035): raids in total the signups fill, by the raid's size
         suggestedTotal: suggestedRaidTotal({ active: signupCount, size: event.size }),
         absent: signups.filter((s) => s.status === "absence").length,
+        // their characters, for "zeigen" under "Angemeldet" — they never come into the setup
+        absentNames: signups.filter((s) => s.status === "absence").map((s) => s.character || names[s.userId] || "").filter(Boolean),
         avoidPairs,
         pingText: pingTextOf(event, eventLang(event)),
         // Confirm/Cancel by user id — the raiders' clicks and the orga's own marks (setupConfirm.js)

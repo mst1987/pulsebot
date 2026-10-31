@@ -49,10 +49,10 @@ async function moreItem(user: ReturnType<typeof userEvent.setup>, name: string, 
     return screen.getByRole(role, { name: new RegExp(name) });
 }
 
-/** A switch of what posting sends along: opens the primary split button's menu and finds it. */
-async function postOption(user: ReturnType<typeof userEvent.setup>, name: string) {
-    await user.click(screen.getByRole("button", { name: t("setup.postOptions.menu") }));
-    return screen.getByRole("switch", { name });
+/** An icon toggle of what posting sends along, beside the primary button (its name is the label, the state is aria-pressed). */
+function postOption(name: string) {
+    const group = screen.getByRole("group", { name: t("setup.postOptions.aria") });
+    return within(group).getByRole("button", { name });
 }
 
 /** The details of the summary line: role tiles, buffs and the switches (Summary). */
@@ -173,6 +173,19 @@ describe("the setup editor: the pick line of the raider sheet", () => {
         await user.click(slot("Ignis"));
         expect(document.querySelector(".se-drawer")).not.toHaveClass("se-drawer-open");
     });
+
+    it("drops the pick with \"Abbrechen\" on the pick line", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(slot("Ignis"));
+        const sheet = document.querySelector<HTMLElement>(".se-drawer")!;
+        expect(sheet).toHaveClass("se-drawer-picking");
+        await user.click(within(sheet).getByRole("button", { name: t("common.cancel") }));
+        // the sheet closes with the pick (it leaves the page) and nothing is saved
+        expect(document.querySelector(".se-drawer-picking")).toBeNull();
+        expect(slot("Ignis")).not.toHaveClass("se-picked");
+        expect(calls("PUT", "/api/raids/setup")).toHaveLength(0);
+    });
 });
 
 // No proposal needed: the editor opens on empty groups with everybody under "Angemeldet"
@@ -184,7 +197,7 @@ describe("the setup editor: the empty start and filling", () => {
         expect(screen.queryByText(t("setup.editor.noSetup"))).not.toBeInTheDocument();
         for (const i of [1, 2, 3, 4, 5]) expect(within(group(i)).queryAllByRole("button")).toHaveLength(0);
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
-        const heads = [...pool.querySelectorAll(".se-pp-sec-head")].map((h) => h.firstChild?.textContent?.trim());
+        const heads = [...pool.querySelectorAll(".se-pp-col-head")].map((h) => h.firstChild?.textContent?.trim());
         expect(heads).toEqual(["tank", "healer", "melee", "ranged"].map((role) => t(`setup.poolPanel.sections.${role}`)));
         expect(within(pool).getByText("Bruno")).toBeInTheDocument();
         // nothing to post while nobody stands in a group
@@ -203,7 +216,7 @@ describe("the setup editor: the empty start and filling", () => {
     it("fills an empty setup at once with \"Automatisch füllen\" — no question", async () => {
         const user = userEvent.setup();
         await show(editorData({}, BLANK));
-        await user.click(screen.getByRole("button", { name: t("setup.fill.auto") }));
+        await user.click(await moreItem(user, t("setup.fill.auto")));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/propose")[0][2]).toEqual({ event: EVENT_ID });
     });
@@ -211,14 +224,14 @@ describe("the setup editor: the empty start and filling", () => {
     it("asks once somebody stands: only the free places by default, or everything anew", async () => {
         const user = userEvent.setup();
         await show(editorData({}, { pool: [person("u-x", "Xara")] }));
-        await user.click(screen.getByRole("button", { name: t("setup.fill.free") }));
+        await user.click(await moreItem(user, t("setup.fill.free")));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByRole("radio", { name: new RegExp(t("setup.fill.keepTitle")) })).toHaveAttribute("aria-checked", "true");
         await user.click(within(dialog).getByRole("button", { name: t("setup.fill.go") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/propose")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/propose")[0][2]).toEqual({ event: EVENT_ID, keep: "placed" });
 
-        await user.click(screen.getByRole("button", { name: t("setup.fill.free") }));
+        await user.click(await moreItem(user, t("setup.fill.free")));
         const again = screen.getByRole("dialog");
         await user.click(within(again).getByRole("radio", { name: new RegExp(t("setup.fill.anewTitle")) }));
         await user.click(within(again).getByRole("button", { name: t("setup.fill.go") }));
@@ -227,12 +240,16 @@ describe("the setup editor: the empty start and filling", () => {
     });
 
     it("offers no filling once nobody is left under \"Angemeldet\"", async () => {
+        const user = userEvent.setup();
         await show(editorData({}, { pool: [] }));
-        expect(screen.queryByRole("button", { name: t("setup.fill.free") })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.fill.free")) })).not.toBeInTheDocument();
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.fill.auto")) })).not.toBeInTheDocument();
+        await user.keyboard("{Escape}");
         expect(within(screen.getByRole("region", { name: t("setup.pool.aria") })).getByText(t("setup.pool.empty"))).toBeInTheDocument();
     });
 
-    it("finds raiders in \"Angemeldet\" by name or spec and filters by role", async () => {
+    it("finds raiders in \"Angemeldet\" by name or spec", async () => {
         const user = userEvent.setup();
         await show(editorData({ absent: 2 }, BLANK));
         const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
@@ -240,11 +257,74 @@ describe("the setup editor: the empty start and filling", () => {
         expect(within(pool).getByText("Lumen")).toBeInTheDocument();
         expect(within(pool).queryByText("Bruno")).not.toBeInTheDocument();
         await user.clear(within(pool).getByRole("searchbox", { name: t("setup.poolPanel.search") }));
-        await user.click(within(pool).getByRole("button", { name: new RegExp(t("setup.poolPanel.filters.dps")) }));
-        expect(within(pool).getByText("Ignis")).toBeInTheDocument();
-        expect(within(pool).getByText("Schatten")).toBeInTheDocument();
-        expect(within(pool).queryByText("Bruno")).not.toBeInTheDocument();
+        expect(within(pool).getByText("Bruno")).toBeInTheDocument();
         expect(within(pool).getByText(t("setup.poolPanel.absent", { count: 2 }))).toBeInTheDocument();
+    });
+
+    it("counts each role column in its head and shows an empty column as a dash", async () => {
+        await show(editorData({}, { ...BLANK, pool: [TANK, PRIEST] }));
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        const col = (role: string) => within(pool).getByRole("group", { name: t(`setup.poolPanel.sections.${role}`) });
+        expect(col("tank").querySelector(".se-pp-col-head b")).toHaveTextContent("1");
+        expect(col("healer").querySelector(".se-pp-col-head b")).toHaveTextContent("1");
+        expect(col("melee").querySelector(".se-pp-col-empty")).toHaveTextContent("\u2013");
+        expect(col("ranged").querySelector(".se-pp-col-empty")).toHaveAttribute("aria-label", t("setup.poolPanel.emptyCol"));
+    });
+
+    it("names the signed-off raiders only on demand, never as lines to place", async () => {
+        const user = userEvent.setup();
+        await show(editorData({ absent: 2, absentNames: ["Weg", "Fort"] }, BLANK));
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        expect(within(pool).getByText(t("setup.poolPanel.absent", { count: 2 }))).toBeInTheDocument();
+        expect(within(pool).queryByText(/Weg/)).not.toBeInTheDocument();
+        const btn = within(pool).getByRole("button", { name: t("setup.poolPanel.showAbsent") });
+        expect(btn).toHaveAttribute("aria-expanded", "false");
+        await user.click(btn);
+        expect(within(pool).getByText("Weg, Fort")).toBeInTheDocument();
+        expect(pool.querySelector('.se-slot[data-character="Weg"]')).toBeNull();
+        await user.click(within(pool).getByRole("button", { name: t("setup.poolPanel.hideAbsent") }));
+        expect(within(pool).queryByText("Weg, Fort")).not.toBeInTheDocument();
+    });
+
+    it("has role tabs for the phone sheet, the chosen one marked on its column", async () => {
+        const user = userEvent.setup();
+        await show(editorData({}, BLANK));
+        const pool = screen.getByRole("region", { name: t("setup.pool.aria") });
+        const tabs = within(pool).getByRole("group", { name: t("setup.poolPanel.tabs") });
+        const tab = (role: string) => within(tabs).getByRole("button", { name: new RegExp(t(`setup.poolPanel.sections.${role}`)) });
+        expect(tab("tank")).toHaveAttribute("aria-pressed", "true");
+        expect(tab("healer")).toHaveTextContent("1");
+        await user.click(tab("healer"));
+        expect(tab("healer")).toHaveAttribute("aria-pressed", "true");
+        expect(tab("tank")).toHaveAttribute("aria-pressed", "false");
+        expect(within(pool).getByRole("group", { name: t("setup.poolPanel.sections.healer") })).toHaveClass("se-tab");
+        expect(within(pool).getByRole("group", { name: t("setup.poolPanel.sections.tank") })).not.toHaveClass("se-tab");
+    });
+
+    it("shows \"Angemeldet\" as a sidebar by a switch under \"Aktionen\", remembered in the browser", async () => {
+        const KEY = "eh-setup-pool-sidebar";
+        localStorage.removeItem(KEY);
+        try {
+            const user = userEvent.setup();
+            const view = await show(editorData({}, BLANK));
+            const pool = () => screen.getByRole("region", { name: t("setup.pool.aria") });
+            expect(pool()).not.toHaveClass("se-pp-side");
+            expect(document.querySelector(".se-layout")).not.toHaveClass("se-pool-side");
+            const toggle = await moreItem(user, t("setup.more.poolSide"), "menuitemcheckbox");
+            expect(toggle).toHaveAttribute("aria-checked", "false");
+            await user.click(toggle);
+            expect(pool()).toHaveClass("se-pp-side");
+            expect(document.querySelector(".se-layout")).toHaveClass("se-pool-side");
+            expect(localStorage.getItem(KEY)).toBe("1");
+            view.unmount();
+            await show(editorData({}, BLANK));
+            expect(pool()).toHaveClass("se-pp-side");
+            await user.click(await moreItem(user, t("setup.more.poolSide"), "menuitemcheckbox"));
+            expect(pool()).not.toHaveClass("se-pp-side");
+            expect(localStorage.getItem(KEY)).toBe("0");
+        } finally {
+            localStorage.removeItem(KEY);
+        }
     });
 
     it("folds \"Angemeldet\" by its arrow", async () => {
@@ -284,7 +364,7 @@ describe("the setup editor: moving raiders", () => {
         // six on the bench: one row with all six and its count — no bench cards with empty places, never named like a raid group
         const bench = screen.getByRole("region", { name: t("setup.bench.aria") });
         for (const name of ["Schatten", ...benched]) expect(within(bench).getByText(name)).toBeInTheDocument();
-        expect(within(bench).getByText("6")).toBeInTheDocument();
+        expect(within(bench).getByText(new RegExp(`^${t("setup.bench.count", { count: 6 })}`))).toBeInTheDocument();
         expect(within(bench).queryByRole("region")).not.toBeInTheDocument();
         // the bench sits under the groups
         expect(group(5).compareDocumentPosition(bench) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -427,6 +507,15 @@ describe("the setup editor: the bar", () => {
         expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.more.size")) })).toBeInTheDocument();
     });
 
+    it("keeps the raid size for a cancelled raid, without the raid group entries", async () => {
+        const publish = { channelId: "c1", channelName: "kara-do", cancelled: true, dmsEnabled: true, recipients: 3, pendingDms: 0, posted: null, outdated: false, error: "", errorAt: 0, dms: null };
+        await show(editorData({ canEditEvent: true, publish }));
+        const user = userEvent.setup();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.more.size")) })).toBeInTheDocument();
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.raidGroup.addOrSplit")) })).not.toBeInTheDocument();
+    });
+
     it("offers a compact view under \"Mehr\", off by default and remembered in the browser", async () => {
         const user = userEvent.setup();
         const view = await show();
@@ -445,7 +534,7 @@ describe("the setup editor: the bar", () => {
         expect(await compact()).toHaveAttribute("aria-checked", "true");
     });
 
-    it("keeps one bar: the state, the counts as fields with words, \"Mehr\" and ONE primary button — the rest under \"Mehr\"", async () => {
+    it("keeps one bar: the state, the counts as fields with words, \"Aktionen\", the search and ONE primary button — the rest under \"Aktionen\"", async () => {
         const user = userEvent.setup();
         const data = editorData();
         const checks = { ...data.setup!.checks, size: { count: 3, size: 25, ok: false }, roles: { ...data.setup!.checks.roles, tank: { count: 0, min: 2, max: 2, ok: false } } };
@@ -465,14 +554,20 @@ describe("the setup editor: the bar", () => {
         const act = document.querySelector<HTMLElement>(".se-bar-act")!;
         expect(within(act).queryByRole("button", { name: t("setup.editor.explain") })).not.toBeInTheDocument();
         expect(within(act).queryByRole("button", { name: t("setup.editor.repropose") })).not.toBeInTheDocument();
-        // one primary (filled) button: a draft is posted
-        const primaries = within(act).getAllByRole("button").filter((b) => !b.className.includes("btn-ghost"));
+        // one primary (filled) button: a draft is posted; beside it only the two icon toggles of what it sends along
+        expect(t("setup.editor.more")).toBe("Aktionen");
+        const primaries = Array.from(act.querySelectorAll<HTMLElement>(".btn-go"));
         expect(primaries.map((b) => b.textContent)).toEqual([t("setup.editor.approve")]);
+        // no channel to post to in this fixture: the button alone, no toggles (they are tested with a channel below)
+        expect(act.querySelectorAll(".se-post-toggle")).toHaveLength(0);
+        // the search is an icon button of its own, in the bar, not under "Aktionen"
+        expect(within(act).getByRole("button", { name: t("setup.editor.search") })).toBeInTheDocument();
         await user.click(within(act).getByRole("button", { name: t("setup.editor.more") }));
-        for (const name of [t("setup.editor.repropose"), t("setup.more.size"), t("setup.pingText.title"), t("setup.editor.search"), t("setup.editor.explain"), t("setup.summary.weights")]) {
+        expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.editor.search")) })).not.toBeInTheDocument();
+        for (const name of [t("setup.editor.repropose"), t("setup.more.size"), t("setup.pingText.title"), t("setup.editor.explain"), t("setup.summary.weights"), t("setup.raidGroup.addOrSplit")]) {
             expect(screen.getByRole("menuitem", { name: new RegExp(name) })).toBeInTheDocument();
         }
-        for (const name of [t("setup.summary.fairness"), t("setup.summary.wishes"), t("setup.editor.compact")]) {
+        for (const name of [t("setup.summary.fairness"), t("setup.summary.wishes"), t("setup.editor.compact"), t("setup.more.benchColumn")]) {
             expect(screen.getByRole("menuitemcheckbox", { name: new RegExp(name) })).toBeInTheDocument();
         }
         // no ping box, no tiles and no empty raider box standing open; tooltips are data-tip, never the browser's title
@@ -640,20 +735,28 @@ describe("the setup editor: state, approval and posting", () => {
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false, dms: true });
     });
 
-    // #517: "Bank mitposten" — the bench goes out only when the orga switches it on; the switch sits in the primary
-    // button's menu (the split button), its state written beside the button — no detour through "Mehr"
-    it("posts the bench only with the switch on — in the split button's menu, its state beside the button, not under \"Mehr\"", async () => {
+    // #517: "Bank mitposten" — the bench goes out only when the orga switches it on; the switch is an icon toggle
+    // on the primary split button (head variant B), its state in the icon, the name and aria-pressed — no detour through a menu
+    it("posts the bench only with the toggle on — an icon toggle on the split button, pressed or struck through, not under \"Aktionen\"", async () => {
         const user = userEvent.setup();
         const publish = { ...PUBLISH, pendingDms: 3, bench: false, benchCount: 1 };
         await show(editorData({ publish }, { status: "approved" }));
-        // the switches are not on the bar any more: the state is, the chevron opens them
+        // no checkbox, no separate state text: two toggles on the split button
         expect(screen.queryByRole("switch")).not.toBeInTheDocument();
-        expect(document.querySelector(".se-post-state")).toHaveTextContent(`${t("setup.postOptions.withDms")} · ${t("setup.postOptions.withoutBench")}`);
-        const bench = await postOption(user, t("setup.postOptions.bench"));
-        expect(within(screen.getByRole("group", { name: t("setup.postOptions.aria") })).getAllByRole("switch")).toHaveLength(2);
-        expect(bench).not.toBeChecked();
+        expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+        expect(document.querySelector(".se-post-state")).toBeNull();
+        expect(within(screen.getByRole("group", { name: t("setup.postOptions.aria") })).getAllByRole("button", { pressed: true })).toHaveLength(1);
+        const dms = postOption(t("setup.postOptions.dms"));
+        expect(dms).toHaveAttribute("aria-pressed", "true");
+        expect(dms).toHaveAccessibleName(t("setup.postOptions.dms"));
+        expect(dms).toHaveClass("is-on");
+        const bench = postOption(t("setup.postOptions.bench"));
+        expect(bench).toHaveAttribute("aria-pressed", "false");
+        expect(bench).toHaveClass("se-off");
+        expect(bench).toHaveAttribute("data-tip", `${t("setup.postOptions.bench")}: ${t("setup.postOptions.off")}`);
         await user.click(bench);
-        expect(document.querySelector(".se-post-state")).toHaveTextContent(`${t("setup.postOptions.withDms")} · ${t("setup.postOptions.withBench")}`);
+        expect(postOption(t("setup.postOptions.bench"))).toHaveAttribute("aria-pressed", "true");
+        expect(postOption(t("setup.postOptions.bench"))).toHaveAttribute("data-tip", `${t("setup.postOptions.bench")}: ${t("setup.postOptions.on")}`);
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: true, dms: true });
@@ -665,26 +768,26 @@ describe("the setup editor: state, approval and posting", () => {
         const user = userEvent.setup();
         const publish = { ...PUBLISH, dmsEnabled: false, pendingDms: 3, bench: true, benchCount: 1 };
         await show(editorData({ publish }));
-        expect(document.querySelector(".se-post-state")).toHaveTextContent(`${t("setup.postOptions.withoutDms")} · ${t("setup.postOptions.withBench")}`);
-        expect(await postOption(user, t("setup.postOptions.bench"))).toBeChecked();
-        expect(screen.getByRole("switch", { name: t("setup.postOptions.dms") })).not.toBeChecked();
+        expect(postOption(t("setup.postOptions.bench"))).toHaveAttribute("aria-pressed", "true");
+        expect(postOption(t("setup.postOptions.dms"))).toHaveAttribute("aria-pressed", "false");
+        expect(postOption(t("setup.postOptions.dms"))).toHaveClass("se-off");
         await user.click(screen.getByRole("button", { name: t("setup.editor.approve") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/approve")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/approve")[0][2]).toMatchObject({ event: EVENT_ID, bench: true, dms: false });
     });
 
-    it("switches the DMs for this raid in the split button's menu, and a switch flipped after the post brings \"Setup posten\" back", async () => {
+    it("switches the DMs for this raid with the split button's toggle, and a toggle flipped after the post brings \"Setup posten\" back", async () => {
         const user = userEvent.setup();
         const publish = { ...PUBLISH, dmsEnabled: false, dmsDefault: false, posted: POSTED, bench: false };
         await show(editorData({ publish }, { status: "approved", version: 3 }));
         // posted and current: the one button pings
         expect(screen.getByRole("button", { name: t("setup.ping.button") })).toBeInTheDocument();
-        const dms = await postOption(user, t("setup.postOptions.dms"));
-        expect(dms).not.toBeChecked();
-        await user.click(dms);
-        expect(dms).toBeChecked();
+        expect(postOption(t("setup.postOptions.dms"))).toHaveAttribute("aria-pressed", "false");
+        await user.click(postOption(t("setup.postOptions.dms")));
+        const dms = postOption(t("setup.postOptions.dms"));
+        expect(dms).toHaveAttribute("aria-pressed", "true");
         // chosen for this raid, unlike the category: the tooltip says so
-        expect(dms.closest("label")).toHaveAttribute("data-tip-sub", t("setup.postOptions.dmsSubOwn"));
+        expect(dms).toHaveAttribute("data-tip-sub", t("setup.postOptions.dmsSubOwn"));
         await user.click(screen.getByRole("button", { name: t("setup.publishLine.post") }));
         await waitFor(() => expect(calls("POST", "/api/raids/setup/post")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/post")[0][2]).toEqual({ event: EVENT_ID, bench: false, dms: true });
@@ -806,13 +909,13 @@ describe("the setup editor: state, approval and posting", () => {
             await waitFor(() => expect(slot("Lumen")).toHaveClass("se-declined"));
         });
 
-        it("confirms everybody without an answer with one button, which goes once nobody is left", async () => {
+        it("confirms everybody without an answer with one entry under \"Aktionen\", which goes once nobody is left", async () => {
             const user = userRef.current;
             vi.mocked(client.send).mockImplementation((_m: string, path: string) => (path === "/api/raids/setup/confirm-all"
                 ? Promise.resolve({ confirmations: { "u-tank": "confirmed", "u-mage": "confirmed", "u-priest": "declined" }, count: 2 })
                 : Promise.resolve(page)));
             await show(editorData({ confirmations: { "u-priest": "declined" } }, { status: "approved" }));
-            await user.click(screen.getByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) }));
+            await user.click(await moreItem(user, t("setup.editor.confirmAll")));
             // asked once first: how many get the check, a cancel stays
             const question = screen.getByRole("dialog");
             expect(question).toHaveTextContent(t("setup.confirmAll.askText", { count: 2 }));
@@ -822,7 +925,8 @@ describe("the setup editor: state, approval and posting", () => {
             expect(calls("POST", "/api/raids/setup/confirm-all")[0][2]).toEqual({ event: EVENT_ID });
             await waitFor(() => expect(slot("Bruno")).toHaveClass("se-confirmed"));
             expect(slot("Lumen")).toHaveClass("se-declined");
-            expect(screen.queryByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
+            await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+            expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
         });
 
         it("offers no check and no \"Alle bestätigen\" before the setup is posted", async () => {
@@ -830,7 +934,8 @@ describe("the setup editor: state, approval and posting", () => {
             await show(editorData({ confirmations: {} }));
             await user.click(slot("Bruno"));
             expect(within(panel()).queryByRole("button", { name: /Bestätigen/ })).not.toBeInTheDocument();
-            expect(screen.queryByRole("button", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
+            await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+            expect(screen.queryByRole("menuitem", { name: new RegExp(t("setup.editor.confirmAll")) })).not.toBeInTheDocument();
         });
 
         it("keeps the picked raider plainly marked on a green line", async () => {
@@ -935,5 +1040,126 @@ describe("the setup editor: the ping text (a dialog under \"Mehr\")", () => {
         await user.type(field, "Invite in 5{Enter}");
         await waitFor(() => expect(calls("POST", "/api/raids/setup/ping-text")).toHaveLength(1));
         expect(calls("POST", "/api/raids/setup/ping-text")[0][2]).toEqual({ event: EVENT_ID, text: "Invite in 5" });
+    });
+});
+
+// head variant B: the bench as a row under the groups (default) or as a column beside them,
+// a switch under "Aktionen" › Ansicht remembered in this browser; drag, drop and double click work in both
+describe("the setup editor: the bench as a row or a column", () => {
+    const BENCH_KEY = "eh-setup-bench-column";
+    const PUBLISH = { channelId: "c1", channelName: "kara-do", cancelled: false, dmsEnabled: true, recipients: 3, pendingDms: 3, posted: null, outdated: false, error: "", errorAt: 0, dms: null };
+    const bench = () => screen.getByRole("region", { name: t("setup.bench.aria") });
+    const line = (userId: string) => document.querySelector<HTMLElement>(`.se-slot[data-user="${userId}"]`)!;
+    const benchSwitch = (user: ReturnType<typeof userEvent.setup>) => moreItem(user, t("setup.more.benchColumn"), "menuitemcheckbox");
+
+    beforeEach(() => localStorage.removeItem(BENCH_KEY));
+    afterEach(() => localStorage.removeItem(BENCH_KEY));
+
+    it("is a row by default; the switch under \"Aktionen\" makes it a column, remembered in the browser", async () => {
+        const user = userEvent.setup();
+        const view = await show();
+        expect(bench()).not.toHaveClass("se-col");
+        expect(document.querySelector(".se-main")).not.toHaveClass("se-bench-col");
+        const toggle = await benchSwitch(user);
+        expect(toggle).toHaveAttribute("aria-checked", "false");
+        expect(toggle.querySelector(".se-more-switch")).not.toHaveClass("is-on");
+        await user.click(toggle);
+        expect(bench()).toHaveClass("se-col");
+        expect(document.querySelector(".se-main")).toHaveClass("se-bench-col");
+        expect(localStorage.getItem(BENCH_KEY)).toBe("1");
+
+        view.unmount();
+        await show();
+        expect(bench()).toHaveClass("se-col");
+        const again = await benchSwitch(user);
+        expect(again).toHaveAttribute("aria-checked", "true");
+        await user.click(again);
+        expect(bench()).not.toHaveClass("se-col");
+        expect(localStorage.getItem(BENCH_KEY)).toBe("0");
+    });
+
+    it("counts with a word in both layouts; the row also says whether the bench goes out with the post, the narrow column only on its empty drop area", async () => {
+        const three = [ROGUE, person("b2", "Zwei"), person("b3", "Drei")];
+        const view = await show(editorData({ publish: { ...PUBLISH, bench: false, benchCount: 3 } }, { bench: three }));
+        const state = () => bench().querySelector(".se-bench-state")!;
+        expect(state).toBeTruthy();
+        expect(state()).toHaveTextContent(t("setup.bench.count", { count: 3 }));
+        expect(t("setup.bench.count", { count: 3 })).toBe("3 Spieler");
+        expect(state()).toHaveTextContent(t("setup.bench.notPosted"));
+        view.unmount();
+
+        localStorage.setItem(BENCH_KEY, "1");
+        await show(editorData({ publish: { ...PUBLISH, bench: true, benchCount: 3 } }, { bench: three }));
+        expect(bench()).toHaveClass("se-col");
+        expect(state()).toHaveTextContent(t("setup.bench.count", { count: 3 }));
+        expect(state()).not.toHaveTextContent(t("setup.bench.posted"));
+        for (const name of ["Schatten", "Zwei", "Drei"]) expect(within(bench()).getByText(name)).toBeInTheDocument();
+    });
+
+    it("shows an empty bench as one sentence in the row and as a drop area in the column", async () => {
+        const view = await show(editorData({}, { bench: [] }));
+        expect(within(bench()).getByText(t("setup.bench.empty"))).toBeInTheDocument();
+        view.unmount();
+
+        localStorage.setItem(BENCH_KEY, "1");
+        await show(editorData({}, { bench: [] }));
+        expect(within(bench()).getByText(t("setup.bench.count", { count: 0 }))).toBeInTheDocument();
+        const drop = bench().querySelector(".se-bench-drop")!;
+        expect(drop).toHaveClass("se-empty");
+        expect(drop).toHaveTextContent(t("setup.bench.dropHere"));
+        expect(drop).not.toHaveTextContent(t("setup.bench.posted"));
+    });
+
+    it("draws ten on the bench as one list in both layouts", async () => {
+        const ten = [ROGUE, ...[2, 3, 4, 5, 6, 7, 8, 9, 10].map((i) => person(`b${i}`, `Bank${i}`))];
+        const view = await show(editorData({}, { bench: ten }));
+        expect(bench().querySelectorAll(".se-slot[data-user]")).toHaveLength(10);
+        expect(bench().querySelector(".se-bench-state")).toHaveTextContent(t("setup.bench.count", { count: 10 }));
+        view.unmount();
+        localStorage.setItem(BENCH_KEY, "1");
+        await show(editorData({}, { bench: ten }));
+        expect(bench().querySelectorAll(".se-slot[data-user]")).toHaveLength(10);
+    });
+
+    for (const layout of ["row", "column"] as const) {
+        describe(`as a ${layout}`, () => {
+            beforeEach(() => localStorage.setItem(BENCH_KEY, layout === "column" ? "1" : "0"));
+
+            it("takes a raider dropped on it", async () => {
+                await show();
+                expect(bench().classList.contains("se-col")).toBe(layout === "column");
+                fireEvent.drop(bench(), { dataTransfer: { getData: () => MAGE.userId } });
+                await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+                expect(savedBody().bench.map((b) => b.userId)).toEqual(expect.arrayContaining([ROGUE.userId, MAGE.userId]));
+            });
+
+            it("takes a picked raider by its \"hierher\" target", async () => {
+                const user = userEvent.setup();
+                await show();
+                await user.click(slot("Bruno"));
+                await user.click(within(bench()).getByRole("button", { name: t("setup.group.here") }));
+                await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+                expect(savedBody().bench.map((b) => b.userId)).toContain(TANK.userId);
+            });
+
+            it("lets a bench raider go with a double click", async () => {
+                const user = userEvent.setup();
+                await show();
+                await user.dblClick(line(ROGUE.userId));
+                await waitFor(() => expect(calls("PUT", "/api/raids/setup")).toHaveLength(1));
+                expect(savedBody().bench).toEqual([]);
+            });
+        });
+    }
+});
+
+describe("the setup editor: head variant B", () => {
+    it("sorts \"Aktionen\" into four sections: Raid, Vorschlag, Posten und benachrichtigen, Ansicht", async () => {
+        const user = userEvent.setup();
+        await show();
+        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
+        const heads = Array.from(document.querySelectorAll(".se-more-head")).map((h) => h.textContent);
+        expect(heads).toEqual([t("setup.more.sectionRaid"), t("setup.more.sectionProposal"), t("setup.more.sectionPost"), t("setup.more.sectionView")]);
+        expect(heads).toEqual(["Raid", "Vorschlag", "Posten und benachrichtigen", "Ansicht"]);
     });
 });
