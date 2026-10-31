@@ -79,7 +79,7 @@ export type ClaFilter = "all" | "open" | "unlinked" | "done";
 
 export type ClaData = {
     filter: ClaFilter;
-    /** "Nur meine Raids": only logs an evaluation shows one of the caller's characters in; the counts follow. */
+    /** "Nur meine Raids": only logs whose evaluation lists one of the caller's characters or whose raid event they were part of; the counts follow. */
     mine?: boolean;
     page: ClaPage<ClaRow>;
     counts: Record<ClaFilter, number>;

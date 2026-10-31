@@ -102,7 +102,7 @@ const getClaData = withUser({}, async ({ req, res, query, user }) => {
         page: query.get("page"),
     };
     const reports = listReports();
-    // "Nur meine Raids": only the rows an evaluation shows one of the account's characters in
+    // "Nur meine Raids": only the rows whose evaluation lists one of the account's characters or whose raid event the account was part of
     const mine = query.get("mine") === "1";
     const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
         allLogs, inVersion, guildId, keep: mine ? mineFilter(user.id) : undefined,

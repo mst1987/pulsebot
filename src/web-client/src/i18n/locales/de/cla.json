@@ -7,8 +7,8 @@
     },
     "mine": {
         "label": "Nur meine Raids",
-        "tip": "Nur Logs, in denen einer deiner Charaktere mitgespielt hat. Zählt erst nach der Auswertung.",
-        "empty": "Keine ausgewerteten Logs mit einem deiner Charaktere."
+        "tip": "Logs, in deren Auswertung einer deiner Charaktere steht oder bei deren Raid-Event du dabei warst.",
+        "empty": "Keine Logs von Raids, bei denen du dabei warst."
     },
     "choices": {
         "bothSub": "Komplette Auswertung auf einer Report-Seite",

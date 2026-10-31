@@ -386,13 +386,13 @@ describe("ClaPage only my raids", () => {
     it("says why the list is empty, in German and English", async () => {
         serve([]);
         const first = show("/cla?mine=1");
-        expect(await screen.findByText("Keine ausgewerteten Logs mit einem deiner Charaktere.")).toBeInTheDocument();
+        expect(await screen.findByText("Keine Logs von Raids, bei denen du dabei warst.")).toBeInTheDocument();
         first.unmount();
 
         await switchLang("en");
         show("/cla?mine=1");
         expect(await screen.findByRole("switch", { name: "Only my raids" })).toBeChecked();
-        expect(screen.getByText("No evaluated logs with one of your characters.")).toBeInTheDocument();
+        expect(screen.getByText("No logs of raids you were part of.")).toBeInTheDocument();
     });
 });
 

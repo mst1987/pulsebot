@@ -7,8 +7,8 @@
     },
     "mine": {
         "label": "Only my raids",
-        "tip": "Only logs one of your characters played in. Counts once the log is evaluated.",
-        "empty": "No evaluated logs with one of your characters."
+        "tip": "Logs whose evaluation lists one of your characters or whose raid event you were part of.",
+        "empty": "No logs of raids you were part of."
     },
     "choices": {
         "bothSub": "Full evaluation on one report page",

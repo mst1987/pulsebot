@@ -77,7 +77,7 @@ export default function ClaPage() {
     // One game version at a time (#741): the menu's content version. A log without a raid
     // is listed under every version, a linked one only under its raid's (the server decides).
     const { version } = useContentVersion();
-    // "Nur meine Raids" (?mine=1): only logs one of the account's characters played in; the tab counts follow.
+    // "Nur meine Raids" (?mine=1): only logs of raids the account was part of (evaluation or raid event); the tab counts follow.
     const mine = searchParams.get("mine") === "1";
     const cla = useApi(
         () => {
