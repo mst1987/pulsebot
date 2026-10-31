@@ -149,7 +149,7 @@
         "allSignedUp": "Alle Raider der Kategorie haben sich angemeldet.",
         "status": {
             "tentative": "Tentative",
-            "bench": "Ersatzbank",
+            "bench": "Ersatz",
             "absence": "Abwesend",
             "none": "keine Antwort"
         },
@@ -173,7 +173,7 @@
             "notPlaced": "Nicht aufgestellt",
             "late": "Später",
             "tentative": "Vielleicht",
-            "bench": "Bank",
+            "bench": "Ersatz",
             "absence": "Abgemeldet",
             "cancelled": "Abgesagt"
         },

@@ -153,7 +153,7 @@ describe("Raids hinzufügen / aufteilen", () => {
         expect(head).toHaveClass("btn-ghost");
         // … and hot at the top of "Aktionen", beside the manual entry
         const hot = await moreItem(user, t("setup.raidGroup.split", { count: 5 }));
-        expect(hot).toHaveClass("is-hot");
+        expect(hot).toHaveClass("se-tone-hot");
         expect(screen.getByRole("menuitem", { name: new RegExp(t("setup.raidGroup.addOrSplit").replace("…", "")) })).toBeInTheDocument();
         await user.keyboard("{Escape}");
         await user.click(head);
@@ -222,7 +222,7 @@ describe("Raids hinzufügen / aufteilen", () => {
         expect(document.querySelector(".se-split-hint")).toBeNull();
         expect(screen.getByRole("list", { name: t("setup.bar.countsAria") })).not.toHaveTextContent("Anmeldungen");
         const add = await moreItem(user, t("setup.raidGroup.addOrSplit"));
-        expect(add).not.toHaveClass("is-hot");
+        expect(add).not.toHaveClass("se-tone-hot");
         expect(screen.queryByRole("menuitem", { name: /Raids aufteilen$/ })).not.toBeInTheDocument();
         // a manual split opens the dialog with one raid more than there are
         await user.click(add);

@@ -9,7 +9,7 @@
 // directly below the tanks) with flat role icons, then the roster — a "Tanks" block first, one
 // block per class after it (class icon, underlined name and count; each line
 // spec icon · signup number · name; three inline columns with an empty line
-// between the rows), one line each for Late / Tentative / Bench / Absence —
+// between the rows), one line each for Late / Tentative / Reserve (status bench) / Absence —
 // the approved setup and the links. The air between the parts comes from
 // fields named with a zero-width space and one empty full-width field, all within 25 fields.
 //
@@ -37,7 +37,7 @@
 // characters …" plus the classes of the event's game version (a public select
 // is the same for everybody, so it cannot list anyone's own characters; the
 // pick opens them ephemerally, commands/signup/eventPick.js) — and one row of
-// buttons `event-btn:<eventId>:<action>` Late · Tentative · Bench · Absence
+// buttons `event-btn:<eventId>:<action>` Late · Tentative · Reserve · Absence
 // (commands/signup/eventButton.js). After the deadline only Late · Absence, a
 // closed signup only Absence, nothing once the raid started or for a cancelled
 // event. A category with raider roles adds the orga's "Ping missing"
@@ -110,7 +110,7 @@ function signedUpValue(accounts, lang) {
 const WORDS = {
     late: { de: "Spät", en: "Late" },
     tentative: { de: "Vielleicht", en: "Tentative" },
-    bench: { de: "Bank", en: "Bench" },
+    bench: { de: "Ersatz", en: "Reserve" },
     absence: { de: "Abgemeldet", en: "Absence" },
     absenceButton: { de: "Absagen", en: "Absence" },
     quickButton: { de: "Anmelden", en: "Sign up" },
@@ -159,7 +159,7 @@ const STATUS_OPTIONS = {
     signed: { label: "Sign up", description: "pick a character" },
     tentative: { label: "Tentative", description: "not sure yet" },
     late: { label: "Late", description: "joining later" },
-    bench: { label: "Bench", description: "ready as a backup" },
+    bench: { label: "Reserve", description: "ready as a backup" },
     absence: { label: "Absence", description: "not attending" },
 };
 // The lines below the class blocks, in this order (their label: WORDS).
@@ -454,7 +454,7 @@ function missingPingButton(event, emojis, lang) {
 
 /**
  * Which components a phase offers, as rows: before the deadline
- * Anmelden · Late · Tentative · Bench · Absence (one click signs up, Oct 2026,
+ * Anmelden · Late · Tentative · Reserve · Absence (one click signs up, Oct 2026,
  * design canvas "Schnellere Anmeldung" way A) and under it the select for
  * another character or a class ("pick"); after the deadline Late · Absence; a
  * closed signup only Absence; nothing once the raid started or the event was

@@ -94,7 +94,7 @@ describe("signupButtons.savedEmbed", () => {
             title: "Saved for Karazhan",
             description: [
                 "`1.` Zibbo · Holy – **Signed up**",
-                "`2.` Zibbowar · Protection – **Bench**",
+                "`2.` Zibbowar · Protection – **Reserve**",
                 "",
                 when,
                 "⏳ The raid is full (10/10) – you are on the waiting list (bench). The raid lead decides who moves up.",
@@ -110,7 +110,7 @@ describe("signupButtons.savedEmbed", () => {
         expect(noIds(embed.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
         expect(noIds(embed.description).split("\n")).toEqual([
             "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_signed> **Signed up**",
-            "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Bench**",
+            "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Reserve**",
             "",
             when,
         ]);
@@ -121,7 +121,7 @@ describe("signupButtons.savedEmbed", () => {
             title: "Gespeichert für Karazhan",
             description: [
                 "`1.` Zibbo · Heilig – **Dabei**",
-                "`2.` Zibbowar · Schutz – **Bank**",
+                "`2.` Zibbowar · Schutz – **Ersatz**",
                 "",
                 when,
                 "⏳ Der Raid ist voll (10/10) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung.",

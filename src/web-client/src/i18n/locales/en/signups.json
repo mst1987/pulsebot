@@ -3,7 +3,7 @@
         "signed": "Signed up",
         "tentative": "Tentative",
         "late": "Late",
-        "bench": "Bench",
+        "bench": "Reserve",
         "absence": "Sign off"
     },
     "statusTip": {

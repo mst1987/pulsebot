@@ -31,9 +31,8 @@ describe("setup editor conventions", () => {
         expect(css).toMatch(/\.se-groups \{[^}]*minmax\(188px/);
         expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
         // the old top row (ping box, tiles, docked panel) and the old publish line under the bar are gone;
-        // only an overbooked raid gets its calm hint line there (#811)
-        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint|\.se-postopts/);
-        expect(css).toMatch(/\.se-overbooked \{ display: flex;/);
+        // an overbooked raid shows a warn count in the bar, no hint line any more (#811, head B)
+        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint|\.se-postopts|\.se-overbooked/);
         // the counts are square fields that wrap as a whole and are never cut (#setup-bar: "8 v…" was cut off)
         expect(css).toMatch(/\.se-counts \{[^}]*flex-wrap: wrap/);
         expect(css).not.toMatch(/\.se-counts \{[^}]*text-overflow/);

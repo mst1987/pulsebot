@@ -1,5 +1,5 @@
 // One leader per raid in the setup editor (#1036): the crown on the leader's slot, "Leader 1/1" in the bar
-// (green with one, red without), the "Leader" chip in "Angemeldet" and "Als Leader setzen" in the raider panel —
+// (green with one, red without), the "Nur Leader" switch in "Angemeldet" and "Als Leader setzen" in the raider panel —
 // asked first for somebody without the lead flag, saved as `leaderUserId`. The API is mocked at its transport.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -75,11 +75,13 @@ describe("Leader je Raid (#1036)", () => {
         const user = userEvent.setup();
         page = { ...leaderData(), setup: { ...leaderData().setup!, pool: [ZIBBO, person("u-other", "Nobody")] } };
         await show();
-        const chip = screen.getByRole("button", { name: new RegExp(t("setup.leader.filter")) });
-        expect(chip).toHaveAttribute("aria-pressed", "false");
+        // a switch "Nur Leader" with the count of who may lead
+        const lead = screen.getByRole("switch", { name: new RegExp(t("setup.poolPanel.leadOnly")) });
+        expect(lead).not.toBeChecked();
+        expect(lead.closest("label")).toHaveTextContent(`${t("setup.poolPanel.leadOnly")} 1`);
         expect(screen.getByText("Nobody")).toBeInTheDocument();
-        await user.click(chip);
-        expect(chip).toHaveAttribute("aria-pressed", "true");
+        await user.click(lead);
+        expect(lead).toBeChecked();
         expect(screen.queryByText("Nobody")).toBeNull();
         expect(screen.getAllByText("Zibbo").length).toBeGreaterThan(0);
     });

@@ -169,7 +169,7 @@
 .se-row-empty { grid-column: 1 / -1; display: flex; align-items: center; min-height: var(--se-row); color: var(--muted); font-size: 13px; }
 .se-row.se-target .se-row-slots, .se-row.se-over .se-row-slots { border-radius: 10px; box-shadow: 0 0 0 2px var(--accent-soft); }
 /* head variant B: the bench row is a heading line in the bench colour (title · count · reach · roles), its raiders under it */
-.se-bench.se-row:not(.is-col) { flex-direction: column; align-items: stretch; gap: 8px; }
+.se-bench.se-row:not(.se-col) { flex-direction: column; align-items: stretch; gap: 8px; }
 .se-bench.se-row .se-bench-head { flex-wrap: wrap; align-items: baseline; gap: 4px 12px; min-width: 0; padding: 0 2px 6px; border-bottom: 1px solid color-mix(in srgb, var(--sig-bench) 55%, transparent); }
 .se-bench-state { font-size: 13px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .se-bench-roles { margin-left: auto; font-size: 12.5px; color: var(--muted); white-space: nowrap; }
@@ -185,20 +185,20 @@
 .se-main.se-bench-col { display: grid; grid-template-columns: minmax(0, 1fr) 210px; align-items: start; column-gap: 14px; }
 .se-main.se-bench-col > :not(.se-bench) { grid-column: 1; }
 .se-main.se-bench-col > .se-bench { grid-column: 2; grid-row: 1; }
-.se-bench.is-col { margin-top: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 0 10px 10px; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid color-mix(in srgb, var(--sig-bench) 70%, transparent); border-radius: 10px; }
-.se-bench.is-col::before { display: none; }
-.se-bench.is-col .se-bench-head { flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; padding: 8px 2px 4px; min-height: 0; }
-.se-bench.is-col .se-row-slots { display: flex; flex-direction: column; gap: 4px; }
-.se-bench.is-col .se-slot .se-sub { display: none; }
-.se-bench.is-col .se-bench-drop.is-empty { min-height: 150px; }
-.se-bench.is-col.se-target .se-row-slots, .se-bench.is-col.se-over .se-row-slots { box-shadow: none; }
-.se-bench.is-col.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+.se-bench.se-col { margin-top: 0; display: flex; flex-direction: column; align-items: stretch; gap: 6px; padding: 0 10px 10px; background: var(--panel); border: 1px solid var(--line); border-top: 2px solid color-mix(in srgb, var(--sig-bench) 70%, transparent); border-radius: 10px; }
+.se-bench.se-col::before { display: none; }
+.se-bench.se-col .se-bench-head { flex-direction: column; align-items: flex-start; gap: 1px; min-width: 0; padding: 8px 2px 4px; min-height: 0; }
+.se-bench.se-col .se-row-slots { display: flex; flex-direction: column; gap: 4px; }
+.se-bench.se-col .se-slot .se-sub { display: none; }
+.se-bench.se-col .se-bench-drop.se-empty { min-height: 150px; }
+.se-bench.se-col.se-target .se-row-slots, .se-bench.se-col.se-over .se-row-slots { box-shadow: none; }
+.se-bench.se-col.se-over { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
 @media (max-width: 900px) {
     /* too narrow for a sixth column: the bench goes back under the groups */
     .se-main.se-bench-col { display: flex; flex-direction: column; }
     .se-main.se-bench-col > .se-bench { grid-row: auto; }
-    .se-bench.is-col .se-row-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
-    .se-bench.is-col .se-bench-drop.is-empty { min-height: var(--se-row); }
+    .se-bench.se-col .se-row-slots { display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); }
+    .se-bench.se-col .se-bench-drop.se-empty { min-height: var(--se-row); }
 }
 
 /* a free place: an empty box as high as a raider line */
@@ -298,10 +298,10 @@
 .se-post-toggle:hover:not(:disabled) { filter: brightness(1.08); }
 .se-post-toggle:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; z-index: 1; }
 .se-post-toggle:disabled { opacity: .6; cursor: not-allowed; }
-.se-post-toggle.is-off { background: var(--panel2); color: var(--muted); border-left-color: var(--line); box-shadow: inset 0 0 0 1px var(--line); }
-.se-post-toggle.is-off .wi { filter: grayscale(1); opacity: .55; }
+.se-post-toggle.se-off { background: var(--panel2); color: var(--muted); border-left-color: var(--line); box-shadow: inset 0 0 0 1px var(--line); }
+.se-post-toggle.se-off .wi { filter: grayscale(1); opacity: .55; }
 /* off: a diagonal stroke through the icon */
-.se-post-toggle.is-off::after { content: ""; position: absolute; left: 9px; right: 9px; top: 50%; height: 2px; border-radius: 1px; background: var(--muted); transform: rotate(-45deg); }
+.se-post-toggle.se-off::after { content: ""; position: absolute; left: 9px; right: 9px; top: 50%; height: 2px; border-radius: 1px; background: var(--muted); transform: rotate(-45deg); }
 /* the split proposal beside the counts ("Auf 2 Raids aufteilen") — only from the 70 % threshold on */
 .se-split-hint { flex: 0 0 auto; }
 
@@ -341,106 +341,124 @@
 .se-fill-opt:hover, .se-fill-opt:focus-visible { border-color: var(--accent); outline: none; }
 .se-fill-opt.is-on { border-color: var(--accent); background: var(--accent-soft); box-shadow: 0 0 0 1px var(--accent); }
 
-/* "Angemeldet" (#517), where the setup starts from: under the setup where the editor is wide enough,
-   else docked at the bottom of the window (one row to scroll sideways). Decided on the editor's own width — the
-   page's side menu makes the window width a poor guide. The container sits around the layout only: containment on
-   the editor itself would trap the fixed raider drawer. */
+/* "Angemeldet" (#517), where the setup starts from. A (default): four role columns under the groups and the bench,
+   one line per raider. B ("Ansicht › Angemeldet als Seitenleiste"): a 300px column left of the groups that scrolls
+   on its own — from 1280px window width, narrower it is A again. Narrow (the editor under 720px): docked at the
+   bottom of the window with role tabs. Decided on the editor's own width where it can — the page's side menu makes
+   the window width a poor guide. The container sits around the layout only: containment on the editor itself would
+   trap the fixed raider drawer. */
 .se-stage { container: se-stage / inline-size; }
-.se-poolpanel { display: flex; flex-direction: column; gap: 10px; min-width: 0; box-sizing: border-box; padding: 12px; background: var(--panel); border: 1px solid color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 12px; transition: box-shadow .12s ease; }
+.se-poolpanel { display: flex; flex-direction: column; gap: 10px; min-width: 0; box-sizing: border-box; padding: 12px 14px; background: var(--panel); border: 1px solid var(--line); border-radius: 10px; transition: box-shadow .12s ease; }
 .se-poolpanel.se-over, .se-poolpanel.se-target { box-shadow: 0 0 0 3px var(--accent-soft); border-color: var(--accent); }
-.se-pp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
-.se-pp-title { font-weight: 800; font-size: 16px; cursor: help; }
+/* the head: one line — the title and its count, the status segment, "Nur Leader", the search, the fold arrow */
+.se-pp-head { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; }
+.se-pp-title { font-weight: 800; font-size: 16px; cursor: help; white-space: nowrap; }
 .se-pp-count { margin-left: 4px; font-size: 20px; color: var(--accent); }
-.se-pp-sub { color: var(--muted); font-size: 12.5px; }
-.se-pp-take { height: 32px; padding: 0 12px; margin-left: auto; }
-.se-pp-toggle { display: none; margin-left: auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); cursor: pointer; }
-.se-pp-toggle svg { width: 16px; height: 16px; transition: transform .15s ease; }
-.se-poolpanel.se-pp-collapsed .se-pp-toggle svg { transform: rotate(180deg); }
-.se-pp-take + .se-pp-toggle { margin-left: 0; }
-.se-pp-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
-.se-pp-tools { display: flex; flex-direction: column; gap: 8px; }
-.se-pp-search { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 10px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
+.se-pp-tools { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 14px; flex: 1 1 auto; min-width: 0; }
+.se-pp-seg { display: inline-flex; flex: 0 0 auto; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.se-pp-segbtn { display: inline-flex; align-items: center; gap: 4px; height: 30px; padding: 0 11px; border: 0; border-left: 1px solid var(--line); background: var(--panel2); color: var(--text); font: inherit; font-size: 13px; font-weight: 600; white-space: nowrap; cursor: pointer; }
+.se-pp-segbtn:first-child { border-left: 0; }
+.se-pp-segbtn small { color: var(--muted); font-size: 12px; font-weight: 700; }
+.se-pp-segbtn[class*="se-sigv-"] { color: var(--se-sig); }
+.se-pp-segbtn:hover { background: var(--accent-soft); }
+.se-pp-segbtn.is-on { background: var(--accent-soft); box-shadow: inset 0 -2px 0 var(--accent); }
+.se-pp-segbtn[class*="se-sigv-"].is-on { background: color-mix(in srgb, var(--se-sig) 16%, var(--panel2)); box-shadow: inset 0 -2px 0 var(--se-sig); }
+.se-pp-lead { flex: 0 0 auto; white-space: nowrap; }
+.se-pp-lead small { color: var(--muted); font-weight: 700; }
+.se-pp-search { display: flex; align-items: center; gap: 8px; flex: 0 1 260px; min-width: 160px; height: 32px; padding: 0 10px; margin-left: auto; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; color: var(--muted); }
 .se-pp-search:focus-within { border-color: var(--accent); }
 .se-pp-search svg { width: 15px; height: 15px; flex: 0 0 auto; }
 .se-pp-search input { flex: 1 1 auto; min-width: 0; background: none; border: 0; outline: none; color: var(--text); font: inherit; font-size: 13.5px; }
-/* the role chips, the status chips on a row of their own under them (in the dock both in one row, set apart by a line) */
-.se-pp-filterrow { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; }
-.se-pp-filters { display: flex; flex-wrap: wrap; gap: 6px; }
-.se-pp-chip { padding: 4px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel2); color: var(--text); font: inherit; font-size: 12.5px; font-weight: 600; cursor: pointer; }
-.se-pp-chip small { margin-left: 3px; color: var(--muted); font-weight: 700; }
-.se-pp-chip:hover { border-color: var(--accent); }
-.se-pp-chip.is-on { border-color: var(--accent); background: var(--accent-soft); }
-/* the status chips ("Vorläufig 3", "Bank 2", "Spät 1"): set apart from the role chips, each in its state's colour */
-.se-pp-chip.se-pp-stchip { display: inline-flex; align-items: center; gap: 5px; border-color: color-mix(in srgb, var(--se-sig) 55%, var(--line)); }
-.se-pp-stchip svg { width: 13px; height: 13px; color: var(--se-sig); flex: 0 0 auto; }
-.se-pp-chip.se-pp-stchip:hover { border-color: var(--se-sig); }
-.se-pp-chip.se-pp-stchip.is-on { border-color: var(--se-sig); background: color-mix(in srgb, var(--se-sig) 20%, var(--panel2)); box-shadow: 0 0 0 1px var(--se-sig); }
-/* inside a role block: a thin divider with the state's name where late / tentative / bench begin */
-.se-pp-divider { grid-column: 1 / -1; display: flex; align-items: center; gap: 6px; margin-top: 4px; font-size: var(--fs-label); font-weight: 700; color: var(--se-sig); }
+.se-pp-take { height: 32px; padding: 0 12px; }
+.se-pp-toggle { display: inline-flex; flex: 0 0 auto; width: 32px; height: 32px; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: var(--panel2); color: var(--text); cursor: pointer; }
+.se-pp-toggle:hover { border-color: var(--accent); }
+.se-pp-toggle svg { width: 16px; height: 16px; transition: transform .15s ease; }
+.se-poolpanel.se-pp-collapsed .se-pp-toggle svg { transform: rotate(180deg); }
+.se-pp-none .se-pp-toggle { display: none; }
+.se-pp-body { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+/* folded by its arrow, and by itself while one of its raiders is dragged: only the head line stays, so the free
+   places stay in view. max-height, never display: none — the dragged line must stay in the page (the drag ends else) */
+.se-poolpanel.se-pp-collapsed .se-pp-body,
+.se-poolpanel.se-pp-dragging:not(.se-pp-side) .se-pp-body { max-height: 0; overflow: hidden; margin-top: -10px; }
+
+/* the role tabs exist on a phone only (below) */
+.se-pp-tabs { display: none; }
+.se-pp-tab { display: inline-flex; align-items: center; gap: 5px; flex: 1 1 0; justify-content: center; height: 34px; padding: 0 6px; border: 0; border-bottom: 2px solid transparent; background: none; color: var(--muted); font: inherit; font-size: 13.5px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.se-pp-tab small { font-size: 12px; }
+.se-pp-tab.is-on { color: var(--text); border-bottom-color: var(--accent); }
+
+/* A: the four role columns side by side, separated by a thin line — no cards */
+.se-pp-cols { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.se-pp-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; padding: 0 12px; border-left: 1px solid var(--line-soft); }
+.se-pp-col:first-child { padding-left: 0; border-left: 0; }
+.se-pp-col:last-child { padding-right: 0; }
+.se-pp-col-head { display: flex; align-items: baseline; gap: 6px; padding-bottom: 6px; margin-bottom: 2px; border-bottom: 1px solid var(--line-soft); font-size: 13px; font-weight: 700; color: var(--muted); }
+.se-pp-col-head b { font-size: 15px; color: var(--text); }
+.se-pp-alts { margin-left: auto; font-size: 12px; font-weight: 600; cursor: help; white-space: nowrap; }
+.se-pp-col-empty { padding: 6px 0; color: var(--muted); font-size: 14px; }
+/* one line per raider: spec icon, name in class colour, spec in grey — the state is said by its section */
+.se-pp-col .se-slot { --se-row: 34px; gap: 8px; padding: 0 6px 0 4px; background: none; }
+.se-pp-col .se-slot:hover { background: var(--panel2); }
+.se-pp-col .se-slot .se-slot-tile img, .se-pp-col .se-slot .se-slot-tile [class*="spec-ph"] { width: 22px; height: 22px; }
+.se-pp-col .se-slot-text { flex-direction: row; align-items: baseline; gap: 7px; }
+.se-pp-col .se-nameline { flex: 0 1 auto; }
+.se-pp-col .se-name { font-size: 14px; }
+.se-pp-col .se-sub { flex: 1 1 0; min-width: 0; }
+.se-pp-col .se-sub .se-sig { display: none; }
+.se-pp-col .se-slot.se-has-sig::before { display: none; }
+.se-note { color: var(--muted); font-style: italic; }
+/* a word section where late / tentative / reserve begin */
+.se-pp-divider { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: var(--fs-label); font-weight: 700; color: var(--se-sig); }
 .se-pp-divider svg { width: 12px; height: 12px; flex: 0 0 auto; }
 .se-pp-divider::after { content: ""; flex: 1 1 auto; height: 1px; background: color-mix(in srgb, var(--se-sig) 35%, transparent); }
-.se-pp-sections { display: flex; flex-direction: column; gap: 12px; }
-.se-pp-sec { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.se-pp-sec-head { display: flex; align-items: center; gap: 6px; font-size: var(--fs-label); font-weight: 700; letter-spacing: .03em; color: var(--muted); }
-.se-pp-sec-head small { font-weight: 600; opacity: .8; }
-.se-pp-sec-head::after { content: ""; flex: 1 1 auto; height: 1px; background: var(--line-soft); }
-.se-pp-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 6px; }
-/* several characters (#293): ONE card per person — the leading character as the usual line, the others quieter
-   under it (indented, not bold, smaller), each a line of its own to drag or pick, still a comfortable target */
-.se-pp-person { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.se-alts { display: flex; flex-direction: column; gap: 2px; padding-left: 12px; border-left: 2px solid var(--line-soft); margin-left: 8px; }
-.se-alt { display: flex; align-items: center; gap: 7px; min-height: 32px; padding: 0 6px; border-radius: 7px; border: 1px solid transparent; background: color-mix(in srgb, var(--panel2) 55%, transparent); cursor: grab; min-width: 0; }
-.se-alt:hover { border-color: var(--line); }
-.se-alt:focus-visible { outline: 2px solid var(--accent); outline-offset: -1px; }
-.se-alt.se-picked { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
-.se-alt.se-dragging { opacity: .45; }
-.se-alt-text { display: flex; align-items: baseline; gap: 6px; min-width: 0; flex: 1; white-space: nowrap; overflow: hidden; }
-/* the name keeps its width, the spec gives way first */
-.se-alt-name { flex: 0 0 auto; max-width: 100%; font-weight: 500; font-size: 13px; overflow: hidden; text-overflow: ellipsis; }
-.se-alt-spec { flex: 1 1 0; min-width: 0; font-size: var(--fs-label); color: var(--muted); overflow: hidden; text-overflow: ellipsis; }
-/* the order number: 1 = their choice, 2/3 = "kann auch mit" — small and quiet */
-.se-char-no { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; margin-right: 5px; border-radius: 4px; background: var(--line-soft); color: var(--muted); font-size: var(--fs-label); font-weight: 700; line-height: 1; vertical-align: 1px; }
-.se-alt .se-char-no { margin-right: 0; flex: 0 0 auto; }
 .se-pp-empty { margin: 0; color: var(--muted); font-size: 13px; }
-.se-pp-absent { margin: 0; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12px; }
+/* those signed off never come into the setup: one quiet line, their names on demand */
+.se-pp-absent { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px; margin: 0; padding-top: 8px; border-top: 1px solid var(--line-soft); color: var(--muted); font-size: 12.5px; }
+.se-pp-absent-btn { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; font-weight: 700; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.se-pp-absent-names { flex-basis: 100%; color: var(--text); }
+/* the order number: 1 = their choice, 2/3 = "kann auch mit" — small and quiet (groups and bench) */
+.se-char-no { display: inline-flex; align-items: center; justify-content: center; min-width: 15px; height: 15px; padding: 0 3px; margin-right: 5px; border-radius: 4px; background: var(--line-soft); color: var(--muted); font-size: var(--fs-label); font-weight: 700; line-height: 1; vertical-align: 1px; }
 
-/* wide: "Angemeldet" under the bench across the full width, never beside the groups — so they keep their width
-   whether somebody is left or not. The search and the chips on one row, then one row per role like the bench:
-   its name on the left, the raiders side by side */
-@container se-stage (min-width: 1080px) {
-    .se-pp-tools { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 8px 14px; }
-    .se-pp-search { flex: 0 1 280px; }
-    .se-pp-filterrow { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-    .se-pp-stfilters { padding-left: 10px; border-left: 1px solid var(--line-soft); }
-    .se-pp-sec { flex-direction: row; align-items: flex-start; gap: 12px; }
-    .se-pp-sec-head { flex: 0 0 96px; min-height: var(--se-row); }
-    .se-pp-sec-head::after { display: none; }
-    .se-pp-grid { flex: 1 1 auto; min-width: 0; grid-template-columns: repeat(auto-fill, minmax(200px, 220px)); }
+/* not wide enough for four columns: two by two */
+@container se-stage (max-width: 899.98px) {
+    .se-pp-cols { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 14px; }
+    .se-pp-col:nth-child(odd) { padding-left: 0; border-left: 0; }
+    .se-pp-col:nth-child(even) { padding-right: 0; }
 }
-/* narrow: docked at the bottom of the window — one row to scroll sideways, folded by its arrow, and folded by
-   itself while one of its raiders is picked, so the free places to tap stay in view */
-@container se-stage (max-width: 1079.98px) {
+/* narrow (a phone): docked at the bottom of the window, one role at a time behind its tab; folded while one of its
+   raiders is picked — the drawer's pick line says what to do */
+@container se-stage (max-width: 719.98px) {
     .se-poolpanel { position: sticky; bottom: 0; z-index: 20; padding: 10px 12px; box-shadow: 0 -14px 32px -18px var(--shade-55); }
-    .se-pp-toggle { display: inline-flex; }
-    .se-pp-tools { flex-direction: row; flex-wrap: wrap; align-items: center; }
-    .se-pp-search { flex: 1 1 200px; max-width: 280px; height: 32px; }
-    .se-pp-sections { flex-direction: row; gap: 14px; overflow-x: auto; padding-bottom: 4px; }
-    .se-pp-sec { flex: 0 0 auto; }
-    .se-pp-sec-head::after { display: none; }
-    .se-pp-grid { display: flex; gap: 6px; }
-    .se-pp-grid .se-slot { width: 176px; flex: 0 0 auto; }
-    .se-pp-grid .se-pp-person { width: 176px; flex: 0 0 auto; }
-    .se-pp-grid .se-pp-person .se-slot { width: auto; }
-    .se-pp-filterrow { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 6px 10px; }
-    .se-pp-stfilters { padding-left: 10px; border-left: 1px solid var(--line-soft); }
-    /* the divider stands in the row as a short label with a line on its left */
-    .se-pp-divider { flex: 0 0 auto; align-self: stretch; align-items: flex-start; margin: 0 0 0 4px; padding: 14px 4px 0 8px; border-left: 2px solid var(--se-sig); }
-    .se-pp-divider::after { display: none; }
-    .se-pp-absent { display: none; }
-    .se-poolpanel.se-pp-collapsed .se-pp-body, .se-poolpanel.se-pp-picking .se-pp-body { display: none; }
-    /* everybody placed: no dock any more, just the quiet line under the groups */
     .se-poolpanel.se-pp-none { position: static; box-shadow: none; }
-    .se-pp-none .se-pp-toggle { display: none; }
+    .se-pp-head { flex-wrap: nowrap; gap: 8px; }
+    .se-pp-tools { flex-wrap: nowrap; overflow-x: auto; gap: 8px; }
+    .se-pp-search { flex: 0 0 150px; min-width: 0; margin-left: 0; }
+    .se-pp-tabs { display: flex; border-bottom: 1px solid var(--line-soft); }
+    .se-pp-body { max-height: 46vh; }
+    .se-pp-cols { display: block; overflow-y: auto; min-height: 0; }
+    .se-pp-col, .se-pp-col:nth-child(odd), .se-pp-col:nth-child(even) { display: none; padding: 0; border: 0; }
+    .se-pp-col.se-tab { display: flex; }
+    .se-pp-col-head { display: none; }
+    .se-pp-col .se-slot { --se-row: 40px; }
+    .se-poolpanel.se-pp-picking .se-pp-body { max-height: 0; overflow: hidden; margin-top: -10px; }
+}
+
+/* B: the sidebar left of the groups — wide screens only, else it stays A */
+@media (min-width: 1280px) {
+    .se-layout.se-pool-side { grid-template-columns: 300px minmax(0, 1fr); }
+    .se-layout.se-pool-side > * { grid-column: 2; }
+    .se-layout.se-pool-side > .se-poolpanel { grid-column: 1; grid-row: 1 / span 3; position: sticky; top: 12px; max-height: calc(100vh - 24px); }
+    .se-pp-side .se-pp-head { flex-wrap: wrap; gap: 8px; }
+    .se-pp-side .se-pp-tools { flex-direction: column; align-items: stretch; flex-basis: 100%; order: 3; }
+    .se-pp-side .se-pp-seg { align-self: flex-start; max-width: 100%; overflow-x: auto; }
+    .se-pp-side .se-pp-search { flex: 0 0 auto; margin-left: 0; }
+    .se-pp-side .se-pp-toggle { margin-left: auto; }
+    .se-pp-side .se-pp-body { overflow-y: auto; }
+    .se-pp-side .se-pp-cols { display: flex; flex-direction: column; gap: 12px; }
+    .se-pp-side .se-pp-col, .se-pp-side .se-pp-col:nth-child(n) { padding: 0; border: 0; }
+    .se-pp-side .se-pp-divider { display: none; }
+    /* the status word on each line instead of the sections */
+    .se-pp-side .se-pp-col .se-sub .se-sig { display: inline-flex; }
 }
 
 /* who else is in the editor (setupPresence): avatars in the bar, a ring and a name tag on the raider somebody
@@ -519,7 +537,7 @@
 }
 
 /* the pick line and its "Details" exist on a phone only (below) */
-.se-drawer-pick, .se-drawer-more { display: none; }
+.se-drawer-pick, .se-drawer-more, .se-drawer-cancel { display: none; }
 
 /* a phone: the drawer is a sheet from the bottom, the buffs sit two by two. While a raider is picked the sheet is
    one slim line ("… gewählt – Ziel antippen · Details · ✕") so the places to tap stay in view, and the docked
@@ -535,6 +553,9 @@
     .se-drawer-picking .se-drawer-more { display: inline-flex; flex: 0 0 auto; }
     .se-drawer-picking:not(.se-drawer-open) > .se-tip { display: none; }
     .se-picking .se-poolpanel { bottom: 60px; }
+    /* while picking, "Abbrechen" as a word instead of the X */
+    .se-drawer-picking .se-drawer-cancel { display: inline-flex; flex: 0 0 auto; }
+    .se-drawer-picking .se-drawer-x { display: none; }
 
     .se-bar { gap: 8px; }
     .se-bar-act { width: 100%; justify-content: flex-start; }
@@ -548,14 +569,6 @@
     .se-slot { gap: 7px; padding: 0 5px; }
     .se-slot .se-slot-tile img, .se-slot .se-slot-tile [class*="spec-ph"] { width: 28px; height: 28px; }
     .se-name { font-size: 14px; }
-
-    /* the dock: the head and the role chips on as few rows as possible, the search beside the chips */
-    .se-pp-sub { display: none; }
-    .se-pp-tools { flex-wrap: nowrap; overflow-x: auto; }
-    .se-pp-search { flex: 0 0 180px; }
-    .se-pp-filterrow { flex-wrap: nowrap; }
-    .se-pp-filters { flex-wrap: nowrap; }
-    .se-pp-chip { white-space: nowrap; }
 }
 
 /* editing the search: a count with - / +, specs that can be taken in or out, buffs that can be dropped, roles that can be added */
@@ -605,9 +618,9 @@
 .se-more-switch.is-on { background: var(--go); }
 .se-more-switch.is-on::after { transform: translateX(13px); }
 /* the proposal to split (from the threshold on): the one item that wants attention */
-.se-more-item.is-hot { background: var(--accent-soft); }
-.se-more-item.is-hot .se-more-label { color: var(--accent); }
-.se-more-item.is-danger .se-more-label { color: var(--high); }
+.se-more-item.se-tone-hot { background: var(--accent-soft); }
+.se-more-item.se-tone-hot .se-more-label { color: var(--accent); }
+.se-more-item.se-tone-danger .se-more-label { color: var(--high); }
 .se-more-label { font-size: 14px; font-weight: 700; line-height: 1.25; }
 .se-more-sub { font-size: 12px; color: var(--muted); line-height: 1.3; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .se-more-sep { height: 1px; margin: 4px 6px; background: var(--line-soft); }

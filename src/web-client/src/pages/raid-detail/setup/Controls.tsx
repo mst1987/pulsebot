@@ -49,7 +49,7 @@ export function MoreMenu({ items }: { items: (MoreItem | MoreSection | "sep")[] 
                             <button
                                 key={it.id} type="button" role={it.on === undefined ? "menuitem" : "menuitemcheckbox"}
                                 aria-checked={it.on === undefined ? undefined : it.on}
-                                className={["se-more-item", it.on ? "is-on" : "", it.tone ? `is-${it.tone}` : ""].filter(Boolean).join(" ")}
+                                className={["se-more-item", it.on ? "is-on" : "", it.tone ? `se-tone-${it.tone}` : ""].filter(Boolean).join(" ")}
                                 disabled={it.disabled}
                                 onClick={() => { setOpen(false); it.onSelect(); }}
                             >
@@ -76,7 +76,7 @@ function PostToggle({ on, disabled, icon, label, sub, onChange }: { on: boolean;
     const state = `${label}: ${on ? t("setup.postOptions.on") : t("setup.postOptions.off")}`;
     return (
         <button
-            type="button" className={`se-post-toggle ${on ? "is-on" : "is-off"}`} aria-pressed={on} aria-label={state}
+            type="button" className={`se-post-toggle ${on ? "is-on" : "se-off"}`} aria-pressed={on} aria-label={state}
             data-tip={state} data-tip-sub={sub} disabled={disabled}
             onClick={() => onChange(!on)}
         >

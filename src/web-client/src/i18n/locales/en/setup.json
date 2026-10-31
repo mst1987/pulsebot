@@ -248,7 +248,9 @@
         "freeValue": "{count} free",
         "openValue": "{count} open",
         "benchColumn": "Bench as a column",
-        "benchColumnSub": "The bench stands as a column beside the groups instead of a row under them. Remembered in this browser."
+        "benchColumnSub": "The bench stands as a column beside the groups instead of a row under them. Remembered in this browser.",
+        "poolSide": "Signed up as a sidebar",
+        "poolSideSub": "Signed up stands left of the groups and scrolls on its own – from 1280 px width, below that under them again. Remembered in this browser."
     },
     "line": {
         "aria": "In short",
@@ -266,19 +268,25 @@
     },
     "drawer": {
         "kicker": "Raider",
-        "picked": "{name} picked – tap a target",
+        "picked": "{name} picked · tap a free place",
         "details": "Details",
         "less": "Pick target"
     },
     "poolPanel": {
         "statusFilter": "Filter by status",
-        "statusChipTip": "Show only \"{status}\"",
-        "statusChipSub": "One click shows only these signups, a second one everybody again. Combines with the roles.",
         "statusHead": "{status} · {count}",
+        "statusAll": "All",
+        "leadOnly": "Leaders only",
+        "leadOnlySub": "Shows only who may lead this raid.",
+        "altOf": "{n}. char of {character}",
+        "altCount": { "one": "+{count} alt", "other": "+{count} alts" },
+        "altCountSub": "Further characters of raiders who already stand in another role – not counted twice.",
+        "emptyCol": "Nobody in this role",
+        "tabs": "Roles",
+        "showAbsent": "show",
+        "hideAbsent": "hide",
         "notPlaced": "not placed yet",
         "search": "Search raider or spec",
-        "filter": "Filter by role",
-        "filters": { "all": "All", "tank": "Tanks", "healer": "Healers", "dps": "DPS" },
         "sections": { "tank": "Tanks", "healer": "Healers", "melee": "Melee", "ranged": "Ranged" },
         "noMatch": "Nobody matches the search.",
         "absent": { "one": "{count} signed off · not part of the setup", "other": "{count} signed off · not part of the setup" },
@@ -440,10 +448,7 @@
         "canLeadSub": "Lead right for these instances. Leads this raid only when the crown stands at the place.",
         "figure": "Leader",
         "figureOk": "The raid has a leader.",
-        "figureMissing": "No leader in the raid. {count} of the signups may lead it.",
-        "filter": "Leader",
-        "filterSub": "Only those who may lead this instance.",
-        "filterAria": "Filter by leader"
+        "figureMissing": "No leader in the raid. {count} of the signups may lead it."
     },
     "signupEdit": {
         "open": "Edit signup …",

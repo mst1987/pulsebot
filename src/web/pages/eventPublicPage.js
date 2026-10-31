@@ -80,7 +80,7 @@ const VIEW_KEYS = [
 const WORDS = {
     late: { de: "Spät", en: "Late" },
     tentative: { de: "Vielleicht", en: "Tentative" },
-    bench: { de: "Bank", en: "Bench" },
+    bench: { de: "Ersatz", en: "Reserve" },
     absence: { de: "Abgemeldet", en: "Absence" },
     other: { de: "Sonstige", en: "Other" },
     signups: { de: "Anmeldungen", en: "Signups" },

@@ -99,9 +99,10 @@ export function CharacterNumber({ order }: { order: number }) {
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
  * `as` (#293): the character this line stands for when it is not the one the raider stands as — a drag or pick takes it.
+ * `note`: a short line instead of the spec text, e.g. "2. Char von <first char>" for a further character in "Angemeldet".
  * `order`: their order number (1 = their choice, 2 and up = "kann auch mit"), drawn for somebody with several characters.
  */
-export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number }) {
+export function Slot({ p, ui, inPool = false, inGroup = false, as, order, note, label }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number; note?: string; label?: string }) {
     const t = useT();
     // late, tentative or bench: a labelled square field on the line (#setup-bar), not a dot
     const sig = markedStatus(p.status);
@@ -134,6 +135,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
             aria-pressed={ui.editable ? selected : undefined}
             draggable={movable}
             data-user={p.userId}
+            data-character={as}
+            aria-label={label}
             // the raider's info beside the line while the mouse rests on it or the focus is here (peek.ts)
             {...peekHandlers(ui, p.userId, as)}
             onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, as)) : undefined}
@@ -171,7 +174,9 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                     {sig && <SigBadge status={sig} />}
                     {/* the role only where the spec does not say it on its own: tank and healer, never melee/ranged.
                         An off-spec is tinted — the role where it is shown, else the spec; "Zweitspec" itself is in the tooltip */}
-                    {showsRole(p.role)
+                    {note
+                        ? <span className="se-note">{note}</span>
+                        : showsRole(p.role)
                         ? <>{specText(p)} · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>
                         : <span className={p.main === false ? "se-offrole" : undefined}>{specText(p)}</span>}
                     {(ui.extraRoles[p.userId] || []).map((r) => (
@@ -314,7 +319,7 @@ function SlotRow({ people, ui, layout, posted }: { people: SetupPerson[]; ui: In
     const count = t("setup.bench.count", { count: people.length });
     const state = column || !reach ? count : `${count} · ${reach}`;
     return (
-        <section className={`se-bench se-row${column ? " is-col" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
+        <section className={`se-bench se-row${column ? " se-col" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
             <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
                 <span className="se-group-title">{t("setup.bench.title")}</span>
                 <span className="se-bench-state">{people.length || column ? state : t("setup.bench.empty")}</span>
@@ -328,7 +333,7 @@ function SlotRow({ people, ui, layout, posted }: { people: SetupPerson[]; ui: In
                     <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(target)}>{t("setup.group.here")}</button>
                 )}
                 {ui.editable && !canTake && (
-                    <span className={`se-bench-drop${!people.length ? " is-empty" : ""}`} aria-hidden="true">
+                    <span className={`se-bench-drop${!people.length ? " se-empty" : ""}`} aria-hidden="true">
                         {column && !people.length
                             ? <>{t("setup.bench.dropHere")}{reach && <small>{reach}</small>}</>
                             : t("setup.bench.drop")}

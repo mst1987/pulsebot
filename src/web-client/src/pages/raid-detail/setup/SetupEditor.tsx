@@ -46,7 +46,7 @@ import { useJobs } from "../../../components/shell/Jobs";
 import { CrownIcon, LockIcon, XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
-import { clock, readBenchColumn, readCompact, storeBenchColumn, storeCompact } from "./setupText";
+import { clock, readBenchColumn, readCompact, readPoolSidebar, storeBenchColumn, storeCompact, storePoolSidebar } from "./setupText";
 import { BenchCard, GroupCard, GroupGrid, type Interaction, ReadOnly } from "./Board";
 import { PoolPanel } from "./PoolPanel";
 import { ActivityFeed, PresenceChip } from "./LiveParts";
@@ -103,6 +103,12 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const [benchColumn, setBenchColumn] = useState(readBenchColumn);
     const toggleBenchColumn = () => setBenchColumn((on) => {
         storeBenchColumn(!on);
+        return !on;
+    });
+    // "Ansicht > Angemeldet als Seitenleiste": the signups left of the groups (B) instead of role columns under them (A)
+    const [poolSide, setPoolSide] = useState(readPoolSidebar);
+    const togglePoolSide = () => setPoolSide((on) => {
+        storePoolSidebar(!on);
         return !on;
     });
     const saving = useRef(0);
@@ -904,6 +910,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         [t("setup.more.sectionView"), [
             { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "setup", on: compact, onSelect: toggleCompact },
             { id: "benchColumn", label: t("setup.more.benchColumn"), sub: t("setup.more.benchColumnSub"), icon: "overview", on: benchColumn, onSelect: toggleBenchColumn },
+            { id: "poolSide", label: t("setup.more.poolSide"), sub: t("setup.more.poolSideSub"), icon: "overview", on: poolSide, onSelect: togglePoolSide },
         ]],
     ];
     const more: (MoreItem | MoreSection)[] = sections.flatMap(([section, items]) => (items.length ? [{ section }, ...items] : []));
@@ -1011,7 +1018,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                 {/* the groups right under the bar, the bench as a row under them (or a column beside them), "Angemeldet"
                     (#517) under the setup — never beside it, so the groups keep their width whether somebody is left or not —
                     then one summary line */}
-                <div className="se-layout">
+                <div className={`se-layout${poolSide ? " se-pool-side" : ""}`}>
                     <div className={`se-main${benchColumn ? " se-bench-col" : ""}`}>
                         <GroupGrid count={groups.length}>
                             {groups.map((g) => (
@@ -1020,7 +1027,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         </GroupGrid>
                         <BenchCard bench={setup.bench} ui={ui} layout={benchColumn ? "column" : "row"} posted={postOptions ? postBench : undefined} />
                     </div>
-                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} leaders={setup.checks.leader?.candidates} />
+                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} absentNames={data.absentNames} leaders={setup.checks.leader?.candidates} side={poolSide} />
                     <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                     <ActivityFeed activity={presence.activity} />
                 </div>
@@ -1039,9 +1046,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                                 <Button variant="ghost" size="sm" className="se-drawer-more" aria-expanded={sheetOpen} onClick={() => setSheetOpen((o) => !o)}>
                                     {sheetOpen ? t("setup.drawer.less") : t("setup.drawer.details")}
                                 </Button>
+                                {/* on a phone the slim pick bar ends with a plain "Abbrechen" instead of the X */}
+                                <Button variant="ghost" size="sm" className="se-drawer-cancel" onClick={closeDrawer}>{t("common.cancel")}</Button>
                             </>
                         )}
-                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={closeDrawer} />
+                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" className="se-drawer-x" onClick={closeDrawer} />
                     </div>
                     <SlotTip
                         p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined}

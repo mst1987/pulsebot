@@ -1,169 +1,109 @@
-import { Fragment, useState, type KeyboardEvent } from "react";
-import type { SetupCharacter, SetupPerson } from "../../../api";
+import { Fragment, useState } from "react";
+import type { SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
-import { ChevronDownIcon, CrownIcon, SearchIcon } from "../../../components/ui/icons/icons";
-import { asCharacter, fitsRole, leadIn } from "../../../lib/signups/setupEditor";
-import { wowIconUrl } from "../../../lib/wow/wowIcon";
-import { specLabel } from "../../../lib/wow/wowNames";
-import { classColorProps } from "../../../components/character/ClassSpec";
-import SpecTile from "../SpecTile";
-import { CharacterNumber, SigBadge, SigIcon, Slot, type Interaction } from "./Board";
-import { peekHandlers } from "./peek";
+import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons/icons";
+import Switch from "../../../components/ui/form/Switch";
+import { asCharacter, poolRole } from "../../../lib/signups/setupEditor";
+import { SigIcon, Slot, type Interaction } from "./Board";
 import { useZone } from "./useZone";
-import { MARKED_STATUSES, markedStatus, matchesQuery, statusLabel, statusRank, type MarkedStatus } from "./setupText";
+import { MARKED_STATUSES, markedStatus, matchesQuery, specText, statusLabel, statusRank, type MarkedStatus } from "./setupText";
 
 // "Angemeldet" (#517): everybody signed up who is neither in a group nor on the
-// bench — where the setup starts from, since the editor no longer needs a
-// proposal first. A panel of its own under the setup (never beside it, so the
-// groups keep their width), by role (tank, healer, melee, ranged) with a search
-// and role filters.
-// Where the editor is too narrow for a side column it docks at the bottom of the
-// window instead (setup-editor.css, container query): one row to scroll sideways,
-// folded away by its arrow — and folded by itself while a raider of it is picked,
-// so the free places to tap stay in view. The whole panel is a drop zone: a raider
+// bench — where the setup starts from. The whole panel is a drop zone: a raider
 // dropped here leaves the setup again. Never posted.
 //
-// Several characters (#293): a person is ONE card — one seat, counted once in the
-// head — with every character they signed up with: the one leading the card on
-// the line, the others as quiet lines under it, each with its order number and
-// draggable on its own (a drag or pick takes exactly that character). A person
-// stands in every role block one of their characters fits, led there by that
-// character — like the signup message's "same number" rule.
+// A (default, head variant B of the setup canvas): four role columns tanks |
+// healer | melee | ranged under the groups and the bench — one line per
+// raider (spec icon, name in class colour, spec in grey), no cards; the count in
+// the column head, an empty column shows "–". One head line: "Angemeldet" N, the
+// status segment (Alle / Spät / Vielleicht / Ersatz), "Nur Leader", the search and
+// the fold arrow. While a raider of it is dragged or picked the panel folds to that
+// head line, so the free places stay in view.
+// B ("Ansicht › Angemeldet als Seitenleiste", `side`): a 300px column left of the
+// groups that scrolls on its own, the status word on each line; below 1280px it
+// falls back to A (setup-editor.css).
+// Narrow (a phone): a sheet docked at the bottom with role tabs ("Tanks 3").
 //
-// Signup states at a glance: a late, tentative or bench signup carries a labelled
-// square field in its colour on the card (Board.tsx' SigBadge); inside each role
-// block the plain signups come first, then late, tentative, bench, each after a
-// thin divider with its name; status chips beside the role chips show only one state.
+// Status: plain signups first in each column, then Spät, Vielleicht, Ersatz as word
+// sections at its end. Signed-off raiders never come into the setup — only a line
+// "N abgemeldet · kommen nicht ins Setup" with "zeigen".
+//
+// Several characters (#293): every character stands in its own role's column —
+// the one the raider stands as as a plain line, a further one marked "2. Char von
+// <first char>" (a drag or pick takes exactly that character). Further characters
+// do not count twice: the column head says "+1 Zweitchar".
 
 const SECTIONS = ["tank", "healer", "melee", "ranged"] as const;
-type Filter = "all" | "tank" | "healer" | "dps";
+type Role = (typeof SECTIONS)[number];
 
-const inFilter = (p: SetupPerson, filter: Filter) => filter === "all"
-    || (filter === "dps" ? fitsRole(p, "melee") || fitsRole(p, "ranged") : fitsRole(p, filter));
+const sameName = (a: string | undefined, b: string | undefined) => String(a || "").toLowerCase() === String(b || "").toLowerCase();
 
 /** Whether a person signed up with this state — as they stand or with any of their characters. */
 const hasStatus = (p: SetupPerson, status: MarkedStatus | null) => !status
     || markedStatus(p.status) === status || (p.characters || []).some((c) => markedStatus(c.status) === status);
 
-/** The role blocks a filter shows. */
-const blocksOf = (filter: Filter) => SECTIONS.filter((role) => filter === "all" || (filter === "dps" ? role === "melee" || role === "ranged" : role === filter));
+type Line = { key: string; p: SetupPerson; userId: string; as?: string; note?: string; label?: string; alt: boolean; st: MarkedStatus | "" };
+type AltText = { note: (n: number, character: string) => string; label: (shown: SetupPerson, n: number) => string };
 
-/** The state of the line that leads a person's card in a block: that character's, or theirs as they stand. */
-function lineStatus(p: SetupPerson, lead: SetupCharacter | null | undefined): string {
-    if (lead && lead.character.toLowerCase() !== p.character.toLowerCase()) return lead.status || "signed";
-    return p.status || "signed";
+/** The lines of one person in one role column: the character they stand as, then each further character of that role. */
+function linesOf(p: SetupPerson, role: Role, alt: AltText): Line[] {
+    const lines: Line[] = [];
+    if (poolRole(p.role) === role) lines.push({ key: p.userId, p, userId: p.userId, alt: false, st: markedStatus(p.status) });
+    for (const c of p.characters || []) {
+        if (sameName(c.character, p.character) || poolRole(c.role) !== role) continue;
+        const shown = asCharacter(p, c);
+        const n = c.priority + 1;
+        lines.push({ key: `${p.userId}:${c.character}`, p: shown, userId: p.userId, as: c.character, note: alt.note(n, p.character), label: alt.label(shown, n), alt: true, st: markedStatus(c.status) });
+    }
+    return lines;
 }
 
 /**
- * A further character of a person in "Angemeldet" (#293): quiet (not bold), with its
- * spec icon, its order number and a small state field where its state differs from the
- * card's line. A line of its own to drag or pick — a move takes exactly this character.
+ * `leaders` (#1036): who may lead this raid (`checks.leader.candidates`) — a "Nur Leader" switch filters to them;
+ * without a leader rule (undefined) there is no switch. `absentNames`: the characters of those signed off, shown on demand.
  */
-function CharacterLine({ p, c, ui, leadStatus }: { p: SetupPerson; c: SetupCharacter; ui: Interaction; leadStatus: string }) {
-    const t = useT();
-    const color = classColorProps(c.classColor);
-    const held = ui.held?.[p.userId];
-    const movable = ui.editable && !held;
-    const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === c.character;
-    const spec = specLabel(c.spec, c.specLabel || c.spec);
-    const differs = (markedStatus(c.status) || "signed") !== (markedStatus(leadStatus) || "signed");
-    const pick = () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, c.character));
-    const keyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-        if (e.key !== "Enter" && e.key !== " ") return;
-        e.preventDefault();
-        pick();
-    };
-    return (
-        <div
-            className={`se-alt${selected ? " se-picked" : ""}${ui.dragging === p.userId ? " se-dragging" : ""}`}
-            role={ui.editable ? "button" : undefined}
-            tabIndex={ui.editable ? 0 : undefined}
-            aria-pressed={ui.editable ? selected : undefined}
-            aria-label={t("setup.chars.lineAria", { character: c.character, spec, n: c.priority + 1 })}
-            data-user={p.userId}
-            data-character={c.character}
-            draggable={movable}
-            {...peekHandlers(ui, p.userId, c.character)}
-            onClick={ui.editable ? pick : undefined}
-            onKeyDown={movable ? keyDown : undefined}
-            onDragStart={movable ? (e) => { e.stopPropagation(); ui.onLeave?.(); e.dataTransfer.setData("text/plain", p.userId); e.dataTransfer.effectAllowed = "move"; setTimeout(() => ui.onDrag(p.userId, c.character), 0); } : undefined}
-            onDragEnd={ui.editable ? () => ui.onDrag(null) : undefined}
-        >
-            <CharacterNumber order={c.priority + 1} />
-            <SpecTile iconUrl={c.specIcon ? wowIconUrl(c.specIcon, 36) : undefined} classColor={c.classColor} size="sm" />
-            <span className="se-alt-text">
-                <span className={`se-alt-name ${color.className || ""}`} style={color.style}>{c.character}</span>
-                <span className="se-alt-spec">{spec}</span>
-            </span>
-            {differs && <SigBadge status={c.status} small />}
-        </div>
-    );
-}
-
-/**
- * One person in a role block: their leading character on the line (as they stand,
- * or the character that fits this block), their other characters under it.
- */
-function PoolCard({ p, lead, ui }: { p: SetupPerson; lead: SetupCharacter | undefined; ui: Interaction }) {
-    const characters = p.characters || [];
-    if (characters.length < 2) return <Slot p={p} ui={ui} inPool />;
-    const standing = characters.find((c) => c.character.toLowerCase() === p.character.toLowerCase());
-    const leading = lead || standing;
-    // `as` only when the line is not the character they stand as: a drag of the plain line keeps the default
-    const as = lead && lead !== standing ? lead.character : undefined;
-    const shown = lead && as ? asCharacter(p, lead) : p;
-    const others = characters.filter((c) => c !== leading);
-    return (
-        <div className="se-pp-person">
-            <Slot p={shown} ui={ui} inPool as={as} order={leading ? leading.priority + 1 : undefined} />
-            <div className="se-alts">
-                {others.map((c) => <CharacterLine key={c.character} p={p} c={c} ui={ui} leadStatus={shown.status || ""} />)}
-            </div>
-        </div>
-    );
-}
-
-/**
- * `leaders` (#1036): who may lead this raid (`checks.leader.candidates`) — a "Leader" chip filters to them;
- * without a leader rule (undefined) there is no chip.
- */
-export function PoolPanel({ pool, ui, absent = 0, leaders }: { pool: SetupPerson[]; ui: Interaction; absent?: number; leaders?: string[] }) {
+export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = false }: {
+    pool: SetupPerson[]; ui: Interaction; absent?: number; absentNames?: string[]; leaders?: string[]; side?: boolean;
+}) {
     const t = useT();
     const [query, setQuery] = useState("");
-    const [filter, setFilter] = useState<Filter>("all");
     const [status, setStatus] = useState<MarkedStatus | null>(null);
     const [leadOnly, setLeadOnly] = useState(false);
+    const [collapsed, setCollapsed] = useState(false);
+    const [showAbsent, setShowAbsent] = useState(false);
+    const [tab, setTab] = useState<Role>("tank");
     const leadSet = new Set(leaders || []);
     const leadCount = pool.filter((p) => leadSet.has(p.userId)).length;
-    // the chip only while somebody in the pool may lead; switched on it stays (the count may drop to 0)
-    const leadChip = !!leaders && (leadCount > 0 || leadOnly);
-    const [collapsed, setCollapsed] = useState(false);
+    // the switch only while somebody in the pool may lead; switched on it stays (the count may drop to 0)
+    const leadSwitch = !!leaders && (leadCount > 0 || leadOnly);
     const zone = useZone({ pool: true }, ui);
-    const canTake = ui.editable && !!ui.selected && !pool.some((p) => p.userId === ui.selected);
-    const picking = !!ui.selected && pool.some((p) => p.userId === ui.selected);
-    // persons, not characters: somebody with a tank and a healer counts once in "Alle" and once per role chip
-    const count = (f: Filter) => pool.filter((p) => inFilter(p, f)).length;
+    const inPool = (userId: string | null | undefined) => !!userId && pool.some((p) => p.userId === userId);
+    const canTake = ui.editable && !!ui.selected && !inPool(ui.selected);
+    const picking = inPool(ui.selected);
+    const dragging = inPool(ui.dragging);
     const statusCount = (s: MarkedStatus) => pool.filter((p) => hasStatus(p, s)).length;
-    // a state chip only while somebody signed up so; a chip switched on stays (its count may drop to 0 after a move)
-    const statusChips = MARKED_STATUSES.filter((s) => statusCount(s) > 0 || status === s);
-    const shown = pool.filter((p) => inFilter(p, filter) && hasStatus(p, status) && matchesQuery(p, query) && (!leadOnly || leadSet.has(p.userId)));
-    // a person stands in every block one of their characters fits, led there by that character;
-    // a role nobody signed up for is no section; anything unknown goes with the ranged.
-    // Inside a block: plain signups first, then late, tentative, bench (stable, the server's order within each)
-    const sections = blocksOf(filter)
-        .map((role) => ({
-            role,
-            people: shown
-                .map((p) => ({ p, lead: leadIn(p, role) }))
-                .filter((x) => x.lead !== null)
-                .map((x) => ({ ...x, st: markedStatus(lineStatus(x.p, x.lead)) }))
-                .sort((a, b) => statusRank(a.st) - statusRank(b.st)),
-        }))
-        .filter((s) => s.people.length);
-    const filters: Filter[] = ["all", "tank", "healer", "dps"];
+    // a state only while somebody signed up so; a state switched on stays (its count may drop to 0 after a move)
+    const statuses = MARKED_STATUSES.filter((s) => statusCount(s) > 0 || status === s);
+    const shown = pool.filter((p) => matchesQuery(p, query) && (!leadOnly || leadSet.has(p.userId)));
+    // a further character's line: "2. Char von Zibbo" where the spec stands, its spec in the button's name
+    const alt: AltText = {
+        note: (n, character) => t("setup.poolPanel.altOf", { n, character }),
+        label: (c, n) => t("setup.chars.lineAria", { character: c.character, spec: specText(c), n }),
+    };
+    // plain signups first, then late, tentative, reserve (stable: the server's order within each)
+    const columns = SECTIONS.map((role) => {
+        const lines = shown
+            .flatMap((p) => linesOf(p, role, alt))
+            .filter((l) => !status || l.st === status)
+            .sort((a, b) => statusRank(a.st) - statusRank(b.st));
+        return { role, lines, main: lines.filter((l) => !l.alt).length, alts: lines.filter((l) => l.alt).length };
+    });
+    const filtered = !!query.trim() || !!status || leadOnly;
+    const nothing = pool.length > 0 && columns.every((c) => !c.lines.length);
+    const absentList = absentNames || [];
     return (
         <section
-            className={`se-poolpanel${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}${collapsed ? " se-pp-collapsed" : ""}${picking ? " se-pp-picking" : ""}${pool.length ? "" : " se-pp-none"}`}
+            className={`se-poolpanel${side ? " se-pp-side" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}${collapsed ? " se-pp-collapsed" : ""}${picking ? " se-pp-picking" : ""}${dragging ? " se-pp-dragging" : ""}${pool.length ? "" : " se-pp-none"}`}
             {...zone.props}
             aria-label={t("setup.pool.aria")}
         >
@@ -171,9 +111,38 @@ export function PoolPanel({ pool, ui, absent = 0, leaders }: { pool: SetupPerson
                 <span className="se-pp-title" data-tip={t("setup.pool.title")} data-tip-sub={t("setup.pool.tip")}>
                     {t("setup.pool.title")} <b className="se-pp-count">{pool.length}</b>
                 </span>
-                <span className="se-pp-sub">{t("setup.poolPanel.notPlaced")}</span>
+                {pool.length > 0 && (
+                    <div className="se-pp-tools">
+                        {statuses.length > 0 && (
+                            <div className="se-pp-seg" role="group" aria-label={t("setup.poolPanel.statusFilter")}>
+                                <button type="button" className={`se-pp-segbtn${!status ? " is-on" : ""}`} aria-pressed={!status} onClick={() => setStatus(null)}>
+                                    {t("setup.poolPanel.statusAll")} <small>{pool.length}</small>
+                                </button>
+                                {statuses.map((s) => (
+                                    <button
+                                        key={s} type="button" className={`se-pp-segbtn se-sigv-${s}${status === s ? " is-on" : ""}`} aria-pressed={status === s}
+                                        onClick={() => setStatus((cur) => (cur === s ? null : s))}
+                                    >
+                                        {statusLabel(s)} <small>{statusCount(s)}</small>
+                                    </button>
+                                ))}
+                            </div>
+                        )}
+                        {leadSwitch && (
+                            <Switch
+                                className="se-pp-lead" checked={leadOnly} onChange={setLeadOnly}
+                                label={<>{t("setup.poolPanel.leadOnly")} <small>{leadCount}</small></>}
+                                tipHead={t("setup.poolPanel.leadOnly")} tip={t("setup.poolPanel.leadOnlySub")}
+                            />
+                        )}
+                        <label className="se-pp-search">
+                            <SearchIcon />
+                            <input type="search" value={query} placeholder={t("setup.poolPanel.search")} aria-label={t("setup.poolPanel.search")} onChange={(e) => setQuery(e.target.value)} />
+                        </label>
+                    </div>
+                )}
                 {canTake && (
-                    <button type="button" className="se-ph se-ph-take se-pp-take" onClick={() => ui.onDrop({ pool: true })}>{t("setup.poolPanel.back")}</button>
+                    <button type="button" className="se-ph se-ph-take se-pp-take" onClick={() => ui.onDrop({ pool: true })}>{t("setup.group.here")}</button>
                 )}
                 <button
                     type="button" className="se-pp-toggle" aria-expanded={!collapsed}
@@ -186,76 +155,59 @@ export function PoolPanel({ pool, ui, absent = 0, leaders }: { pool: SetupPerson
             </header>
             <div className="se-pp-body">
                 {pool.length > 0 && (
-                    <div className="se-pp-tools">
-                        <label className="se-pp-search">
-                            <SearchIcon />
-                            <input type="search" value={query} placeholder={t("setup.poolPanel.search")} aria-label={t("setup.poolPanel.search")} onChange={(e) => setQuery(e.target.value)} />
-                        </label>
-                        <div className="se-pp-filterrow">
-                            <div className="se-pp-filters" role="group" aria-label={t("setup.poolPanel.filter")}>
-                                {filters.map((f) => (
-                                    <button key={f} type="button" className={`se-pp-chip${filter === f ? " is-on" : ""}`} aria-pressed={filter === f} onClick={() => setFilter(f)}>
-                                        {t(`setup.poolPanel.filters.${f}`)} <small>{count(f)}</small>
-                                    </button>
-                                ))}
-                            </div>
-                            {leadChip && (
-                                <div className="se-pp-filters" role="group" aria-label={t("setup.leader.filterAria")}>
-                                    <button
-                                        type="button" className={`se-pp-chip${leadOnly ? " is-on" : ""}`} aria-pressed={leadOnly}
-                                        data-tip={t("setup.leader.filter")} data-tip-sub={t("setup.leader.filterSub")}
-                                        onClick={() => setLeadOnly((on) => !on)}
-                                    >
-                                        <CrownIcon />{t("setup.leader.filter")} <small>{leadCount}</small>
-                                    </button>
-                                </div>
-                            )}
-                            {statusChips.length > 0 && (
-                                <div className="se-pp-filters se-pp-stfilters" role="group" aria-label={t("setup.poolPanel.statusFilter")}>
-                                    {statusChips.map((s) => {
-                                        const label = statusLabel(s);
-                                        return (
-                                            <button
-                                                key={s} type="button" className={`se-pp-chip se-pp-stchip se-sigv-${s}${status === s ? " is-on" : ""}`} aria-pressed={status === s}
-                                                data-tip={t("setup.poolPanel.statusChipTip", { status: label })} data-tip-sub={t("setup.poolPanel.statusChipSub")}
-                                                onClick={() => setStatus((cur) => (cur === s ? null : s))}
-                                            >
-                                                <SigIcon status={s} />{label} <small>{statusCount(s)}</small>
-                                            </button>
-                                        );
-                                    })}
-                                </div>
-                            )}
-                        </div>
+                    <div className="se-pp-tabs" role="tablist" aria-label={t("setup.poolPanel.tabs")}>
+                        {columns.map((c) => (
+                            <button key={c.role} type="button" role="tab" className={`se-pp-tab${tab === c.role ? " is-on" : ""}`} aria-selected={tab === c.role} onClick={() => setTab(c.role)}>
+                                {t(`setup.poolPanel.sections.${c.role}`)} <small>{c.main}</small>
+                            </button>
+                        ))}
                     </div>
                 )}
-                <div className="se-pp-sections">
-                    {sections.map((s) => (
-                        <div key={s.role} className="se-pp-sec" role="group" aria-label={t(`setup.poolPanel.sections.${s.role}`)}>
-                            <div className="se-pp-sec-head">{t(`setup.poolPanel.sections.${s.role}`)} <small>{s.people.length}</small></div>
-                            <div className="se-pp-grid">
-                                {s.people.map(({ p, lead, st }, i) => {
-                                    // a thin divider with the state's name where late / tentative / bench begin
-                                    const starts = !!st && (i === 0 || s.people[i - 1].st !== st);
-                                    const label = st ? t("setup.poolPanel.statusHead", { status: statusLabel(st), count: s.people.filter((x) => x.st === st).length }) : "";
+                {pool.length > 0 && !nothing && (
+                    <div className="se-pp-cols">
+                        {columns.map((c) => (
+                            <div key={c.role} className={`se-pp-col${tab === c.role ? " se-tab" : ""}`} role="group" aria-label={t(`setup.poolPanel.sections.${c.role}`)}>
+                                <div className="se-pp-col-head">
+                                    <span>{t(`setup.poolPanel.sections.${c.role}`)}</span> <b>{c.main}</b>
+                                    {c.alts > 0 && (
+                                        <span className="se-pp-alts" data-tip={t("setup.poolPanel.altCount", { count: c.alts })} data-tip-sub={t("setup.poolPanel.altCountSub")}>
+                                            {t("setup.poolPanel.altCount", { count: c.alts })}
+                                        </span>
+                                    )}
+                                </div>
+                                {!c.lines.length && <div className="se-pp-col-empty" aria-label={t("setup.poolPanel.emptyCol")}>–</div>}
+                                {c.lines.map((l, i) => {
+                                    // a word section where late / tentative / reserve begin
+                                    const starts = !!l.st && (i === 0 || c.lines[i - 1].st !== l.st);
+                                    const label = l.st ? t("setup.poolPanel.statusHead", { status: statusLabel(l.st), count: c.lines.filter((x) => x.st === l.st).length }) : "";
                                     return (
-                                        <Fragment key={p.userId}>
-                                            {starts && (
-                                                <div className={`se-pp-divider se-sigv-${st}`} role="separator" aria-label={label}>
-                                                    <SigIcon status={st} /><span>{label}</span>
+                                        <Fragment key={l.key}>
+                                            {starts && l.st && (
+                                                <div className={`se-pp-divider se-sigv-${l.st}`} role="separator" aria-label={label}>
+                                                    <SigIcon status={l.st} /><span>{label}</span>
                                                 </div>
                                             )}
-                                            <PoolCard p={p} lead={lead || undefined} ui={ui} />
+                                            <Slot p={l.p} ui={ui} inPool as={l.as} note={l.note} label={l.label} />
                                         </Fragment>
                                     );
                                 })}
                             </div>
-                        </div>
-                    ))}
-                    {!pool.length && <p className="se-pp-empty">{t("setup.pool.empty")}</p>}
-                    {pool.length > 0 && !shown.length && <p className="se-pp-empty">{t("setup.poolPanel.noMatch")}</p>}
-                </div>
-                {absent > 0 && <p className="se-pp-absent">{t("setup.poolPanel.absent", { count: absent })}</p>}
+                        ))}
+                    </div>
+                )}
+                {!pool.length && <p className="se-pp-empty">{t("setup.pool.empty")}</p>}
+                {nothing && filtered && <p className="se-pp-empty">{t("setup.poolPanel.noMatch")}</p>}
+                {absent > 0 && (
+                    <p className="se-pp-absent">
+                        <span>{t("setup.poolPanel.absent", { count: absent })}</span>
+                        {absentList.length > 0 && (
+                            <button type="button" className="se-pp-absent-btn" aria-expanded={showAbsent} onClick={() => setShowAbsent((s) => !s)}>
+                                {showAbsent ? t("setup.poolPanel.hideAbsent") : t("setup.poolPanel.showAbsent")}
+                            </button>
+                        )}
+                        {showAbsent && absentList.length > 0 && <span className="se-pp-absent-names">{absentList.join(", ")}</span>}
+                    </p>
+                )}
             </div>
         </section>
     );

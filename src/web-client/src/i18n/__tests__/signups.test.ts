@@ -14,7 +14,7 @@ describe("signups namespace", () => {
         await inLang("en", () => {
             expect(t("signups.bulk.signUpAll", { count: 1 })).toBe("Sign up for 1 raid");
             expect(t("signups.selectedCount", { count: 2 })).toBe("2 raids selected");
-            expect(t("signups.status.bench")).toBe("Bench");
+            expect(t("signups.status.bench")).toBe("Reserve");
             expect(t("signups.dialog.wishSignedUp", { count: 1, names: "Zibbo" })).toBe("Zibbo is signed up too");
             expect(t("signups.specPicker.add")).toBe("Add spec");
         });

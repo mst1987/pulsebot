@@ -149,6 +149,8 @@ export type SetupEditorData = {
     /** #1035: how many raids in total the signups fill (ceil(signups / size), at most 8); 0 without signups. */
     suggestedTotal?: number;
     absent?: number;
+    /** The characters of those signed off — shown on demand under "Angemeldet". */
+    absentNames?: string[];
     /** How many "nicht zusammen" pairs stand among the signups — what the editor asks about. */
     avoidPairs?: number;
     defaults?: { weights: SetupWeights; maxWeight: number };
