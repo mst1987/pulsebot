@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { SetupEditorData, StoredSetup } from "../../../api";
 import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/signups/setupEditor";
 import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
@@ -31,6 +31,29 @@ export function MoreMenu({ items }: { items: (MoreItem | MoreSection | "sep")[] 
     const t = useT();
     const [open, setOpen] = useState(false);
     const anchor = useRef<HTMLDivElement>(null);
+    const box = useRef<HTMLDivElement>(null);
+    // roving focus like ToolMenu: the first entry on open, arrows (with wrap) and Home / End move,
+    // Esc closes and hands the focus back to "Aktionen", Tab closes and lets the focus go on
+    useEffect(() => {
+        if (!open || !box.current) return;
+        const first = box.current.querySelector<HTMLButtonElement>("button:not(:disabled)");
+        if (first) first.focus();
+    }, [open]);
+    const close = (focusBack: boolean) => {
+        setOpen(false);
+        if (focusBack) anchor.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    };
+    const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+        const list = box.current ? Array.from(box.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")) : [];
+        const at = list.indexOf(document.activeElement as HTMLButtonElement);
+        const go = (i: number) => { if (list.length > 0) list[(i + list.length) % list.length].focus(); };
+        if (e.key === "ArrowDown") { e.preventDefault(); go(at + 1); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); go(at < 0 ? list.length - 1 : at - 1); }
+        else if (e.key === "Home") { e.preventDefault(); go(0); }
+        else if (e.key === "End") { e.preventDefault(); go(list.length - 1); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+        else if (e.key === "Tab") close(false);
+    };
     return (
         <div className="se-more" ref={anchor}>
             <Button
@@ -41,7 +64,7 @@ export function MoreMenu({ items }: { items: (MoreItem | MoreSection | "sep")[] 
                 {t("setup.editor.more")}<span className="se-more-chev" aria-hidden="true"><ChevronDownIcon /></span>
             </Button>
             {open && (
-                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu">
+                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu" aria-label={t("setup.editor.more")} boxRef={box} onKeyDown={onKey}>
                     {items.map((it, i) => {
                         if (it === "sep") return <div key={`sep-${i}`} className="se-more-sep" role="separator" />;
                         if ("section" in it) return <div key={`sec-${i}`} className="se-more-head" role="presentation">{it.section}</div>;
@@ -51,7 +74,7 @@ export function MoreMenu({ items }: { items: (MoreItem | MoreSection | "sep")[] 
                                 aria-checked={it.on === undefined ? undefined : it.on}
                                 className={["se-more-item", it.on ? "is-on" : "", it.tone ? `se-tone-${it.tone}` : ""].filter(Boolean).join(" ")}
                                 disabled={it.disabled}
-                                onClick={() => { setOpen(false); it.onSelect(); }}
+                                onClick={() => { close(true); it.onSelect(); }}
                             >
                                 <WowIcon name={it.icon} size={24} />
                                 <span className="se-more-text">
