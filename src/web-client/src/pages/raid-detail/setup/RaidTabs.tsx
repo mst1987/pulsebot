@@ -13,7 +13,7 @@ import Badge from "../../../components/ui/Badge";
 import Field from "../../../components/ui/form/Field";
 import NumberStepper from "../../../components/ui/form/NumberStepper";
 import Switch from "../../../components/ui/form/Switch";
-import { raidBalance } from "./setupText";
+import { raidBalance, underfilledRaid } from "./setupText";
 
 /** The state word of a raid's setup: empty, draft, approved or posted. */
 function stateOf(raid: RaidGroupRaid): "none" | "draft" | "approved" | "posted" {
@@ -57,7 +57,7 @@ function RaidTab({ raid, current, moving, editable, strength, weak, onSwitch, on
             <span className="se-raidtab-title">{raid.title}</span>
             <span className="se-raidtab-count">{raid.placed}/{raid.size}</span>
             {strength !== undefined && (
-                <span className={`se-raidtab-strength${weak ? " se-weak" : ""}`} data-testid="se-raidtab-strength">
+                <span className={`se-raidtab-strength${weak ? " se-weak" : ""}`} data-testid="se-raidtab-strength" data-tip={t("setup.raidGroup.strengthTip")}>
                     {t("setup.raidGroup.strength", { value: strength })}
                 </span>
             )}
@@ -83,6 +83,13 @@ export function RaidTabs({ group, current, moving, editable, elsewhere, balance,
     const t = useT();
     const strengths = raidBalance(balance);
     const weakRaid = strengths && strengths.weakId ? group.raids.find((r) => r.id === strengths.weakId) : undefined;
+    const open = strengths && !weakRaid ? underfilledRaid(balance) : null;
+    const openRaid = open ? group.raids.find((r) => r.id === open.eventId) : undefined;
+    const summary = weakRaid
+        ? t("setup.raidGroup.weaker", { name: weakRaid.title })
+        : open
+            ? t("setup.raidGroup.underfilled", { name: openRaid ? openRaid.title : t("setup.raidGroup.tab", { index: balance!.raids.findIndex((r) => r.eventId === open.eventId) + 1 }), placed: open.placed, size: open.size })
+            : t("setup.raidGroup.balanced");
     return (
         <div className="se-raidtabs" role="tablist" aria-label={t("setup.raidGroup.aria")}>
             {group.raids.map((raid) => (
@@ -100,9 +107,9 @@ export function RaidTabs({ group, current, moving, editable, elsewhere, balance,
                         {" · "}
                         <span
                             className={`se-raidtabs-balance${weakRaid ? " se-weak" : ""}`} data-testid="se-raidtabs-balance"
-                            data-tip={t("setup.raidGroup.balanceTip", { spread: balance ? balance.spread : 0 })}
+                            data-tip={t("setup.raidGroup.balanceTip", { spread: balance ? balance.spread : 0 })} data-tip-side="right"
                         >
-                            {weakRaid ? t("setup.raidGroup.weaker", { name: weakRaid.title }) : t("setup.raidGroup.balanced")}
+                            {summary}
                         </span>
                     </>
                 )}

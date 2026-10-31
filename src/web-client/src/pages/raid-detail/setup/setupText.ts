@@ -81,6 +81,16 @@ export function raidBalance(balance: SetupBalanceCheck | undefined): { byId: Rec
     return { byId, weakId };
 }
 
+/**
+ * The first raid of a group that is not filled yet (#1038): its strength covers only its
+ * placed raiders, so "even" would mislead until every raid is full. Null when all are full.
+ */
+export function underfilledRaid(balance: SetupBalanceCheck | undefined): { eventId: string; placed: number; size: number } | null {
+    if (!balance) return null;
+    const raid = balance.raids.find((r) => typeof r.placed === "number" && typeof r.size === "number" && r.placed < r.size);
+    return raid ? { eventId: raid.eventId, placed: raid.placed, size: raid.size } : null;
+}
+
 // the raid size an own event allows (eventStore.js's MAX_SIZE) — the server checks it again
 export const MAX_RAID_SIZE = 40;
 

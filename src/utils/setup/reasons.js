@@ -6,7 +6,7 @@
 const { ROLES, ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { moreAvailableThanFirst } = require("./score");
 const { SPEC_PREFIX } = require("./lootWants");
-const { raidStrengths } = require("./raidStrength");
+const { raidStrengths, CLASS_OF_ROLE, CLASSES } = require("./raidStrength");
 
 const STATUS_TEXT = {
     late: "Kommt später",
@@ -467,15 +467,26 @@ function markLeader(slot, event) {
  * the spread between the strongest and the weakest; `known` = raiders with any data behind it.
  */
 function balanceCheck(model, state) {
-    const placed = model.events.map(() => []);
+    const n = model.events.length;
+    const sum = new Float64Array(n * CLASSES);
+    const count = new Float64Array(n * CLASSES);
+    const placed = new Array(n).fill(0);
     for (const c of model.cands) {
         const o = state.opt[c.idx];
         if (o < 0) continue;
         const option = c.options[o];
-        placed[option.eventIdx].push(option.strength);
+        const k = option.eventIdx * CLASSES + CLASS_OF_ROLE[option.roleIdx];
+        sum[k] += option.strength;
+        count[k] += 1;
+        placed[option.eventIdx]++;
     }
-    const { spread, strengths } = raidStrengths(placed);
-    return { spread, known: model.strengthKnown || 0, raids: model.events.map((event, e) => ({ eventId: event.id, strength: strengths[e] })) };
+    const { spread, strengths } = raidStrengths(sum, count, n);
+    return {
+        spread,
+        known: model.strengthKnown || 0,
+        // placed/size: "Raids ausgeglichen" only with every raid filled - else the editor names the short one
+        raids: model.events.map((event, e) => ({ eventId: event.id, strength: strengths[e], placed: placed[e], size: event.size })),
+    };
 }
 
 /** The slot with its `lootReason` (#1037) when one stands in its reasons - no key otherwise. */
@@ -519,8 +530,9 @@ function buildOutput(model, scorer, state, { version, weights }) {
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));
     const checks = { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) };
     if (lootAt) checks.loot = lootCheck(model, state, lootAt);
-    // balance (#1038) only for parallel raids with the weight on - else the checks keep their shape
-    if (weights.balance > 0 && model.balanceOn) checks.balance = balanceCheck(model, state);
+    // balance (#1038): parallel raids with strength data, the weight 0 included - the weight only
+    // switches the balancing off, the editor still shows how strong the raids are. Not signed.
+    if (model.balanceOn && model.strengthKnown > 0) checks.balance = balanceCheck(model, state);
     // No word about a shadowban (Vermerke, #981) in the output: it is stored as the setup (also as an
     // automatic draft, eventStore.saveSetupDraft). The orga's answer names them (web/apiRoutes/events/setup.js).
     return {

@@ -532,6 +532,8 @@
         "strength": "Stärke {value}",
         "balanced": "Raids ausgeglichen",
         "weaker": "{name} deutlich schwächer",
+        "underfilled": "{name}: {placed}/{size} besetzt",
+        "strengthTip": "Stärke 0–100 aus Gear und Anwesenheit der Eingeteilten",
         "balanceTip": "Stärke je Raid 0–100 aus Gear und Anwesenheit, Abstand {spread} Punkte",
         "places": "{count} Raids · {places} Plätze",
         "head": "Raid {index} von {count}",

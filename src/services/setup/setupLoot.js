@@ -5,11 +5,13 @@
 //   loadLootData(eventIds)  the background job behind "Loot-Daten laden": reads
 //                           softres.it (fetchRaidCached, one read per list), the
 //                           BiS lists of the specs (WoWSims data, TBC only) and the
-//                           gear the characters wear (armory one after another,
-//                           with its own cache, then the logs) and stores one
-//                           snapshot per raid group (setupLootStore). The only
-//                           place that calls an API. It also keeps the mean item
-//                           level per character for "Raids gleich stark" (#1038).
+//                           gear the characters wear (armory one after another for
+//                           every signed-up character, at most MAX_ARMORY, with its
+//                           own cache, then the logs) and stores one snapshot per
+//                           raid group (setupLootStore). The only place that calls
+//                           an API. It also keeps the mean item level per character
+//                           for "Raids gleich stark" (#1038), an old level kept per
+//                           character when no fresh one came (30-day rule).
 //   lootInputFor(events)    cheap, on every editor move: the stored snapshot when it
 //                           still fits the raids (same version, same instances),
 //                           else null - the proposal itself never calls an API.
@@ -222,6 +224,38 @@ function meanItemLevels(raiders, gear) {
 }
 
 /**
+ * The item levels of this run, per character over the last run's (#1038): a character
+ * this run read no level for keeps its last one - as long as the raider is still signed
+ * up. Returns the levels and how many were kept (they count for `keptAt`, the 30-day rule).
+ */
+function mergeLevels(raiders, fresh, previous) {
+    const levels = {};
+    let kept = 0;
+    for (const r of raiders) for (const c of r.chars) {
+        const key = characterKeyOf(c.character);
+        const now = (fresh[r.userId] || {})[key];
+        const old = ((previous || {})[r.userId] || {})[key];
+        const level = now || old;
+        if (!level) continue;
+        if (!now) kept++;
+        (levels[r.userId] = levels[r.userId] || {})[key] = level;
+    }
+    return { levels, kept };
+}
+
+/**
+ * The armory names of a run, BiS characters first (their wants depend on it), then every
+ * other character of the group for the strength (#1038); at most MAX_ARMORY.
+ */
+function armoryNames(raiders, bis) {
+    const first = [...bis.values()].map((b) => b.name);
+    const rest = raiders.flatMap((r) => r.chars.map((c) => c.character));
+    const byKey = new Map();
+    for (const name of [...first, ...rest]) if (!byKey.has(characterKeyOf(name))) byKey.set(characterKeyOf(name), name);
+    return [...byKey.values()].slice(0, MAX_ARMORY);
+}
+
+/**
  * The stored entry of a character that this run could not replace (#1037): a failed
  * source must not overwrite good data. Softres down and no reserve now, while the last
  * run had one; or armory/logs down, no gear now, while the last run had a BiS list.
@@ -306,19 +340,18 @@ async function loadLootData(eventIds) {
         const raiders = raidersOf(groupId);
         const reserves = await softresByCharacter(events, raiders, failed);
 
-        // BiS first, so the armory is asked only for characters a BiS list could matter for.
+        // BiS first, so the armory asks the characters a BiS list matters for before the others.
         const bis = new Map();
         for (const r of raiders) for (const c of r.chars) {
             const list = bisInInstances(c.spec, versionId, instances);
             if (list.length && !reserves.has(`${r.userId}|${characterKeyOf(c.character)}`)) bis.set(`${r.userId}|${characterKeyOf(c.character)}`, { name: c.character, list });
         }
-        const names = [...new Set([...bis.values()].map((b) => b.name))].slice(0, MAX_ARMORY);
-        await askArmory(groupId, names, { versionId, guildId, failed });
-        // the gear is read always (#1038, the raids' strength) - but without a BiS list a failed read
-        // only costs the strength, it is no failed loot source
-        const gear = gearOf({ versionId, guildId, failed: bis.size ? failed : new Set() });
-        const fresh = meanItemLevels(raiders, gear);
-        const levels = Object.keys(fresh).length || !previous ? fresh : previous.gear || {};
+        // the armory and the gear serve the raids' strength too (#1038), so every character is asked -
+        // but without a BiS list a failed read only costs the strength, it is no failed loot source
+        const gearFailed = bis.size ? failed : new Set();
+        await askArmory(groupId, armoryNames(raiders, bis), { versionId, guildId, failed: gearFailed });
+        const gear = gearOf({ versionId, guildId, failed: gearFailed });
+        const { levels, kept: keptLevels } = mergeLevels(raiders, meanItemLevels(raiders, gear), previous && previous.gear);
 
         const asked = askedSources(events, bis);
         const failedList = ["softres", "armory", "logs"].filter((x) => failed.has(x));
@@ -330,7 +363,8 @@ async function loadLootData(eventIds) {
         saveSetupLoot(groupId, {
             versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts, gear: levels,
             // the oldest kept data: entries kept load after load keep the time they were fetched
-            failed: failedList, keptAt: kept && previous ? (previous.keptAt || previous.at) : 0,
+            // (kept item levels count the same: they expire with the snapshot, 30 days after their load)
+            failed: failedList, keptAt: (kept || keptLevels) && previous ? (previous.keptAt || previous.at) : 0,
         });
         return { ok: true, counts, failed: failedList, partial: failedList.length > 0 };
     } catch (e) {
@@ -342,4 +376,4 @@ async function loadLootData(eventIds) {
     }
 }
 
-module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry, meanItemLevels, MIN_ITEMS } };
+module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry, meanItemLevels, mergeLevels, armoryNames, MIN_ITEMS } };

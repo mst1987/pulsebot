@@ -17,7 +17,7 @@ const { getEventSoftres } = require("../../../src/stores/events/eventSoftresStor
 const armoryGear = require("../../../src/services/loot/armoryGear");
 const charGear = require("../../../src/services/loot/charGear");
 const softresStatus = require("../../../src/services/loot/softresStatus");
-const { getSetupLoot, saveSetupLoot } = require("../../../src/stores/loot/setupLootStore");
+const { getSetupLoot, saveSetupLoot, MAX_AGE_MS } = require("../../../src/stores/loot/setupLootStore");
 const setupLoot = require("../../../src/services/setup/setupLoot");
 
 // Real TBC data: Fury warrior BiS for t4 that drops in Karazhan (28741, Skulker's Greaves
@@ -99,8 +99,8 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
         expect(snap.wants.u3.healy.source).toBe("spec");
         expect(snap.wants.u4).toBeUndefined();
         expect(snap.counts).toEqual({ signups: 3, gear: 1, softres: 1, bis: 1, spec: 1 });
-        // the armory is asked only for the BiS character, one after another
-        expect(armoryGear.primeArmoryGear).toHaveBeenCalledTimes(1);
+        // the armory asks one after another, the BiS character first, then the rest for the strength (#1038)
+        expect(armoryGear.primeArmoryGear.mock.calls.map((c) => c[0][0])).toEqual(["Bissy", "Softy", "Healy"]);
         expect(armoryGear.primeArmoryGear).toHaveBeenCalledWith(["Bissy"], { full: true, versionId: "tbc", guildId: "g1" });
         expect(snap.items[bis.items[0].itemId]).toEqual(expect.objectContaining({ name: expect.any(String), quality: expect.any(Number) }));
         expect(setupLoot.progressOf("a")).toBeNull();
@@ -117,7 +117,7 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
         expect(getSetupLoot("a").wants.u1.softy.source).toBe("spec");
     });
 
-    it("gives Forever Softres and the spec only - no BiS, no armory, no item names", async () => {
+    it("gives Forever Softres and the spec only - no BiS, no item names; the armory of its own version", async () => {
         events.f1 = raid("f1", { versionId: "forever", raidGroupId: "f1" });
         events.f2 = raid("f2", { versionId: "forever", raidGroupId: "f1", raidGroupIndex: 2 });
         signupStore.listSignups.mockReturnValue([
@@ -132,8 +132,9 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
         expect(snap.wants.u1.softy.source).toBe("softres");
         expect(snap.wants.u2.other.source).toBe("spec");
         expect(snap.items[KARA_ITEM]).toEqual({ name: "", icon: "", quality: null });
-        expect(armoryGear.primeArmoryGear).not.toHaveBeenCalled();
-        // the gear is read for the strength (#1038) - of the raid's own version only, never TBC's
+        // armory and gear are read for the strength (#1038) - of the raid's own version only, never TBC's
+        expect(armoryGear.primeArmoryGear).toHaveBeenCalledTimes(2);
+        for (const call of armoryGear.primeArmoryGear.mock.calls) expect(call[1]).toEqual({ full: true, versionId: "forever", guildId: "g1" });
         expect(charGear.gearByCharacter).toHaveBeenCalledTimes(1);
         expect(charGear.gearByCharacter).toHaveBeenCalledWith({ versionId: "forever", guildId: "g1" });
         delete events.f1; delete events.f2;
@@ -249,6 +250,74 @@ describe("services/setup/setupLoot strength gear (#1038)", () => {
         const out = await setupLoot.loadLootData(["a", "b"]);
         expect(out).toEqual(expect.objectContaining({ ok: true, failed: [], partial: false }));
         expect(getSetupLoot("a").gear).toEqual({ u1: { strong: 115 } });
+    });
+
+    it("asks the armory for every character of the group, without a BiS list too, and a failure there is no loot failure", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec", characters: [{ character: "Other", spec: "x" }, { character: "OTHER", spec: "y" }, { character: "Alt", spec: "y" }] },
+        ]);
+        await setupLoot.loadLootData(["a", "b"]);
+        expect(armoryGear.primeArmoryGear.mock.calls.map((c) => c[0][0])).toEqual(["Strong", "Other", "Alt"]);
+        armoryGear.primeArmoryGear.mockRejectedValue(new Error("armory down"));
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out).toEqual(expect.objectContaining({ ok: true, failed: [] }));
+    });
+
+    it("keeps the last level per character where this load read none, as long as the raider is signed up", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u3", character: "Leaver", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        charGear.gearByCharacter.mockReturnValue(new Map([["strong", worn(8, 115)], ["other", worn(8, 110)], ["leaver", worn(8, 100)]]));
+        await setupLoot.loadLootData(["a", "b"]);
+        const first = getSetupLoot("a");
+        expect(first.keptAt).toBe(0);
+        // second load: only Strong is read again (better now), Leaver signed off
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        charGear.gearByCharacter.mockReturnValue(new Map([["strong", worn(8, 125)]]));
+        await setupLoot.loadLootData(["a", "b"]);
+        const snap = getSetupLoot("a");
+        expect(snap.gear).toEqual({ u1: { strong: 125 }, u2: { other: 110 } });
+        // the kept level is as old as its load: the snapshot expires 30 days after it
+        expect(snap.keptAt).toBe(first.at);
+    });
+
+    it("a kept level expires with the 30-day rule like the wants", async () => {
+        const now = jest.spyOn(Date, "now");
+        try {
+            signupStore.listSignups.mockReturnValue([{ userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" }]);
+            charGear.gearByCharacter.mockReturnValue(new Map([["strong", worn(8, 115)]]));
+            now.mockReturnValue(1_000_000);
+            await setupLoot.loadLootData(["a", "b"]);
+            // empty gear load after load: the level stays, always with the first load's time
+            charGear.gearByCharacter.mockReturnValue(new Map());
+            now.mockReturnValue(1_000_000 + MAX_AGE_MS / 2);
+            await setupLoot.loadLootData(["a", "b"]);
+            expect(getSetupLoot("a").gear).toEqual({ u1: { strong: 115 } });
+            expect(getSetupLoot("a").keptAt).toBe(1_000_000);
+            // past 30 days from the first load: the snapshot is gone, nothing is carried over
+            now.mockReturnValue(1_000_000 + MAX_AGE_MS + 1);
+            expect(getSetupLoot("a", { now: 1_000_000 + MAX_AGE_MS + 1 })).toBeNull();
+            await setupLoot.loadLootData(["a", "b"]);
+            expect(getSetupLoot("a", { now: 1_000_000 + MAX_AGE_MS + 1 }).gear).toEqual({});
+        } finally {
+            now.mockRestore();
+        }
+    });
+
+    it("mergeLevels and armoryNames: fresh over old per character, BiS names first, capped", () => {
+        const { mergeLevels, armoryNames } = setupLoot._internal;
+        const raiders = [{ userId: "u1", chars: [{ character: "A" }, { character: "B" }] }];
+        expect(mergeLevels(raiders, { u1: { a: 120 } }, { u1: { a: 100, b: 110 }, gone: { x: 1 } })).toEqual({ levels: { u1: { a: 120, b: 110 } }, kept: 1 });
+        expect(mergeLevels(raiders, {}, null)).toEqual({ levels: {}, kept: 0 });
+        expect(armoryNames(raiders, new Map([["u1|b", { name: "B" }]]))).toEqual(["B", "A"]);
+        const many = [{ userId: "u", chars: Array.from({ length: setupLoot.MAX_ARMORY + 3 }, (_, i) => ({ character: `C${i}` })) }];
+        expect(armoryNames(many, new Map())).toHaveLength(setupLoot.MAX_ARMORY);
     });
 
     it("meanItemLevels skips characters without levels", () => {

@@ -232,17 +232,8 @@ function makeScorer(model) {
     const strengthCount = balanceOn ? new Float64Array(events.length * CLASSES) : null;
 
     /** The balance cost of a state (≥ 0, at most 1 per placed raider, in units of the weight). */
-    function strengthCost(opt) {
-        strengthSum.fill(0);
-        strengthCount.fill(0);
-        for (let c = 0; c < cands.length; c++) {
-            const o = opt[c];
-            if (o < 0) continue;
-            const option = cands[c].options[o];
-            const k = option.eventIdx * CLASSES + CLASS_OF_ROLE[option.roleIdx];
-            strengthSum[k] += option.strength;
-            strengthCount[k] += 1;
-        }
+    // The sums are gathered in run's one pass over the raiders (no second pass per evaluate).
+    function strengthCost() {
         return balanceCost(strengthSum, strengthCount, events.length);
     }
 
@@ -279,6 +270,10 @@ function makeScorer(model) {
         if (detail && lootOn) parts.loot = 0;
         if (detail && balanceOn) parts.balance = 0;
         let total = 0;
+        if (balanceOn) {
+            strengthSum.fill(0);
+            strengthCount.fill(0);
+        }
         const ev = events.map((e) => ({
             count: 0,
             leaders: 0,
@@ -296,6 +291,11 @@ function makeScorer(model) {
             if (detail) for (const [k, v] of Object.entries(option.parts)) parts[k] += v;
             s.count++;
             s.roles[option.roleIdx]++;
+            if (balanceOn) {
+                const k = option.eventIdx * CLASSES + CLASS_OF_ROLE[option.roleIdx];
+                strengthSum[k] += option.strength;
+                strengthCount[k] += 1;
+            }
             if (cands[c].leadsIn && cands[c].leadsIn.has(option.eventIdx)) s.leaders++;
             s.groups[grp[c]].push({ cand: cands[c], opt: option });
             for (const b of option.data.raid) s.raid[b] = 1;
@@ -363,7 +363,7 @@ function makeScorer(model) {
             if (detail) parts.loot -= loot;
         }
         if (balanceOn) {
-            const balance = strengthCost(opt) * weights.balance;
+            const balance = strengthCost() * weights.balance;
             total -= balance;
             if (detail) parts.balance -= balance;
         }

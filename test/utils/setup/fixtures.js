@@ -150,11 +150,13 @@ function randomInput(random, { events = 1 } = {}) {
 
 /**
  * The invariant of loot and balance (#1037/#1038): they only swap who goes where - the same
- * people placed, in the pool and on the bench as in `other`.
+ * people placed, in the pool and on the bench as in `other`, and every placed raider on the same
+ * character with the same spec and role - only the raid may differ.
  */
 function samePlaces(out, other) {
     const ids = (list) => (list || []).map((p) => String(p.userId)).sort().join(",");
-    const placed = (o) => ids(o.events.flatMap((e) => e.groups.flatMap((g) => g.slots)));
+    const place = (p) => `${p.userId}/${String(p.character || "").toLowerCase()}/${p.spec}/${p.role}`;
+    const placed = (o) => o.events.flatMap((e) => e.groups.flatMap((g) => g.slots)).map(place).sort().join(",");
     return placed(out) === placed(other) && ids(out.pool) === ids(other.pool) && ids(out.bench) === ids(other.bench);
 }
 

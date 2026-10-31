@@ -10,7 +10,7 @@ import { switchLang } from "../../../../test/i18n";
 import { renderPage } from "../../../../test/render";
 import { EVENT_ID, editorData, setupCtx } from "../../../../test/fixtures/setupEditor";
 import SetupEditor from "../SetupEditor";
-import { WEAKER_BY, raidBalance, weightLabels } from "../setupText";
+import { WEAKER_BY, raidBalance, underfilledRaid, weightLabels } from "../setupText";
 
 vi.mock("../../../../api/client", async (orig) => ({ ...(await orig<typeof import("../../../../api/client")>()), get: vi.fn(), send: vi.fn() }));
 
@@ -22,10 +22,11 @@ const GROUP: RaidGroup = {
     ],
 };
 
-const check = (a: number | null, b: number | null, known = 20): SetupBalanceCheck => ({
+const check = (a: number | null, b: number | null, known = 20, placedB = 10): SetupBalanceCheck => ({
     spread: a !== null && b !== null ? Math.abs(a - b) : 0, known,
-    raids: [{ eventId: EVENT_ID, strength: a }, { eventId: "ev2", strength: b }],
+    raids: [{ eventId: EVENT_ID, strength: a, placed: 10, size: 10 }, { eventId: "ev2", strength: b, placed: placedB, size: 10 }],
 });
+const full = (eventId: string, strength: number) => ({ eventId, strength, placed: 10, size: 10 });
 
 let page: SetupEditorData;
 beforeEach(() => {
@@ -45,15 +46,21 @@ describe("raidBalance (#1038)", () => {
     it("is null without data, with one raid or without a known raider", () => {
         expect(raidBalance(undefined)).toBeNull();
         expect(raidBalance(check(60, 40, 0))).toBeNull();
-        expect(raidBalance({ spread: 0, known: 3, raids: [{ eventId: "a", strength: 50 }] })).toBeNull();
+        expect(raidBalance({ spread: 0, known: 3, raids: [full("a", 50)] })).toBeNull();
         expect(raidBalance(check(60, null))).toBeNull();
     });
 
     it("marks a raid only when it lies WEAKER_BY points below the mean of the others", () => {
         expect(raidBalance(check(60, 60 - WEAKER_BY + 1))!.weakId).toBeNull();
         expect(raidBalance(check(60, 60 - WEAKER_BY))!.weakId).toBe("ev2");
-        const three: SetupBalanceCheck = { spread: 30, known: 30, raids: [{ eventId: "a", strength: 70 }, { eventId: "b", strength: 40 }, { eventId: "c", strength: 65 }] };
+        const three: SetupBalanceCheck = { spread: 30, known: 30, raids: [full("a", 70), full("b", 40), full("c", 65)] };
         expect(raidBalance(three)).toEqual({ byId: { a: 70, b: 40, c: 65 }, weakId: "b" });
+    });
+
+    it("names the first raid that is not filled yet", () => {
+        expect(underfilledRaid(undefined)).toBeNull();
+        expect(underfilledRaid(check(60, 50))).toBeNull();
+        expect(underfilledRaid(check(60, 50, 20, 7))).toEqual({ eventId: "ev2", placed: 7, size: 10 });
     });
 
     it("has a slider label for the weight", () => {
@@ -76,6 +83,16 @@ describe("strength in the raid tabs (#1038)", () => {
         const summary = within(tabs).getByTestId("se-raidtabs-balance");
         expect(summary).toHaveTextContent(t("setup.raidGroup.balanced"));
         expect(summary).not.toHaveClass("se-weak");
+        expect(summary).toHaveAttribute("data-tip-side", "right");
+        values.forEach((v) => expect(v).toHaveAttribute("data-tip", t("setup.raidGroup.strengthTip")));
+    });
+
+    it("does not call the raids even while one is not filled", async () => {
+        const tabs = await show(check(55, 52, 20, 7));
+        const summary = within(tabs).getByTestId("se-raidtabs-balance");
+        expect(summary).toHaveTextContent(t("setup.raidGroup.underfilled", { name: "Kara 2", placed: 7, size: 10 }));
+        expect(summary).not.toHaveTextContent(t("setup.raidGroup.balanced"));
+        expect(summary).not.toHaveClass("se-weak");
     });
 
     it("names the clearly weaker raid, red only there", async () => {
@@ -94,6 +111,7 @@ describe("strength in the raid tabs (#1038)", () => {
             const tabs = await show(check(62, 40));
             expect(within(tabs).getByTestId("se-raidtabs-balance")).toHaveTextContent("Kara 2 clearly weaker");
             expect(within(tabs).getAllByTestId("se-raidtab-strength")[0]).toHaveTextContent("Strength 62");
+            expect(within(tabs).getAllByTestId("se-raidtab-strength")[0]).toHaveAttribute("data-tip", "Strength 0–100 from the gear and attendance of the placed raiders");
         } finally {
             await switchLang("de");
         }

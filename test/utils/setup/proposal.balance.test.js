@@ -65,7 +65,10 @@ describe("raids of equal strength in the setup proposal (#1038)", () => {
         expect(on.checks.balance.raids.map((r) => r.eventId)).toEqual(["kara1", "kara2", "kara3", "kara4", "kara5"]);
         expect(on.checks.balance.known).toBe(50);
         expect(on.checks.balance.spread).toBeLessThanOrEqual(10);
-        expect(off.checks.balance).toBeUndefined();
+        expect(on.checks.balance.raids.every((r) => r.placed === 10 && r.size === 10)).toBe(true);
+        // the weight 0 only stops the balancing: the strength is still shown, and it is uneven
+        expect(off.checks.balance.spread).toBeGreaterThan(on.checks.balance.spread);
+        expect(off.score.parts.balance).toBeUndefined();
         expect(on.score.parts.balance).toBeLessThanOrEqual(0);
         // every minimum still holds
         for (const ev of on.events) {
@@ -134,22 +137,69 @@ describe("raids of equal strength in the setup proposal (#1038)", () => {
         expect(lineupSignature(on)).toBe(lineupSignature(off));
     });
 
-    it("with the weight at 0 the lineup and signatures are those of a plain proposal", () => {
+    it("with the weight at 0 the lineup and signatures are those of a plain proposal, the display stays", () => {
         const input = group(2, base(2));
         const plain = buildSetupProposal(input);
         input.loot = staggered(input);
         const off = buildSetupProposal(input, { weights: { balance: 0 } });
         expect(signatures(off)).toBe(signatures(plain));
-        expect(off.checks.balance).toBeUndefined();
+        expect(off.checks.balance.known).toBe(20);
         expect(off.score.parts.balance).toBeUndefined();
     });
 
-    it("without any strength data nobody moves: the same lineup as with the weight at 0", () => {
+    it("an approved group with the weight at 0 stays approved when proposed again (signatures without checks)", () => {
+        const input = group(2, base(2));
+        input.loot = staggered(input);
+        const approved = buildSetupProposal(input, { weights: { balance: 0 } });
+        // the next day the gear changed - the display moves, the lineup and its signature do not
+        const again = buildSetupProposal({ ...input, loot: { ...input.loot, gear: { ...input.loot.gear, d0: { d0: 90 } } } }, { weights: { balance: 0 } });
+        expect(again.checks.balance).not.toEqual(approved.checks.balance);
+        expect(signatures(again)).toBe(signatures(approved));
+    });
+
+    it("without any strength data nobody moves and nothing is shown", () => {
         const input = group(3, base(3));
         const on = buildSetupProposal(input);
         const off = buildSetupProposal(input, { weights: { balance: 0 } });
         expect(signatures(on)).toBe(signatures(off));
-        expect(on.checks.balance).toEqual({ spread: 0, known: 0, raids: [{ eventId: "kara1", strength: 50 }, { eventId: "kara2", strength: 50 }, { eventId: "kara3", strength: 50 }] });
+        expect(on.checks.balance).toBeUndefined();
+    });
+
+    it("a small spread moves nobody: 20 raiders between 115.0 and 115.9, the same lineup with and without balance", () => {
+        const input = group(2, base(2));
+        const gear = {};
+        input.signups.filter((s) => s.eventId === "kara1").forEach((s, i) => {
+            gear[s.userId] = { [characterKeyOf(s.character)]: 115 + (i % 10) / 10 };
+        });
+        input.loot = { versionId: "tbc", wants: {}, items: {}, gear };
+        const on = buildSetupProposal(input);
+        const off = buildSetupProposal(input, { weights: { balance: 0 } });
+        expect(signatures(on)).toBe(signatures(off));
+        expect(on.checks.balance.spread).toBeLessThanOrEqual(2);
+    });
+
+    it("an outlier in the pool does not move the placed raiders", () => {
+        const input = group(2, base(2));
+        input.loot = staggered(input);
+        const plain = buildSetupProposal(input);
+        // a twink far below everybody, overbooked into the pool
+        input.signups.push(...["kara1", "kara2"].map((eventId) => su("x0", "Mage-Fire", { eventId, at: 999 })));
+        input.loot = { ...input.loot, gear: { ...input.loot.gear, x0: { [characterKeyOf("x0")]: 40 } } };
+        const twink = buildSetupProposal(input);
+        expect(twink.pool.map((p) => p.userId)).toEqual(["x0"]);
+        expect(signatures(twink)).toBe(signatures(plain));
+        expect(twink.checks.balance.raids.map((r) => r.strength)).toEqual(plain.checks.balance.raids.map((r) => r.strength));
+    });
+
+    it("strength over placed raiders only: an underfilled raid reports its places", () => {
+        // 15 signups for 2 x 10: the second raid stays short
+        const input = group(2, base(2).filter((s, i) => i % 4 !== 3));
+        input.loot = staggered(input);
+        const out = buildSetupProposal(input);
+        const placed = out.checks.balance.raids.map((r) => r.placed);
+        expect(placed.reduce((a, b) => a + b, 0)).toBe(out.events.reduce((n, ev) => n + ev.checks.size.count, 0));
+        expect(out.checks.balance.raids.some((r) => r.placed < r.size)).toBe(true);
+        for (const r of out.checks.balance.raids) expect(r.strength).toBeGreaterThanOrEqual(0);
     });
 
     it("never takes gear of another version (strict, #1038)", () => {
@@ -157,7 +207,7 @@ describe("raids of equal strength in the setup proposal (#1038)", () => {
         const plain = buildSetupProposal(input);
         const other = buildSetupProposal({ ...input, loot: { ...staggered(input), versionId: "forever" } });
         expect(JSON.stringify(other)).toBe(JSON.stringify(plain));
-        expect(other.checks.balance.known).toBe(0);
+        expect(other.checks.balance).toBeUndefined();
     });
 
     it("evaluateSetup values the whole group with others, and no balance for one raid", () => {
@@ -206,5 +256,18 @@ describe("raids of equal strength in the setup proposal (#1038)", () => {
             const leadersOk = (out) => out.events.filter((ev) => ev.checks.leader && ev.checks.leader.ok).length;
             expect(leadersOk(on)).toBe(leadersOk(off));
         }
+    });
+
+    it("a swap between raids keeps the character of the first phase, even if another raid has a stronger one", () => {
+        const input = group(2, base(2));
+        input.loot = staggered(input);
+        // the weaker half signed up on raid 2 with a far stronger alt - balance must not trade characters
+        for (const s of input.signups.filter((x) => x.eventId === "kara2" && /^d[5-9]$/.test(x.userId))) {
+            s.character = `${s.character}alt`;
+            input.loot.gear[s.userId][characterKeyOf(s.character)] = 160;
+        }
+        const on = buildSetupProposal(input);
+        const off = buildSetupProposal(input, { weights: { balance: 0 } });
+        expect(samePlaces(on, off)).toBe(true);
     });
 });

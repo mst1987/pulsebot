@@ -532,6 +532,8 @@
         "strength": "Strength {value}",
         "balanced": "Raids even",
         "weaker": "{name} clearly weaker",
+        "underfilled": "{name}: {placed}/{size} filled",
+        "strengthTip": "Strength 0–100 from the gear and attendance of the placed raiders",
         "balanceTip": "Strength per raid 0–100 from gear and attendance, {spread} points apart",
         "places": "{count} raids · {places} places",
         "head": "Raid {index} of {count}",
