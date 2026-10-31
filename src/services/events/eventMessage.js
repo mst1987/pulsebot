@@ -95,6 +95,7 @@ const { hasExpected } = require("../roster/expectedRaiders");
 const { eventVersionTag } = require("../versions/versionTag");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 const { groupSummary } = require("./raidGroup");
+const { nameOrMention, nameFromSignups } = require("../../utils/discord/mentionName");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -588,7 +589,9 @@ function buildEventMessage(event, signups, {
     const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
     const headFields = [
         column([
-            headLine("leader", word(lang, "leader"), event.leaderId ? `<@${event.leaderId}>` : "–"),
+            // the lead's character like every name of the list (nameOf), the mention only without one: a mention that
+            // pings nobody can read "@unknown-user", and "Name · @Name" is too wide for the narrow column
+            headLine("leader", word(lang, "leader"), (event.leaderId && nameOrMention(nameFromSignups(list, event.leaderId), event.leaderId)) || "–"),
             headLine("date", word(lang, "date"), start ? `<t:${start}:D>` : "–"),
             // where the raid meets (#305), only when there is a channel
             ...(event.voiceChannelId ? [headLine("voice", word(lang, "voice"), `<#${event.voiceChannelId}>`)] : []),

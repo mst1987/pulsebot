@@ -184,6 +184,8 @@ describe("actions", () => {
         await stepCommand.execute(pick);
         const panel = lastPayload(pick.editReply);
         expect(panel.embeds[0].description).toContain("Eingetragen: **Dabei**");
+        // the character as text before the mention, which alone can read "@unknown-user"
+        expect(panel.embeds[0].description.split("\n")[0]).toBe(`**Thorwald** · <@${RAIDER}>`);
         const select = buttons(panel).find((c) => c.type === 3);
         expect(select.options[0]).toMatchObject({ label: "Thorwald · Schutz", value: "thorwald|Warrior-Protection" });
 

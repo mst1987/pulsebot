@@ -735,6 +735,28 @@ describe("services/discord/discord channel management", () => {
         });
     });
 
+    describe("postPayload / editPayload with silentMentions (mentionName)", () => {
+        const payload = () => ({ content: "**Thrall** · <@123456789012345678>" });
+
+        it("the switch is off: one send with parse [] and no second edit", async () => {
+            const edit = jest.fn(async () => ({}));
+            const send = jest.fn(async () => ({ id: "m1", url: "u", edit }));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
+            const res = await discord.postPayload("chan", payload(), { silentMentions: true });
+            expect(res).toMatchObject({ channelId: "chan", messageId: "m1" });
+            expect(send).toHaveBeenCalledTimes(1);
+            expect(send.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [] } });
+            expect(edit).not.toHaveBeenCalled();
+        });
+
+        it("editPayload keeps parse [] with the switch off", async () => {
+            const message = { id: "m9", url: "u", author: { id: "bot" }, edit: jest.fn(async () => {}) };
+            setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));
+            await discord.editPayload("chan", "m9", payload(), { silentMentions: true });
+            expect(message.edit.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [] } });
+        });
+    });
+
     describe("parseApplicationEmbed", () => {
         it("extracts every field the /apply flow writes, stripping class emoji markup", () => {
             const embed = {

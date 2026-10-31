@@ -11,6 +11,7 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { buildEmbed } = require("../../utils/discord/reply");
 const { card, cardFromEmbed } = require("../../utils/discord/card");
+const { silentMentionSteps, mentionEdit } = require("../../utils/discord/mentionName");
 const logger = require("../../logger").child("discord");
 
 let client = null;
@@ -508,13 +509,23 @@ async function postNotice(channelId, payload, { guildId = "" } = {}) {
 /**
  * Post a whole message (`{ content?, embeds?, components? }`) that pings
  * nobody — a panel with buttons, say. `guildId`: only post when the channel
- * lives on that server (assertChannelGuild).
+ * lives on that server (assertChannelGuild). `silentMentions`: a card that shows raiders by `<@id>` — goes through
+ * utils/discord/mentionName.silentMentionSteps (post, then the edit that lets Discord resolve the names; nothing more
+ * while SILENT_MENTION_EDIT is off). A failed follow-up edit only logs: the card is out.
  * @returns {Promise<{ guildId, channelId, messageId, url }>}
  */
-async function postPayload(channelId, payload, { guildId = "" } = {}) {
+async function postPayload(channelId, payload, { guildId = "", silentMentions = false } = {}) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     assertChannelGuild(channel, guildId);
-    const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
+    const steps = silentMentions ? silentMentionSteps(payload) : { first: { ...payload, allowedMentions: { parse: [] } }, then: null };
+    const posted = await channel.send(steps.first);
+    if (steps.then) {
+        try {
+            await posted.edit(steps.then);
+        } catch (e) {
+            logger.warn(`silent mention edit of ${posted.id} failed:`, (e && e.message) || e);
+        }
+    }
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
@@ -529,13 +540,16 @@ async function postRolePing(channelId, roleId, content) {
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
-/** Replace a bot message's content in place (postPayload's counterpart). */
-async function editPayload(channelId, messageId, payload) {
+/**
+ * Replace a bot message's content in place (postPayload's counterpart). `silentMentions`: keep the names a card posted
+ * with `silentMentions` shows (mentionName.mentionEdit — an edit never pings).
+ */
+async function editPayload(channelId, messageId, payload, { silentMentions = false } = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
     const message = await channel.messages.fetch(String(messageId));
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
-    await message.edit({ ...payload, allowedMentions: { parse: [] } });
+    await message.edit(silentMentions ? mentionEdit(payload) : { ...payload, allowedMentions: { parse: [] } });
     return { guildId: channel.guildId, channelId: channel.id, messageId: message.id, url: message.url };
 }
 

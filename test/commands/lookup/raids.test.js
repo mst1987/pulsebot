@@ -17,7 +17,7 @@ beforeEach(() => knownChannels("ch1"));
 
 const now = Math.floor(Date.now() / 1000);
 const event = (over = {}) => baseEvent({
-    title: "SSC/TK", startTime: now + 86400, channelId: "ch1", leaderId: "lead", signUps: [], ...over,
+    title: "SSC/TK", startTime: now + 86400, channelId: "ch1", leaderId: "900000000000000001", signUps: [], ...over,
 });
 const groups = (events, error = null) => ({ groups: [{ categoryName: "Montagsraid", events }], error });
 
@@ -91,10 +91,22 @@ describe("/raid", () => {
         expect(e.description).toContain("Montagsraid · <#ch1>");
         expect(e.fields.find((f) => f.name === "Anmeldungen").value).toBe("**3**\n1 kommt später · 1 abgemeldet");
         expect(e.fields.find((f) => f.name === "Du").value).toBe("❌ abgemeldet");
-        expect(e.fields.find((f) => f.name === "Raidleitung").value).toBe("<@lead>");
+        expect(e.fields.find((f) => f.name === "Raidleitung").value).toBe("<@900000000000000001>");
         const [web, channel] = editButtons(i);
         expect(web.url).toMatch(/\/raids\/detail\?event=e1$/);
         expect(channel.url).toBe("https://discord.com/channels/event-guild/ch1");
+    });
+
+    it("names a signed-up lead by character before the mention, and drops a broken lead id", async () => {
+        loadEventGroups.mockResolvedValue(groups([event({ signUps: [{ userId: "900000000000000001", character: "Thrall" }] })]));
+        const i = mockInteraction({ options: { event: "e1" } });
+        await raid.execute(i);
+        expect(editEmbed(i).fields.find((f) => f.name === "Raidleitung").value).toBe("**Thrall** · <@900000000000000001>");
+
+        loadEventGroups.mockResolvedValue(groups([event({ leaderId: "lead" })]));
+        const j = mockInteraction({ options: { event: "e1" } });
+        await raid.execute(j);
+        expect(editEmbed(j).fields.find((f) => f.name === "Raidleitung")).toBeUndefined();
     });
 
     it("finds a raid by a typed title and reports an unknown one", async () => {

@@ -164,7 +164,7 @@ async function storeAndPost(input, { channelId, guildId, config, now }) {
     const added = store.addRequest(input, { now });
     if (added.error) return added;
     try {
-        const posted = await discord.postPayload(channelId, postFor(added.request, { config }), { guildId });
+        const posted = await discord.postPayload(channelId, postFor(added.request, { config }), { guildId, silentMentions: true });
         return { request: store.setMessage(added.request.id, posted) || added.request };
     } catch (e) {
         store.removeRequest(added.request.id);
@@ -293,7 +293,7 @@ async function createStockRequest(userId, input = {}, { userName = "", categoryI
 async function redrawPost(request, { config } = {}) {
     if (!request || !request.channelId || !request.messageId) return false;
     try {
-        await discord.editPayload(request.channelId, request.messageId, postFor(request, { config }));
+        await discord.editPayload(request.channelId, request.messageId, postFor(request, { config }), { silentMentions: true });
         return true;
     } catch (e) {
         logger.warn(`[guildBank] Post der Anfrage ${request.id} nicht aktualisiert: ${(e && e.message) || e}`);
@@ -563,7 +563,7 @@ async function linkRequest(id, { bankKey = "", userId = "", characterKey = "" } 
 /** Post the orga card of a request that moved up from the waiting list (only into a channel of `guildId`). Returns whether it reached the channel. */
 async function postMovedUp(request, { channelId, guildId, config }) {
     try {
-        const posted = await discord.postPayload(channelId, postFor(request, { config }), { guildId });
+        const posted = await discord.postPayload(channelId, postFor(request, { config }), { guildId, silentMentions: true });
         store.setMessage(request.id, posted);
         return true;
     } catch (e) {

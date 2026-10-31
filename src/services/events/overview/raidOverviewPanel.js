@@ -39,6 +39,7 @@ const { emojiText, uiEmojiName, appEmojiMap } = require("../../discord/appEmojis
 const { lookOf, ruleSetLook, usableUrl } = require("../embedLook");
 const { raidContentIds } = require("./raidListing");
 const { raidWeekStripSvg } = require("./raidWeekStrip");
+const { nameOrMention, nameFromSignups } = require("../../../utils/discord/mentionName");
 
 const MAX_IDS = 3;
 const MAX_RAIDS = 15;
@@ -130,6 +131,10 @@ function fillLine(event, counts, lang, now) {
     return tr(lang, "{count} / {size} signed up", { count: counts, size });
 }
 
+// The lead's character (when they signed up), the mention only without one: a mention that pings nobody can read
+// "@unknown-user", and the line is long enough without "Name · @Name".
+const leaderOf = (event) => nameOrMention(nameFromSignups(event.signUps, event.leaderId), event.leaderId);
+
 /** The three lines of one raid; `server` opens the second line with the raid's category ("10er · <#channel> · …"). */
 function raidLines(event, { lang, now, attending, emojis, server = false }) {
     const start = Math.floor(Number(event.startTime) || 0);
@@ -138,10 +143,11 @@ function raidLines(event, { lang, now, attending, emojis, server = false }) {
     const day = dayLabel(start, lang);
     const head = [day && `**${day}**`, title && `**${title}**`,
         `${icon(emojis, "time")} <t:${start}:t>`.trim(), `<t:${start}:R>`].filter(Boolean).join(" · ");
+    const leader = event.leaderId ? leaderOf(event) : "";
     const where = [
         server ? plainCategoryName(event.categoryName) : "",
         event.channelId ? `<#${event.channelId}>` : "",
-        event.leaderId ? `${icon(emojis, "leader")} ${tr(lang, "led by {leader}", { leader: `<@${event.leaderId}>` })}`.trim() : "",
+        leader ? `${icon(emojis, "leader")} ${tr(lang, "led by {leader}", { leader })}`.trim() : "",
     ].filter(Boolean).join(" · ");
     const fill = [fillBar(event, counts, emojis), fillLine(event, counts, lang, now)].filter(Boolean).join(" ");
     return [head, where, `-# ${fill}`].filter(Boolean).join("\n");

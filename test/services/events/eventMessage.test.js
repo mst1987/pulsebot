@@ -89,7 +89,7 @@ describe("services/events/eventMessage", () => {
     it("speaks German by default: roles, classes, statuses, buttons, select, head labels, links", () => {
         const payload = buildRaw(event({ signupDeadline: 1999990000, voiceChannelId: "v9" }), signups, { now: NOW });
         const text = JSON.stringify(payload);
-        for (const word of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät (1)", "Vielleicht (1)", "Abgemeldet (1)", "Raidleitung: <@7>",
+        for (const word of ["Heiler", "Fernkampf", "Nahkampf", "Priester", "Spät (1)", "Vielleicht (1)", "Abgemeldet (1)", "Raidleitung: Gemli",
             "Anmeldeschluss: <t:1999990000:f>", "Sprachkanal: <#v9>", "Uhrzeit: <t:2000000000:t>", "**5** angemeldet",
             "Anderer Charakter oder Klasse …", "Meine Charaktere …", "Krieger", "Druide", "[Kalender](", "· Schutz"]) {
             expect(text).toContain(word);
@@ -159,7 +159,7 @@ describe("services/events/eventMessage", () => {
         ]);
         // one field per column, its rows as lines — no empty field name between them
         expect(embed.fields.slice(0, 3).map((f) => [f.name, emojiless(f.value).split("\n"), f.inline])).toEqual([
-            [ZWS, ["<:eh_ui_leader> <@7>", "<:eh_ui_date> <t:2000000000:D>"], true],
+            [ZWS, ["<:eh_ui_leader> Gemli", "<:eh_ui_date> <t:2000000000:D>"], true],
             [ZWS, ["<:eh_ui_signups> **5** signed up", "<:eh_ui_time> <t:2000000000:t>"], true],
             [ZWS, ["<:eh_ui_deadline> <t:1999990000:f>", "<:eh_ui_start> <t:2000000000:R>"], true],
         ]);
@@ -361,7 +361,7 @@ describe("services/events/eventMessage", () => {
         expect(json).not.toMatch(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}]/u);
         const embed = payload.embeds[0];
         expect(embed.fields.slice(0, 3).map((f) => f.value)).toEqual([
-            "Leader: <@7>\nDate: <t:2000000000:D>",
+            "Leader: Gemli\nDate: <t:2000000000:D>",
             "**5** signed up\nTime: <t:2000000000:t>",
             "Deadline: <t:1999990000:f>\nStart: <t:2000000000:R>",
         ]);

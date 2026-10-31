@@ -44,7 +44,7 @@ describe("utils/signup/guildBankPost", () => {
         expect(cardText(payload)).toBe([
             "-# Gildenbank",
             "## 12× Super Mana Potion",
-            "<@200000000000000001> · <t:1800000000:R>",
+            "**Anna\\_\\*** · <@200000000000000001> · <t:1800000000:R>",
             "Wofür: BT Donnerstag",
             "-# TBC Montag · offen",
         ].join("\n"));
@@ -80,7 +80,7 @@ describe("utils/signup/guildBankPost", () => {
             expect(cardText(payload)).toBe([
                 "-# Gildenbank · Edelsteine",
                 "## 2× Bold Living Ruby",
-                "<@200000000000000001> · <t:1800000000:R>",
+                "**Anna\\_\\*** · <@200000000000000001> · <t:1800000000:R>",
                 "Wofür: Gruul",
                 "An: Zibbo-SpineShatter",
                 "**Bestand** 14 · **Vorgemerkt** 4 · **Verfügbar** 10 (danach 8)",
