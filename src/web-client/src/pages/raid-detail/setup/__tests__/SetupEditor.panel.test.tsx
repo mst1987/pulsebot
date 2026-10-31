@@ -211,11 +211,15 @@ describe("Suche — the classes and specs the raid still needs", () => {
         text: "LF 2 healers",
     };
 
-    it("is an entry under \"Mehr\", off without a search", async () => {
+    it("is an icon button in the bar (not under \"Aktionen\"), off without a search", async () => {
         const user = userEvent.setup();
         await show(withDruid({ search: null }));
+        const bar = document.querySelector<HTMLElement>(".se-bar-act")!;
+        const search = within(bar).getByRole("button", { name: t("setup.editor.search") });
+        expect(search).toBeDisabled();
+        expect(search).toHaveAttribute("data-tip", t("setup.editor.search"));
         await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
-        expect(screen.getByRole("menuitem", { name: /Suche/ })).toBeDisabled();
+        expect(screen.queryByRole("menuitem", { name: /Suche/ })).not.toBeInTheDocument();
     });
 
     it("opens a dialog with the editable message, rewrites it when the needs change and posts it as edited", async () => {
@@ -224,8 +228,7 @@ describe("Suche — the classes and specs the raid still needs", () => {
             ? { text: "LF 3 healers" }
             : { message: "gepostet" }));
         await show(withDruid({ search: SEARCH }));
-        await user.click(screen.getByRole("button", { name: t("setup.editor.more") }));
-        await user.click(screen.getByRole("menuitem", { name: new RegExp(t("setup.editor.search")) }));
+        await user.click(screen.getByRole("button", { name: t("setup.editor.search") }));
         const dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText(t("setup.search.title"))).toBeInTheDocument();
         const message = within(dialog).getByRole("textbox", { name: t("setup.search.message") });

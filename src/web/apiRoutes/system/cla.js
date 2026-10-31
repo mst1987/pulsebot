@@ -19,6 +19,7 @@ const {
     linkEvent: linkLogEvent, unlinkEvent: unlinkLogEvent,
 } = require("../../../stores/loot/logStore");
 const { annotateMatches, autoMatches } = require("../../../services/logcheck/logEventMatch");
+const { mineFilter } = require("../../../services/logcheck/myLogs");
 const { evaluateLog, scanLogChannels, backfillLogTitles, refreshLogButton } = require("../../../services/logcheck/logChannel");
 const { startJob, getJob } = require("../../logcheck/evalJobs");
 const { getConfig } = require("../../../stores/settings/settingsStore");
@@ -76,14 +77,14 @@ function eventsOfVersion(events, versionId) {
 }
 
 /**
- * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page=&version= — the
+ * GET /api/cla?filter=all|open|unlinked|done&sort=&dir=&page=&version=&mine=1 — the
  * page's one list: the logs of the active guild plus the reports built from a
  * pasted link (reportList.prepareClaList), of one game version (#741: a log
  * without a raid in every version as "nicht zugeordnet", a linked one only in
  * its raid's), with a count per filter and how many open logs "Automatisch
  * zuordnen" would assign to a raid of that version.
  */
-const getClaData = withUser({}, async ({ req, res, query }) => {
+const getClaData = withUser({}, async ({ req, res, query, user }) => {
     const guildId = activeGuildFor(req);
     const versionId = shownVersion(query);
     const config = getConfig();
@@ -101,14 +102,17 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
         page: query.get("page"),
     };
     const reports = listReports();
+    const reportById = new Map(reports.map((r) => [r.id, r]));
+    // "Nur meine Raids": only the rows whose raid event the account was part of
+    // or whose evaluation lists one of its characters (read from the metadata)
+    const mine = query.get("mine") === "1";
     const { page, filter, counts } = prepareClaList(logs, reports, listQuery, {
-        allLogs, inVersion, guildId,
+        allLogs, inVersion, guildId, keep: mine ? mineFilter(user.id, { reportById, guildId, config }) : undefined,
     });
 
     // Title and boss count of the logs on this page, read from WCL once, then
     // the rows rebuilt from the filled logs.
     const logById = new Map(logs.map((l) => [l.id, l]));
-    const reportById = new Map(reports.map((r) => [r.id, r]));
     const pageLogs = page.items.filter((row) => row.kind === "log").map((row) => logById.get(row.logId)).filter(Boolean);
     await backfillLogTitles(pageLogs);
     page.items = page.items.map((row) => (row.kind === "log" && logById.has(row.logId)
@@ -134,6 +138,7 @@ const getClaData = withUser({}, async ({ req, res, query }) => {
 
     ok(res, {
         filter,
+        mine,
         page,
         counts,
         autoMatchCount: matchEvents.error ? 0 : autoMatches(logs.filter((l) => !l.eventId && inVersion(l)), matchEvents.events).length,

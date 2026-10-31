@@ -113,15 +113,14 @@ function expectedRaiders(event, raw) {
  * Which expected raiders have a reserve. A reserve counts once, in three passes:
  * Discord id AND character name, then the name alone, then the Discord id alone —
  * so one account entering for a friend too (two reserves with its id) does not
- * take the friend's reserve. `{ filled, missing }` of the expected.
+ * take the friend's reserve. `{ filled, missing, matched: [{ raider, reserve }] }` of the expected.
  */
 function matchReserves(expected = [], reserves = []) {
     const open = reserves.slice();
     const take = (pred) => {
         const i = open.findIndex(pred);
-        if (i < 0) return false;
-        open.splice(i, 1);
-        return true;
+        if (i < 0) return null;
+        return open.splice(i, 1)[0];
     };
     const byId = (r) => (res) => Boolean(res.discordId) && res.discordId === r.userId;
     const byName = (r) => {
@@ -134,15 +133,20 @@ function matchReserves(expected = [], reserves = []) {
         byId,
     ];
     let rest = expected.slice();
-    const filled = [];
+    const reserveOf = new Map();
     for (const pass of passes) {
         const next = [];
-        for (const r of rest) (take(pass(r)) ? filled : next).push(r);
+        for (const r of rest) {
+            const hit = take(pass(r));
+            if (hit) reserveOf.set(r, hit);
+            else next.push(r);
+        }
         rest = next;
     }
-    // Both lists in the order of `expected`, whichever pass found them.
-    const done = new Set(filled);
-    return { filled: expected.filter((r) => done.has(r)), missing: rest };
+    // All lists in the order of `expected`, whichever pass found them; `matched` pairs each
+    // raider with the reserve that counted for them (the setup's loot, #1037).
+    const filled = expected.filter((r) => reserveOf.has(r));
+    return { filled, missing: rest, matched: filled.map((raider) => ({ raider, reserve: reserveOf.get(raider) })) };
 }
 
 /** The missing raiders as a stable key — the job edits the card only when it changes. */
@@ -350,5 +354,5 @@ module.exports = {
     SOFTRES_ICON, SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX,
     nameKey, resolveEvent, expectedRaiders, matchReserves, readStatus, softresCardOpts,
     postSoftresCard, refreshSoftresCard, cardsInWindow, sweep, startSoftresStatus, stopSoftresStatus,
-    clearFetchCache, FETCH_CACHE_MS,
+    clearFetchCache, fetchRaidCached, FETCH_CACHE_MS,
 };

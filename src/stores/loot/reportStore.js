@@ -6,6 +6,7 @@ const { newId } = require("../../utils/ids");
 const { dataPath } = require("../../config/paths");
 const { writeJsonAtomic, readJsonFile } = require("../jsonStore");
 const { reportLink, recordVersion } = require("../../services/logcheck/logVersion");
+const { nameKeyOf } = require("../../utils/loot/lootImport");
 
 // Reports are stored as JSON files under data/reports/<id>.json
 const REPORTS_DIR = dataPath("reports");
@@ -181,7 +182,21 @@ function metaOf(report) {
         raids: report.raidProgress ? raidSummary(report.raidProgress) : null,
         // The Discord server it was evaluated on (#920); "" for a report from before (a linked log decides then).
         guildId: String(report.guildId || ""),
+        // Who is in the log, by name key (realm and version prefix dropped):
+        // "Nur meine Raids" matches an account's characters against it without
+        // opening the report - the roster slice is bounded, this cache is not.
+        nameKeys: nameKeysOf(report),
     };
+}
+
+/** The name keys of everyone a report lists (roster, else the legacy players), each once. */
+function nameKeysOf(report) {
+    const keys = new Set();
+    for (const p of [...(Array.isArray(report.roster) ? report.roster : []), ...(Array.isArray(report.players) ? report.players : [])]) {
+        const key = nameKeyOf(p && p.name);
+        if (key) keys.add(key);
+    }
+    return [...keys];
 }
 
 /** List all reports (lightweight metadata), newest first. */

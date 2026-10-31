@@ -28,12 +28,11 @@ describe("setup editor conventions", () => {
 
     it("keeps ONE bar over groups across the full width — no box stands open above them", () => {
         // five groups side by side: the cards are ~190 px wide, the compact ones narrower
-        expect(css).toMatch(/\.se-groups \{[^}]*minmax\(188px/);
-        expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*minmax\(158px/);
+        expect(css).toMatch(/\.se-groups \{[^}]*--se-col-min: 188px/);
+        expect(css).toMatch(/\.se-compact \.se-groups \{[^}]*--se-col-min: 158px/);
         // the old top row (ping box, tiles, docked panel) and the old publish line under the bar are gone;
-        // only an overbooked raid gets its calm hint line there (#811)
-        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint|\.se-postopts/);
-        expect(css).toMatch(/\.se-overbooked \{ display: flex;/);
+        // an overbooked raid shows a warn count in the bar, no hint line any more (#811, head B)
+        expect(css).not.toMatch(/\.se-topline|\.se-publish|\.se-tip-empty|\.se-bar-hint|\.se-postopts|\.se-overbooked/);
         // the counts are square fields that wrap as a whole and are never cut (#setup-bar: "8 v…" was cut off)
         expect(css).toMatch(/\.se-counts \{[^}]*flex-wrap: wrap/);
         expect(css).not.toMatch(/\.se-counts \{[^}]*text-overflow/);
@@ -47,7 +46,9 @@ describe("setup editor conventions", () => {
 
     it("widens a small raid's groups and starts every group's places on one line (checked in Chrome at 390–1440 px)", () => {
         // the columns no group stands in drop out; the grid is never wider than --se-n cards of --se-group-max
-        expect(css).toMatch(/\.se-groups \{[^}]*repeat\(auto-fit, minmax\(188px, 1fr\)\)/);
+        expect(css).toMatch(/\.se-groups \{[^}]*repeat\(auto-fit, minmax\(var\(--se-col-min\), 1fr\)\)/);
+        // measured: as many columns as fit, spread evenly (five cards: 3 + 2, never 4 + 1)
+        expect(css).toMatch(/\.se-groups\.se-fit \{ grid-template-columns: repeat\(var\(--se-cols\), minmax\(0, 1fr\)\)/);
         expect(css).toMatch(/\.se-groups \{[^}]*max-width: calc\(var\(--se-n\) \* var\(--se-group-max\)/);
         expect(editor).toContain("\"--se-n\": Math.max(1, count)");
         // each card takes two rows of the grid as its own: every head in a row as tall as the tallest (wrapped buffs)

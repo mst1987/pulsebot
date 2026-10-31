@@ -14,24 +14,36 @@
 //                 still better than an empty place, never better than anyone else
 //   weights.*     the soft goals, adjustable per run (see DEFAULT_WEIGHTS)
 //
-// These constants are the minimum rules: they sit orders of magnitude above the
-// weights, so no weight setting can trade a missing healer or a missing leader for
-// a nicer group. Every weight added later (#1037, #1038) stays at most MAX_WEIGHT
-// per unit and so below every minimum rule - keep it that way.
+// The ranking, from strongest to weakest - and why the numbers are what they are:
+//
+//   ROLE_MIN = LEADER_MIN (48000)  >  FILL (16000)  >  BENCH_STATUS (8000)  >  14 × MAX_WEIGHT (7000)
+//
+// The minimum rules sit above the SUM of every soft goal at its maximum: the 14
+// weights (the 13 of DEFAULT_WEIGHTS plus the planned `balance`, #1038) at
+// MAX_WEIGHT each are 7000. So even with every slider pushed to the end no
+// weight can trade a missing healer, a missing leader, an empty place or a
+// raider of the bench for a nicer group. Each weight is built so one unit of it
+// is worth at most its weight per raider (loot is capped at 1 per raider, see
+// the loot part below). FILL keeps ROLE_MIN = 3 × FILL as before; LEADER_ORDER
+// stays below FILL. A new weight raises the count above - and these constants
+// with it, keep score.test.js asserting the ranking.
 
 const { ROLES } = require("../../config/gameVersions");
 const { GROUP_SIZE, STATUS_FACTOR, GEAR_FACTOR, ROSTER_FACTOR } = require("./model");
 
-const FILL = 10000;
-const ROLE_MIN = 30000;
+// soft goals the ranking above budgets for: DEFAULT_WEIGHTS today plus `balance` (#1038)
+const SOFT_GOALS = 14;
+const FILL = 16000;
+const ROLE_MIN = 48000;
 // One leader per raid (#1036) weighs like a missing role: a raid without anybody
 // who may lead it is worse than any lineup that has one.
-const LEADER_MIN = 30000;
+const LEADER_MIN = 48000;
 // A leader missing in an earlier raid weighs a little more (below FILL, far above any weight):
 // raid 1 of a group gets its leader first, a missing one shows in the last raids.
 const LEADER_ORDER = 1000;
 const LEADER_ORDER_MAX = 9;
-const BENCH_STATUS = 7000;
+// above SOFT_GOALS × MAX_WEIGHT: a raider of the "Ersatzbank" never beats anyone else
+const BENCH_STATUS = 8000;
 const MAX_WEIGHT = 500;
 // A party buff everybody wants (Blood Pact, Healing Stream) is worth having, but
 // it must not outbid a targeted one for the same totem slot (Mana Spring for casters).
@@ -60,6 +72,10 @@ const UNIVERSAL_FACTOR = 0.5;
  *   roster         the roster status in a category with a roster (#658): core 1, trial
  *                  0.6, bench 0.3, no member 0 — so the roster comes first, non-members
  *                  after. Without a roster nobody has a status and it changes nothing
+ *   loot           "Loot verteilen" (#1037), only for parallel raids with loaded loot data:
+ *                  per raid and item, n interested raiders cost n−1 (a Softres reserve
+ *                  counts 1, a BiS item ½, the spec fallback ¼). A raider's wants add up to
+ *                  at most 1, so it only moves raiders between raids - never onto the bench
  */
 const DEFAULT_WEIGHTS = {
     partyBuffs: 60,
@@ -74,6 +90,7 @@ const DEFAULT_WEIGHTS = {
     wishes: 60,
     avoid: 100,
     roster: 200,
+    loot: 150,
 };
 
 /** Defaults overridden by whatever numbers `given` carries, each clamped to 0…MAX_WEIGHT. */
@@ -194,11 +211,46 @@ function makeScorer(model) {
     }
     const wishOn = events.map((e) => (model.wishesOverride === undefined ? e.wishes : model.wishesOverride));
     const avoidPairs = model.avoidOverride === true ? model.avoidPairs || [] : [];
+    // Loot (#1037): per raid and item the sum and the largest of the placed wants -
+    // sum minus largest is "n interested cost n−1". The buffers live with the scorer
+    // (one per run would allocate on every move); `touched` resets only what was used.
+    const lootOn = !!(model.lootOn && weights.loot > 0 && events.length > 1);
+    const lootItems = lootOn ? model.loot.items.length : 0;
+    const lootSum = lootOn ? new Float64Array(lootItems * events.length) : null;
+    const lootMax = lootOn ? new Float64Array(lootItems * events.length) : null;
+    const touched = [];
+
+    /** The loot cost of a state (≥ 0, in units of the weight); every want is > 0 (model.js). */
+    function lootCost(opt) {
+        touched.length = 0;
+        for (let c = 0; c < cands.length; c++) {
+            const o = opt[c];
+            if (o < 0) continue;
+            const option = cands[c].options[o];
+            if (!option.loot) continue;
+            const base = option.eventIdx * lootItems;
+            for (const want of option.loot) {
+                const k = base + want.i;
+                if (lootSum[k] === 0) touched.push(k);
+                lootSum[k] += want.w;
+                if (want.w > lootMax[k]) lootMax[k] = want.w;
+            }
+        }
+        let cost = 0;
+        for (const k of touched) {
+            cost += lootSum[k] - lootMax[k];
+            lootSum[k] = 0;
+            lootMax[k] = 0;
+        }
+        return cost;
+    }
 
     function run(opt, grp, detail) {
         const parts = detail ? { fill: 0, benchStatus: 0, status: 0, mainSpec: 0, preferredCharacter: 0, gear: 0, fairness: 0, attendance: 0, roster: 0, roles: 0, raidBuffs: 0, requiredBuffs: 0, partyBuffs: 0, wishes: 0, avoid: 0 } : null;
         // the part shows up only where a leader rule applies - older inputs keep their shape
         if (detail && events.some((e) => e.leaderRule)) parts.leader = 0;
+        // the same for loot: only with parallel raids and loaded loot data
+        if (detail && lootOn) parts.loot = 0;
         let total = 0;
         const ev = events.map((e) => ({
             count: 0,
@@ -278,6 +330,11 @@ function makeScorer(model) {
             total -= weights.avoid;
             if (detail) parts.avoid -= weights.avoid;
         }
+        if (lootOn) {
+            const loot = lootCost(opt) * weights.loot;
+            total -= loot;
+            if (detail) parts.loot -= loot;
+        }
         if (!detail) return total;
         return { total, parts, events: ev };
     }
@@ -289,6 +346,6 @@ function makeScorer(model) {
 }
 
 module.exports = {
-    DEFAULT_WEIGHTS, MAX_WEIGHT, FILL, ROLE_MIN, LEADER_MIN, BENCH_STATUS,
+    DEFAULT_WEIGHTS, MAX_WEIGHT, SOFT_GOALS, FILL, ROLE_MIN, LEADER_MIN, BENCH_STATUS,
     resolveWeights, staticParts, moreAvailableThanFirst, groupBuffValue, makeScorer,
 };

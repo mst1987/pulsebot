@@ -386,3 +386,31 @@ describe("the raider tooltip and the drag glow", () => {
         });
     });
 });
+
+describe("balancedColumns", () => {
+    // 188 px cards with a 10 px gap: four fit in 782 px, five need 980 px
+    it("puts all groups in one row when they fit", () => {
+        expect(lib.balancedColumns(5, 980, 188, 10)).toBe(5);
+        expect(lib.balancedColumns(2, 1200, 188, 10)).toBe(2);
+    });
+
+    it("spreads the groups evenly instead of leaving one card alone in a row", () => {
+        expect(lib.balancedColumns(5, 900, 188, 10)).toBe(3);
+        expect(lib.balancedColumns(7, 900, 188, 10)).toBe(4);
+        expect(lib.balancedColumns(8, 900, 188, 10)).toBe(4);
+        expect(lib.balancedColumns(5, 600, 188, 10)).toBe(3);
+        expect(lib.balancedColumns(4, 600, 188, 10)).toBe(2);
+    });
+
+    it("squeezes one more column in rather than leaving a card alone, if the cards stay wide enough", () => {
+        // 580 px: two fit at 188, three at 186.7 -> 3 + 2 instead of 2 + 2 + 1
+        expect(lib.balancedColumns(5, 580, 188, 10)).toBe(3);
+        // 500 px: three would be 160 px (< 90 %) -> stays 2 + 2 + 1
+        expect(lib.balancedColumns(5, 500, 188, 10)).toBe(2);
+    });
+
+    it("keeps at least one column on a very narrow or unmeasured grid", () => {
+        expect(lib.balancedColumns(5, 0, 188, 10)).toBe(1);
+        expect(lib.balancedColumns(0, 900, 188, 10)).toBe(1);
+    });
+});

@@ -1,16 +1,17 @@
 // Tab "Setup" of an own event (#263): the proposal, the orga's changes, the
 // approval. Kept calm on purpose — ONE bar: the setup's one state and its counts
 // as square fields that wrap but are never cut ("Tanks 1/2", "Heiler 1/2",
-// "DD 6/6", "8/10 Plätze", "7/8 bestätigt"), then "Mehr ▾", ONE secondary action
-// ("Freie Plätze füllen", or "Alle bestätigen" once it is out) and the one primary
-// button as a split button: "Setup posten" until it is out, then "Alle pingen" —
-// its chevron holds the switches "Bank mitposten" / "DMs an Spieler", their state
-// written beside it ("mit DMs · ohne Bank"). Then the group cards with one compact
-// line per raider, the bench and "Angemeldet" as rows, and one summary line
-// (buffs, fairness, wishes, "nicht zusammen" — asked once, counts only, never
-// names) whose "Details" opens the tiles and switches. Everything rarer sits
-// under "Mehr": proposing anew, the group count, the ping text, the switches,
-// the weights, Claude's explanation.
+// "DD 6/6", "8/10 Plätze", "7/8 bestätigt", overbooked "26 Anmeldungen / 25 Plätze"),
+// the search, "Aktionen ▾" and the one primary button as a split (head variant B):
+// "Setup freigeben", "Setup posten" until it is out, then "Alle pingen" — with two
+// icon toggles for DMs and the bench (on: go colour, off: grey, struck through).
+// Then the group cards with one compact line per raider, the bench as a row under
+// them (or, "Ansicht › Bank als Spalte", a column beside them), "Angemeldet", and
+// one summary line (buffs, fairness, wishes, "nicht zusammen" — asked once, counts
+// only, never names) whose "Details" opens the tiles and switches. Everything else
+// sits under "Aktionen" in four sections: Raid (split, add, size, remove),
+// Vorschlag (fill, confirm all, propose anew, the switches, weights, Claude's
+// explanation), Posten und benachrichtigen, Ansicht.
 //
 // A raider's info: resting the mouse on a line (or focusing it) shows it beside
 // the line after a moment (the peek, peek.ts — read only, gone at a drag); a click
@@ -24,15 +25,15 @@
 // a raider (click, Enter), then the target. Every move is saved at once and comes back valued by the
 // server. Posting carries the bench only with "Bank mitposten" on.
 //
-// A raid group (#811): an overbooked raid gets further raids ("Weiteren Raid
-// hinzufügen" — a calm line under the bar while more signed up than there are
-// places, else under "Mehr"). The editor then shows the tabs "Raid 1 | Raid 2" (RaidTabs.tsx):
+// A raid group (#811): further raids come from "Aktionen › Raids hinzufügen /
+// aufteilen …" at any time; once the signups fill every raid to 70 %
+// (raidGroup.SPLIT_MIN_FILL) "Auf N Raids aufteilen" stands in the head too. The editor then shows the tabs "Raid 1 | Raid 2" (RaidTabs.tsx):
 // one raid at a time, ONE shared pool "Angemeldet" (whoever stands in another
 // raid is not in it), a raider dragged onto a tab goes into that raid. Proposal
 // and "Freie Plätze füllen" run over every raid; approving and posting stay per raid.
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
+import { addGroupRaid, moveToGroupRaid, removeGroupRaid, approveRaidSetup, getRaidSetup, loadSetupLoot, pingSetup, previewSetupPing, proposeRaidSetup, publishRaidSetup, saveRaidSetup, saveSetupExtraRole, saveSetupPingText, saveSetupSignup, setSetupConfirmation, confirmAllSetup, updateRaidSize, setLeads, type ApiError, type SetupConfirmation, type SetupEditorData, type SetupPerson, type SetupPlacementInput, type SetupSignupInput, type SetupActivity, type SetupCharacter, type SetupPresenceAction, type StoredSetup } from "../../../api";
 import { useApi } from "../../../hooks/useApi";
 import { applyLocal, asCharacter, moveRaider, peopleOf, publishHint, resizeLineup, respecRaider, setupState, suggestGroup, switchCharacter, toInput, toggleLock, withAllGroups, withSetupDefaults, GROUP_SIZE, type CharacterChoice, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { useT } from "../../../i18n";
@@ -46,12 +47,12 @@ import VoiceChannelRow from "./VoiceChannelRow";
 import { CrownIcon, LockIcon, XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
-import { clock, readCompact, storeCompact } from "./setupText";
+import { clock, readBenchColumn, readCompact, readPoolSidebar, storeBenchColumn, storeCompact, storePoolSidebar } from "./setupText";
 import { BenchCard, GroupCard, GroupGrid, type Interaction, ReadOnly } from "./Board";
 import { PoolPanel } from "./PoolPanel";
 import { ActivityFeed, PresenceChip } from "./LiveParts";
 import { presenceColor, usePresence } from "./usePresence";
-import { BarCounts, MoreMenu, PingTextField, PostSplit, SizeControl, StatusBadge, type BarCount, type MoreItem } from "./Controls";
+import { BarCounts, MoreMenu, PingTextField, PostSplit, SizeControl, StatusBadge, type BarCount, type MoreItem, type MoreSection } from "./Controls";
 import { PEEK_DELAY_MS } from "./peek";
 import Popover from "../../../components/ui/overlay/Popover";
 import { besidePlacement } from "../../../lib/ui/popoverPosition";
@@ -97,6 +98,18 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const [compact, setCompact] = useState(readCompact);
     const toggleCompact = () => setCompact((on) => {
         storeCompact(!on);
+        return !on;
+    });
+    // "Ansicht › Bank als Spalte": the bench beside the groups instead of under them — per viewer, like the compact view
+    const [benchColumn, setBenchColumn] = useState(readBenchColumn);
+    const toggleBenchColumn = () => setBenchColumn((on) => {
+        storeBenchColumn(!on);
+        return !on;
+    });
+    // "Ansicht > Angemeldet als Seitenleiste": the signups left of the groups (B) instead of role columns under them (A)
+    const [poolSide, setPoolSide] = useState(readPoolSidebar);
+    const togglePoolSide = () => setPoolSide((on) => {
+        storePoolSidebar(!on);
         return !on;
     });
     const saving = useRef(0);
@@ -481,6 +494,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     /** A proposal: everything anew (fixed places kept), or — `keep: "placed"`, "Freie Plätze füllen" — only the free places. */
     const propose = async (weights?: Record<string, number>, keep?: "placed") => {
         setDialog(null);
+        setLootReady(false);
         const avoid = await avoidAnswer();
         setBusy(true);
         await chain.current;
@@ -490,6 +504,36 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         setBusy(false);
         if (next) accept(next, next.message);
     };
+
+    // "Loot-Daten laden" (#1037): the job runs on the server; poll only its state. Once it is
+    // done the panel offers a new proposal (setup.loot.propose) - the setup itself never changes without a click.
+    const loadLoot = async () => {
+        setLootReady(false);
+        const next = await jobs.run({ label: t("setup.loot.load"), detail: data?.event.title || "", icon: "home", quiet: true }, () => loadSetupLoot(eventId));
+        if (next?.loot) {
+            lootPolled.current = true;
+            setData((prev) => (prev ? { ...prev, loot: next.loot } : prev));
+        }
+    };
+    const lootPolled = useRef(false);
+    const [lootReady, setLootReady] = useState(false);
+    const lootRunning = data?.loot?.job?.status === "running";
+    useEffect(() => {
+        if (!lootRunning) return undefined;
+        const timer = setInterval(() => {
+            // a failed poll is retried by the next tick; the job's own error shows in the status line
+            getRaidSetup(eventId, { light: true })
+                .then((next) => setData((prev) => (prev ? { ...prev, loot: next.loot } : prev)))
+                .catch(() => undefined);
+        }, 3000);
+        return () => clearInterval(timer);
+    }, [lootRunning, eventId, setData]);
+    const lootFinished = lootPolled.current && !!data?.loot?.job && !lootRunning ? data.loot.job.status : "";
+    useEffect(() => {
+        if (!lootFinished) return;
+        lootPolled.current = false;
+        if (lootFinished === "done") setLootReady(true);
+    }, [lootFinished]);
 
     const approve = async () => {
         if (!setup) return;
@@ -825,25 +869,25 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     let primary: ReactNode = null;
     if (!cancelled && !approved) {
         primary = (
-            <Button icon="discord" disabled={busy || placed === 0} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
+            <Button variant="go" icon="discord" disabled={busy || placed === 0} data-tip={t("setup.editor.approve")} data-tip-sub={t("setup.editor.approveSub")} onClick={approve}>
                 {t("setup.editor.approve")}
             </Button>
         );
     } else if (!cancelled && (state.needsPost || optionsChanged)) {
         primary = (
-            <Button icon="discord" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
+            <Button variant="go" icon="discord" running={posting || !!hint?.running} disabled={busy} data-tip={t("setup.publishLine.post")} data-tip-sub={t("setup.publishLine.postSub")} onClick={post}>
                 {t("setup.publishLine.post")}
             </Button>
         );
     } else if (!cancelled) {
         primary = (
-            <Button icon="message" running={pinging} disabled={busy} data-tip={t("setup.ping.button")} data-tip-sub={t("setup.ping.buttonSub")} onClick={() => void pingAll()}>
+            <Button variant="go" icon="message" running={pinging} disabled={busy} data-tip={t("setup.ping.button")} data-tip-sub={t("setup.ping.buttonSub")} onClick={() => void pingAll()}>
                 {t("setup.ping.button")}
             </Button>
         );
     }
 
-    // a raid group (#811): more signed up than every raid of the evening has places → "Weiteren Raid hinzufügen" in the bar
+    // a raid group (#811): more signed up than every raid of the evening has places → a warn count in the head
     const group = data.raidGroup || null;
     const groupPlaces = group ? group.places : (data.event.size || 0);
     const signed = data.signupCount || 0;
@@ -852,38 +896,56 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     const isFurther = !!thisRaid && thisRaid.index > 1;
     const nextIndex = group ? Math.max(...group.raids.map((r) => r.index)) + 1 : 2;
     const primaryTitle = group ? (group.raids.find((r) => r.index === 1)?.title || data.event.title) : data.event.title;
-    // #1035: "Auf 5 Raids aufteilen" — the raids in total the signups fill (8 at most, as raidGroup.MAX_RAIDS); the server gets the new ones
+    // #1035: "Auf 5 Raids aufteilen" — the raids in total the signups fill to 70 % each (raidGroup.suggestedRaidTotal,
+    // 8 at most as raidGroup.MAX_RAIDS); below that no suggestion — adding raids by hand stays in the menu
     const MAX_GROUP_RAIDS = 8;
     const raidCount = group ? group.count : 1;
     const suggestedTotal = Math.min(MAX_GROUP_RAIDS, Math.max(0, data.suggestedTotal || 0));
-    const splitTotal = suggestedTotal > raidCount ? suggestedTotal : 0;
-    const groupItems: (MoreItem | "sep")[] = cancelled ? [] : [
-        ...(overbooked ? [] : [{ id: "addRaid", label: t("setup.raidGroup.add"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping, onSelect: () => setDialog("addRaid") }]),
-        ...(isFurther ? [{
-            id: "removeRaid", label: t("setup.raidGroup.remove", { title: data.event.title }),
-            sub: thisRaid && thisRaid.approved ? t("setup.raidGroup.removeLocked", { title: data.event.title }) : t("setup.raidGroup.removeSub"),
-            icon: "cancel", disabled: busy || grouping || !!(thisRaid && thisRaid.approved), onSelect: () => void removeRaid(),
-        }] : []),
-        "sep",
+    const splitTotal = cancelled ? 0 : (suggestedTotal > raidCount ? suggestedTotal : 0);
+    const openAddRaid = () => setDialog("addRaid");
+    // "Aktionen ▾" in four sections; a section without an entry is left out
+    const sections: [string, MoreItem[]][] = [
+        [t("setup.more.sectionRaid"), [
+            // the suggested split, high in the menu — only once the signups fill every raid to 70 % (splitTotal is 0 when cancelled)
+            ...(splitTotal ? [{ id: "split", label: t("setup.raidGroup.split", { count: splitTotal }), sub: t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces }), icon: "members", tone: "hot" as const, disabled: busy || grouping, onSelect: openAddRaid }] : []),
+            // by hand at any time: how many raids and how they are filled is chosen in the dialog
+            ...(cancelled ? [] : [{ id: "addRaid", label: t("setup.raidGroup.addOrSplit"), sub: t("setup.raidGroup.addSub"), icon: "members", disabled: busy || grouping || raidCount >= MAX_GROUP_RAIDS, onSelect: openAddRaid }]),
+            // the size is the event's own (PATCH /api/raids): only who may change the event (#725, the category orga with #728)
+            ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), value: t("setup.more.sizeValue", { size: data.event.size || 0 }), icon: "members", disabled: busy, onSelect: () => setDialog("size") }] : []),
+            ...(isFurther && !cancelled ? [{
+                id: "removeRaid", label: t("setup.raidGroup.remove", { title: data.event.title }),
+                sub: thisRaid && thisRaid.approved ? t("setup.raidGroup.removeLocked", { title: data.event.title }) : t("setup.raidGroup.removeSub"),
+                icon: "cancel", tone: "danger" as const, disabled: busy || grouping || !!(thisRaid && thisRaid.approved), onSelect: () => void removeRaid(),
+            }] : []),
+        ]],
+        [t("setup.more.sectionProposal"), [
+            ...(canFill ? [{
+                id: "fill", label: placed === 0 ? t("setup.fill.auto") : t("setup.fill.free"), sub: placed === 0 ? t("setup.fill.autoSub") : t("setup.fill.freeSub"),
+                value: t("setup.more.freeValue", { count: Math.max(0, (data.event.size || 0) - placed) }), icon: "simulate", disabled: busy, onSelect: fill,
+            }] : []),
+            ...(approved && unanswered > 0 ? [{
+                id: "confirmAll", label: t("setup.editor.confirmAll"), sub: t("setup.editor.confirmAllSub"),
+                value: t("setup.more.openValue", { count: unanswered }), icon: "members", disabled: busy, onSelect: () => void confirmEveryone(unanswered),
+            }] : []),
+            { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "simulate", disabled: busy, onSelect: () => void propose() },
+            { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },
+            { id: "wishes", label: t("setup.summary.wishes"), sub: opts.wishes ? t("setup.summary.wishesCapOn", { met: setup.checks.wishes.met, total: setup.checks.wishes.total }) : t("setup.more.wishesOffSub"), icon: "inv_valentineschocolate02", on: opts.wishes, disabled: busy, onSelect: () => void save(keep(), { wishes: !opts.wishes }) },
+            ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "cancel", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
+            { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "settings", disabled: busy, onSelect: () => setDialog("weights") },
+            { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "help", onSelect: () => setDialog("explain") },
+        ]],
+        [t("setup.more.sectionPost"), [
+            // posted and current: posting again sends the DMs a live change left open, or redraws the message
+            ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "discord", disabled: busy || posting, onSelect: () => void post() }] : []),
+            { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "notify", disabled: busy, onSelect: () => setDialog("ping") },
+        ]],
+        [t("setup.more.sectionView"), [
+            { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "setup", on: compact, onSelect: toggleCompact },
+            { id: "benchColumn", label: t("setup.more.benchColumn"), sub: t("setup.more.benchColumnSub"), icon: "overview", on: benchColumn, onSelect: toggleBenchColumn },
+            { id: "poolSide", label: t("setup.more.poolSide"), sub: t("setup.more.poolSideSub"), icon: "overview", on: poolSide, onSelect: togglePoolSide },
+        ]],
     ];
-    const more: (MoreItem | "sep")[] = [
-        ...groupItems,
-        { id: "repropose", label: t("setup.editor.repropose"), sub: t("setup.more.reproposeSub"), icon: "simulate", disabled: busy, onSelect: () => void propose() },
-        // the size is the event's own (PATCH /api/raids): only who may change the event (#725, the category orga with #728)
-        ...(data.canEditEvent ? [{ id: "size", label: t("setup.more.size"), sub: t("setup.more.sizeSub", { groups: Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE)), size: data.event.size || 0 }), icon: "members", disabled: busy, onSelect: () => setDialog("size") }] : []),
-        { id: "ping", label: t("setup.pingText.title"), sub: data.pingText || t("setup.more.pingDefault"), icon: "notify", disabled: busy, onSelect: () => setDialog("ping") },
-        "sep",
-        { id: "fairness", label: t("setup.summary.fairness"), sub: t("setup.summary.fairnessCap"), icon: "spell_holy_divineintervention", on: opts.fairness, disabled: busy, onSelect: () => void save(keep(), { fairness: !opts.fairness }) },
-        { id: "wishes", label: t("setup.summary.wishes"), sub: opts.wishes ? t("setup.summary.wishesCapOn", { met: setup.checks.wishes.met, total: setup.checks.wishes.total }) : t("setup.more.wishesOffSub"), icon: "inv_valentineschocolate02", on: opts.wishes, disabled: busy, onSelect: () => void save(keep(), { wishes: !opts.wishes }) },
-        ...(opts.avoidTotal > 0 ? [{ id: "avoid", label: t("setup.summary.avoid"), sub: t("setup.summary.avoidSub", { count: opts.avoidTotal }), icon: "cancel", on: opts.avoid, disabled: busy, onSelect: () => void save(keep(), { avoid: !opts.avoid }) }] : []),
-        "sep",
-        // posted and current: posting again sends the DMs a live change left open, or redraws the message
-        ...(approved && !state.needsPost && hint?.canPost ? [{ id: "repost", label: t("setup.publishLine.post"), sub: t("setup.publishLine.postSub"), icon: "discord", disabled: busy || posting, onSelect: () => void post() }] : []),
-        { id: "compact", label: t("setup.editor.compact"), sub: t("setup.editor.compactSub"), icon: "setup", on: compact, onSelect: toggleCompact },
-        { id: "search", label: t("setup.editor.search"), sub: t("setup.editor.searchSub"), icon: "search", disabled: !data.search, onSelect: () => setDialog("search") },
-        { id: "explain", label: t("setup.editor.explain"), sub: t("setup.editor.explainSub"), icon: "help", onSelect: () => setDialog("explain") },
-        { id: "weights", label: t("setup.summary.weights"), sub: t("setup.editor.weightsSub"), icon: "settings", disabled: busy, onSelect: () => setDialog("weights") },
-    ];
+    const more: (MoreItem | MoreSection)[] = sections.flatMap(([section, items]) => (items.length ? [{ section }, ...items] : []));
 
     // the counts as square fields, toned by their check — compact ("Tanks 1/2"), each with its word, never cut
     const counts: BarCount[] = roleFigures(setup).map((f) => ({
@@ -911,6 +973,15 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             tipSub: t("setup.editor.placesSub", { count: size.count, size: size.size, bench: setup.bench.length }),
         });
     }
+    // overbooked (#811): more signed up than the evening's raids have places — a warn count, never a banner
+    if (overbooked) {
+        counts.push({
+            key: "overbooked", tone: "mid",
+            text: <b>{t("setup.bar.overbookedChip", { signed, places: groupPlaces })}</b>,
+            tip: t("setup.bar.overbooked", { signed, places: groupPlaces }),
+            tipSub: splitTotal ? t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces }) : t("setup.bar.overbookedSub"),
+        });
+    }
     if (approved && placed > 0) {
         counts.push({
             key: "confirmed", tone: confirmed >= placed ? "ok" : "plain",
@@ -918,7 +989,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             tip: t("setup.bar.confirmed", { count: confirmed, total: placed }), tipSub: t("setup.bar.confirmedSub"),
         });
     }
-    // the split button's menu: what posting sends along — the state stays written beside it
+    // the split's two icon toggles: what posting sends along, their state in the icon itself
     const postOptions = !cancelled && data.publish ? {
         bench: postBench, dms: postDms, disabled: busy, onBench: setBenchChoice, onDms: setDmsChoice,
         dmsTip: postDms === !!data.publish.dmsDefault ? t("setup.postOptions.dmsSub") : t("setup.postOptions.dmsSubOwn"),
@@ -935,7 +1006,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     onMove={(id, userId) => void moveRaid(id, userId)}
                 />
             )}
-            {/* ONE bar: the state and the counts (wrapping, never cut), then "Mehr", one secondary action and the split primary */}
+            {/* ONE bar (head variant B): the state and the counts (wrapping, never cut), then the search, "Aktionen" and the split primary */}
             <div className="se-bar">
                 <div className="se-bar-info">
                     <StatusBadge setup={setup} publish={data.publish} />
@@ -951,63 +1022,46 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     )}
                 </div>
                 <div className="se-bar-act">
+                    {/* the suggested split (70 % rule) stands in the head too — the one way out of an overbooked evening */}
+                    {splitTotal > 0 && (
+                        <Button
+                            variant="ghost" size="sm" icon="members" running={grouping} disabled={busy || grouping} className="se-split-hint"
+                            data-tip={t("setup.raidGroup.split", { count: splitTotal })} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
+                            onClick={openAddRaid}
+                        >
+                            {t("setup.raidGroup.split", { count: splitTotal })}
+                        </Button>
+                    )}
+                    <IconButton
+                        icon="search" size="sm" tip={t("setup.editor.search")} tipSub={t("setup.editor.searchSub")}
+                        disabled={!data.search} onClick={() => setDialog("search")}
+                    />
                     <MoreMenu items={more} />
-                    {canFill && (
-                        <Button
-                            variant="ghost" size="sm" icon="simulate" running={busy} disabled={busy}
-                            data-tip={placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")} data-tip-sub={placed === 0 ? t("setup.fill.autoSub") : t("setup.fill.freeSub")}
-                            onClick={fill}
-                        >
-                            {placed === 0 ? t("setup.fill.auto") : t("setup.fill.free")}
-                        </Button>
-                    )}
-                    {approved && unanswered > 0 && (
-                        <Button
-                            variant="ghost" size="sm" icon="members" disabled={busy}
-                            data-tip={t("setup.editor.confirmAll")} data-tip-sub={t("setup.editor.confirmAllSub")}
-                            onClick={() => void confirmEveryone(unanswered)}
-                        >
-                            {t("setup.editor.confirmAll")}
-                        </Button>
-                    )}
-                    {/* the one primary button; its chevron holds what posting sends along, the state written beside it */}
+                    {/* the one primary button; its two icon toggles say what posting sends along */}
                     {primary && <PostSplit button={primary} options={postOptions} />}
                 </div>
             </div>
+            {/* the raid's voice channel: one slim line under the head, never a card */}
             <VoiceChannelRow eventId={eventId} canWrite={data.canWrite} />
-            {/* overbooked: a calm line under the bar, the way out inside it (#811) */}
-            {overbooked && (
-                <div className="se-overbooked" role="status">
-                    <WowIcon name="members" size={22} />
-                    <span className="se-overbooked-text">{t("setup.raidGroup.overbookedHint", { count: signed, places: groupPlaces })}</span>
-                    <span className="se-overbooked-sep" aria-hidden="true">—</span>
-                    <Button
-                        variant="ghost" size="sm" running={grouping} disabled={busy || grouping}
-                        data-tip={t("setup.raidGroup.add")} data-tip-sub={t("setup.raidGroup.addOverbooked", { signed, places: groupPlaces })}
-                        onClick={() => setDialog("addRaid")}
-                    >
-                        {splitTotal ? t("setup.raidGroup.split", { count: splitTotal }) : t("setup.raidGroup.add")}
-                    </Button>
-                </div>
-            )}
 
             {/* Vermerke (#981): who in "Angemeldet" has a shadowban - only in an answer past maySeeShort */}
             <ShadowbanPoolLine people={data.shadowbanInPool} canOpen={canAccess(ctx.user ?? null, "vermerke", "read")} />
 
             {/* a container of its own: "Angemeldet" lies under the setup, or — where too narrow — docks at the bottom (setup-editor.css) */}
             <div className="se-stage">
-                {/* the groups right under the bar, the bench as a row under them, "Angemeldet" (#517) under the setup — never
-                    beside it, so the groups keep their width whether somebody is left or not — then one summary line */}
-                <div className="se-layout">
-                    <div className="se-main">
+                {/* the groups right under the bar, the bench as a row under them (or a column beside them), "Angemeldet"
+                    (#517) under the setup — never beside it, so the groups keep their width whether somebody is left or not —
+                    then one summary line */}
+                <div className={`se-layout${poolSide ? " se-pool-side" : ""}`}>
+                    <div className={`se-main${benchColumn ? " se-bench-col" : ""}`}>
                         <GroupGrid count={groups.length}>
                             {groups.map((g) => (
                                 <GroupCard key={g.index} group={g} ui={ui} buffs={partyBuffs.filter((b) => b.groups.includes(g.index))} />
                             ))}
                         </GroupGrid>
-                        <BenchCard bench={setup.bench} ui={ui} />
+                        <BenchCard bench={setup.bench} ui={ui} layout={benchColumn ? "column" : "row"} posted={postOptions ? postBench : undefined} />
                     </div>
-                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} leaders={setup.checks.leader?.candidates} />
+                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} absentNames={data.absentNames} leaders={setup.checks.leader?.candidates} side={poolSide} />
                     <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                     <ActivityFeed activity={presence.activity} />
                 </div>
@@ -1026,9 +1080,11 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                                 <Button variant="ghost" size="sm" className="se-drawer-more" aria-expanded={sheetOpen} onClick={() => setSheetOpen((o) => !o)}>
                                     {sheetOpen ? t("setup.drawer.less") : t("setup.drawer.details")}
                                 </Button>
+                                {/* on a phone the slim pick bar ends with a plain "Abbrechen" instead of the X */}
+                                <Button variant="ghost" size="sm" className="se-drawer-cancel" onClick={closeDrawer}>{t("common.cancel")}</Button>
                             </>
                         )}
-                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" onClick={closeDrawer} />
+                        <IconButton icon={<XIcon />} tip={t("common.close")} size="sm" className="se-drawer-x" onClick={closeDrawer} />
                     </div>
                     <SlotTip
                         p={inspectedPerson} attendance={data.attendance ? data.attendance[inspectedPerson.userId] : undefined}
@@ -1067,6 +1123,9 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     onFairness={(on) => save(keep(), { fairness: on })}
                     onWishes={(on) => save(keep(), { wishes: on })}
                     onAvoid={(on) => save(keep(), { avoid: on })}
+                    onLoadLoot={() => void loadLoot()}
+                    lootReady={lootReady}
+                    onLootPropose={() => { setLootReady(false); void propose(); }}
                 />
             </EditorDialog>
             <FillModal open={dialog === "fill"} onClose={() => setDialog(null)} placed={placed} free={Math.max(0, (data.event.size || 0) - placed)} onFill={(keepPlaced) => void propose(undefined, keepPlaced ? "placed" : undefined)} />

@@ -10,7 +10,7 @@ const STATUS_LABELS = {
     signed: "angemeldet",
     late: "kommt später",
     tentative: "vorläufig",
-    bench: "Bank",
+    bench: "Ersatz",
     absence: "abgemeldet",
 };
 const STATUS_ICONS = { signed: "✅", late: "🕒", tentative: "❔", bench: "🪑", absence: "❌" };

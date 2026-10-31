@@ -52,6 +52,7 @@ export function weightLabels(): { key: string; label: string; tip: string }[] {
         { key: "raidBuffs", label: t("setup.weights.raidBuffs.label"), tip: t("setup.weights.raidBuffs.tip") },
         { key: "attendance", label: t("setup.weights.attendance.label"), tip: t("setup.weights.attendance.tip") },
         { key: "gear", label: t("setup.weights.gear.label"), tip: t("setup.weights.gear.tip") },
+        { key: "loot", label: t("setup.weights.loot.label"), tip: t("setup.weights.loot.tip") },
     ];
 }
 
@@ -96,6 +97,46 @@ export function readCompact(): boolean {
 export function storeCompact(on: boolean) {
     try {
         localStorage.setItem(COMPACT_KEY, on ? "1" : "0");
+    } catch {
+        // private window or blocked storage — the choice just is not remembered
+    }
+}
+
+// The bench as a sixth column beside the groups ("Ansicht › Bank als Spalte") instead
+// of a row under them — like the compact view a per-viewer choice, off by default.
+const BENCH_COLUMN_KEY = "eh-setup-bench-column";
+
+export function readBenchColumn(): boolean {
+    try {
+        return localStorage.getItem(BENCH_COLUMN_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+export function storeBenchColumn(on: boolean) {
+    try {
+        localStorage.setItem(BENCH_COLUMN_KEY, on ? "1" : "0");
+    } catch {
+        // private window or blocked storage — the choice just is not remembered
+    }
+}
+
+// "Angemeldet" as a 300px sidebar left of the groups (B, "Ansicht › Angemeldet als
+// Seitenleiste") instead of role columns under them (A) — per viewer, off by default.
+const POOL_SIDEBAR_KEY = "eh-setup-pool-sidebar";
+
+export function readPoolSidebar(): boolean {
+    try {
+        return localStorage.getItem(POOL_SIDEBAR_KEY) === "1";
+    } catch {
+        return false;
+    }
+}
+
+export function storePoolSidebar(on: boolean) {
+    try {
+        localStorage.setItem(POOL_SIDEBAR_KEY, on ? "1" : "0");
     } catch {
         // private window or blocked storage — the choice just is not remembered
     }

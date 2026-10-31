@@ -141,10 +141,15 @@ describe("SignupsPage", () => {
                 { character: "Zibbowar", className: "Warrior", classColor: "", spec: "Warrior-Protection", specLabel: "Protection", specIcon: "", role: "tank", status: "late" },
             ],
             comment: "etwas später",
+            specIcon: "spell_holy_guardianspirit",
         });
         await show(signupsData({ events: [ownRow({ mine })] }));
-        const label = `${SIGNUP_STATUS.signed.label} · ${specLabel("Priest-Holy", "Holy")} +1`;
+        const label = `${SIGNUP_STATUS.signed.label} · Zibbo +1`;
         const badge = within(rowOf("Kara Freitag")).getByRole("button", { name: label });
+        expect(badge.getAttribute("data-tip-sub")).toContain(`Zibbo (${specLabel("Priest-Holy", "Holy")})`);
+        // the spec as its icon, the character in its class colour
+        expect(badge.querySelector("img")?.getAttribute("src")).toContain("spell_holy_guardianspirit");
+        expect(within(badge).getByText("Zibbo")).toHaveClass("class-colored");
         expect(badge.getAttribute("data-tip-sub")).toContain(`+Zibbowar (${specLabel("Warrior-Protection", "Protection")}, ${SIGNUP_STATUS.late.label})`);
         expect(badge.getAttribute("data-tip-sub")).toContain(t("signups.quoted", { text: "etwas später" }));
 
@@ -238,7 +243,7 @@ describe("SignupsPage", () => {
         await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
         const row = rowOf("Kara Freitag");
         expect(within(row).getByText("4 angemeldet")).toBeInTheDocument();
-        expect(within(row).getByRole("button", { name: `${SIGNUP_STATUS.signed.label} · ${specLabel("Priest-Holy", "Holy")}` })).toBeInTheDocument();
+        expect(within(row).getByRole("button", { name: `${SIGNUP_STATUS.signed.label} · Zibbo` })).toBeInTheDocument();
         expect(where()).toBe("/signups");
     });
 });

@@ -178,7 +178,7 @@
             "signed": "In",
             "late": "Late",
             "tentative": "Maybe",
-            "bench": "Bench",
+            "bench": "Reserve",
             "absence": "Signed off",
             "none": "no signup"
         }

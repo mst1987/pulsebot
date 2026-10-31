@@ -24,6 +24,7 @@ const guildRoles = require("../discord/roles/guildRoles");
 const discord = require("../discord/discord");
 const { raidServerIds } = require("../discord/botCheck");
 const { getConfig } = require("../../stores/settings/settingsStore");
+const { wclGuildsOf } = require("../logcheck/wclGuildSettings");
 
 /** The server an ingest token is bound to, "" when none. */
 function serverOfToken(token) {
@@ -98,13 +99,44 @@ function ingestScan(body, { token = {}, servers, now = Date.now(), config } = {}
         console.warn(`[guildbank] Scan abgelehnt: Bank ${scan.key} gehört zu einem anderen Server.`);
         return { code: "other_server", error: "Diese Gildenbank gehört zu einem anderen Discord-Server.", scan };
     }
-    const guildId = known ? "" : (list ? (list.length === 1 ? list[0] : "") : onlyEventServer(config));
-    const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "" });
+    const fits = !known && list && list.length > 1 ? fittingServers(scan, list, config) : [];
+    const guildId = known ? "" : (list ? (list.length === 1 ? list[0] : (fits.length === 1 ? fits[0] : "")) : onlyEventServer(config));
+    // A new bank of a personal key that fits none or several servers waits in the Addon-Inbox for
+    // the orga of the servers that come into question (#1002); the first to pick one decides.
+    const waitingFor = !known && !guildId && list && list.length > 1 ? waitingServersOf(scan, list, fits, config) : [];
+    const result = store.recordScan(scan, { now, guildId, uploadedBy: (token && token.name) || "", waitingFor });
     if (result.status === "stale") return { scan, ...result, lookups: [] };
     // new items and those with stale (German) meta: the local tables name them at once
     const lookups = store.itemsWithoutWowheadMeta(scan.key);
     itemMeta.applyLocalMeta(scan.gameVersion, lookups, { now });
     return { scan, ...result, lookups };
+}
+
+const nameKey = (v) => String(v || "").trim().toLowerCase().replace(/[^\p{L}\p{N}]/gu, "");
+
+/**
+ * The servers of `list` whose Warcraft Logs guild (#922) is this bank's guild: same game
+ * version, guild name and realm (#1002). Exactly one: the bank goes there.
+ */
+function fittingServers(scan, list, config) {
+    const guild = nameKey(scan.guild);
+    const realm = nameKey(scan.realm);
+    if (!guild || !scan.gameVersion) return [];
+    return list.filter((guildId) => wclGuildsOf(guildId, { config }).some((e) => e.versionId === scan.gameVersion
+        && nameKey(e.guildName) === guild && (!realm || nameKey(e.realm) === realm)));
+}
+
+/**
+ * Whom a bank that fits no single server waits for (#1002): the servers whose guild fits, when
+ * several do; else those with a Warcraft Logs guild in the bank's version; else (no server names
+ * a guild of it) every server of the key - nothing narrows it down then.
+ */
+function waitingServersOf(scan, list, fits, config) {
+    if (fits.length > 1) return fits;
+    const ofVersion = scan.gameVersion
+        ? list.filter((guildId) => wclGuildsOf(guildId, { config }).some((e) => e.versionId === scan.gameVersion))
+        : [];
+    return ofVersion.length ? ofVersion : list;
 }
 
 /** The servers a bank can be assigned to: every raid server, with its name and label. */

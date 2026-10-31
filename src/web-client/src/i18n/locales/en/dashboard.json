@@ -149,7 +149,7 @@
         "allSignedUp": "All raiders of the category have signed up.",
         "status": {
             "tentative": "Tentative",
-            "bench": "Bench",
+            "bench": "Reserve",
             "absence": "Absent",
             "none": "no answer"
         },
@@ -173,7 +173,8 @@
             "notPlaced": "Not placed",
             "late": "Late",
             "tentative": "Tentative",
-            "bench": "Bench",
+            "bench": "Reserve",
+            "benched": "Bench",
             "absence": "Signed off",
             "cancelled": "Cancelled"
         },

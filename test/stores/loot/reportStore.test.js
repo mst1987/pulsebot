@@ -224,6 +224,20 @@ describe("stores/loot/reportStore", () => {
             expect(byId[old]).toMatchObject({ sections: [], raids: null });
         });
 
+        it("carries the name keys of everyone in the log, realm dropped, each once", () => {
+            const withRoster = saveReport({
+                title: "Hyjal",
+                roster: [{ name: "Devi", type: "Priest" }, { name: "Grom-Thunderstrike", type: "Warrior" }],
+                players: [{ name: "Devi", issues: [] }],
+            });
+            const legacy = saveReport({ title: "Alt", players: [{ name: "Altchar" }, {}] });
+            const nobody = saveReport({ title: "Leer" });
+            const byId = Object.fromEntries(listReports().map((r) => [r.id, r]));
+            expect(byId[withRoster].nameKeys).toEqual(["devi", "grom"]);
+            expect(byId[legacy].nameKeys).toEqual(["altchar"]);
+            expect(byId[nobody].nameKeys).toEqual([]);
+        });
+
         it("skips unreadable files", () => {
             saveReport({ title: "Good", players: [] });
             fs.__store.set(path.join(REPORTS_DIR, "corrupt99.json"), "{broken");
@@ -273,6 +287,17 @@ describe("stores/loot/reportStore", () => {
             listReports();
             saveReport({ title: "Neu", players: [] }, id);
             expect(listReports()[0].title).toBe("Neu");
+        });
+
+        // "Nur meine Raids" reads who was in the log from the metadata alone:
+        // a new evaluation of the same log (same id) must show its new roster.
+        it("hält die Namen aktuell, wenn ein Log neu ausgewertet wird", () => {
+            const id = saveReport({ title: "Hyjal", generatedAt: 1000, roster: [{ name: "Devi" }] });
+            expect(listReports()[0].nameKeys).toEqual(["devi"]);
+            saveReport({ title: "Hyjal", generatedAt: 1000, roster: [{ name: "Devi" }, { name: "Grom" }] }, id);
+            expect(listReports()[0].nameKeys).toEqual(["devi", "grom"]);
+            const fresh = saveReport({ title: "Neu", generatedAt: 2000, roster: [{ name: "Kael" }] });
+            expect(listReports().find((r) => r.id === fresh).nameKeys).toEqual(["kael"]);
         });
 
         it("vergisst eine gelöschte Datei", () => {

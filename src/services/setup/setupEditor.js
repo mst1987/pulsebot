@@ -331,7 +331,12 @@ function proposeGroupSetup(event, body, { userId, now, shadowbannedOf }) {
         let result = {
             ...proposed,
             groups: part.groups,
-            checks: { ...part.checks, avoid: proposed.checks && proposed.checks.avoid },
+            checks: {
+                ...part.checks,
+                avoid: proposed.checks && proposed.checks.avoid,
+                // #1037: the loot overlaps span the whole group - every raid shows the same list
+                ...(proposed.checks && proposed.checks.loot ? { loot: proposed.checks.loot } : {}),
+            },
             bench: (proposed.bench || []).filter((b) => benchOwner.get(String(b.userId)) === e.id),
             pool: proposed.pool || [],
         };
@@ -425,9 +430,87 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const got = new Set(result.groups.flatMap((g) => g.slots.map((s) => String(s.userId))));
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
-    const groups = inPlacedOrder(result.groups, checked.value.groups);
-    const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
-    return storeSetup(event, setup, { userId, now });
+    // #1037: loot spans the raid group - valued as a whole, this raid takes the group's loot;
+    // without a group value (data gone after 30 days, or the others no longer value) no raid of
+    // the group keeps a loot check or loot reason: an old one would describe another setup
+    const others = groupOthers(event);
+    const group = others.length ? groupLootOf(event, checked.value, others, { options, now, leaderUserId }) : null;
+    const own = others.length ? withGroupLoot(result, group && group.events.find((x) => x.eventId === event.id), group && group.checks.loot) : result;
+    const groups = inPlacedOrder(own.groups, checked.value.groups);
+    const setup = nextSetup(prev, { ...own, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
+    const saved = storeSetup(event, setup, { userId, now });
+    if (others.length && !saved.error) refreshGroupLoot(group || { others, events: [], checks: {} });
+    return saved;
+}
+
+/** The other raids of this raid's group (#811), empty outside one. */
+function groupOthers(event) {
+    return inRaidGroup(event) ? groupEvents(event).filter((e) => e.id !== event.id) : [];
+}
+
+/**
+ * The raid group valued as a whole after a manual change of one raid (#1037): this raid as the
+ * orga placed it, the others as they stand. Null without loot data or when the others no longer
+ * value (their own save tells why) - the group then shows no loot at all.
+ */
+function groupLootOf(event, placement, others, { options, now, leaderUserId }) {
+    const input = collectSetupInput([event.id, ...others.map((e) => e.id)], { now });
+    if (!input || !input.loot) return null;
+    if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
+    try {
+        const result = evaluateSetup(input, {
+            groups: placement.groups,
+            bench: placement.bench,
+            others: others.map((e) => ({ eventId: e.id, groups: (e.setup && e.setup.groups) || [] })),
+        }, runOptions(options));
+        if (!result.checks || !result.checks.loot || !Array.isArray(result.events)) return null;
+        return { checks: result.checks, events: result.events, others };
+    } catch {
+        return null;
+    }
+}
+
+/** A raider's loot reason swapped for the group's: the old text out of `reasons`, the new one in. */
+function withSlotLoot(slot, fresh) {
+    const old = slot.lootReason && slot.lootReason.text;
+    const reasons = (slot.reasons || []).filter((r) => r !== old);
+    const next = fresh && fresh.lootReason;
+    const rest = { ...slot };
+    delete rest.lootReason;
+    if (!next) return { ...rest, reasons };
+    return { ...rest, reasons: reasons.includes(next.text) ? reasons : [...reasons, next.text], lootReason: next };
+}
+
+/**
+ * One raid's valued result with the group's loot: `checks.loot` and every slot's loot reason.
+ * Without `loot` (no group value) both go: no loot check, no loot reason.
+ */
+function withGroupLoot(result, part, loot) {
+    const fresh = new Map();
+    for (const g of (part && part.groups) || []) for (const s of g.slots || []) fresh.set(String(s.userId), s);
+    const checks = { ...result.checks };
+    if (loot) checks.loot = loot;
+    else delete checks.loot;
+    return {
+        ...result,
+        groups: (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map((s) => withSlotLoot(s, fresh.get(String(s.userId)))) })),
+        checks,
+    };
+}
+
+/**
+ * The other raids of the group after a manual change (#1037): only their loot check and loot
+ * reasons follow - no new version, no status change, no repost, the leader untouched. Without
+ * a group value (`events` empty, no `checks.loot`) both are cleared.
+ */
+function refreshGroupLoot(group) {
+    group.others.forEach((e) => {
+        const fresh = eventStore.getEvent(e.id);
+        if (!fresh || !fresh.setup) return;
+        const part = group.events.find((x) => x.eventId === e.id);
+        const next = withGroupLoot(fresh.setup, part, group.checks.loot);
+        eventStore.setEventSetup(e.id, { ...fresh.setup, groups: next.groups, checks: next.checks });
+    });
 }
 
 /**
@@ -782,6 +865,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         // "Auf 5 Raids aufteilen" (#1035): raids in total the signups fill, by the raid's size
         suggestedTotal: suggestedRaidTotal({ active: signupCount, size: event.size }),
         absent: signups.filter((s) => s.status === "absence").length,
+        // their characters, for "zeigen" under "Angemeldet" — they never come into the setup
+        absentNames: signups.filter((s) => s.status === "absence").map((s) => s.character || names[s.userId] || "").filter(Boolean),
         avoidPairs,
         pingText: pingTextOf(event, eventLang(event)),
         // Confirm/Cancel by user id — the raiders' clicks and the orga's own marks (setupConfirm.js)
