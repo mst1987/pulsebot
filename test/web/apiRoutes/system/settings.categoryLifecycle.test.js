@@ -159,6 +159,36 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
     });
 
+    it("takes back another server's message look unchanged, as the client sends it whole", async () => {
+        const stored = { ...FOREIGN, categoryMessageLook: { far: { raidArt: false } } };
+        settingsStore.getConfig.mockReturnValue(stored);
+        settingsStore.saveConfig.mockReturnValue(stored);
+        auth.getUser.mockReturnValue(LIMITED);
+        const back = await patch("/api/settings", {
+            categoryMessageLook: { far: { raidArt: false, titleSize: "large" }, mon: { raidArt: true, titleSize: "huge" } },
+        });
+        expect(back.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        settingsStore.saveConfig.mockClear();
+        const changed = await patch("/api/settings", { categoryMessageLook: { far: { raidArt: true, titleSize: "large" } } });
+        expect([changed.writeHead.mock.calls[0][0], json(changed).error.code]).toEqual([403, "other_server"]);
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+
+    it("takes back another server's announce switch unchanged, as the client sends it whole", async () => {
+        const stored = { ...FOREIGN, categoryAnnounce: { far: { enabled: true } } };
+        settingsStore.getConfig.mockReturnValue(stored);
+        settingsStore.saveConfig.mockReturnValue(stored);
+        auth.getUser.mockReturnValue(LIMITED);
+        const back = await patch("/api/settings", {
+            categoryAnnounce: { far: { enabled: true, target: "event" }, mon: { enabled: false, target: "event" } },
+        });
+        expect(back.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        settingsStore.saveConfig.mockClear();
+        const changed = await patch("/api/settings", { categoryAnnounce: { far: { enabled: false, target: "event" } } });
+        expect([changed.writeHead.mock.calls[0][0], json(changed).error.code]).toEqual([403, "other_server"]);
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+
     it("takes a newly picked voice parent of the active server only", async () => {
         settingsStore.getConfig.mockReturnValue({ ...FOREIGN, categoryTempVoice: { mon: { mode: "temp", parentId: "300000000000000001" } } });
         settingsStore.saveConfig.mockReturnValue(FOREIGN);

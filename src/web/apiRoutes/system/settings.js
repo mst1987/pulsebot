@@ -10,7 +10,7 @@ const {
 } = require("../../../stores/settings/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, tempVoiceSettings, normalizeCategoryVersion, MAX_SERVERS,
-    normalizeCategoryAttendance, normalizeCategoryTempVoice,
+    normalizeCategoryAttendance, normalizeCategoryTempVoice, normalizeCategoryAnnounce: storedCategoryAnnounce,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../../stores/settings/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
@@ -35,6 +35,7 @@ const availabilityPanel = require("../../../services/signups/availabilityPanel")
 const raidOverview = require("../../../services/events/overview/raidOverview");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
+const { normalizeCategoryMessageLook } = require("../../../services/events/embedLook");
 const { lastReminderRun } = require("../../events/reminders");
 const wowhead = require("../../../utils/loot/wowhead");
 const {
@@ -1246,7 +1247,10 @@ const WHOLE_CATEGORY_MAPS = new Set(["categoryRaidTemplate", "categoryVersion", 
 const DERIVED_CATEGORY_MAPS = new Set(["categoryEras"]);
 // Sent whole per category (defaults filled in), stored as the difference to the defaults:
 // compared in the stored form, so an unchanged entry sent back is no "edit".
-const STORED_FORM = { categoryAttendance: normalizeCategoryAttendance, categoryTempVoice: normalizeCategoryTempVoice };
+const STORED_FORM = {
+    categoryAttendance: normalizeCategoryAttendance, categoryTempVoice: normalizeCategoryTempVoice,
+    categoryMessageLook: normalizeCategoryMessageLook, categoryAnnounce: storedCategoryAnnounce,
+};
 
 /** Key order does not make a value different. */
 function stableJson(value) {
