@@ -1,4 +1,4 @@
-import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
+import type { SetupActivity, SetupAttendance, SetupBalanceCheck, SetupPerson } from "../../../api";
 import { specLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
 import { formatWith } from "../../../lib/format";
@@ -53,7 +53,32 @@ export function weightLabels(): { key: string; label: string; tip: string }[] {
         { key: "attendance", label: t("setup.weights.attendance.label"), tip: t("setup.weights.attendance.tip") },
         { key: "gear", label: t("setup.weights.gear.label"), tip: t("setup.weights.gear.tip") },
         { key: "loot", label: t("setup.weights.loot.label"), tip: t("setup.weights.loot.tip") },
+        { key: "balance", label: t("setup.weights.balance.label"), tip: t("setup.weights.balance.tip") },
     ];
+}
+
+/** A raid counts as clearly weaker this many points (0-100) below the mean of the other raids (#1038). */
+export const WEAKER_BY = 10;
+
+/**
+ * The raid strengths of a group (#1038) for the tabs: the value per raid id and the clearly
+ * weaker raid, if any (the weakest one only). Nothing without strength data (`known` 0).
+ */
+export function raidBalance(balance: SetupBalanceCheck | undefined): { byId: Record<string, number>; weakId: string | null } | null {
+    if (!balance || !balance.known || balance.raids.length < 2) return null;
+    const byId: Record<string, number> = {};
+    for (const r of balance.raids) if (typeof r.strength === "number") byId[r.eventId] = r.strength;
+    const ids = Object.keys(byId);
+    if (ids.length < 2) return null;
+    let weakId: string | null = null;
+    let gap = 0;
+    for (const id of ids) {
+        const others = ids.filter((o) => o !== id);
+        const mean = others.reduce((sum, o) => sum + byId[o], 0) / others.length;
+        const below = mean - byId[id];
+        if (below >= WEAKER_BY && below > gap) { gap = below; weakId = id; }
+    }
+    return { byId, weakId };
 }
 
 // the raid size an own event allows (eventStore.js's MAX_SIZE) — the server checks it again

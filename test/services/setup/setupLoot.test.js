@@ -43,7 +43,7 @@ describe("services/setup/setupLoot lootInputFor (#1037)", () => {
 
     it("returns the stored snapshot for two raids of the same version and instances", () => {
         stored();
-        expect(setupLoot.lootInputFor([events.a, events.b])).toEqual({ versionId: "tbc", wants: { u1: {} }, items: { 1: { name: "X" } } });
+        expect(setupLoot.lootInputFor([events.a, events.b])).toEqual({ versionId: "tbc", wants: { u1: {} }, items: { 1: { name: "X" } }, gear: {} });
     });
 
     it("is null for a single raid or when nothing was loaded", () => {
@@ -133,7 +133,9 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
         expect(snap.wants.u2.other.source).toBe("spec");
         expect(snap.items[KARA_ITEM]).toEqual({ name: "", icon: "", quality: null });
         expect(armoryGear.primeArmoryGear).not.toHaveBeenCalled();
-        expect(charGear.gearByCharacter).not.toHaveBeenCalled();
+        // the gear is read for the strength (#1038) - of the raid's own version only, never TBC's
+        expect(charGear.gearByCharacter).toHaveBeenCalledTimes(1);
+        expect(charGear.gearByCharacter).toHaveBeenCalledWith({ versionId: "forever", guildId: "g1" });
         delete events.f1; delete events.f2;
     });
 
@@ -221,6 +223,39 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
         expect(snap.at).toBe(first.at);
         expect(snap.failed).toEqual(["softres"]);
         expect(snap.keptAt).toBe(first.at);
+    });
+});
+
+describe("services/setup/setupLoot strength gear (#1038)", () => {
+    const worn = (n, lvl) => ({ items: Array.from({ length: n }, (_, i) => ({ itemId: 100 + i, itemLevel: lvl })) });
+
+    it("stores the mean item level per character from MIN_ITEMS worn items on, and lootInputFor hands it on", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u2", character: "Few", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        charGear.gearByCharacter.mockReturnValue(new Map([["strong", worn(6, 120)], ["few", worn(setupLoot._internal.MIN_ITEMS - 1, 200)]]));
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out.ok).toBe(true);
+        expect(getSetupLoot("a").gear).toEqual({ u1: { strong: 120 } });
+        expect(setupLoot.lootInputFor([events.a, events.b]).gear).toEqual({ u1: { strong: 120 } });
+    });
+
+    it("a failed gear read without a BiS list is no failed loot source and keeps the last levels", async () => {
+        signupStore.listSignups.mockReturnValue([{ userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" }]);
+        charGear.gearByCharacter.mockReturnValue(new Map([["strong", worn(8, 115)]]));
+        await setupLoot.loadLootData(["a", "b"]);
+        charGear.gearByCharacter.mockImplementation(() => { throw new Error("walk broke"); });
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out).toEqual(expect.objectContaining({ ok: true, failed: [], partial: false }));
+        expect(getSetupLoot("a").gear).toEqual({ u1: { strong: 115 } });
+    });
+
+    it("meanItemLevels skips characters without levels", () => {
+        const { meanItemLevels } = setupLoot._internal;
+        const raiders = [{ userId: "u1", chars: [{ character: "A" }, { character: "B" }] }];
+        const gear = new Map([["a", { items: [...worn(5, 100).items, { itemId: 9, itemLevel: 0 }] }], ["b", { items: [{ itemId: 1 }] }]]);
+        expect(meanItemLevels(raiders, gear)).toEqual({ u1: { a: 100 } });
     });
 });
 

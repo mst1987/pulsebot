@@ -8,7 +8,8 @@
 //                           gear the characters wear (armory one after another,
 //                           with its own cache, then the logs) and stores one
 //                           snapshot per raid group (setupLootStore). The only
-//                           place that calls an API.
+//                           place that calls an API. It also keeps the mean item
+//                           level per character for "Raids gleich stark" (#1038).
 //   lootInputFor(events)    cheap, on every editor move: the stored snapshot when it
 //                           still fits the raids (same version, same instances),
 //                           else null - the proposal itself never calls an API.
@@ -40,6 +41,8 @@ const logger = require("../../logger").child("setupLoot");
 
 // One run asks the armory for at most this many characters; the rest keep what the logs say.
 const MAX_ARMORY = 80;
+// A mean item level counts only from this many worn items with a level (#1038): two logged rings say nothing.
+const MIN_ITEMS = 5;
 const TBC = "tbc";
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
@@ -69,7 +72,7 @@ function lootInputFor(events, { config } = {}) {
     if (snapshot.versionId !== versionOfEvent(list[0], { config })) return null;
     const instances = instancesOf(list);
     if (instances.join("|") !== (snapshot.instanceIds || []).join("|")) return null;
-    return { versionId: snapshot.versionId, wants: snapshot.wants || {}, items: snapshot.items || {} };
+    return { versionId: snapshot.versionId, wants: snapshot.wants || {}, items: snapshot.items || {}, gear: snapshot.gear || {} };
 }
 
 // The job's progress per raid group (signup event id): { done, total } of the armory pass.
@@ -203,6 +206,22 @@ function gearOf({ versionId, guildId, failed }) {
 }
 
 /**
+ * The mean item level per raider and character (#1038) - `{ [userId]: { [charKey]: level } }`,
+ * only for characters with at least MIN_ITEMS worn items that carry a level.
+ */
+function meanItemLevels(raiders, gear) {
+    const out = {};
+    for (const r of raiders) for (const c of r.chars) {
+        const key = characterKeyOf(c.character);
+        const snap = gear.get(key);
+        const levels = (snap && Array.isArray(snap.items) ? snap.items : []).map((it) => Number(it && it.itemLevel)).filter((n) => Number.isFinite(n) && n > 0);
+        if (levels.length < MIN_ITEMS) continue;
+        (out[r.userId] = out[r.userId] || {})[key] = levels.reduce((a, b) => a + b, 0) / levels.length;
+    }
+    return out;
+}
+
+/**
  * The stored entry of a character that this run could not replace (#1037): a failed
  * source must not overwrite good data. Softres down and no reserve now, while the last
  * run had one; or armory/logs down, no gear now, while the last run had a BiS list.
@@ -295,7 +314,11 @@ async function loadLootData(eventIds) {
         }
         const names = [...new Set([...bis.values()].map((b) => b.name))].slice(0, MAX_ARMORY);
         await askArmory(groupId, names, { versionId, guildId, failed });
-        const gear = bis.size ? gearOf({ versionId, guildId, failed }) : new Map();
+        // the gear is read always (#1038, the raids' strength) - but without a BiS list a failed read
+        // only costs the strength, it is no failed loot source
+        const gear = gearOf({ versionId, guildId, failed: bis.size ? failed : new Set() });
+        const fresh = meanItemLevels(raiders, gear);
+        const levels = Object.keys(fresh).length || !previous ? fresh : previous.gear || {};
 
         const asked = askedSources(events, bis);
         const failedList = ["softres", "armory", "logs"].filter((x) => failed.has(x));
@@ -305,7 +328,7 @@ async function loadLootData(eventIds) {
         }
         const { wants, counts, kept } = collectWants(raiders, { reserves, bis, gear, previous: previous && previous.wants, failed });
         saveSetupLoot(groupId, {
-            versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts,
+            versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts, gear: levels,
             // the oldest kept data: entries kept load after load keep the time they were fetched
             failed: failedList, keptAt: kept && previous ? (previous.keptAt || previous.at) : 0,
         });
@@ -319,4 +342,4 @@ async function loadLootData(eventIds) {
     }
 }
 
-module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry } };
+module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry, meanItemLevels, MIN_ITEMS } };

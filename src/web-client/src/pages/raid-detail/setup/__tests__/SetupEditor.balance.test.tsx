@@ -1,0 +1,101 @@
+// Even raids (#1038): the tabs of a raid group show a calm strength per raid and one
+// summary in the meta line, red only for the clearly weaker raid. Without strength
+// data nothing is shown. The API is mocked at its transport.
+import { screen, within } from "@testing-library/react";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import * as client from "../../../../api/client";
+import type { RaidGroup, SetupBalanceCheck, SetupEditorData } from "../../../../api";
+import { t } from "../../../../i18n";
+import { switchLang } from "../../../../test/i18n";
+import { renderPage } from "../../../../test/render";
+import { EVENT_ID, editorData, setupCtx } from "../../../../test/fixtures/setupEditor";
+import SetupEditor from "../SetupEditor";
+import { WEAKER_BY, raidBalance, weightLabels } from "../setupText";
+
+vi.mock("../../../../api/client", async (orig) => ({ ...(await orig<typeof import("../../../../api/client")>()), get: vi.fn(), send: vi.fn() }));
+
+const GROUP: RaidGroup = {
+    id: EVENT_ID, primaryId: EVENT_ID, count: 2, places: 20,
+    raids: [
+        { id: EVENT_ID, title: "Kara 1", index: 1, size: 10, placed: 10, status: "draft", approved: false, posted: false, cancelled: false },
+        { id: "ev2", title: "Kara 2", index: 2, size: 10, placed: 10, status: "draft", approved: false, posted: false, cancelled: false },
+    ],
+};
+
+const check = (a: number | null, b: number | null, known = 20): SetupBalanceCheck => ({
+    spread: a !== null && b !== null ? Math.abs(a - b) : 0, known,
+    raids: [{ eventId: EVENT_ID, strength: a }, { eventId: "ev2", strength: b }],
+});
+
+let page: SetupEditorData;
+beforeEach(() => {
+    vi.mocked(client.get).mockImplementation(() => Promise.resolve(page));
+    vi.mocked(client.send).mockImplementation(() => Promise.resolve(page));
+});
+
+async function show(balance?: SetupBalanceCheck) {
+    const base = editorData();
+    page = editorData({ raidGroup: GROUP }, { checks: { ...base.setup!.checks, ...(balance ? { balance } : {}) } });
+    renderPage(<SetupEditor ctx={setupCtx()} />);
+    await screen.findByRole("region", { name: t("setup.group.title", { index: 1 }) });
+    return screen.getByRole("tablist", { name: t("setup.raidGroup.aria") });
+}
+
+describe("raidBalance (#1038)", () => {
+    it("is null without data, with one raid or without a known raider", () => {
+        expect(raidBalance(undefined)).toBeNull();
+        expect(raidBalance(check(60, 40, 0))).toBeNull();
+        expect(raidBalance({ spread: 0, known: 3, raids: [{ eventId: "a", strength: 50 }] })).toBeNull();
+        expect(raidBalance(check(60, null))).toBeNull();
+    });
+
+    it("marks a raid only when it lies WEAKER_BY points below the mean of the others", () => {
+        expect(raidBalance(check(60, 60 - WEAKER_BY + 1))!.weakId).toBeNull();
+        expect(raidBalance(check(60, 60 - WEAKER_BY))!.weakId).toBe("ev2");
+        const three: SetupBalanceCheck = { spread: 30, known: 30, raids: [{ eventId: "a", strength: 70 }, { eventId: "b", strength: 40 }, { eventId: "c", strength: 65 }] };
+        expect(raidBalance(three)).toEqual({ byId: { a: 70, b: 40, c: 65 }, weakId: "b" });
+    });
+
+    it("has a slider label for the weight", () => {
+        expect(weightLabels().some((w) => w.key === "balance" && w.label === t("setup.weights.balance.label"))).toBe(true);
+    });
+});
+
+describe("strength in the raid tabs (#1038)", () => {
+    it("shows nothing without strength data", async () => {
+        const tabs = await show();
+        expect(within(tabs).queryAllByTestId("se-raidtab-strength")).toHaveLength(0);
+        expect(within(tabs).queryByTestId("se-raidtabs-balance")).toBeNull();
+    });
+
+    it("shows a calm number per raid and the even summary when even", async () => {
+        const tabs = await show(check(55, 52));
+        const values = within(tabs).getAllByTestId("se-raidtab-strength");
+        expect(values.map((v) => v.textContent)).toEqual([t("setup.raidGroup.strength", { value: 55 }), t("setup.raidGroup.strength", { value: 52 })]);
+        values.forEach((v) => expect(v).not.toHaveClass("se-weak"));
+        const summary = within(tabs).getByTestId("se-raidtabs-balance");
+        expect(summary).toHaveTextContent(t("setup.raidGroup.balanced"));
+        expect(summary).not.toHaveClass("se-weak");
+    });
+
+    it("names the clearly weaker raid, red only there", async () => {
+        const tabs = await show(check(62, 40));
+        const [a, b] = within(tabs).getAllByTestId("se-raidtab-strength");
+        expect(a).not.toHaveClass("se-weak");
+        expect(b).toHaveClass("se-weak");
+        const summary = within(tabs).getByTestId("se-raidtabs-balance");
+        expect(summary).toHaveTextContent(t("setup.raidGroup.weaker", { name: "Kara 2" }));
+        expect(summary).toHaveClass("se-weak");
+    });
+
+    it("speaks English", async () => {
+        await switchLang("en");
+        try {
+            const tabs = await show(check(62, 40));
+            expect(within(tabs).getByTestId("se-raidtabs-balance")).toHaveTextContent("Kara 2 clearly weaker");
+            expect(within(tabs).getAllByTestId("se-raidtab-strength")[0]).toHaveTextContent("Strength 62");
+        } finally {
+            await switchLang("de");
+        }
+    });
+});

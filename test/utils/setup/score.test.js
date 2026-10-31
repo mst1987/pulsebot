@@ -13,8 +13,11 @@ describe("setup score", () => {
     });
 
     it("keeps the hard constants above any weight setting", () => {
-        // room for every soft goal planned, incl. "balance" (#1038) that does not exist yet
-        expect(score.SOFT_GOALS).toBeGreaterThanOrEqual(Object.keys(score.DEFAULT_WEIGHTS).length + 1);
+        // every soft goal, the last one "balance" (#1038): 14 weights at most MAX_WEIGHT each
+        expect(Object.keys(score.DEFAULT_WEIGHTS)).toContain("balance");
+        expect(score.DEFAULT_WEIGHTS.balance).toBe(100);
+        expect(score.SOFT_GOALS).toBeGreaterThanOrEqual(Object.keys(score.DEFAULT_WEIGHTS).length);
+        expect(score.SOFT_GOALS).toBe(14);
         const maxSoft = score.SOFT_GOALS * score.MAX_WEIGHT;
         expect(score.BENCH_STATUS).toBeGreaterThan(maxSoft);
         expect(score.LEADER_MIN).toBeGreaterThan(score.FILL);

@@ -473,9 +473,11 @@ function localSearchPass(s) {
 }
 
 /**
- * The loot phase (#1037): only moves that keep the same people placed - a swap between
- * the parallel raids and moves between groups. Loot decides who plays in which raid,
- * never who gets a place: the first phase settled that without it.
+ * The arrange phase - loot (#1037) and balance (#1038): only moves that keep the same people
+ * placed - a swap between the parallel raids and moves between groups. Loot and balance decide
+ * who plays in which raid, never who gets a place: the first phase settled that without them.
+ * Both weigh in one score that has to rise strictly with every move, so they cannot trade a
+ * raider back and forth, and MAX_PASSES ends it in any case.
  */
 function lootPass(s) {
     let improved = false;
@@ -485,9 +487,9 @@ function lootPass(s) {
 }
 
 /**
- * The search. With loot (`lootScorer`) it runs twice over: first without loot - who is
- * placed, who stays in the pool -, then the loot phase on top with only the moves of
- * `lootPass`, so pool and bench come out the same with and without loot data.
+ * The search. With loot or balance (`lootScorer`, the scorer with both) it runs twice over:
+ * first without them - who is placed, who stays in the pool -, then the arrange phase on top
+ * with only the moves of `lootPass`, so pool and bench come out the same with and without them.
  */
 function search(model, scorer, lootScorer) {
     const s = newSearchState(model, scorer);
@@ -559,12 +561,12 @@ function search(model, scorer, lootScorer) {
  */
 function buildSetupProposal(input = {}, options = {}) {
     const { model, effective } = prepare(input, options);
-    if (!(effective.loot > 0)) {
+    if (!(effective.loot > 0) && !(effective.balance > 0)) {
         const scorer = makeScorer(model);
         return buildOutput(model, scorer, search(model, scorer), { version: SETUP_PROPOSAL_VERSION, weights: effective });
     }
-    // #1037: the places are settled without loot, the loot scorer only arranges the raids
-    const placeScorer = makeScorer({ ...model, weights: { ...model.weights, loot: 0 } });
+    // #1037/#1038: the places are settled without loot and balance, the full scorer only arranges the raids
+    const placeScorer = makeScorer({ ...model, weights: { ...model.weights, loot: 0, balance: 0 } });
     const lootScorer = makeScorer(model);
     const state = search(model, placeScorer, lootScorer);
     return buildOutput(model, lootScorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
@@ -587,6 +589,8 @@ function prepare(input, options) {
     if (!model.hasRoster) effective.roster = 0;
     // loot (#1037) only with parallel raids and loaded data of the raid's version (model.js)
     if (!model.lootOn) effective.loot = 0;
+    // balance (#1038) only with parallel raids - one raid has nothing to even out
+    if (!model.balanceOn) effective.balance = 0;
     return { model, effective };
 }
 

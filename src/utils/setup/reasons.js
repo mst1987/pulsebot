@@ -6,6 +6,7 @@
 const { ROLES, ROLE_LABELS } = require("../../config/gameVersions/classes");
 const { moreAvailableThanFirst } = require("./score");
 const { SPEC_PREFIX } = require("./lootWants");
+const { raidStrengths } = require("./raidStrength");
 
 const STATUS_TEXT = {
     late: "Kommt später",
@@ -461,6 +462,22 @@ function markLeader(slot, event) {
     return { ...slot, leader: true, reasons: [...slot.reasons.slice(0, at), reason, ...slot.reasons.slice(at)] };
 }
 
+/**
+ * `checks.balance` (#1038): the mean strength (0-100) of every parallel raid's placed raiders and
+ * the spread between the strongest and the weakest; `known` = raiders with any data behind it.
+ */
+function balanceCheck(model, state) {
+    const placed = model.events.map(() => []);
+    for (const c of model.cands) {
+        const o = state.opt[c.idx];
+        if (o < 0) continue;
+        const option = c.options[o];
+        placed[option.eventIdx].push(option.strength);
+    }
+    const { spread, strengths } = raidStrengths(placed);
+    return { spread, known: model.strengthKnown || 0, raids: model.events.map((event, e) => ({ eventId: event.id, strength: strengths[e] })) };
+}
+
 /** The slot with its `lootReason` (#1037) when one stands in its reasons - no key otherwise. */
 function withLootReason(slot, model, state, lootAt, c) {
     const loot = lootAt ? lootReason(model, state, lootAt, c) : null;
@@ -502,6 +519,8 @@ function buildOutput(model, scorer, state, { version, weights }) {
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));
     const checks = { ...first.checks, ok: events.every((e) => e.checks.ok), wishes, avoid: avoidCheck(model, state) };
     if (lootAt) checks.loot = lootCheck(model, state, lootAt);
+    // balance (#1038) only for parallel raids with the weight on - else the checks keep their shape
+    if (weights.balance > 0 && model.balanceOn) checks.balance = balanceCheck(model, state);
     // No word about a shadowban (Vermerke, #981) in the output: it is stored as the setup (also as an
     // automatic draft, eventStore.saveSetupDraft). The orga's answer names them (web/apiRoutes/events/setup.js).
     return {

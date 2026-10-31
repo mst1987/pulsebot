@@ -960,7 +960,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
             {group && (
                 <RaidTabs
                     group={group} current={eventId} moving={!!(dragging || selected)} editable={!busy}
-                    elsewhere={data.placedElsewhere || 0}
+                    elsewhere={data.placedElsewhere || 0} balance={setup.checks.balance}
                     onSwitch={(id) => { if (id !== eventId && onSwitchRaid) onSwitchRaid(id); }}
                     onMove={(id, userId) => void moveRaid(id, userId)}
                 />

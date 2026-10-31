@@ -47,7 +47,8 @@
         "attendance": { "label": "Anwesenheit", "tip": "Anwesenheit in dieser Kategorie." },
         "roster": { "label": "Roster-Status", "tip": "Stamm vor Probe vor Ersatz, wer nicht im Roster ist, danach. Nur wenn die Kategorie ein Roster hat." },
         "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." },
-        "loot": { "label": "Loot verteilen", "tip": "Nur bei mehreren Raids gleichzeitig: wer dieselben Items will, kommt in verschiedene Raids. Softres zählt voll, BiS halb, die Spec ein Viertel. Braucht „Loot-Daten laden“." }
+        "loot": { "label": "Loot verteilen", "tip": "Nur bei mehreren Raids gleichzeitig: wer dieselben Items will, kommt in verschiedene Raids. Softres zählt voll, BiS halb, die Spec ein Viertel. Braucht „Loot-Daten laden“." },
+        "balance": { "label": "Raids gleich stark", "tip": "Nur bei mehreren Raids gleichzeitig: tauscht Raider so, dass alle Raids ähnlich stark sind – aus Gear (Item-Level aus „Loot-Daten laden“) und Anwesenheit. Tanks und Heiler zählen mehr. Entscheidet nie, wer einen Platz bekommt." }
     },
     "status": {
         "approvedSubSince": "Raider sehen dieses Setup · seit {time}. Jede Änderung geht sofort in die Nachricht.",
@@ -528,6 +529,10 @@
         "removeFailed": "Raid nicht aufgelöst.",
         "moveFailed": "Nicht verschoben.",
         "elsewhere": { "one": "{count} steht in einem anderen Raid der Gruppe", "other": "{count} stehen in anderen Raids der Gruppe" },
+        "strength": "Stärke {value}",
+        "balanced": "Raids ausgeglichen",
+        "weaker": "{name} deutlich schwächer",
+        "balanceTip": "Stärke je Raid 0–100 aus Gear und Anwesenheit, Abstand {spread} Punkte",
         "places": "{count} Raids · {places} Plätze",
         "head": "Raid {index} von {count}",
         "headTip": "Die Raids dieses Abends teilen sich eine Anmeldung; jeder hat sein eigenes Setup."
