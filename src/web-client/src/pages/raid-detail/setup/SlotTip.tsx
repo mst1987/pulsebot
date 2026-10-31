@@ -8,7 +8,7 @@ import WowIcon from "../../../components/ui/icons/WowIcon";
 import { BenchIcon, CheckIcon, CrownIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
-import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
+import { attendanceTone, benchText, raidIdText, specText, statusLabel } from "./setupText";
 import { SigBadge } from "./Board";
 import { Link } from "react-router-dom";
 import type { VermerkShort } from "../../../api/roster/vermerke";
@@ -180,7 +180,10 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     // the state is the field in the header — a reason that only names it is dropped (tipReasons)
     // the loot reason (#1037) comes German from the server: shown in the page's language, in its place
     const loot = p.lootReason;
+    // one instance per raid ID: the hint as its own line in the page language - the server's German pool reason goes
+    const raidId = raidIdText(p.raidIdTaken);
     const reasons = [...new Set(tipReasons(p.reasons))]
+        .filter((r) => !(raidId && r === "Schon in einem anderen Raid dieser ID"))
         .map((r) => (loot && r === loot.text ? t(`setup.loot.reason.${loot.kind}`, loot) : r));
     const noteReasons = vermerk ? reasonSummary(t, vermerk.reasons || {}) : "";
     return (
@@ -207,6 +210,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                 {attendance !== null && <AttendanceHead a={attendance} />}
             </header>
             <div className="se-tip-col">
+                {raidId && <p className="se-tip-raidid" data-tip-sub={t("setup.raidId.sub")}>{raidId}</p>}
                 {brings.length > 0 && (
                     <div className="se-tip-body">
                         <span className="se-tip-k">{t("setup.person.tip.brings")}</span>

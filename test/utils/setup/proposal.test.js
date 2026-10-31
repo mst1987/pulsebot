@@ -506,6 +506,59 @@ describe("buildSetupProposal", () => {
         });
     });
 
+    describe("one instance per raid ID", () => {
+        it("leaves a character saved in another raid of this ID in the pool, with the reason", () => {
+            const signups = [su("t", "Warrior-Protection"), su("h", "Priest-Holy"), su("x", "Mage-Fire", { at: 0 }), su("m", "Rogue-Combat")];
+            const input = { events: [{ id: "e", size: 10, composition: { tank: 1, healer: 1 } }], signups, raidIdTaken: { e: ["x"] } };
+            const out = buildSetupProposal(input);
+            expect(placedIds(out)).not.toContain("x");
+            const pooled = out.pool.find((p) => p.userId === "x");
+            expect(pooled).toBeTruthy();
+            expect(pooled.reasons).toContain("Schon in einem anderen Raid dieser ID");
+            expect(placedIds(out).sort()).toEqual(["h", "m", "t"]);
+            expectHardRules(input, out);
+        });
+
+        it("plays the raider's other character instead and says why", () => {
+            const signups = [
+                su("z", "Mage-Fire", { character: "Zibbo", characters: [{ character: "Zibbo", spec: "Mage-Fire" }, { character: "Zibbowar", spec: "Warrior-Protection" }] }),
+                su("h", "Priest-Holy"),
+            ];
+            const input = { events: [{ id: "e", size: 5, composition: { tank: 1, healer: 1 } }], signups, raidIdTaken: { e: ["zibbo"] } };
+            const out = buildSetupProposal(input);
+            expect(slotOf(out, "z")).toMatchObject({ character: "Zibbowar", role: "tank" });
+            expect(slotOf(out, "z").reasons.join(" ")).toMatch(/Zibbo ist in dieser ID schon in einem anderen Raid/);
+        });
+
+        it("keeps a character the orga placed by hand", () => {
+            const signups = [su("x", "Mage-Fire"), su("m", "Rogue-Combat")];
+            const input = { events: [{ id: "e", size: 5, composition: {} }], signups, fixed: [{ userId: "x", eventId: "e", group: 1 }], raidIdTaken: { e: ["x"] } };
+            const out = buildSetupProposal(input);
+            expect(slotOf(out, "x")).toMatchObject({ group: 1, locked: true });
+        });
+
+        it("changes nothing for other raids or when nothing is taken", () => {
+            const signups = roster(10);
+            const input = { events: [{ id: "e", size: 10, composition: { tank: 1, healer: 2 } }], signups };
+            const plain = buildSetupProposal(input);
+            expect(buildSetupProposal({ ...input, raidIdTaken: {} })).toEqual(plain);
+            expect(buildSetupProposal({ ...input, raidIdTaken: { other: [signups[0].character] } })).toEqual(plain);
+        });
+
+        it("in a raid group the character may still go into the raid where it is free", () => {
+            const events = [
+                { id: "g1", title: "Gruppe 1", size: 5, composition: { tank: 0, healer: 0 } },
+                { id: "g2", title: "Gruppe 2", size: 5, composition: { tank: 0, healer: 0 } },
+            ];
+            const base = [su("x", "Mage-Fire", { at: 0 }), su("m", "Rogue-Combat")];
+            const signups = [];
+            for (const s of base) for (const e of events) signups.push({ ...s, eventId: e.id });
+            const out = buildSetupProposal({ events, signups, raidIdTaken: { g1: ["x"] } });
+            const raidOf = (userId) => out.events.find((e) => e.groups.some((g) => g.slots.some((s) => s.userId === userId)));
+            expect(raidOf("x").eventId).toBe("g2");
+        });
+    });
+
     describe("parallel events", () => {
         it("distributes the raiders over both raids, nobody twice", () => {
             const events = [

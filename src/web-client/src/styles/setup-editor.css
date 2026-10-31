@@ -144,6 +144,8 @@
 .se-tip-bar i { display: block; width: var(--fill); height: 100%; border-radius: 4px; background: currentColor; }
 .se-tip-ok { color: var(--good); }
 .se-tip-mid { color: var(--medium); }
+/* one instance per raid ID: the hint in the raider panel - also where no tooltip opens (touch) */
+.se-tip-raidid { margin: 0; font-size: 12.5px; font-weight: 700; color: var(--medium); }
 .se-tip-bad { color: var(--sig-absence); }
 .se-tip-link { display: inline-flex; align-items: center; justify-content: center; flex: 0 0 auto; }
 .se-tip-linked { width: 22px; height: 22px; border-radius: 50%; background: var(--good-bg); color: var(--good); }
@@ -246,6 +248,8 @@
 .se-nameline { display: flex; align-items: center; min-width: 0; }
 .se-nameline .se-name { min-width: 0; }
 .se-nameline .se-vmark { margin-left: 5px; }
+/* one instance per raid ID: a short word in the warning tone after the name, the hint in its tooltip; it never gives way */
+.se-raidid { flex: none; margin-left: 5px; font-size: 11px; font-weight: 700; letter-spacing: .02em; color: var(--medium); cursor: default; }
 .se-sub { font-size: var(--fs-label); color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .se-offrole { color: var(--medium); font-weight: 700; }
 /* a fixed place: a small lock in the corner, only a sign — the raider panel's button changes it; it takes no width from the name */

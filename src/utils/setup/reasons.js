@@ -31,6 +31,9 @@ function nameOf(model, idx, opt) {
 
 const ROLE_PLURAL = { tank: "Tanks", healer: "Heiler", melee: "Nahkämpfer", ranged: "Fernkämpfer" };
 
+/** One instance per raid ID: the character already stands in another raid of the same instance this ID. */
+const RAID_ID_TAKEN = "Schon in einem anderen Raid dieser ID";
+
 /**
  * Which of several named characters (#293) the raider plays, and why:
  * "Mit Zibbowar als Tank statt Zibbo (Tanks fehlten)", or "1. Wahl: Zibbo".
@@ -50,7 +53,9 @@ function characterChoiceReason(model, facts, cand, o, byOrga = false) {
     let why = "passte besser in die Aufstellung";
     // The strongest explanation first: the raider said themselves that the first
     // choice is less available this evening (#320).
-    if (moreAvailableThanFirst(cand, o) && OTHER_STATUS_TEXT[pref.status]) {
+    if (pref.raidIdTaken) {
+        why = `${pref.character} ist in dieser ID schon in einem anderen Raid`;
+    } else if (moreAvailableThanFirst(cand, o) && OTHER_STATUS_TEXT[pref.status]) {
         why = OTHER_STATUS_TEXT[pref.status];
     } else if (pref.role !== o.role && prefIdx >= 0 && ev.roles[prefIdx] >= prefMax) {
         why = `${ROLE_PLURAL[pref.role]} voll (${ev.roles[prefIdx]}/${prefMax})`;
@@ -134,7 +139,10 @@ function closingReasons(model, state, c, lootAt, event, out) {
 function benchReasons(model, facts, state, c) {
     const cand = model.cands[c];
     if (cand.fixed && cand.fixed.bench) return ["Von der Orga auf die Bank gesetzt"];
+    const blocked = cand.raidIdBlocked || [];
     if (!cand.options.length) {
+        // one instance per raid ID (model.blockRaidIdTaken): the character is saved in another raid
+        if (blocked.length) return [RAID_ID_TAKEN];
         if (cand.noGear.length) return ["Keine Spec mit brauchbarem Gear"];
         if (cand.absentIn.size) return ["Abgemeldet"];
         return ["Keine Spezialisierung angegeben"];
@@ -150,6 +158,8 @@ function benchReasons(model, facts, state, c) {
         else if (ev.count >= event.size) full.add(`Raid voll (${ev.count}/${event.size})`);
     }
     out.push(...full);
+    const blockedNames = [...new Set(blocked.map((o) => o.character))];
+    if (blockedNames.length) out.push(`${blockedNames.join(", ")}: ${RAID_ID_TAKEN.toLowerCase()}`);
     const best = cand.options[0];
     if (best.status !== "signed" && STATUS_TEXT[best.status]) out.push(STATUS_TEXT[best.status]);
     if (model.weightsEffective.fairness > 0 && cand.fairness.last === "placed") out.push("War zuletzt dabei");
@@ -179,7 +189,9 @@ function benchEntryOf(model, state, c, reasons) {
     // the character the orga put on the bench (#293), else the first main option
     const wanted = cand.fixed && cand.fixed.bench ? String(cand.fixed.character || "").toLowerCase() : "";
     const chosen = wanted ? cand.options.find((x) => x.main && String(x.character).toLowerCase() === wanted) : null;
-    const o = chosen || cand.options.find((x) => x.main) || cand.options[0] || null;
+    // a raider whose characters all stand in another raid of this ID (model.blockRaidIdTaken) still shows one
+    const blocked = cand.raidIdBlocked || [];
+    const o = chosen || cand.options.find((x) => x.main) || cand.options[0] || blocked.find((x) => x.main) || blocked[0] || null;
     return {
         userId: cand.userId,
         character: o ? o.character : (cand.name || cand.userId),
@@ -187,7 +199,7 @@ function benchEntryOf(model, state, c, reasons) {
         spec: o ? o.spec : "",
         role: o ? o.role : "",
         status: o ? o.status : "",
-        eventIds: [...new Set(cand.options.map((x) => model.events[x.eventIdx].id))],
+        eventIds: [...new Set([...cand.options, ...blocked].map((x) => model.events[x.eventIdx].id))],
         locked: !!(cand.fixed && cand.fixed.bench && cand.fixed.locked),
         reasons,
     };
@@ -496,7 +508,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
             checks: eventChecks(model, facts, state, e),
         };
     });
-    const { bench, pool } = unplacedOf(model, facts, state, (c) => c.options.length + (c.fixed && c.fixed.bench ? 1 : 0) + c.noGear.length > 0);
+    const { bench, pool } = unplacedOf(model, facts, state, (c) => c.options.length + (c.fixed && c.fixed.bench ? 1 : 0) + c.noGear.length + (c.raidIdBlocked || []).length > 0);
     const first = events[0] || { groups: [], checks: { ok: false, size: { count: 0, size: 0, ok: false }, roles: {}, buffs: { ok: true, required: [], raid: [], party: [] }, wishes: { met: 0, total: 0, pairs: [] } } };
     const wishes = model.events.length > 1 ? wishCheck(model, state, null) : first.checks.wishes;
     const parts = Object.fromEntries(Object.entries(facts ? facts.parts : {}).map(([k, v]) => [k, round(v)]));

@@ -58,6 +58,8 @@ const RULES = [
     [/^War zuletzt dabei$/, "Was in the last raid"],
     [/^Anwesenheit (\d+) %$/, "Attendance $1%"],
     [/^Andere passten besser in die Aufstellung$/, "Others fitted the lineup better"],
+    [/^Schon in einem anderen Raid dieser ID$/, "Already in another raid of this lockout"],
+    [/^(.+): schon in einem anderen Raid dieser ID$/, "$1: already in another raid of this lockout"],
     // raiderProfileStore.addCharacter
     [/^Kein Konto\.$/, "No account."],
     [/^Bitte eine Klasse angeben\.$/, "Please pick a class."],

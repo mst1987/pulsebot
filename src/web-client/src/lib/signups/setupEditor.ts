@@ -106,7 +106,7 @@ export function characterNamed(p: SetupPerson | undefined, name: string | undefi
 
 /** The raider drawn as one of their characters: its name, spec, role, class colour and own status. */
 export function asCharacter(p: SetupPerson, c: SetupCharacter): SetupPerson {
-    return { ...p, character: c.character, spec: c.spec, role: c.role, classId: c.classId, classColor: c.classColor, classLabel: c.classLabel, specLabel: c.specLabel, specIcon: c.specIcon, status: c.status, main: true };
+    return { ...p, character: c.character, spec: c.spec, role: c.role, classId: c.classId, classColor: c.classColor, classLabel: c.classLabel, specLabel: c.specLabel, specIcon: c.specIcon, status: c.status, main: true, raidIdTaken: c.raidIdTaken };
 }
 
 /** "Angemeldet"'s role blocks: tank, healer, melee — anything else goes with the ranged. */

@@ -26,6 +26,9 @@ export type SetupAttendance = {
     benchNights?: number;
 };
 
+/** One instance per raid ID: the character stands in a group of another raid of this instance and ID - details only for a raid of this server. */
+export type SetupRaidIdTaken = { local?: boolean; title?: string; raidNo?: number; startTime?: number; other?: boolean };
+
 /** One character a raider signed up with (#293), decorated like a slot; `priority` 0 = their choice, then "kann auch mit"; its own status (#320). */
 export type SetupCharacter = {
     character: string;
@@ -38,6 +41,7 @@ export type SetupCharacter = {
     classLabel: string;
     specLabel: string;
     specIcon: string;
+    raidIdTaken?: SetupRaidIdTaken;
 };
 
 /** A raider in a group or on the bench, decorated for the page. */
@@ -66,6 +70,8 @@ export type SetupPerson = {
     leader?: boolean;
     /** #1037: why loot put them into this raid — the client says it in its own language. */
     lootReason?: SetupLootReason;
+    /** Already placed in another raid of this instance and raid ID (a hint, never a block). */
+    raidIdTaken?: SetupRaidIdTaken;
     name: string;
     classColor: string;
     classLabel: string;

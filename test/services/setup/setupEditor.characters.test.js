@@ -122,3 +122,26 @@ describe("what raiders read shows the placed character", () => {
         expect(editor.raidHelperSlots(event).find((s) => s.userId === "zibbo").name).toBe("Zibbowar");
     });
 });
+
+describe("one instance per raid ID in the editor's payload", () => {
+    const placedElsewhere = (id, guildId, character) => ({
+        id, source: "eventhelper", guildId, title: `Kara ${id}`, startTime: 2000000000 + 3600, instanceIds: ["kara"], status: "active",
+        setup: { groups: [{ index: 1, slots: [{ userId: "zibbo", character, spec: "Warrior-Protection", role: "tank" }] }], bench: [] },
+    });
+
+    it("marks the character saved in another raid of the same instance and ID - details only on the own server", () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), instanceIds: ["kara"] });
+        mockEvents.set("eh-kara2", placedElsewhere("eh-kara2", "g1", "Zibbowar"));
+        mockEvents.set("eh-foreign", placedElsewhere("eh-foreign", "g2", "Zibboshadow"));
+        const z = view().setup.pool.find((p) => p.userId === "zibbo");
+        expect(z.characters.find((c) => c.character === "Zibbowar").raidIdTaken).toMatchObject({ local: true, title: "Kara eh-kara2" });
+        expect(z.characters.find((c) => c.character === "Zibboshadow").raidIdTaken).toEqual({ other: true });
+        expect(z.characters.find((c) => c.character === "Zibbo").raidIdTaken).toBeUndefined();
+        expect(JSON.stringify(view())).not.toMatch(/eh-foreign/);
+    });
+
+    it("marks nothing for a raid without an instance", () => {
+        mockEvents.set("eh-kara2", placedElsewhere("eh-kara2", "g1", "Zibbowar"));
+        expect(JSON.stringify(view())).not.toMatch(/raidIdTaken/);
+    });
+});

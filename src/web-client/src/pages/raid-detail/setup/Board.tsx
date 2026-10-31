@@ -13,6 +13,7 @@ import { BenchIcon, CheckIcon, ClockIcon, CrownIcon, LockIcon, SignedIcon, Tenta
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { markedStatus, specText, statusWord } from "./setupText";
+import RaidIdMark from "./RaidIdMark";
 
 /** Melee and ranged go without saying on a raider's line (the spec tells it); tank and healer are named. */
 const showsRole = (role: string | undefined) => role === "tank" || role === "healer";
@@ -166,6 +167,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order, note, 
                 <span className="se-nameline">
                     <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
                     <VermerkMark short={ui.vermerke?.[p.userId]} userId={p.userId} link={false} size={13} className="se-vmark" />
+                    {/* one instance per raid ID: already in another raid of this ID - a hint, the line stays movable */}
+                    <RaidIdMark taken={p.raidIdTaken} />
                 </span>
                 <span className="se-sub">
                     {/* their order number (#293), first: which of their characters this is */}

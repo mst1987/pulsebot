@@ -111,12 +111,15 @@ function resolveWeights(given = {}) {
  * about the evening, so the preference must not outweigh it: the
  * `preferredCharacter` cost is waived for such an option. It is never waived
  * the other way round, and a raider who gave their characters the same status
- * is unaffected.
+ * is unaffected. Neither does it count when the first choice is saved in another
+ * raid of the same instance this raid ID (`pref.raidIdTaken`, model.blockRaidIdTaken).
  */
 function moreAvailableThanFirst(cand, opt) {
     if (!(opt.priority > 0) || !cand.preferred) return false;
     const pref = cand.preferred.get(opt.eventIdx);
     if (!pref) return false;
+    // the first choice already stands in another raid of this instance and raid ID: it cannot come
+    if (pref.raidIdTaken) return true;
     return (STATUS_FACTOR[opt.status] || 0) > (STATUS_FACTOR[pref.status] || 0);
 }
 

@@ -436,6 +436,13 @@
         "dmsPending": "{count} DMs offen",
         "liveSub": "Änderungen am Setup aktualisieren die Nachricht sofort – ohne Ping und ohne DMs. „Setup posten“ schickt offene DMs."
     },
+    "raidId": {
+        "short": "ID",
+        "local": "ID: schon in {title}",
+        "localRaid": "ID: schon in {title} · Raid {n}",
+        "other": "Schon in einem anderen Raid dieser ID",
+        "sub": "Ein Charakter kann jede Instanz nur einmal je ID besuchen. Nur ein Hinweis – einteilen geht trotzdem."
+    },
     "leader": {
         "set": "Als Leader setzen",
         "setSub": "Diese Person leitet den Raid. Bleibt bei „Neu vorschlagen“ und „Freie Plätze füllen“ erhalten.",

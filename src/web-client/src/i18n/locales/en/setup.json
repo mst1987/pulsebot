@@ -436,6 +436,13 @@
         "dmsPending": "{count} DMs pending",
         "liveSub": "Changes to the setup update the message right away — no ping, no DMs. \"Post setup\" sends pending DMs."
     },
+    "raidId": {
+        "short": "ID",
+        "local": "Lockout: already in {title}",
+        "localRaid": "Lockout: already in {title} · Raid {n}",
+        "other": "Already in another raid of this lockout",
+        "sub": "A character can enter each instance once per lockout. Only a hint – you can still place them."
+    },
     "leader": {
         "set": "Make leader",
         "setSub": "This person leads the raid. Kept by \"Propose again\" and \"Fill free places\".",

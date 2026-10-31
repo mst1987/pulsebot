@@ -22,6 +22,9 @@
 //               plus the orga's choice `setup.leaderUserId` and the raid lead `event.leaderId` (#1036)
 //   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
 //               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
+//   raidIdTaken  per event id the character keys that already stand in a group of another
+//               raid of the same instance in the same raid ID (services/setup/raidIdConflicts.js) -
+//               the proposal leaves them in the pool; the raids planned together do not count
 //   loot        what "Loot-Daten laden" stored for a raid group of several raids (#1037,
 //               services/setup/setupLoot.js) - only while it still fits the raids' version
 //               and instances; one store read, never an API call
@@ -38,6 +41,7 @@ const { buildAttendanceContext, attendanceFor } = require("../characters/rosterA
 const { listStoredEvents } = require("../events/eventSources");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
+const { takenKeysFor } = require("./raidIdConflicts");
 const { benchAndPool } = require("./setupCore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
@@ -264,6 +268,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
         // services/vermerke/vermerkeShort.shadowbannedAmong): this module is loaded by pages a
         // raider reads, which must never load the Vermerke (vermerkeNeverToPerson.test.js).
         shadowbanned: typeof shadowbannedOf === "function" ? (shadowbannedOf(guildId, [...userIds], { now }) || []).map(String) : [],
+        // one instance per raid ID: characters already placed in another raid of it stay in the pool
+        raidIdTaken: takenKeysFor(events),
         ...lootOf(events, config),
     };
 }

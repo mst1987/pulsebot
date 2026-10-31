@@ -478,6 +478,38 @@ function applyFixed(fixedList, candByUser, ctx, warnings) {
     }
 }
 
+/**
+ * One instance per raid ID: a character that already stands in a group of another
+ * raid of the same instance in this raid ID (`input.raidIdTaken`, per event id the
+ * character keys) is saved there - the proposal does not place it, it stays in the
+ * pool with its reason. Its options move to `cand.raidIdBlocked`; a first choice
+ * that is blocked marks `preferred.raidIdTaken` (another character is then no
+ * second best). The orga's own places (`fixed`) are left alone: the hand wins.
+ */
+function blockRaidIdTaken(input, events, cands) {
+    const takenIn = input && input.raidIdTaken && typeof input.raidIdTaken === "object" ? input.raidIdTaken : {};
+    const byIdx = new Map();
+    for (const e of events) {
+        const keys = Array.isArray(takenIn[e.id]) ? takenIn[e.id].map((k) => characterKeyOf(k)).filter(Boolean) : [];
+        if (keys.length) byIdx.set(e.idx, new Set(keys));
+    }
+    if (!byIdx.size) return;
+    const taken = (eventIdx, character) => {
+        const keys = byIdx.get(eventIdx);
+        return !!keys && keys.has(characterKeyOf(character));
+    };
+    for (const c of cands) {
+        if (c.fixed) continue;
+        const blocked = c.options.filter((o) => taken(o.eventIdx, o.character));
+        if (!blocked.length) continue;
+        c.options = c.options.filter((o) => !taken(o.eventIdx, o.character));
+        c.raidIdBlocked = blocked;
+        for (const [eventIdx, pref] of c.preferred) {
+            if (taken(eventIdx, pref.character)) pref.raidIdTaken = true;
+        }
+    }
+}
+
 /** Fixed raiders beyond a role's maximum widen it: the orga decided, the check turns red. */
 function widenHardMax(events, cands) {
     for (const e of events) {
@@ -555,6 +587,7 @@ function buildModel(input = {}, weights) {
     const cands = buildCandidates(input, ctx);
     const candByUser = new Map(cands.map((c) => [c.userId, c]));
     applyFixed(fixedList, candByUser, ctx, warnings);
+    blockRaidIdTaken(input, events, cands);
     widenHardMax(events, cands);
     markLeaders(events, cands);
     // wishes: mutual or not, a one-sided wish counts half

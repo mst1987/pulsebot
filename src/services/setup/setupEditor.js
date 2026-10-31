@@ -45,6 +45,7 @@ const { signupCharacters, characterStatus } = require("../../utils/setup/model")
 const { str } = require("../../utils/text");
 const { approvedSetupOf, pingTextOf, benchAndPool, confirmationsFor, setupSummary } = require("./setupCore");
 const { suggestSearch } = require("./raidSearch");
+const { takenInRaidId, markLineup } = require("./raidIdConflicts");
 const { eventLang } = require("../discord/botLanguage");
 const signupStore = require("../../stores/events/signupStore");
 const { inRaidGroup, signupEventIdOf } = require("../../utils/raidGroup");
@@ -855,7 +856,8 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     const signupCount = signups.filter((s) => s.status !== "absence").length;
     return {
         ...head,
-        setup: lineup ? withCharacters(withBuffInfoAll(lineup, table), signups, table) : null,
+        // one instance per raid ID: who already stands in another raid of it is marked (a hint, no block)
+        setup: lineup ? markLineup(withCharacters(withBuffInfoAll(lineup, table), signups, table), takenInRaidId(event)) : null,
         // how many signed-up raiders the other raids of the group hold (they are left out of "Angemeldet")
         placedElsewhere: elsewhere.size,
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves

@@ -1,7 +1,7 @@
-import type { SetupActivity, SetupAttendance, SetupPerson } from "../../../api";
+import type { SetupActivity, SetupAttendance, SetupPerson, SetupRaidIdTaken } from "../../../api";
 import { specLabel } from "../../../lib/wow/wowNames";
 import { t } from "../../../i18n";
-import { formatWith } from "../../../lib/format";
+import { formatDayDate, formatWith } from "../../../lib/format";
 import { SIGNUP_STATUS } from "../../../lib/signups/status";
 
 /**
@@ -174,4 +174,19 @@ export function matchesQuery(p: SetupPerson, query: string): boolean {
     if (!q) return true;
     const others = (p.characters || []).flatMap((c) => [c.character, specLabel(c.spec, c.specLabel || c.spec)]);
     return [p.character, p.name, specText(p), ...others].some((x) => String(x || "").toLowerCase().includes(q));
+}
+
+/**
+ * One instance per raid ID: the line naming where the character already stands —
+ * "ID: schon in Hyjal F · Raid 1 (Mi 09.12.)" for a raid of this server, only
+ * "Schon in einem anderen Raid dieser ID" for one of another server (the server
+ * sends nothing more about it). Empty without a hint.
+ */
+export function raidIdText(taken: SetupRaidIdTaken | undefined): string {
+    if (!taken) return "";
+    if (!taken.local) return t("setup.raidId.other");
+    const title = taken.title || "?";
+    const base = taken.raidNo ? t("setup.raidId.localRaid", { title, n: taken.raidNo }) : t("setup.raidId.local", { title });
+    const day = taken.startTime ? formatDayDate(taken.startTime * 1000) : "";
+    return day ? `${base} (${day})` : base;
 }
