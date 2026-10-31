@@ -10,10 +10,10 @@ jest.mock("../../src/utils/loot/wowhead", () => ({
 }));
 
 const fs = require("fs");
-const rosterStore = require("../../src/stores/rosterStore");
-const characterStore = require("../../src/stores/characterStore");
-const logStore = require("../../src/stores/logStore");
-const lootStore = require("../../src/stores/lootStore");
+const rosterStore = require("../../src/stores/roster/rosterStore");
+const characterStore = require("../../src/stores/roster/characterStore");
+const logStore = require("../../src/stores/loot/logStore");
+const lootStore = require("../../src/stores/loot/lootStore");
 
 const parses = (file) => fs.readFileSync.mock.calls.filter(([p]) => p === file).length;
 

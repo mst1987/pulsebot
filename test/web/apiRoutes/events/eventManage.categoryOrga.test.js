@@ -17,15 +17,15 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => ""),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: () => ({}),
     getNotify: (id) => (id === "tpl" ? { id: "tpl", title: "Anmelden!", body: "Bitte anmelden." } : null),
 }));
 // Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
 // "role-mgr"; cat1 has a Forever roster prepared already (open, not current yet) managed by "fmgr".
 // cat2 has no roster.
-jest.mock("../../../../src/stores/rosterStore", () => {
+jest.mock("../../../../src/stores/roster/rosterStore", () => {
     // every roster's raider role is "r-raider" (the roles a category orga may ping in the Anmelde-Aufruf)
     const roster = (id, categoryId, versionId, userIds, roleIds = []) => ({ id, categoryId, versionId, guildId: "g1", managers: { userIds, roleIds }, roleIds: ["r-raider"], members: {} });
     const rosters = {
@@ -38,8 +38,8 @@ jest.mock("../../../../src/stores/rosterStore", () => {
         isClosed: jest.fn(() => false),
     };
 });
-jest.mock("../../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/mainVersion"),
+jest.mock("../../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),
@@ -58,7 +58,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({
     ...jest.requireActual("../../../../src/services/events/raidEventGroups"),
     loadEventGroups: jest.fn(async () => {
-        const events = require("../../../../src/stores/eventStore").listEvents("");
+        const events = require("../../../../src/stores/events/eventStore").listEvents("");
         const byCat = new Map();
         for (const e of events) {
             if (!byCat.has(e.categoryId)) byCat.set(e.categoryId, { categoryId: e.categoryId, events: [] });
@@ -87,8 +87,8 @@ jest.mock("../../../../src/services/setup/inviteCall", () => ({
 }));
 
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const eventStore = require("../../../../src/stores/eventStore");
-const signupStore = require("../../../../src/stores/signupStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const discord = require("../../../../src/services/discord/discord");
 const manage = require("../../../../src/services/events/eventManage");

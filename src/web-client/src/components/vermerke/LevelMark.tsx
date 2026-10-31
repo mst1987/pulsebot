@@ -1,6 +1,6 @@
 import Icon from "../ui/icons/Icon";
 import { useT } from "../../i18n";
-import type { NoteLevel } from "../../api/vermerke";
+import type { NoteLevel } from "../../api/roster/vermerke";
 
 // The level of a note (#980): always a symbol and the word, never a colour alone.
 // Hinweis = flag in amber, Warnung = triangle in red, Shadowban = prohibition

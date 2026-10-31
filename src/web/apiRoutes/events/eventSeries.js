@@ -13,9 +13,9 @@ const { sendResult } = require("../../http/apiResult");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const categoryOrga = require("../../../services/roster/categoryOrga");
-const { listRaidTemplates, getConfig } = require("../../../stores/settingsStore");
-const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../../services/events/mainVersion");
-const store = require("../../../stores/eventSeriesStore");
+const { listRaidTemplates, getConfig } = require("../../../stores/settings/settingsStore");
+const { mainVersionFor, knownVersion, resolveVersionQuery } = require("../../../services/versions/mainVersion");
+const store = require("../../../stores/events/eventSeriesStore");
 const series = require("../../events/eventSeries");
 
 const q = (url, key) => String((url && url.searchParams && url.searchParams.get(key)) || "").trim();

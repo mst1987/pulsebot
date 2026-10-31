@@ -1,6 +1,6 @@
 // The roster helpers of lib/roster/rosterView.ts, run for real (design issue #218).
 // The pages themselves: pages/roster/__tests__/RosterCharsPage.test.tsx, pages/history/__tests__/HistoryCharPage.test.tsx;
-// the conventions: test/web-client/conventions/rosterCharakter.test.js.
+// the conventions: test/web-client/conventions/roster/rosterCharakter.test.js.
 import { describe, expect, it } from "vitest";
 import type { GearIssue, GearItem } from "../../../api";
 import { attendanceTone, findingsForSlot, nightLabel } from "../rosterView";

@@ -1,8 +1,8 @@
 // rosterOptions (#657): what the "Roster anlegen" dialog offers.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/services/discord/discord", () => ({ isOnline: jest.fn(() => true), getGuild: jest.fn() }));
-jest.mock("../../../src/services/discord/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/discord/roles/roleSync", () => ({ canManageRoles: jest.fn(() => true) }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [
         { id: "700000000000000001", name: "Donnerstag" },
         { id: "700000000000000002", name: "Freitag" },
@@ -13,14 +13,14 @@ jest.mock("../../../src/services/discord/categoryNames", () => ({
 jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: jest.fn(() => [{ categoryId: "700000000000000002" }, { categoryId: "700000000000000004" }, {}]),
 }));
-jest.mock("../../../src/stores/raidTemplateStore", () => ({
+jest.mock("../../../src/stores/events/raidTemplateStore", () => ({
     getRaidTemplate: jest.fn((id) => (id === "t25" ? { id: "t25", name: "SSC 25", size: 25, composition: { tank: 3, healer: 6 } } : (id === "legacy" ? { id: "legacy", size: null } : null))),
 }));
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
-const rosterStore = require("../../../src/stores/rosterStore");
-const kaderStore = require("../../../src/stores/kaderStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
 const { rosterOptions, rosterCategories, serverRoles, templateSlots } = require("../../../src/services/roster/rosterOptions");
 
 const role = (id, name, rawPosition, extra = {}) => ({ id, name, rawPosition, position: rawPosition, color: 0, hexColor: "#000000", managed: false, ...extra });

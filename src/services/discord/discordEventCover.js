@@ -20,7 +20,7 @@
 // Discord's recommended cover ratio is about 16:9; the zone art (600 x 300) is
 // 2:1 and is cropped by Discord — fine for a cover.
 const axios = require("axios");
-const { serverVisuals } = require("./serverSettings");
+const { serverVisuals } = require("./servers/serverSettings");
 const { lookOf, ruleSetLook } = require("../events/embedLook");
 
 const MAX_BYTES = 4 * 1024 * 1024;

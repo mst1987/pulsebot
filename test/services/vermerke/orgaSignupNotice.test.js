@@ -12,12 +12,12 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getClient: () => ({ channels: { cache: { get: (id) => (mockChannelGuild.has(id) ? { guildId: mockChannelGuild.get(id) } : undefined) } } }),
 }));
 let mockHub = null;
-jest.mock("../../../src/stores/orgaHubStore", () => ({
+jest.mock("../../../src/stores/discord/orgaHubStore", () => ({
     getHub: jest.fn(() => mockHub),
 }));
 
 const discord = require("../../../src/services/discord/discord");
-const notes = require("../../../src/stores/userNotesStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
 const queue = require("../../../src/services/vermerke/orgaSignupQueue");
 const notice = require("../../../src/services/vermerke/orgaSignupNotice");
 

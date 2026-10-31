@@ -4,13 +4,13 @@
 // several logs of one raid are merged, a raid group's raids are tracks of their
 // own, only kills count (wipes never reach report.kills) and nobody in no kill at
 // all left early. The orga's "leftEarly" override counts as attended.
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: () => [] }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: () => [] }));
 const mockLogs = [];
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => mockLogs }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => mockLogs }));
 const mockReports = new Map();
 // rosterAttendance caches a condensed report per id + generatedAt: every test gets fresh stamps
 const mockStamp = { at: 0 };
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: () => [...mockReports.keys()].map((id, i) => ({ id, zone: "Black Temple", generatedAt: mockStamp.at * 100 + i })),
     getReport: (id) => {
         const r = mockReports.get(id);
@@ -18,28 +18,28 @@ jest.mock("../../../src/stores/reportStore", () => ({
     },
 }));
 const mockEvents = [];
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (guildId, opts = {}) => mockEvents.filter((e) => opts.siblings === true || !(e.raidGroupId && e.raidGroupId !== e.id))
         .filter((e) => !opts.untilSeconds || e.startTime <= opts.untilSeconds),
     getEvent: (id) => mockEvents.find((e) => e.id === id) || null,
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
 const mockSignups = {};
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
-    ...jest.requireActual("../../../src/stores/raiderCharactersStore"),
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: (id) => mockSignups[id] || [] }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
+    ...jest.requireActual("../../../src/stores/roster/raiderCharactersStore"),
     listAllAssignments: () => ({}),
 }));
-jest.mock("../../../src/stores/availabilityStore", () => ({ listEntries: () => [] }));
+jest.mock("../../../src/stores/events/availabilityStore", () => ({ listEntries: () => [] }));
 const mockOverrides = {};
-jest.mock("../../../src/stores/attendanceOverridesStore", () => ({
-    ...jest.requireActual("../../../src/stores/attendanceOverridesStore"),
+jest.mock("../../../src/stores/events/attendanceOverridesStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/attendanceOverridesStore"),
     listOverrides: () => mockOverrides,
 }));
 
 const { buildAttendanceContext, attendanceForAccounts, neutralNight, neutralAttendance } = require("../../../src/services/characters/rosterAttendance");
-const { LEFT_EARLY_DISMISSED } = jest.requireActual("../../../src/stores/attendanceOverridesStore");
+const { LEFT_EARLY_DISMISSED } = jest.requireActual("../../../src/stores/events/attendanceOverridesStore");
 
 const NOW = Date.UTC(2026, 9, 10);
 const START = Math.floor(NOW / 1000) - 86400;

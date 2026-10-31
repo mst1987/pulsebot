@@ -4,16 +4,17 @@
 // pool, one seat per person across the group, a proposal over every raid, a
 // setup (and approval) per raid — and a further raid without an approved setup
 // can be dissolved again, its raiders falling back into the pool.
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: () => null }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 
 const { tempStoreFile } = require("../../helpers/tempStore");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const leaderFlagsStore = require("../../../src/stores/roster/leaderFlagsStore");
 const raidGroup = require("../../../src/services/events/raidGroup");
 const editor = require("../../../src/services/setup/setupEditor");
 const { collectSetupInput } = require("../../../src/services/setup/setupInput");
@@ -97,6 +98,73 @@ describe("adding a further raid", () => {
     });
 });
 
+describe("adding several raids at once (#1035)", () => {
+    const addMany = (count, extra = {}) => raidGroup.addRaids(primary.id, { count, user: { id: "orga", name: "Orga" }, now: NOW, ...extra });
+
+    it("count 4 makes four further raids numbered on, with one log entry on the first raid", () => {
+        const out = addMany(4);
+        expect(out.error).toBeUndefined();
+        expect(out.events.map((e) => [e.title, e.raidGroupIndex])).toEqual([["Zul'Aman 2", 2], ["Zul'Aman 3", 3], ["Zul'Aman 4", 4], ["Zul'Aman 5", 5]]);
+        expect(out.events.every((e) => e.raidGroupId === primary.id && e.size === 10 && e.startTime === START)).toBe(true);
+        const head = eventStore.getEvent(primary.id);
+        expect(head).toMatchObject({ raidGroupId: primary.id, raidGroupIndex: 1 });
+        const adds = head.log.filter((l) => l.action === "raidAdd");
+        expect(adds).toHaveLength(1);
+        expect(adds[0].detail).toMatch(/^4 Raids angelegt: Zul'Aman 2, Zul'Aman 3, Zul'Aman 4, Zul'Aman 5$/);
+        expect(raidGroup.groupSummary(head)).toMatchObject({ count: 5, places: 50 });
+    });
+
+    it("numbers on after the raids the group already has and takes given titles", () => {
+        add();
+        const out = addMany(2, { titles: ["ZA C"] });
+        expect(out.events.map((e) => [e.title, e.raidGroupIndex])).toEqual([["ZA C", 3], ["Zul'Aman 4", 4]]);
+    });
+
+    it("count 1 is the plain further raid", () => {
+        const out = addMany(1);
+        expect(out.events.map((e) => e.title)).toEqual(["Zul'Aman 2"]);
+        expect(eventStore.getEvent(primary.id).log.find((l) => l.action === "raidAdd").detail).toBe("Weiterer Raid angelegt: Zul'Aman 2");
+    });
+
+    it("keeps the limit of 8 raids: more is refused as a whole (400 too_many), nothing made", () => {
+        expect(addMany(8)).toMatchObject({ status: 400, code: "too_many" });
+        expect(raidGroup.groupEvents(eventStore.getEvent(primary.id))).toHaveLength(1);
+        expect(addMany(7).events).toHaveLength(7);
+        expect(addMany(1).code).toBe("too_many");
+    });
+
+    it("refuses a bad count, a started or cancelled raid and a Raid-Helper id as before", () => {
+        expect(addMany(0).code).toBe("invalid");
+        expect(addMany(2.5).code).toBe("invalid");
+        expect(addMany(3, { now: (START + 60) * 1000 }).code).toBe("started");
+        expect(raidGroup.addRaids("123456", { count: 3 }).code).toBe("raidhelper");
+        eventStore.setEventState(primary.id, { status: "cancelled" });
+        expect(addMany(3).code).toBe("cancelled");
+        expect(raidGroup.groupEvents(eventStore.getEvent(primary.id))).toHaveLength(1);
+    });
+});
+
+describe("the suggested number of raids (#1035)", () => {
+    it("50 signups for a 10-man: 5 raids in total", () => {
+        expect(raidGroup.suggestedRaidTotal({ active: 50, size: 10 })).toBe(5);
+    });
+    it("rounds up, stops at 8 raids and is 0 without signups or size", () => {
+        expect(raidGroup.suggestedRaidTotal({ active: 41, size: 10 })).toBe(5);
+        expect(raidGroup.suggestedRaidTotal({ active: 200, size: 10 })).toBe(8);
+        expect(raidGroup.suggestedRaidTotal({ active: 9, size: 10 })).toBe(1);
+        expect(raidGroup.suggestedRaidTotal({ active: 0, size: 10 })).toBe(0);
+        expect(raidGroup.suggestedRaidTotal({ active: 30, size: 0 })).toBe(0);
+    });
+    it("the editor counts who is signed up — maybe and bench too, not who is absent", () => {
+        for (let i = 0; i < 12; i += 1) signupStore.saveSignup(primary.id, `m${i}`, { character: `M${i}`, spec: "Mage-Fire", status: i < 4 ? "tentative" : "bench" }, { versionId: "tbc" });
+        for (let i = 0; i < 5; i += 1) signupStore.saveSignup(primary.id, `a${i}`, { status: "absence" }, { versionId: "tbc" });
+        const signups = signupStore.listSignups(primary.id);
+        const view = editor.editorView(eventStore.getEvent(primary.id), { canWrite: true, signups });
+        expect(view.signupCount).toBe(26);
+        expect(view.suggestedTotal).toBe(3);
+    });
+});
+
 describe("the shared signup and pool", () => {
     it("gives every raid of the group the first raid's signups — the further raid has none of its own", () => {
         const sibling = add().event;
@@ -149,6 +217,34 @@ describe("one seat per person across the group", () => {
         // a target outside the group is refused
         const other = eventStore.createEvent({ guildId: "g1", channelId: "c2", title: "Kara", startTime: START, versionId: "tbc", size: 10 }).event;
         expect(editor.moveToRaid(primary.id, { target: other.id, userId: "d2" }, { now: NOW }).code).toBe("invalid");
+    });
+
+    it("a failed second save puts the raider back with the raid's leader choice (#1036)", () => {
+        // the leader rule needs a lead flag on the server: d8 (signed up here) may lead Karazhan
+        leaderFlagsStore.useFile(tempStoreFile("leaderFlags.json"));
+        leaderFlagsStore.setLeads("d8", "tbc", ["kara"], { by: "orga" });
+        const sibling = add().event;
+        editor.saveEventSetup(sibling.id, { groups: [{ index: 1, slots: [{ userId: "t2", spec: "Paladin-Protection" }] }], bench: [] }, { now: NOW });
+        editor.saveEventSetup(primary.id, { groups: [{ index: 1, slots: [{ userId: "t1", spec: "Warrior-Protection" }, { userId: "h1", spec: "Priest-Holy" }] }], bench: [], leaderUserId: "h1" }, { now: NOW });
+        expect(eventStore.getEvent(primary.id).setup.leaderUserId).toBe("h1");
+        // somebody else saves the other raid in between: its save fails on the version
+        const real = eventStore.setEventSetup;
+        let bumped = false;
+        const spy = jest.spyOn(eventStore, "setEventSetup").mockImplementation((id, setup, opts) => {
+            const out = real(id, setup, opts);
+            if (id === primary.id && !bumped) {
+                bumped = true;
+                const other = eventStore.getEvent(sibling.id).setup;
+                real(sibling.id, { ...other, version: other.version + 1 });
+            }
+            return out;
+        });
+        const moved = editor.moveToRaid(primary.id, { target: sibling.id, userId: "h1" }, { userId: "orga", now: NOW });
+        spy.mockRestore();
+        expect(moved.code).toBe("conflict");
+        const back = eventStore.getEvent(primary.id).setup;
+        expect(placed(back).sort()).toEqual(["h1", "t1"]);
+        expect(back.leaderUserId).toBe("h1");
     });
 
     it("refuses a move into a full raid", () => {

@@ -1,10 +1,10 @@
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const linkCheck = require("../../services/discord/linkCheck");
 const { getStoredEvent } = require("../../services/events/eventSources");
-const { getEvent, isOwnEventId } = require("../../stores/eventStore");
+const { getEvent, isOwnEventId } = require("../../stores/events/eventStore");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { SELECT_ID } = require("../../services/talk/talkOverview");
-const guildRoles = require("../../services/discord/guildRoles");
+const guildRoles = require("../../services/discord/roles/guildRoles");
 const { checkRaiderRole } = require("../../services/signups/signupService");
 const { buildSignupDialog } = require("../../utils/signup/signupDialog");
 const { answerPayload } = require("../../utils/signup/signupReply");

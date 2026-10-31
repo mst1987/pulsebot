@@ -9,24 +9,24 @@ const ROSTERS = {
     "cat3:forever": { id: "r3f", categoryId: "cat3", versionId: "forever", guildId: "g1", managers: { userIds: ["f3"], roleIds: [] } },
 };
 const mockCurrentVersion = { cat1: "tbc", cat2: "tbc", cat3: "forever" };
-jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => Object.values(ROSTERS)) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ listRosters: jest.fn(() => Object.values(ROSTERS)) }));
 jest.mock("../../../src/services/roster/categoryRoster", () => ({
     currentRoster: jest.fn((cat) => ROSTERS[`${cat}:${mockCurrentVersion[cat]}`] || null),
     rosterOfEvent: jest.fn((ev) => ROSTERS[`${ev.categoryId}:${ev.versionId || mockCurrentVersion[ev.categoryId]}`] || null),
     isCurrentRoster: jest.fn((r) => !!r && !r.closedAt && r.versionId === mockCurrentVersion[r.categoryId]),
 }));
 const mockEvents = {};
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
 }));
 const mockSnapshots = {};
-jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null) }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn(async () => ({ isAdmin: false, access: {} })) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null) }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn(async () => ({ isAdmin: false, access: {} })) }));
 jest.mock("../../../src/services/discord/discord", () => ({ memberRoleIds: jest.fn(async () => null) }));
 
 const orga = require("../../../src/services/roster/categoryOrga");
-const { resolveAccess } = require("../../../src/services/discord/userAccess");
+const { resolveAccess } = require("../../../src/services/discord/members/userAccess");
 const categoryRoster = require("../../../src/services/roster/categoryRoster");
 
 const admin = { id: "a", isAdmin: true, access: {} };

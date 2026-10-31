@@ -29,7 +29,7 @@ const discord = require("./discord");
 const logger = require("../../logger").child("pingDelivery");
 const { card } = require("../../utils/discord/card");
 const linkCheck = require("./linkCheck");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { tr } = require("../../utils/i18n/botText");
 const { langOf, eventLang } = require("./botLanguage");
 

@@ -3,7 +3,7 @@ import { useT } from "../../../i18n";
 import Badge from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { CheckIcon } from "../../../components/ui/icons/icons";
-import { buffState, roleFigures, summaryOptions } from "./summaryFigures";
+import { buffState, leaderFigure, roleFigures, summaryOptions } from "./summaryFigures";
 
 function Stat({ label, value, target, ok, tip }: { label: string; value: number; target: string; ok: boolean; tip: string }) {
     const t = useT();
@@ -75,6 +75,7 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
     const t = useT();
     const { checks } = setup;
     const [tank, healer, dps] = roleFigures(setup);
+    const lead = leaderFigure(setup);
     const { missingRequired, missingRaid, tip: buffTip } = buffState(setup);
     const { fairness, wishes: wishesOn, avoid: avoidOn, avoidTotal } = summaryOptions(data, setup);
     return (
@@ -82,6 +83,12 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid }: {
             <div className="se-stats">
                 {[tank, healer, dps].map((f) => <Stat key={f.key} label={f.label} value={f.value} target={f.target} ok={f.ok} tip={f.tip} />)}
             </div>
+            {lead && (
+                <div className="se-side-row">
+                    <span className="kicker">{lead.label}</span>
+                    <Badge tone={lead.ok ? "ok" : "bad"} tip={lead.label} tipSub={lead.tip}>{`${lead.value}/${lead.target}`}</Badge>
+                </div>
+            )}
             <div className="se-side-row">
                 <span className="kicker">{t("setup.summary.buffs")}</span>
                 {missingRequired.length

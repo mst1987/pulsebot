@@ -10,16 +10,16 @@ jest.mock("../../../src/services/discord/discord", () => ({
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm1" })),
     listCategories: jest.fn(() => [{ id: "cat1", name: "TBC Montag" }]),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: jest.fn(() => []), getCharacter: jest.fn(() => null) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/userPrefsStore", () => ({ getLang: jest.fn(() => ""), getClientLang: jest.fn(() => ""), localeToLang: jest.fn(() => "") }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: jest.fn(() => []), getCharacter: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
-const settingsStore = require("../../../src/stores/settingsStore");
-const characterStore = require("../../../src/stores/characterStore");
-const store = require("../../../src/stores/guildBankStore");
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
+const store = require("../../../src/stores/loot/guildBankStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const guildBank = require("../../../src/services/signups/guildBank");
 const waitlist = require("../../../src/services/guildbank/waitlist");
 const handouts = require("../../../src/services/guildbank/handouts");

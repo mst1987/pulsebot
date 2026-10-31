@@ -1,6 +1,6 @@
 // Rollen-Nachrichten (self-service roles): a message with a title, a text, a big picture
 // and one button plus one reaction per role; a click or a reaction gives or takes the
-// role (services/discord/roleMessages.js, docs/role-messages.md). Area `channels`:
+// role (services/discord/roles/roleMessages.js, docs/role-messages.md). Area `channels`:
 // GET reads, POST/PUT/DELETE write (the area gate in apiAccess.js).
 //
 // GET    /api/role-messages
@@ -42,9 +42,9 @@
 // be set) do not fail the save.
 const { ok, sendJson, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/configStore");
-const store = require("../../../stores/roleMessageStore");
-const roleMessages = require("../../../services/discord/roleMessages");
+const { getConfig } = require("../../../stores/settings/configStore");
+const store = require("../../../stores/discord/roleMessageStore");
+const roleMessages = require("../../../services/discord/roles/roleMessages");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { serverFromQuery, mayUseServer } = require("../../http/serverQuery");
 

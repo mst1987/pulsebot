@@ -28,13 +28,13 @@ jest.mock("../../../src/services/discord/pingDelivery", () => ({
     deliverUserPing: jest.fn(async () => ({})),
     sendDms: jest.fn(async (ids) => ({ sent: ids, failed: [] })),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})), listRaidTemplates: jest.fn(() => []), getRaidTemplate: jest.fn(() => null),
 }));
 jest.mock("../../../src/services/setup/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ updateEvent: jest.fn(async () => ({ status: 200, body: { messageError: null } })) }));
 jest.mock("../../../src/services/events/missingPing", () => ({ pingMissingRaiders: jest.fn(async () => ({ message: "3 fehlende Raider gepingt.", count: 3 })) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: [] })), eventLookbackSince: jest.fn(() => 1) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
@@ -44,9 +44,9 @@ const channelNaming = require("../../../src/services/discord/channelNaming");
 const { sendDms, deliverUserPing } = require("../../../src/services/discord/pingDelivery");
 const { updateEvent } = require("../../../src/services/events/eventCreate");
 const { pingMissingRaiders } = require("../../../src/services/events/missingPing");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const bot = require("../../../src/services/events/eventManageBot");
 const eventCommand = require("../../../src/commands/event/event");
 const stepCommand = require("../../../src/commands/event/eventManageStep");
@@ -136,7 +136,7 @@ describe("opening", () => {
             guildId: GUILD, channelId: CHANNEL, channelName: "do-ony", categoryId: "100000000000000001",
             title: "Ony", startTime: start, versionId: "forever", instanceIds: ["forever-ony"], size: 40,
         }).event;
-        const configSpy = jest.spyOn(require("../../../src/stores/configStore"), "getConfig");
+        const configSpy = jest.spyOn(require("../../../src/stores/settings/configStore"), "getConfig");
         try {
             const choices = async () => {
                 const i = interaction({ commandName: "event", focused: { name: "event", value: "" } });

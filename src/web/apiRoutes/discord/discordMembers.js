@@ -1,5 +1,5 @@
 // The members of one server of the list (#895, System › Discord › Mitglieder,
-// services/discord/serverMembers.js, docs/channels.md). Area `channels`, read only:
+// services/discord/servers/serverMembers.js, docs/channels.md). Area `channels`, read only:
 // nothing here changes a member or a role.
 //
 // GET /api/discord/members?guildId=<one of the servers>   (none: the first server)
@@ -26,7 +26,7 @@
 //       400 missing_user: no userId; 400 unknown_guild: a guildId outside the server list
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const serverMembers = require("../../../services/discord/serverMembers");
+const serverMembers = require("../../../services/discord/servers/serverMembers");
 const { serverFromQuery } = require("../../http/serverQuery");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();

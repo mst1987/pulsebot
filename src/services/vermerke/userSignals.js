@@ -18,12 +18,12 @@
 // every event inside the window, the older ones too.
 //
 // Only the Vermerke routes load this module (it reads the notes);
-// test/stores/userNotesStore.test.js keeps that list.
-const signals = require("../../stores/userSignalsStore");
-const notes = require("../../stores/userNotesStore");
-const overrides = require("../../stores/attendanceOverridesStore");
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
+// test/stores/roster/userNotesStore.test.js keeps that list.
+const signals = require("../../stores/roster/userSignalsStore");
+const notes = require("../../stores/roster/userNotesStore");
+const overrides = require("../../stores/events/attendanceOverridesStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
 const { thresholdsOf } = require("./signalRecorder");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 

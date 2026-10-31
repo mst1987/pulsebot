@@ -8,7 +8,7 @@
 //
 // Ported from RPB.js (~L2400-2645). The sheet's own instructions note this is
 // inaccurate for melee, since auto-attacks are not tracked at all.
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { hasteDivisor, totalFightTime } = require("./common");
 
 /**

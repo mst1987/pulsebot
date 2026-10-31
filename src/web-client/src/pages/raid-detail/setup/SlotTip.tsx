@@ -5,15 +5,18 @@ import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel, specLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
 import WowIcon from "../../../components/ui/icons/WowIcon";
-import { BenchIcon, CheckIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons/icons";
+import { BenchIcon, CheckIcon, CrownIcon, EditIcon, LockIcon, SignedIcon, UnlockIcon, XIcon } from "../../../components/ui/icons/icons";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import SpecTile from "../SpecTile";
 import { attendanceTone, benchText, specText, statusLabel } from "./setupText";
 import { SigBadge } from "./Board";
 import { Link } from "react-router-dom";
-import type { VermerkShort } from "../../../api/vermerke";
+import type { VermerkShort } from "../../../api/roster/vermerke";
 import LevelMark from "../../../components/vermerke/LevelMark";
 import { reasonSummary, vermerkeHref } from "../../../components/vermerke/markText";
+import type { LeadInstance } from "../../../api/roster/leaders";
+import { LeadChips } from "../../../components/roster/LeadChips";
+import { leadList } from "../../../lib/roster/leaders";
 
 /** The header's attendance — the important number: big percentage, how sure the character link is (check = confirmed, "Auto" = guessed) and a bar. */
 function AttendanceHead({ a }: { a: SetupAttendance | undefined }) {
@@ -76,11 +79,17 @@ export type SlotActions = {
     onLock?: () => void;
     /** "Anmeldung bearbeiten" (#521) */
     onEdit?: () => void;
+    /** leads this raid (#1036) */
+    leader?: boolean;
+    /** "Als Leader setzen" (#1036): a group place of a raid with a leader rule only */
+    onLeader?: () => void;
+    /** "Leader-Wahl aufheben" (#1036): the leader the orga picked only, the proposal picks again */
+    onUnlead?: () => void;
 };
 
 function ActionRow({ a }: { a: SlotActions }) {
     const t = useT();
-    if (!a.onConfirm && !a.onLock && !a.onEdit) return null;
+    if (!a.onConfirm && !a.onLock && !a.onEdit && !a.onLeader && !a.onUnlead) return null;
     const confirmed = a.confirmation === "confirmed";
     return (
         <div className="se-tip-acts">
@@ -107,6 +116,22 @@ function ActionRow({ a }: { a: SlotActions }) {
                     {a.locked ? t("setup.slot.locked") : t("setup.slot.lock")}
                 </button>
             )}
+            {a.onLeader && (
+                <button
+                    type="button" className={`se-tip-act${a.leader ? " is-on" : ""}`} aria-pressed={!!a.leader}
+                    data-tip={a.leader ? t("setup.leader.is") : t("setup.leader.set")}
+                    data-tip-sub={a.leader ? t("setup.leader.isSub") : t("setup.leader.setSub")}
+                    onClick={a.leader ? undefined : a.onLeader}
+                >
+                    <CrownIcon />
+                    {a.leader ? t("setup.leader.is") : t("setup.leader.set")}
+                </button>
+            )}
+            {a.onUnlead && (
+                <button type="button" className="se-tip-act" data-tip={t("setup.leader.unset")} data-tip-sub={t("setup.leader.unsetSub")} onClick={a.onUnlead}>
+                    <XIcon />{t("setup.leader.unset")}
+                </button>
+            )}
             {a.onEdit && (
                 <button type="button" className="se-tip-act" data-tip={t("setup.signupEdit.open")} data-tip-sub={t("setup.signupEdit.openSub")} onClick={a.onEdit}>
                     <EditIcon />{t("setup.signupEdit.short")}
@@ -127,8 +152,14 @@ function ActionRow({ a }: { a: SlotActions }) {
  * `peek`: the same panel read only, beside the line the mouse rests on or the
  * focus is on (SetupEditor.tsx' peek) — no actions, a short hint that a click
  * holds it with them (`removable`: in a group or on the bench, a double click takes them out).
+ * The crown beside the name means one thing only (#1036): the raider leads this raid
+ * (`p.leader`), the same as the crown at the place on the board.
+ * `lead` (#1034): the instances the person may lead - with `onChange` (orga, not in
+ * the peek) as toggle chips under "Leitet", otherwise as a line "can lead".
  */
-export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false }: {
+export type SlotLead = { instances: LeadInstance[]; ids: string[]; onChange?: (next: string[]) => void; busy?: boolean; editable?: string[] };
+
+export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, actions = {}, pinned = false, peek = false, removable = false, vermerk, canOpenVermerke = false, lead }: {
     p: SetupPerson; attendance: SetupAttendance | undefined | null; extra: string[];
     onSpec?: (specKey: string) => void; onExtra?: (role: "tank" | "healer", on: boolean) => void;
     /** "Charakter wechseln" (#293): play another character they signed up with — groups and bench, not "Angemeldet". */
@@ -136,6 +167,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
     actions?: SlotActions; pinned?: boolean; peek?: boolean; removable?: boolean;
     /** the person's note in short (#981) - only in an answer past maySeeShort; the link to /vermerke with read access, never in the peek */
     vermerk?: VermerkShort; canOpenVermerke?: boolean;
+    lead?: SlotLead;
 }) {
     const t = useT();
     // the other characters they signed up with, in their order
@@ -158,6 +190,7 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                 <div className="se-tip-who">
                     <span className="se-tip-nameline">
                         <span className={`se-tip-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                        {p.leader && <span className="se-tip-lead" role="img" aria-label={t("setup.leader.is")} data-tip={t("setup.leader.is")} data-tip-sub={t("setup.leader.isSub")}><CrownIcon /></span>}
                         {pinned && <span className="se-tip-pin" data-tip={t("setup.person.tip.pinnedSub")}>{t("setup.person.tip.pinned")}</span>}
                     </span>
                     <span className="se-tip-sub">
@@ -271,6 +304,18 @@ export function SlotTip({ p, attendance, extra, onSpec, onExtra, onCharacter, ac
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+                {lead?.onChange && !peek && (lead.editable || lead.instances).length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.person.tip.leads")} data-tip-sub={t("setup.person.tip.leadsSub")}>{t("setup.person.tip.leads")}</span>
+                        <LeadChips instances={lead.instances} value={lead.ids} onChange={lead.onChange} disabled={lead.busy} editable={lead.editable} />
+                    </div>
+                )}
+                {!(lead?.onChange && !peek) && lead && lead.ids.length > 0 && (
+                    <div className="se-tip-body">
+                        <span className="se-tip-k" data-tip={t("setup.leader.canLead")} data-tip-sub={t("setup.leader.canLeadSub")}>{t("setup.leader.canLead")}</span>
+                        <span className="se-tip-row"><CrownIcon />{leadList(lead.instances, lead.ids)}</span>
                     </div>
                 )}
                 {attendance !== null && <AttendanceDetails a={attendance} />}

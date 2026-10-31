@@ -9,12 +9,12 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     verifyToken: jest.fn(),
     touchToken: jest.fn(),
-    bearerFrom: jest.requireActual("../../../../src/stores/ingestTokenStore").bearerFrom,
+    bearerFrom: jest.requireActual("../../../../src/stores/loot/ingestTokenStore").bearerFrom,
 }));
-jest.mock("../../../../src/stores/lootInboxStore", () => ({
+jest.mock("../../../../src/stores/loot/lootInboxStore", () => ({
     upsertPending: jest.fn(() => ({ entry: { id: "inbox1", itemCount: 1 }, added: 1, created: true })),
     resolutionFor: jest.fn(() => null),
     listPending: jest.fn(() => []),
@@ -23,7 +23,7 @@ jest.mock("../../../../src/stores/lootInboxStore", () => ({
     noteAppended: jest.fn(() => true),
     listLinked: jest.fn(() => []),
 }));
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 1, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -47,13 +47,13 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 // Two configured servers: the upload has no session, so the match searches both (#919).
-jest.mock("../../../../src/services/discord/guildRoles", () => ({
-    ...jest.requireActual("../../../../src/services/discord/guildRoles"),
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
     serverIds: jest.fn(() => ["gA", "gB"]),
 }));
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
-jest.mock("../../../../src/services/discord/ingestServers", () => {
-    const actual = jest.requireActual("../../../../src/services/discord/ingestServers");
+jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
+    const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
 // Import-time item enrichment must never hit the network.
@@ -61,19 +61,19 @@ jest.mock("../../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
     searchItems: jest.fn(async () => []),
 }));
-jest.mock("../../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/mainVersion"),
+jest.mock("../../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/mainVersion"),
     versionOfEvent: (e) => e.versionId || "tbc",
 }));
-jest.mock("../../../../src/services/events/versionSettings", () => ({
-    ...jest.requireActual("../../../../src/services/events/versionSettings"),
+jest.mock("../../../../src/services/versions/versionSettings", () => ({
+    ...jest.requireActual("../../../../src/services/versions/versionSettings"),
     settingsForVersion: () => ({ blizzardRealmSlug: "thunderstrike" }),
 }));
 
-const { verifyToken } = require("../../../../src/stores/ingestTokenStore");
-const { upsertPending, resolutionFor, listPending } = require("../../../../src/stores/lootInboxStore");
+const { verifyToken } = require("../../../../src/stores/loot/ingestTokenStore");
+const { upsertPending, resolutionFor, listPending } = require("../../../../src/stores/loot/lootInboxStore");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const { serversOfToken } = require("../../../../src/services/discord/ingestServers");
+const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../../src/utils/loot/lootImport");
 

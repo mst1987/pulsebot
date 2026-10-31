@@ -16,11 +16,11 @@
 // `guildIdOf(interaction)`), and without one by no server at all - then only a
 // full admin passes a rule that is not "everyone" (fail closed).
 const { card } = require("../../utils/discord/card");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const discord = require("./discord");
 const { logcheckAdminIds, adminRoleIds: envAdminRoleIds } = require("../../config/variables");
-const { configForGuild, fullAdminRoleIds, interactionGuildId } = require("./serverAccess");
-const userAccess = require("./userAccess");
+const { configForGuild, fullAdminRoleIds, interactionGuildId } = require("./servers/serverAccess");
+const userAccess = require("./members/userAccess");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");

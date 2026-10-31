@@ -1,0 +1,367 @@
+import { get, send } from "../client";
+import type { ChannelState } from "../../lib/discord/discordLinks";
+import type { LootSystemKey, LootSystem } from "../system/dashboard";
+import type { Role, ItemSearchResult, Raidsheet } from "../system/settings";
+import type { NotifyTemplate } from "./notifyTemplates";
+import type { LootItem } from "../loot/history";
+import type { EventSignupEntry } from "./signups";
+import type { RaidGroup } from "./setup";
+import type { GameRole } from "./raidTemplates";
+import type { VermerkShortMap } from "../roster/vermerke";
+
+/** Role bucket of a raidplan spec — mirrors roleOf() in src/utils/setupView.js. */
+export type SetupRole = "tank" | "healer" | "melee" | "ranged" | "dps";
+export type SetupPlayer = { name: string; classColor: string; specName: string; className: string; iconUrl: string; role?: SetupRole; group?: number };
+export type SetupGroup = { label: string; players: SetupPlayer[] };
+export type EventSetup = { total: number; groups: SetupGroup[]; roleCounts?: Partial<Record<SetupRole, number>> } | null;
+
+/** One step of the Raid-Detail progress bar — built by src/web/raidDetailSteps.js. */
+export type RaidStepKey = "signup" | "setup" | "sheet" | "raidplan" | "softres" | "loot" | "logs";
+export type RaidDetailModal = "notify" | "sheet" | "raidplan" | "softres" | "lootsystem" | "loot" | "log" | "ping" | "invite" | "move" | "cancel" | "raider" | "history" | "delete";
+export type RaidStep = {
+    key: RaidStepKey;
+    label: string;
+    icon: string;
+    tone: "ok" | "mid" | "bad" | "none";
+    value: string;
+    unit: string;
+    fill?: number | null;
+    badge: { label: string; tone?: "ok" | "mid" | "bad" | "accent" };
+    tip: { head: string; sub: string };
+    open: { modal?: RaidDetailModal; tab?: "roster" | "setup" | "loot" | "logs" };
+    done: boolean;
+    next: boolean;
+};
+export type RaidPrimaryAction = {
+    label: string;
+    icon: string;
+    modal?: RaidDetailModal;
+    href?: string;
+    /** Open a tab of the page (an own event's setup editor). */
+    tab?: "setup";
+    evaluate?: { logId: string; section: LogSection };
+};
+export type RaidProgress = { steps: RaidStep[]; next: RaidStepKey | ""; primary: RaidPrimaryAction | null };
+
+/**
+ * Das Raid-Cockpit eines eigenen Events (#319) — die sechs Schritte aus
+ * src/web/raidDetailSteps.js' eventSteps(). Ein Raid-Helper-Event hat keines
+ * (`steps: null`) und behält die Leiste von #219.
+ */
+export type RaidEventStepId = "created" | "signup" | "setup" | "approval" | "plan" | "after";
+export type RaidEventStepState = "done" | "current" | "todo" | "skipped" | "cancelled";
+/** Die eine Tat eines Schritts: ein Menü-Eintrag, ein Dialog, ein Tab oder eine Auswertung. */
+export type RaidStepDeed = {
+    id: string;
+    label: string;
+    icon: string;
+    /** Ein Eintrag von „Event verwalten“ (lib/raids/eventManage.ts' ManageAction). */
+    manage?: "edit" | "signups" | "reopen";
+    modal?: RaidDetailModal;
+    tab?: "roster" | "setup" | "loot" | "logs" | "plan";
+    evaluate?: { logId: string; section: LogSection };
+};
+export type RaidEventStep = {
+    id: RaidEventStepId;
+    label: string;
+    icon: string;
+    state: RaidEventStepState;
+    /** Die große Zahl, ihre kleine Einheit und eine Randnotiz ("3 auf der Warteliste"). */
+    value: string;
+    unit: string;
+    note: string;
+    /** Die feste Id einer Randnotiz ohne Zahl und Namen ("afterRaid") — der Client übersetzt über sie. */
+    noteId?: string;
+    fill?: number | null;
+    /** Der eine erklärende Satz — er steht im Tooltip, nicht auf der Fläche. */
+    hint: string;
+    action: RaidStepDeed | null;
+};
+export type RaidEventSteps = {
+    steps: RaidEventStep[];
+    current: RaidEventStepId | "";
+    /** Die Haupt-Tat: die des offenen Schritts, bei einem abgesagten Event der Weg zurück. */
+    action: RaidStepDeed | null;
+    cancelled: boolean;
+    note: string;
+    noteId?: string;
+};
+
+/** What the player dialog shows beyond this raid — src/web/raidPlayerSummary.js. */
+export type RaidPlayerSummary = {
+    /** Raids of the category in the last 8 weeks the raider was in; null = unknown. */
+    raids: number | null;
+    raidsOf: number;
+    /** Real loot (no shards/bank/offspec) in the last 8 weeks. */
+    loot: number;
+    lastLootAt: number;
+    recent: Array<{
+        itemId: number; itemName: string; itemIconUrl: string; itemQuality: number | null; itemLink: string;
+        response: string; reasonLabel: string; reasonTone: string; awardedAt: number;
+    }>;
+};
+
+export type AttendanceProfile = { classColor: string; specName: string; className: string; iconUrl: string };
+// What the raider's reaction said — mirrors SIGNUP_STATUSES in
+// src/utils/attendance.js. Only set on `responded`; someone who has not reacted
+// has no status at all.
+export type SignupStatus = "signed" | "tentative" | "late" | "bench" | "absence";
+export type AttendancePerson = { id: string; displayName: string; character?: string; status?: SignupStatus; profile: AttendanceProfile | null };
+export type Attendance = { responded: AttendancePerson[]; missing: AttendancePerson[] };
+
+/** Where an event lives: at Raid-Helper, or in the EventHelper's own store (src/web/eventSources.js). */
+export type EventSource = "raidhelper" | "eventhelper";
+/** How a raid category plans its raids (src/services/events/planning.js): the raid plan or a Google Sheet, never both. */
+export type PlanningMode = "raidplan" | "sheet";
+
+export type RaidDetailEvent = {
+    id: string;
+    source?: EventSource;
+    title: string;
+    startTime: number;
+    channelId: string;
+    channelName: string;
+    /** Whether the channel still exists (#537); the head links the post only on "ok". */
+    channelState?: ChannelState;
+    signupCount: number;
+    // The raid already started.
+    isPast?: boolean;
+    // false → the signup roster is UNKNOWN (a past raid whose signups Raid-Helper
+    // dropped and that was never snapshotted), not empty. Never render it as 0.
+    signupsKnown?: boolean;
+    // The roster shown was restored from the local snapshot, not answered live.
+    signUpsFromSnapshot?: boolean;
+    // Event verwalten (#288), only on an own event.
+    status?: "active" | "cancelled";
+    signupsClosed?: boolean;
+    cancelReason?: string;
+    cancelArchived?: boolean;
+    logCount?: number;
+    /** The event has a raid plan: always an own event, a Raid-Helper event once the orga switched it on (docs/raidplan.md). */
+    raidplanEnabled?: boolean;
+    /** Raid-Helper is switched off in the settings: a Raid-Helper event's plan works from the line-up it saved last. */
+    raidhelperDisabled?: boolean;
+};
+
+export type RaidDetailEventSheet = {
+    url: string; eventTitle: string; deleteAfter: number;
+    postedChannelId?: string; postedMessageId?: string; postedMessage?: string;
+} | null;
+export type EventSoftres = {
+    url: string; editUrl: string; instances: unknown[]; amount: number; hardReserveCount: number;
+    postedChannelId?: string; postedMessageId?: string; postedMessage?: string;
+} | null;
+
+// A raider in the current raidplan setup whose spec/class can tank — offered as
+// 3rd-tank candidates on the "Raidsheet füllen" form. Mirrors src/utils/setupView.js's
+// tankCandidates(): className is always a string there, but empty when unresolved.
+export type TankCandidate = { name: string; specName: string; className?: string };
+
+// A single softres.it raid instance, and its edition-grouped catalogue — mirrors
+// src/utils/softres.js's instancesForEdition()/catalogue() (an instance's `slots`
+// exists server-side too but isn't needed by this UI).
+export type SoftresInstance = { code: string; name: string; slots?: number };
+export type SoftresCatalogueGroup = { edition: string; label: string; instances: SoftresInstance[] };
+
+/** src/services/raidplan/raidplanPost.js' raidplanPostState(): is there a plan to post, is it out, where. */
+export type RaidplanPostState = {
+    filled: boolean;
+    published: boolean;
+    /** "/p/<token>" once published, else "". */
+    publicPath: string;
+    channelId: string;
+    messageId: string;
+    message: string;
+    postedAt: number;
+};
+
+/** The caller's rights on one raid (GET /api/raids/detail `viewer`, #729). */
+export type RaidViewerRights = { canOrga: boolean; canPlan: boolean; canSwitchPlan: boolean };
+
+export type RaidDetailData = {
+    event: RaidDetailEvent;
+    /**
+     * The raid's stored game version (#737): a link to a raid of another version
+     * switches the menu's content version to it (#741, hooks/useFollowVersion).
+     */
+    versionId?: string;
+    /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
+    archived?: { versionId: string; label: string; short: string } | null;
+    categoryName: string;
+    /** No raider role, no roster-only signup: open to everyone, a PuG raid (the head's "PuG" badge). */
+    openToAll?: boolean;
+    /** Raid plan or sheet, after the category's choice; missing (an older server) = both are offered. */
+    planning?: PlanningMode;
+    guildId: string;
+    eventsWarning: string | null;
+    notifyTemplates: NotifyTemplate[];
+    roles: Role[];
+    raidsheets: Raidsheet[];
+    matchedSheetId: string;
+    setup: EventSetup;
+    setupError: string | null;
+    // The setup shown was restored from the local snapshot (Raid-Helper no longer
+    // serves the raidplan of this finished raid).
+    setupFromSnapshot?: boolean;
+    tankCandidates: TankCandidate[];
+    eventSheet: RaidDetailEventSheet;
+    // Which sheet this raid actually links: its own filled copy ("event"), else
+    // the fixed sheet assigned to its category ("category"), else null.
+    sheetLink: { url: string; name: string; source: "event" | "category" } | null;
+    /** The raid plan's read link in the event channel (#502); null for a raid without a plan. */
+    raidplanPost?: RaidplanPostState | null;
+    eventSoftres: EventSoftres;
+    softresCatalogue: SoftresCatalogueGroup[];
+    softresEdition: string;
+    /** Softres switched off for the event's version (#761, Einstellungen → Spielversion). */
+    softresOff?: boolean;
+    softresSuggested: string[];
+    attendance: Attendance;
+    /** An own event's signups with "kann auch" and comment; null for a Raid-Helper event. */
+    ownSignups?: EventSignupEntry[] | null;
+    /** An own event's setup state (#263): counts only, the lineup comes from GET /api/raids/setup. */
+    ownSetup?: { status: "draft" | "approved"; changedSinceApproval: boolean; version: number; placed: number; size: number; bench: number; ok: boolean; approvedAt: number } | null;
+    /** The raids of the event's raid group (#811) — the head links them; null outside a group. */
+    raidGroup?: RaidGroup | null;
+    /** Wo die freigegebene Setup-Nachricht steht (#290), soweit die Leiste sie nennt. */
+    ownSetupPost?: { channelId: string; messageId: string; version: number; dms: { total: number; sent: number; failed: number } | null } | null;
+    attendanceRoleIds: string[];
+    /** Who the "fehlt" list measures against (#658): the roster (core + trial), the raider roles, or nobody. */
+    attendanceSource?: "roster" | "roles" | null;
+    membersError: string | null;
+    signupTarget: number;
+    /** An own event's planned places per role (its composition); a role without a number is missing, null without any. */
+    roleTargets?: Partial<Record<GameRole, number>> | null;
+    lootItems: LootItem[];
+    lootTool: string;
+    /** Softres, Loot-Council, … — whether the softres step and menu entry are offered. */
+    lootSystem?: LootSystem;
+    eventLogs: RaidLogRow[];
+    unlinkedLogs: RaidLogRow[];
+    /**
+     * Whom the server built the payload for: false = a raider, whose payload has none of the orga's
+     * parts (logs, attendance, other people's comments, steps, dialog data). Missing on an older server.
+     */
+    orga?: boolean;
+    /** Vermerke (#981): the short form by user id - only for a caller past maySeeShort, never a raider's view. */
+    vermerke?: VermerkShortMap;
+    /**
+     * What the caller may do on this raid, each the gate of the route its buttons call (#729): `canOrga` the
+     * raid's actions (steps, Event verwalten, Aufruf, Ping, Invite, Raider eintragen, sheet, softres, loot
+     * system), `canPlan` the "Raidplan" tab, `canSwitchPlan` "Raidplan aktivieren". Missing on an older server.
+     */
+    viewer?: RaidViewerRights;
+    /** The progress bar and the head's primary action. */
+    progress: RaidProgress;
+    /** Die Schritt-Leiste eines eigenen Events (#319); null bei Raid-Helper. */
+    steps: RaidEventSteps | null;
+    /** Keyed by the lowercased character name. */
+    playerSummaries: Record<string, RaidPlayerSummary>;
+};
+
+// Trimmed-down LogRow (see below) for the raid detail page's Logs tab — same
+// shape as what the CLA logs list uses, minus the match-candidate fields that
+// only apply there.
+export type RaidLogRow = {
+    id: string;
+    title: string;
+    reportId: string;
+    link: string;
+    status: "open" | "done";
+    reportUrl: string;
+    reportRefId: string;
+    /** Which analyses already ran for this log ("cla" / "rpb"). */
+    sections?: string[];
+};
+
+/** The two analysis halves a log can be evaluated for. */
+export type LogSection = "cla" | "rpb";
+
+export function getRaidDetail(eventId: string): Promise<RaidDetailData> {
+    return get<RaidDetailData>(`/api/raids/detail?event=${encodeURIComponent(eventId)}`);
+}
+
+// ---- Raid detail Part B: mutating actions (Anmeldung & Sheet, Softres tabs, header quick-posts) ----
+
+export function notifyRaid(
+    input: { event: string; templateId: string; channelId: string; roleIds: string[] },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/notify", input);
+}
+
+export function pingMissingRaiders(
+    input: { event: string; text: string },
+): Promise<{ message: string; delivery?: { mentioned: number; dm: { sent: string[]; failed: string[] } | null } }> {
+    return send("POST", "/api/raids/ping-missing", input);
+}
+
+/** "Invite callen": who of groups 1–5 would be pinged, and the line — nothing is posted. */
+export function previewInviteCall(event: string): Promise<{ count: number; text: string; groups: number[] }> {
+    return send("POST", "/api/raids/invite-call", { event, dryRun: true });
+}
+
+/** "Invite callen": ping groups 1–5 of the approved setup with "/w <Charakter> inv". */
+export function callInvite(event: string): Promise<{ message: string; count: number; text: string }> {
+    return send("POST", "/api/raids/invite-call", { event });
+}
+
+export function fillRaidsheet(
+    input: { event: string; sheetId: string; tank3: string; eventTitle: string; eventStartTime: number },
+): Promise<{ message: string; playerCount: number }> {
+    return send("POST", "/api/raids/fill", input);
+}
+
+export function postRaidSheet(
+    input: { event: string; message?: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/post-sheet", input);
+}
+
+/** "Einteilungen posten" (#502): the plan's read link in the event channel — publishes the plan when needed, edits the earlier message. */
+export function postRaidplanLink(
+    input: { event: string; message?: string },
+): Promise<{ message: string; updated: boolean; url: string; published: boolean }> {
+    return send("POST", "/api/raids/post-raidplan", input);
+}
+
+export function postRaidSoftres(
+    input: { event: string; message?: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/post-softres", input);
+}
+
+export type SoftresSearchItem = ItemSearchResult;
+
+/** The softres picker's item search for one raid: `event` lets the orga of its category search too (#728). */
+export function searchSoftresItems(edition: string, q: string, event: string): Promise<{ items: SoftresSearchItem[] }> {
+    const qs = new URLSearchParams({ event, edition, q });
+    return get<{ items: SoftresSearchItem[] }>(`/api/raids/softres/item-search?${qs.toString()}`);
+}
+
+export function createSoftres(
+    input: {
+        event: string;
+        instanceCodes: string[];
+        amount: number;
+        faction: string;
+        hardReserves: Array<{ id: number; name: string }>;
+        hideReserves: boolean;
+        /** softres.it "User Protection": Login-Pflicht zum Reservieren; ohne Angabe aktiv. */
+        protection?: boolean;
+    },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/softres", input);
+}
+
+export function linkSoftres(
+    input: { event: string; softresUrl: string; softresEditUrl: string },
+): Promise<{ message: string }> {
+    return send("POST", "/api/raids/softres/link", input);
+}
+
+/** This raid's loot system where it differs from its category's (`system` "" = like the category). */
+export function setRaidLootSystem(
+    input: { event: string; system: LootSystemKey | ""; softres: boolean },
+): Promise<{ message: string; lootSystem: LootSystem }> {
+    return send("POST", "/api/raids/loot-system", input);
+}

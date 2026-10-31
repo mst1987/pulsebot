@@ -1,0 +1,270 @@
+import { get, send } from "../client";
+import type { ChannelState } from "../../lib/discord/discordLinks";
+import type { EventLog } from "../system/dashboard";
+import type { Channel, ChannelNameSuggestion } from "../discord/channels";
+import type { EventSource } from "./raidDetail";
+import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion, VersionChoice, OverflowMode } from "./raidTemplates";
+
+// A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
+// are the raid(s) the event is (for the boss icon), [] when nothing was
+// recognised; `contentSources` says where that came from.
+export type RaidListBase = {
+    id: string;
+    source?: EventSource;
+    title: string;
+    startTime: number;
+    channelId: string;
+    channelName: string;
+    /** Whether the channel still exists (#537); the post is linked only on "ok". */
+    channelState?: ChannelState;
+    categoryId: string;
+    categoryName: string;
+    contentIds: string[];
+    contentSources: string[];
+    softres: { url: string } | null;
+    /** The game version this raid plays (#545): its own, else its category's. */
+    versionId: string;
+    /** A raid group (#811): the first raid's id on every raid of it, and the raid's place (1 = the first). */
+    raidGroupId?: string;
+    raidGroupIndex?: number;
+    /** Cancelled in Event verwalten (#288); a Raid-Helper raid never is. Same names as the signup view. */
+    cancelled?: boolean;
+    cancelReason?: string;
+    /** When (ms) and by whom — 0 / "" when unknown. */
+    cancelledAt?: number;
+    cancelledByName?: string;
+    /** Whether the caller is this raid's orga (#729): "Wiederholen", "Kanal fehlt", the logs. Missing on an older server. */
+    canOrga?: boolean;
+};
+/** What a raid list says about the caller (#729); missing on an older server. */
+export type RaidListOrga = {
+    /** the global orga, or the orga of a category: the page's orga parts (series, the logs column) */
+    orga?: boolean;
+    /** POST /api/raids lets them create: "Neues Event" */
+    canCreate?: boolean;
+};
+export type UpcomingRaid = RaidListBase & {
+    signupCount: number;
+    /** 10 for a ten-player night, else 25; `raidSizeKnown` false = only the default. */
+    raidSize: number;
+    raidSizeKnown: boolean;
+};
+export type PendingRaidLog = { title: string; alsoFits: string[] };
+export type PastRaid = RaidListBase & {
+    logs: EventLog[];
+    pendingLogs: PendingRaidLog[];
+    pendingLogCount: number;
+    lootCount: number;
+};
+export type RaidsData = RaidListOrga & {
+    events: UpcomingRaid[]; error: string | null; activeGuildId: string; guildName: string;
+    /** The version filter (#545): what is shown, the default, and the choices. */
+    version: string; mainVersion: string; versions: VersionChoice[];
+};
+export type PastRaidsData = RaidListOrga & {
+    events: PastRaid[]; error: string | null; activeGuildId: string;
+    version: string; mainVersion: string; versions: VersionChoice[];
+};
+
+/** `version`: a version id, "" (default) = the main version — never every version at once (#741). */
+export function getRaids(version = ""): Promise<RaidsData> {
+    return get<RaidsData>(`/api/raids${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+export function getPastRaids(version = ""): Promise<PastRaidsData> {
+    return get<PastRaidsData>(`/api/raids/past${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+}
+
+export type ReusableEvent = {
+    id: string;
+    title: string;
+    templateId: string;
+    description: string;
+    channelId: string;
+    channelName: string;
+    categoryId: string;
+    categoryName: string;
+    startTime: number;
+    /** the raid's stored version (#741): the dialog offers only those of the shown version */
+    versionId?: string;
+    contentIds: string[];
+};
+
+/** An EventHelper event as src/web/eventStore.js hands it out (the fields the dialog reads). */
+export type OwnEvent = {
+    id: string;
+    source: "eventhelper";
+    guildId: string;
+    categoryId: string;
+    categoryName: string;
+    channelId: string;
+    channelName: string;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId: string;
+    title: string;
+    description: string;
+    leaderId: string;
+    /** unix seconds */
+    startTime: number;
+    /** how long the raid takes, in minutes (#305); null = not set, no planned end */
+    durationMinutes: number | null;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    /** melee/ranged: the minimum (0 = no target) */
+    composition: { tank: number; healer: number; melee: number; ranged: number };
+    /** the optional maxima of melee/ranged, null = open */
+    compositionMax: { melee: number | null; ranged: number | null };
+    requiredBuffs: string[];
+    raidTemplateId: string;
+    /** unix seconds, 0 = none */
+    signupDeadline: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+    /** #306, #516: what a full raid does with a new "Dabei" ("none" = no limit) */
+    overflow?: OverflowMode;
+    lockAtLimit?: boolean;
+    /** #307: the event's own colour bar, "" = the rule set of its instances */
+    color?: string;
+    /** #307: the event's own picture, an empty url = the instance's boss icon */
+    image?: EmbedImage;
+    /** the letter tiles and role icons of the event message */
+    emojiStyle?: EmojiStyle;
+    /** when the "Beim Anlegen ankündigen" ping went out, 0 = never */
+    announcedAt?: number;
+};
+
+export type RaidCreateContext = {
+    /** templateId: the Raid-Helper template of the default channel's category */
+    defaults: { templateId: string; channelId: string };
+    /** category id → Raid-Helper template id of its default raid template */
+    categoryTemplates: Record<string, string>;
+    leaderId: string;
+    /** who can lead: the creator first, then the signed-up people (name may be empty) */
+    leaderCandidates: { id: string; name: string }[];
+    channels: Channel[];
+    /** the server's voice channels, for the raid's voice channel (#305) */
+    voiceChannels?: Channel[];
+    /** category id → the voice channel its raids meet in (#305) */
+    categoryVoiceChannel?: Record<string, string>;
+    templates: RaidTemplate[];
+    reusableEvents: ReusableEvent[];
+    /** category id → "eventhelper" for categories whose new events live in the EventHelper */
+    signupSources?: Record<string, EventSource>;
+    /** category id → "Beim Anlegen ankündigen" (#306); only switched-on categories are listed */
+    categoryAnnounce?: Record<string, { enabled: boolean }>;
+    // The planning step (#261).
+    categories?: { id: string; name: string }[];
+    /** category id → raid template id of its default */
+    categoryRaidTemplates?: Record<string, string>;
+    /** the raid templates with their badges (needsSize, incomplete, defaultFor) */
+    raidTemplates?: RaidTemplate[];
+    versions?: GameVersion[];
+    defaultVersion?: string;
+    /** category id → the version it plays when it is not the main one (#541) */
+    categoryVersions?: Record<string, string>;
+    /** category id → its channel naming schema (Kanäle) */
+    channelSchemas?: Record<string, { schema: string; raid: string }>;
+    defaultSchema?: string;
+    /** the own event ?event= names, for the edit mode */
+    editEvent?: OwnEvent | null;
+    /** "Als Vorlage speichern" writes a global raid template (`raids` write) - not the orga of a category's (#728) */
+    canSaveTemplate?: boolean;
+};
+
+/**
+ * The name a new event channel gets and where it comes from (#285) — the create
+ * dialog's suggestion. `sourceEventId` names the event whose channel is cloned.
+ */
+export function getChannelNameSuggestion(input: { categoryId: string; date: string; instanceIds: string[]; sourceEventId?: string }): Promise<ChannelNameSuggestion> {
+    const q = new URLSearchParams({ categoryId: input.categoryId, date: input.date, instanceIds: input.instanceIds.join(",") });
+    if (input.sourceEventId) q.set("sourceEventId", input.sourceEventId);
+    return get<ChannelNameSuggestion>(`/api/raids/channel-name?${q.toString()}`);
+}
+
+/**
+ * The create dialog's material; with an own event id also that event, for
+ * editing it. `version`: the menu's content version (#741) — the raids to repeat
+ * are those of it; "" = the main version.
+ */
+export function getRaidCreateContext(eventId = "", version = ""): Promise<RaidCreateContext> {
+    const q = new URLSearchParams();
+    if (eventId) q.set("event", eventId);
+    if (version) q.set("version", version);
+    const qs = q.toString();
+    return get<RaidCreateContext>(`/api/raids/new${qs ? `?${qs}` : ""}`);
+}
+
+/** The planning fields of an EventHelper event, as POST and PATCH /api/raids take them. */
+export type EventPlanInput = {
+    raidTemplateId: string;
+    versionId: string;
+    instanceIds: string[];
+    size: number;
+    composition: { tank: number; healer: number; melee: RoleRange | null; ranged: RoleRange | null };
+    requiredBuffs: string[];
+    /** how long the raid takes, in minutes (#305); 30–600, null = not set (an edit clears it) */
+    durationMinutes: number | null;
+    /** hours before the start, 0 = no deadline — counted in Berlin time on the server */
+    signupDeadlineHours: number;
+    fairness: boolean;
+    wishes: boolean;
+    autoSuggest: boolean;
+    overflow: OverflowMode;
+    lockAtLimit: boolean;
+    /** #307: "" = the rule set's colour for the chosen instances */
+    color: string;
+    /** #307: an empty url = the instance's boss icon as the thumbnail */
+    image: EmbedImage;
+    emojiStyle: EmojiStyle;
+};
+
+export type CreateRaidInput = Partial<EventPlanInput> & {
+    title: string;
+    date: string;
+    time: string;
+    templateId: string;
+    channelId?: string;
+    channelName?: string;
+    sourceEventId?: string;
+    /** a new channel in the category; an empty name is filled from the category's schema (same shape as /event anlegen) */
+    newChannel?: { name: string; categoryId: string; templateChannelId?: string };
+    /** overrides the category's default source */
+    signupSource?: EventSource;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId?: string;
+    /** "Beim Anlegen ankündigen" (#306); omitted = as the category has it */
+    announce?: boolean;
+    leaderId: string;
+    description: string;
+};
+
+export function createRaid(input: CreateRaidInput): Promise<{ id?: string; messageError?: string | null; announced?: boolean; announceError?: string | null }> {
+    return send("POST", "/api/raids", input);
+}
+
+export type UpdateRaidInput = Partial<EventPlanInput> & {
+    id: string;
+    title: string;
+    date: string;
+    time: string;
+    leaderId: string;
+    description: string;
+    /** the voice channel the raid meets in (#305); "" = none */
+    voiceChannelId?: string;
+};
+
+/** Edit an own (EventHelper) event with the same dialog (#261). */
+export function updateRaid(input: UpdateRaidInput): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", input);
+}
+
+/**
+ * Change only an own event's raid size (#354, the Setup Editor's live resize)
+ * — the same PATCH /api/raids `updateEvent` already takes as a partial edit,
+ * just without the rest of UpdateRaidInput's fields.
+ */
+export function updateRaidSize(eventId: string, size: number): Promise<{ id: string; messageError?: string | null }> {
+    return send("PATCH", "/api/raids", { id: eventId, size });
+}

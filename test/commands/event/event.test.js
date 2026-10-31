@@ -1,19 +1,19 @@
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(), listAllChannels: jest.fn(), fetchGuildMembersCached: jest.fn(), getClient: jest.fn(() => null), getGuild: jest.fn(() => null) }));
-jest.mock("../../../src/stores/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
+jest.mock("../../../src/stores/discord/channelArchiveStore", () => ({ getChannelConfig: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(), listRaidTemplates: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ signupSourceFor: jest.fn() }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(), eventLookbackSince: jest.fn(() => 1) }));
-jest.mock("../../../src/services/discord/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/eventCreate", () => ({ createEvent: jest.fn() }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.test", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const { MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
-const archiveStore = require("../../../src/stores/channelArchiveStore");
-const settings = require("../../../src/stores/settingsStore");
+const archiveStore = require("../../../src/stores/discord/channelArchiveStore");
+const settings = require("../../../src/stores/settings/settingsStore");
 const { signupSourceFor } = require("../../../src/services/events/eventSources");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
-const { serverIds } = require("../../../src/services/discord/guildRoles");
+const { serverIds } = require("../../../src/services/discord/roles/guildRoles");
 const { createEvent } = require("../../../src/services/events/eventCreate");
 const { guardInteraction } = require("../../../src/services/discord/botAccess");
 const draft = require("../../../src/services/events/eventDraft");

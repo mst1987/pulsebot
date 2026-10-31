@@ -7,11 +7,11 @@
 //
 // The requirement tables come from the config sheet's validate*Log tabs
 // (scripts/data-sources/rpb/config/validate*.csv) via scripts/build-rpb-data.js.
-const rpbData = require("../../../config/rpbData");
+const rpbData = require("../../../config/data/rpbData");
 const { EXCLUDE_KALECGOS, bossFights } = require("./common");
 // WCL zone id -> zone tag, used only to label the result (TBC data,
-// config/logcheckTables.js); detection itself runs off the killed npcs (detectZones).
-const { ZONE_TAGS } = require("../../../config/logcheckTables");
+// config/data/logcheckTables.js); detection itself runs off the killed npcs (detectZones).
+const { ZONE_TAGS } = require("../../../config/data/logcheckTables");
 
 /** Zone tags suggested by the report's zone id (may be empty for fresh realms). */
 function zoneTagsOf(fights) {

@@ -3,19 +3,19 @@
 // run as Loot-Council, and the instances of a category's raid template.
 jest.mock("../../../src/web/loot/lootCouncil", () => ({ councilRoster: jest.fn() }));
 jest.mock("../../../src/services/loot/armoryGear", () => ({ primeArmoryGear: jest.fn() }));
-jest.mock("../../../src/stores/raidTemplateStore", () => ({ getRaidTemplate: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/raidTemplateStore", () => ({ getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../../src/services/loot/councilProfiles", () => ({
     viewFor: jest.fn(),
     resolveProfile: jest.fn(() => ({ profile: { id: "standard", name: "Standard" }, source: "default", roster: null })),
     profileHead: (p, source) => ({ id: p.id, name: p.name, isDefault: p.id === "standard", source }),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({ serverContext: jest.fn(() => ({})), guildOfLootEvent: jest.fn(() => "g-cat") }));
 
 const { councilRoster } = require("../../../src/web/loot/lootCouncil");
 const { primeArmoryGear } = require("../../../src/services/loot/armoryGear");
-const { getRaidTemplate } = require("../../../src/stores/raidTemplateStore");
+const { getRaidTemplate } = require("../../../src/stores/events/raidTemplateStore");
 const councilProfiles = require("../../../src/services/loot/councilProfiles");
 const {
     buildCouncilView, viewQuery, councilCategoryIds, categoryInstances, categoryCouncil,

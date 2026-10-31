@@ -8,7 +8,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listMembersWithRoles: jest.fn(),
     sendDirectMessage: jest.fn(),
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 // The raider's own language (a DM); the server language comes from the config (German without one).
 jest.mock("../../../src/services/discord/botLanguage", () => {
     const actual = jest.requireActual("../../../src/services/discord/botLanguage");

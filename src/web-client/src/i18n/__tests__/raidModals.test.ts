@@ -1,7 +1,7 @@
 // The raid-detail dialogs and the item search picker in two languages
 // (namespaces raidModals + raidManage), with the real `t` (#435: formerly
 // test/web-client/i18n-raidModals.test.js; the source rules are in
-// test/web-client/conventions/i18n-raidModals.test.js).
+// test/web-client/conventions/i18n/i18n-raidModals.test.js).
 import { describe, expect, it } from "vitest";
 import { t } from "..";
 import { inLang } from "../../test/i18n";

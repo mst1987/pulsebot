@@ -12,10 +12,10 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => "g1"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [], firstCharacter: () => null, getProfile: () => null }));
 // no roster anywhere: nobody is the orga of a category (#725), only the global orga
-jest.mock("../../../../src/stores/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
+jest.mock("../../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: () => null, listRosters: () => [], isClosed: () => false }));
 jest.mock("../../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }), attendanceForAccounts: () => new Map() }));
 jest.mock("../../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [] }));
 jest.mock("../../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));
@@ -27,8 +27,8 @@ jest.mock("../../../../src/services/setup/setupMessage", () => ({
 
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const eventStore = require("../../../../src/stores/eventStore");
-const signupStore = require("../../../../src/stores/signupStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
 const { refreshEventMessage } = require("../../../../src/services/events/eventMessage");
 const route = require("../../../../src/web/apiRoutes/events/setup");
 const { checkAccess } = require("../../../../src/web/http/apiAccess");
@@ -86,6 +86,35 @@ describe("POST /api/raids/setup/raid-add", () => {
         expect(out.raidGroup).toMatchObject({ count: 2, places: 20 });
         expect(eventStore.getEvent(out.event)).toMatchObject({ raidGroupId: primary.id, raidGroupIndex: 2 });
         expect(refreshEventMessage).toHaveBeenCalledWith(primary.id);
+    });
+
+    it("count 4 makes four further raids at once and redraws the signup message once (#1035)", async () => {
+        const r = await api.post("/api/raids/setup/raid-add", { event: primary.id, count: 4 });
+        expect(status(r)).toBe(200);
+        const out = body(r);
+        expect(out.events).toHaveLength(4);
+        expect(out.event).toBe(out.events[0]);
+        expect(out.raidGroup).toMatchObject({ count: 5, places: 50 });
+        expect(out.events.map((id) => eventStore.getEvent(id).raidGroupIndex)).toEqual([2, 3, 4, 5]);
+        expect(out.message).toMatch(/^4 Raids angelegt/);
+        expect(refreshEventMessage).toHaveBeenCalledTimes(1);
+        expect(refreshEventMessage).toHaveBeenCalledWith(primary.id);
+        expect(eventStore.getEvent(primary.id).log.filter((l) => l.action === "raidAdd")).toHaveLength(1);
+    });
+
+    it("refuses a count over the limit of 8 raids (400 too_many) and a bad count", async () => {
+        const over = await api.post("/api/raids/setup/raid-add", { event: primary.id, count: 8 });
+        expect(status(over)).toBe(400);
+        expect(body(over).error.code).toBe("too_many");
+        expect(status(await api.post("/api/raids/setup/raid-add", { event: primary.id, count: "zwei" }))).toBe(400);
+        expect(refreshEventMessage).not.toHaveBeenCalled();
+    });
+
+    it("the editor suggests how many raids in total the signups fill", async () => {
+        for (let i = 0; i < 30; i += 1) signupStore.saveSignup(primary.id, `x${i}`, { character: `X${i}`, spec: "Mage-Fire", status: "signed" }, { versionId: "tbc" });
+        const view = body(await api.get("/api/raids/setup", { event: primary.id }));
+        expect(view.signupCount).toBe(33);
+        expect(view.suggestedTotal).toBe(4);
     });
 
     it("refuses a Raid-Helper id", async () => {

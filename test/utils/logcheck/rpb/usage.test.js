@@ -5,7 +5,7 @@ const {
     usageForPlayer,
     bossSecondsOf,
 } = require("../../../../src/utils/logcheck/rpb/usage");
-const rpbData = require("../../../../src/config/rpbData");
+const rpbData = require("../../../../src/config/data/rpbData");
 
 const tracked = [
     { name: "Potion", label: "Trank", ids: ["10", "11"] },

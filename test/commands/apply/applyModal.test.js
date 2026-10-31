@@ -3,7 +3,7 @@ jest.mock("../../../src/classes/warcraftlogs.js", () =>
 );
 jest.mock("../../../src/utils/logcheck/applicant.js");
 // The links of the application's version (#553): Classic's point at the vanilla sites.
-jest.mock("../../../src/services/events/versionSettings.js", () => ({
+jest.mock("../../../src/services/versions/versionSettings.js", () => ({
     versionLabel: (id) => ({ tbc: "TBC Anniversary", classic: "Classic Era" }[id] || id),
     versionLinks: (id) => {
         const versionId = id || "tbc";
@@ -17,13 +17,13 @@ jest.mock("../../../src/services/events/versionSettings.js", () => ({
 }));
 
 // The application channel + officer role per server (#924): guild-1 has both, other servers none.
-jest.mock("../../../src/services/discord/serverDefaults.js", () => ({
+jest.mock("../../../src/services/discord/servers/serverDefaults.js", () => ({
     applicationChannelId: jest.fn((guildId) => (guildId === "guild-1" ? "111111111111111111" : "")),
     officerRoleId: jest.fn((guildId) => (guildId === "guild-1" ? "222222222222222222" : "")),
 }));
 
 const command = require("../../../src/commands/apply/applyModal.js");
-const serverDefaults = require("../../../src/services/discord/serverDefaults.js");
+const serverDefaults = require("../../../src/services/discord/servers/serverDefaults.js");
 const { pendingApplications } = require("../../../src/utils/recruitment/applicationState.js");
 const { analyzeApplicant, applicantSource } = require("../../../src/utils/logcheck/applicant.js");
 const { mockInteraction } = require("../../helpers/mockInteraction.js");

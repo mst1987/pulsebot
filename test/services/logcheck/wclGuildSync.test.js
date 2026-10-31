@@ -4,7 +4,7 @@
 // and that a double click or the job joins a running fetch. No network: the WCL
 // client is a stand-in.
 let mockConfig;
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => mockConfig),
     // like the real store: serverSettings merge per server and key
     saveConfig: jest.fn((partial) => {
@@ -14,7 +14,7 @@ jest.mock("../../../src/stores/settingsStore", () => ({
         return mockConfig;
     }),
 }));
-jest.mock("../../../src/stores/logStore", () => ({
+jest.mock("../../../src/stores/loot/logStore", () => ({
     getByReportId: jest.fn(() => null),
     saveLog: jest.fn((log) => ({ id: `log-${log.reportId}`, ...log })),
     setReportStart: jest.fn(),
@@ -26,8 +26,8 @@ jest.mock("../../../src/services/logcheck/logVersion", () => ({
 }));
 jest.mock("../../../src/services/logcheck/logAutoLink", () => ({ autoLinkLogs: jest.fn(async () => ({})) }));
 
-const settingsStore = require("../../../src/stores/settingsStore");
-const logStore = require("../../../src/stores/logStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
+const logStore = require("../../../src/stores/loot/logStore");
 const logVersion = require("../../../src/services/logcheck/logVersion");
 const { autoLinkLogs } = require("../../../src/services/logcheck/logAutoLink");
 const sync = require("../../../src/services/logcheck/wclGuildSync");

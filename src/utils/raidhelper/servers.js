@@ -2,7 +2,7 @@
 //
 // Every server decides for itself whether it uses Raid-Helper:
 // config.serverSettings[guildId].raidhelper = { enabled, serverId, apiKey,
-// envKey, at, byName } (stores/configSchema.js SERVER_SETTING_DEFAULTS).
+// envKey, at, byName } (stores/settings/configSchema.js SERVER_SETTING_DEFAULTS).
 //
 //   - Off by default. A server without Raid-Helper never asks raid-helper.xyz
 //     and its categories offer only EventHelper (eventSources.signupSourceFor).
@@ -21,7 +21,7 @@
 // The key never leaves this module except into the HTTP client: the settings
 // page gets maskedRaidhelper() — whether there is one and its last 4 characters.
 
-const { SERVER_SETTING_DEFAULTS } = require("../../stores/configSchema");
+const { SERVER_SETTING_DEFAULTS } = require("../../stores/settings/configSchema");
 
 const DEFAULTS = SERVER_SETTING_DEFAULTS.raidhelper;
 

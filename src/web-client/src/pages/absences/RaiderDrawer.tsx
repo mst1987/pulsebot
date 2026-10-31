@@ -1,14 +1,14 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
-import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type ApiError } from "../../api";
+import { deleteAvailability, getAbsenceRaider, type AbsenceRaiderDetail, type ApiError, type AvailabilityKind } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { Badge, Button, IconButton, useConfirm } from "../../components/ui";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
-import { ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons/icons";
+import { EditIcon, ListChecksIcon, PlusIcon, TrashIcon, XIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
 import { currentAbsence, displayName, playsLine } from "../../lib/roster/absences";
-import { dayMs, periodLabel } from "../../lib/signups/availability";
+import { dayMs, entryCharacters, periodLabel, scopeLabel } from "../../lib/signups/availability";
 import { formatDayDate } from "../../lib/format";
 import { useT } from "../../i18n";
 import { AbSpec, ClassName } from "./parts";
@@ -21,11 +21,13 @@ type Entry = AbsenceRaiderDetail["entries"][number];
 
 const STATE_TONE = { planned: "accent", running: "mid", past: undefined } as const;
 
-export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAttendance }: {
+export default function RaiderDrawer({ userId, onClose, onEnter, onEdit, onChanged, onAttendance }: {
     userId: string;
     onClose: () => void;
     /** "Ab- & Anwesenheit für … eintragen": the dialog with this raider picked. */
     onEnter: (raider: AbsenceRaiderDetail) => void;
+    /** The pencil at an entry: the same dialog, filled with that entry. */
+    onEdit: (raider: AbsenceRaiderDetail, kind: AvailabilityKind, entryId: string) => void;
     /** An entry was deleted: the overview reloads. */
     onChanged: () => void;
     /** "Anwesenheit ansehen": the page's attendance view for this raider (the orga only). */
@@ -56,7 +58,7 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
             <div className="ab-drawer-body">
                 {state.error && !data && <p className="ab-empty">{t("absences.loadError", { message: state.error.message })}</p>}
                 {!data && !state.error && <RaidLoader compact text={t("absences.drawer.loading")} />}
-                {data && <Detail data={data} onRemoved={() => { void state.reload(); onChanged(); }} />}
+                {data && <Detail data={data} onEdit={(e) => onEdit(data, e.kind, e.id)} onRemoved={() => { void state.reload(); onChanged(); }} />}
             </div>
             {data && (
                 <div className="ab-drawer-foot">
@@ -78,7 +80,7 @@ export default function RaiderDrawer({ userId, onClose, onEnter, onChanged, onAt
     );
 }
 
-function Detail({ data, onRemoved }: { data: AbsenceRaiderDetail; onRemoved: () => void }) {
+function Detail({ data, onEdit, onRemoved }: { data: AbsenceRaiderDetail; onEdit: (entry: Entry) => void; onRemoved: () => void }) {
     const t = useT();
     const now = currentAbsence(data.entries);
     const done = data.entries.reduce((n, e) => n + (e.kind === "absence" ? e.done : 0), 0);
@@ -107,7 +109,7 @@ function Detail({ data, onRemoved }: { data: AbsenceRaiderDetail; onRemoved: () 
                 <h3>{t("absences.drawer.entries")}</h3>
                 {data.entries.length ? (
                     <ul className="ab-entries">
-                        {data.entries.map((e) => <EntryRow key={e.id} entry={e} canEdit={data.canEdit} onRemoved={onRemoved} />)}
+                        {data.entries.map((e) => <EntryRow key={e.id} entry={e} canEdit={data.canEdit} onEdit={() => onEdit(e)} onRemoved={onRemoved} />)}
                     </ul>
                 ) : <p className="ab-note">{t("absences.drawer.noEntries")}</p>}
             </section>
@@ -144,10 +146,11 @@ function Detail({ data, onRemoved }: { data: AbsenceRaiderDetail; onRemoved: () 
     );
 }
 
-function EntryRow({ entry, canEdit, onRemoved }: { entry: Entry; canEdit: boolean; onRemoved: () => void }) {
+function EntryRow({ entry, canEdit, onEdit, onRemoved }: { entry: Entry; canEdit: boolean; onEdit: () => void; onRemoved: () => void }) {
     const t = useT();
     const ask = useConfirm();
     const toast = useToast();
+    const chars = entry.kind === "presence" ? entryCharacters(entry) : [];
     const remove = async () => {
         if (!(await ask({ title: t("absences.drawer.removeTitle"), text: t("absences.drawer.removeText", { period: periodLabel(entry.from, entry.to) }), action: t("common.delete") }))) return;
         try {
@@ -169,12 +172,16 @@ function EntryRow({ entry, canEdit, onRemoved }: { entry: Entry; canEdit: boolea
                 <div className="ab-entry-sub">
                     <span>{t(`absences.kind.${entry.kind}`)}</span>
                     {entry.comment && <span>{t("common.quoted", { text: entry.comment })}</span>}
-                    {entry.categoryName && <span>{t("absences.onlyCategory", { name: entry.categoryName })}</span>}
+                    <span className="ab-entry-scope">{scopeLabel(entry)}</span>
                     {entry.byOrga && <span>{t("absences.drawer.byOrga")}</span>}
                 </div>
+                {chars.length > 0 && <div className="ab-entry-sub ab-entry-chars">{chars.map((c) => <span key={c}>{c}</span>)}</div>}
             </div>
             {canEdit && entry.state !== "past" && (
-                <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("absences.drawer.remove")} onClick={() => void remove()} />
+                <div className="ab-entry-acts">
+                    <IconButton size="sm" icon={<EditIcon />} tip={t("signups.availability.edit")} onClick={onEdit} />
+                    <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("absences.drawer.remove")} onClick={() => void remove()} />
+                </div>
             )}
         </li>
     );

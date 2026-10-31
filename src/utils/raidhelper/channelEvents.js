@@ -1,8 +1,8 @@
 // The events of a Discord category, from both sources — Raid-Helper's and the
-// EventHelper's own (services/events/eventSources.js) — for the legacy setup commands (the raid overview itself reads loadEventGroups, services/events/raidOverview.js).
+// EventHelper's own (services/events/eventSources.js) — for the legacy setup commands (the raid overview itself reads loadEventGroups, services/events/overview/raidOverview.js).
 const { createRaidhelperClient } = require("./client");
 const { ownUpcomingRaw } = require("../../services/events/eventSources");
-const { visibleRows, versionOfEvent } = require("../../services/events/mainVersion");
+const { visibleRows, versionOfEvent } = require("../../services/versions/mainVersion");
 
 /** The ids of the text channels below the given categories. */
 function getChannelsFromCategories(guild, categoryIds) {

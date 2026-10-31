@@ -2,12 +2,12 @@ const { MessageFlags, ChannelType, ThreadAutoArchiveDuration } = require("discor
 const { card } = require("../../utils/discord/card");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 // The armory/WCL templates of the application's game version (#542/#553, Einstellungen → Spielversion).
-const { versionLinks, versionLabel } = require("../../services/events/versionSettings");
+const { versionLinks, versionLabel } = require("../../services/versions/versionSettings");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { VERSION_FIELD, versionFieldValue } = require("../../utils/recruitment/applyVersion");
 // The application channel + officer role of the server /apply ran on (#924, per server).
-const serverDefaults = require("../../services/discord/serverDefaults");
-const { getClass } = require("../../config/applyClasses");
+const serverDefaults = require("../../services/discord/servers/serverDefaults");
+const { getClass } = require("../../config/data/applyClasses");
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { analyzeApplicant, applicantSource } = require("../../utils/logcheck/applicant");
 

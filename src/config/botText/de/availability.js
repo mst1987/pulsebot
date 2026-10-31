@@ -17,6 +17,9 @@ module.exports = {
     "Next raid": "Nächster Raid",
     "No raid planned yet.": "Noch kein Raid geplant.",
     "This feature is switched off in this raid hub.": "Diese Funktion ist in dieser Raid-Zentrale ausgeschaltet.",
+    // /availability in a DM or on a server outside the server list: no "every server" entry
+    "Please run this on the Discord server the absence or attendance is for – or enter it on the web under Signups.":
+        "Bitte auf dem Discord-Server ausführen, für den die Ab-/Anwesenheit gelten soll – oder im Web unter Anmeldungen eintragen.",
     "My raid": "Mein Raid",
     "Your evaluation": "Deine Auswertung",
     "Your latest raid, your points, your characters": "Dein letzter Raid, deine Punkte, deine Charaktere",
@@ -96,6 +99,10 @@ module.exports = {
         "Raids, die später in diesem Zeitraum angelegt werden, melden dich automatisch an – du bekommst jedes Mal eine DM.",
     "Absence saved": "Abwesenheit gespeichert",
     "Attendance saved": "Anwesenheit gespeichert",
+    "Absence changed": "Abwesenheit geändert",
+    "Attendance changed": "Anwesenheit geändert",
+    "Characters: {characters}": "Charaktere: {characters}",
+    "You are available {period}, so you were signed up with {characters}.": "Du bist {period} da, deshalb wurdest du mit {characters} angemeldet.",
     "Entered for you by the raid lead": "Von der Raidleitung für dich eingetragen",
     "You are away {period} ({reason}), so you were signed off.": "Du bist {period} weg ({reason}), deshalb wurdest du abgemeldet.",
     "You are away {period}, so you were signed off.": "Du bist {period} weg, deshalb wurdest du abgemeldet.",

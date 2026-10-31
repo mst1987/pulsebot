@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import { getSession, type ContentInfo } from "../../api/session";
+import { getSession, type ContentInfo } from "../../api/system/session";
 import { ContentVersionContext, type ContentVersionState } from "../../hooks/useContentVersion";
 import { EMPTY_CONTENT, readStoredVersion, resolveContentVersion, writeLastVersion, writeStoredVersion } from "../../lib/app/contentVersion";
 import { applyVersionColors, markVersion } from "../../lib/app/versionColor";

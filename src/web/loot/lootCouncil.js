@@ -10,39 +10,39 @@
 //   - the gear each raider was last logged in (charGear, out of the CLA reports)
 //   - the BiS lists and item stats vendored from WoWSims (config/wowsims)
 //
-// The simulation half lives in stores/simStore.js — it takes seconds per raider and
+// The simulation half lives in stores/loot/simStore.js — it takes seconds per raider and
 // runs as a background job, while everything here answers in one page load.
 
-const { listAll } = require("../../stores/lootStore");
+const { listAll } = require("../../stores/loot/lootStore");
 const { lootOfGuild } = require("../../services/loot/lootServer");
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
 const { classLook } = require("./lootClassLook");
-const { characterMap } = require("../../stores/characterStore");
+const { characterMap } = require("../../stores/roster/characterStore");
 const { gearByCharacter } = require("../../services/loot/charGear");
 const { countsAsLoot } = require("../../utils/loot/lootReasons");
-const { getCategoryAssignments } = require("../../stores/raiderCharactersStore");
-const { excludedKeys, plannedRoles } = require("../../stores/councilStore");
-const { versionLinks } = require("../../services/events/versionSettings");
+const { getCategoryAssignments } = require("../../stores/roster/raiderCharactersStore");
+const { excludedKeys, plannedRoles } = require("../../stores/loot/councilStore");
+const { versionLinks } = require("../../services/versions/versionSettings");
 const { buildVersionContext, eventVersion, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
 const { characterKey, characterKeyOf } = require("../../utils/loot/lootImport");
 const { rosterCandidates } = require("./councilRosterSource");
 const { listStoredEvents } = require("../../services/events/eventSources");
-const { listLogs } = require("../../stores/logStore");
-const { listReports, getReportRoster } = require("../../stores/reportStore");
-const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../../config/tbcContent");
-const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
+const { listLogs } = require("../../stores/loot/logStore");
+const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
+const { CONTENTS, TIERS, content: contentMeta, sourceForItem } = require("../../config/data/tbcContent");
+const { SLOT_NAMES } = require("../../utils/logcheck/gear/gearIssues");
 const { characterProfile } = require("../../utils/setup/setupView");
 const { targetSlotFor } = require("../../utils/wowsims/loadout");
 const wowsims = require("../../config/wowsims");
-const bisSource = require("../../config/bisSets");
-const { wearCheck } = require("../../config/wearable");
-const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
+const bisSource = require("../../config/data/bisSets");
+const { wearCheck } = require("../../config/data/wearable");
+const { councilContent: councilContentFor } = require("../../services/versions/versionCapabilities");
 const {
     ROLES, specFor, specByKey, specForRole, rolesForClass, weightsFor, hitStatFor, hitCapFor,
     bisForSpec, isSimSupported, bisSpecsForItem,
-} = require("../../config/councilSpecs");
-const councilWeights = require("../../stores/councilWeightsStore");
+} = require("../../config/data/councilSpecs");
+const councilWeights = require("../../stores/loot/councilWeightsStore");
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { itemWeight } = require("../../services/loot/itemWeights");
 const { tenureContext, tenureDays: tenureDaysOf } = require("../../services/loot/councilTenure");
@@ -393,7 +393,7 @@ function wornItemView(item, bisIds, tierId = "", content = councilContentFor("tb
  *   - tenure:  how long they have belonged to the raid (councilTenure.js),
  *              linear up to the saturation (default 90 days)
  *
- * The weights are the council's (stores/councilWeightsStore.js, default
+ * The weights are the council's (stores/loot/councilWeightsStore.js, default
  * 45 / 30 / 10 / 15), normalised to a sum of 1, so the score stays 0..1 whatever
  * is set. Deliberately transparent rather than clever: the components go out
  * with the score so the page can show the reasoning, and a council can disagree
@@ -866,7 +866,7 @@ function rosterContent(opts) {
 
 /**
  * The council roster: every raider with a council spec (caster, healer, tank,
- * melee, hunter — config/councilSpecs.js) and loot history or known gear —
+ * melee, hunter — config/data/councilSpecs.js) and loot history or known gear —
  * or, for a category with a roster (#667), the roster's Stamm and Probe
  * (plus Ersatz with `showBench`), with or without loot and gear.
  *
@@ -1096,7 +1096,7 @@ function rosterGear(roster, { versionId, guildId } = {}) {
  * ⚠️ A raider who cannot equip the item is never a candidate: a warlock's tier
  * helm is not "a downgrade" for a mage, it is not theirs to take, and offering
  * it would let a council hand it out. `unwearable` names them with the reason
- * (config/wearable.js), so a shorter list is explained rather than puzzling.
+ * (config/data/wearable.js), so a shorter list is explained rather than puzzling.
  *
  * `value` is the stat-weight ordering and nothing more — the page shows no
  * estimated gain, only a simulated one — but it still decides which candidate

@@ -4,22 +4,22 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { mayUseServer } = require("../../http/serverQuery");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../../dashboard/dashboardData");
-const { getConfig, saveConfig } = require("../../../stores/settingsStore");
-const { listLogs } = require("../../../stores/logStore");
+const { getConfig, saveConfig } = require("../../../stores/settings/settingsStore");
+const { listLogs } = require("../../../stores/loot/logStore");
 const { deleteLogKeepingReportGuild } = require("../../../services/logcheck/reportGuild");
 const { logPostedAt } = require("../../../services/logcheck/reportList");
 const {
     addImport: addLootImport, listByEvent: listLootByEvent, listByCharacter: listLootByCharacter, eventsWithLoot, clearEvent: clearLootEvent,
     setEventCategory: setLootEventCategory, removeItems: removeLootItems, repairItemNames: repairLootItemNames,
     decorate: decorateLootItem, listAll: listAllLoot,
-} = require("../../../stores/lootStore");
+} = require("../../../stores/loot/lootStore");
 const { lootStats } = require("../../../services/loot/lootStats");
 const { listAwards } = require("../../loot/lootAwards");
 const { withClassLook: withLootClassLook } = require("../../loot/lootClassLook");
 const { lootCatalog, suggestedContents } = require("../../loot/lootCatalog");
 const { reasonCatalog } = require("../../../utils/loot/lootReasons");
 const { rememberFromLoot: rememberClassesFromLoot, annotatedCharacters, resolveMissing } = require("../../../services/characters/characterInfo");
-const { getCharacter } = require("../../../stores/characterStore");
+const { getCharacter } = require("../../../stores/roster/characterStore");
 const { loadCharGear } = require("../../../services/characters/charGear");
 const { issuesForCharacter } = require("../../characters/charGearIssues");
 const { parseLoot, buildManualItem, detectImportDate, nameKeyOf, LootParseError } = require("../../../utils/loot/lootImport");
@@ -29,27 +29,27 @@ const {
     listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
     resolvedById: resolvedInboxById, listDismissed: listDismissedSessions, getDismissed: getDismissedSession,
     restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions,
-} = require("../../../stores/lootInboxStore");
-const guildBankStockStore = require("../../../stores/guildBankStockStore");
+} = require("../../../stores/loot/lootInboxStore");
+const guildBankStockStore = require("../../../stores/loot/guildBankStockStore");
 const guildBankStock = require("../../../services/guildbank/guildBankStock");
-const guildRoles = require("../../../services/discord/guildRoles");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
 const { sessionContentLabel } = require("../../loot/lootSessionContent");
 const { previewImport } = require("../../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../../utils/setup/setupView");
 const { armoryUrlFor, wclUrlFor } = require("../../characters/charLinks");
 const { buildVersionContext, versionsOfCharacter, versionChoices, eventVersion } = require("../../../services/characters/characterVersions");
-const { versionLinks, blizzardFor } = require("../../../services/events/versionSettings");
-const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../../services/events/mainVersion");
-const { storedVersionOf } = require("../../../services/events/storedVersion");
+const { versionLinks, blizzardFor } = require("../../../services/versions/versionSettings");
+const { mainVersionFor, knownVersion, resolveVersionQuery, visibleRows, visibleVersions, versionOfEvent, isVersionVisible, hidesOtherVersions } = require("../../../services/versions/mainVersion");
+const { storedVersionOf } = require("../../../services/versions/storedVersion");
 const { serverContext, lootOfGuild, lootInGuild, eventInGuild, sessionInGuild, guildOfLootEvent } = require("../../../services/loot/lootServer");
-const { firstServerId } = require("../../../services/discord/serverOf");
+const { firstServerId } = require("../../../services/discord/servers/serverOf");
 const { linkItemsForImport, enrichForImport } = require("../../../services/loot/lootVersion");
 const { inVersionList } = require("../../../services/logcheck/logVersion");
 const { userCan } = require("../../../config/permissions");
 const discord = require("../../../services/discord/discord");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
-const { versionHead } = require("../../../services/discord/ingestServers");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
+const { versionHead } = require("../../../services/discord/servers/ingestServers");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -454,7 +454,7 @@ const previewLootImport = withUser({ csrf: true, body: true }, async ({ body, re
  * form offers: the raid drop tables to pick an item from, which raid(s) this
  * event was, the award reasons, and the raiders already known by name.
  *
- * The catalogue is static (config/tbcContent.js + tbcLootNames.js) and comes
+ * The catalogue is static (config/data/tbcContent.js + tbcLootNames.js) and comes
  * over in full: a raid is 30-200 items, and having them client-side is what
  * lets the picker filter as you type without a round trip per keystroke.
  */

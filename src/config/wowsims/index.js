@@ -15,7 +15,7 @@ const bisData = require("../generated/wowsims/bisSets.json");
 // table does not know (it is pulled from the same wowsims/tbc-new version
 // that has not caught up either) — resolved to the original id it does know,
 // same as Wowhead lookups.
-const { wowheadItemId } = require("../wowheadItemAliases");
+const { wowheadItemId } = require("../data/wowheadItemAliases");
 
 const APL_DIR = path.join(__dirname, "..", "generated", "wowsims", "apls");
 

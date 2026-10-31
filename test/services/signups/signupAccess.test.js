@@ -1,7 +1,7 @@
 // "Darf sich anmelden" (src/services/signups/signupAccess.js): the one rule the
 // save (checkRaiderRole) and the raider's lists of raids share - roster-only
 // signup, raider roles of the raid's version, open categories (PuG), unknown roles.
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const {
     accessRule, signupAccess, rosterOnlyAccess, canSignUp, openToAll, inEventCategories,

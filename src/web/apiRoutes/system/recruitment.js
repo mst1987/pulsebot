@@ -6,9 +6,9 @@ const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
     getConfig,
-} = require("../../../stores/settingsStore");
+} = require("../../../stores/settings/settingsStore");
 const discord = require("../../../services/discord/discord");
-const serverDefaults = require("../../../services/discord/serverDefaults");
+const serverDefaults = require("../../../services/discord/servers/serverDefaults");
 const { SPEC_CATALOG } = require("../../../utils/recruitment/recruitmentSpecs");
 const { annotateApplication } = require("../../recruitment/recruitmentApplications");
 const { VERSIONS } = require("../../../config/gameVersions");
@@ -20,7 +20,7 @@ const { tr } = require("../../../utils/i18n/botText");
 function cut(text, max) {
     return Array.from(text).slice(0, max).join("");
 }
-const { mainVersionFor, visibleRows, visibleVersions, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { mainVersionFor, visibleRows, visibleVersions, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 
 /**
  * The servers a link button's invite can come from: the bot's servers the caller may act on, each with its channels

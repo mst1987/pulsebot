@@ -176,6 +176,8 @@
         "byOrga": "by the raid lead",
         "byOrgaTip": "The raid lead entered this for you.",
         "onlyCategory": "only {name}",
+        "everywhere": "All servers",
+        "edit": "Edit entry",
         "done": {
             "one": "{count} raid changed",
             "other": "{count} raids changed"
@@ -205,6 +207,8 @@
             "noCharacterCategory": "The profile has no fitting character with a spec for {category}.",
             "raids": "Raids in this period",
             "picked": "{picked} of {total} selected",
+            "raidsDone": "{done} done",
+            "raidsPickedDone": "{picked} selected · {done} done",
             "noRaids": "No raid in this period yet.",
             "searching": "Looking for raids …",
             "raidAria": "Include {title}",
@@ -221,7 +225,28 @@
             "forName": "For {name}",
             "backToMe": "Back to me",
             "loadingRaider": "Loading characters …",
-            "resultsKicker": "Saved"
+            "resultsKicker": "Saved",
+            "kickerEdit": "Change entry",
+            "titleEditAbsence": "Edit absence",
+            "titleEditPresence": "Edit attendance",
+            "hintEdit": "Signups and sign-offs already set stay as they are. Raids newly covered by the period change when you save; the change comes as a DM.",
+            "hintEditFor": "Signups and sign-offs already set stay as they are. Raids newly covered by the period change when you save; the change goes to {name} as a DM.",
+            "saveEdit": "Save changes",
+            "entryGone": "This entry no longer exists – it may have run out or been deleted.",
+            "allOfServer": "All categories",
+            "serverAria": "Categories of {name}",
+            "noServer": "You are on no server the bot plans raids for.",
+            "noServerFor": "{name} is on no server the bot plans raids for.",
+            "noScope": "Pick at least one server or category.",
+            "characters": "Characters",
+            "charAria": "Sign up {name}",
+            "specAria": "Spec of {name}",
+            "noCharPicked": "Pick at least one character.",
+            "maxChars": "At most {count} characters",
+            "applied": "done",
+            "appliedTip": "This entry already changed the raid – that stays.",
+            "absentFixed": "absent",
+            "absentTip": "An absence covers this raid – the attendance leaves it out."
         },
         "result": {
             "signedOff": {

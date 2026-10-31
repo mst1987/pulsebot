@@ -21,9 +21,9 @@
 // stock is never changed here: reservations.handedOutSince takes a handed-out
 // amount off "Verfügbar" until the next scan. Idempotent: an id reported again
 // is answered as `duplicate` and touches nothing.
-const store = require("../../stores/guildBankStore");
-const stockStore = require("../../stores/guildBankStockStore");
-const profiles = require("../../stores/raiderProfileStore");
+const store = require("../../stores/loot/guildBankStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const stockView = require("./stockView");
 const linking = require("./linking");
 const { seenIndex } = require("../characters/characterEvidence");

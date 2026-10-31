@@ -15,25 +15,25 @@ jest.mock("../../../src/classes/warcraftlogs.js", () => {
     }
     return WarcraftLogsMock;
 });
-jest.mock("../../../src/utils/logcheck/gearIssues.js", () => ({
+jest.mock("../../../src/utils/logcheck/gear/gearIssues.js", () => ({
     buildGearIssues: jest.fn(() => []),
     buildArmory: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/utils/logcheck/consumables.js", () => ({ analyzeConsumables: jest.fn(async () => null) }));
-jest.mock("../../../src/utils/logcheck/shadowResi.js", () => ({ analyzeShadowResi: jest.fn(() => null) }));
-jest.mock("../../../src/utils/logcheck/drums.js", () => ({ analyzeDrums: jest.fn(async () => null) }));
-jest.mock("../../../src/utils/logcheck/potions.js", () => ({
+jest.mock("../../../src/utils/logcheck/consumables/consumables.js", () => ({ analyzeConsumables: jest.fn(async () => null) }));
+jest.mock("../../../src/utils/logcheck/consumables/shadowResi.js", () => ({ analyzeShadowResi: jest.fn(() => null) }));
+jest.mock("../../../src/utils/logcheck/consumables/drums.js", () => ({ analyzeDrums: jest.fn(async () => null) }));
+jest.mock("../../../src/utils/logcheck/consumables/potions.js", () => ({
     analyzePotions: jest.fn(async () => null),
     potionsByName: jest.fn(() => ({})),
 }));
-jest.mock("../../../src/utils/logcheck/sunder.js", () => ({ analyzeSunder: jest.fn(async () => null) }));
-jest.mock("../../../src/utils/logcheck/bossUptimes.js", () => ({ analyzeBossUptimes: jest.fn(async () => null) }));
-jest.mock("../../../src/utils/logcheck/fightTimeline.js", () => ({
+jest.mock("../../../src/utils/logcheck/buffs/sunder.js", () => ({ analyzeSunder: jest.fn(async () => null) }));
+jest.mock("../../../src/utils/logcheck/buffs/bossUptimes.js", () => ({ analyzeBossUptimes: jest.fn(async () => null) }));
+jest.mock("../../../src/utils/logcheck/fights/fightTimeline.js", () => ({
     analyzeFightTimeline: jest.fn(async () => ({ fights: [{ id: 1, deaths: [{ at: 1 }] }, { id: 2, deaths: [] }] })),
 }));
 // The series analyzer writes into the timeline it is handed (the v2 client
 // comes from the settings; both are mocked so no credentials are read).
-jest.mock("../../../src/utils/logcheck/fightSeries.js", () => ({
+jest.mock("../../../src/utils/logcheck/fights/fightSeries.js", () => ({
     analyzeFightSeries: jest.fn(async (wclV2, reportId, fights, timeline) => {
         for (const f of (timeline && timeline.fights) || []) f.series = { step: 5000, dps: [1], hps: [1], bossHp: [100] };
         return { fights: 2, withSeries: 2, withBossHp: 2, withPlayers: 0 };
@@ -41,30 +41,30 @@ jest.mock("../../../src/utils/logcheck/fightSeries.js", () => ({
     summarizeFightSeries: jest.fn((timeline) => (timeline ? { players: [{ name: "Alice", type: "Mage", measure: "dps", fights: 2, dipPct: 10, avgDps: 1, avgHps: 0 }] } : null)),
 }));
 const mockV2Config = { clientId: "", clientSecret: "" };
-jest.mock("../../../src/stores/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
+jest.mock("../../../src/stores/settings/settingsStore.js", () => ({ getConfig: jest.fn(() => ({ warcraftlogsV2: mockV2Config })) }));
 jest.mock("../../../src/classes/warcraftlogsV2.js", () => jest.fn().mockImplementation((opts) => ({ opts, isConfigured: () => !!(opts && opts.clientId) })));
-jest.mock("../../../src/utils/logcheck/raidDebuffs.js", () => ({
+jest.mock("../../../src/utils/logcheck/buffs/raidDebuffs.js", () => ({
     analyzeRaidDebuffs: jest.fn(async () => ({ expected: ["sunder", "coe"], rows: [{ key: "sunder", expected: true, missing: 0, avgUptime: 95 }, { key: "coe", expected: true, missing: 1, avgUptime: 60 }] })),
 }));
-jest.mock("../../../src/utils/logcheck/cooldownTimeline.js", () => ({
+jest.mock("../../../src/utils/logcheck/fights/cooldownTimeline.js", () => ({
     analyzeCooldownTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", possible: 4, missed: 1 }] })),
 }));
-jest.mock("../../../src/utils/logcheck/totems.js", () => ({
+jest.mock("../../../src/utils/logcheck/buffs/totems.js", () => ({
     analyzeTotems: jest.fn(async () => ({ players: [{ name: "Dorn", wfFights: 2, wfUptimeAvg: 88, twistingFights: 1 }] })),
 }));
-jest.mock("../../../src/utils/logcheck/mechanics.js", () => ({
+jest.mock("../../../src/utils/logcheck/fights/mechanics.js", () => ({
     analyzeMechanics: jest.fn(async () => ({ players: [], mechanics: [{ key: "damage:Whirlwind", hits: 4 }], deaths: { total: 3, avoidable: 1, early: 1, nearEnd: 0, repeat: 0 } })),
 }));
-jest.mock("../../../src/utils/logcheck/activityTimeline.js", () => ({
+jest.mock("../../../src/utils/logcheck/fights/activityTimeline.js", () => ({
     analyzeActivityTimeline: jest.fn(async () => ({ players: [{ name: "Aldra", activeAvg: 90, gaps: 2, unexplainedMs: 8000 }] })),
 }));
-jest.mock("../../../src/utils/logcheck/healers.js", () => ({
+jest.mock("../../../src/utils/logcheck/fights/healers.js", () => ({
     analyzeHealers: jest.fn(async () => ({ players: [{ name: "Elun", healingTotal: 100, overhealTotal: 50, dispels: 2, manaLowFights: 1 }], raid: { dispelsMissed: 1 } })),
 }));
-jest.mock("../../../src/utils/logcheck/raidBuffs.js", () => ({
+jest.mock("../../../src/utils/logcheck/buffs/raidBuffs.js", () => ({
     analyzeRaidBuffs: jest.fn(async () => ({ fights: 2, paladins: 1, players: [{ name: "Dorn", missing: 1 }], rows: [{ key: "kings", label: "Segen der Könige", expected: true, none: 1, partial: 0, missingPlayers: 1 }] })),
 }));
-jest.mock("../../../src/utils/logcheck/recommendations.js", () => ({
+jest.mock("../../../src/utils/logcheck/recommendations/recommendations.js", () => ({
     buildRecommendations: jest.fn((report) => ({ generatedAt: 1, raid: [], players: (report.roster || []).map((p) => ({ name: p.name, type: p.type, items: [] })) })),
 }));
 jest.mock("../../../src/utils/logcheck/rpb/index.js", () => ({
@@ -80,13 +80,13 @@ jest.mock("../../../src/utils/logcheck/rules.js", () => {
 });
 const mockSaveReport = jest.fn();
 const mockGetReport = jest.fn();
-jest.mock("../../../src/stores/reportStore.js", () => ({
+jest.mock("../../../src/stores/loot/reportStore.js", () => ({
     saveReport: (...args) => mockSaveReport(...args),
     getReport: (...args) => mockGetReport(...args),
 }));
 jest.mock("../../../src/config/variables.js", () => ({ publicBaseUrl: "http://localhost:3005" }));
 
-const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables.js");
+const { analyzeConsumables } = require("../../../src/utils/logcheck/consumables/consumables.js");
 const { analyzeRpb } = require("../../../src/utils/logcheck/rpb/index.js");
 const {
     buildReport, mergeRoster, reportSummaryLines, normalizeSections, stripSection,
@@ -222,7 +222,7 @@ describe("logcheck/report — merging the two halves", () => {
     });
 
     it("builds the timeline only for the CLA half", async () => {
-        const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
+        const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fights/fightTimeline.js");
         await buildReport("RPT1", { sections: ["rpb"] });
         expect(analyzeFightTimeline).not.toHaveBeenCalled();
         const { report } = await buildReport("RPT1", { sections: ["cla"] });
@@ -231,7 +231,7 @@ describe("logcheck/report — merging the two halves", () => {
     });
 
     it("hands the timeline to the series analyzer with a v2 client built from the settings", async () => {
-        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fights/fightSeries.js");
         const WarcraftLogsV2 = require("../../../src/classes/warcraftlogsV2.js");
         mockV2Config.clientId = "cid";
         mockV2Config.clientSecret = "sec";
@@ -251,13 +251,13 @@ describe("logcheck/report — merging the two halves", () => {
             { step: 5000, dps: [1], hps: [1], bossHp: [100] },
         ]);
         // ...and the dip summary is its own CLA field, built from the finished timeline
-        const { summarizeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        const { summarizeFightSeries } = require("../../../src/utils/logcheck/fights/fightSeries.js");
         expect(summarizeFightSeries).toHaveBeenCalledWith(report.timeline);
         expect(report.fightSeries).toEqual({ players: [{ name: "Alice", type: "Mage", measure: "dps", fights: 2, dipPct: 10, avgDps: 1, avgHps: 0 }] });
     });
 
     it("still builds the report when the series analyzer throws", async () => {
-        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
+        const { analyzeFightSeries } = require("../../../src/utils/logcheck/fights/fightSeries.js");
         analyzeFightSeries.mockRejectedValueOnce(new Error("v2 down"));
         const { report } = await buildReport("RPT1", { sections: ["cla"] });
         expect(report.timeline.fights).toHaveLength(2);
@@ -601,23 +601,23 @@ describe("logcheck/report — the unfinished-raid guard", () => {
 describe("logcheck/report — the whole build (characterisation, #431)", () => {
     // Pinned before buildReportForId was split into phases: which analyzers
     // run in which order with what, and what the saved page looks like.
-    const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
+    const { buildGearIssues } = require("../../../src/utils/logcheck/gear/gearIssues.js");
     const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
-    const potionsMod = require("../../../src/utils/logcheck/potions.js");
-    const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
-    const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
-    const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
-    const { analyzeBossUptimes } = require("../../../src/utils/logcheck/bossUptimes.js");
-    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
-    const { analyzeFightSeries } = require("../../../src/utils/logcheck/fightSeries.js");
-    const { analyzeRaidDebuffs } = require("../../../src/utils/logcheck/raidDebuffs.js");
-    const { analyzeCooldownTimeline } = require("../../../src/utils/logcheck/cooldownTimeline.js");
-    const { analyzeTotems } = require("../../../src/utils/logcheck/totems.js");
-    const { analyzeMechanics } = require("../../../src/utils/logcheck/mechanics.js");
-    const { analyzeActivityTimeline } = require("../../../src/utils/logcheck/activityTimeline.js");
-    const { analyzeHealers } = require("../../../src/utils/logcheck/healers.js");
-    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/raidBuffs.js");
-    const { buildRecommendations } = require("../../../src/utils/logcheck/recommendations.js");
+    const potionsMod = require("../../../src/utils/logcheck/consumables/potions.js");
+    const { analyzeDrums } = require("../../../src/utils/logcheck/consumables/drums.js");
+    const { analyzeShadowResi } = require("../../../src/utils/logcheck/consumables/shadowResi.js");
+    const { analyzeSunder } = require("../../../src/utils/logcheck/buffs/sunder.js");
+    const { analyzeBossUptimes } = require("../../../src/utils/logcheck/buffs/bossUptimes.js");
+    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fights/fightTimeline.js");
+    const { analyzeFightSeries } = require("../../../src/utils/logcheck/fights/fightSeries.js");
+    const { analyzeRaidDebuffs } = require("../../../src/utils/logcheck/buffs/raidDebuffs.js");
+    const { analyzeCooldownTimeline } = require("../../../src/utils/logcheck/fights/cooldownTimeline.js");
+    const { analyzeTotems } = require("../../../src/utils/logcheck/buffs/totems.js");
+    const { analyzeMechanics } = require("../../../src/utils/logcheck/fights/mechanics.js");
+    const { analyzeActivityTimeline } = require("../../../src/utils/logcheck/fights/activityTimeline.js");
+    const { analyzeHealers } = require("../../../src/utils/logcheck/fights/healers.js");
+    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/buffs/raidBuffs.js");
+    const { buildRecommendations } = require("../../../src/utils/logcheck/recommendations/recommendations.js");
 
     function twoRaiders() {
         selectPlayers.mockReturnValue([{ id: 1, name: "Aldra", type: "Mage" }, { id: 2, name: "Dorn", type: "Shaman" }]);
@@ -756,13 +756,13 @@ describe("logcheck/report — the version of a log (#746)", () => {
 describe("logcheck/report — the rule set of the version (#747)", () => {
     const rules = jest.requireActual("../../../src/utils/logcheck/rules.js");
     const { selectPlayers } = require("../../../src/utils/logcheck/common.js");
-    const { buildGearIssues } = require("../../../src/utils/logcheck/gearIssues.js");
-    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fightTimeline.js");
-    const { analyzeShadowResi } = require("../../../src/utils/logcheck/shadowResi.js");
-    const { analyzeDrums } = require("../../../src/utils/logcheck/drums.js");
-    const { analyzeTotems } = require("../../../src/utils/logcheck/totems.js");
-    const { analyzeSunder } = require("../../../src/utils/logcheck/sunder.js");
-    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/raidBuffs.js");
+    const { buildGearIssues } = require("../../../src/utils/logcheck/gear/gearIssues.js");
+    const { analyzeFightTimeline } = require("../../../src/utils/logcheck/fights/fightTimeline.js");
+    const { analyzeShadowResi } = require("../../../src/utils/logcheck/consumables/shadowResi.js");
+    const { analyzeDrums } = require("../../../src/utils/logcheck/consumables/drums.js");
+    const { analyzeTotems } = require("../../../src/utils/logcheck/buffs/totems.js");
+    const { analyzeSunder } = require("../../../src/utils/logcheck/buffs/sunder.js");
+    const { analyzeRaidBuffs } = require("../../../src/utils/logcheck/buffs/raidBuffs.js");
 
     afterEach(() => { mockRulesOverride = null; });
 

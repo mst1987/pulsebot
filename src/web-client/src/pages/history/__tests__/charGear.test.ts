@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { isEnchantable } from "../charGear";
-import type { GearItem } from "../../../api/history";
+import type { GearItem } from "../../../api/loot/history";
 
 const item = { iconUrl: "inv_helm.jpg" } as GearItem;
 

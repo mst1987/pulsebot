@@ -6,19 +6,19 @@ jest.mock("../../../src/services/discord/discord", () => ({
     listRoles: jest.fn(() => []),
     memberRoleIds: jest.fn(async () => []),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "cat1", name: "Raid Mo / Do" }, { id: "cat2", name: "PuG Karazhan" }]),
 }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn(() => []) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []), getReport: jest.fn(() => null) }));
 
 const discord = require("../../../src/services/discord/discord");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const rosterStore = require("../../../src/stores/rosterStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const characterStore = require("../../../src/stores/characterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { buildRosterOverview, buildRosterDetail, rosterFigures } = require("../../../src/web/roster/rosterView");
 
@@ -138,6 +138,43 @@ describe("buildRosterOverview", () => {
     });
 });
 
+describe("leader flags (#1034)", () => {
+    const leads = require("../../../src/stores/roster/leaderFlagsStore");
+    beforeEach(() => leads.useFile(tempStoreFile(`leader-flags-${count}.json`)));
+    afterAll(() => leads.useFile(null));
+
+    it("marks the leaders among the members for the roster's version, for the orga and for a raider alike", async () => {
+        const versionId = rosterStore.listRosters(G)[0].versionId || "tbc";
+        leads.setLeads(ANNA, versionId, ["kara"]);
+        leads.setLeads("300000000000000009", versionId, ["kara"]);
+        for (const user of [ADMIN, READER]) {
+            const view = await buildRosterDetail({ guildId: G, id: rosterId(), user, config: CONFIG });
+            expect(view.leaders.byUser).toEqual({ [ANNA]: ["kara"] });
+            expect(view.leaders.instances.map((i) => i.id)).toContain("kara");
+        }
+    });
+
+    it("makes nobody a leader without a flag, a full admin neither", async () => {
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.leaders.byUser).toEqual({});
+    });
+
+    it("names the instances of the category the orga may switch, and none for a raider", async () => {
+        const eventStore = require("../../../src/stores/events/eventStore");
+        eventStore.useFile(tempStoreFile(`events-${count}.json`));
+        const versionId = rosterStore.listRosters(G)[0].versionId || "tbc";
+        eventStore.createEvent({
+            guildId: G, channelId: "c1", categoryId: "cat1", title: "Kara", versionId, instanceIds: ["kara"],
+            startTime: Math.floor(Date.now() / 1000) + 86400, size: 10,
+        });
+        const orga = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(orga.leaders.editable).toEqual(["kara"]);
+        const reader = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
+        expect(reader.leaders.editable).toEqual([]);
+        eventStore.useFile(null);
+    });
+});
+
 describe("who sees the people data (epic #723)", () => {
     const ORGA = { id: "8", name: "Orga", isAdmin: false, isOrga: true };
 
@@ -244,8 +281,8 @@ describe("buildRosterDetail", () => {
     });
 
     it("suggests 'left early' to the orga from the log's kills, with the server's number of kills (#990)", async () => {
-        const { listLogs } = require("../../../src/stores/logStore");
-        const reportStore = require("../../../src/stores/reportStore");
+        const { listLogs } = require("../../../src/stores/loot/logStore");
+        const reportStore = require("../../../src/stores/loot/reportStore");
         listLogs.mockReturnValue([{ eventId: "e1", reportRefId: "r-990" }]);
         reportStore.listReports.mockReturnValue([{ id: "r-990", generatedAt: Date.now() + count }]);
         reportStore.getReport.mockReturnValue({

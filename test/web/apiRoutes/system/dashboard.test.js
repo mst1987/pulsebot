@@ -9,13 +9,13 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -70,7 +70,7 @@ jest.mock("../../../../src/web/dashboard/dashboardData", () => ({
 jest.mock("../../../../src/web/http/deployStatus", () => ({
     deployStatus: jest.fn(() => Promise.resolve({ status: "current", behind: 0, behindSince: "", latest: null })),
 }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -79,11 +79,11 @@ jest.mock("../../../../src/stores/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -116,7 +116,7 @@ jest.mock("../../../../src/services/logcheck/logEventMatch", () => ({
     autoMatches: jest.fn(() => []),
 }));
 jest.mock("../../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -142,12 +142,12 @@ jest.mock("../../../../src/services/characters/characterInfo", () => ({
         fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
     })),
 }));
-jest.mock("../../../../src/stores/characterStore", () => ({
+jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -206,8 +206,8 @@ jest.mock("../../../../src/services/events/raidEventGroups", () => ({
 }));
 // The row shaping is pure and runs for real; the past-raid load rescans the
 // event snapshot and has its own test (raidListing.test.js).
-jest.mock("../../../../src/services/events/raidListing", () => ({
-    ...jest.requireActual("../../../../src/services/events/raidListing"),
+jest.mock("../../../../src/services/events/overview/raidListing", () => ({
+    ...jest.requireActual("../../../../src/services/events/overview/raidListing"),
     loadPastRaids: jest.fn(() => Promise.resolve({ events: [], error: null })),
 }));
 const mockGetTemplates = jest.fn(() => Promise.resolve([]));
@@ -224,18 +224,18 @@ jest.mock("../../../../src/classes/raidhelper", () =>
         getEvent: mockGetEvent,
         getSetup: mockGetSetup,
     })));
-jest.mock("../../../../src/stores/eventSheetStore", () => ({
+jest.mock("../../../../src/stores/events/eventSheetStore", () => ({
     getEventSheet: jest.fn(() => null),
     markEventSheetFilled: jest.fn(),
     markEventSheetPosted: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: jest.fn(() => null),
     saveEventSoftres: jest.fn(),
     setEventSoftresLink: jest.fn(),
     markEventSoftresPosted: jest.fn(),
 }));
-jest.mock("../../../../src/stores/eventLootSystemStore", () => ({
+jest.mock("../../../../src/stores/events/eventLootSystemStore", () => ({
     setEventLootSystem: jest.fn(),
     lootSystemOf: jest.fn(() => ({
         system: "softres", label: "Softres", source: "default", categorySystem: "softres", categoryLabel: "Softres", softresExtra: false, softres: true,
@@ -265,7 +265,7 @@ jest.mock("../../../../src/services/setup/setupEditor", () => ({
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const dashboardData = require("../../../../src/web/dashboard/dashboardData");
 const { loadPersonal } = require("../../../../src/web/dashboard/dashboardPersonal");
@@ -399,9 +399,9 @@ describe("web/apiRoutes/dashboard", () => {
 
         // #729: the orga of a category (a manager of its current roster, no orga rank) - the block with their categories only
         describe("for the orga of a category", () => {
-            const rosterStore = require("../../../../src/stores/rosterStore");
+            const rosterStore = require("../../../../src/stores/roster/rosterStore");
             const categoryRoster = require("../../../../src/services/roster/categoryRoster");
-            const { getRaidEvent } = require("../../../../src/stores/raidEventStore");
+            const { getRaidEvent } = require("../../../../src/stores/events/raidEventStore");
             const ROSTER = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "guild-1", managers: { userIds: ["m1"], roleIds: [] }, members: {}, roleIds: [] };
             const MANAGER = { id: "m1", name: "Mgr", isAdmin: false, access: { raids: { read: true, write: false }, dashboard: { read: true, write: false } } };
             const spies = [];

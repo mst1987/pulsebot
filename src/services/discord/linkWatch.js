@@ -17,9 +17,9 @@
 // Partials.Message (#430), so a message it did not cache (every message after
 // a restart) would never reach "messageDelete".
 const linkCheck = require("./linkCheck");
-const eventStore = require("../../stores/eventStore");
-const { getOverviewState, overviewKeys } = require("../../stores/talkOverviewStore");
-const { getConfig } = require("../../stores/settingsStore");
+const eventStore = require("../../stores/events/eventStore");
+const { getOverviewState, overviewKeys } = require("../../stores/discord/talkOverviewStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const logger = require("../../logger").child("linkWatch");
 
 // discord.js' ChannelType.GuildCategory (the plain number: this module's tests mock little of discord.js).
@@ -49,7 +49,7 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
     const config = getConfig() || {};
     if (channel.type === CATEGORY_TYPE && (config.categoryIds || []).map(String).includes(channelId)) {
         const guildId = String(channel.guildId || "");
-        if (require("./guildRoles").isEventGuild(guildId, config)) {
+        if (require("./roles/guildRoles").isEventGuild(guildId, config)) {
             logger.warn(`Raid-Kategorie ${channel.name || channelId} in Discord gelöscht — Einstellungen → Kategorien → „Kategorie abschließen“`);
         } else {
             logger.info(`Kategorie ${channel.name || channelId} auf Server ${guildId || "?"} gelöscht — Server nicht eingetragen, nicht als gelöschte Raid-Kategorie gewertet`);
@@ -97,9 +97,9 @@ function onMessageDelete({ channelId, messageId }, { now = Date.now() } = {}) {
     const overview = isOverviewMessage(id);
     if (overview || redrawn.length) scheduleOverviews();
     // an Orga-Zentrale's message: posted anew by its redraw (lazily, like the overviews)
-    const orgaHub = require("../events/orgaHub").onHubMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
+    const orgaHub = require("../orgaHub/orgaHub").onHubMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
     // a category's raid overview (/createoverview): placed by hand, so forgotten, not posted again
-    const raidOverview = require("../events/raidOverview").onOverviewMessageDeleted(id);
+    const raidOverview = require("../events/overview/raidOverview").onOverviewMessageDeleted(id);
     // the addon download centre: posted anew by its redraw
     const addonCenter = require("../addons/addonCenter").onCenterMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
     return { redrawn, setupCleared, overview, orgaHub, raidOverview, addonCenter, channelId: String(channelId || "") };

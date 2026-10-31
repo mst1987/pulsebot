@@ -22,14 +22,14 @@
 //                           feature is on.
 //
 // The route is GET /api/profile/raiding (apiRoutes/roster/profile.js, area `signup`).
-const profiles = require("../../stores/raiderProfileStore");
-const rosterStore = require("../../stores/rosterStore");
-const lootStore = require("../../stores/lootStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const lootStore = require("../../stores/loot/lootStore");
 const { serverContext, lootOfGuild } = require("../loot/lootServer");
-const dungeonRuns = require("../../stores/dungeonRunStore");
+const dungeonRuns = require("../../stores/roster/dungeonRunStore");
 const { characterTable, dungeonTables } = require("../dungeons/dungeonBoard");
 const { eventVersion } = require("./characterVersions");
-const { featureOn } = require("../events/versionCapabilities");
+const { featureOn } = require("../versions/versionCapabilities");
 const { wishItemsAllowed } = require("./wishItems");
 const { spec: specOfVersion, LEGACY_VERSION } = require("../../config/gameVersions");
 

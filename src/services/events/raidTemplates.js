@@ -15,7 +15,7 @@
 const {
     LEGACY_VERSION, rulesFor, instance, compositionFor, defaultComposition,
 } = require("../../config/gameVersions");
-const { mainVersionFor } = require("./mainVersion");
+const { mainVersionFor } = require("../versions/mainVersion");
 // Colour and picture of the bot's event message (#307) — one place validates
 // them for the template and for the event that inherits them.
 const { normalizeColor, normalizeImage, colorProblem, imageProblem } = require("./embedLook");

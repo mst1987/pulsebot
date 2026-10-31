@@ -6,17 +6,17 @@ jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, che
 let mockActive = "900000000000000001";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive, pickActiveGuild: async () => mockActive }));
 // the server list (#895): two equal servers
-jest.mock("../../../../src/stores/configStore", () => ({
+jest.mock("../../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
 }));
 const EVENT = "900000000000000001";
 const TALK = "900000000000000002";
-jest.mock("../../../../src/services/discord/serverMembers", () => ({
+jest.mock("../../../../src/services/discord/servers/serverMembers", () => ({
     listServerMembers: jest.fn(async (guildId) => ({ guildId, online: true, total: 0, roles: [], members: [] })),
     serverMemberDetail: jest.fn(),
 }));
 
-const svc = require("../../../../src/services/discord/serverMembers");
+const svc = require("../../../../src/services/discord/servers/serverMembers");
 const route = require("../../../../src/web/apiRoutes/discord/discordMembers");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { routerClient, status, body, json } = require("../../../helpers/http");

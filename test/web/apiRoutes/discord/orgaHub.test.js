@@ -2,14 +2,14 @@
 // list, post and remove a category's hub, gated by the area `settings`.
 let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../../src/services/events/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn(), saveFeatures: jest.fn() }));
+jest.mock("../../../../src/services/orgaHub/orgaHub", () => ({ postHub: jest.fn(), removeHub: jest.fn(), saveLinks: jest.fn(), saveFeatures: jest.fn() }));
 let mockActive = "";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => mockActive }));
 let mockClient = null;
 jest.mock("../../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
-const orgaHub = require("../../../../src/services/events/orgaHub");
-const store = require("../../../../src/stores/orgaHubStore");
+const orgaHub = require("../../../../src/services/orgaHub/orgaHub");
+const store = require("../../../../src/stores/discord/orgaHubStore");
 const route = require("../../../../src/web/apiRoutes/discord/orgaHub");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");

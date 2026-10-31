@@ -1,6 +1,6 @@
 const { formatSpecs, formatSignUps } = require("../../src/utils/format");
 const { mockInteraction } = require("../helpers/mockInteraction.js");
-const { entryFor } = require("../../src/config/classlist.js");
+const { entryFor } = require("../../src/config/data/classlist.js");
 
 describe("utils/format", () => {
     describe("formatSpecs", () => {

@@ -1,10 +1,10 @@
 // The raid list per game version (#743, #892): TBC and Forever share the Discord server.
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
-jest.mock("../../../src/stores/signupStore", () => ({ onSignupsChanged: jest.fn(() => () => {}) }));
-jest.mock("../../../src/stores/talkOverviewStore", () => ({
-    overviewKeys: jest.requireActual("../../../src/stores/talkOverviewStore").overviewKeys,
+jest.mock("../../../src/stores/events/signupStore", () => ({ onSignupsChanged: jest.fn(() => () => {}) }));
+jest.mock("../../../src/stores/discord/talkOverviewStore", () => ({
+    overviewKeys: jest.requireActual("../../../src/stores/discord/talkOverviewStore").overviewKeys,
     getOverviewState: jest.fn(() => ({})),
     setOverviewState: jest.fn(),
 }));

@@ -5,7 +5,7 @@ const {
     detectZones,
     ZONE_TAGS,
 } = require("../../../../src/utils/logcheck/rpb/validate");
-const rpbData = require("../../../../src/config/rpbData");
+const rpbData = require("../../../../src/config/data/rpbData");
 
 describe("rpb/validate zoneTagsOf", () => {
     test("maps the report zone id to its tags", () => {

@@ -13,20 +13,20 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     neutralNight: (night) => (night.status === "leftEarly" ? { ...night, status: "present", neutralized: true } : night),
 }));
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (_g, { sinceSeconds = 0 } = {}) => [...mockEvents.values()].filter((e) => e.startTime >= sinceSeconds),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
     listSignups: () => [],
 }));
 let mockAssignments = {};
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: (id) => mockAssignments[id] || {} }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: (id) => mockAssignments[id] || {} }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

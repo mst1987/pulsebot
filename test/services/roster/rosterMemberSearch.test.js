@@ -8,7 +8,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
 const { searchMembers } = require("../../../src/services/roster/rosterMemberSearch");
 
 const member = (id, displayName, extra = {}) => ({ id, displayName, user: { username: displayName.toLowerCase(), bot: false }, ...extra });

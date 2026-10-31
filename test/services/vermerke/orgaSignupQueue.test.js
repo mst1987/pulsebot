@@ -2,7 +2,7 @@
 // server with the switch on, one batch per server after two minutes.
 const fs = require("fs");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const marks = require("../../../src/stores/orgaSignupNoticeStore");
+const marks = require("../../../src/stores/discord/orgaSignupNoticeStore");
 const queue = require("../../../src/services/vermerke/orgaSignupQueue");
 
 const NOW = Date.UTC(2026, 9, 30, 12);

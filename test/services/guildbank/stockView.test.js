@@ -9,7 +9,7 @@ jest.mock("../../../src/services/guildbank/reservations", () => ({
 }));
 
 const { reservedByItem, handedOutSince, reservedRequestCount, pendingByItem } = require("../../../src/services/guildbank/reservations");
-const store = require("../../../src/stores/guildBankStockStore");
+const store = require("../../../src/stores/loot/guildBankStockStore");
 const view = require("../../../src/services/guildbank/stockView");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");

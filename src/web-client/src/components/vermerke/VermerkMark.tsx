@@ -2,7 +2,7 @@ import { Link, useOutletContext } from "react-router-dom";
 import type { ShellContext } from "../shell/Shell";
 import { canAccess } from "../../lib/app/access";
 import { useT } from "../../i18n";
-import type { VermerkShort } from "../../api/vermerke";
+import type { VermerkShort } from "../../api/roster/vermerke";
 import { reasonSummary, vermerkeHref } from "./markText";
 import LevelMark from "./LevelMark";
 

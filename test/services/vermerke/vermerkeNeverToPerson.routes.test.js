@@ -16,10 +16,10 @@ jest.mock("../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => "A"),
 }));
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "A"), pickActiveGuild: jest.fn(async () => "A") }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
-jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: jest.fn(() => []), rosterForCategory: jest.fn(() => null), isClosed: jest.fn(() => false) }));
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ listRosters: jest.fn(() => []), rosterForCategory: jest.fn(() => null), isClosed: jest.fn(() => false) }));
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),
@@ -42,10 +42,10 @@ jest.mock("../../../src/services/setup/setupMessage", () => ({
 
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { routerClient, status, body } = require("../../helpers/http");
-const notes = require("../../../src/stores/userNotesStore");
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profileStore = require("../../../src/stores/raiderProfileStore");
+const notes = require("../../../src/stores/roster/userNotesStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profileStore = require("../../../src/stores/roster/raiderProfileStore");
 const { emptyAccess } = require("../../../src/config/permissions");
 const { effectiveUser } = require("../../../src/web/http/viewAs");
 const route = require("../../../src/web/apiRoutes/events/setup");

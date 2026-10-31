@@ -1,4 +1,4 @@
-const { CLASSES } = require("../../config/applyClasses");
+const { CLASSES } = require("../../config/data/applyClasses");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
 
 // What the Bewerbungen tab shows per application beyond the parsed embed: class
@@ -9,7 +9,7 @@ const { CLASS_COLORS } = require("../../utils/setup/setupView");
 const NEW_APPLICATION_DAYS = 7;
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-// One WoW spell icon per spec of the application flow (config/applyClasses.js).
+// One WoW spell icon per spec of the application flow (config/data/applyClasses.js).
 // Every name checked against the zamimg CDN.
 const SPEC_ICONS = {
     warrior: { Arms: "ability_warrior_savageblow", Fury: "ability_warrior_innerrage", Protection: "ability_warrior_defensivestance" },

@@ -1,8 +1,8 @@
 // The game version of a plan (#544, fallback #542): an own event's own, a
 // Raid-Helper event's category's, else the main version - never a fixed "tbc".
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
-const { getConfig } = require("../../../src/stores/configStore");
+const { getConfig } = require("../../../src/stores/settings/configStore");
 const raidplan = require("../../../src/web/raidplan/raidplan");
 const { instancesFromTitle } = require("../../../src/web/raidplan/raidplanTitle");
 

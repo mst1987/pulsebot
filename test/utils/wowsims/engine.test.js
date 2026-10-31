@@ -1,7 +1,7 @@
 const fs = require("fs");
 const path = require("path");
 const engine = require("../../../src/utils/wowsims/engine");
-const { specByKey } = require("../../../src/config/councilSpecs");
+const { specByKey } = require("../../../src/config/data/councilSpecs");
 
 // No test here runs the binary — buildRequest is pure, and isAvailable() is
 // driven purely by the env var. That is the point of the split: the request
@@ -118,7 +118,7 @@ describe("utils/wowsims/engine", () => {
 });
 
 describe("utils/wowsims — what the binary gets wrong, and what we do about it", () => {
-    const claData = require("../../../src/config/claData");
+    const claData = require("../../../src/config/data/claData");
     const { equipmentFor } = require("../../../src/utils/wowsims/loadout");
 
     const META = Number(claData.META_GEM_IDS[0]);
@@ -155,7 +155,7 @@ describe("utils/wowsims — what the binary gets wrong, and what we do about it"
         });
 
         it("uses the same rule as the gear check, so the two cannot disagree", () => {
-            const { metaGemActive } = require("../../../src/utils/logcheck/gearIssues");
+            const { metaGemActive } = require("../../../src/utils/logcheck/gear/gearIssues");
             expect(metaGemActive(34220, 0, 0, 2)).toBe(true);
             expect(metaGemActive(34220, 3, 0, 0)).toBe(false);
             expect(META).toBeGreaterThan(0);

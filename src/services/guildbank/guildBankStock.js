@@ -17,13 +17,13 @@
 //
 // Errors use the `{ code, error }` form (web/http/apiResult.js sendFailure),
 // messages in German.
-const store = require("../../stores/guildBankStockStore");
+const store = require("../../stores/loot/guildBankStockStore");
 const { parseGuildBankScan, bankKeyOf, GuildBankParseError } = require("../../utils/guildbank/guildBankScan");
 const itemMeta = require("./itemMeta");
-const guildRoles = require("../discord/guildRoles");
+const guildRoles = require("../discord/roles/guildRoles");
 const discord = require("../discord/discord");
 const { raidServerIds } = require("../discord/botCheck");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { wclGuildsOf } = require("../logcheck/wclGuildSettings");
 
 /** The server an ingest token is bound to, "" when none. */
@@ -68,7 +68,7 @@ function versionOfKnownBank({ realm, guild }) {
 
 /**
  * The servers a token may write banks of: the given list (`servers`, the route asks
- * services/discord/ingestServers.serversOfToken - a personal key's orga servers, #1000), else the
+ * services/discord/servers/ingestServers.serversOfToken - a personal key's orga servers, #1000), else the
  * token's own server, else null (an old key: every server). Fail closed: a personal key without
  * the list gets none, never every server.
  */

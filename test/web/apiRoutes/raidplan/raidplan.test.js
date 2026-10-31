@@ -7,8 +7,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
 const mockEvents = {};
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
@@ -17,8 +17,8 @@ const { readJsonBody, readRawBody } = require("../../../../src/web/http/apiBody"
 const { requireCsrf } = require("../../../../src/web/http/apiMiddleware");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { ownEvent } = require("../../../factories/events");
-const store = require("../../../../src/stores/raidplanStore");
-const profiles = require("../../../../src/stores/raidplanProfileStore");
+const store = require("../../../../src/stores/raidplan/raidplanStore");
+const profiles = require("../../../../src/stores/raidplan/raidplanProfileStore");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const { checkAccess, areasFor, UNGATED } = require("../../../../src/web/http/apiAccess");
 
@@ -53,8 +53,8 @@ async function call(handler, user, payload, query = "") {
 
 // A raider sees only the raids of the categories they may see (services/signups/eventVisibility.js):
 // no event categories configured means every category, so the readers below see eh_1.
-const settingsStore = require("../../../../src/stores/settingsStore");
-const rosterStore = require("../../../../src/stores/rosterStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
+const rosterStore = require("../../../../src/stores/roster/rosterStore");
 const realConfig = settingsStore.getConfig();
 jest.spyOn(settingsStore, "getConfig");
 

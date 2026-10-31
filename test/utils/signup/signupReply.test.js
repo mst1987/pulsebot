@@ -1,14 +1,14 @@
 // The signup flow's short answers as embeds (#508): utils/signup/signupReply.js
 // and the save confirmation signupButtons.savedEmbed built on it.
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
 
 const { MessageFlags } = require("discord.js");
 const { EMBED_ACCENT_COLOR } = require("../../../src/config/constants");
 const { embedColor } = require("../../../src/services/events/embedLook");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../helpers/signupMocks");

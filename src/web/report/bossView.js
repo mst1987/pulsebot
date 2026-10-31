@@ -3,7 +3,7 @@
 // section with the topics as a list on the left. Plus a raider's own timeline
 // (player page, raider card).
 const { fmtTime } = require("./charts");
-const { bossIconUrl } = require("../../config/bosses");
+const { bossIconUrl } = require("../../config/data/bosses");
 const { esc } = require("./layout");
 const { badge, LINE } = require("./widgets");
 const { fightOutcome, groupByBoss } = require("./fightTopics");

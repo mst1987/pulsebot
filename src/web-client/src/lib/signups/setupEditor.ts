@@ -4,7 +4,7 @@
 // is on its way. The server validates and values every change again; these
 // rules only keep the page from sending what it already knows is refused.
 //
-// Written to be strippable like raidTemplates.ts (test/web-client/conventions/setupEditor.test.js
+// Written to be strippable like raidTemplates.ts (test/web-client/conventions/events/setupEditor.test.js
 // runs it for real, with `t` injected): imports, `export type` and one-line
 // signatures only.
 import type { SetupCharacter, SetupEditorGroup, SetupPerson, SetupPlacementInput, SetupPublish, SetupSearch, StoredSetup } from "../../api";
@@ -430,7 +430,7 @@ export function suggestGroup(person: SetupPerson, groups: SetupEditorGroup[]): n
  * The proposal's reasons that only name the signup state (src/utils/setup/reasons.js' STATUS_REASON, German
  * whatever the page language): the panel shows the state as its field in the app's one word ("Vielleicht",
  * "Spät", "Bank"), so these would only repeat it in other words. Matched, never shown — a pattern, not a
- * string, since this is the server's data and not a text of the page (test/web-client/conventions/i18n.test.js).
+ * string, since this is the server's data and not a text of the page (test/web-client/conventions/i18n/i18n.test.js).
  */
 const STATUS_REASON = /^(Kommt sp.ter|Nur „Vielleicht“ angemeldet|Als Ersatz angemeldet)$/;
 

@@ -14,14 +14,14 @@
 // What other people recorded under that name stays as it is: logs, loot,
 // saved setups, the orga's notes keyed by name (council, hidden roster lines).
 // Those never knew the bogus name in the first place, or are history.
-const profiles = require("../../stores/raiderProfileStore");
-const rosterStore = require("../../stores/rosterStore");
-const raiderCharactersStore = require("../../stores/raiderCharactersStore");
-const signupStore = require("../../stores/signupStore");
-const guildBankStore = require("../../stores/guildBankStore");
-const availabilityStore = require("../../stores/availabilityStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const raiderCharactersStore = require("../../stores/roster/raiderCharactersStore");
+const signupStore = require("../../stores/events/signupStore");
+const guildBankStore = require("../../stores/loot/guildBankStore");
+const availabilityStore = require("../../stores/events/availabilityStore");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const logger = require("../../logger").child("characterEdit");
 
 /**

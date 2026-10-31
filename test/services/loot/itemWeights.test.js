@@ -1,9 +1,9 @@
 // What one award counts as (#668), against the real generated tables: the
 // class rules in their order, the per-item exception and the loot points.
 const { itemFacts, itemClass, itemWeight, lootPoints } = require("../../../src/services/loot/itemWeights");
-const councilWeights = require("../../../src/stores/councilWeightsStore");
+const councilWeights = require("../../../src/stores/loot/councilWeightsStore");
 const wowsims = require("../../../src/config/wowsims");
-const { bisForSpec, specByKey } = require("../../../src/config/councilSpecs");
+const { bisForSpec, specByKey } = require("../../../src/config/data/councilSpecs");
 
 const S = councilWeights.defaults();
 

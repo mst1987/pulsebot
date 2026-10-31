@@ -20,8 +20,8 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({
     activeGuildFor: jest.fn(() => mockActive),
     pickActiveGuild: jest.fn(async () => mockActive),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => mockConfig),
     saveConfig: jest.fn((patch) => {
         const servers = { ...(mockConfig.serverSettings || {}) };
@@ -30,14 +30,14 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
         return mockConfig;
     }),
 }));
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     listEvents: jest.fn(() => []),
 }));
 
-const settingsStore = require("../../../../src/stores/settingsStore");
-const signals = require("../../../../src/stores/userSignalsStore");
-const notes = require("../../../../src/stores/userNotesStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
+const signals = require("../../../../src/stores/roster/userSignalsStore");
+const notes = require("../../../../src/stores/roster/userNotesStore");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../../src/config/permissions");
 const route = require("../../../../src/web/apiRoutes/roster/vermerke");
 const { get, post } = routerClient(route);

@@ -9,7 +9,7 @@
 //
 // Server of a category - nothing stored names it directly, so the first of:
 //   1. the category name snapshot (category-names.json, guildId -> categories;
-//      services/discord/categoryNames.js writes it on every live read),
+//      services/categories/categoryNames.js writes it on every live read),
 //   2. a stored event of that category (own events and Raid-Helper events
 //      carry guildId + categoryId),
 //   3. the first configured server (discordServers.servers, else the
@@ -21,7 +21,7 @@
 // Name: the snapshot's name, else the newest stored event's categoryName,
 // else the category id.
 const { characterKeyOf } = require("../../utils/loot/lootImport");
-const { mainVersionFor } = require("../events/mainVersion");
+const { mainVersionFor } = require("../versions/mainVersion");
 
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v) => String(v === null || v === undefined ? "" : v).trim();

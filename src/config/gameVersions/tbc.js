@@ -1,13 +1,13 @@
 // The TBC Anniversary rule set.
 //
 // The instances are not listed here a second time: ids, names, boss order and
-// final bosses all come from config/tbcContent.js, which the loot import, the
+// final bosses all come from config/data/tbcContent.js, which the loot import, the
 // raid list and the logcheck guard already read. This file only adds what a
 // raid *plan* needs on top — the raid size and a suggested number of tanks and
 // healers — and the boss icon the menu shows (the same one as
 // src/web-client/src/lib/wow/raidIcons.ts).
 
-const { CONTENTS, encountersFor, finalBossesFor } = require("../tbcContent");
+const { CONTENTS, encountersFor, finalBossesFor } = require("../data/tbcContent");
 const { buildClasses } = require("./classes");
 const { buildBuffs } = require("./buffs");
 const { TBC_PROFESSIONS } = require("./professions");
@@ -72,7 +72,7 @@ module.exports = {
     sheetLayout: true,
     // The loot council's content data (#748): BiS lists (Wowhead), the item table (stats, slots, wear rules),
     // the tier/raid filter and the simulation (WoWSims tbc-new). A version without this block has none of it;
-    // whether it is used is decided in services/events/versionCapabilities.js (#761).
+    // whether it is used is decided in services/versions/versionCapabilities.js (#761).
     councilContent: { bis: true, sim: true, tiers: true, itemTable: true },
     classes,
     instances,
@@ -80,7 +80,7 @@ module.exports = {
     ...buildBuffs(classes),
     PLAN,
     // The standard values of Einstellungen → Spielversion (#553, shape and
-    // placeholders: stores/versionSettingsSchema.js defaultBlock). The realm is
+    // placeholders: stores/settings/versionSettingsSchema.js defaultBlock). The realm is
     // the guild's, not the version's — it stays out; the install's bootstrap
     // realm (config/defaults.js) fills the TBC block of a fresh install.
     settingsDefaults: {

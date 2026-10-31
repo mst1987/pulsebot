@@ -8,7 +8,7 @@ import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
 import type { MemberRole, ServerMember, ServerMemberDetail, ServerMembers } from "../../../api";
-import * as notesApi from "../../../api/vermerke";
+import * as notesApi from "../../../api/roster/vermerke";
 import { adminUser, renderPage } from "../../../test/render";
 import { switchLang } from "../../../test/i18n";
 import { resetServerPickCache } from "../../../hooks/useServerPick";
@@ -22,8 +22,8 @@ vi.mock("../../../api", async (orig) => ({
     getServerChoices: vi.fn(),
 }));
 
-vi.mock("../../../api/vermerke", async (orig) => ({
-    ...(await orig<typeof import("../../../api/vermerke")>()),
+vi.mock("../../../api/roster/vermerke", async (orig) => ({
+    ...(await orig<typeof import("../../../api/roster/vermerke")>()),
     getVermerke: vi.fn(),
     searchVermerkPeople: vi.fn(),
     getVermerkRaids: vi.fn(),

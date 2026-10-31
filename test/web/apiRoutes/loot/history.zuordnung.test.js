@@ -11,8 +11,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => mockGuild),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../../src/stores/settingsStore"),
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: jest.fn(() => mockConfig),
     saveConfig: jest.fn(),
 }));
@@ -21,8 +21,8 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "gA", name: "Server A" }, { id: "gB", name: "Server B" }, { id: "gC", name: "Server C" }]),
     listCategories: jest.fn(() => []),
 }));
-jest.mock("../../../../src/services/discord/serverOf", () => ({
-    ...jest.requireActual("../../../../src/services/discord/serverOf"),
+jest.mock("../../../../src/services/discord/servers/serverOf", () => ({
+    ...jest.requireActual("../../../../src/services/discord/servers/serverOf"),
     storedCategoryGuilds: () => new Map(),
 }));
 jest.mock("../../../../src/utils/loot/lootImport", () => ({
@@ -42,10 +42,10 @@ const mockConfig = {
 
 const { json, status, routerClient } = require("../../../helpers/http");
 const { getUser } = require("../../../../src/web/http/auth");
-const inbox = require("../../../../src/stores/lootInboxStore");
-const banks = require("../../../../src/stores/guildBankStockStore");
-const lootStore = require("../../../../src/stores/lootStore");
-const eventStore = require("../../../../src/stores/eventStore");
+const inbox = require("../../../../src/stores/loot/lootInboxStore");
+const banks = require("../../../../src/stores/loot/guildBankStockStore");
+const lootStore = require("../../../../src/stores/loot/lootStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get, post } = routerClient(require("../../../../src/web/apiRoutes/loot/history"));
 

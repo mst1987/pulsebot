@@ -16,19 +16,19 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 jest.mock("../../../src/services/events/eventServer", () => ({
     allOnServer: jest.fn(() => true), serverOfEntry: jest.fn(() => "g1"), guildOfCategory: jest.fn(() => "g1"), liveGuildOf: jest.fn(() => "g1"),
 }));
-jest.mock("../../../src/stores/rosterStore", () => {
-    const actual = jest.requireActual("../../../src/stores/rosterStore");
+jest.mock("../../../src/stores/roster/rosterStore", () => {
+    const actual = jest.requireActual("../../../src/stores/roster/rosterStore");
     const roster = { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: ["role-mgr"] } };
     return { ...actual, listRosters: jest.fn(() => [roster]), rosterForCategory: jest.fn((cat) => (cat === "cat1" ? roster : null)) };
 });
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn(() => "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({
-    ...jest.requireActual("../../../src/stores/raidEventStore"),
+jest.mock("../../../src/stores/events/raidEventStore", () => ({
+    ...jest.requireActual("../../../src/stores/events/raidEventStore"),
     getRaidEvent: jest.fn((id) => ({ rh1: { categoryId: "cat1" }, rh2: { categoryId: "cat2" } }[id] || null)),
 }));
 const mockMemberRoleIds = jest.fn(async () => []);

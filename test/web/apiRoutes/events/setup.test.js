@@ -5,10 +5,10 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const mockEvents = new Map();
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
@@ -27,11 +27,11 @@ jest.mock("../../../../src/stores/eventStore", () => ({
     }),
 }));
 let mockSignups = [];
-jest.mock("../../../../src/stores/signupStore", () => ({
+jest.mock("../../../../src/stores/events/signupStore", () => ({
     listSignups: () => mockSignups,
     getSignup: (eventId, userId) => mockSignups.find((s) => String(s.userId) === String(userId)) || null,
 }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../../src/services/events/eventSources", () => ({
     listStoredEvents: () => [],
@@ -538,8 +538,56 @@ describe("explanation", () => {
     });
 });
 
+describe("leader flags in the editor (#1034)", () => {
+    const leads = require("../../../../src/stores/roster/leaderFlagsStore");
+    const { tempStoreFile } = require("../../../helpers/tempStore");
+    const { versionOfEvent } = require("../../../../src/services/versions/mainVersion");
+
+    beforeEach(() => leads.useFile(tempStoreFile("leader-flags.json")));
+    afterAll(() => leads.useFile(null));
+
+    it("names the flags of everybody in the editor for the raid's version, and nobody else's", async () => {
+        const versionId = versionOfEvent(mockEvents.get(ID));
+        leads.setLeads("tank", versionId, ["kara"]);
+        leads.setLeads("stranger", versionId, ["kara"]);
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.versionId).toBe(versionId);
+        expect(view.leaders.instances.map((i) => i.id)).toContain("kara");
+        expect(view.leaders.byUser).toEqual({ tank: ["kara"] });
+        // being orga makes nobody a leader: no flag, no crown
+        expect(view.leaders.byUser).not.toHaveProperty("orga");
+    });
+
+    it("leaves a flag of another version out", async () => {
+        const versionId = versionOfEvent(mockEvents.get(ID));
+        expect(versionId).not.toBe("forever");
+        leads.setLeads("tank", "forever", ["forever-hyjal"]);
+        expect(leads.leadsOf("tank")).toHaveProperty("forever");
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.byUser).toEqual({});
+    });
+
+    it("names the instances the orga may switch here (the raid's) and only for the signed up", async () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), instanceIds: ["kara"] });
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.editable).toEqual(["kara"]);
+        expect(view.leaders.switchable).toEqual(expect.arrayContaining(mockSignups.map((x) => x.userId)));
+        expect(view.leaders.switchable).not.toContain("stranger");
+    });
+
+    it("a raid without instance and without known category raids switches nothing (fail closed)", async () => {
+        const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
+        expect(view.leaders.editable).toEqual([]);
+    });
+
+    it("a reader of the approved lineup gets no leader data at all", async () => {
+        const view = body(await call(route.getSetup, READER, null, `event=${ID}`));
+        expect(view).not.toHaveProperty("leaders");
+    });
+});
+
 describe("Vermerke in the editor (#981)", () => {
-    const notes = require("../../../../src/stores/userNotesStore");
+    const notes = require("../../../../src/stores/roster/userNotesStore");
     const { tempStoreFile } = require("../../../helpers/tempStore");
     const by = { by: "boss", byName: "Boss", name: "x" };
 

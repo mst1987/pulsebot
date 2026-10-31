@@ -10,7 +10,7 @@
 //     ausserhalb der Instanz vergeben wurde ("Eastern Kingdoms"). Ein
 //     Karazhan-Abend heisst dann nach einem halben Erdteil.
 //
-// Die Item-IDs wissen es besser: config/tbcContent.js kennt zu jedem TBC-Drop
+// Die Item-IDs wissen es besser: config/data/tbcContent.js kennt zu jedem TBC-Drop
 // seinen Raid. Diese Ableitung geschieht auf dem Server und nicht im Addon —
 // die Tabelle wird hier gepflegt und wächst mit jedem Patch, ohne dass jemand
 // ein Addon nachziehen muss.
@@ -18,7 +18,7 @@
 // Bewusst mehrdeutig, wo die Daten mehrdeutig sind: TBC-Abende kombinieren
 // Raids (SSC + Tempest Keep, Gruul + Magtheridon). Erkannt wird deshalb nicht
 // "der eine Raid", sondern die Raids, die einen nennenswerten Anteil ausmachen.
-const { contentForLoot, content: contentMeta } = require("../../config/raidContent");
+const { contentForLoot, content: contentMeta } = require("../../config/data/raidContent");
 
 // Ab welchem Anteil der zugeordneten Items ein Raid mitgenannt wird. Darunter
 // sind es Einzelstücke — ein mitgeschleppter Gruul-Kill oder ein Item, das die

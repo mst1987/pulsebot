@@ -1,7 +1,7 @@
 // The raid plan catalog switched off for a version (#761, Einstellungen → Spielversion → "Funktionen je Version"):
 // a plan of that version gets no mobs and no spells, and the suggestions pick classes by the built in rules alone.
-const configStore = require("../../../src/stores/configStore");
-const catalogStore = require("../../../src/stores/raidplanCatalogStore");
+const configStore = require("../../../src/stores/settings/configStore");
+const catalogStore = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const raidplan = require("../../../src/web/raidplan/raidplan");
 const { tempStoreFile } = require("../../helpers/tempStore");

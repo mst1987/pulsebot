@@ -16,16 +16,16 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 
 const mockReports = [];
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: () => mockReports.map((r) => ({ id: r.id, generatedAt: r.generatedAt })),
     getReportRoster: (id) => mockReports.find((r) => r.id === id) || null,
 }));
 const mockCharacters = [];
-jest.mock("../../../../src/stores/characterStore", () => ({ listCharacters: () => mockCharacters }));
+jest.mock("../../../../src/stores/roster/characterStore", () => ({ listCharacters: () => mockCharacters }));
 const mockAssignments = {};
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: () => mockAssignments }));
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({ listAllAssignments: () => mockAssignments }));
 let mockMainVersion = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" }, ...mockMainVersion }) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({ blizzard: { clientId: "id", clientSecret: "secret" }, ...mockMainVersion }) }));
 
 const mockSummary = jest.fn();
 let mockConfigured = true;
@@ -35,7 +35,7 @@ jest.mock("../../../../src/classes/blizzard", () => jest.fn().mockImplementation
 })));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
-const store = require("../../../../src/stores/raiderProfileStore");
+const store = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/roster/profile");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 
@@ -95,7 +95,7 @@ describe("GET/PUT /api/profile", () => {
     });
 
     it("liefert nur die eigene aus Raid-Helper importierte Spec-Historie (#291)", async () => {
-        const history = require("../../../../src/stores/specHistoryStore");
+        const history = require("../../../../src/stores/roster/specHistoryStore");
         history.useFile(tempStoreFile("spec-history.json"));
         try {
             history.applyImport([
@@ -341,7 +341,7 @@ describe("GET /api/profile/log-characters", () => {
 // darum, dass er genau einmal herausgeht, nur dem eigenen Konto gehört und
 // sofort widerrufbar ist.
 describe("Kalender-Abo (/api/profile/calendar)", () => {
-    const calStore = require("../../../../src/stores/calendarTokenStore");
+    const calStore = require("../../../../src/stores/events/calendarTokenStore");
     const calFeed = require("../../../../src/web/pages/calendarFeed");
     const { requireCsrf } = require("../../../../src/web/http/apiMiddleware");
 

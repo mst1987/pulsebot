@@ -15,9 +15,9 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => ""),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ ...jest.requireActual("../../../../src/stores/settingsStore"), getConfig: () => ({}) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ ...jest.requireActual("../../../../src/stores/settings/settingsStore"), getConfig: () => ({}) }));
 // cat1's TBC roster is managed by "mgr"; cat2 has no roster
-jest.mock("../../../../src/stores/rosterStore", () => {
+jest.mock("../../../../src/stores/roster/rosterStore", () => {
     const rosters = { "cat1:tbc": { id: "r1", categoryId: "cat1", versionId: "tbc", guildId: "g1", managers: { userIds: ["mgr"], roleIds: [] }, roleIds: [], members: {} } };
     return {
         listRosters: jest.fn(() => Object.values(rosters)),
@@ -25,8 +25,8 @@ jest.mock("../../../../src/stores/rosterStore", () => {
         isClosed: jest.fn(() => false),
     };
 });
-jest.mock("../../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../../src/services/events/mainVersion"),
+jest.mock("../../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../../src/services/versions/mainVersion"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
     mainVersionFor: jest.fn(() => "tbc"),
     knownVersion: jest.fn((v) => v || ""),
@@ -43,9 +43,9 @@ jest.mock("../../../../src/services/signups/signupNotes", () => ({
 }));
 
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const eventStore = require("../../../../src/stores/eventStore");
-const signupStore = require("../../../../src/stores/signupStore");
-const profiles = require("../../../../src/stores/raiderProfileStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
+const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const route = require("../../../../src/web/apiRoutes/events/signups");
 const { routerClient, status, body } = require("../../../helpers/http");

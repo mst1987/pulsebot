@@ -44,23 +44,23 @@ const { readRawBody } = require("../../http/apiBody");
 const { sendFailure } = require("../../http/apiResult");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const auth = require("../../http/auth");
-const { getEvent, isOwnEventId } = require("../../../stores/eventStore");
-const store = require("../../../stores/raidplanStore");
-const profileStore = require("../../../stores/raidplanProfileStore");
-const templateStore = require("../../../stores/raidplanTemplateStore");
+const { getEvent, isOwnEventId } = require("../../../stores/events/eventStore");
+const store = require("../../../stores/raidplan/raidplanStore");
+const profileStore = require("../../../stores/raidplan/raidplanProfileStore");
+const templateStore = require("../../../stores/raidplan/raidplanTemplateStore");
 const raidplan = require("../../raidplan/raidplan");
 const assign = require("../../../services/raidplan/raidplanAssign");
-const catalog = require("../../../stores/raidplanCatalogStore");
+const catalog = require("../../../stores/raidplan/raidplanCatalogStore");
 const rosterSource = require("../../raidplan/raidplanRosterSource");
 const { instancesFromTitle } = require("../../raidplan/raidplanTitle");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
 const { rulesFor } = require("../../../config/gameVersions");
-const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersions } = require("../../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersions } = require("../../../services/versions/mainVersion");
 const { raidhelperDisabled } = require("../../../utils/raidhelper/client");
 const { progressFor } = require("../../../services/raidplan/raidplanProgress");
 const { syncRaidplanPost } = require("../../../services/raidplan/raidplanPost");
-const { getConfig } = require("../../../stores/configStore");
+const { getConfig } = require("../../../stores/settings/configStore");
 const { planningRefusal } = require("../../../services/events/planning");
 
 // A write on an event plan: an archived event (a hidden game version, #563) is read only, and the orga of a
@@ -73,8 +73,8 @@ const { userSeesEvent } = require("../../../services/signups/eventVisibility");
 const raidplanAccess = require("../../raidplan/raidplanAccess");
 const { requestCache } = require("../../../services/roster/categoryOrga");
 const { allOnServer } = require("../../../services/events/eventServer");
-const { resolveServer } = require("../../../services/discord/guildRoles");
-const { firstServerId } = require("../../../services/discord/serverOf");
+const { resolveServer } = require("../../../services/discord/roles/guildRoles");
+const { firstServerId } = require("../../../services/discord/servers/serverOf");
 
 // The plan of one event (#726): `raidplan` write for every raid (the area goes to the people who write the
 // tactics, orga rank or not), else the manager of the raid's category - raidplanAccess.js mirrors it per event.

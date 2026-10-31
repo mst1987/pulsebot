@@ -5,12 +5,16 @@ const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 const { cardText } = require("../../helpers/cardText");
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => ({
     ...require("../../helpers/signupMocks").discord(),
     sendDirectMessage: jest.fn(async () => ({ ok: true, messageId: "dm" })),
+    // the DM fallback of /availability asks which servers the raider is on
+    guildMembership: jest.fn(async () => true),
+    // server names for "My entries" (from the bot's cache, no request)
+    getGuild: jest.fn((id) => (id === "g1" ? { name: "Pulse", iconURL: () => "" } : null)),
     // the guild bank's orga post
     postPayload: jest.fn(async () => ({ guildId: "g1", channelId: "900000", messageId: "m-bank", url: "" })),
 }));
@@ -18,10 +22,10 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 
 const mocks = require("../../helpers/signupMocks");
 const discord = require("../../../src/services/discord/discord");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const store = require("../../../src/stores/availabilityStore");
-const sessionStore = require("../../../src/stores/availabilitySessionStore");
-const bankStore = require("../../../src/stores/guildBankStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const store = require("../../../src/stores/events/availabilityStore");
+const sessionStore = require("../../../src/stores/events/availabilitySessionStore");
+const bankStore = require("../../../src/stores/loot/guildBankStore");
 const availability = require("../../../src/services/signups/availability");
 const organizer = require("../../../src/services/signups/organizer");
 const command = require("../../../src/commands/signup/availability");
@@ -60,10 +64,18 @@ const withCharacters = () => {
     profiles.addCharacter(ANNA, { name: "Zibbo", className: "Priest", specs: [{ key: "Priest-Holy", gear: "ready" }] });
     profiles.addCharacter(ANNA, { name: "Zibbowar", className: "Warrior", specs: [{ key: "Warrior-Protection", gear: "usable" }] });
 };
+// a server of the server list (beforeEach: g1) - /availability without a category needs one
+const HERE = { guild: { id: "g1" } };
 const click = (customId, extra = {}) => mockInteraction({ customId, userId: ANNA, ...extra });
-const submit = (customId, fields) => mockInteraction({ customId, userId: ANNA, modal: true, options: fields });
+const submit = (customId, fields, extra = {}) => mockInteraction({ customId, userId: ANNA, modal: true, options: fields, ...extra });
 const select = (customId, values) => mockInteraction({ customId, userId: ANNA, values });
 const replyPayload = (i) => i.reply.mock.calls[0][0];
+// the period modal is acknowledged first (the raids of other categories ask Discord) and answered by edit
+const modalPayload = (i) => {
+    expect(i.deferReply).toHaveBeenCalledWith({ flags: MessageFlags.Ephemeral });
+    expect(i.reply).not.toHaveBeenCalled();
+    return i.editReply.mock.calls[0][0];
+};
 const componentIds = (payload) => payload.components.flatMap((row) => row.components.map((c) => c.data.custom_id).filter(Boolean));
 const tokenOf = (payload) => componentIds(payload).find((id) => /^availability:[a-f0-9]{8}:save$/.test(id)).split(":")[1];
 const raidSelect = (payload) => payload.components.map((r) => r.components[0]).find((c) => /:r$/.test(c.data.custom_id || ""));
@@ -75,12 +87,39 @@ describe("/availability", () => {
     });
 
     it("zeigt die eigenen Einträge und die drei Knöpfe, nur für den Raider", async () => {
-        const i = mockInteraction({ userId: ANNA, commandName: "availability" });
+        const i = mockInteraction({ userId: ANNA, commandName: "availability", ...HERE });
         await command.execute(i);
         const payload = replyPayload(i);
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
         expect(answerOf(payload).description).toContain("No absence or attendance entered.");
         expect(componentIds(payload)).toEqual(["availability:a:", "availability:p:", "availability:l:"]);
+    });
+
+    it("lehnt im DM und auf einem Server außerhalb der Serverliste ab - kein Eintrag für alle Server", async () => {
+        const NOT_HERE = "Please run this on the Discord server the absence or attendance is for – or enter it on the web under Signups.";
+        const dm = mockInteraction({ userId: ANNA, commandName: "availability" });
+        dm.guild = null;
+        // mockInteraction's guild-1 is not on the server list (g1)
+        const foreign = mockInteraction({ userId: ANNA, commandName: "availability" });
+        // the buttons and modals of an older list without a category, too
+        const oldSteps = [click("availability:a:"), click("availability:p:"), submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) }), submit("availability:mp:", { from: dayPlus(0), to: dayPlus(5) })];
+        for (const i of [dm, foreign, ...oldSteps]) {
+            await command.execute(i);
+            const payload = replyPayload(i);
+            expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            expect(answerOf(payload).text).toContain(NOT_HERE);
+            expect(i.showModal).not.toHaveBeenCalled();
+        }
+        expect(store.listEntries()).toEqual([]);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("lehnt auf Deutsch ab", async () => {
+        mocks.access.config = { guildId: "g1", botLanguage: "de", serverSettings: { g1: { botLanguage: "de" } } };
+        const dm = mockInteraction({ userId: ANNA, commandName: "availability" });
+        dm.guild = null;
+        await command.execute(dm);
+        expect(answerOf(replyPayload(dm)).text).toContain("Bitte auf dem Discord-Server ausführen, für den die Ab-/Anwesenheit gelten soll – oder im Web unter Anmeldungen eintragen.");
     });
 });
 
@@ -92,8 +131,7 @@ describe("Abwesenheit", () => {
 
         const modal = submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" });
         await command.execute(modal);
-        const picker = replyPayload(modal);
-        expect(picker.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        const picker = modalPayload(modal);
         expect(answerOf(picker).description).toContain("Reason: Urlaub");
         expect(answerOf(picker).description).toContain("Pick the raids to sign off from (2 of 2).");
         // only the panel's category, every raid picked at first
@@ -113,7 +151,7 @@ describe("Abwesenheit", () => {
         expect(mocks.signups.get(`eh-b/${ANNA}`)).toMatchObject({ status: "absence", comment: "Urlaub" });
         expect(mocks.signups.get(`eh-a/${ANNA}`)).toBeUndefined();
         expect(mocks.signups.get(`eh-c/${ANNA}`)).toBeUndefined();
-        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ categoryId: "cat1", skip: ["eh-a"], via: "panel" });
+        expect(store.listEntries({ userId: ANNA })[0]).toMatchObject({ scope: [{ guildId: "g1", categoryIds: ["cat1"] }], skip: ["eh-a"], via: "panel" });
         expect(discord.sendDirectMessage).toHaveBeenCalledTimes(1);
 
         // the session is over
@@ -123,27 +161,74 @@ describe("Abwesenheit", () => {
     });
 
     it("lehnt ein unlesbares Datum auf Englisch ab", async () => {
-        const modal = submit("availability:ma:", { from: "irgendwann", to: "" });
+        const modal = submit("availability:ma:", { from: "irgendwann", to: "" }, HERE);
         await command.execute(modal);
         // what was typed, how to write it, and one click back into the modal
-        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ I could not read **irgendwann** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**");
-        expect(answerOf(replyPayload(modal)).components.map((c) => c.custom_id || (c.data && c.data.custom_id))).toEqual(["availability:a:"]);
+        expect(answerOf(modalPayload(modal)).description).toBe("⚠️ I could not read **irgendwann** as a date. Write it like **24.10.**, **24.10.2026**, **24 Oct** or a whole period like **24.10.-31.10.**");
+        expect(answerOf(modalPayload(modal)).components.map((c) => c.custom_id || (c.data && c.data.custom_id))).toEqual(["availability:a:"]);
         expect(store.listEntries()).toEqual([]);
     });
 
     it("„Cancel“ speichert nichts", async () => {
-        const modal = submit("availability:ma:", { from: dayPlus(1), to: "" });
+        const modal = submit("availability:ma:", { from: dayPlus(1), to: "" }, HERE);
         await command.execute(modal);
-        const cancel = click(`availability:${tokenOf(replyPayload(modal))}:x`);
+        const cancel = click(`availability:${tokenOf(modalPayload(modal))}:x`);
         await command.execute(cancel);
         expect(answerOf(cancel.update.mock.calls[0][0]).description).toContain("nothing was saved");
         expect(store.listEntries()).toEqual([]);
     });
 });
 
+describe("Geltungsbereich je Server", () => {
+    const TWO = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" }, g2: { botLanguage: "en" } }, discordServers: { servers: [{ guildId: "g1", label: "Pulse" }, { guildId: "g2", label: "PuGs" }] } };
+    const saveFrom = async (modal) => {
+        await command.execute(modal);
+        const save = click(`availability:${tokenOf(modalPayload(modal))}:save`);
+        await command.execute(save);
+        return store.listEntries({ userId: ANNA })[0];
+    };
+
+    it("/availability ohne Kategorie gilt auf dem Server, auf dem der Befehl lief", async () => {
+        mocks.access.config = TWO;
+        const modal = submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) }, { guild: { id: "g2" } });
+        const entry = await saveFrom(modal);
+        expect(entry.scope).toEqual([{ guildId: "g2", categoryIds: [] }]);
+        expect(discord.guildMembership).not.toHaveBeenCalled();
+    });
+
+    it("eine Auswahl von vor dem Deploy ohne scope nimmt die Kategorie bzw. den Server der Interaktion", async () => {
+        const dialog = require("../../../src/utils/signup/availabilityDialog");
+        const stripScope = async (modal) => {
+            await command.execute(modal);
+            const token = tokenOf(modalPayload(modal));
+            const old = dialog.getSession(token, ANNA);
+            delete old.scope;
+            dialog.saveSession(token, old);
+            return token;
+        };
+        mocks.access.config = TWO;
+        const fromCommand = await stripScope(submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) }, { guild: { id: "g2" } }));
+        await command.execute(click(`availability:${fromCommand}:save`, { guild: { id: "g2" } }));
+        expect(store.listEntries({ userId: ANNA })[0].scope).toEqual([{ guildId: "g2", categoryIds: [] }]);
+
+        store.removeEntry(store.listEntries({ userId: ANNA })[0].id);
+        mocks.access.config = { guildId: "g1", botLanguage: "en" };
+        const fromPanel = await stripScope(submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5) }));
+        await command.execute(click(`availability:${fromPanel}:save`));
+        expect(store.listEntries({ userId: ANNA })[0].scope).toEqual([{ guildId: "g1", categoryIds: ["cat1"] }]);
+    });
+
+    it("eine Kategorie, deren Server sich nicht auflösen lässt, wird in der Altform gespeichert", async () => {
+        // no server list, no category cache: the category alone decides the server (scopeOf)
+        mocks.access.config = { botLanguage: "en" };
+        const entry = await saveFrom(submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5) }));
+        expect(entry.scope).toEqual([{ guildId: "", categoryIds: ["cat1"] }]);
+    });
+});
+
 describe("Anwesenheit", () => {
     it("ohne Charakter verweist der Knopf aufs Profil", async () => {
-        const btn = click("availability:p:");
+        const btn = click("availability:p:", HERE);
         await command.execute(btn);
         expect(btn.showModal).not.toHaveBeenCalled();
         expect(answerOf(replyPayload(btn)).description).toMatch(/no character/);
@@ -151,13 +236,13 @@ describe("Anwesenheit", () => {
 
     it("schlägt den ersten Charakter vor, lässt ihn wechseln und meldet als Dabei an", async () => {
         withCharacters();
-        const btn = click("availability:p:");
+        const btn = click("availability:p:", HERE);
         await command.execute(btn);
         expect(btn.showModal.mock.calls[0][0].data.custom_id).toBe("availability:mp:");
 
-        const modal = submit("availability:mp:", { from: dayPlus(0), to: dayPlus(5) });
+        const modal = submit("availability:mp:", { from: dayPlus(0), to: dayPlus(5) }, HERE);
         await command.execute(modal);
-        const picker = replyPayload(modal);
+        const picker = modalPayload(modal);
         expect(answerOf(picker).description).toContain("Character: **Zibbo** · Holy");
         expect(raidSelect(picker).options.map((o) => o.data.value)).toEqual(["eh-a", "eh-b", "eh-c"]);
         const token = tokenOf(picker);
@@ -176,10 +261,10 @@ describe("Anwesenheit", () => {
 describe("Deutsch als Standard", () => {
     it("antwortet ohne eigene Wahl in der Server-Sprache Deutsch", async () => {
         mocks.access.config = {};
-        const modal = submit("availability:ma:", { from: "irgendwann", to: "" });
+        const modal = submit("availability:ma:cat1", { from: "irgendwann", to: "" });
         await command.execute(modal);
-        expect(answerOf(replyPayload(modal)).description).toBe("⚠️ **irgendwann** kann ich nicht als Datum lesen. Schreib es z. B. als **24.10.**, **24.10.2026**, **24. Okt** oder gleich als Zeitraum **24.10.-31.10.**");
-        const btn = click("availability:a:");
+        expect(answerOf(modalPayload(modal)).description).toBe("⚠️ **irgendwann** kann ich nicht als Datum lesen. Schreib es z. B. als **24.10.**, **24.10.2026**, **24. Okt** oder gleich als Zeitraum **24.10.-31.10.**");
+        const btn = click("availability:a:cat1");
         await command.execute(btn);
         expect(btn.showModal.mock.calls[0][0].data.title).toBe("Abwesenheit eintragen");
     });
@@ -187,7 +272,7 @@ describe("Deutsch als Standard", () => {
 
 describe("Meine Einträge", () => {
     it("listet die Einträge und löscht einen über die Auswahl", async () => {
-        const { entry } = await availability.createEntry(ANNA, { kind: "absence", from: dayPlus(10), to: dayPlus(12), comment: "Kur" }, { dm: false });
+        const { entry } = await availability.createEntry(ANNA, { kind: "absence", from: dayPlus(10), to: dayPlus(12), comment: "Kur", scope: [{ guildId: "g1", categoryIds: [] }] }, { dm: false });
         const list = click("availability:l:cat1");
         await command.execute(list);
         const payload = replyPayload(list);
@@ -198,6 +283,20 @@ describe("Meine Einträge", () => {
         await command.execute(del);
         expect(answerOf(del.update.mock.calls[0][0]).description).toContain("Entry deleted.");
         expect(store.listEntries()).toEqual([]);
+    });
+
+    it("nennt Server und Kategorien des Eintrags und alle Charaktere einer Anwesenheit", async () => {
+        withCharacters();
+        mocks.access.config = { ...mocks.access.config, discordServers: { servers: [{ guildId: "g1", label: "Pulse" }] } };
+        await availability.createEntry(ANNA, {
+            kind: "presence", from: dayPlus(10), to: dayPlus(12), scope: [{ guildId: "g1", categoryIds: [] }],
+            characters: [{ character: "zibbo", spec: "Priest-Holy" }, { character: "zibbowar", spec: "Warrior-Protection" }],
+        }, { dm: false });
+        const list = click("availability:l:");
+        await command.execute(list);
+        const text = answerOf(replyPayload(list)).description;
+        expect(text).toContain("Pulse");
+        expect(text).toMatch(/Zibbo · Holy.*Zibbowar · Protection/);
     });
 
     it("aus der eigenen (ephemeren) Liste heraus wird die Nachricht ersetzt", async () => {
@@ -399,7 +498,7 @@ describe("switched-off sections (#969)", () => {
             store.setFeatures("cat1", { attendance: true });
             const modal = submit("availability:ma:cat1", { from: dayPlus(0), to: dayPlus(5), reason: "Urlaub" });
             await command.execute(modal);
-            const token = tokenOf(replyPayload(modal));
+            const token = tokenOf(modalPayload(modal));
             store.setFeatures("cat1", { attendance: false });
             const i = step(token);
             await command.execute(i);
@@ -413,9 +512,9 @@ describe("switched-off sections (#969)", () => {
         expect(store.listEntries({ userId: ANNA })).toEqual([]);
         expect(mocks.signups.get(`eh-a/${ANNA}`)).toBeUndefined();
 
-        const second = submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) });
+        const second = submit("availability:ma:", { from: dayPlus(0), to: dayPlus(5) }, HERE);
         await command.execute(second);
-        const cancel = click(`availability:${tokenOf(replyPayload(second))}:x`);
+        const cancel = click(`availability:${tokenOf(modalPayload(second))}:x`);
         await command.execute(cancel);
         expect(answerOf(cancel.update.mock.calls[0][0]).text).toContain("Cancelled");
     });

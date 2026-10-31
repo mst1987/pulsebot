@@ -9,13 +9,13 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -49,7 +49,7 @@ jest.mock("../../../../src/web/characters/roster", () => {
     return { ...actual, rosterCharacter: jest.fn(actual.rosterCharacter) };
 });
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -58,11 +58,11 @@ jest.mock("../../../../src/stores/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -80,7 +80,7 @@ jest.mock("../../../../src/stores/logStore", () => ({
     }),
 }));
 jest.mock("../../../../src/classes/warcraftlogs", () => jest.fn());
-jest.mock("../../../../src/stores/lootStore", () => ({
+jest.mock("../../../../src/stores/loot/lootStore", () => ({
     addImport: jest.fn(() => ({ added: 0, skipped: 0 })),
     listByEvent: jest.fn(() => []),
     listByCharacter: jest.fn(() => []),
@@ -99,12 +99,12 @@ jest.mock("../../../../src/services/characters/characterInfo", () => ({
         fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "",
     })),
 }));
-jest.mock("../../../../src/stores/characterStore", () => ({
+jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
     characterMap: jest.fn(() => ({})),
 }));
-jest.mock("../../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: jest.fn(() => ({})),
     listAllAssignments: jest.fn(() => ({})),
     setCategoryAssignments: jest.fn(),
@@ -183,12 +183,12 @@ jest.mock("../../../../src/utils/loot/wowhead", () => {
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
-const lootStore = require("../../../../src/stores/lootStore");
+const lootStore = require("../../../../src/stores/loot/lootStore");
 const characterInfo = require("../../../../src/services/characters/characterInfo");
-const characterStore = require("../../../../src/stores/characterStore");
-const raiderCharactersStore = require("../../../../src/stores/raiderCharactersStore");
+const characterStore = require("../../../../src/stores/roster/characterStore");
+const raiderCharactersStore = require("../../../../src/stores/roster/raiderCharactersStore");
 const charGearIssues = require("../../../../src/web/characters/charGearIssues");
-const rosterHidden = require("../../../../src/stores/rosterHiddenStore");
+const rosterHidden = require("../../../../src/stores/roster/rosterHiddenStore");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get, post } = routerClient(require("../../../../src/web/apiRoutes/roster/roster"));
@@ -254,7 +254,7 @@ describe("web/apiRoutes/roster", () => {
         });
 
         it("filtert nach Spielversion: Standard Hauptversion, ?version=forever, nie alle (#543, #741)", async () => {
-            const settingsStore = require("../../../../src/stores/settingsStore");
+            const settingsStore = require("../../../../src/stores/settings/settingsStore");
             settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", categoryVersion: { cat2: "forever" } });
             auth.getUser.mockReturnValue(ADMIN);
             characterInfo.annotatedCharacters.mockReturnValue([{
@@ -380,7 +380,7 @@ describe("web/apiRoutes/roster", () => {
         beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
 
         it("reads the facts in the page's version (#741), the main version while the others are hidden (#563), every one when none is asked", async () => {
-            const settingsStore = require("../../../../src/stores/settingsStore");
+            const settingsStore = require("../../../../src/stores/settings/settingsStore");
             const rosterCharacter = require("../../../../src/web/characters/roster").rosterCharacter;
             const lastVersion = () => rosterCharacter.mock.calls[rosterCharacter.mock.calls.length - 1][2].versionId;
             try {
@@ -397,7 +397,7 @@ describe("web/apiRoutes/roster", () => {
         });
 
         it("keeps other people's attendance from a raider, but not the drop sources; the own character stays whole", async () => {
-            const profiles = require("../../../../src/stores/raiderProfileStore");
+            const profiles = require("../../../../src/stores/roster/raiderProfileStore");
             auth.getUser.mockReturnValue(RAIDER);
             const other = json(await get("/api/roster/char", { name: "Nobody", items: "28453" })).data;
             expect(other).toMatchObject({ attendanceVisible: false, categories: [], attendance: {} });
@@ -415,8 +415,8 @@ describe("web/apiRoutes/roster", () => {
         });
 
         it("shows the own player every night neutral (#990), the orga every override and suggestion", async () => {
-            const profiles = require("../../../../src/stores/raiderProfileStore");
-            const { LEFT_EARLY_DISMISSED } = require("../../../../src/stores/attendanceOverridesStore");
+            const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+            const { LEFT_EARLY_DISMISSED } = require("../../../../src/stores/events/attendanceOverridesStore");
             const rosterCharacter = require("../../../../src/web/characters/roster").rosterCharacter;
             const night = (eventId, extra) => ({ eventId, title: "Kara", startTime: 1, attended: true, status: "present", detail: "inLog", reason: "", ...extra });
             const raids = [
@@ -456,7 +456,7 @@ describe("web/apiRoutes/roster", () => {
         });
 
         it("describes each worn item once: drop source and BiS specs", async () => {
-            // 28453 drops from Attumen in Karazhan (config/tbcContent.js)
+            // 28453 drops from Attumen in Karazhan (config/data/tbcContent.js)
             const res = await get("/api/roster/char", { name: "Nobody", items: "28453, 28453,abc,-4,0" });
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;

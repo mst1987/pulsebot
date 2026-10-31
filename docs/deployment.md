@@ -196,7 +196,7 @@ Deploy scheitern lassen (`|| true`).
 ### Schnappschuss vor dem Neustart (#695)
 
 Die riskantesten Momente für die Daten sind Deploys: neuer Store-Code und
-Migrationen, die beim Start laufen (`src/stores/settingsMigration.js`). Der
+Migrationen, die beim Start laufen (`src/stores/settings/settingsMigration.js`). Der
 stündliche Schnappschuss (#691) ist dann bis zu einer Stunde alt. Deshalb
 nimmt `deploy.sh` (Schritt 8) einen eigenen:
 

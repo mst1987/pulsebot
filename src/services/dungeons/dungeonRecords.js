@@ -9,11 +9,11 @@
 // of an old run history must not flood the channel — at most MAX_POSTS per
 // upload, and each run only once (recordPostedAt). A version the orga hid
 // (#563) posts nothing. A failed post is logged, never retried.
-const store = require("../../stores/dungeonRunStore");
-const settingsStore = require("../../stores/settingsStore");
+const store = require("../../stores/roster/dungeonRunStore");
+const settingsStore = require("../../stores/settings/settingsStore");
 const discord = require("../discord/discord");
 const { serverLang } = require("../discord/botLanguage");
-const { isVersionVisible } = require("../events/mainVersion");
+const { isVersionVisible } = require("../versions/mainVersion");
 const { runView } = require("./dungeonBoard");
 const { recordCard } = require("./dungeonCards");
 const logger = require("../../logger");

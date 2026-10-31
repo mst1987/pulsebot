@@ -19,33 +19,33 @@ jest.mock("../../../../src/services/loot/armoryGear", () => ({
     primeArmoryGear: jest.fn(async () => ({ answered: false, configured: true })),
     clearArmoryFor: jest.fn(),
 }));
-jest.mock("../../../../src/stores/logGearStore", () => ({
+jest.mock("../../../../src/stores/loot/logGearStore", () => ({
     loadLogGear: jest.fn(),
     clearLogGear: jest.fn(() => true),
     recentLogs: jest.fn(() => [{ id: "rep1" }]),
 }));
-jest.mock("../../../../src/config/tbcContent", () => ({ ...jest.requireActual("../../../../src/config/tbcContent"), sourceForItem: jest.fn(() => null) }));
-jest.mock("../../../../src/stores/simStore", () => ({
+jest.mock("../../../../src/config/data/tbcContent", () => ({ ...jest.requireActual("../../../../src/config/data/tbcContent"), sourceForItem: jest.fn(() => null) }));
+jest.mock("../../../../src/stores/loot/simStore", () => ({
     startCouncilSim: jest.fn(() => ({ started: true, status: "running" })),
     getJob: jest.fn(() => null),
 }));
 jest.mock("../../../../src/config/wowsims", () => ({ searchItems: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/councilStore", () => ({
+jest.mock("../../../../src/stores/loot/councilStore", () => ({
     listExcluded: jest.fn(() => ({})),
     include: jest.fn(() => true),
     exclude: jest.fn((character, meta) => ({ character, ...meta, at: 5 })),
     setRole: jest.fn((character, role, meta) => (role ? { role, ...meta } : null)),
     listViews: jest.fn(() => ({})),
-    setView: jest.fn((category, view, meta) => ({ ...jest.requireActual("../../../../src/stores/councilStore").normalizeView(view), at: 1, ...meta })),
+    setView: jest.fn((category, view, meta) => ({ ...jest.requireActual("../../../../src/stores/loot/councilStore").normalizeView(view), at: 1, ...meta })),
     VIEW_DEFAULTS: { role: "caster", tiers: [], contents: [], bisTier: "", version: "" },
 }));
 jest.mock("../../../../src/services/loot/charGear", () => ({
     gearFor: jest.fn(() => null),
     charKey: jest.fn((name) => String(name).toLowerCase()),
 }));
-jest.mock("../../../../src/stores/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
-jest.mock("../../../../src/config/councilSpecs", () => ({
-    ...jest.requireActual("../../../../src/config/councilSpecs"),
+jest.mock("../../../../src/stores/roster/characterStore", () => ({ characterMap: jest.fn(() => ({})) }));
+jest.mock("../../../../src/config/data/councilSpecs", () => ({
+    ...jest.requireActual("../../../../src/config/data/councilSpecs"),
     specFor: jest.fn(() => null),
 }));
 jest.mock("../../../../src/utils/wowsims/engine", () => ({
@@ -54,7 +54,7 @@ jest.mock("../../../../src/utils/wowsims/engine", () => ({
     buildIndividualExport: jest.fn(() => ({ supported: true, warnings: [], data: { gear: [] } })),
 }));
 jest.mock("../../../../src/services/discord/discord", () => ({ listCategories: jest.fn(() => []) }));
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../../src/utils/loot/wowhead", () => ({ ...jest.requireActual("../../../../src/utils/loot/wowhead"), searchItems: jest.fn(async () => []) }));
 
 let mockUser = null;
@@ -63,24 +63,24 @@ let mockBody = {};
 const lc = require("../../../../src/web/loot/lootCouncil");
 const { bisLists } = require("../../../../src/web/loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../../src/services/loot/armoryGear");
-const { loadLogGear, clearLogGear, recentLogs } = require("../../../../src/stores/logGearStore");
-const { sourceForItem } = require("../../../../src/config/tbcContent");
-const { startCouncilSim, getJob } = require("../../../../src/stores/simStore");
+const { loadLogGear, clearLogGear, recentLogs } = require("../../../../src/stores/loot/logGearStore");
+const { sourceForItem } = require("../../../../src/config/data/tbcContent");
+const { startCouncilSim, getJob } = require("../../../../src/stores/loot/simStore");
 const { searchItems } = require("../../../../src/config/wowsims");
-const councilStore = require("../../../../src/stores/councilStore");
+const councilStore = require("../../../../src/stores/loot/councilStore");
 const { gearFor } = require("../../../../src/services/loot/charGear");
-const { characterMap } = require("../../../../src/stores/characterStore");
-const { specFor } = require("../../../../src/config/councilSpecs");
+const { characterMap } = require("../../../../src/stores/roster/characterStore");
+const { specFor } = require("../../../../src/config/data/councilSpecs");
 const engine = require("../../../../src/utils/wowsims/engine");
 const discord = require("../../../../src/services/discord/discord");
-const { getConfig } = require("../../../../src/stores/settingsStore");
+const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const routesModule = require("../../../../src/web/apiRoutes/loot/lootCouncil");
 const {
     getLootCouncil, getOverview, postLootCouncilSim, getLootCouncilSim, getItemSearch, getBisLists,
     postExclude, postRole, getExport, postArmoryRefresh, postLogGear, getViews, postView, routes,
 } = routesModule;
 const { mockRes, status, body, json } = require("../../../helpers/http");
-const manualBisStore = require("../../../../src/stores/manualBisStore");
+const manualBisStore = require("../../../../src/stores/loot/manualBisStore");
 const wowheadUtil = require("../../../../src/utils/loot/wowhead");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 

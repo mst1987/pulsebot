@@ -2,8 +2,8 @@
 // suggestion (#262), not for the log analysis.
 //
 // Nothing here is maintained twice: the buffs themselves (label, icon, the
-// roles they are worth having on) come from config/raidBuffs.js and
-// config/totems.js. This file only adds what those two do not say because the
+// roles they are worth having on) come from config/data/raidBuffs.js and
+// config/data/totems.js. This file only adds what those two do not say because the
 // log analysis never needed it: which *spec* provides a buff when it is a
 // talent (Trueshot Aura, Moonkin Aura, Totem of Wrath …), whether it reaches
 // the party or the whole raid, and which buffs a game version does not have.
@@ -12,8 +12,8 @@
 // they are not a reason to put anybody into a group. Racial auras (Draenei)
 // are left out too: a race is not a spec, and the setup places specs.
 
-const { BUFFS } = require("../raidBuffs");
-const { TOTEMS } = require("../totems");
+const { BUFFS } = require("../data/raidBuffs");
+const { TOTEMS } = require("../data/totems");
 
 // Buffs a talent provides, by spec key; every other buff comes from each spec
 // of its providing class.

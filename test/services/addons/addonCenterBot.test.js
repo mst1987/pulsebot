@@ -11,10 +11,10 @@ let mockConfig = {};
 let mockBase = "https://eh.example";
 
 jest.mock("../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn(async () => mockAccess) }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn(async () => mockAccess) }));
 let mockLang = "de";
 jest.mock("../../../src/services/discord/botLanguage", () => ({ langOfInteraction: () => mockLang }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/utils/publicUrl", () => ({ publicBaseUrl: () => mockBase }));
 jest.mock("../../../src/classes/githubReleases", () => ({
     ...jest.requireActual("../../../src/classes/githubReleases"),
@@ -26,7 +26,7 @@ const github = require("../../../src/classes/githubReleases");
 const { resetAddonReleaseCache } = require("../../../src/services/addons/addonReleases");
 const { resetDownloadLimit, LIMIT } = require("../../../src/services/addons/downloadLimit");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
-const store = require("../../../src/stores/addonCenterStore");
+const store = require("../../../src/stores/settings/addonCenterStore");
 const bot = require("../../../src/services/addons/addonCenterBot");
 const button = require("../../../src/commands/lookup/addonCenterButton");
 const { emptyAccess } = require("../../../src/config/permissions");

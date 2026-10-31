@@ -4,9 +4,9 @@
 // so a Forever raid's loot links Forever's
 // Wowhead and never the TBC one. Asked once per import, after the target event
 // is known (the parse itself linked with the main version).
-const { getEvent } = require("../../stores/eventStore");
-const { versionOfEvent } = require("../events/mainVersion");
-const { versionLinks } = require("../events/versionSettings");
+const { getEvent } = require("../../stores/events/eventStore");
+const { versionOfEvent } = require("../versions/mainVersion");
+const { versionLinks } = require("../versions/versionSettings");
 const { enrichItemNames } = require("../../utils/loot/lootImport");
 
 /** The version of an import target `{ eventId, categoryId }`. */

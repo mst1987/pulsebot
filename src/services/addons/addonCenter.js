@@ -3,7 +3,7 @@
 // with every addon of the channel's game version, a "Herunterladen" button
 // and a "Patchnotes" link (to the web page) each; a click sends the file to the clicking member alone
 // (services/addons/addonCenterBot.js). The builders are addonCenterPanel.js, the
-// settings and what was posted stores/addonCenterStore.js.
+// settings and what was posted stores/settings/addonCenterStore.js.
 //
 // The job (startAddonCenter, every CHECK_MS, first FIRST_DELAY_MS after the
 // start) asks the release cache (addonReleases.releaseFor, 10 minutes) for each
@@ -19,18 +19,18 @@
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
 // Nothing runs while no centre is posted or the bot is offline.
 const crypto = require("crypto");
-const store = require("../../stores/addonCenterStore");
-const { getConfig } = require("../../stores/configStore");
+const store = require("../../stores/settings/addonCenterStore");
+const { getConfig } = require("../../stores/settings/configStore");
 const discord = require("../discord/discord");
 const { appEmojiMap } = require("../discord/appEmojis");
-const { versionLabel } = require("../events/versionSettings");
+const { versionLabel } = require("../versions/versionSettings");
 const { serverLang } = require("../discord/botLanguage");
-const { categoryIdOfChannel } = require("../events/commandVersion");
-const { mainVersionFor, isVersionVisible, knownVersion } = require("../events/mainVersion");
+const { categoryIdOfChannel } = require("../versions/commandVersion");
+const { mainVersionFor, isVersionVisible, knownVersion } = require("../versions/mainVersion");
 const { enabledAddons, releaseFor } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
 const { centerPayload, patchNotesUrl, escapeMd } = require("./addonCenterPanel");
-const { privilegedReason } = require("../discord/selfRole");
+const { privilegedReason } = require("../discord/roles/selfRole");
 const { tr } = require("../../utils/i18n/botText");
 const log = require("../../logger").child("addonCenter");
 
@@ -113,7 +113,7 @@ function payloadHash(payload) {
 
 /**
  * Whether the centre offers "Updates abonnieren": only with an update role that carries
- * no rights (services/discord/selfRole.js) — the bot rights from the config and the rosters always,
+ * no rights (services/discord/roles/selfRole.js) — the bot rights from the config and the rosters always,
  * what it grants in Discord when the channel's server is in the cache.
  */
 function offersSubscribe(channelId, config) {

@@ -15,11 +15,11 @@
 // orga only - every caller of profileView is one of them (the own profile, the
 // orga's profile and character views).
 
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { armoryUrlFor } = require("./charLinks");
-const { blizzardFor } = require("../../services/events/versionSettings");
-const { mainVersionFor } = require("../../services/events/mainVersion");
-const profiles = require("../../stores/raiderProfileStore");
+const { blizzardFor } = require("../../services/versions/versionSettings");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { specEvidence, logIndex } = require("./profileLogs");
 const { characterEvidence, seenIndex } = require("../../services/characters/characterEvidence");
 const { wishItemView } = require("../../services/characters/wishItems");

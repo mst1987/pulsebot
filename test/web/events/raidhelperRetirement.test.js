@@ -1,13 +1,13 @@
 // #291: the switch-over checklist — every item, what blocks the switch, and the switch itself.
 // #927: both per Discord server; the switch is serverSettings[guildId].raidhelper.enabled.
-jest.mock("../../../src/stores/settingsStore", () => ({
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
 }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(() => null), isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn(() => null) }));
 // the upcoming events come from the server's synced list, never from raid-helper.xyz
 const mockGetAllEvents = jest.fn(async () => []);
 const mockCreateClient = jest.fn(() => ({ getAllEvents: mockGetAllEvents }));
@@ -21,13 +21,13 @@ jest.mock("../../../src/services/discord/discord", () => ({
     botCanManageEvents: jest.fn(() => null),
     listCategories: jest.fn(() => []),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
-jest.mock("../../../src/stores/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/specHistoryStore", () => ({ importStatus: jest.fn(() => ({ importedEvents: 0, users: 0, lastRun: null })) }));
 
-const { getConfig, saveConfig } = require("../../../src/stores/settingsStore");
+const { getConfig, saveConfig } = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
-const specHistory = require("../../../src/stores/specHistoryStore");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
+const specHistory = require("../../../src/stores/roster/specHistoryStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const { buildChecklist, loadChecklist, setRaidhelperDisabled } = require("../../../src/web/events/raidhelperRetirement");
 

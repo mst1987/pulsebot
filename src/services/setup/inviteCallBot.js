@@ -10,7 +10,7 @@
 // router on every click. Everyone else sees the button and gets told no.
 const { ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { invitePlan, callInvite, INVITE_GROUPS } = require("./inviteCall");
 const { INVITE_PREFIX, inviteId } = require("./setupCore");
 

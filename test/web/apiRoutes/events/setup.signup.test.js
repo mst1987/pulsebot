@@ -4,16 +4,16 @@
 let mockUser = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const mockEvents = new Map();
-jest.mock("../../../../src/stores/eventStore", () => ({
+jest.mock("../../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
     listEvents: () => [],
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({ listProfiles: () => [] }));
+jest.mock("../../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: () => [] }));
 jest.mock("../../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: () => ({}), attendanceFor: () => ({ pct: null }) }));
 jest.mock("../../../../src/services/discord/discord", () => ({ resolveUserNames: jest.fn(async () => ({})), listAllChannels: () => [], listGuilds: () => [{ id: "g1" }] }));
 jest.mock("../../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => null) }));

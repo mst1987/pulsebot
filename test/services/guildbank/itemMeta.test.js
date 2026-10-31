@@ -6,15 +6,15 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
     ...jest.requireActual("../../../src/utils/loot/wowhead"),
     lookupItemDetails: jest.fn(),
 }));
-jest.mock("../../../src/services/events/versionSettings", () => ({
+jest.mock("../../../src/services/versions/versionSettings", () => ({
     settingsForVersion: jest.fn((v) => ({ versionId: v, wowheadPath: v === "tbc" ? "tbc" : "" })),
 }));
 
 const wowhead = require("../../../src/utils/loot/wowhead");
-const { settingsForVersion } = require("../../../src/services/events/versionSettings");
+const { settingsForVersion } = require("../../../src/services/versions/versionSettings");
 const fs = require("fs");
-const store = require("../../../src/stores/guildBankStockStore");
-const requestStore = require("../../../src/stores/guildBankStore");
+const store = require("../../../src/stores/loot/guildBankStockStore");
+const requestStore = require("../../../src/stores/loot/guildBankStore");
 const itemMeta = require("../../../src/services/guildbank/itemMeta");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");

@@ -16,19 +16,19 @@
 // rule set (utils/logcheck/rules.js) must be ready AND a Warcraft-Logs site
 // must be known for it. Today that is TBC only — Forever's rule set is
 // prepared but not ready, and its site is not known yet. Whether it DOES is
-// the feature "logcheck" of services/events/versionCapabilities.js (#761):
+// the feature "logcheck" of services/versions/versionCapabilities.js (#761):
 // possible as above, and not switched off in Einstellungen → Spielversion.
 // A log of any other version is refused with a clear message before a single
 // request goes to Warcraft Logs (UnsupportedVersionError in utils/logcheck/report.js).
 const WarcraftLogs = require("../../classes/warcraftlogs");
 const { parseReportLink } = require("../../utils/logcheck/logLinks");
 const { LEGACY_VERSION, VERSIONS } = require("../../config/gameVersions");
-const { knownVersion, versionOfEvent, mainVersionFor } = require("../events/mainVersion");
-const { versionLinks, versionLabel } = require("../events/versionSettings");
-const { versionOfLog } = require("../events/storedVersion");
-const { contentsForText, versionsOfContent } = require("../../config/raidContent");
+const { knownVersion, versionOfEvent, mainVersionFor } = require("../versions/mainVersion");
+const { versionLinks, versionLabel } = require("../versions/versionSettings");
+const { versionOfLog } = require("../versions/storedVersion");
+const { contentsForText, versionsOfContent } = require("../../config/data/raidContent");
 
-const capabilities = require("../events/versionCapabilities");
+const capabilities = require("../versions/versionCapabilities");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 
@@ -173,7 +173,7 @@ function pinnedCategoryVersion(log, { config } = {}) {
     let cfg = config;
     if (!cfg) {
         try {
-            cfg = require("../../stores/configStore").getConfig() || {};
+            cfg = require("../../stores/settings/configStore").getConfig() || {};
         } catch {
             cfg = {};
         }

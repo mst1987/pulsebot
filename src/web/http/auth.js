@@ -7,15 +7,15 @@ const {
     discordClientId, discordClientSecret, publicBaseUrl, logcheckAdminIds,
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../../config/variables");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissions");
 // What an account may do (its roles on the configured servers, the base access) is
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const {
     computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild,
-} = require("../../services/discord/userAccess");
-const { configForGuild } = require("../../services/discord/serverAccess");
+} = require("../../services/discord/members/userAccess");
+const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 
@@ -350,6 +350,6 @@ function destroy(sid) {
 module.exports = {
     configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
     csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, sessionGuildAccess,
-    // services/discord/userAccess.js, passed on for the web side
+    // services/discord/members/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,
 };

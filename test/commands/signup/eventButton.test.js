@@ -5,14 +5,14 @@
 const { MessageFlags } = require("discord.js");
 const { answerOf } = require("../../helpers/signupMocks");
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/settings/settingsStore", () => require("../../helpers/signupMocks").settingsStore());
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/signupMocks").discord());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1, logcheckAdminIds: [], adminRoleIds: [] }));
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventButton");
 const {
     parseButtonId, orderedValues, firstCharacterTo, withAddedCharacter, refusal,
@@ -20,7 +20,7 @@ const {
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const userPrefs = require("../../../src/stores/userPrefsStore");
+const userPrefs = require("../../../src/stores/settings/userPrefsStore");
 const { cardButtons } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
@@ -154,7 +154,7 @@ describe("commands/signup/eventButton", () => {
             mocks.signups.set(`eh-kara/${ANNA}`, signupOf([["Zibbo", "Priest-Holy"]]));
             const i = click("quick");
             await command.execute(i);
-            expect(require("../../../src/stores/signupStore").saveSignup).not.toHaveBeenCalled();
+            expect(require("../../../src/stores/events/signupStore").saveSignup).not.toHaveBeenCalled();
             expect(answerOf(replyOf(i)).title).toBe("You are already signed up for Karazhan");
             expect(selectOf(replyOf(i)).custom_id).toBe("event-btn:eh-kara:pick:s");
         });

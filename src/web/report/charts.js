@@ -13,7 +13,7 @@
 // being squeezed, while the icons and values stay put.
 //
 // Shapes the builders consume are the `timeline` field of a report (see
-// utils/logcheck/fightTimeline.js): times in ms relative to the fight start,
+// utils/logcheck/fights/fightTimeline.js): times in ms relative to the fight start,
 // bands as `[from, to]` pairs or `{ from, to, stacks }` objects.
 
 const ROW_H = 52;        // one timeline row

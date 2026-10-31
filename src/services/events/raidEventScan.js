@@ -11,10 +11,10 @@
 const { createRaidhelperClient, raidhelperDisabled } = require("../../utils/raidhelper/client");
 const { isBackground } = require("../../utils/raidhelper/budget");
 const discord = require("../discord/discord");
-const { saveRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
-const { RECENT_WINDOW_DAYS } = require("./recentEvents");
+const { saveRaidEvents, getRaidEvent } = require("../../stores/events/raidEventStore");
+const { RECENT_WINDOW_DAYS } = require("./overview/recentEvents");
 const { signupStatus } = require("../../utils/attendance");
-const { mainVersionFor } = require("./mainVersion");
+const { mainVersionFor } = require("../versions/mainVersion");
 
 // A finished raid's raidplan costs one extra HTTP call, so only events without a
 // setup snapshot are probed, and at most this many per scan — a backlog is worked

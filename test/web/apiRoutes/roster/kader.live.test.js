@@ -29,7 +29,7 @@ jest.mock("../../../../src/web/characters/profileLogs", () => ({
 
 const auth = require("../../../../src/web/http/auth");
 const discord = require("../../../../src/services/discord/discord");
-const kaderStore = require("../../../../src/stores/kaderStore");
+const kaderStore = require("../../../../src/stores/roster/kaderStore");
 const presence = require("../../../../src/web/kader/kaderPresence");
 const { emptyAccess, mergeAccess, accessForUser } = require("../../../../src/config/permissions");
 const { get, post, request } = routerClient(require("../../../../src/web/apiRoutes/roster/kader"));

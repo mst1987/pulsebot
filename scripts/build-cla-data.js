@@ -1,4 +1,4 @@
-// Generates src/config/generated/claData.json (read by src/config/claData.js) from the cloned Apps Script source + extracted CSVs.
+// Generates src/config/generated/claData.json (read by src/config/data/claData.js) from the cloned Apps Script source + extracted CSVs.
 // Run once (and again if the CLA source changes). Not used at runtime.
 //
 // Inputs: scripts/data-sources/cla/*.csv (checked in) and the Apps Script source
@@ -126,7 +126,7 @@ const CONSUMABLES = {
 };
 
 // --- emit -----------------------------------------------------------------
-// The key meanings are documented in src/config/claData.js.
+// The key meanings are documented in src/config/data/claData.js.
 const data = {
     ENCHANTABLE_SLOTS: [0, 2, 4, 6, 7, 8, 9, 14, 15, 16],
     GEM_QUALITY: { ignore: 0, common: 1, uncommon: 2, rare: 3, epic: 4 },

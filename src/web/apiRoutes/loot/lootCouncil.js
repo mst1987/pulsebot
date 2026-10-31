@@ -29,34 +29,34 @@ const { userCan } = require("../../../config/permissions");
 const { bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../../loot/lootCouncil");
 const { bisLists } = require("../../loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../services/loot/armoryGear");
-const { loadLogGear, clearLogGear, recentLogs } = require("../../../stores/logGearStore");
-const { sourceForItem } = require("../../../config/tbcContent");
-const { startCouncilSim, getJob } = require("../../../stores/simStore");
+const { loadLogGear, clearLogGear, recentLogs } = require("../../../stores/loot/logGearStore");
+const { sourceForItem } = require("../../../config/data/tbcContent");
+const { startCouncilSim, getJob } = require("../../../stores/loot/simStore");
 const { searchItems } = require("../../../config/wowsims");
-const councilStore = require("../../../stores/councilStore");
-const councilWeights = require("../../../stores/councilWeightsStore");
-const councilProfilesStore = require("../../../stores/councilProfilesStore");
-const { VIEW_DEFAULTS } = require("../../../stores/councilViewSchema");
+const councilStore = require("../../../stores/loot/councilStore");
+const councilWeights = require("../../../stores/loot/councilWeightsStore");
+const councilProfilesStore = require("../../../stores/loot/councilProfilesStore");
+const { VIEW_DEFAULTS } = require("../../../stores/settings/councilViewSchema");
 const councilProfiles = require("../../../services/loot/councilProfiles");
-const rosterStore = require("../../../stores/rosterStore");
+const rosterStore = require("../../../stores/roster/rosterStore");
 const { itemFacts, itemClass } = require("../../../services/loot/itemWeights");
 const { gearFor, charKey } = require("../../../services/loot/charGear");
-const { characterMap } = require("../../../stores/characterStore");
-const { specFor, ROLES } = require("../../../config/councilSpecs");
+const { characterMap } = require("../../../stores/roster/characterStore");
+const { specFor, ROLES } = require("../../../config/data/councilSpecs");
 const engine = require("../../../utils/wowsims/engine");
-const { getConfig } = require("../../../stores/settingsStore");
-const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { mainVersionFor, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { councilOptsFromQuery, pageCouncilOpts, categoryOptions, pickVersion } = require("../../loot/councilQuery");
 const { buildCouncilView, councilCategoryIds } = require("../../loot/councilView");
 const { councilHead, councilRosters, councilOverview } = require("../../loot/councilTargets");
-const { councilContent: councilContentFor, featureState } = require("../../../services/events/versionCapabilities");
-const { knownVersion } = require("../../../services/events/mainVersion");
+const { councilContent: councilContentFor, featureState } = require("../../../services/versions/versionCapabilities");
+const { knownVersion } = require("../../../services/versions/mainVersion");
 const {
     manualIndex, manualItemView, manualCandidateSplit, manualBisGaps, searchManualItems, manualBisSpecsView,
 } = require("../../loot/manualBisCouncil");
 const { wowheadPathOf } = require("../../../services/characters/wishItems");
 const { searchItems: wowheadSearch } = require("../../../utils/loot/wowhead");
-const { versionLinks } = require("../../../services/events/versionSettings");
+const { versionLinks } = require("../../../services/versions/versionSettings");
 
 /**
  * GET /api/lootcouncil — roster, BiS gaps and filter options.
@@ -257,7 +257,7 @@ const postExclude = withUser({ write: "lootcouncil", csrf: true, body: true }, a
  * POST /api/lootcouncil/role — als was ein Raider eingeplant ist.
  *
  * Body: { character, role: "caster" | "healer" | "tank" | "melee" | "ranged" | "" }
- * (the council roles, ROLES in config/councilSpecs.js)
+ * (the council roles, ROLES in config/data/councilSpecs.js)
  *
  * Ein Heiler, der heute Offspec spielt, ist für diesen Abend ein DPS — mit
  * Casterset, Caster-BiS und Caster-Simulation. Aus den Daten geht das nicht

@@ -7,9 +7,9 @@
 // rules (which task is shown when, how full a role is) testable without mocking
 // Raid-Helper, Discord and five stores.
 const { DateTime } = require("luxon");
-const { contentsForText, iconOf } = require("../../config/raidContent");
+const { contentsForText, iconOf } = require("../../config/data/raidContent");
 const { instanceById, compositionFor, VERSIONS } = require("../../config/gameVersions");
-const { versionOfEvent } = require("../../services/events/mainVersion");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { enrichSlot, CLASS_COLORS } = require("../../utils/setup/setupView");
 const { signupStatus } = require("../../utils/attendance");
 const { plural } = require("../../utils/text");

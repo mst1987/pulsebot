@@ -24,7 +24,7 @@
 // via a Wowhead lookup; call it once at import time, not on every read, since
 // the same item ids repeat across a raid's loot.
 
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/versions/versionSettings");
 const { rulesFor } = require("../../config/gameVersions");
 
 /** A game version id the upload names, "" when it is missing or unknown. */
@@ -36,7 +36,7 @@ function knownGameVersion(value) {
 // Wowhead links of a game version (#542: its Wowhead path, "" when it has
 // none). Item names resolve in the tooltip even when an export (Gargul) only
 // gives us the id. An Anniversary re-issue links the original item Wowhead
-// knows (config/wowheadItemAliases.js). A parse links with the main version;
+// knows (config/data/wowheadItemAliases.js). A parse links with the main version;
 // the import relinks with the version of the event it lands on
 // (services/loot/lootVersion.js).
 function itemLink(itemId, versionId) {

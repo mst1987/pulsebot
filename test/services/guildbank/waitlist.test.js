@@ -2,9 +2,9 @@
 // item's portion, a rest to the end, nothing twice), the move-up against the stock with the open requests
 // taken off, and the orga's import from a pasted sheet (tab, ; or ,, names
 // without case and accents, unknown items). Real stores on temp files.
-const store = require("../../../src/stores/guildBankStore");
-const stockStore = require("../../../src/stores/guildBankStockStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const store = require("../../../src/stores/loot/guildBankStore");
+const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const waitlist = require("../../../src/services/guildbank/waitlist");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../src/utils/guildbank/guildBankScan");
 const { tempStoreFile } = require("../../helpers/tempStore");

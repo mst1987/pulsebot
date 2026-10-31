@@ -17,7 +17,7 @@ jest.mock("../../../src/services/discord/channelNaming", () => ({ deriveChannelN
 jest.mock("../../../src/services/events/eventMessage", () => ({ refreshEventMessage: jest.fn(async () => ({ channelId: "c-new", messageId: "m-new", reposted: true })) }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn() }));
 jest.mock("../../../src/services/discord/pingDelivery", () => ({ deliverUserPing: jest.fn(), sendDms: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/setup/setupEditor", () => ({ setupSummary: jest.fn(() => null) }));
 jest.mock("../../../src/services/setup/setupMessage", () => ({
     refreshSetupMessage: jest.fn(async () => null),
@@ -36,8 +36,8 @@ const { refreshEventMessage } = require("../../../src/services/events/eventMessa
 const { postOrEditSetupMessage } = require("../../../src/services/setup/setupMessage");
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const discordEvent = require("../../../src/services/discord/discordEvent");
-const eventStore = require("../../../src/stores/eventStore");
-const { markRaidplanPosted, getRaidplanPost } = require("../../../src/stores/raidplanPostStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const { markRaidplanPosted, getRaidplanPost } = require("../../../src/stores/raidplan/raidplanPostStore");
 const manage = require("../../../src/services/events/eventManage");
 const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 

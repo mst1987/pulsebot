@@ -16,14 +16,14 @@
 // and stay German; the ping in the channel speaks the event's language.
 const { ButtonBuilder, ButtonStyle, MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { getEventSoftres } = require("../../stores/eventSoftresStore");
+const { getEventSoftres } = require("../../stores/events/eventSoftresStore");
 const discord = require("../discord/discord");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
-const { eventVersionTag } = require("../events/versionTag");
+const { eventVersionTag } = require("../versions/versionTag");
 const { ruleFor, resolveBotAccess, eventMemberRoles } = require("../discord/botAccess");
-const { configForGuild, interactionGuildId } = require("../discord/serverAccess");
-const { getConfig } = require("../../stores/configStore");
+const { configForGuild, interactionGuildId } = require("../discord/servers/serverAccess");
+const { getConfig } = require("../../stores/settings/configStore");
 const { SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, resolveEvent, readStatus, refreshSoftresCard } = require("./softresStatus");
 
 /** Own events (eh-…) and Raid-Helper events (numeric ids). */

@@ -2,7 +2,7 @@
 // per item. The fields bankKey/itemId/"confirmed" are written by #633; the
 // fixtures here write them straight into the store's file.
 const fs = require("fs");
-const store = require("../../../src/stores/guildBankStore");
+const store = require("../../../src/stores/loot/guildBankStore");
 const { reservedByItem, handedOutSince, pendingByItem, reservedRequestCount, handedOutRequestCount } = require("../../../src/services/guildbank/reservations");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

@@ -1,22 +1,22 @@
 const mockListEvents = jest.fn(() => []);
 const mockAppendEventLog = jest.fn();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (...a) => mockListEvents(...a),
     appendEventLog: (...a) => mockAppendEventLog(...a),
 }));
 
 let mockSnapshot = { events: [] };
-jest.mock("../../../src/stores/raidhelperEventsStore", () => ({ readSnapshot: () => mockSnapshot }));
+jest.mock("../../../src/stores/events/raidhelperEventsStore", () => ({ readSnapshot: () => mockSnapshot }));
 
 const mockGetSoftres = jest.fn(() => null);
 const mockSetLink = jest.fn();
-jest.mock("../../../src/stores/eventSoftresStore", () => ({
+jest.mock("../../../src/stores/events/eventSoftresStore", () => ({
     getEventSoftres: (...a) => mockGetSoftres(...a),
     setEventSoftresLink: (...a) => mockSetLink(...a),
 }));
 
 const mockLootSystemOf = jest.fn(() => ({ softres: true }));
-jest.mock("../../../src/stores/eventLootSystemStore", () => ({ lootSystemOf: (...a) => mockLootSystemOf(...a) }));
+jest.mock("../../../src/stores/events/eventLootSystemStore", () => ({ lootSystemOf: (...a) => mockLootSystemOf(...a) }));
 
 const mockFetchTextChannel = jest.fn();
 jest.mock("../../../src/services/discord/discord", () => ({

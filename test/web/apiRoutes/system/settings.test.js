@@ -21,13 +21,13 @@ jest.mock("../../../../src/services/discord/languageChange", () => ({ afterServe
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({
     refreshPanels: jest.fn(() => Promise.resolve({ edited: 0, failed: 0, unchanged: 0 })),
 }));
-jest.mock("../../../../src/stores/reportStore", () => ({
+jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     deleteReport: jest.fn(() => true),
     getReport: jest.fn(() => null),
     saveReport: jest.fn((report, id) => id || "new-id"),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -57,7 +57,7 @@ jest.mock("../../../../src/stores/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
-jest.mock("../../../../src/stores/raidEventStore", () => ({
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({
     getRaidEvent: jest.fn(() => null),
     listRaidEvents: jest.fn(() => []),
     saveRaidEvents: jest.fn(),
@@ -66,12 +66,12 @@ jest.mock("../../../../src/stores/raidEventStore", () => ({
 // Discord list with the names it snapshots to disk. Reduced here to the live
 // list, so these route tests keep asserting against the discord mock alone and
 // touch no files; the merging itself is covered by categoryNames.test.js.
-jest.mock("../../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (guildId) => (guildId ? require("../../../../src/services/discord/discord").listCategories(guildId) : []),
     rememberCategories: jest.fn(),
 }));
-jest.mock("../../../../src/services/events/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
-jest.mock("../../../../src/stores/logStore", () => ({
+jest.mock("../../../../src/services/events/overview/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
+jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
     deleteLog: jest.fn(),
@@ -160,14 +160,14 @@ jest.mock("../../../../src/utils/loot/wowhead", () => {
         itemLink: actual.itemLink,
     };
 });
-jest.mock("../../../../src/stores/ingestTokenStore", () => ({
+jest.mock("../../../../src/stores/loot/ingestTokenStore", () => ({
     listTokens: jest.fn(() => []),
     createToken: jest.fn(),
     revokeToken: jest.fn(),
     assignTokenGuild: jest.fn(() => null),
 }));
 // The content switch (#563): the warning list and the archive export, steered per test.
-jest.mock("../../../../src/services/events/contentVersions", () => ({
+jest.mock("../../../../src/services/versions/contentVersions", () => ({
     upcomingByVersion: jest.fn(() => ({})),
     versionsWithData: jest.fn(() => new Set(["tbc"])),
     archiveExport: jest.fn(() => ({ exportedAt: "2026-10-01T12:00:00.000Z", mainVersion: "forever", versions: ["tbc", "classic"], loot: [], attendance: [] })),
@@ -189,7 +189,7 @@ jest.mock("../../../../src/web/http/apiBody", () => {
     return { readJsonBody: jest.fn(actual.readJsonBody), readRawBody: jest.fn(actual.readRawBody) };
 });
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 // #924: the per-server values every config answer carries - here for no or an unknown active server.
 const NO_SERVER_VALUES = {
@@ -262,7 +262,7 @@ describe("web/apiRoutes/settings", () => {
 
         // #994: every upload key works on one Discord server.
         describe("ingest tokens per server", () => {
-            const ingestTokens = require("../../../../src/stores/ingestTokenStore");
+            const ingestTokens = require("../../../../src/stores/loot/ingestTokenStore");
             const fullAdmin = () => auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             const limited = () => auth.getUser.mockReturnValue({
                 id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), settings: { read: true, write: true } },
@@ -567,7 +567,7 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("carries saved category roles over to the category's roster (#653)", async () => {
-                const rosterStore = require("../../../../src/stores/rosterStore");
+                const rosterStore = require("../../../../src/stores/roster/rosterStore");
                 const roster = rosterStore.createRoster({ name: "R", categoryId: "catRoster", roleIds: ["old"] });
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
@@ -737,8 +737,8 @@ describe("web/apiRoutes/settings", () => {
             });
 
             describe("a fixed version per category (#738)", () => {
-                const seriesStore = require("../../../../src/stores/eventSeriesStore");
-                const { onCategoryVersionSwitch } = require("../../../../src/services/events/categorySwitch");
+                const seriesStore = require("../../../../src/stores/events/eventSeriesStore");
+                const { onCategoryVersionSwitch } = require("../../../../src/services/categories/categorySwitch");
                 const BEFORE = { guildId: "g1", categoryIds: ["cat1"], mainVersion: "tbc", categoryVersion: { cat1: "tbc" } };
                 beforeEach(() => {
                     auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
@@ -797,8 +797,8 @@ describe("web/apiRoutes/settings", () => {
                 });
 
                 it("closes the category's roster and starts the new one with the dialog's choice (#739)", async () => {
-                    const rosterStore = require("../../../../src/stores/rosterStore");
-                    const configStore = require("../../../../src/stores/configStore");
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
+                    const configStore = require("../../../../src/stores/settings/configStore");
                     const { registerRosterVersionSwitch } = require("../../../../src/services/roster/rosterVersionSwitch");
                     rosterStore.useFile(tempStoreFile("switch-rosters.json"));
                     configStore.useFile(tempStoreFile("switch-config.json"));
@@ -834,7 +834,7 @@ describe("web/apiRoutes/settings", () => {
                 });
 
                 it("refuses a PuG onboarding role as the new roster's role before anything is written (#930)", async () => {
-                    const rosterStore = require("../../../../src/stores/rosterStore");
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
                     const PUG = "500000000000000009";
                     rosterStore.useFile(tempStoreFile("switch-pug-rosters.json"));
                     settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
@@ -862,7 +862,7 @@ describe("web/apiRoutes/settings", () => {
                 });
 
                 it("counts the managers the new roster takes over only from a closed old roster (#930)", async () => {
-                    const rosterStore = require("../../../../src/stores/rosterStore");
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
                     const PUG = "500000000000000009";
                     settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
                     const body = { categoryVersion: { cat1: "forever" }, categorySwitchFixes: { cat1: { roster: { create: true, roleIds: [] } } } };
@@ -886,7 +886,7 @@ describe("web/apiRoutes/settings", () => {
                 });
 
                 it("names the way out when switching back would reopen a roster with a PuG role (#930)", async () => {
-                    const rosterStore = require("../../../../src/stores/rosterStore");
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
                     const PUG = "500000000000000009";
                     rosterStore.useFile(tempStoreFile("switch-back-pug.json"));
                     settingsStore.getConfig.mockReturnValue({ ...BEFORE, pugRoles: { g1: { versions: { tbc: PUG }, classes: {} } } });
@@ -1220,7 +1220,7 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("refuses a role of the PuG onboarding as orga role, keeps an old entry (#930)", async () => {
-                const rosterStore = require("../../../../src/stores/rosterStore");
+                const rosterStore = require("../../../../src/stores/roster/rosterStore");
                 jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
@@ -1243,7 +1243,7 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("refuses raising an onboarding role's area right and a new role-sync pair (#930)", async () => {
-                const rosterStore = require("../../../../src/stores/rosterStore");
+                const rosterStore = require("../../../../src/stores/roster/rosterStore");
                 jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
@@ -1805,7 +1805,7 @@ describe("web/apiRoutes/settings", () => {
                     expect(Object.keys(saved)).toEqual(["serverSettings"]);
                     expect(saved.serverSettings[PUGS]).toHaveProperty("botLanguage", undefined);
                     // what the store makes of it: the key is gone, the server reads the default
-                    const { mergeServerSettings } = jest.requireActual("../../../../src/stores/configSchema");
+                    const { mergeServerSettings } = jest.requireActual("../../../../src/stores/settings/configSchema");
                     const merged = JSON.parse(JSON.stringify(mergeServerSettings(withDefault().serverSettings, saved.serverSettings)));
                     expect(merged[PUGS]).toEqual({});
                 });
@@ -1888,10 +1888,10 @@ describe("web/apiRoutes/settings", () => {
                     const saved = settingsStore.saveConfig.mock.calls[0][0];
                     expect(Object.keys(saved)).toEqual(["serverSettings"]);
                     expect(saved.serverSettings[PUGS]).toHaveProperty("discordVisuals", undefined);
-                    const { mergeServerSettings } = jest.requireActual("../../../../src/stores/configSchema");
+                    const { mergeServerSettings } = jest.requireActual("../../../../src/stores/settings/configSchema");
                     const merged = JSON.parse(JSON.stringify(mergeServerSettings(withVisuals().serverSettings, saved.serverSettings)));
                     expect(merged[PUGS]).toEqual({});
-                    const { serverVisuals } = jest.requireActual("../../../../src/services/discord/serverSettings");
+                    const { serverVisuals } = jest.requireActual("../../../../src/services/discord/servers/serverSettings");
                     expect(serverVisuals(PUGS, { config: { ...withVisuals(), serverSettings: merged } })).toEqual({ ...ON, eventCover: false });
                 });
 
@@ -1976,7 +1976,7 @@ describe("web/apiRoutes/settings", () => {
         });
 
         describe("Kategorie in der Server-Übersicht", () => {
-            const { scheduleRefresh } = require("../../../../src/services/events/raidOverview");
+            const { scheduleRefresh } = require("../../../../src/services/events/overview/raidOverview");
 
             it("stores the switch as booleans and redraws the overviews soon after a change", async () => {
                 readJsonBody.mockResolvedValue({ categoryServerOverview: { c1: false, c2: true, c3: "x" } });
@@ -2752,7 +2752,7 @@ describe("web/apiRoutes/settings", () => {
                 it("keeps the stored state intact after the real normalisation", async () => {
                     // saveConfig/getConfig go to the real configStore on a temp file:
                     // a refused save leaves the stored block as it was.
-                    const configStore = require("../../../../src/stores/configStore");
+                    const configStore = require("../../../../src/stores/settings/configStore");
                     configStore.useFile(tempStoreFile("ds-891-config.json"));
                     settingsStore.getConfig.mockImplementation(() => configStore.getConfig());
                     settingsStore.saveConfig.mockImplementation((p) => configStore.saveConfig(p));
@@ -2884,7 +2884,7 @@ describe("web/apiRoutes/settings", () => {
 // gets the coming raids per version, and the archive export is a download for
 // full admins only.
 describe("web/apiRoutes/settings: content switch (#563)", () => {
-    const contentVersions = require("../../../../src/services/events/contentVersions");
+    const contentVersions = require("../../../../src/services/versions/contentVersions");
 
     beforeEach(() => {
         requireAdmin.mockReset().mockImplementation(realMiddleware.requireAdmin);

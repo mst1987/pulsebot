@@ -3,20 +3,20 @@
 // gap in tanks and healers, the four figures of the head, the hints and one
 // raider's detail.
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => mockEvents.get(id) || null,
     listEvents: (_guildId, { sinceSeconds = 0 } = {}) => [...mockEvents.values()].filter((e) => e.startTime >= sinceSeconds),
 }));
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
     listSignups: (eventId) => [...mockSignups.entries()].filter(([k]) => k.startsWith(`${eventId}/`)).map(([, v]) => v),
 }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 
-const store = require("../../../src/stores/availabilityStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const store = require("../../../src/stores/events/availabilityStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const overview = require("../../../src/services/signups/absenceOverview");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { ownEvent } = require("../../factories/events");
@@ -176,6 +176,64 @@ describe("buildOverview", () => {
         expect(view.hints[0]).toMatchObject({ character: "often", spec: "Paladin-Protection", role: "tank", classId: "Paladin" });
         expect(view.hints[0]).not.toHaveProperty("signup");
     });
+
+    it("covers only the raids of the entry's server - a raid on another server stays a single sign-off", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        signup("eh-a", "u1", "absence");
+        signup("eh-b", "u1", "absence");
+        entry("u1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        const view = overview.buildOverview({ now: NOW });
+        const row = view.raiders.find((r) => r.userId === "u1");
+        expect(row.singles.map((s) => s.eventId)).toEqual(["eh-b"]);
+        expect(row.periods[0]).toMatchObject({ categoryId: "", categoryName: "" });
+    });
+
+    it("shows an entry of several categories when one of them is picked, named with all of them", () => {
+        entry("u1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["mon", "wed"] }] });
+        entry("u2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["wed"] }] });
+        const view = overview.buildOverview({ now: NOW, categoryId: "mon", categoryNames: { mon: "Montag", wed: "Mittwoch" } });
+        expect(view.raiders.map((r) => r.userId)).toEqual(["u1"]);
+        expect(view.raiders[0].periods[0]).toMatchObject({ categoryId: "", categoryName: "Montag, Mittwoch" });
+    });
+
+    it("an entry for a whole server shows only under that server's categories, an older one without scope everywhere", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        // the raids tell each category's server: mon on g1, wed on g2
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        entry("onG1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        entry("older", "2030-03-24", "2030-03-30");
+        const ids = (categoryId) => overview.buildOverview({ now: NOW, categoryId }).raiders.map((r) => r.userId).sort();
+        expect(ids("wed")).toEqual(["older", "onG2"]);
+        expect(ids("mon")).toEqual(["older", "onG1"]);
+        expect(ids("")).toEqual(["older", "onG1", "onG2"]);
+    });
+
+    it("a server-wide entry whose server has no active category shows only without a filter", () => {
+        mockConfig = { categoryIds: ["mon"], guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        expect(overview.buildOverview({ now: NOW }).raiders.map((r) => r.userId)).toEqual(["onG2"]);
+        expect(overview.buildOverview({ now: NOW, categoryId: "mon" }).raiders).toEqual([]);
+    });
+
+    it("shows one server with `guildId`: its raids and the entries that concern it, never another server's", () => {
+        mockConfig = { ...mockConfig, categoryIds: ["mon", "wed"], guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        entry("onG1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: ["wed"] }] });
+        entry("both", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["mon"] }, { guildId: "g2", categoryIds: [] }] });
+        entry("older", "2030-03-24", "2030-03-30");
+        const view = overview.buildOverview({ now: NOW, guildId: "g2" });
+        expect(view.raiders.map((r) => r.userId).sort()).toEqual(["both", "older", "onG2"]);
+        expect(view.raids.map((r) => r.id)).toEqual(["eh-b"]);
+        expect(view.categories.map((c) => c.id)).toEqual(["wed"]);
+        expect(overview.buildOverview({ now: NOW, guildId: "g1" }).raiders.map((r) => r.userId).sort()).toEqual(["both", "older", "onG1"]);
+    });
 });
 
 describe("raiderDetail", () => {
@@ -189,11 +247,38 @@ describe("raiderDetail", () => {
         const e = entry("u1", "2030-03-25", "2030-04-05");
         store.markApplied(e.id, "eh-x", { ok: true }, { now: NOW });
         const detail = overview.raiderDetail("u1", { now: NOW, withReasons: true });
-        expect(detail.entries).toEqual([expect.objectContaining({ from: "2030-03-25", days: 12, done: 1, state: "planned", comment: "Urlaub" })]);
+        expect(detail.entries).toEqual([expect.objectContaining({ from: "2030-03-25", days: 12, done: 1, state: "planned", comment: "Urlaub", characters: [] })]);
         // eh-other is a category u1 never raided in
         expect(detail.history.map((h) => [h.eventId, h.status])).toEqual([["eh-0", "in"], ["eh-1", "off"], ["eh-2", "none"], ["eh-3", "in"]]);
         expect(detail.counts).toEqual({ in: 2, off: 1, none: 1, other: 0 });
         expect(detail).toMatchObject({ userId: "u1", character: "u1", role: "healer", classId: "Druid", classColor: "#FF7D0A", specIcon: expect.stringMatching(/^[a-z_]+$/) });
+    });
+
+    it("gives every entry its readable scope and its characters with spec labels, as the dialog lists them", () => {
+        entry("u1", "2030-03-25", "2030-03-30", { kind: "presence", scope: [{ guildId: "g1", categoryIds: [] }, { guildId: "g2", categoryIds: ["mon"] }], characters: [{ character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc" }, { character: "Heiler", spec: "Priest-Holy", versionId: "forever" }] });
+        entry("u1", "2030-04-10", "2030-04-12", { categoryId: "wed" });
+        const detail = overview.raiderDetail("u1", { now: NOW, servers: { g1: "Pulse", g2: "PuGs" }, categoryNames: { mon: "Montag", wed: "Mittwoch" } });
+        const [older, presence] = detail.entries;
+        expect(presence.scope).toEqual([{ guildId: "g1", name: "Pulse", categories: [] }, { guildId: "g2", name: "PuGs", categories: [{ id: "mon", name: "Montag" }] }]);
+        expect(presence.characters).toEqual([
+            { character: "Nerathil", spec: "Mage-Arcane", versionId: "tbc", specLabel: "Arkan" },
+            { character: "Heiler", spec: "Priest-Holy", versionId: "forever", specLabel: expect.any(String) },
+        ]);
+        expect(presence.characters[1].specLabel).not.toBe("Priest-Holy");
+        expect(older).toMatchObject({ scope: [{ guildId: "", name: "", categories: [{ id: "wed", name: "Mittwoch" }] }], characters: [], categoryName: "Mittwoch" });
+    });
+
+    it("with `guildId` lists only the entries and last raids of that server", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-11", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-12", { guildId: "g2" }));
+        signup("eh-a", "u1", "signed");
+        signup("eh-b", "u1", "signed");
+        entry("u1", "2030-03-25", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("u1", "2030-04-01", "2030-04-05", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        const detail = overview.raiderDetail("u1", { now: NOW, guildId: "g2" });
+        expect(detail.entries.map((e) => e.from)).toEqual(["2030-04-01"]);
+        expect(detail.history.map((h) => h.eventId)).toEqual(["eh-b"]);
     });
 });
 

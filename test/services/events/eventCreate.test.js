@@ -27,7 +27,7 @@ jest.mock("../../../src/services/discord/discordChannels", () => ({
     placeChannel: jest.fn(async () => true),
     discordErrorText: jest.requireActual("../../../src/services/discord/discordChannels").discordErrorText,
 }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})), getRaidTemplate: jest.fn(() => null) }));
 jest.mock("../../../src/services/events/eventMessage", () => ({ postEventMessage: jest.fn(), refreshEventMessage: jest.fn() }));
 // #305: the Discord event is best-effort — here it only records that it was asked.
 jest.mock("../../../src/services/discord/discordEvent", () => ({
@@ -38,26 +38,26 @@ jest.mock("../../../src/services/discord/discordEvent", () => ({
 jest.mock("../../../src/services/events/eventAnnounce", () => ({ announceEvent: jest.fn(async () => ({ announced: true })) }));
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../../src/services/signups/availability", () => ({ applyToEvent: jest.fn(async () => []) }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn(() => null), listRaidEvents: jest.fn(() => []) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({
     loadEventGroups: jest.fn(() => Promise.resolve({ groups: [], error: null })),
     eventLookbackSince: jest.fn(() => 1),
 }));
-jest.mock("../../../src/services/events/raidListing", () => ({
+jest.mock("../../../src/services/events/overview/raidListing", () => ({
     raidContentIds: ({ title }) => ({ contentIds: /kara/i.test(title || "") ? ["kara"] : [], sources: [] }),
 }));
 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
 const discordChannels = require("../../../src/services/discord/discordChannels");
-const { getConfig, getRaidTemplate } = require("../../../src/stores/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../../src/stores/settings/settingsStore");
 const { postEventMessage, refreshEventMessage } = require("../../../src/services/events/eventMessage");
 const { announceEvent } = require("../../../src/services/events/eventAnnounce");
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { createFromTemplate } = discordChannels;
-const channelArchiveStore = require("../../../src/stores/channelArchiveStore");
+const channelArchiveStore = require("../../../src/stores/discord/channelArchiveStore");
 const raidEventGroups = require("../../../src/services/events/raidEventGroups");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const discordEvent = require("../../../src/services/discord/discordEvent");
 const availability = require("../../../src/services/signups/availability");
 const { createEvent, updateEvent, startTimeOf, schemaChannelName, requestedCategoryId } = require("../../../src/services/events/eventCreate");
@@ -277,7 +277,7 @@ describe("services/events/eventCreate", () => {
     // #728 review: the gate's first answer comes from the snapshot, Raid-Helper's own answer comes later -
     // the guard sees the late one and refuses before the clone is made
     it("lets the guard refuse a Raid-Helper clone whose channel turns out to be another category's", async () => {
-        const { getRaidEvent } = require("../../../src/stores/raidEventStore");
+        const { getRaidEvent } = require("../../../src/stores/events/raidEventStore");
         getRaidEvent.mockReturnValue({ id: "rh-9", channelId: "c2", categoryId: "cat-eh" });
         mockGetEvent.mockResolvedValue({ id: "rh-9", channelId: "c1" });
         const cloneBody = body({ channelId: "", sourceEventId: "rh-9", channelName: "kara-neu" });

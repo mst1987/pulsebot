@@ -1,5 +1,5 @@
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock());
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "900000000000000001") }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     getClient: jest.fn(() => null),
@@ -10,7 +10,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 
 const { requireFullAdmin } = require("../../../../src/web/http/apiMiddleware");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const discord = require("../../../../src/services/discord/discord");
 const { getBotCommands, buildBotCommandList, loadedCommands } = require("../../../../src/web/apiRoutes/discord/botCommands");
 const { makeCollection } = require("../../../helpers/mockInteraction");

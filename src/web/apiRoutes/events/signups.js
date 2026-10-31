@@ -15,10 +15,10 @@ const { ok, error: apiError, sendJson } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { loadEventGroups } = require("../../../services/events/raidEventGroups");
-const { getConfig } = require("../../../stores/settingsStore");
-const profiles = require("../../../stores/raiderProfileStore");
-const { getEvent, isOwnEventId } = require("../../../stores/eventStore");
-const { listSignups } = require("../../../stores/signupStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
+const { getEvent, isOwnEventId } = require("../../../stores/events/eventStore");
+const { listSignups } = require("../../../stores/events/signupStore");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../../services/signups/signupService");
 const { memberEventList, profileForSignup, signupSummary } = require("../../signups/signupView");
 const { markMembersOnly } = require("../../../services/signups/pugMembership");
@@ -27,7 +27,7 @@ const { noteMode, isNoteStatus, MIN_NOTE } = require("../../../services/signups/
 const { userIsOrga } = require("../../../config/permissions");
 const { isGlobalRaidOrga, canOrgaRaid } = require("../../events/raidOrgaAccess");
 const { VERSIONS, rulesFor } = require("../../../config/gameVersions");
-const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../../services/events/mainVersion");
+const { mainVersionFor, classesOfVersion, resolveVersionQuery, versionOfEvent } = require("../../../services/versions/mainVersion");
 
 /**
  * A version's classes for the picker, each with its specs (#907: the dialog's

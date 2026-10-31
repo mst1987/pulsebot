@@ -11,23 +11,23 @@ const { AppError, sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
-const { getConfig, getNotify, getRaidsheet, resolveEventSheetLink } = require("../../../stores/settingsStore");
+const { getConfig, getNotify, getRaidsheet, resolveEventSheetLink } = require("../../../stores/settings/settingsStore");
 const { planningRefusal } = require("../../../services/events/planning");
-const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../../stores/eventSheetStore");
+const { getEventSheet, markEventSheetFilled, markEventSheetPosted } = require("../../../stores/events/eventSheetStore");
 const { sourceOfEventId } = require("../../../services/events/eventSources");
 const {
     getEventSoftres, saveEventSoftres, setEventSoftresLink,
-} = require("../../../stores/eventSoftresStore");
+} = require("../../../stores/events/eventSoftresStore");
 const softres = require("../../../utils/loot/softres");
-const { setEventLootSystem, lootSystemOf } = require("../../../stores/eventLootSystemStore");
+const { setEventLootSystem, lootSystemOf } = require("../../../stores/events/eventLootSystemStore");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
 const wowhead = require("../../../utils/loot/wowhead");
-const { mainVersionFor, versionOfEvent } = require("../../../services/events/mainVersion");
+const { mainVersionFor, versionOfEvent } = require("../../../services/versions/mainVersion");
 
 // Every write here changes one event: an archived one (a hidden game version, #563) is read only.
 const BY_EVENT = (body) => body.event;
-const { settingsForVersion } = require("../../../services/events/versionSettings");
-const { featureState, sheetVersionRefusal } = require("../../../services/events/versionCapabilities");
+const { settingsForVersion } = require("../../../services/versions/versionSettings");
+const { featureState, sheetVersionRefusal } = require("../../../services/versions/versionCapabilities");
 const { createRaidhelperClient } = require("../../../utils/raidhelper/client");
 const Drive = require("../../../classes/drive");
 const SheetsClient = require("../../../classes/sheets");
@@ -35,7 +35,7 @@ const { fillSetupSheet } = require("../../../utils/setup/fillSetup");
 const { formatTimestampToDateString } = require("../../../utils/time");
 const discord = require("../../../services/discord/discord");
 const { postSoftresCard } = require("../../../services/loot/softresStatus");
-const { getEvent } = require("../../../stores/eventStore");
+const { getEvent } = require("../../../stores/events/eventStore");
 const { raidHelperSlots } = require("../../../services/setup/setupEditor");
 const { invitePlan, callInvite } = require("../../../services/setup/inviteCall");
 const { pingMissingRaiders } = require("../../../services/events/missingPing");

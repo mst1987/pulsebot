@@ -2,7 +2,7 @@
 // Shared by activeGuild.js (every route) and auth.js (the rights of a request
 // are those of its active server, #925) - one rule, no require cycle.
 const discord = require("../../services/discord/discord");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 
 /**
  * The active server, in this order:

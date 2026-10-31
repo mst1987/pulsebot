@@ -15,13 +15,13 @@
 // roster of the raid's version (`versionId`), the settings value mirrors the
 // open roster of the version the category plays NOW. A closed roster (a
 // category switched to another version) is neither synced nor mirrored.
-const rosterStore = require("../../stores/rosterStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const { rosterOfCategory, isCurrentRoster, currentVersionOf } = require("./categoryRoster");
 
 /** The config to read: the one handed in, else the stored one (required late, no cycle). */
 function configOf(config) {
     if (config && typeof config === "object") return config;
-    return require("../../stores/configStore").getConfig() || {};
+    return require("../../stores/settings/configStore").getConfig() || {};
 }
 
 /**
@@ -81,7 +81,7 @@ function syncRosterRoleIds(categoryRoles, { actor = "", config, skip = new Set()
 function mirrorCategoryRoles(roster) {
     const cat = String((roster && roster.categoryId) || "").trim();
     if (!cat) return false;
-    const configStore = require("../../stores/configStore");
+    const configStore = require("../../stores/settings/configStore");
     const config = configStore.getConfig() || {};
     if (rosterStore.isClosed(roster)) return false;
     if (roster.versionId && roster.versionId !== currentVersionOf(cat, { config })) return false;

@@ -13,24 +13,24 @@ const mockLogs = jest.fn(() => []);
 const mockListReports = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
 
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../../src/services/loot/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
-jest.mock("../../../src/stores/councilStore", () => ({
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: (...a) => mockCharacterMap(...a) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: (...a) => mockAssignments(...a) }));
+jest.mock("../../../src/stores/loot/councilStore", () => ({
     excludedKeys: (...a) => mockExcludedKeys(...a),
     plannedRoles: (...a) => mockPlannedRoles(...a),
 }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
 // The own events (#254) reach the council through the real adapter (eventSources.js).
 const mockOwnEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (...a) => mockOwnEvents(...a), getEvent: () => null, isOwnEventId: (id) => String(id || "").startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: (...a) => mockListReports(...a),
     getReport: (...a) => mockGetReport(...a),
     getReportRoster: (...a) => mockGetReport(...a),
@@ -113,7 +113,7 @@ describe("web/loot/lootCouncil — the worn gear a council looks at", () => {
 
         it("leaves the raid empty for an item no single raid drops", () => {
             // Tier tokens and badge gear are deliberately absent from the
-            // content table (see config/tbcContent.js) — filing them under
+            // content table (see config/data/tbcContent.js) — filing them under
             // whichever raid came first would be a wrong answer, not a gap.
             expect(wornItemView(worn(), new Set()).contentId).toBe("");
             // ...while a plain boss drop resolves.

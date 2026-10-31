@@ -21,9 +21,9 @@ const TEST = path.join(ROOT, "test");
 
 const ALLOWED = {
     // pure data tables, covered by the tests of the module that reads them
-    "src/config/profanity.js": "reine Wortlisten, geprüft über utils/signup/characterNames.js (characterNames.test.js)",
-    "src/config/recommendationRules.js": "reine Regeltabelle, geprüft über utils/logcheck/recommendations.js",
-    "src/config/softresInstances.js": "reine Instanz-Tabelle, geprüft über utils/loot/softres.js (softres.test.js)",
+    "src/config/data/profanity.js": "reine Wortlisten, geprüft über utils/signup/characterNames.js (characterNames.test.js)",
+    "src/config/data/recommendationRules.js": "reine Regeltabelle, geprüft über utils/logcheck/recommendations/recommendations.js",
+    "src/config/data/softresInstances.js": "reine Instanz-Tabelle, geprüft über utils/loot/softres.js (softres.test.js)",
     // loaded through a computed path
     "src/web/static/report.js": "Browser-Skript; test/web/static/report.test.js lädt es über path.join",
 };

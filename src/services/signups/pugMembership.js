@@ -13,13 +13,13 @@
 // Exempt like the raider-role rule: the orga of the raid, a member who already
 // has a signup for it, and every category that is not open (guild raids keep
 // their own rule, signupAccess.js).
-const settingsStore = require("../../stores/settingsStore");
-const signupStore = require("../../stores/signupStore");
-const eventStore = require("../../stores/eventStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const signupStore = require("../../stores/events/signupStore");
+const eventStore = require("../../stores/events/eventStore");
 const discord = require("../discord/discord");
-const { generalInviteUrl } = require("../discord/pugInvites");
+const { generalInviteUrl } = require("../discord/pug/pugInvites");
 const { accessRule } = require("./signupAccess");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 
 const PUG_MEMBERS_ERROR = "Nur für Mitglieder des PuG-Servers.";
 

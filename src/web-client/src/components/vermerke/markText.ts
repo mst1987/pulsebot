@@ -1,6 +1,6 @@
 // Texts and links of a note mark (#981), shared by the mark, the slot tooltip
 // and the setup's shadowban line - outside the component file for fast refresh.
-import { NOTE_REASONS, type NoteReason } from "../../api/vermerke";
+import { NOTE_REASONS, type NoteReason } from "../../api/roster/vermerke";
 
 /** "Späte Abmeldung ×2 · Loot": the reasons in the fixed order, the count from two on. */
 export function reasonSummary(t: (key: string) => string, reasons: Partial<Record<NoteReason, number>>): string {

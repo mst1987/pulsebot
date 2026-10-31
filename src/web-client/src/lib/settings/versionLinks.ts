@@ -1,7 +1,7 @@
 // Settings per game version on the client (#542): the block the server keeps
-// in config.versionSettings (src/stores/versionSettingsSchema.js) and the
+// in config.versionSettings (src/stores/settings/versionSettingsSchema.js) and the
 // links built from it. The same rules as the server's helper
-// (src/services/events/versionSettings.js): an empty setting means "not there
+// (src/services/versions/versionSettings.js): an empty setting means "not there
 // for this version", and the link is left out rather than guessed or broken.
 import { createContext, createElement, useContext, type ReactNode } from "react";
 import { LEGACY_WOWHEAD_PATH, wowheadItemUrl } from "../wow/wowheadItems";
@@ -55,7 +55,7 @@ export function isWebLink(url: string): boolean {
  * A template the server accepts: http(s), with a {char} placeholder; {region}
  * and {realm} may stand in for the block's own fields (#553). "" counts as
  * fine (= no link). At most TEMPLATE_MAX characters, as on the server
- * (src/stores/versionSettingsSchema.js), which drops a longer one.
+ * (src/stores/settings/versionSettingsSchema.js), which drops a longer one.
  */
 export const TEMPLATE_MAX = 300;
 

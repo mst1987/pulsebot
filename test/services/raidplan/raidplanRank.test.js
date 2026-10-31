@@ -3,7 +3,7 @@
 // mage for the kick) run on the pure scoring, the class-reference resolution and the suggestion. The client twin runs the same cases in
 // src/web-client/src/lib/raidplan/assign/__tests__/rank.test.ts.
 const assign = require("../../../src/services/raidplan/raidplanAssign");
-const catalogStore = require("../../../src/stores/raidplanCatalogStore");
+const catalogStore = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
 beforeAll(() => catalogStore.useFile(tempStoreFile("rank-catalog.json")));

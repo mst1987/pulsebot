@@ -12,9 +12,9 @@
 // a guild leaderboard is for the whole guild. Nothing on the page writes.
 const { ok } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { resolveVersionQuery, isVersionVisible } = require("../../../services/events/mainVersion");
-const { versionShort } = require("../../../services/events/versionTag");
-const { getConfig } = require("../../../stores/settingsStore");
+const { resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
+const { versionShort } = require("../../../services/versions/versionTag");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { dungeonBoard, versionsWithData } = require("../../../services/dungeons/dungeonBoard");
 
 /** GET /api/dungeons — the tables of one version. */

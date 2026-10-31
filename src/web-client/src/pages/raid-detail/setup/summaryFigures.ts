@@ -28,6 +28,19 @@ export function roleFigures(setup: StoredSetup): RoleFigure[] {
     ];
 }
 
+/**
+ * The raid's leader (#1036): "Leader 1/1", green with one, red without — only for a raid with a
+ * leader rule (`checks.leader`); null otherwise. More than one never shows: the proposal marks one.
+ */
+export function leaderFigure(setup: StoredSetup): RoleFigure | null {
+    const lead = setup.checks.leader;
+    if (!lead) return null;
+    return {
+        key: "leader", label: t("setup.leader.figure"), value: Math.min(lead.count, 1), target: "1", ok: lead.ok,
+        tip: lead.ok ? t("setup.leader.figureOk") : t("setup.leader.figureMissing", { count: lead.candidates.length }),
+    };
+}
+
 /** The switches as the setup and the event set them: fairness, wishes, "nicht zusammen" (only with such pairs). */
 export function summaryOptions(data: SetupEditorData, setup: StoredSetup) {
     return {

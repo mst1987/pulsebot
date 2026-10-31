@@ -10,8 +10,8 @@
 //
 // Before #921 the channels were one global list (config.logChannelIds); the bot
 // hands that list to the servers once it is online (logChannelMigration.js).
-const { serverSetting } = require("../discord/serverSettings");
-const { knownVersion, mainVersionFor } = require("../events/mainVersion");
+const { serverSetting } = require("../discord/servers/serverSettings");
+const { knownVersion, mainVersionFor } = require("../versions/mainVersion");
 
 /**
  * A logChannels list in its final shape: channel ids trimmed, one entry per
@@ -42,7 +42,7 @@ function logChannelsOf(guildId, { config } = {}) {
  * @param {{ config?: object }} [opts]
  */
 function allLogChannels({ config } = {}) {
-    const cfg = config || require("../../stores/settingsStore").getConfig();
+    const cfg = config || require("../../stores/settings/settingsStore").getConfig();
     const out = [];
     for (const guildId of Object.keys((cfg && cfg.serverSettings) || {})) {
         for (const c of logChannelsOf(guildId, { config: cfg })) out.push({ guildId, ...c });

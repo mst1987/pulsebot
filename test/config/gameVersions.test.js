@@ -1,6 +1,6 @@
 const gv = require("../../src/config/gameVersions");
-const { CONTENTS } = require("../../src/config/tbcContent");
-const { analyzeRaidProgress, raidSummary } = require("../../src/utils/logcheck/raidProgress");
+const { CONTENTS } = require("../../src/config/data/tbcContent");
+const { analyzeRaidProgress, raidSummary } = require("../../src/utils/logcheck/raid/raidProgress");
 
 const ROLES = ["tank", "healer", "melee", "ranged"];
 

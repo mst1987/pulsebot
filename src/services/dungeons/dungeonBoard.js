@@ -1,5 +1,5 @@
 // What the dungeon page (Dungeon-Bestzeiten, GET /api/dungeons) and /bestzeiten
-// read from the stored LevelHelper runs (stores/dungeonRunStore.js) — one game
+// read from the stored LevelHelper runs (stores/roster/dungeonRunStore.js) — one game
 // version at a time (#741):
 //
 //   dungeonTables   per dungeon its fastest group runs (time, medal, members, date)
@@ -11,7 +11,7 @@
 // colour, icon), so the web colours them like everywhere else. A player is
 // recognised by guid, else by lower-case name; a name-only member joins the
 // guid player of the same name.
-const store = require("../../stores/dungeonRunStore");
+const store = require("../../stores/roster/dungeonRunStore");
 const { rulesFor } = require("../../config/gameVersions");
 
 const MEDAL_RANK = { gold: 3, silver: 2, bronze: 1 };

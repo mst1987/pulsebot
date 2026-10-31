@@ -18,7 +18,7 @@
 // the router on every click. Everyone else sees the button and gets told no.
 const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { setupPingPlan, saveSetupPingText } = require("./setupPing");
 const { callSetupPing } = require("./setupMessage");
 const { PING_PREFIX, PING_TEXT_MAX, pingTextOf, pingId } = require("./setupCore");

@@ -9,9 +9,9 @@
 // Checked: the spec exists in the raid's version (Forever plays the Classic
 // classes), and a name already in the profile with another class is refused -
 // the same character keeps its class, a new spec of it is added.
-const profiles = require("../../stores/raiderProfileStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { spec: specOf } = require("../../config/gameVersions");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const { validateCharacterName } = require("../../utils/signup/characterNames");
 const { splitPlayer } = require("../../utils/loot/lootImport");
 

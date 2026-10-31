@@ -5,18 +5,18 @@ const mockGetAllEvents = jest.fn();
 jest.mock("../../../src/classes/raidhelper", () =>
     jest.fn().mockImplementation(() => ({ fetchEvents: jest.fn(async () => []), getAllEvents: mockGetAllEvents })));
 jest.mock("../../../src/services/discord/discord", () => ({ getChannelCategoryMap: jest.fn() }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn() }));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: jest.fn(() => []), getRaidEvent: jest.fn() }));
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: jest.fn(() => []), getEvent: jest.fn(), isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn(() => []) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn(() => []) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
 
 const discord = require("../../../src/services/discord/discord");
-const eventStore = require("../../../src/stores/eventStore");
-const configStore = require("../../../src/stores/configStore");
-const { listRaidEvents, getRaidEvent } = require("../../../src/stores/raidEventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const configStore = require("../../../src/stores/settings/configStore");
+const { listRaidEvents, getRaidEvent } = require("../../../src/stores/events/raidEventStore");
 const { loadEventGroups, _resetEventsCacheForTests } = require("../../../src/services/events/raidEventGroups");
 const { listStoredEvents, getStoredEvent } = require("../../../src/services/events/eventSources");
 const { ownEvent } = require("../../factories/events");

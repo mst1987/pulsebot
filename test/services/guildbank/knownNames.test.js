@@ -2,13 +2,13 @@
 // hand-outs of the bank, the logs and the loot of the bank's version — for the
 // link dialog. Real request and profile stores on temp files; the report and
 // class-cache stores are factory mocks.
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn(() => []), getReportRoster: jest.fn(() => null) }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(() => []), getReportRoster: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
 
-const store = require("../../../src/stores/guildBankStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
-const reports = require("../../../src/stores/reportStore");
-const characterStore = require("../../../src/stores/characterStore");
+const store = require("../../../src/stores/loot/guildBankStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const reports = require("../../../src/stores/loot/reportStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
 const { resetCache } = require("../../../src/services/characters/characterEvidence");
 const linking = require("../../../src/services/guildbank/linking");
 const { knownNames, nameOfKey, NAMES_MAX } = require("../../../src/services/guildbank/knownNames");

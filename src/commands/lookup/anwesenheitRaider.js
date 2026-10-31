@@ -1,9 +1,9 @@
 // /anwesenheit-raider <Name> — one raider's attendance, for the raid lead (#265).
 const { SlashCommandBuilder } = require("discord.js");
 const { characterAttendance, knownCharacterNames } = require("../../services/characters/attendanceLookup");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { serverIds } = require("../../services/discord/roles/guildRoles");
 const { webUrl, respondChoices, clip } = require("../../utils/discord/botLookup");
-const { addVersionOption } = require("../../services/events/commandVersion");
+const { addVersionOption } = require("../../services/versions/commandVersion");
 const { attendanceReply, versionOfInteraction } = require("./anwesenheit");
 
 /** The server the command was used on; in a DM the first server (#919). */

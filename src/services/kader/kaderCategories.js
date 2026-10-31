@@ -1,9 +1,9 @@
 // The raid categories a Kader counts attendance in (`kader.attendanceCategories`),
 // seen from outside the Kaderplaner (#744): when a category is closed for good
-// ("Kategorie abschließen", services/events/categoryLifecycle.js) it leaves
+// ("Kategorie abschließen", services/categories/categoryLifecycle.js) it leaves
 // every Kader of every server. The answer names the Kader only (id and name) —
 // nothing of its players leaves through here, and nothing is logged.
-const kaderStore = require("../../stores/kaderStore");
+const kaderStore = require("../../stores/roster/kaderStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 

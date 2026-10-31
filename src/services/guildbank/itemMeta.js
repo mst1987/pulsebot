@@ -1,9 +1,9 @@
 // Names, icons, quality and item class for the guild bank stock
-// (stores/guildBankStockStore.js). A scan only carries item ids.
+// (stores/loot/guildBankStockStore.js). A scan only carries item ids.
 //
 // Item names are English everywhere (web page, Discord, the addon's hand-out
 // list); only the group labels built from class/subclass stay German, mapped
-// from the ids (config/itemClassLabels.js, services/guildbank/stockView.js).
+// from the ids (config/data/itemClassLabels.js, services/guildbank/stockView.js).
 //
 // Two sources, in this order:
 //   1. the local item tables (TBC only: WoWSims items, the raid loot names) —
@@ -27,13 +27,13 @@
 // new name (guildBankStore.renamePendingItem); handled ones keep theirs.
 //
 // The ingest never waits for the network: queueLookups() returns at once.
-const store = require("../../stores/guildBankStockStore");
-const requestStore = require("../../stores/guildBankStore");
+const store = require("../../stores/loot/guildBankStockStore");
+const requestStore = require("../../stores/loot/guildBankStore");
 const wowhead = require("../../utils/loot/wowhead");
 const wowsims = require("../../config/wowsims");
-const { itemMeta: raidItemMeta } = require("../../config/tbcLootNames");
-const { settingsForVersion } = require("../events/versionSettings");
-const { settingsDefaultsOf } = require("../../stores/versionSettingsSchema");
+const { itemMeta: raidItemMeta } = require("../../config/data/tbcLootNames");
+const { settingsForVersion } = require("../versions/versionSettings");
+const { settingsDefaultsOf } = require("../../stores/settings/versionSettingsSchema");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const logger = require("../../logger").child("guildbank");
 

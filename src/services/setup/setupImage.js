@@ -77,6 +77,20 @@ function answerCircle(status, cx, cy) {
 }
 
 /**
+ * The raid leader's small crown (#1036), centred at (cx, cy) over the spec icon's top-left corner:
+ * three points on a band, outlined in the panel's colour so it stands off the icon.
+ */
+function leaderCrown(cx, cy) {
+    const w = 18;
+    const h = 13;
+    const x = cx - w / 2;
+    const y = cy - h / 2;
+    const d = `M${x} ${y + h}L${x} ${y + 3}L${x + w * 0.27} ${y + h * 0.55}L${x + w / 2} ${y}`
+        + `L${x + w * 0.73} ${y + h * 0.55}L${x + w} ${y + 3}L${x + w} ${y + h}Z`;
+    return `<path class="leader-crown" d="${d}" fill="${PALETTE.orange}" stroke="${PALETTE.panel}" stroke-width="2.5" stroke-linejoin="round" paint-order="stroke"/>`;
+}
+
+/**
  * One raider row: spec icon and the name in the class colour; in a group the answer's circle on the
  * right (the row tinted green when confirmed, greyed out when declined), on the bench a little faded
  * and nothing else. `clipId` names the icon's clip path.
@@ -93,6 +107,7 @@ function personRow(p, x, y, width, { status = "", inGroup = true, clipId = "" })
     out.push(href
         ? image(href, ix, iy, ICON, ICON, { r: 6, id: clipId, opacity })
         : rect(ix + 7, iy + 7, ICON - 14, ICON - 14, { r: 5, fill: color, opacity }));
+    if (inGroup && p && p.leader) out.push(leaderCrown(ix + 2, iy + 2));
     const name = String((p && p.character) || "").trim() || "Raider";
     const room = width - NAME_X - (inGroup ? CIRCLE_ROOM : 16);
     out.push(text(x + NAME_X, mid + NAME_SIZE * 0.36, name, { size: NAME_SIZE, bold: true, fill: color, maxWidth: room, opacity }));

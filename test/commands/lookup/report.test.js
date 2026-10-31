@@ -1,12 +1,12 @@
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: jest.fn() }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: jest.fn(() => []) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn() }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootStats", () => ({ itemCatalog: jest.fn() }));
 
 const { MessageFlags } = require("discord.js");
 const report = require("../../../src/commands/lookup/report");
 const council = require("../../../src/commands/lookup/council");
-const { listReports } = require("../../../src/stores/reportStore");
-const { listLogs } = require("../../../src/stores/logStore");
+const { listReports } = require("../../../src/stores/loot/reportStore");
+const { listLogs } = require("../../../src/stores/loot/logStore");
 const { itemCatalog } = require("../../../src/services/loot/lootStats");
 const { EMBED_LIMITS } = require("../../../src/utils/discord/botLookup");
 const { embedSize } = require("../../helpers/embed");

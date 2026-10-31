@@ -34,11 +34,11 @@
 // one: linkRosterToKader), the same way; members already in it stay exactly as
 // they are - status, characters, note. Who may do it (area `kader` write plus
 // manager of that roster) is the route's business.
-const rosterStore = require("../../stores/rosterStore");
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
 const discord = require("../discord/discord");
-const { listKnownCategories } = require("../discord/categoryNames");
-const { mainVersionFor, knownVersion, isVersionVisible } = require("../events/mainVersion");
+const { listKnownCategories } = require("../categories/categoryNames");
+const { mainVersionFor, knownVersion, isVersionVisible } = require("../versions/mainVersion");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");

@@ -11,7 +11,7 @@ export const KEEP = "__keep";
 /**
  * The word a bulk delete is confirmed with — the server's BULK_DELETE_WORD
  * A protocol value the server checks, not a text to translate: it is the same
- * in every language (listed in ALLOWED of test/web-client/conventions/i18n.test.js).
+ * in every language (listed in ALLOWED of test/web-client/conventions/i18n/i18n.test.js).
  */
 export const BULK_DELETE_WORD = "LÖSCHEN";
 

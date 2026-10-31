@@ -3,15 +3,15 @@
 // reply; the bot answers with what the item is and how often it went out, and
 // the link.
 const { SlashCommandBuilder } = require("discord.js");
-const { RAID_ITEMS } = require("../../config/tbcLootNames");
+const { RAID_ITEMS } = require("../../config/data/tbcLootNames");
 const { itemCatalog } = require("../../services/loot/lootStats");
-const { listAll } = require("../../stores/lootStore");
+const { listAll } = require("../../stores/loot/lootStore");
 const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");
-const { versionOfEvent } = require("../../services/events/mainVersion");
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
+const { versionLinks } = require("../../services/versions/versionSettings");
 const { webUrl, lookupReply, respondChoices, clip } = require("../../utils/discord/botLookup");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
-const { councilContent: councilContentFor } = require("../../services/events/versionCapabilities");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
+const { councilContent: councilContentFor } = require("../../services/versions/versionCapabilities");
 
 /** The game version the command answers for: the `version` option, else the channel category's, else the main version (#743, #748). */
 function versionOfInteraction(interaction) {

@@ -34,12 +34,12 @@
 // "category_taken", "kader_taken", "kader_taken_over", "kader_not_found", "not_found",
 // "invalid_loot_system", "unknown_profile", "roster_closed" (#739, a closed roster),
 // "pug_onboarding_role" (#930, a role of the PuG onboarding as a roster role).
-const rosterStore = require("../../stores/rosterStore");
-const councilProfilesStore = require("../../stores/councilProfilesStore");
-const settingsStore = require("../../stores/settingsStore");
-const { knownVersion, isVersionVisible } = require("../events/mainVersion");
+const rosterStore = require("../../stores/roster/rosterStore");
+const councilProfilesStore = require("../../stores/loot/councilProfilesStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const { knownVersion, isVersionVisible } = require("../versions/mainVersion");
 const { mirrorCategoryRoles } = require("./categoryRoles");
-const pugRoleGuard = require("../discord/pugRoleGuard");
+const pugRoleGuard = require("../discord/pug/pugRoleGuard");
 const { normalizeLootSystem, rosterLootSystem } = require("../loot/lootSystem");
 
 const ADMIN_FIELDS = ["name", "categoryId", "versionId", "roleIds", "trialRoleId", "managers", "slots", "allowMultipleChars", "signupOnly", "publicRaids", "kaderId", "lootSystem", "lootProfileId"];

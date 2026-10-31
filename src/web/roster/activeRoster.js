@@ -4,7 +4,7 @@
 // route never changes a roster the page could not have shown. An empty active
 // server (the bot sees none) or a roster without server is not filtered - the
 // same rule as rosterView.buildRosterDetail.
-const rosterStore = require("../../stores/rosterStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const { activeGuildFor } = require("../http/activeGuild");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();

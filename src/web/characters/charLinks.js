@@ -2,7 +2,7 @@
 // Logs page.
 //
 // Both are URL templates with a {char} placeholder, set per game version in
-// Einstellungen → Spielversion (#542, services/events/versionSettings.js), so a
+// Einstellungen → Spielversion (#542, services/versions/versionSettings.js), so a
 // TBC character links the TBC armory and a Forever one the Forever armory — or
 // nothing while that version has no template. Three pages hand them out — the
 // roster, the character history and the loot council — which is one more than
@@ -12,7 +12,7 @@
 // is *last seen in a log*, not live, and a council arguing over a drop wants to
 // be able to check that in one click rather than trust it.
 
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/versions/versionSettings");
 
 /**
  * The armory page of a character, or "" when its version has no template.

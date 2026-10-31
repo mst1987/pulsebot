@@ -1,18 +1,20 @@
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: jest.fn() }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: jest.fn(), listEvents: jest.fn() }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: jest.fn() }));
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ listProfiles: jest.fn() }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(), getRaidTemplate: jest.fn() }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(), attendanceFor: jest.fn() }));
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
-jest.mock("../../../src/stores/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
+jest.mock("../../../src/stores/roster/leaderFlagsStore", () => ({ allLeads: jest.fn(() => ({})) }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const signupStore = require("../../../src/stores/signupStore");
-const profileStore = require("../../../src/stores/raiderProfileStore");
-const settingsStore = require("../../../src/stores/settingsStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profileStore = require("../../../src/stores/roster/raiderProfileStore");
+const settingsStore = require("../../../src/stores/settings/settingsStore");
 const attendance = require("../../../src/services/characters/rosterAttendance");
 const { listStoredEvents } = require("../../../src/services/events/eventSources");
-const rosterStore = require("../../../src/stores/rosterStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const leaderFlagsStore = require("../../../src/stores/roster/leaderFlagsStore");
 const { collectSetupInput, proposeSetup, setupMembers, fixedFromSetup, rosterStatusFor } = require("../../../src/services/setup/setupInput");
 const { ownEvent } = require("../../factories/events");
 
@@ -46,6 +48,23 @@ beforeEach(() => {
 });
 
 describe("setupInput", () => {
+    it("hands in who can lead the raid's instances, the instance's short name and the orga's leader (#1036)", () => {
+        const flag = (instances) => ({ tbc: { instances, by: "x", at: 1 } });
+        leaderFlagsStore.allLeads.mockReturnValue({ u1: flag(["kara"]), u2: flag(["gruul"]), u3: flag(["kara", "gruul"]), other: flag(["kara"]) });
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-new" ? event({ versionId: "tbc", instanceIds: ["kara"], setup: { status: "draft", leaderUserId: "u2", groups: [], bench: [] } }) : null));
+        const [ev] = collectSetupInput(["eh-new"], { now: 5000 }).events;
+        // u2 leads Gruul only - a flag for another instance does not count; "other" is not signed up
+        expect(ev.leaders.sort()).toEqual(["u1", "u3"]);
+        expect(ev.instanceShort).toBe("Kara");
+        expect(ev.leaderUserId).toBe("u2");
+        leaderFlagsStore.allLeads.mockReturnValue({});
+    });
+
+    it("keeps the orga's leader on their place like a locked one (#1036)", () => {
+        const setup = { leaderUserId: "u2", groups: [{ index: 3, slots: [{ userId: "u2", spec: "Mage-Fire", role: "ranged", locked: false }, { userId: "u4", spec: "Mage-Fire", locked: false }] }], bench: [] };
+        expect(fixedFromSetup({ id: "x", setup })).toEqual([{ userId: "u2", eventId: "x", group: 3, spec: "Mage-Fire", role: "ranged", character: "" }]);
+    });
+
     it("hands the proposal the roster status of the category's roster (#658), nothing without one", () => {
         expect(collectSetupInput(["eh-new"], { now: 5000 }).rosterStatus).toEqual({});
         rosterStore.rosterForCategory.mockImplementation((cat) => {

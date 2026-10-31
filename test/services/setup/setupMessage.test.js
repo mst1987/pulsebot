@@ -3,7 +3,7 @@
 // abgesagte Events.
 const mockEvents = new Map();
 const clone = (x) => JSON.parse(JSON.stringify(x));
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null)),
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventSetupPost: jest.fn((id, patch) => {
@@ -27,7 +27,7 @@ jest.mock("@resvg/resvg-js", () => {
     return { Resvg: jest.fn((svg, opts) => new actual.Resvg(svg, opts)) };
 });
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), sendDirectMessage: jest.fn(), postMissingPing: jest.fn(async () => ({ url: "https://discord.example/ping" })), editPingMessages: jest.fn(async (c, ids) => ({ messageIds: ids })) }));
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 7 }));
 // The language: English here (the old assertions), German where a test says so.
@@ -41,7 +41,7 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
 });
 
 const discord = require("../../../src/services/discord/discord");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const appEmojis = require("../../../src/services/discord/appEmojis");
 const smRaw = require("../../../src/services/setup/setupMessage");
 const botLanguage = require("../../../src/services/discord/botLanguage");
@@ -511,6 +511,34 @@ describe("DMs", () => {
         seed({ status: "cancelled" });
         expect(await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 })).toEqual({ skipped: "cancelled" });
         expect(discord.sendDirectMessage).not.toHaveBeenCalled();
+    });
+
+    it("names the raid lead (#1036): the name for everyone, \"you\" for the leader, nothing without one", () => {
+        const event = seed();
+        const raider = { ...p("2", "Zibbo", "Priest-Holy", "healer"), group: 1 };
+        expect(cardText(smRaw.buildSetupDm(event, raider, { leader: "Kael" }))).toContain("**Raidleitung** Kael");
+        expect(cardText(sm.buildSetupDm(event, raider, { leader: "Kael" }))).toContain("**Raid lead** Kael");
+        const lead = { ...p("4", "Kael", "Rogue-Combat", "melee"), group: 2, leader: true };
+        expect(cardText(smRaw.buildSetupDm(event, lead, { leader: "Kael" }))).toContain("**Raidleitung** Du leitest diesen Raid");
+        expect(cardText(smRaw.buildSetupDm(event, raider))).not.toContain("Raidleitung");
+    });
+
+    it("crowns the leader in the message's fields (the text form) and tells everyone who leads", async () => {
+        mockConfig = { categorySetupDms: { cat1: true } };
+        const event = seed({ setupPost: { channelId: "c1", messageId: "m1" } });
+        event.setup.approved.groups[1].slots[1].leader = true;
+        const fields = smRaw.buildSetupMessage(event, event.setup.approved, { emojis: {} }).embeds[0].fields;
+        const lines = fields.map((f) => f.value).join("\n");
+        expect(lines).toContain("**Kael** 👑");
+        expect(lines.split("👑")).toHaveLength(2);
+        discord.sendDirectMessage.mockResolvedValue({ ok: true });
+        await sm.sendSetupDms("eh-1", { config: mockConfig, delayMs: 0 });
+        const texts = discord.sendDirectMessage.mock.calls.map((c) => cardText(c[1]));
+        expect(texts).toHaveLength(4);
+        expect(texts.every((t) => t.includes("**Raid lead**"))).toBe(true);
+        expect(texts.filter((t) => t.includes("**Raid lead** Kael"))).toHaveLength(3);
+        // the leader's own signature carries "/lead", everyone else's stays as before
+        expect(mockEvents.get("eh-1").setupPost.told).toMatchObject({ 4: "g2/Rogue-Combat/melee/lead", 1: "g1/Warrior-Protection/tank" });
     });
 
     it("tells every raider once per placement and records failures", async () => {

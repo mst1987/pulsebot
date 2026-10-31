@@ -1,5 +1,5 @@
 import { createContext, useContext } from "react";
-import type { ContentVersionRef } from "../api/session";
+import type { ContentVersionRef } from "../api/system/session";
 
 // The one global game version of the web admin (#563): the shell holds it
 // (components/shell/ContentVersionProvider.tsx), the top bar switches it

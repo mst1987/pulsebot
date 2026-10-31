@@ -8,12 +8,12 @@
 // form `ability.id in (…)` / `ability.name="…"` narrows the pool the way the
 // server would — that is enough for every analyzer to find something. The
 // numbers are meaningless; only their stability matters.
-const claData = require("../../src/config/claData");
-const rpbData = require("../../src/config/rpbData");
-const { BUFFS } = require("../../src/config/raidBuffs");
-const { DEBUFFS } = require("../../src/config/raidDebuffs");
-const { TOTEMS } = require("../../src/config/totems");
-const { TANK_AURAS, MANA_REGEN } = require("../../src/config/healerSpells");
+const claData = require("../../src/config/data/claData");
+const rpbData = require("../../src/config/data/rpbData");
+const { BUFFS } = require("../../src/config/data/raidBuffs");
+const { DEBUFFS } = require("../../src/config/data/raidDebuffs");
+const { TOTEMS } = require("../../src/config/data/totems");
+const { TANK_AURAS, MANA_REGEN } = require("../../src/config/data/healerSpells");
 
 const last = (list) => (list && list.length ? [String(list[list.length - 1])] : []);
 const first = (list) => (list && list.length ? [String(list[0])] : []);

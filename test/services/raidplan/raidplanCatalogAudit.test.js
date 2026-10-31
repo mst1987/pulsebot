@@ -1,6 +1,6 @@
 // The defaults of the catalog are TBC-correct (src/services/raidplan/raidplanCatalogDefaults.js): nothing that only exists in a later game version, and the game version filter.
 const defaults = require("../../../src/services/raidplan/raidplanCatalogDefaults");
-const store = require("../../../src/stores/raidplanCatalogStore");
+const store = require("../../../src/stores/raidplan/raidplanCatalogStore");
 const assign = require("../../../src/services/raidplan/raidplanAssign");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

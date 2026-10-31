@@ -1,6 +1,6 @@
 // The hand-maintained BiS lists of the loot council (#760): a version without
 // BiS data of its own (WoW Forever) gets its lists from the orga, per spec and
-// slot (stores/manualBisStore.js). The council reads them in
+// slot (stores/loot/manualBisStore.js). The council reads them in
 // web/loot/manualBisCouncil.js; these routes are the editor.
 //
 //   GET  /api/lootcouncil/manual-bis?version=          the version's lists, specs, slots
@@ -18,16 +18,16 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { userCan } = require("../../../config/permissions");
-const { getConfig } = require("../../../stores/settingsStore");
-const manualBisStore = require("../../../stores/manualBisStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const manualBisStore = require("../../../stores/loot/manualBisStore");
 const { MANUAL_SLOTS, MAX_PER_SLOT } = manualBisStore;
-const { SLOT_NAMES } = require("../../../utils/logcheck/gearIssues");
-const { SPECS, specByKey } = require("../../../config/councilSpecs");
+const { SLOT_NAMES } = require("../../../utils/logcheck/gear/gearIssues");
+const { SPECS, specByKey } = require("../../../config/data/councilSpecs");
 const { characterProfile } = require("../../../utils/setup/setupView");
 const { rulesFor } = require("../../../config/gameVersions");
-const { knownVersion, resolveVersionQuery, isVersionVisible } = require("../../../services/events/mainVersion");
-const { councilContent } = require("../../../services/events/versionCapabilities");
-const { versionLinks } = require("../../../services/events/versionSettings");
+const { knownVersion, resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
+const { councilContent } = require("../../../services/versions/versionCapabilities");
+const { versionLinks } = require("../../../services/versions/versionSettings");
 const { wowheadPathOf } = require("../../../services/characters/wishItems");
 const wowhead = require("../../../utils/loot/wowhead");
 

@@ -9,7 +9,7 @@
 // what hangs on a renamed character.
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const profiles = require("../../../stores/raiderProfileStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
 const { profileView } = require("../../characters/profileView");
 const { logIndex, logSuggestions } = require("../../characters/profileLogs");
 const { seenIndex } = require("../../../services/characters/characterEvidence");

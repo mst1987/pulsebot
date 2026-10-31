@@ -17,23 +17,28 @@
 //   rosterStatus  the roster of the event's category and version (#658, #739): `{ userId: status }`
 //               of its members — core before trial before bench in the proposal;
 //               empty for a category without roster
+//   leaders     per event the signed-up user ids whose leader flags (#1034) cover the raid's
+//               version and instances - only while the server has a flag for the version at all -
+//               plus the orga's choice `setup.leaderUserId` and the raid lead `event.leaderId` (#1036)
 //   shadowbanned  user ids with an active shadowban on the raid's server (Vermerke, #981) -
 //               only when the caller hands in `shadowbannedOf`; the proposal keeps them in the pool
 //
 // Only own events (`source: "eventhelper"`) have a setup; Raid-Helper events
 // keep theirs at Raid-Helper.
 
-const eventStore = require("../../stores/eventStore");
-const signupStore = require("../../stores/signupStore");
-const profileStore = require("../../stores/raiderProfileStore");
-const settingsStore = require("../../stores/settingsStore");
-const rosterStore = require("../../stores/rosterStore");
+const eventStore = require("../../stores/events/eventStore");
+const signupStore = require("../../stores/events/signupStore");
+const profileStore = require("../../stores/roster/raiderProfileStore");
+const settingsStore = require("../../stores/settings/settingsStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const { buildAttendanceContext, attendanceFor } = require("../characters/rosterAttendance");
 const { listStoredEvents } = require("../events/eventSources");
-const { versionOfEvent } = require("../events/mainVersion");
+const { versionOfEvent } = require("../versions/mainVersion");
 const { buildSetupProposal } = require("../../utils/setup/proposal");
 const { benchAndPool } = require("./setupCore");
 const { signupEventIdOf } = require("../../utils/raidGroup");
+const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
+const { canLead, instanceChoices } = require("../roster/leaderFlags");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -105,7 +110,9 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
     const out = [];
     for (const g of Array.isArray(setup.groups) ? setup.groups : []) {
         for (const slot of Array.isArray(g.slots) ? g.slots : []) {
-            if (slot && (slot.locked || keepPlaced) && slot.userId) {
+            // the orga's leader (#1036) keeps its place like a locked one
+            const leads = !!setup.leaderUserId && slot && String(slot.userId) === String(setup.leaderUserId);
+            if (slot && (slot.locked || keepPlaced || leads) && slot.userId) {
                 out.push({ userId: String(slot.userId), eventId: event.id, group: Number(g.index) || null, spec: slot.spec || "", role: slot.role || "", character: slot.character || "" });
             }
         }
@@ -144,6 +151,54 @@ function compositionLimits(event) {
 }
 
 /**
+ * Whether the leader rule applies to a raid (#1036): somebody in reach of the raid's server
+ * holds a flag covering its version **and** its instances (`canLead` - a Gruul flag does not
+ * open the rule for a Kara raid). In reach: signed up to these raids (a raid group's signups),
+ * in the roster of their category (`known`), or signed up to an upcoming event of the same
+ * server (`guildId`; past events do not count). No `guildId` = no rule. The flags themselves
+ * are global per account; no Discord member fetch (it hangs without the GuildMembers intent).
+ * Cheap: first the flag holders that fit, then per holder their own signups and `getEvent`
+ * only for those - never every event of the store. Cached per version and instances for one collect.
+ */
+function serverHasLeaders(guildId, versionId, instanceIds, allLeads, { known, cache, now }) {
+    if (!guildId) return false;
+    const key = `${versionId}|${[...instanceIds].sort().join(",")}`;
+    if (cache.has(key)) return cache.get(key);
+    const flagged = Object.keys(allLeads).filter((u) => canLead(allLeads[u], versionId, instanceIds));
+    const nowSec = Math.floor(now / 1000);
+    const upcomingHere = (id) => {
+        const e = eventStore.getEvent(id);
+        return !!e && String(e.guildId || "") === String(guildId) && (Number(e.startTime) || 0) >= nowSec;
+    };
+    // a sign-off ("absence") is no signup: it keeps the rule off
+    const signedUpHere = (u) => Object.entries(signupStore.signupsOfUser(u))
+        .some(([id, s]) => (s && s.status) !== "absence" && upcomingHere(id));
+    const has = flagged.some((u) => known.has(u)) || flagged.some(signedUpHere);
+    cache.set(key, has);
+    return has;
+}
+
+/**
+ * The leader facts of a raid (#1036): who of `userIds` may lead it (flags covering its version
+ * and instances) - only under the leader rule (`serverHasLeaders`; else the key stays out and
+ * the proposal knows no leader at all, as before #1036) - the instances' short names for the
+ * reason text, the orga's choice and the raid lead entered in the event (`event.leaderId`,
+ * leads its raid once placed there under the rule, flag or not).
+ */
+function leaderFacts(event, userIds, allLeads, { config, guildId, known, cache, now }) {
+    const versionId = versionOfEvent(event, { config });
+    const instanceIds = Array.isArray(event.instanceIds) ? event.instanceIds.map(String) : [];
+    const shorts = instanceChoices(versionId).filter((i) => instanceIds.includes(i.id)).map((i) => i.short);
+    const rule = serverHasLeaders(guildId, versionId, instanceIds, allLeads, { known, cache, now });
+    return {
+        ...(rule ? { leaders: [...userIds].filter((u) => canLead(allLeads[u], versionId, instanceIds)) } : {}),
+        instanceShort: shorts.join("/"),
+        leaderUserId: (event.setup && event.setup.leaderUserId) ? String(event.setup.leaderUserId) : "",
+        raidLeadId: event.leaderId ? String(event.leaderId) : "",
+    };
+}
+
+/**
  * Everything buildSetupProposal() needs for these own events (several = they
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
  * none is left.
@@ -179,6 +234,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
 
     const { history, source: historySource } = benchHistory(events, { guildId, now });
     const rosterStatus = rosterStatusFor(events);
+    const allLeads = leaderFlagsStore.allLeads();
+    const leaderCtx = { config, guildId, known: new Set([...userIds, ...Object.keys(rosterStatus)]), cache: new Map(), now };
     return {
         versionId: events[0].versionId,
         events: events.map((e) => ({
@@ -189,6 +246,7 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
             requiredBuffs: requiredBuffsFor(e, config),
             fairness: e.fairness,
             wishes: e.wishes,
+            ...leaderFacts(e, userIds, allLeads, leaderCtx),
         })),
         signups,
         profiles,

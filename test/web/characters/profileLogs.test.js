@@ -2,18 +2,18 @@
 // stored evaluations plus the character store, the "laut Logs" badge and the
 // suggestions for "Aus den Logs übernehmen". The report and character stores
 // are factory mocks; the profile store runs for real on a scratch file.
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
     getReportRoster: jest.fn(() => null),
 }));
-jest.mock("../../../src/stores/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/roster/characterStore", () => ({ listCharacters: jest.fn(() => []) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ listAllAssignments: jest.fn(() => ({})) }));
 
 const fs = require("fs");
-const { listReports, getReportRoster } = require("../../../src/stores/reportStore");
-const characterStore = require("../../../src/stores/characterStore");
-const raiderCharacters = require("../../../src/stores/raiderCharactersStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const { listReports, getReportRoster } = require("../../../src/stores/loot/reportStore");
+const characterStore = require("../../../src/stores/roster/characterStore");
+const raiderCharacters = require("../../../src/stores/roster/raiderCharactersStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const {
     logIndex, specEvidence, logSuggestions, matchReason, MAX_REPORTS, MAX_SUGGESTIONS,
 } = require("../../../src/web/characters/profileLogs");

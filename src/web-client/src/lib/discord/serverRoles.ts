@@ -1,6 +1,6 @@
 // The words of the roles page (System › Discord › Rollen): what a role means for
 // the bot, whether the bot can hand it out and why not, and the order the table
-// shows. The server sends codes only (api/discordRoles.ts); everything a reader
+// shows. The server sends codes only (api/discord/discordRoles.ts); everything a reader
 // sees is put together here, in the active language.
 import { t, tOr } from "../../i18n";
 import type { ServerRole, ServerRoleUse } from "../../api";

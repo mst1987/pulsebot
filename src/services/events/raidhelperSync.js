@@ -5,7 +5,7 @@
 // and every tick and used them up by the afternoon; now this job fetches the
 // list once every SYNC_INTERVAL_MS — every event that starts within the last
 // EVENT_LOOKBACK_DAYS or later, signups included, ONE request — and stores it
-// (stores/raidhelperEventsStore.js). Every other reader gets a client whose
+// (stores/events/raidhelperEventsStore.js). Every other reader gets a client whose
 // list reads answer from that store (utils/raidhelper/client.js). 288 requests
 // a day at most, plus the few raidplans the snapshot scan picks up.
 //
@@ -22,8 +22,8 @@
 
 const { createRaidhelperClient, raidhelperDisabled, setAfterWrite } = require("../../utils/raidhelper/client");
 const { activeRaidhelperGuilds } = require("../../utils/raidhelper/servers");
-const { getConfig } = require("../../stores/settingsStore");
-const { readSnapshot, saveSnapshot, saveSyncError } = require("../../stores/raidhelperEventsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const { readSnapshot, saveSnapshot, saveSyncError } = require("../../stores/events/raidhelperEventsStore");
 const budget = require("../../utils/raidhelper/budget");
 const { scanAllGuilds } = require("./raidEventScan");
 const { EVENT_LOOKBACK_DAYS } = require("./raidEventGroups");
@@ -79,7 +79,7 @@ async function runSync() {
     }
     try {
         // the category overviews list Raid-Helper raids from this list (required late: the overview pulls in half the bot)
-        require("./raidOverview").scheduleRefresh();
+        require("./overview/raidOverview").scheduleRefresh();
     } catch (e) {
         logger.warn(`overview nudge failed: ${e.message}`);
     }
@@ -119,7 +119,7 @@ async function refreshNow(guildId) {
     const result = await syncServer(guildId, since);
     if (result.ok) {
         try {
-            require("./raidOverview").scheduleRefresh();
+            require("./overview/raidOverview").scheduleRefresh();
         } catch (e) {
             logger.warn(`overview nudge failed: ${e.message}`);
         }

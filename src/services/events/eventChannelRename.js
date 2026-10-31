@@ -20,7 +20,7 @@ const { isSnowflake } = require("../../utils/ids");
 const { normalizeChannelName, CHANNEL_NAME_MAX } = require("../../utils/channelNames");
 const discord = require("../discord/discord");
 const discordChannels = require("../discord/discordChannels");
-const { userMayAny } = require("../discord/userAccess");
+const { userMayAny } = require("../discord/members/userAccess");
 const { RENAME_PREFIX, eventCategories } = require("./eventDraft");
 
 const FIELD = "name";

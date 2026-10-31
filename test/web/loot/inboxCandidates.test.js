@@ -1,22 +1,22 @@
 // Which raid an addon upload with a game version belongs to (#1002).
-jest.mock("../../../src/services/events/mainVersion", () => ({
+jest.mock("../../../src/services/versions/mainVersion", () => ({
     versionOfEvent: (e) => e.versionId || "tbc",
 }));
-jest.mock("../../../src/services/events/versionSettings", () => ({
+jest.mock("../../../src/services/versions/versionSettings", () => ({
     settingsForVersion: (versionId, { guildId }) => ({ blizzardRealmSlug: guildId === "gEU2" ? "spineshatter" : "thunderstrike" }),
 }));
-jest.mock("../../../src/stores/raiderProfileStore", () => ({
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: jest.fn(() => null),
     charactersOfVersion: (profile, versionId) => ((profile && profile.characters) || []).filter((c) => c.versionId === versionId),
 }));
 
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id).startsWith("eh-"),
     getEvent: jest.fn(() => null),
 }));
 
-const eventStore = require("../../../src/stores/eventStore");
-const raiderProfiles = require("../../../src/stores/raiderProfileStore");
+const eventStore = require("../../../src/stores/events/eventStore");
+const raiderProfiles = require("../../../src/stores/roster/raiderProfileStore");
 const {
     MATCH_SHARE, realmKey, recipientKeys, signupKeys, setupCharacters, scoreCandidates, decideCandidates, isStrong,
 } = require("../../../src/web/loot/inboxCandidates");

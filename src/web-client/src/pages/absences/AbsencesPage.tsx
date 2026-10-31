@@ -15,7 +15,7 @@
 // again when it switches; the absence entries belong to no version.
 import { useState, type ReactNode } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
-import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type RaiderRef } from "../../api";
+import { canAccess, getAbsenceOverview, getAvailability, type AbsenceIdentity, type AvailabilityKind, type RaiderRef } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { usePersistedState } from "../../lib/ui/persistedState";
@@ -126,7 +126,8 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
     const [saved, setSaved] = useState(0);
     // the dialog: closed (null), or open for nobody yet / for a raider
     // and the category it starts on ("" = every category)
-    const [dialog, setDialog] = useState<{ target: RaiderRef | null; categoryId: string } | null>(null);
+    // and, from the drawer's pencil, the entry it edits (entryId "" = a new one)
+    const [dialog, setDialog] = useState<{ target: RaiderRef | null; categoryId: string; kind: AvailabilityKind; entryId: string } | null>(null);
 
     // the raids of the menu's content version only (#740) - the entries themselves cover every version
     const { version } = useContentVersion();
@@ -145,7 +146,7 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
     const rows = visibleRaiders(data.raiders, { presence: view.presence, search });
     const canEnter = data.canEdit && !!own.data;
     // the dialog starts on the category the view is filtered to, when it is exactly one
-    const enter = (target: RaiderRef | null, categoryId = picked.length === 1 ? picked[0] : "") => setDialog({ target, categoryId });
+    const enter = (target: RaiderRef | null, categoryId = picked.length === 1 ? picked[0] : "") => setDialog({ target, categoryId, kind: "absence", entryId: "" });
 
     return (
         <div className="ab-page">
@@ -204,13 +205,16 @@ function OrgaViews({ user, view, patch, viewSwitch, onAttendance }: {
                     userId={drawer}
                     onClose={() => setDrawer("")}
                     onEnter={(r) => enter(refOf(r))}
+                    onEdit={(r, kind, entryId) => setDialog({ target: refOf(r), categoryId: "", kind, entryId })}
                     onChanged={() => { void overview.reload(); }}
                     onAttendance={(id) => { setDrawer(""); onAttendance(id); }}
                 />
             )}
             {own.data && (
                 <AvailabilityDialog
-                    kind={dialog ? "absence" : null}
+                    key={dialog ? `${dialog.kind}:${dialog.entryId}:${dialog.target?.userId || ""}` : "closed"}
+                    kind={dialog ? dialog.kind : null}
+                    entryId={dialog ? dialog.entryId : ""}
                     own={own.data}
                     target={dialog ? dialog.target : null}
                     categoryId={dialog?.categoryId || ""}

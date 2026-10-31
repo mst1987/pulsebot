@@ -13,18 +13,18 @@
 // Everything else (class/spec, colours, icons) is read from the caches the loot
 // history already fills, so this never hits an external API.
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
-const { listAll: listAllLoot } = require("../../stores/lootStore");
+const { listAll: listAllLoot } = require("../../stores/loot/lootStore");
 const { lootOfGuild } = require("../../services/loot/lootServer");
-const { listAllAssignments } = require("../../stores/raiderCharactersStore");
-const { characterMap } = require("../../stores/characterStore");
+const { listAllAssignments } = require("../../stores/roster/raiderCharactersStore");
+const { characterMap } = require("../../stores/roster/characterStore");
 const { latestIssuesByCharacter } = require("./charGearIssues");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
-const { versionLinks } = require("../../services/events/versionSettings");
-const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { versionLinks } = require("../../services/versions/versionSettings");
+const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
-const { mainVersionFor } = require("../../services/events/mainVersion");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.

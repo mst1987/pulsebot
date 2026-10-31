@@ -1,13 +1,13 @@
 // The log lists' titles and raids from WCL (services/logcheck/logTitles.js):
 // a few per page view, a failed report left alone for a while, the rest by
 // logAutoLink's background sweep.
-jest.mock("../../../src/stores/logStore.js");
+jest.mock("../../../src/stores/loot/logStore.js");
 const mockGetFights = jest.fn();
 jest.mock("../../../src/classes/warcraftlogs.js", () =>
     jest.fn().mockImplementation(() => ({ getFights: mockGetFights })));
 
 const WarcraftLogs = require("../../../src/classes/warcraftlogs.js");
-const logStore = require("../../../src/stores/logStore.js");
+const logStore = require("../../../src/stores/loot/logStore.js");
 const {
     backfillLogTitles, backfillAllLogTitles, BACKFILL_PAGE_LIMIT, BACKFILL_RETRY_MS, _resetBackfillForTests,
 } = require("../../../src/services/logcheck/logTitles.js");

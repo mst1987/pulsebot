@@ -2,14 +2,14 @@
 // letters only, 2–12 per name, first letter upper case — and in WoW Forever a
 // first *and* a last name ("Vorname Nachname", 12 letters each), which the
 // rule set switches on with `characterNames.lastName` (gameVersions/forever.js).
-// Every name also passes the profanity filter (config/profanity.js), because
+// Every name also passes the profanity filter (config/data/profanity.js), because
 // it ends up in public Discord messages.
 //
 // Pure. Names read from logs or the armory are the game's own and never come
 // through here — only what somebody typed.
 
 const { rulesFor } = require("../../config/gameVersions");
-const { CONTAINS, PREFIX, EXACT } = require("../../config/profanity");
+const { CONTAINS, PREFIX, EXACT } = require("../../config/data/profanity");
 
 const NAME_PART_MIN = 2;
 const NAME_PART_MAX = 12;

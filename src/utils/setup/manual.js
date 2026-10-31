@@ -18,7 +18,7 @@
 // better. The same line the proposal draws (see docs/setup.md, "Setup-Vorschlag").
 
 const { ROLES } = require("../../config/gameVersions");
-const { rulesForEvent } = require("../../services/events/mainVersion");
+const { rulesForEvent } = require("../../services/versions/mainVersion");
 const { GROUP_SIZE, signupCharacters } = require("./model");
 const { str } = require("../text");
 

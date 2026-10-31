@@ -1,15 +1,15 @@
 // /addons (#818): an ephemeral card of the guild's addons for the command's
 // game version, with a link to the web page — never to a file.
-jest.mock("../../../src/stores/configStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: jest.fn() }));
-jest.mock("../../../src/services/discord/userAccess", () => ({ resolveAccess: jest.fn() }));
+jest.mock("../../../src/services/discord/members/userAccess", () => ({ resolveAccess: jest.fn() }));
 
 let mockConfig = null;
 
 const { MessageFlags } = require("discord.js");
 const addons = require("../../../src/commands/lookup/addons");
 const { fetchLatestRelease } = require("../../../src/classes/githubReleases");
-const { resolveAccess } = require("../../../src/services/discord/userAccess");
+const { resolveAccess } = require("../../../src/services/discord/members/userAccess");
 const { resetAddonReleaseCache } = require("../../../src/services/addons/addonReleases");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
 const { mockInteraction } = require("../../helpers/mockInteraction");

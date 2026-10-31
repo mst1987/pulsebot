@@ -1,8 +1,8 @@
 const { SlashCommandBuilder } = require("discord.js");
-const { postOverview } = require("../../services/events/raidOverview");
+const { postOverview } = require("../../services/events/overview/raidOverview");
 const { botReply } = require("../../utils/discord/reply");
 
-// Posts the raid overview of the channel's category (services/events/raidOverview.js):
+// Posts the raid overview of the channel's category (services/events/overview/raidOverview.js):
 // one card without buttons that redraws itself when a raid or a signup changes.
 // The channel already holding an overview of this category gets that one edited, not a second.
 // With `scope: server` it lists the raids of every raid category of the server instead

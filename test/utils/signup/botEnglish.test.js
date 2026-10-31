@@ -43,7 +43,7 @@ describe("utils/signup/botEnglish", () => {
     });
 
     it("translates every refusal of the guild bank", () => {
-        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/guildBankStore.js"), "utf8");
+        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/loot/guildBankStore.js"), "utf8");
         const service = fs.readFileSync(path.join(__dirname, "../../../src/services/signups/guildBank.js"), "utf8");
         const sentences = [...`${store}\n${service}`.matchAll(/(?:error: |NOT_SET_UP = )"([^"`$]+\.)"/g)].map((m) => m[1]);
         expect(sentences.length).toBeGreaterThan(5);
@@ -61,7 +61,7 @@ describe("utils/signup/botEnglish", () => {
     });
 
     it("translates every fixed refusal of absences and attendances", () => {
-        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/availabilityStore.js"), "utf8");
+        const store = fs.readFileSync(path.join(__dirname, "../../../src/stores/events/availabilityStore.js"), "utf8");
         const service = fs.readFileSync(path.join(__dirname, "../../../src/services/signups/availability.js"), "utf8");
         const sentences = [...`${store}\n${service}`.matchAll(/(?:error:|return) "([^"`$]+\.)"/g)].map((m) => m[1]);
         expect(sentences.length).toBeGreaterThan(6);

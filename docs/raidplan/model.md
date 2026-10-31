@@ -7,10 +7,10 @@ Part of the raid plan docs, see [the entry page](../raidplan.md) for the other p
 
 | Piece | File |
 |---|---|
-| Plan store, validation, room maps | `src/stores/raidplanStore.js` |
+| Plan store, validation, room maps | `src/stores/raidplan/raidplanStore.js` |
 | The board of one boss (validation, slot auto-fill), shared by plans and templates | `src/services/raidplan/raidplanBoard.js` |
-| Tactic profiles (collection store) | `src/stores/raidplanProfileStore.js` |
-| Raid plan templates (collection store) | `src/stores/raidplanTemplateStore.js` |
+| Tactic profiles (collection store) | `src/stores/raidplan/raidplanProfileStore.js` |
+| Raid plan templates (collection store) | `src/stores/raidplan/raidplanTemplateStore.js` |
 | What the editor and the public page are shown | `src/web/raidplan/raidplan.js` |
 | API | `src/web/apiRoutes/raidplan/raidplan.js` (its `routes` table carries paths and areas, see docs/web-admin.md) |
 | Room-map delivery | `/rp-map/<instance>[/<boss>]` in `server.js` |
@@ -299,7 +299,7 @@ copy (`origin` = the Standard row's id, the row in its `inheritOff`) or switches
 - Tests: `test/services/raidplan/raidplanDefaultsMigration.test.js` (golden master: a plan built the way the old
   apply built it, edited by hand - a changed copy, a deleted copy, an own row in front, a moved tank; effective
   rows of every section identical before / after; idempotent; backup), `raidplanInherit.test.js` (apply, merge,
-  twins), `test/stores/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan/raidplan.test.js` (save, read
+  twins), `test/stores/settings/settingsMigration.test.js` (log line), `test/web/apiRoutes/raidplan/raidplan.test.js` (save, read
   view), `src/web-client/src/lib/raidplan/__tests__/inherit.test.ts` (client twin against the server) and
   `components/raidplan/editor/__tests__/EventStandard.test.tsx` (the Standard tab, inherited rows in a boss, swap, deviate,
   hide / restore, auto tokens and lines of inherited rows).
@@ -391,7 +391,7 @@ abgeschaltet – Aufstellung nur aus gespeichertem Stand", and the plan keeps wo
 carries them in `link`: `{ source: "raidhelper", enabled, instanceIds, versionId, size, composition, title,
 guildId, startTime, changedAt, changedBy }` (`raidplanStore.setLink` / `normalizeLink`). The activation dialog
 pre-fills them from the event title — `src/web/raidplan/raidplanTitle.js` `instancesFromTitle(title, versionId)`: the
-softres.it title keywords (`config/softresInstances.js`) **minus the unsafe ones** ("gl", "mag", "aman",
+softres.it title keywords (`config/data/softresInstances.js`) **minus the unsafe ones** ("gl", "mag", "aman",
 "plateau", "serpent", "tempest", "mh"), matched as whole words; the size from "10er" / "25 man" / "(25)", else
 the largest default of the instances; TBC only so far (another version is chosen by hand). The orga corrects
 the chips and the size before activating. `raidplanRosterSource.planEventFor()` builds from `link` the event

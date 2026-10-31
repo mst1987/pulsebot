@@ -9,15 +9,15 @@ jest.mock("../../../src/services/characters/characterInfo", () => ({
 }));
 // Own events, for the award version (#545) — an id starting "eh-" is an own
 // event, everything else (Raid-Helper, manual) counts as TBC.
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     getEvent: jest.fn(() => null),
 }));
 
 const fs = require("fs");
-const { addImport } = require("../../../src/stores/lootStore.js");
+const { addImport } = require("../../../src/stores/loot/lootStore.js");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const { reasonsByCharacter, itemCatalog, lootStats } = require("../../../src/services/loot/lootStats.js");
 
 beforeEach(() => {

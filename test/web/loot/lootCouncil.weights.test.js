@@ -11,22 +11,22 @@ const mockLogs = jest.fn(() => []);
 const mockGetReport = jest.fn(() => null);
 const mockRosters = jest.fn(() => []);
 
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAll(...a) }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: (...a) => mockAnnotated(...a) }));
 jest.mock("../../../src/services/loot/charGear", () => ({ gearByCharacter: (...a) => mockGearByCharacter(...a) }));
-jest.mock("../../../src/stores/characterStore", () => ({ characterMap: () => ({}) }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
-jest.mock("../../../src/stores/councilStore", () => ({ excludedKeys: () => new Set(), plannedRoles: () => new Map() }));
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [] }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/roster/characterStore", () => ({ characterMap: () => ({}) }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ getCategoryAssignments: () => ({}) }));
+jest.mock("../../../src/stores/loot/councilStore", () => ({ excludedKeys: () => new Set(), plannedRoles: () => new Map() }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: (...a) => mockRaidEvents(...a) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: () => [], getEvent: () => null, isOwnEventId: () => false }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [] }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: (...a) => mockLogs(...a) }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: () => [],
     getReport: (...a) => mockGetReport(...a),
     getReportRoster: (...a) => mockGetReport(...a),
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({
+jest.mock("../../../src/stores/roster/rosterStore", () => ({
     listRosters: (...a) => mockRosters(...a),
     rosterForCategory: (id) => mockRosters().find((r) => r.categoryId === id) || null,
     rostersForCategory: (id) => mockRosters().filter((r) => r.categoryId === id),
@@ -37,8 +37,8 @@ const {
     councilRoster, candidateSplit, droughtCounter,
     _internal: { needScore, droughtDays, resolveWeights, NEED_WEIGHTS },
 } = require("../../../src/web/loot/lootCouncil");
-const councilWeights = require("../../../src/stores/councilWeightsStore");
-const councilProfilesStore = require("../../../src/stores/councilProfilesStore");
+const councilWeights = require("../../../src/stores/loot/councilWeightsStore");
+const councilProfilesStore = require("../../../src/stores/loot/councilProfilesStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { DAY, now, lootRow, gearOf } = require("../../helpers/lootCouncil");
 

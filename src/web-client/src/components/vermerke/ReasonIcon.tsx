@@ -1,6 +1,6 @@
 import Icon from "../ui/icons/Icon";
 import { useT } from "../../i18n";
-import { NOTE_REASONS, type NoteReason } from "../../api/vermerke";
+import { NOTE_REASONS, type NoteReason } from "../../api/roster/vermerke";
 
 // The reason of a note (#980) as a grey line icon; the word is its tooltip.
 // With a count above one a small "×2" follows (the list's reasons column).

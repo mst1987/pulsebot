@@ -18,16 +18,16 @@
 // Discord path share it. It never blocks or fails a signup: posting is
 // fire-and-forget and a refused post is only logged.
 const discord = require("../discord/discord");
-const { getConfig } = require("../../stores/settingsStore");
-const profiles = require("../../stores/raiderProfileStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
 const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmojis");
 const { messageUrl } = require("../events/eventAnnounce");
 const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
-const serverDefaults = require("../discord/serverDefaults");
-const { guildOfEvent, firstServerId } = require("../discord/serverOf");
+const serverDefaults = require("../discord/servers/serverDefaults");
+const { guildOfEvent, firstServerId } = require("../discord/servers/serverOf");
 
 const NOTE_MODES = ["required", "optional", "none"];
 const NOTE_STATUSES = ["tentative", "absence"];

@@ -6,15 +6,15 @@
 // Attendance counts within one game version (#740): the version of the channel's
 // category (a thread: its channel's), else the main version - in a channel of a
 // Forever category only Forever raids count. The optional `version` option picks
-// another one (services/events/commandVersion.js, shared with the other lookups).
+// another one (services/versions/commandVersion.js, shared with the other lookups).
 const { SlashCommandBuilder } = require("discord.js");
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { charactersOfVersion } = require("../../services/characters/characterVersions");
-const { listByCharacter } = require("../../stores/lootStore");
+const { listByCharacter } = require("../../stores/loot/lootStore");
 const { characterAttendance, overall, attendanceFields } = require("../../services/characters/attendanceLookup");
 const { buildAttendanceContext } = require("../../services/characters/rosterAttendance");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
-const { serverIds } = require("../../services/discord/guildRoles");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
+const { serverIds } = require("../../services/discord/roles/guildRoles");
 const { webUrl, lookupReply } = require("../../utils/discord/botLookup");
 
 /** The game version a lookup counts: the picked `version` option, else the channel's category's, else the main version. */

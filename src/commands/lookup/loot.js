@@ -3,13 +3,13 @@
 // same functions the web pages use (lootStore, lootStats), never from a second
 // reading of the loot file.
 const { SlashCommandBuilder } = require("discord.js");
-const { listAll, listByCharacter } = require("../../stores/lootStore");
+const { listAll, listByCharacter } = require("../../stores/loot/lootStore");
 const { itemCatalog } = require("../../services/loot/lootStats");
 const { serverContext, lootOfGuild, serverOfInteraction } = require("../../services/loot/lootServer");
 const { annotatedCharacters } = require("../../services/characters/characterInfo");
 const { myCharacters } = require("../../services/characters/userCharacters");
 const { webUrl, lookupReply, respondChoices, focusedName, discordTime, plural, clip } = require("../../utils/discord/botLookup");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
 const { eventVersion, charactersOfVersion } = require("../../services/characters/characterVersions");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 

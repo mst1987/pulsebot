@@ -6,29 +6,29 @@ const NOW_SEC = Math.floor(NOW / 1000);
 const DAY = 86400;
 
 const mockListRaidEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/raidEventStore", () => ({ listRaidEvents: (...a) => mockListRaidEvents(...a) }));
-jest.mock("../../../src/stores/logStore", () => ({ listLogs: () => [] }));
-jest.mock("../../../src/stores/reportStore", () => ({ listReports: () => [], getReport: () => null }));
+jest.mock("../../../src/stores/events/raidEventStore", () => ({ listRaidEvents: (...a) => mockListRaidEvents(...a) }));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: () => [], getReport: () => null }));
 const mockOwnEvents = jest.fn(() => []);
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: (...a) => mockOwnEvents(...a),
     getEvent: jest.fn(),
     isOwnEventId: (id) => String(id).startsWith("eh-"),
 }));
 const mockGetSignup = jest.fn(() => null);
-jest.mock("../../../src/stores/signupStore", () => ({ listSignups: () => [], getSignup: (...a) => mockGetSignup(...a) }));
-jest.mock("../../../src/stores/availabilityStore", () => ({ listEntries: () => [] }));
-jest.mock("../../../src/stores/attendanceOverridesStore", () => ({ listOverrides: () => ({}) }));
+jest.mock("../../../src/stores/events/signupStore", () => ({ listSignups: () => [], getSignup: (...a) => mockGetSignup(...a) }));
+jest.mock("../../../src/stores/events/availabilityStore", () => ({ listEntries: () => [] }));
+jest.mock("../../../src/stores/events/attendanceOverridesStore", () => ({ listOverrides: () => ({}) }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockAssignments = {};
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
     getCategoryAssignments: (id) => mockAssignments[id] || {},
     listAllAssignments: () => mockAssignments,
 }));
 
-const configStore = require("../../../src/stores/configStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const configStore = require("../../../src/stores/settings/configStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const { raiderAttendance } = require("../../../src/web/availability/raiderAttendance");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

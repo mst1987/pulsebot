@@ -21,7 +21,7 @@ import {
     type RaidCtx,
 } from "./meta";
 import SpecTile from "./SpecTile";
-import type { VermerkShortMap } from "../../api/vermerke";
+import type { VermerkShortMap } from "../../api/roster/vermerke";
 import VermerkMark from "../../components/vermerke/VermerkMark";
 import { OrgaZone } from "../../components/ui/layout/OrgaZone";
 import { t, useT } from "../../i18n";

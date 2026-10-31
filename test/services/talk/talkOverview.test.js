@@ -1,5 +1,5 @@
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 // The server language: English here, German where a test says so.
 jest.mock("../../../src/services/discord/botLanguage", () => {
     const mocked = { ...jest.requireActual("../../../src/services/discord/botLanguage"), serverLang: jest.fn(() => "en") };
@@ -9,7 +9,7 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
 });
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
 const mockListeners = [];
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     onSignupsChanged: jest.fn((fn) => {
         mockListeners.push(fn);
         return () => mockListeners.splice(mockListeners.indexOf(fn), 1);
@@ -18,8 +18,8 @@ jest.mock("../../../src/stores/signupStore", () => ({
 // The overview store, keyed "from:to" (#892); a pre-#892 record (keyed by the
 // source alone) moves to the key that names it as `legacyKey`, like the real store.
 let mockStates = {};
-jest.mock("../../../src/stores/talkOverviewStore", () => ({
-    overviewKeys: jest.requireActual("../../../src/stores/talkOverviewStore").overviewKeys,
+jest.mock("../../../src/stores/discord/talkOverviewStore", () => ({
+    overviewKeys: jest.requireActual("../../../src/stores/discord/talkOverviewStore").overviewKeys,
     getOverviewState: jest.fn((key, { legacyKey = "" } = {}) => {
         if (!mockStates[key] && legacyKey && mockStates[legacyKey]) {
             mockStates[key] = mockStates[legacyKey];
@@ -39,14 +39,14 @@ jest.mock("../../../src/stores/talkOverviewStore", () => ({
     }),
 }));
 // The raw config read: a clean read has a `discordServers` block (the orphan clean-up checks it).
-jest.mock("../../../src/stores/configStore", () => ({ readStored: jest.fn(() => ({ discordServers: {} })) }));
+jest.mock("../../../src/stores/settings/configStore", () => ({ readStored: jest.fn(() => ({ discordServers: {} })) }));
 // Most tests configure exactly one link, from "111" to "222" (see `config` below).
 const stateOf = (key = "111:222") => mockStates[key] || {};
 
 const discord = require("../../../src/services/discord/discord");
 const { eventLang } = require("../../../src/services/discord/botLanguage");
-const { getConfig } = require("../../../src/stores/settingsStore");
-const { readStored } = require("../../../src/stores/configStore");
+const { getConfig } = require("../../../src/stores/settings/settingsStore");
+const { readStored } = require("../../../src/stores/settings/configStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
 const {
     CHANNEL_MISSING, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,

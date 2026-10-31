@@ -33,16 +33,17 @@
 // Places: core and trial members take a place ("n von m Plaetzen", the role
 // figures); bench and pause are counted per status only. The attendance average
 // is taken over everybody but the paused members.
-const rosterStore = require("../../stores/rosterStore");
-const profiles = require("../../stores/raiderProfileStore");
-const characterStore = require("../../stores/characterStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const characterStore = require("../../stores/roster/characterStore");
+const { leadsForVersion, instanceChoices, rosterLeadContext, mayOrgaRosterLeads } = require("../../services/roster/leaderFlags");
 const discord = require("../../services/discord/discord");
-const { listKnownCategories } = require("../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../services/categories/categoryNames");
 const { listStoredEvents } = require("../../services/events/eventSources");
 const { rulesFor } = require("../../config/gameVersions");
 const { CLASSES } = require("../../config/gameVersions/classes");
-const { mainVersionFor } = require("../../services/events/mainVersion");
-const { categoryAttendanceFor } = require("../../stores/configSchema");
+const { mainVersionFor } = require("../../services/versions/mainVersion");
+const { categoryAttendanceFor } = require("../../stores/settings/configSchema");
 const { buildAttendanceContext, attendanceForAccounts, categoryInfo, categoryNights, roleFromSpec } = require("../../services/characters/rosterAttendance");
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
@@ -489,10 +490,18 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     const head = rosterHead(roster, {
         ctx, names: categoryNames(roster.guildId || guildId), discordData, figures: orga ? figures : slimFigures(figures), guildId: roster.guildId || guildId,
     });
+    // the leader flags (#1034): no notes about a person, every reader of the roster sees them;
+    // `editable` - the instances of the category the orga may switch here (PUT /api/leads), else none
+    const mayLead = await mayOrgaRosterLeads(user, roster, { config }).catch(() => false);
+    const leaders = {
+        instances: instanceChoices(roster.versionId), byUser: leadsForVersion(rows.map((r) => r.userId), roster.versionId),
+        editable: mayLead ? rosterLeadContext(roster, { config }).instances : [],
+    };
     if (!orga) {
         return {
             roster: { ...head, kader: null },
             members: rows.map(slimMember),
+            leaders,
             window: null,
             nights: [],
             canEditAttendance: false,
@@ -513,6 +522,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     return {
         roster: { ...head, kader: linkedKader(roster) },
         members,
+        leaders,
         isOrga: true,
         ...(short ? { vermerke: shortFor(shortGuild, rows.map((r) => r.userId)) } : {}),
         window,

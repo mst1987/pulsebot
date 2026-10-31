@@ -45,11 +45,11 @@
 //
 // Names are compared like the waiting list's import (foldName: no case, no
 // accents), realms also without spaces, apostrophes and dashes ("Spine shatter"
-// = "Spineshatter"). Pure reads of stores/raiderProfileStore.js; writing the
+// = "Spineshatter"). Pure reads of stores/roster/raiderProfileStore.js; writing the
 // link is services/signups/guildBank.linkRequest (it redraws the orga card).
-const profiles = require("../../stores/raiderProfileStore");
-const stockStore = require("../../stores/guildBankStockStore");
-const requestStore = require("../../stores/guildBankStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
+const requestStore = require("../../stores/loot/guildBankStore");
 const { characterEvidence, seenIndex } = require("../characters/characterEvidence");
 const { CLASSES } = require("../../config/gameVersions/classes");
 const { versionShort } = require("./stockView");

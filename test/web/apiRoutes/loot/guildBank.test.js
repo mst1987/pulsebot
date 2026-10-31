@@ -10,7 +10,7 @@ jest.mock("../../../../src/services/guildbank/itemEmojis", () => ({ queueItemEmo
 jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Event-Server" }]),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { servers: [{ guildId: "g1", label: "PvE" }, { guildId: "g2", label: "" }], links: [] } })),
 }));
 
@@ -19,8 +19,8 @@ const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const { queueLookups } = require("../../../../src/services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../../src/services/guildbank/itemEmojis");
-const store = require("../../../../src/stores/guildBankStockStore");
-const requests = require("../../../../src/stores/guildBankStore");
+const store = require("../../../../src/stores/loot/guildBankStockStore");
+const requests = require("../../../../src/stores/loot/guildBankStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../../src/utils/guildbank/guildBankScan");
 const {
     getGuildBank, postGuildBankItem, postGuildBankTab, getGuildBankRequests, getGuildBanks, assignGuildBank, deleteGuildBank,
@@ -126,7 +126,7 @@ describe("apiRoutes/guildBank", () => {
         it("never shows or names a bank of a hidden version, and refuses writes to it (409)", async () => {
             const tbc = record("Alpha", "g1");
             const forever = record("Alpha", "g1", { project: "forever" });
-            const { getConfig } = require("../../../../src/stores/settingsStore");
+            const { getConfig } = require("../../../../src/stores/settings/settingsStore");
             const base = getConfig();
             getConfig.mockReturnValue({ ...base, mainVersion: "forever", hideOtherVersions: true });
             try {

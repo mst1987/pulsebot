@@ -7,13 +7,13 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import * as api from "../../../api/vermerke";
-import type { VermerkEntry, VermerkPerson, VermerkPersonDetail, VermerkSignal } from "../../../api/vermerke";
+import * as api from "../../../api/roster/vermerke";
+import type { VermerkEntry, VermerkPerson, VermerkPersonDetail, VermerkSignal } from "../../../api/roster/vermerke";
 import { adminUser, renderPage } from "../../../test/render";
 import VermerkePage from "../VermerkePage";
 
-vi.mock("../../../api/vermerke", async (orig) => ({
-    ...(await orig<typeof import("../../../api/vermerke")>()),
+vi.mock("../../../api/roster/vermerke", async (orig) => ({
+    ...(await orig<typeof import("../../../api/roster/vermerke")>()),
     getVermerke: vi.fn(),
     getVermerkPerson: vi.fn(),
     createVermerk: vi.fn(),

@@ -1,7 +1,7 @@
 // The request budget for raid-helper.xyz (#608): 1000 requests per key and
 // day, the bot stops itself before — background first, writes last.
 const { tempStoreFile } = require("../../helpers/tempStore");
-const budgetStore = require("../../../src/stores/raidhelperBudgetStore");
+const budgetStore = require("../../../src/stores/events/raidhelperBudgetStore");
 const budget = require("../../../src/utils/raidhelper/budget");
 const { RAIDHELPER_BUDGET } = require("../../../src/config/constants");
 

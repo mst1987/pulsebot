@@ -3,14 +3,14 @@ const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { buildRoster, rosterCharacter } = require("../../characters/roster");
 const { rosterStats } = require("../../characters/rosterStats");
-const rosterHidden = require("../../../stores/rosterHiddenStore");
-const { repairItemNames: repairLootItemNames } = require("../../../stores/lootStore");
-const { sourceForItem, content, tier } = require("../../../config/tbcContent");
+const rosterHidden = require("../../../stores/roster/rosterHiddenStore");
+const { repairItemNames: repairLootItemNames } = require("../../../stores/loot/lootStore");
+const { sourceForItem, content, tier } = require("../../../config/data/tbcContent");
 const { bisSpecsView } = require("../../loot/lootCouncil");
-const { knownVersion, resolveVersionQuery } = require("../../../services/events/mainVersion");
-const { getConfig } = require("../../../stores/settingsStore");
+const { knownVersion, resolveVersionQuery } = require("../../../services/versions/mainVersion");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { userIsOrga } = require("../../../config/permissions");
-const profiles = require("../../../stores/raiderProfileStore");
+const profiles = require("../../../stores/roster/raiderProfileStore");
 const { neutralAttendance } = require("../../../services/characters/rosterAttendance");
 
 /**

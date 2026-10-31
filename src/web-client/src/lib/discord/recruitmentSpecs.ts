@@ -3,7 +3,7 @@
 // a template's "## <emoji> Spec Name" block round-trips identically whether
 // edited in the classic admin or here. The class/spec catalog itself is NOT
 // duplicated here — it comes from GET /api/recruitment's `specCatalog` field
-// (computed once server-side from config/classlist.js) to avoid data drift.
+// (computed once server-side from config/data/classlist.js) to avoid data drift.
 
 import type { Emoji } from "../../api";
 

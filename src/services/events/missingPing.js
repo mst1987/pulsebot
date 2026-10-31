@@ -9,12 +9,12 @@
 // `findMissingRaiders` is the derivation alone — the signup button's preview
 // shows it before anything is posted.
 const { loadEventGroups, eventLookbackSince } = require("./raidEventGroups");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { computeAttendance, hasStarted } = require("../../utils/attendance");
 const { deliverUserPing, dmSummary } = require("../discord/pingDelivery");
 const { fail } = require("../../web/http/apiResult");
 const { hasExpected, listExpectedMembers } = require("../roster/expectedRaiders");
-const { versionOfEvent, isVersionVisible } = require("./mainVersion");
+const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
 
 /**
  * Who of the expected raiders has not reacted to the event yet: the core and

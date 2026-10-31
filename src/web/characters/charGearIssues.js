@@ -3,7 +3,7 @@
 //
 // The roster overview wants "was ist zuletzt am Gear aufgefallen" for every
 // character at a glance. Every stored report already carries its whole roster
-// with the structured issue list utils/logcheck/gearIssues.js produced, so this
+// with the structured issue list utils/logcheck/gear/gearIssues.js produced, so this
 // needs no Warcraft-Logs call at all — it only has to walk the reports newest
 // first and keep the first hit per character.
 //
@@ -11,9 +11,9 @@
 // so a report's "Keslight" lines up with the loot history's "keslight".
 // The slim slice: this reads the roster (or, on an old report, the players)
 // and nothing else — see reportStore.js.
-const { listReports, getReportRoster } = require("../../stores/reportStore");
+const { listReports, getReportRoster } = require("../../stores/loot/reportStore");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
-const { SLOT_NAMES } = require("../../utils/logcheck/gearIssues");
+const { SLOT_NAMES } = require("../../utils/logcheck/gear/gearIssues");
 
 // How many of the newest evaluations are read. Same bound (and reason) as
 // characterInfo.js's MAX_LOCAL_REPORTS: far enough back to cover everyone who

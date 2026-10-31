@@ -9,13 +9,13 @@
 // Only names and ids leave here - nothing of the Kader but its name, and that
 // only for a reader of the area `kader`.
 const { userCan } = require("../../config/permissions");
-const rosterStore = require("../../stores/rosterStore");
-const eventStore = require("../../stores/eventStore");
+const rosterStore = require("../../stores/roster/rosterStore");
+const eventStore = require("../../stores/events/eventStore");
 const { rosterLootSystem, categoryLootSystem } = require("../../services/loot/lootSystem");
 const councilProfiles = require("../../services/loot/councilProfiles");
 const { currentRoster } = require("../../services/roster/categoryRoster");
 const { kaderChoices } = require("../../services/roster/rosterCreate");
-const { versionLabel } = require("../../services/events/versionSettings");
+const { versionLabel } = require("../../services/versions/versionSettings");
 const { categoryOptions, pickVersion } = require("./councilQuery");
 
 /**

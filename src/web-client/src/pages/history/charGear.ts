@@ -31,7 +31,7 @@ export function socketIconUrl(type: string): string {
 }
 
 // Slots that can carry a permanent enchant in TBC — same set as the CLA's gear
-// audit (config/claData.js ENCHANTABLE_SLOTS), in Blizzard slot keys. Rings are
+// audit (config/data/claData.js ENCHANTABLE_SLOTS), in Blizzard slot keys. Rings are
 // enchanter-only, so a missing mark there would be a false alarm.
 const ENCHANTABLE_SLOTS = new Set(["HEAD", "SHOULDER", "CHEST", "LEGS", "FEET", "WRIST", "HANDS", "BACK", "MAIN_HAND", "OFF_HAND"]);
 

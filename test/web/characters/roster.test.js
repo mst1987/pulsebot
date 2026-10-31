@@ -8,18 +8,18 @@ jest.mock("../../../src/services/characters/characterInfo", () => ({
 // The loot rows of every server; the roster keeps only the active one's (#919).
 // The server rule itself is lootServer.test.js - here: a row's `guildId`.
 const mockListAllLoot = jest.fn(() => []);
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: (...a) => mockListAllLoot(...a) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: (...a) => mockListAllLoot(...a) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({
     lootOfGuild: (rows, guildId) => (guildId === undefined ? rows : rows.filter((r) => !!guildId && r.guildId === guildId)),
 }));
 
 const mockListAllAssignments = jest.fn(() => ({}));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({
     listAllAssignments: (...a) => mockListAllAssignments(...a),
 }));
 
 const mockCharacterMap = jest.fn(() => ({}));
-jest.mock("../../../src/stores/characterStore", () => ({
+jest.mock("../../../src/stores/roster/characterStore", () => ({
     characterMap: (...a) => mockCharacterMap(...a),
 }));
 
@@ -32,7 +32,7 @@ jest.mock("../../../src/web/characters/charGearIssues", () => ({
 // live Discord list — see that module for why (categoryNames.test.js covers the
 // resolution itself).
 const mockListCategories = jest.fn(() => []);
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: (...a) => mockListCategories(...a),
 }));
 

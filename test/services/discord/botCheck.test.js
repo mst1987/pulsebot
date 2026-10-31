@@ -14,19 +14,19 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: () => mockGuild,
     getClient: () => mockClient,
 }));
-jest.mock("../../../src/stores/rosterStore", () => ({ listRosters: () => mockRosters, isClosed: (r) => !!r.closedAt }));
-jest.mock("../../../src/stores/roleMessageStore", () => ({ listMessages: () => mockRoleMessages }));
+jest.mock("../../../src/stores/roster/rosterStore", () => ({ listRosters: () => mockRosters, isClosed: (r) => !!r.closedAt }));
+jest.mock("../../../src/stores/discord/roleMessageStore", () => ({ listMessages: () => mockRoleMessages }));
 const mockEvents = [];
-jest.mock("../../../src/stores/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ listEvents: (gid) => mockEvents.filter((e) => !gid || e.guildId === gid) }));
 // A plain Discord category must never count as a raid one: the check reads no category list.
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: () => { throw new Error("botCheck must not read the category list"); },
     rememberCategories: () => { throw new Error("botCheck must not write"); },
 }));
 const mockAddon = { channelId: "", roleId: "" };
-jest.mock("../../../src/stores/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
+jest.mock("../../../src/stores/settings/addonCenterStore", () => ({ getSettings: () => ({ ...mockAddon }) }));
 const mockInviteCodes = [];
-jest.mock("../../../src/stores/discordInviteStore", () => ({ knownCodes: () => mockInviteCodes }));
+jest.mock("../../../src/stores/discord/discordInviteStore", () => ({ knownCodes: () => mockInviteCodes }));
 
 const { botCheck, channelPurposes, raidServerIds, BOT_FUNCTIONS } = require("../../../src/services/discord/botCheck");
 

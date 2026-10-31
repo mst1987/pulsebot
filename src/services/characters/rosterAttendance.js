@@ -58,20 +58,21 @@
 // (raiderCharactersStore - a rogue assigned under "TBC Montag" also stands for
 // the account in "PUG Raids"), and per night the characters of its own signup.
 const { listStoredEvents } = require("../events/eventSources");
-const { listLogs } = require("../../stores/logStore");
-const { listReports, getReport } = require("../../stores/reportStore");
+const { listLogs } = require("../../stores/loot/logStore");
+const { listReports, getReport } = require("../../stores/loot/reportStore");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
-const { contentsForText, content: contentMeta } = require("../../config/raidContent");
+const { contentsForText, content: contentMeta } = require("../../config/data/raidContent");
 const { VERSIONS } = require("../../config/gameVersions");
-const { versionOfEvent, mainVersionFor, knownVersion } = require("../events/mainVersion");
+const { versionOfEvent, mainVersionFor, knownVersion } = require("../versions/mainVersion");
 const logger = require("../../logger").child("attendance");
 const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
-const eventStore = require("../../stores/eventStore");
-const availabilityStore = require("../../stores/availabilityStore");
-const overridesStore = require("../../stores/attendanceOverridesStore");
+const eventStore = require("../../stores/events/eventStore");
+const availabilityStore = require("../../stores/events/availabilityStore");
+const { scopeCovers } = require("../signups/availabilityScope");
+const overridesStore = require("../../stores/events/attendanceOverridesStore");
 const { benchAndPool } = require("../setup/setupCore");
-const { listAllAssignments } = require("../../stores/raiderCharactersStore");
+const { listAllAssignments } = require("../../stores/roster/raiderCharactersStore");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 
 /** How many raid nights of a category attendance looks back over. */
@@ -131,13 +132,13 @@ function serverDay(seconds) {
     return DateTime.fromSeconds(Number(seconds) || 0, { zone: TIMEZONE }).toFormat("yyyy-MM-dd");
 }
 
-/** The accounts an absence entry (availabilityStore) covers this raid for: its day in the period, its category, not deselected. */
+/** The accounts an absence entry (availabilityStore) covers this raid for: its day in the period, its scope (server + category), not deselected. */
 function vacationIds(entries, ev) {
     const day = serverDay(ev.startTime);
     const out = new Set();
     for (const e of entries) {
         if (day < e.from || day > e.to) continue;
-        if (e.categoryId && String(ev.categoryId) !== e.categoryId) continue;
+        if (!scopeCovers(e, ev)) continue;
         if ((e.skip || []).includes(String(ev.id))) continue;
         out.add(String(e.userId));
     }

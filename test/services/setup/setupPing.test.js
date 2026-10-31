@@ -6,7 +6,7 @@
 // approved setup is read by the real setupCore.
 const { cardText } = require("../../helpers/cardText");
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: jest.fn((id) => mockEvents.get(id) || null),
     appendEventLog: jest.fn(),
     setEventSetupPost: jest.fn((id, patch) => {
@@ -41,7 +41,7 @@ jest.mock("../../../src/services/setup/setupMessage", () => ({
     callSetupPing: jest.fn(async () => ({ message: "3 Raider aus dem Setup gepingt.", count: 3 })),
 }));
 
-const eventStore = require("../../../src/stores/eventStore");
+const eventStore = require("../../../src/stores/events/eventStore");
 const discord = require("../../../src/services/discord/discord");
 const { callSetupPing } = require("../../../src/services/setup/setupMessage");
 const { setupPingPlan, saveSetupPingText, refreshSetupPing } = require("../../../src/services/setup/setupPing");

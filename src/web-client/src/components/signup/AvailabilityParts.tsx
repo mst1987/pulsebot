@@ -1,15 +1,25 @@
 import { useEffect, useRef, useState } from "react";
-import { searchRaiders, type AvailabilityKind, type AvailabilityRaid, type AvailabilityResult, type RaiderRef } from "../../api";
-import { Badge, Button, IconButton } from "../ui";
-import { RosterIcon, SearchIcon, XIcon } from "../ui/icons/icons";
+import {
+    searchRaiders, type AvailabilityCharacter, type AvailabilityKind, type AvailabilityRaid, type AvailabilityResult,
+    type AvailabilityServer, type RaiderRef,
+} from "../../api";
+import { Badge, Button, IconButton, WowIcon } from "../ui";
+import Chip from "../ui/Chip";
+import { CheckMark, RosterIcon, SearchIcon, XIcon } from "../ui/icons/icons";
 import { formatDayDate, formatTime } from "../../lib/format";
 import { SIGNUP_STATUS, statusBadgeLabel } from "../../lib/signups/status";
-import { skipReason, staysAsIs } from "../../lib/signups/availability";
+import { raidFixed, skipReason, type CharPick, type ScopePick } from "../../lib/signups/availability";
+import { categoryIcon, plainCategoryName } from "../../lib/roster/absences";
+import { classIconName } from "../../lib/roster/rosterView";
+import { classColorOf } from "../../lib/discord/members";
+import { classColorProps } from "../character/ClassSpec";
+import { specLabel } from "../../lib/wow/wowNames";
 import { useT } from "../../i18n";
 
-// The parts of the absence/attendance dialog (AvailabilityDialog.tsx): the raids
-// of the period with a checkbox each, the orga's "für Raider" picker, and the
-// answer of a save, raid by raid.
+// The parts of the absence/attendance dialog (AvailabilityDialog.tsx): where the
+// entry holds (servers and their categories), the characters of an attendance,
+// the raids of the period as toggle rows, the orga's "für Raider" picker, and
+// the answer of a save, raid by raid.
 
 /** When a raid starts, short: "Fr 09.10. 19:45". */
 function when(startTime: number): string {
@@ -17,9 +27,123 @@ function when(startTime: number): string {
     return `${formatDayDate(ms)} ${formatTime(ms)}`;
 }
 
+// The crest in front of a server's name when it has no Discord icon (as in the sidebar's server head).
+const GUILD_ICON = "inv_misc_tabardpvp_01";
+
+/** A server's Discord icon, the crest without one (or when it does not load). */
+function ServerIcon({ server }: { server: AvailabilityServer }) {
+    const [broken, setBroken] = useState(false);
+    if (!server.icon || broken) return <WowIcon name={GUILD_ICON} size={18} />;
+    return <img className="an-av-srv-ico" src={server.icon} alt="" width={18} height={18} onError={() => setBroken(true)} />;
+}
+
+/** One server's chips: "Alle Kategorien" and each category with its icon — several may be on. */
+function ServerChips({ server, pick, onAll, onCategory, label }: {
+    server: AvailabilityServer;
+    pick: ScopePick[string] | undefined;
+    onAll: () => void;
+    onCategory: (id: string) => void;
+    label: string;
+}) {
+    const t = useT();
+    const all = pick === "all";
+    return (
+        <div className="chip-row" role="group" aria-label={label}>
+            <Chip pressed={all} tone={all ? "accent" : undefined} icon={all ? <CheckMark /> : undefined} onClick={onAll}>
+                {t("signups.availability.dialog.allOfServer")}
+            </Chip>
+            {server.categories.map((c) => {
+                const on = Array.isArray(pick) && pick.includes(c.id);
+                return (
+                    <Chip key={c.id} pressed={on} tone={on ? "accent" : undefined}
+                        icon={<WowIcon name={categoryIcon(c.icon)} size={16} />} onClick={() => onCategory(c.id)}>
+                        {plainCategoryName(c.name)}
+                    </Chip>
+                );
+            })}
+        </div>
+    );
+}
+
+/**
+ * Where an entry holds: one block per server (icon and name as a small heading,
+ * below it the chips); one server alone without its heading.
+ */
+export function ScopePicker({ servers, pick, onAll, onCategory }: {
+    servers: AvailabilityServer[];
+    pick: ScopePick;
+    onAll: (guildId: string) => void;
+    onCategory: (guildId: string, categoryId: string) => void;
+}) {
+    const t = useT();
+    if (servers.length === 1) {
+        const only = servers[0];
+        return <ServerChips server={only} pick={pick[only.guildId]} onAll={() => onAll(only.guildId)}
+            onCategory={(id) => onCategory(only.guildId, id)} label={t("signups.availability.dialog.category")} />;
+    }
+    return (
+        <div className="an-av-servers">
+            {servers.map((s) => (
+                <div key={s.guildId} className="an-av-srv">
+                    <div className="an-av-srv-head"><ServerIcon server={s} /><span>{s.name}</span></div>
+                    <ServerChips server={s} pick={pick[s.guildId]} onAll={() => onAll(s.guildId)}
+                        onCategory={(id) => onCategory(s.guildId, id)} label={t("signups.availability.dialog.serverAria", { name: s.name })} />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+/**
+ * The characters of an attendance: one row each (class icon, name in its class
+ * colour — a click puts it in or out) with its spec beside it; one group per game
+ * version when the picked categories play more than one.
+ */
+export function CharacterRows({ groups, picked, versionName, onToggle, onSpec }: {
+    groups: { versionId: string; characters: AvailabilityCharacter[] }[];
+    /** key -> spec of the characters in. */
+    picked: CharPick;
+    versionName: (versionId: string) => string;
+    onToggle: (character: AvailabilityCharacter) => void;
+    onSpec: (key: string, spec: string) => void;
+}) {
+    const t = useT();
+    return (
+        <div className="an-av-chargroups">
+            {groups.map((g) => (
+                <div key={g.versionId} className="an-av-chargroup">
+                    {groups.length > 1 && <div className="an-av-version">{versionName(g.versionId)}</div>}
+                    <ul className="an-av-chars">
+                        {g.characters.map((c) => {
+                            const spec = picked[c.key] || "";
+                            const on = !!spec;
+                            const colored = classColorProps(classColorOf(c.className));
+                            return (
+                                <li key={c.key} className={on ? "an-av-char" : "an-av-char an-av-off"}>
+                                    <button type="button" className="an-av-toggle" aria-pressed={on} onClick={() => onToggle(c)}
+                                        aria-label={t("signups.availability.dialog.charAria", { name: c.name })}>
+                                        <span className="an-av-mark">{on && <CheckMark />}</span>
+                                        <WowIcon name={classIconName(c.className)} size={20} />
+                                        <span className={["an-av-charname", colored.className || ""].filter(Boolean).join(" ")} style={colored.style}>{c.name}</span>
+                                    </button>
+                                    <select className="inp-sm" value={spec || c.specs[0]?.key || ""} aria-label={t("signups.availability.dialog.specAria", { name: c.name })}
+                                        onChange={(e) => onSpec(c.key, e.target.value)}>
+                                        {c.specs.map((s) => <option key={s.key} value={s.key}>{specLabel(s.key, s.label)}</option>)}
+                                    </select>
+                                </li>
+                            );
+                        })}
+                    </ul>
+                </div>
+            ))}
+        </div>
+    );
+}
+
 /**
  * The raids the period covers — all picked at first; a click leaves one out. A
- * raid the save would leave alone anyway (staysAsIs) stays unpicked and greyed out.
+ * raid the save leaves alone anyway (raidFixed: already so, already done by the
+ * entry being edited, or covered by an absence) stays unpicked and greyed out.
  */
 export function RaidChecklist({ kind, raids, off, onToggle }: {
     kind: AvailabilityKind;
@@ -32,18 +156,21 @@ export function RaidChecklist({ kind, raids, off, onToggle }: {
     return (
         <ul className="an-av-raids">
             {raids.map((r) => {
-                const fixed = staysAsIs(kind, r.status);
+                const fixed = raidFixed(kind, r);
                 const picked = !fixed && !off.has(r.id);
                 return (
                     <li key={r.id}>
-                        <label className={`an-av-raid${picked ? "" : " an-av-off"}`}>
-                            <input type="checkbox" checked={picked} disabled={fixed} onChange={() => onToggle(r.id)} aria-label={t("signups.availability.dialog.raidAria", { title: r.title })} />
+                        <button type="button" className={`an-av-raid an-av-toggle${picked ? "" : " an-av-off"}`} aria-pressed={picked} disabled={fixed}
+                            onClick={() => onToggle(r.id)} aria-label={t("signups.availability.dialog.raidAria", { title: r.title })}>
+                            <span className="an-av-mark">{picked && <CheckMark />}</span>
                             <span className="an-av-text">
                                 <span className="an-av-title">{r.title}</span>
                                 <span className="an-av-when">{[when(r.startTime), r.categoryName].filter(Boolean).join(" · ")}</span>
                             </span>
-                            {r.status && <Badge size="sm" tone={SIGNUP_STATUS[r.status].tone}>{statusBadgeLabel(r.status)}</Badge>}
-                        </label>
+                            {r.applied ? <Badge size="sm" tone="ok" tip={t("signups.availability.dialog.appliedTip")}>{t("signups.availability.dialog.applied")}</Badge>
+                                : kind === "presence" && r.absent ? <Badge size="sm" tone="bad" tip={t("signups.availability.dialog.absentTip")}>{t("signups.availability.dialog.absentFixed")}</Badge>
+                                    : r.status ? <Badge size="sm" tone={SIGNUP_STATUS[r.status].tone}>{statusBadgeLabel(r.status)}</Badge> : null}
+                        </button>
                     </li>
                 );
             })}

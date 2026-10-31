@@ -13,11 +13,11 @@
 
 const { candidatesForDay } = require("./lootEventMatch");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
-const { versionOfEvent } = require("../../services/events/mainVersion");
-const { settingsForVersion } = require("../../services/events/versionSettings");
+const { versionOfEvent } = require("../../services/versions/mainVersion");
+const { settingsForVersion } = require("../../services/versions/versionSettings");
 const { signupStatus } = require("../../utils/attendance");
-const raiderProfiles = require("../../stores/raiderProfileStore");
-const eventStore = require("../../stores/eventStore");
+const raiderProfiles = require("../../stores/roster/raiderProfileStore");
+const eventStore = require("../../stores/events/eventStore");
 
 /** The share of recipients that must have signed up for a raid to be the clear match. */
 const MATCH_SHARE = 0.6;

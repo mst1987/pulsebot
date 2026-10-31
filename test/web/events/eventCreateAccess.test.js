@@ -3,17 +3,17 @@
 // plays now, channels of that category only. The roster rule is categoryOrga.test.js'; here it is mocked.
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 const mockConfig = { categoryVoiceChannel: { cat1: "v-shared" } };
-jest.mock("../../../src/stores/settingsStore", () => ({
-    ...jest.requireActual("../../../src/stores/settingsStore"),
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
     getConfig: () => mockConfig,
     getRaidTemplate: (id) => ({ "tpl-tbc": { id, versionId: "tbc" }, "tpl-forever": { id, name: "BD", versionId: "forever" } })[id] || null,
 }));
-jest.mock("../../../src/stores/channelArchiveStore", () => ({
-    ...jest.requireActual("../../../src/stores/channelArchiveStore"),
+jest.mock("../../../src/stores/discord/channelArchiveStore", () => ({
+    ...jest.requireActual("../../../src/stores/discord/channelArchiveStore"),
     getChannelConfig: () => ({ schemas: { cat1: { templateChannelId: "t-schema" } } }),
 }));
-jest.mock("../../../src/services/events/mainVersion", () => ({
-    ...jest.requireActual("../../../src/services/events/mainVersion"),
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
     mainVersionFor: jest.fn(() => "tbc"),
     versionOfEvent: jest.fn((event) => (event && event.versionId) || "tbc"),
 }));

@@ -4,11 +4,11 @@
 // the button opens the page "Addons" in the web, where the download needs a
 // login (the files of private repos must not leak through a forwarded link).
 const { SlashCommandBuilder } = require("discord.js");
-const { getConfig } = require("../../stores/configStore");
-const { addVersionOption, versionOfCommand, versionNote } = require("../../services/events/commandVersion");
+const { getConfig } = require("../../stores/settings/configStore");
+const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
 const { userIsOrga } = require("../../config/permissions");
-const { resolveAccess } = require("../../services/discord/userAccess");
-const { interactionGuildId } = require("../../services/discord/serverAccess");
+const { resolveAccess } = require("../../services/discord/members/userAccess");
+const { interactionGuildId } = require("../../services/discord/servers/serverAccess");
 const { enabledAddons, releaseFor } = require("../../services/addons/addonReleases");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/discord/botLookup");
 

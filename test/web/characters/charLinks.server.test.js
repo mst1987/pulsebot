@@ -1,7 +1,7 @@
 // charLinks with the server a page is shown for (#923): its own armory/log
 // template wins, every other server and a call without one keep the standard.
 const G1 = "111111111111111111";
-jest.mock("../../../src/stores/configStore", () => ({
+jest.mock("../../../src/stores/settings/configStore", () => ({
     getConfig: () => ({
         mainVersion: "tbc",
         versionSettings: { tbc: { armoryUrlTemplate: "https://armory.test/{char}", wclUrlTemplate: "https://wcl.test/character/eu/x/{char}" } },

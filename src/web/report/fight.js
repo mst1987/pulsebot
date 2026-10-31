@@ -1,14 +1,14 @@
 // One boss fight on the report page: the topic parts (table + chart), the DPS/HPS
 // strip, the chart dialogs and the whole fight section.
 const { markerChart, ribbonChart, fmtTime, lineChart, PX_PER_SEC } = require("./charts");
-const { dipShare } = require("../../utils/logcheck/fightSeries");
+const { dipShare } = require("../../utils/logcheck/fights/fightSeries");
 const { esc } = require("./layout");
 const { tile, badge, LINE, dlgClose, hicon, classColorOf, pctTone, classIconName, fmtK } = require("./widgets");
 const { fightOutcome, deathsList, mechanicRows, debuffSub, TOPIC_META, topicTable, groupedTable } = require("./fightTopics");
 const { healingParts } = require("./panels/healers");
 const { buffParts } = require("./panels/buffs");
 
-// ---- Kampfverlauf: the fight timelines (report.timeline, utils/logcheck/fightTimeline.js) ----
+// ---- Kampfverlauf: the fight timelines (report.timeline, utils/logcheck/fights/fightTimeline.js) ----
 //
 // One boss at a time, one try at a time, one topic at a time: boss tabs (with
 // the WCL boss icon), try pills under them, and a segmented switch for the

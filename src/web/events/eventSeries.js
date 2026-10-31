@@ -30,19 +30,19 @@
 
 const { DateTime } = require("luxon");
 const discord = require("../../services/discord/discord");
-const store = require("../../stores/eventSeriesStore");
-const eventStore = require("../../stores/eventStore");
-const guildRoles = require("../../services/discord/guildRoles");
+const store = require("../../stores/events/eventSeriesStore");
+const eventStore = require("../../stores/events/eventStore");
+const guildRoles = require("../../services/discord/roles/guildRoles");
 const channelNaming = require("../../services/discord/channelNaming");
 const { signupSourceFor, ownUpcomingRaw } = require("../../services/events/eventSources");
 const { loadEventGroups } = require("../../services/events/raidEventGroups");
-const { getConfig, getRaidTemplate } = require("../../stores/settingsStore");
+const { getConfig, getRaidTemplate } = require("../../stores/settings/settingsStore");
 const { parseClockTime } = require("../../utils/time");
 
 const { TIMEZONE } = require("../../config/timezone");
 const { createEvent } = require("../../services/events/eventCreate");
-const { templateVersionProblem } = require("../../services/events/categoryEras");
-const { isCategoryActive } = require("../../services/events/categoryLifecycle");
+const { templateVersionProblem } = require("../../services/categories/categoryEras");
+const { isCategoryActive } = require("../../services/categories/categoryLifecycle");
 const WEEKDAY_SHORT = ["", "Mo", "Di", "Mi", "Do", "Fr", "Sa", "So"];
 const MIN_DAYS_BEFORE = 1;
 const MAX_DAYS_BEFORE = 28;

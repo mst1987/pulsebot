@@ -1,6 +1,6 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeGuildFor } = require("../../http/activeGuild");
 const discord = require("../../../services/discord/discord");
 const {
@@ -11,17 +11,17 @@ const {
 const { userCanAny, userIsOrga } = require("../../../config/permissions");
 const { buildTasks, zoneFor } = require("../../dashboard/dashboardOverview");
 const { loadPersonal } = require("../../dashboard/dashboardPersonal");
-const { loadDrift } = require("../../../services/discord/roleSync");
+const { loadDrift } = require("../../../services/discord/roles/roleSync");
 const { seriesFailures } = require("../../events/eventSeries");
 const { deployStatus } = require("../../http/deployStatus");
 const { readParts: readBackupParts } = require("../../../services/backup/backupStatus");
 const { backupEnabled } = require("../../../services/backup/backupConfig");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { mainVersionFor, resolveVersionQuery } = require("../../../services/events/mainVersion");
+const { mainVersionFor, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
 const { canOrgaRaid, canCreateRaids, isGlobalRaidOrga, withOrgaFlags } = require("../../events/raidOrgaAccess");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
-const { settingsForVersion } = require("../../../services/events/versionSettings");
+const { settingsForVersion } = require("../../../services/versions/versionSettings");
 
 /** The series failures with their category's name; best-effort, never fails the dashboard. */
 function seriesFailuresFor(guildId) {

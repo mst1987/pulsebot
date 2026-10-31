@@ -1,6 +1,6 @@
 const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
 const { card } = require("../../utils/discord/card");
-const { CLASSES } = require("../../config/applyClasses");
+const { CLASSES } = require("../../config/data/applyClasses");
 const { pendingApplications } = require("../../utils/recruitment/applicationState");
 const { versionOfApplyButton } = require("../../utils/recruitment/applyVersion");
 

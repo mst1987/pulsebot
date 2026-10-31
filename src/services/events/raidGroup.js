@@ -8,7 +8,7 @@
 // The record fields and the pure readers are in utils/raidGroup.js. This module
 // is the store side: which raids form a group, who stands in which of them, how
 // a raid is added and how a further raid is dissolved again.
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 const { raidGroupIdOf, isRaidSibling, signupEventIdOf, raidIndexOf, inRaidGroup } = require("../../utils/raidGroup");
 const { approvedSetupOf, benchAndPool } = require("../setup/setupCore");
 const { str } = require("../../utils/text");
@@ -131,14 +131,95 @@ function defaultTitle(primary, index) {
  * @returns {{ event?: object, primary?: object, status?: number, code?: string, error?: string }}
  */
 function addRaid(eventId, { title = "", user = null, now = Date.now() } = {}) {
-    const { event: asked, failed } = ownEvent(eventId);
-    if (failed) return failed;
-    const primary = primaryOf(asked);
-    if (primary.status === "cancelled") return fail(409, "cancelled", "Der Raid ist abgesagt.");
-    if ((Number(primary.startTime) || 0) * 1000 <= now) return fail(409, "started", "Der Raid hat schon begonnen – ein weiterer Raid lässt sich nur vorher anlegen.");
-    const raids = groupEvents(primary);
+    const checked = groupToGrow(eventId, now);
+    if (checked.failed) return checked.failed;
+    const { primary, raids } = checked;
     if (raids.length >= MAX_RAIDS) return fail(409, "too_many", `Höchstens ${MAX_RAIDS} Raids an einem Abend.`);
-    const index = raids.reduce((n, e) => Math.max(n, raidIndexOf(e)), 1) + 1;
+    const index = nextIndex(raids);
+    const made = createSibling(primary, index, title, user);
+    if (made.error) return made;
+    const head = joinGroup(primary);
+    const by = actor(user, now);
+    eventStore.appendEventLog(primary.id, { ...by, action: "raidAdd", detail: `Weiterer Raid angelegt: ${made.title}` });
+    eventStore.appendEventLog(made.event.id, { ...by, action: "raidAdd", detail: `Als Raid ${index} von „${primary.title}“ angelegt` });
+    return { event: eventStore.getEvent(made.event.id) || made.event, primary: head || primary };
+}
+
+/**
+ * "Auf n Raids aufteilen" (#1035):`count` further raids in one go — the same as
+ * `count` times "Weiteren Raid hinzufügen", with one log entry on the primary
+ * ("4 Raids angelegt: …"). `titles[i]` names the i-th new raid (else
+ * "<Titel> <n>"). The group stays at most MAX_RAIDS raids: a count beyond it
+ * is refused as a whole (nothing created). count 1 is plain addRaid.
+ * @returns {{ events?: object[], primary?: object, status?: number, code?: string, error?: string }}
+ */
+function addRaids(eventId, { count = 1, titles = [], user = null, now = Date.now() } = {}) {
+    const n = Number(count);
+    if (!Number.isInteger(n) || n < 1) return fail(400, "invalid", "Anzahl der Raids fehlt.");
+    const names = Array.isArray(titles) ? titles : [];
+    if (n === 1) {
+        const one = addRaid(eventId, { title: str(names[0]), user, now });
+        return one.error ? one : { events: [one.event], primary: one.primary };
+    }
+    const checked = groupToGrow(eventId, now);
+    if (checked.failed) return checked.failed;
+    const { primary, raids } = checked;
+    if (raids.length + n > MAX_RAIDS) {
+        return fail(400, "too_many", `Höchstens ${MAX_RAIDS} Raids an einem Abend – ${Math.max(0, MAX_RAIDS - raids.length)} lassen sich noch anlegen.`);
+    }
+    const by = actor(user, now);
+    const events = [];
+    let index = nextIndex(raids);
+    for (let i = 0; i < n; i += 1, index += 1) {
+        const made = createSibling(primary, index, names[i], user);
+        if (made.error) {
+            if (!events.length) return made;
+            break; // the ones made stay — logged below
+        }
+        eventStore.appendEventLog(made.event.id, { ...by, action: "raidAdd", detail: `Als Raid ${index} von „${primary.title}“ angelegt` });
+        events.push(eventStore.getEvent(made.event.id) || made.event);
+    }
+    const head = joinGroup(primary);
+    eventStore.appendEventLog(primary.id, { ...by, action: "raidAdd", detail: `${events.length} Raids angelegt: ${events.map((e) => e.title).join(", ")}` });
+    return { events, primary: head || primary };
+}
+
+/**
+ * How many raids the group should have in total for the signups ("Auf 5 Raids
+ * aufteilen"): enough raids for everybody who is signed up (`active` = without
+ * a decline or absence — "Vielleicht" and the bench count, as in the pool), at
+ * most MAX_RAIDS. 0 without signups or size. The client subtracts the raids
+ * the group already has.
+ */
+function suggestedRaidTotal({ active = 0, size = 0 } = {}) {
+    const people = Number(active) || 0;
+    const seats = Number(size) || 0;
+    if (people <= 0 || seats <= 0) return 0;
+    return Math.min(Math.ceil(people / seats), MAX_RAIDS);
+}
+
+/** The group an add request grows (its primary, raids), or why not. */
+function groupToGrow(eventId, now) {
+    const { event: asked, failed } = ownEvent(eventId);
+    if (failed) return { failed };
+    const primary = primaryOf(asked);
+    if (primary.status === "cancelled") return { failed: fail(409, "cancelled", "Der Raid ist abgesagt.") };
+    if ((Number(primary.startTime) || 0) * 1000 <= now) {
+        return { failed: fail(409, "started", "Der Raid hat schon begonnen – ein weiterer Raid lässt sich nur vorher anlegen.") };
+    }
+    return { primary, raids: groupEvents(primary) };
+}
+
+const nextIndex = (raids) => raids.reduce((n, e) => Math.max(n, raidIndexOf(e)), 1) + 1;
+const actor = (user, now) => ({ by: str(user && user.id), byName: str(user && (user.name || user.username)), at: now });
+
+/** The primary as head of its group (becomes it on the first further raid). */
+function joinGroup(primary) {
+    return raidGroupIdOf(primary) ? eventStore.getEvent(primary.id) || primary : eventStore.setEventRaidGroup(primary.id, { raidGroupId: primary.id, raidGroupIndex: 1 });
+}
+
+/** Create one further raid of the primary's evening at `index` (no log). */
+function createSibling(primary, index, title, user) {
     const name = str(title).slice(0, MAX_TITLE) || defaultTitle(primary, index);
     const created = eventStore.createEvent({
         guildId: primary.guildId,
@@ -174,11 +255,7 @@ function addRaid(eventId, { title = "", user = null, now = Date.now() } = {}) {
         raidGroupIndex: index,
     });
     if (created.error) return fail(400, "invalid", created.error);
-    const head = raidGroupIdOf(primary) ? primary : eventStore.setEventRaidGroup(primary.id, { raidGroupId: primary.id, raidGroupIndex: 1 });
-    const by = { by: str(user && user.id), byName: str(user && (user.name || user.username)), at: now };
-    eventStore.appendEventLog(primary.id, { ...by, action: "raidAdd", detail: `Weiterer Raid angelegt: ${name}` });
-    eventStore.appendEventLog(created.event.id, { ...by, action: "raidAdd", detail: `Als Raid ${index} von „${primary.title}“ angelegt` });
-    return { event: eventStore.getEvent(created.event.id) || created.event, primary: head || primary };
+    return { event: created.event, title: name };
 }
 
 /**
@@ -240,6 +317,6 @@ function dissolveRaid(eventId, { user = null, now = Date.now() } = {}) {
 }
 
 module.exports = {
-    groupEvents, primaryOf, placedElsewhere, lineupMembers, groupSummary, groupPlaces, addRaid, dissolveRaid, defaultTitle, closeUp, followPrimary,
-    MAX_RAIDS,
+    groupEvents, primaryOf, placedElsewhere, lineupMembers, groupSummary, groupPlaces, addRaid, addRaids, suggestedRaidTotal,
+    dissolveRaid, defaultTitle, closeUp, followPrimary, MAX_RAIDS,
 };

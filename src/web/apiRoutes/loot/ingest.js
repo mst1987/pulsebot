@@ -15,26 +15,26 @@
 const { ok, error } = require("../../http/apiResponse");
 const { readJsonBody } = require("../../http/apiBody");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
-const { addImport: addLootImport, eventsWithLoot } = require("../../../stores/lootStore");
+const { addImport: addLootImport, eventsWithLoot } = require("../../../stores/loot/lootStore");
 const { rememberFromLoot } = require("../../../services/characters/characterInfo");
 const { parseEventHelperSessions, LootParseError } = require("../../../utils/loot/lootImport");
 const { linkItemsForImport, enrichForImport } = require("../../../services/loot/lootVersion");
 const { bestDayMatch } = require("../../loot/lootEventMatch");
 const { scoreCandidates, decideCandidates } = require("../../loot/inboxCandidates");
-const { verifyToken, touchToken, bearerFrom } = require("../../../stores/ingestTokenStore");
-const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../../stores/lootInboxStore");
+const { verifyToken, touchToken, bearerFrom } = require("../../../stores/loot/ingestTokenStore");
+const { upsertPending, resolutionFor, noteAppended, listPending } = require("../../../stores/loot/lootInboxStore");
 const { councilRoster } = require("../../loot/lootCouncil");
 const { councilOptsFromQuery, categoryOptions } = require("../../loot/councilQuery");
 const { councilSyncPayload, councilSyncPayloadV2, councilSyncPayloadV3, councilSyncPayloadV4 } = require("../../loot/councilSync");
 const { councilCategoryIds, categoryInstances, categoryCouncil } = require("../../loot/councilView");
-const { getConfig } = require("../../../stores/settingsStore");
-const { serverIds, serverLabel } = require("../../../services/discord/guildRoles");
-const { versionOfEvent, mainVersionFor } = require("../../../services/events/mainVersion");
+const { getConfig } = require("../../../stores/settings/settingsStore");
+const { serverIds, serverLabel } = require("../../../services/discord/roles/guildRoles");
+const { versionOfEvent, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { wclGuildsOf } = require("../../../services/logcheck/wclGuildSettings");
-const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/ingestServers");
+const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/servers/ingestServers");
 const discord = require("../../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../../services/loot/lootServer");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { ingestScan } = require("../../../services/guildbank/guildBankStock");
 const { queueLookups } = require("../../../services/guildbank/itemMeta");
 const { queueItemEmojiSync } = require("../../../services/guildbank/itemEmojis");
@@ -61,7 +61,7 @@ function requireToken(req, res) {
 }
 
 /**
- * The servers the key may work on (services/discord/ingestServers.js): the owner's orga servers
+ * The servers the key may work on (services/discord/servers/ingestServers.js): the owner's orga servers
  * for a personal key (#1000), `[guildId]` for a server key (#994), null for an old key (the rules
  * from before #994). A personal key whose owner is orga nowhere (any more) gets the 403
  * `no_server` and `undefined` back - the caller stops.
@@ -570,7 +570,7 @@ async function councilServers(guildIds = null) {
  * POST /api/ingest/guildbank — a guild bank scan from the sync tool
  * (`eventhelper-guildbank` v1, utils/guildbank/guildBankScan.js), same
  * bearer-token auth as the loot upload. The scan replaces the bank's stock;
- * what the orga decided per item stays (stores/guildBankStockStore.js). Item
+ * what the orga decided per item stays (stores/loot/guildBankStockStore.js). Item
  * names are looked up on Wowhead only after the answer went out.
  */
 async function ingestGuildBank(req, res) {

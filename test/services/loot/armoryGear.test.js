@@ -10,7 +10,7 @@ jest.mock("../../../src/classes/blizzard", () => jest.fn().mockImplementation(()
     isConfigured: (...a) => mockIsConfigured(...a),
     getEquipment: (...a) => mockGetEquipment(...a),
 })));
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: (...a) => mockGetConfig(...a) }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: (...a) => mockGetConfig(...a) }));
 
 const {
     primeArmoryGear, armoryItemInSlot, armorySetFor, clearArmoryCache, clearArmoryFor, toArmoryRows,

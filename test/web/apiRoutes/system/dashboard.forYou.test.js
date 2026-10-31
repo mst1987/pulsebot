@@ -17,7 +17,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockGroups = [];
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn(async () => ({ groups: mockGroups, error: null })) }));
 let mockRoleIds = null;
@@ -45,7 +45,7 @@ jest.mock("../../../../src/web/http/deployStatus", () => ({ deployStatus: jest.f
 
 const { json, routerClient } = require("../../../helpers/http");
 const { knownChannels } = require("../../../helpers/linkCheck");
-const memberRoleMemory = require("../../../../src/services/discord/memberRoleMemory");
+const memberRoleMemory = require("../../../../src/services/discord/roles/memberRoleMemory");
 const { get } = routerClient(require("../../../../src/web/apiRoutes/system/dashboard"));
 
 const MO_ROLE = "300000000000000001";

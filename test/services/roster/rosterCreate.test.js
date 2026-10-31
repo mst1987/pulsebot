@@ -11,16 +11,16 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => ({ id: "g1" })),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
 }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({
+jest.mock("../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => [{ id: "700000000000000001", name: "Donnerstag Raid" }]),
 }));
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn() }));
 
 const fs = require("fs");
-const rosterStore = require("../../../src/stores/rosterStore");
-const raiderProfileStore = require("../../../src/stores/raiderProfileStore");
-const kaderStore = require("../../../src/stores/kaderStore");
-const configStore = require("../../../src/stores/configStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
+const configStore = require("../../../src/stores/settings/configStore");
 const discord = require("../../../src/services/discord/discord");
 const rosterRoleSync = require("../../../src/services/roster/rosterRoleSync");
 const { buildAttendanceContext } = require("../../../src/services/characters/rosterAttendance");

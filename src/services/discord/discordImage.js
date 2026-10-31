@@ -18,7 +18,7 @@
 // (serverSettings[guildId].discordVisuals), else the global default
 // `config.discordVisuals` (configSchema.js) - `visualOn(config, key, guildId)`.
 const crypto = require("crypto");
-const { serverVisuals } = require("./serverSettings");
+const { serverVisuals } = require("./servers/serverSettings");
 const { FONT_FILES, FONT_FAMILY } = require("../../utils/image/fontMetrics");
 const logger = require("../../logger").child("discordImage");
 

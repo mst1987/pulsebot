@@ -3,35 +3,35 @@ const { requireFullAdmin } = require("../../http/apiMiddleware");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../../utils/raidhelper/servers");
-const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/servers/serverOf");
 const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
-} = require("../../../stores/settingsStore");
+} = require("../../../stores/settings/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, MAX_SERVERS,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
-} = require("../../../stores/configSchema");
-const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/serverAccess");
-const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../services/discord/serverSettings");
-const serverDefaults = require("../../../services/discord/serverDefaults");
+} = require("../../../stores/settings/configSchema");
+const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
+const { serverSetting, serverVisuals, ownVisualsOf } = require("../../../services/discord/servers/serverSettings");
+const serverDefaults = require("../../../services/discord/servers/serverDefaults");
 const { serverLang, defaultLang } = require("../../../services/discord/botLanguage");
 const { isSnowflake } = require("../../../utils/ids");
-const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../../services/events/categorySwitch");
-const categoryLifecycle = require("../../../services/events/categoryLifecycle");
-const categoryGuild = require("../../../services/events/categoryGuild");
+const { switchPreview, versionSwitches, applySeriesFix, notifyCategoryVersionSwitch } = require("../../../services/categories/categorySwitch");
+const categoryLifecycle = require("../../../services/categories/categoryLifecycle");
+const categoryGuild = require("../../../services/categories/categoryGuild");
 const {
     listTokens: listIngestTokens, createToken: createIngestToken, revokeToken: revokeIngestToken,
     assignTokenGuild: assignIngestTokenGuild,
-} = require("../../../stores/ingestTokenStore");
+} = require("../../../stores/loot/ingestTokenStore");
 const discord = require("../../../services/discord/discord");
-const guildRoles = require("../../../services/discord/guildRoles");
-const roleSync = require("../../../services/discord/roleSync");
-const pugRoleGuard = require("../../../services/discord/pugRoleGuard");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
+const roleSync = require("../../../services/discord/roles/roleSync");
+const pugRoleGuard = require("../../../services/discord/pug/pugRoleGuard");
 const languageChange = require("../../../services/discord/languageChange");
 const availabilityPanel = require("../../../services/signups/availabilityPanel");
-const raidOverview = require("../../../services/events/raidOverview");
-const { listKnownCategories } = require("../../../services/discord/categoryNames");
+const raidOverview = require("../../../services/events/overview/raidOverview");
+const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
 const { lastReminderRun } = require("../../events/reminders");
 const wowhead = require("../../../utils/loot/wowhead");
@@ -41,18 +41,18 @@ const {
 const { normalizeBotCommandAccess } = require("../../../config/botCommands");
 const { normalizeAddonList, defaultAddons } = require("../../../services/addons/addonConfig");
 const { VERSIONS } = require("../../../config/gameVersions");
-const versionSettings = require("../../../services/events/versionSettings");
-const { capabilityMatrix } = require("../../../services/events/versionCapabilities");
+const versionSettings = require("../../../services/versions/versionSettings");
+const { capabilityMatrix } = require("../../../services/versions/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../../config/versionFeatures");
-const { mainVersionFor, knownVersion } = require("../../../services/events/mainVersion");
+const { mainVersionFor, knownVersion } = require("../../../services/versions/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../../services/logcheck/logChannelSettings");
 const { wclGuildsOf, wclGuildsFromBody } = require("../../../services/logcheck/wclGuildSettings");
 const { normalizeCategoryPlanning } = require("../../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../../services/signups/signupCharacters");
-const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/events/contentVersions");
+const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
-const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/versionSettingsSchema");
+const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/settings/versionSettingsSchema");
 const { expectedRoleIds, syncRosterRoleIds } = require("../../../services/roster/categoryRoles");
 const { switchRosterPreview, rostersAfterSwitches } = require("../../../services/roster/rosterVersionSwitch");
 

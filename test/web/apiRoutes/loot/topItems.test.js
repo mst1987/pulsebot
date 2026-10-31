@@ -3,9 +3,9 @@
 // saves one item at once, the settings right (read for the page, write for a
 // save), 400 without a server and 409 for a tab that loaded another one.
 let mockConfig = {};
-jest.mock("../../../../src/stores/settingsStore", () => {
-    const actual = jest.requireActual("../../../../src/stores/settingsStore");
-    const { normalizeConfig, mergeServerSettings } = jest.requireActual("../../../../src/stores/configSchema");
+jest.mock("../../../../src/stores/settings/settingsStore", () => {
+    const actual = jest.requireActual("../../../../src/stores/settings/settingsStore");
+    const { normalizeConfig, mergeServerSettings } = jest.requireActual("../../../../src/stores/settings/configSchema");
     return {
         ...actual,
         getConfig: jest.fn(() => normalizeConfig(mockConfig)),
@@ -30,7 +30,7 @@ jest.mock("../../../../src/web/http/activeGuild", () => ({
     pickActiveGuild: jest.fn(async () => mockActive),
 }));
 
-const configStore = require("../../../../src/stores/settingsStore");
+const configStore = require("../../../../src/stores/settings/settingsStore");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { topItemIds } = require("../../../../src/services/loot/topItems");
 const topItemsRoutes = require("../../../../src/web/apiRoutes/loot/topItems");

@@ -1,0 +1,154 @@
+import { get, send } from "../client";
+
+// The "Systemstatus" page (docs/system-status.md): GET /api/system/status,
+// full admins only. Built by src/services/system/systemStatus.js.
+
+/** One sample of the monitor (src/services/system/systemMonitor.js). */
+export type SystemSample = {
+    t: number;
+    hostCpu: number;
+    procCpu: number;
+    cores: number;
+    load1: number;
+    load5: number;
+    load15: number;
+    memTotal: number;
+    memAvail: number;
+    memAvailPct: number;
+    swapTotal: number;
+    swapUsed: number;
+    swapKnown: boolean;
+    swapUsedPct: number;
+    rss: number;
+    heapUsed: number;
+    heapTotal: number;
+    external: number;
+    loopP50: number;
+    loopP99: number;
+    loopMax: number;
+    elu: number;
+};
+
+/** A history series: `points` are arrays in the order of `fields` (t first). */
+export type SystemSeries = { step: number; points: number[][] };
+export type SystemHistory = { fields: string[]; hour: SystemSeries; day: SystemSeries };
+
+export type SystemRouteFigures = { count: number; avg: number; p95: number; max: number; slow: number };
+export type SystemRoute = { route: string; total: SystemRouteFigures; hour: SystemRouteFigures };
+export type SystemSlowRequest = { t: number; method: string; path: string; status: number; ms: number };
+
+export type SystemDiskEntry = { name: string; dir: boolean; size: number; files: number };
+export type SystemDisk = {
+    at: number;
+    known: boolean;
+    total: number;
+    free: number;
+    entries: SystemDiskEntry[];
+    files: { path: string; size: number }[];
+    truncated: boolean;
+    history: number[][];
+};
+
+export type SystemProcess = { pid: number; name: string; cpu: number; mem: number; rss: number; self: boolean };
+
+export type SystemFindingId = "otherProcess" | "botBottleneck" | "hostBusy" | "cpuOverloaded" | "memoryLow" | "diskLow";
+export type SystemFinding = {
+    id: SystemFindingId;
+    level: "warn" | "bad";
+    values: Record<string, number | string>;
+    routes?: { route: string; p95: number; count: number }[];
+};
+
+export type SystemStatus = {
+    now: number;
+    info: {
+        platform: string;
+        cores: number;
+        cpuModel: string;
+        nodeVersion: string;
+        hostUptime: number;
+        processUptime: number;
+        runtime: { kind: "pm2" | "docker" | "node"; pmId?: string };
+        loadSupported: boolean;
+        sampleMs: number;
+        monitoring: boolean;
+    };
+    current: SystemSample | null;
+    history: SystemHistory;
+    requests: { threshold: number; since: number; routes: SystemRoute[]; slow: SystemSlowRequest[] };
+    disk: SystemDisk | null;
+    processes: { at: number; source: string; list: SystemProcess[] } | null;
+    assessment: { level: "ok" | "warn" | "bad"; warmingUp: boolean; findings: SystemFinding[] };
+};
+
+/**
+ * The system status. `processes` measures the host's top processes anew (the
+ * server takes a second for it), `disk` walks data/ again instead of the
+ * five-minute cache — both only when the page opens or on its refresh button.
+ */
+export function getSystemStatus({ processes = false, disk = false }: { processes?: boolean; disk?: boolean } = {}): Promise<SystemStatus> {
+    const q = new URLSearchParams();
+    if (processes) q.set("processes", "1");
+    if (disk) q.set("disk", "1");
+    const qs = q.toString();
+    return get<SystemStatus>(`/api/system/status${qs ? `?${qs}` : ""}`);
+}
+
+// "Datensicherung" (#696): GET /api/system/backup and POST /api/system/backup/snapshot, built by
+// src/services/backup/backupStatus.js. No download of a snapshot on purpose: it holds API keys and sessions.
+
+export type BackupLight = "ok" | "warn" | "bad" | "none";
+export type BackupPartKey = "snapshot" | "offsite" | "restoreTest";
+
+export type BackupPart = {
+    key: BackupPartKey;
+    light: BackupLight;
+    /** fresh, stale (too old), failed (the last run failed) or never */
+    state: "fresh" | "stale" | "failed" | "never";
+    /** ms of the last run; 0 = never */
+    at: number;
+    ok: boolean | null;
+    bytes: number;
+    durationMs: number;
+    addedBytes?: number;
+    error: string;
+};
+
+export type BackupSnapshotRow = { name: string; reason: string; at: number; bytes: number; files: number; commit: string; complete: boolean };
+
+/** The newest deploy snapshot (status/deploy-snapshot.json of deploy.sh, #695): green, yellow for 7 days when it failed, never red. */
+export type BackupDeploySnapshot = {
+    light: BackupLight;
+    at: number;
+    ok: boolean;
+    fromCommit: string;
+    toCommit: string;
+    name: string;
+    bytes: number;
+    durationMs: number;
+    attempts: number;
+    error: string;
+};
+
+export type BackupStatus = {
+    now: number;
+    enabled: boolean;
+    exists: boolean;
+    light: BackupLight;
+    parts: BackupPart[];
+    /** null while no deploy wrote status/deploy-snapshot.json */
+    deploy?: BackupDeploySnapshot | null;
+    count: number;
+    snapshots: BackupSnapshotRow[];
+};
+
+export type BackupRunResult = { ok: boolean; skipped: "" | "locked"; name: string; durationMs: number; bytes: number; error: string };
+
+export function getBackupStatus(): Promise<BackupStatus> {
+    return get<BackupStatus>("/api/system/backup");
+}
+
+/** "Jetzt sichern": one manual snapshot; answers 200 with the result either way. */
+export function runBackupNow(): Promise<BackupRunResult> {
+    return send<BackupRunResult>("POST", "/api/system/backup/snapshot", {});
+}

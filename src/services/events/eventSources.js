@@ -7,22 +7,22 @@
 // Raid-Helper events stay fully in use wherever one exists, also in a category
 // whose new events are created in the EventHelper (`categorySignupSource`):
 // nothing is imported, nothing expires, and one event has exactly one source.
-const { listEvents, getEvent, isOwnEventId } = require("../../stores/eventStore");
-const { listSignups } = require("../../stores/signupStore");
-const { listRaidEvents, getRaidEvent } = require("../../stores/raidEventStore");
-const { getConfig } = require("../../stores/settingsStore");
-const { ALIASES } = require("../../config/classlist");
-const { categoryNameAt } = require("./categoryEras");
-const { visibleRows, versionOfEvent } = require("./mainVersion");
+const { listEvents, getEvent, isOwnEventId } = require("../../stores/events/eventStore");
+const { listSignups } = require("../../stores/events/signupStore");
+const { listRaidEvents, getRaidEvent } = require("../../stores/events/raidEventStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
+const { ALIASES } = require("../../config/data/classlist");
+const { categoryNameAt } = require("../categories/categoryEras");
+const { visibleRows, versionOfEvent } = require("../versions/mainVersion");
 const { signupEventIdOf, raidIndexOf } = require("../../utils/raidGroup");
 const { raidhelperActive, activeRaidhelperGuilds } = require("../../utils/raidhelper/servers");
-const { firstServerId, storedCategoryGuilds } = require("../discord/serverOf");
+const { firstServerId, storedCategoryGuilds } = require("../discord/servers/serverOf");
 
 const SOURCES = ["raidhelper", "eventhelper"];
 const DEFAULT_SOURCE = "raidhelper";
 
 // Rule-set spec key → the Raid-Helper spec name the readers already understand
-// (config/classlist.js via setupView.specProfile, dashboardOverview's role
+// (config/data/classlist.js via setupView.specProfile, dashboardOverview's role
 // buckets, the bot's class emojis). Holy and Protection exist for two classes,
 // so the key carries the class.
 const RH_SPEC_NAMES = {
@@ -55,7 +55,7 @@ const WOW_CLASSES = ["Warrior", "Paladin", "Hunter", "Rogue", "Priest", "Shaman"
 /**
  * The rule-set spec key of one Raid-Helper signup (`className`, `specName`), or
  * "" when it names no playable spec (Absence, Bench, a death knight, a typo).
- * Aliases of config/classlist.js ("Destro", "RestoSham", "ProtPala") resolve to
+ * Aliases of config/data/classlist.js ("Destro", "RestoSham", "ProtPala") resolve to
  * their spec; when `className` is a real class it wins over an ambiguous name —
  * "Holy" on a paladin is a holy paladin, not the priest classlist's alias means.
  */
@@ -175,7 +175,7 @@ function placement(ev, catMap) {
 /** The stored config the section names come from, read once per list (categoryEras reads configStore). */
 function erasConfig() {
     try {
-        return require("../../stores/configStore").getConfig() || {};
+        return require("../../stores/settings/configStore").getConfig() || {};
     } catch {
         return {};
     }

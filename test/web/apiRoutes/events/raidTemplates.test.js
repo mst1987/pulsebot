@@ -11,7 +11,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
 }));
-jest.mock("../../../../src/stores/settingsStore", () => ({
+jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),
     saveConfig: jest.fn((partial) => ({ ...partial })),
     listRecruitment: jest.fn(() => []),
@@ -79,7 +79,7 @@ jest.mock("../../../../src/classes/raidhelper", () =>
         getSetup: mockGetSetup,
     })));
 const auth = require("../../../../src/web/http/auth");
-const settingsStore = require("../../../../src/stores/settingsStore");
+const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const discord = require("../../../../src/services/discord/discord");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { request, post, patch, handle, get } = routerClient(require("../../../../src/web/apiRoutes/events/raidTemplates"));

@@ -16,7 +16,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
   nie davon abzweigen), Remote `mst1987/pulsebot` (**öffentlich** — keine Hosts oder Schlüssel einchecken).
 - Stack: Node ≥ 22 (`.nvmrc` 22), CommonJS-Bot ohne TypeScript, discord.js 14, eigener HTTP-Router
   (`src/web/http/`), JSON-Stores unter `data/` (git-ignoriert, keine DB, keine Migrationen — Store-
-  Migrationen laufen beim Start, `src/stores/settingsMigration.js`). Web-Admin: React + Vite + TS in
+  Migrationen laufen beim Start, `src/stores/settings/settingsMigration.js`). Web-Admin: React + Vite + TS in
   `src/web-client/`, gebaut nach `dist/`.
 - Verwandt: `D:\programming\eventhelper-addon` (`mst1987/eventhelper-addon`, öffentlich: Lua-Addon
   EventHelperSync + Node-Sync-Tool). Wire-Format `eventhelper-loot` — eine Änderung braucht beide
@@ -112,7 +112,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 - Versionen nebeneinander: TBC Anniversary (Thunderstrike EU), Classic Era, WoW Forever — Regelsätze
   in `src/config/gameVersions/`, Modell und Trennung in `docs/game-versions.md`.
 - Quellen: Wowhead-Tooltip-API, Warcraft Logs (`fresh.warcraftlogs.com`; Encounter-IDs der
-  Anniversary-Raids versetzt, `config/bosses.js` `baseEncounterId()`), Blizzard-API Namespace
+  Anniversary-Raids versetzt, `config/data/bosses.js` `baseEncounterId()`), Blizzard-API Namespace
   `profile-classicann-eu`. classic-armory.org nur als Link (kein Scraping).
 - Generierte Daten in `src/config/generated/` nie von Hand ändern — Generatoren in `scripts/`
   (`scripts/README.md`).
@@ -128,7 +128,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
 
 ## Projektfallen (Checkliste für den reviewer)
 
-1. Alles mit Spielinhalt liest die Version über `versionOfEvent` (`services/events/mainVersion.js`);
+1. Alles mit Spielinhalt liest die Version über `versionOfEvent` (`services/versions/mainVersion.js`);
    eine Seite zeigt nur eine Version, kein „all", leere Versionseinstellung ist nie ein TBC-Ersatz.
 2. Kein „Main-Charakter" — nur die Reihenfolge je Version (`raiderProfileStore.firstCharacter`).
 3. Raid-Helper (1000 Anfragen/24 h, Key mit Prod geteilt) nur über den Sync-Job/Snapshot
@@ -155,7 +155,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     (adminRoleIds/ADMIN_ROLE_IDS, orgaRoleIds, officerRoleId, rolePermissions, botCommandAccess[*].roleIds,
     categoryRoles, Roster roleIds/trialRoleId/managers.roleIds, roleSync beide Seiten), keine
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
-    (`services/discord/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
+    (`services/discord/roles/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
     Freigaben) muss auch in `selfRole.configReason` — sonst kann sich jemand die Rolle selbst holen.
     Rollenfelder entstehen auch als **Nebenwirkung**: der Versionswechsel einer Kategorie legt mit
     `categorySwitchFixes[*].roster.roleIds` ein Roster an (`rosterVersionSwitch`) und
@@ -173,7 +173,7 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     mit einem Report eines anderen Servers. Wer ein Log löscht oder umhängt, schreibt den Server auf
     den Report (`deleteLogKeepingReportGuild` / `reportStore.setReportGuild`).
 19. Realm/Region je Server (#923): Spielwerte eines Raiders laufen über
-    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/events/versionSettings.js`:
+    `settingsForVersion(versionId, { guildId })` bzw. `blizzardFor` (`services/versions/versionSettings.js`:
     Standard der Version + `serverSettings[guildId].versionOverrides`). Eine abweichende Region
     zieht den Blizzard-Namespace mit (`profile-classicann-eu` → `-us`), nie den Standard-Namespace
     mit fremder Region kombinieren. Caches von Blizzard-/Armory-Antworten brauchen Region, Realm und
@@ -206,7 +206,9 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `cla.js` `onActiveServer`, `eventManage.ownEvent`. Fremder Datensatz → 404 `not_found`,
     fremdes Ziel → 403 `other_server` (`web/http/serverQuery.js` `mayUseServer`/`mayUseChannel`).
     Bot: `interaction.guildId` zählt, eine DM den Server des Datensatzes (`guildIdOf`), sonst nur
-    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A.
+    Voll-Admins. Negativ-Test: Orga auf B öffnet nichts auf A. Eine `rosterId` immer über
+    `activeRoster(req, rosterId)` holen, auch wenn `orgaScoped` über `{ categoryId }` prüft — ein
+    Roster ohne Kategorie umgeht sonst die Server-Prüfung (#1034).
 24. Kanal-IDs aus dem Body (#925): Jede Route, die `channelId`/`voiceChannelId`, eine Kategorie oder ein
     Quell-Event aus dem Request nimmt und darüber postet, klont oder anlegt, prüft jede davon per
     `mayUseChannel`/`mayUseServer` (Muster `eventCreateAccess.foreignChannelRefusal`). Der

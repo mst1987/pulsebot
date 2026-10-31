@@ -1,14 +1,14 @@
 // The character tabs of "Mein Profil" (services/characters/profileRaiding.js):
 // the own roster memberships, loot and LevelHelper data of one game version,
 // read from the stores - versions strictly apart, only the caller's own.
-jest.mock("../../../src/services/events/storedVersion", () => ({
+jest.mock("../../../src/services/versions/storedVersion", () => ({
     storedVersionOf: (id) => ({ ev_tbc: "tbc", ev_forever: "forever" })[id] || "",
 }));
 
-const profiles = require("../../../src/stores/raiderProfileStore");
-const rosterStore = require("../../../src/stores/rosterStore");
-const lootStore = require("../../../src/stores/lootStore");
-const dungeonRuns = require("../../../src/stores/dungeonRunStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const lootStore = require("../../../src/stores/loot/lootStore");
+const dungeonRuns = require("../../../src/stores/roster/dungeonRunStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { profileRaiding, storedCharacterOf, LOOT_SHOWN } = require("../../../src/services/characters/profileRaiding");
 

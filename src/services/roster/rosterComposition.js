@@ -15,7 +15,7 @@
 //              `providers` as spec keys) - a member without spec brings none;
 //   * unresolved: who counts without a spec or class, and why ("no_char" no
 //              character, "no_class" class unknown, "no_spec" spec unknown).
-const raiderProfileStore = require("../../stores/raiderProfileStore");
+const raiderProfileStore = require("../../stores/roster/raiderProfileStore");
 const { rulesFor } = require("../../config/gameVersions");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { resolveMemberSpec, specContext } = require("./memberSpec");

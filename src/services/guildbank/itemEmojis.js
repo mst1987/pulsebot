@@ -19,7 +19,7 @@
 // call failed or the bot was offline. Without an emoji the select shows the item
 // without one.
 const { Routes } = require("discord.js");
-const stockStore = require("../../stores/guildBankStockStore");
+const stockStore = require("../../stores/loot/guildBankStockStore");
 const discord = require("../discord/discord");
 const { downloadIcon } = require("../discord/appEmojiSync");
 const { iconUrl } = require("../../utils/loot/wowhead");

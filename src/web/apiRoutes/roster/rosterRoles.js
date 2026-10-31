@@ -8,7 +8,7 @@
 // (web/roster/activeRoster.js). Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { getConfig } = require("../../../stores/settingsStore");
+const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeRoster } = require("../../roster/activeRoster");
 const { canManageRosterLive, isRosterOrga } = require("../../../services/roster/rosterAccess");
 const { applyRoleChange } = require("../../../services/roster/rosterRoleSync");

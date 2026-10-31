@@ -190,7 +190,7 @@ describe("utils/loot/wowhead", () => {
         });
     });
 
-    // TBC Anniversary re-issues Wowhead does not know (config/wowheadItemAliases.js).
+    // TBC Anniversary re-issues Wowhead does not know (config/data/wowheadItemAliases.js).
     describe("Anniversary re-issues", () => {
         it("links the original item Wowhead knows", () => {
             expect(wowhead.itemLink(281895)).toBe("https://www.wowhead.com/tbc/item=37127");

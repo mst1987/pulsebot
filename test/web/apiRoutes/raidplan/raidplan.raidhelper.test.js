@@ -5,8 +5,8 @@ let mockViewer = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer) }));
-jest.mock("../../../../src/stores/eventStore", () => ({
-    ...jest.requireActual("../../../../src/stores/eventStore"),
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn(() => null),
     isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
 }));
@@ -27,20 +27,20 @@ jest.mock("../../../../src/utils/raidhelper/client", () => ({
     raidhelperDisabled: jest.fn(() => mockRh.disabled),
 }));
 const mockSnapshots = {};
-jest.mock("../../../../src/stores/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
+jest.mock("../../../../src/stores/events/raidEventStore", () => ({ getRaidEvent: jest.fn((id) => mockSnapshots[id] || null), listRaidEvents: jest.fn(() => []) }));
 const mockProfiles = {};
-jest.mock("../../../../src/stores/raiderProfileStore", () => ({
-    ...jest.requireActual("../../../../src/stores/raiderProfileStore"),
+jest.mock("../../../../src/stores/roster/raiderProfileStore", () => ({
+    ...jest.requireActual("../../../../src/stores/roster/raiderProfileStore"),
     getProfile: jest.fn((id) => mockProfiles[id] || null),
 }));
 
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const store = require("../../../../src/stores/raidplanStore");
-const profiles = require("../../../../src/stores/raidplanProfileStore");
+const store = require("../../../../src/stores/raidplan/raidplanStore");
+const profiles = require("../../../../src/stores/raidplan/raidplanProfileStore");
 const route = require("../../../../src/web/apiRoutes/raidplan/raidplan");
 const rosterSource = require("../../../../src/web/raidplan/raidplanRosterSource");
-const rhEvents = require("../../../../src/stores/raidhelperEventsStore");
+const rhEvents = require("../../../../src/stores/events/raidhelperEventsStore");
 const { checkAccess, areasFor } = require("../../../../src/web/http/apiAccess");
 
 // The orga is a role setting (permissions.userIsOrga), no area right: raider roles hold "raids" too.
@@ -130,7 +130,7 @@ describe("the switch", () => {
     });
 
     it("refuses to switch on in a category that plans with a sheet (409), switching off stays possible", async () => {
-        const { saveConfig } = require("../../../../src/stores/configStore");
+        const { saveConfig } = require("../../../../src/stores/settings/configStore");
         saveConfig({ categoryPlanning: { c: "sheet" } });
         try {
             const r = await activate();
@@ -293,7 +293,7 @@ describe("the players come from Raid-Helper, never at the plan's cost", () => {
     });
 
     it("a template applies to it and fills the open slots from Raid-Helper's line-up", async () => {
-        const templates = require("../../../../src/stores/raidplanTemplateStore");
+        const templates = require("../../../../src/stores/raidplan/raidplanTemplateStore");
         templates.useFile(tempStoreFile("templates.json"));
         try {
             const t = templates.createTemplate("111111111111111111", { name: "BT", instanceIds: ["bt"] }).template;

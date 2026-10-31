@@ -1,13 +1,13 @@
 // Small HTML building blocks every part of the report pages uses: icons, badges,
 // tiles, bars, metric cards, dialogs, number formats and the class colours.
-const { versionLinks } = require("../../services/events/versionSettings");
+const { versionLinks } = require("../../services/versions/versionSettings");
 const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { recordVersion } = require("../../services/logcheck/logVersion");
 const { reportGuild } = require("../../services/logcheck/reportGuild");
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const charLinks = require("../characters/charLinks");
 const { CLASS_COLORS } = require("../../utils/setup/setupView");
-const rpbData = require("../../config/rpbData");
+const rpbData = require("../../config/data/rpbData");
 const { esc, setPageVersion } = require("./layout");
 
 function iconUrl(icon) {

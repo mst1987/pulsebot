@@ -1,0 +1,254 @@
+const fs = require("fs");
+const path = require("path");
+const { raidSummary } = require("../../utils/logcheck/raid/raidProgress");
+const { applyReview } = require("../../utils/logcheck/recommendations/recommendations");
+const { newId } = require("../../utils/ids");
+const { dataPath } = require("../../config/paths");
+const { writeJsonAtomic, readJsonFile } = require("../jsonStore");
+const { reportLink, recordVersion } = require("../../services/logcheck/logVersion");
+
+// Reports are stored as JSON files under data/reports/<id>.json
+const REPORTS_DIR = dataPath("reports");
+
+function ensureDir() {
+    fs.mkdirSync(REPORTS_DIR, { recursive: true });
+}
+
+function filePath(id) {
+    return path.join(REPORTS_DIR, `${id}.json`);
+}
+
+/**
+ * Persist a report and return its id.
+ *
+ * Passing an existing `id` overwrites that report instead of creating a new one.
+ * That is what lets the CLA and the RPB evaluation of the same log share a single
+ * page: the second one loads the first, merges its sections in and writes back
+ * under the same id, so the link posted to Discord stays valid and simply gains
+ * more tabs.
+ *
+ * @param {object} report  the full report payload (meta + players)
+ * @param {string} [id]    reuse this id instead of generating a fresh one
+ */
+function saveReport(report, id) {
+    ensureDir();
+    const reportId = id && /^[a-f0-9]{6,}$/i.test(id) ? id : newId();
+    const payload = { ...report, id: reportId, generatedAt: report.generatedAt || Date.now() };
+    writeJsonAtomic(filePath(reportId), payload, { space: 0 });
+    return reportId;
+}
+
+/** Load a report by id, or null if it does not exist / is unreadable. */
+function getReport(id) {
+    if (!/^[a-f0-9]{6,}$/i.test(id)) return null;
+    return readJsonFile(filePath(id), null);
+}
+
+/** Delete a report by id. Returns true if a file was removed. */
+function deleteReport(id) {
+    if (!/^[a-f0-9]{6,}$/i.test(id)) return false;
+    try {
+        fs.unlinkSync(filePath(id));
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// The metadata of a report file, remembered until that file changes.
+//
+// A stored report is a couple of megabytes — almost all of it the timeline —
+// and listReports() parses the whole thing for a dozen header fields. That was
+// affordable while one page called it once; it is not affordable now that a
+// single Loot-Council request walks the reports again for every raider it looks
+// at. The entry is keyed by the file's mtime and size, so a rebuilt report is
+// read again by itself and a deleted one falls out of the map; nothing has to
+// remember to invalidate anything.
+//
+// Only the *metadata* is kept, never the report itself: a dozen short fields
+// per file is a few kilobytes, where the parsed reports would be hundreds of
+// megabytes of resident objects. That is also why this map has no upper bound:
+// listReports() walks *every* file in order, and a bounded map evicted the
+// oldest entry on every insert once there were more files than slots — from
+// the 61st report on, nothing ever hit and every listing parsed every report
+// again, blocking the process for seconds on each page that lists them.
+const metaCache = new Map();
+
+// The same for the part of a report the gear walk needs (charGear.js): the
+// roster and three header fields, a twentieth of the file. Bounded: the newest
+// evaluations are what anything asks for, and an entry falls out as soon as its
+// file changes or the cache is full.
+const rosterCache = new Map();
+const MAX_ROSTER_CACHE = 60;
+
+// What a raider's start page needs from a report: per player, how many
+// recommendations the raid lead approved and where that player's page is.
+// Bounded like the roster: the dashboard asks for the last few raids only.
+const hintsCache = new Map();
+const MAX_HINTS_CACHE = 30;
+
+function stampOf(full) {
+    const stat = fs.statSync(full);
+    return `${stat.mtimeMs}:${stat.size}`;
+}
+
+/** A projection of one report file, remembered until the file changes; `max` bounds the cache (0 = no bound). */
+function cachedSlice(file, cache, project, max = 0) {
+    const full = path.join(REPORTS_DIR, file);
+    const stamp = stampOf(full);
+    const hit = cache.get(file);
+    if (hit && hit.stamp === stamp) return hit.value;
+    const value = project(JSON.parse(fs.readFileSync(full, "utf8")));
+    // a changed file moves to the back instead of pushing a stranger out
+    cache.delete(file);
+    if (max && cache.size >= max) cache.delete(cache.keys().next().value);
+    cache.set(file, { stamp, value });
+    return value;
+}
+
+/**
+ * A report reduced to what the gear walk reads: who was in the raid with their
+ * armory, and when the evaluation was made. The rest of the file is the
+ * timeline, which is 90 % of its size and of no use here — parsing it for every
+ * raider on the loot council was minutes of work per page.
+ */
+function getReportRoster(id) {
+    if (!/^[a-f0-9]{6,}$/i.test(id)) return null;
+    try {
+        return cachedSlice(`${id}.json`, rosterCache, (r) => ({
+            id: r.id,
+            title: r.title || "",
+            generatedAt: r.generatedAt || 0,
+            roster: Array.isArray(r.roster) ? r.roster : [],
+            // Reports from before the roster existed carry the players instead,
+            // and the gear findings read that fallback (charGearIssues.js).
+            players: Array.isArray(r.players) ? r.players : [],
+        }), MAX_ROSTER_CACHE);
+    } catch {
+        return null;
+    }
+}
+
+/** The approved recommendations per player of one report, keyed by the lower-cased character name. */
+function hintsOf(report) {
+    const roster = Array.isArray(report.roster) ? report.roster : [];
+    const reviewed = report.recommendations ? applyReview(report.recommendations, report.recommendationReview) : null;
+    const players = {};
+    for (const p of (reviewed && reviewed.players) || []) {
+        const name = String((p && p.name) || "");
+        if (!name) continue;
+        players[name.toLowerCase()] = {
+            name,
+            // the index of the player page /r/<id>/p/<idx> (report/context.js); -1 = no page
+            idx: roster.findIndex((r) => r && r.name === name),
+            approved: (p.items || []).filter((i) => i && i.approved === true).length,
+        };
+    }
+    return { id: report.id, generatedAt: report.generatedAt || 0, players };
+}
+
+/**
+ * Per player of a report: the approved recommendations and the index of their
+ * player page — remembered until the file changes, so the start page does not
+ * parse megabytes of timeline for a count. Null when the report is missing.
+ */
+function getReportHints(id) {
+    if (!/^[a-f0-9]{6,}$/i.test(String(id || ""))) return null;
+    try {
+        return cachedSlice(`${id}.json`, hintsCache, hintsOf, MAX_HINTS_CACHE);
+    } catch {
+        return null;
+    }
+}
+
+function metaOf(report) {
+    return {
+        id: report.id,
+        title: report.title,
+        zone: report.zone,
+        date: report.date,
+        generatedAt: report.generatedAt,
+        // WCL report code + link (older reports may lack these).
+        reportId: report.reportId || "",
+        reportUrl: report.reportUrl || reportLink({ host: report.reportHost, reportId: report.reportId, versionId: report.versionId }),
+        // The game version of the log (#746); a report from before it is TBC.
+        versionId: recordVersion(report),
+        playerCount: (report.players || []).length,
+        issueCount: (report.players || []).reduce((n, p) => n + (p.issues || []).length, 0),
+        sections: Array.isArray(report.sections) ? report.sections : [],
+        // Which raids the log covered and how far each got ("Hyjal 3/5");
+        // null for a report built before the progress was kept on it.
+        raids: report.raidProgress ? raidSummary(report.raidProgress) : null,
+        // The Discord server it was evaluated on (#920); "" for a report from before (a linked log decides then).
+        guildId: String(report.guildId || ""),
+    };
+}
+
+/** List all reports (lightweight metadata), newest first. */
+function listReports() {
+    ensureDir();
+    const files = fs.readdirSync(REPORTS_DIR).filter((f) => f.endsWith(".json"));
+    const seen = new Set();
+    const out = [];
+    for (const f of files) {
+        try {
+            seen.add(f);
+            out.push(cachedSlice(f, metaCache, metaOf));
+        } catch {
+            // skip unreadable file
+        }
+    }
+    for (const cache of [metaCache, rosterCache, hintsCache]) {
+        for (const f of cache.keys()) if (!seen.has(f)) cache.delete(f);
+    }
+    out.sort((a, b) => (b.generatedAt || 0) - (a.generatedAt || 0));
+    return out;
+}
+
+/** Drop what is remembered about the files — tests only. */
+function resetCache() {
+    metaCache.clear();
+    rosterCache.clear();
+    hintsCache.clear();
+}
+
+/**
+ * Write a server onto the reports that have none yet (#920). `pick(meta)` answers
+ * with the server for one listed report, or "" to leave it alone; only a report
+ * that is picked AND still has no server of its own is opened and written again,
+ * so a second run writes nothing. No reports folder (a fresh install): null.
+ * @param {(meta: object) => string} pick
+ * @returns {number|null} how many reports were written; null without a reports folder
+ */
+function assignGuilds(pick) {
+    if (!fs.existsSync(REPORTS_DIR)) return null;
+    let changed = 0;
+    for (const meta of listReports()) {
+        if (meta.guildId) continue;
+        const guildId = String(pick(meta) || "");
+        if (!guildId) continue;
+        const full = getReport(meta.id);
+        if (!full || full.guildId) continue;
+        saveReport({ ...full, guildId }, meta.id);
+        changed += 1;
+    }
+    return changed;
+}
+
+/**
+ * Write the server onto one report (#920) - before its log is deleted, so the
+ * report keeps the server the log gave it. Opens only that report; writes only
+ * when the server differs. An unknown report or an empty server: nothing.
+ * @returns {boolean} whether the report was written
+ */
+function setReportGuild(id, guildId) {
+    const guild = String(guildId || "").trim();
+    if (!guild) return false;
+    const reportId = String(id || "");
+    const full = getReport(reportId);
+    if (!full || String(full.guildId || "") === guild) return false;
+    saveReport({ ...full, guildId: guild }, reportId);
+    return true;
+}
+
+module.exports = { saveReport, getReport, getReportRoster, getReportHints, deleteReport, listReports, assignGuilds, setReportGuild, resetCache, REPORTS_DIR };

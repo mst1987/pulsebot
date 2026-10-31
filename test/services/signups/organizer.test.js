@@ -1,16 +1,16 @@
 // Die Daten hinter dem Raider-Organizer (src/services/signups/organizer.js): der nächste
 // Raid einer Kategorie, die Zahl der Anmeldungen und die neueste Auswertung eines Raiders.
 let mockReports = [];
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
-jest.mock("../../../src/stores/reportStore", () => ({
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => mockReports.map(({ id, title, generatedAt, versionId }) => ({ id, title, generatedAt, versionId }))),
     getReportRoster: jest.fn((id) => mockReports.find((r) => r.id === id) || null),
 }));
 
 const mocks = require("../../helpers/signupMocks");
-const reportStore = require("../../../src/stores/reportStore");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const reportStore = require("../../../src/stores/loot/reportStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const organizer = require("../../../src/services/signups/organizer");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

@@ -35,11 +35,11 @@ const {
 } = require("discord.js");
 const discord = require("./discord");
 const linkCheck = require("./linkCheck");
-const eventStore = require("../../stores/eventStore");
+const eventStore = require("../../stores/events/eventStore");
 // An External event needs an end: the planned one, else start + the default
 // duration — the one place besides the calendar feed that may invent an end.
 const { plannedEndOrDefault } = require("../../utils/time");
-const { getConfig } = require("../../stores/settingsStore");
+const { getConfig } = require("../../stores/settings/settingsStore");
 const { str, clip } = require("../../utils/text");
 const { tr } = require("../../utils/i18n/botText");
 const { eventLang } = require("./botLanguage");

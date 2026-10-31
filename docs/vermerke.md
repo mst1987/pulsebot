@@ -38,7 +38,7 @@ When A takes `shared` back, B's hide mark stays in the store; should A share the
 
 ## Store
 
-`src/stores/userNotesStore.js`, file `data/settings/user-notes.json` (sensitive, docs/data-storage.md):
+`src/stores/roster/userNotesStore.js`, file `data/settings/user-notes.json` (sensitive, docs/data-storage.md):
 
 ```
 { guilds: { [guildId]: { [userId]: { name, entries: [note…] } } },
@@ -47,7 +47,7 @@ When A takes `shared` back, B's hide mark stays in the store; should A share the
 
 Only three modules read it: the routes (`src/web/apiRoutes/roster/vermerke.js`), the short form
 (`src/services/vermerke/vermerkeShort.js`) and the hints (`src/services/vermerke/userSignals.js`, see below). Nothing of a note is ever logged. Both are held by
-`test/stores/userNotesStore.test.js`.
+`test/stores/roster/userNotesStore.test.js`.
 
 ## Rights
 
@@ -174,7 +174,7 @@ hand `actorId` (the web user, the orga in Discord or the setup, `createdBy` of a
 themselves off is a raider (`byOrga` stays away). A sign-off already noted for that raid is turned away before
 anything is written (signing off, back on and off again is one sign-off).
 
-**Store** `src/stores/userSignalsStore.js`, file `data/settings/user-signals.json` (sensitive, kept **180 days**,
+**Store** `src/stores/roster/userSignalsStore.js`, file `data/settings/user-signals.json` (sensitive, kept **180 days**,
 at most 60 events per person and server; what is older is dropped on every write and, on reading, at most once a
 day — and then only written when there is something to drop, `pruneDaily`):
 

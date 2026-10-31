@@ -1,4 +1,4 @@
-const { getEvent } = require("../../stores/eventStore");
+const { getEvent } = require("../../stores/events/eventStore");
 const { archivedNotice } = require("../../services/events/eventArchive");
 const { SIGNUP_BUTTON_PREFIX } = require("../../services/events/eventMessage");
 const { checkRaiderRole } = require("../../services/signups/signupService");

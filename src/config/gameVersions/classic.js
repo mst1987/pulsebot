@@ -151,7 +151,7 @@ module.exports = {
     //   logs       vanilla.warcraftlogs.com/character/<region>/<realm>/<name>
     //              (Era and Season of Discovery live on the "vanilla" site)
     //   wowhead    www.wowhead.com/classic/item=…
-    //   softres    the "classic" edition (config/softresInstances.js)
+    //   softres    the "classic" edition (config/data/softresInstances.js)
     // The realm is the guild's and stays empty: until it is set, the armory and
     // log links (both need {realm}) are left out.
     settingsDefaults: {

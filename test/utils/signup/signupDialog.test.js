@@ -1,13 +1,13 @@
 // Der Anmelde-Dialog in Discord (#258): Aufbau der Nachricht, Zustand in den
 // customIds, Längenbegrenzung.
 
-jest.mock("../../../src/stores/eventStore", () => require("../../helpers/signupMocks").eventStore());
-jest.mock("../../../src/stores/signupStore", () => require("../../helpers/signupMocks").signupStore());
+jest.mock("../../../src/stores/events/eventStore", () => require("../../helpers/signupMocks").eventStore());
+jest.mock("../../../src/stores/events/signupStore", () => require("../../helpers/signupMocks").signupStore());
 jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.example", embedAccentColor: 1 }));
 // The main version (#541) — empty = TBC, as before the setting existed.
 let mockConfig = {};
-jest.mock("../../../src/services/events/mainVersion", () => {
-    const actual = jest.requireActual("../../../src/services/events/mainVersion");
+jest.mock("../../../src/services/versions/mainVersion", () => {
+    const actual = jest.requireActual("../../../src/services/versions/mainVersion");
     const withConfig = (fn) => (a, opts = {}) => fn(a, { config: mockConfig, ...opts });
     return {
         ...actual,
@@ -17,7 +17,7 @@ jest.mock("../../../src/services/events/mainVersion", () => {
 });
 
 const mocks = require("../../helpers/signupMocks");
-const profiles = require("../../../src/stores/raiderProfileStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const dialog = require("../../../src/utils/signup/signupDialog");
 const { tempStoreFile } = require("../../helpers/tempStore");
 

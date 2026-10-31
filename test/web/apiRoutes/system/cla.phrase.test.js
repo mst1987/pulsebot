@@ -9,20 +9,20 @@ let mockBody = {};
 let mockUser = { id: "u1", name: "Lead", isAdmin: true };
 let mockCsrf = true;
 
-jest.mock("../../../../src/stores/reportStore.js", () => ({
+jest.mock("../../../../src/stores/loot/reportStore.js", () => ({
     getReport: (...a) => mockGetReport(...a), saveReport: (...a) => mockSaveReport(...a), listReports: jest.fn(() => []), deleteReport: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/apiMiddleware.js", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser, csrf: () => mockCsrf, fullAdmin: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody.js", () => require("../../../helpers/http").apiBodyMock({ body: () => mockBody }));
-jest.mock("../../../../src/utils/logcheck/recommendationText.js", () => ({ phraseReport: (...a) => mockPhraseReport(...a) }));
+jest.mock("../../../../src/utils/logcheck/recommendations/recommendationText.js", () => ({ phraseReport: (...a) => mockPhraseReport(...a) }));
 jest.mock("../../../../src/web/logcheck/evalJobs.js", () => ({ startJob: (...a) => mockStartJob(...a), getJob: (...a) => mockGetJob(...a) }));
-jest.mock("../../../../src/stores/settingsStore.js", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../../src/stores/settings/settingsStore.js", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../../src/web/logcheck/recommendationSend.js", () => ({ sendApproved: jest.fn(), sendStatus: jest.fn() }));
-jest.mock("../../../../src/stores/raiderCharactersStore.js", () => ({ listAllAssignments: () => ({}) }));
+jest.mock("../../../../src/stores/roster/raiderCharactersStore.js", () => ({ listAllAssignments: () => ({}) }));
 jest.mock("../../../../src/services/discord/discord.js", () => ({ getClient: () => ({}) }));
 jest.mock("../../../../src/web/http/activeGuild.js", () => ({ activeGuildFor: () => "g1" }));
 jest.mock("../../../../src/services/logcheck/reportList.js", () => ({ prepareReportList: jest.fn(), annotateLogCategories: jest.fn(), annotateReportEvents: jest.fn() }));
-jest.mock("../../../../src/stores/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
+jest.mock("../../../../src/stores/loot/logStore.js", () => ({ listLogs: jest.fn(), getLog: jest.fn(), getByReportRefId: jest.fn(), deleteLog: jest.fn(), clearEvaluation: jest.fn(), clearSection: jest.fn(), evaluatedSections: jest.fn(), linkEvent: jest.fn(), unlinkEvent: jest.fn() }));
 jest.mock("../../../../src/services/logcheck/logEventMatch.js", () => ({ annotateMatches: jest.fn(), autoMatches: jest.fn() }));
 jest.mock("../../../../src/services/logcheck/logChannel.js", () => ({ evaluateLog: jest.fn(), scanLogChannels: jest.fn(), backfillLogTitles: jest.fn() }));
 jest.mock("../../../../src/utils/logcheck/report.js", () => ({ buildReport: jest.fn(), stripSection: jest.fn(), ReportError: class extends Error {} }));

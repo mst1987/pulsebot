@@ -3,7 +3,7 @@
 // specs, who borrows from whom, which tier is missing a list, where a list came
 // from, and the count that says an item is contested.
 const { bisLists, listedSpecs, columnsFor, bySlot } = require("../../../src/web/loot/bisLists");
-const bis = require("../../../src/config/bisSets");
+const bis = require("../../../src/config/data/bisSets");
 
 describe("web/loot/bisLists", () => {
     describe("listedSpecs", () => {

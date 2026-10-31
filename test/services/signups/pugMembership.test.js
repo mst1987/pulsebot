@@ -2,17 +2,17 @@
 // src/services/signups/pugMembership.js): open categories ask the raid's server,
 // unreadable membership passes, the orga and an existing signup are exempt.
 const mockSignups = new Map();
-jest.mock("../../../src/stores/signupStore", () => ({
+jest.mock("../../../src/stores/events/signupStore", () => ({
     getSignup: (eventId, userId) => mockSignups.get(`${eventId}/${userId}`) || null,
 }));
 const mockEvents = new Map();
-jest.mock("../../../src/stores/eventStore", () => ({ getEvent: (id) => mockEvents.get(id) || null }));
+jest.mock("../../../src/stores/events/eventStore", () => ({ getEvent: (id) => mockEvents.get(id) || null }));
 let mockConfig = {};
-jest.mock("../../../src/stores/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 let mockMembership = null;
 jest.mock("../../../src/services/discord/discord", () => ({ guildMembership: jest.fn(async () => mockMembership) }));
 let mockInvites = {};
-jest.mock("../../../src/services/discord/pugInvites", () => ({ generalInviteUrl: jest.fn((guildId) => mockInvites[guildId] || "") }));
+jest.mock("../../../src/services/discord/pug/pugInvites", () => ({ generalInviteUrl: jest.fn((guildId) => mockInvites[guildId] || "") }));
 
 const discord = require("../../../src/services/discord/discord");
 const {

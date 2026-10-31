@@ -1,13 +1,13 @@
 // The findings (report.recommendations): one row per finding with the verdict
 // buttons, „Das Wichtigste“ and the send box.
-const { applyReview } = require("../../utils/logcheck/recommendations");
+const { applyReview } = require("../../utils/logcheck/recommendations/recommendations");
 const { esc } = require("./layout");
 const { expBtn, badge, LINE, ibtn, hicon, detailDialog } = require("./widgets");
 const { formatGermanDateTime } = require("../../utils/time");
 
 // ---- Empfehlungen: what each raider and the raid should do differently (report.recommendations) ----
 //
-// The rules (utils/logcheck/recommendations.js) produce the findings; the raid
+// The rules (utils/logcheck/recommendations/recommendations.js) produce the findings; the raid
 // lead approves, rejects or rewrites each one here before anything goes out to
 // a raider. A visitor without review rights sees only what was approved.
 

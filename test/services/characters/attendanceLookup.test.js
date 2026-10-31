@@ -1,15 +1,15 @@
 jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn(() => ({ ctx: true })), attendanceFor: jest.fn() }));
-jest.mock("../../../src/stores/raiderCharactersStore", () => ({ listAllAssignments: jest.fn() }));
+jest.mock("../../../src/stores/roster/raiderCharactersStore", () => ({ listAllAssignments: jest.fn() }));
 jest.mock("../../../src/services/characters/characterInfo", () => ({ annotatedCharacters: jest.fn() }));
-jest.mock("../../../src/services/discord/categoryNames", () => ({ listKnownCategories: jest.fn() }));
-jest.mock("../../../src/services/events/categoryLifecycle", () => ({ isCategoryActive: jest.fn(() => true) }));
-jest.mock("../../../src/stores/lootStore", () => ({ listAll: jest.fn(() => []) }));
+jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCategories: jest.fn() }));
+jest.mock("../../../src/services/categories/categoryLifecycle", () => ({ isCategoryActive: jest.fn(() => true) }));
+jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({ lootOfGuild: jest.fn((rows) => rows) }));
 
 const { buildAttendanceContext, attendanceFor } = require("../../../src/services/characters/rosterAttendance");
-const { listAllAssignments } = require("../../../src/stores/raiderCharactersStore");
+const { listAllAssignments } = require("../../../src/stores/roster/raiderCharactersStore");
 const { annotatedCharacters } = require("../../../src/services/characters/characterInfo");
-const { listKnownCategories } = require("../../../src/services/discord/categoryNames");
+const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 jest.mock("../../../src/services/characters/characterVersions", () => ({
     buildVersionContext: jest.fn(() => ({})),
     // Brokk and the "pug" category are Forever; everything else TBC
@@ -50,7 +50,7 @@ describe("services/characters/attendanceLookup", () => {
     });
 
     it("leaves out a deactivated category (#744): /anwesenheit lists only active ones", () => {
-        const { isCategoryActive } = require("../../../src/services/events/categoryLifecycle");
+        const { isCategoryActive } = require("../../../src/services/categories/categoryLifecycle");
         isCategoryActive.mockImplementation((id) => id !== "thu");
         try {
             const result = characterAttendance("g1", "elesham", { versionId: "tbc" });
@@ -62,7 +62,7 @@ describe("services/characters/attendanceLookup", () => {
 
     // #919: only the loot of the asked server is evidence (names and categories).
     it("reads the loot of the asked server only", () => {
-        const { listAll } = require("../../../src/stores/lootStore");
+        const { listAll } = require("../../../src/stores/loot/lootStore");
         const { lootOfGuild } = require("../../../src/services/loot/lootServer");
         listAll.mockReturnValue([{ id: "r1" }]);
         lootOfGuild.mockReturnValueOnce([{ id: "r1" }]);
@@ -85,7 +85,7 @@ describe("services/characters/attendanceLookup", () => {
     });
 
     it("lists only the categories of the counted version: nights of it, or playing it today (#740)", () => {
-        const configStore = require("../../../src/stores/configStore");
+        const configStore = require("../../../src/stores/settings/configStore");
         const spy = jest.spyOn(configStore, "getConfig").mockReturnValue({ categoryVersion: { thu: "forever" } });
         try {
             // Forever: "mon" has Forever nights, "thu" was switched to Forever (none yet), "pug" plays TBC

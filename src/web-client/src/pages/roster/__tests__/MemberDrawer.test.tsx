@@ -248,3 +248,27 @@ describe("MemberDrawer — attendance by status (#677)", () => {
         expect(fields.every((f) => f.tagName === "SPAN")).toBe(true);
     });
 });
+
+describe("MemberDrawer - leader flags (#1034)", () => {
+    const KARA = { id: "kara", name: "Karazhan", short: "Kara", icon: "" };
+    const GRUUL = { id: "gruul", name: "Gruul's Lair", short: "Gruul", icon: "" };
+    const withLeaders = (canManage: boolean, editable: string[]) => ({
+        ...detail([THORGRIM], { canManage, roster: head() }),
+        leaders: { instances: [KARA, GRUUL], byUser: { "u-thorgrim": ["gruul"] }, editable },
+    });
+
+    it("the orga switches only the category's instances, the rest is text", () => {
+        open(withLeaders(true, ["kara"]));
+        const d = within(drawer());
+        expect(d.getByRole("button", { name: /Kara/ })).toBeInTheDocument();
+        expect(d.queryByRole("button", { name: /Gruul/ })).toBeNull();
+        expect(d.getByText(/Gruul/)).toBeInTheDocument();
+    });
+
+    it("without a context the flags are only read, also for a manager", () => {
+        open(withLeaders(true, []));
+        const d = within(drawer());
+        expect(d.queryByRole("group", { name: /Instanzen/ })).toBeNull();
+        expect(d.getByText("Gruul")).toBeInTheDocument();
+    });
+});

@@ -13,7 +13,7 @@
 // Errors land in lastResult and the log and never stop the run: 400 (unknown
 // guild/realm/region), network errors, and 429 — which pauses only that WCL
 // site for a while; the other sites go on.
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const { wclClientFor, wclApiSite, reportLink } = require("./logVersion");
 const { allWclGuilds, wclGuildsOf, entryKey, normalizeWclGuilds } = require("./wclGuildSettings");
 const { isLiveInstance } = require("../../config/runMode");
@@ -36,7 +36,7 @@ const inFlight = new Map(); // `${guildId}#${key}` -> promise
 const pausedSites = new Map(); // site -> paused until (ms)
 
 function settingsStore() {
-    return require("../../stores/settingsStore");
+    return require("../../stores/settings/settingsStore");
 }
 
 /** Whether an entry is due at `now`: never with interval 0, else once per interval. */

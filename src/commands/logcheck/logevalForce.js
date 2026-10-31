@@ -4,10 +4,10 @@ const {
 const { card } = require("../../utils/discord/card");
 const { evaluateLog, SECTION_LABEL } = require("../../services/logcheck/logChannel");
 const { buildReport, reportSummaryLines, ReportError } = require("../../utils/logcheck/report");
-const logStore = require("../../stores/logStore");
+const logStore = require("../../stores/loot/logStore");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
-const { versionLabel } = require("../../services/events/versionSettings");
+const { versionLabel } = require("../../services/versions/versionSettings");
 
 // "Trotzdem auswerten" — the deliberate way past the guard that refuses to
 // evaluate a raid whose final boss is not down yet (see utils/logcheck/

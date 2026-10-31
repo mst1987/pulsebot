@@ -7,8 +7,8 @@ jest.mock("../../../src/utils/publicUrl", () => ({ publicBaseUrl: jest.fn(() => 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
 const { publicBaseUrl } = require("../../../src/utils/publicUrl");
-const raidplanStore = require("../../../src/stores/raidplanStore");
-const { getRaidplanPost, markRaidplanPosted } = require("../../../src/stores/raidplanPostStore");
+const raidplanStore = require("../../../src/stores/raidplan/raidplanStore");
+const { getRaidplanPost, markRaidplanPosted } = require("../../../src/stores/raidplan/raidplanPostStore");
 const { postRaidplanLink, raidplanPostState, syncRaidplanPost, linkMessage, eventHasPlan, planFilled, NOT_SHARED } = require("../../../src/services/raidplan/raidplanPost");
 const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
 

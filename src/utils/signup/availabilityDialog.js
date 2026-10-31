@@ -21,12 +21,13 @@ const { DateTime } = require("luxon");
 const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, StringSelectMenuBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const profiles = require("../../stores/raiderProfileStore");
-const sessionStore = require("../../stores/availabilitySessionStore");
+const profiles = require("../../stores/roster/raiderProfileStore");
+const sessionStore = require("../../stores/events/availabilitySessionStore");
 const { VERSIONS } = require("../../config/gameVersions");
 const { TIMEZONE } = require("../../config/timezone");
 const { tr, serviceText, specLabel, dateLocale } = require("../i18n/botText");
 const { buildEmbed } = require("../discord/reply");
+const { charactersOf } = require("../../services/signups/availabilityScope");
 
 const PREFIX = "availability";
 // long enough to look up the raids in between; the picker survives a restart (availabilitySessionStore)
@@ -233,16 +234,25 @@ function pickerPayload(token, session, raids, { profile, versions = null, notice
     };
 }
 
-/** One line of an entry in the list. */
-function entryLine(entry, lang = "de") {
+/** An attendance's characters as "Name · Spec, Name · Spec" (an older entry's single one too). */
+function charactersText(entry, lang = "de") {
+    return charactersOf(entry).map((c) => `${c.character} · ${specName(c.spec, lang)}`).join(", ");
+}
+
+/**
+ * One line of an entry in the list; `place` is where it counts ("Server: Category"),
+ * built by the caller - this module stays without Discord lookups.
+ */
+function entryLine(entry, lang = "de", place = "") {
     const period = periodLabel(entry.from, entry.to, lang);
-    if (entry.kind === "absence") return `🏖️ **${tr(lang, "Away")}** · ${period}${entry.comment ? ` · ${entry.comment}` : ""}`;
-    return `✅ **${tr(lang, "There")}** · ${period} · ${entry.character} · ${specName(entry.spec, lang)}`;
+    const where = place ? ` · ${place}` : "";
+    if (entry.kind === "absence") return `🏖️ **${tr(lang, "Away")}** · ${period}${where}${entry.comment ? ` · ${entry.comment}` : ""}`;
+    return `✅ **${tr(lang, "There")}** · ${period}${where} · ${charactersText(entry, lang)}`;
 }
 
 /** "My entries": the raider's entries that are not over yet, with a select to delete one. */
-function listPayload(entries, { categoryId = "", notice = "", lang = "de" } = {}) {
-    const lines = entries.length ? entries.map((e) => entryLine(e, lang)) : [tr(lang, "No absence or attendance entered.")];
+function listPayload(entries, { categoryId = "", notice = "", lang = "de", placeOf = () => "" } = {}) {
+    const lines = entries.length ? entries.map((e) => entryLine(e, lang, placeOf(e))) : [tr(lang, "No absence or attendance entered.")];
     if (entries.length) lines.push("", tr(lang, "Deleting an entry stops it – the signups it made stay as they are."));
     if (notice) lines.push("", serviceText(lang, notice));
     const rows = [];
@@ -255,7 +265,7 @@ function listPayload(entries, { categoryId = "", notice = "", lang = "de" } = {}
                 return {
                     label: (e.kind === "absence" ? tr(lang, "Away {period}", { period }) : tr(lang, "There {period}", { period })).slice(0, 100),
                     value: e.id,
-                    description: (e.kind === "absence" ? e.comment || tr(lang, "Absence") : `${e.character} · ${specName(e.spec, lang)}`).slice(0, 100),
+                    description: (e.kind === "absence" ? e.comment || tr(lang, "Absence") : charactersText(e, lang)).slice(0, 100),
                 };
             }))));
     }

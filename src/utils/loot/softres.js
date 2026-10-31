@@ -10,11 +10,11 @@
 // JSON body. Hard reserves no longer travel with the create call either — they
 // are two follow-up writes against the fresh raid.
 //
-// See config/softresInstances.js for the instance codes and their numeric ids.
+// See config/data/softresInstances.js for the instance codes and their numeric ids.
 
 const axios = require("axios");
 const httpsAgent = require("../httpAgent");
-const { INSTANCES } = require("../../config/softresInstances");
+const { INSTANCES } = require("../../config/data/softresInstances");
 const logger = require("../../logger.js").child("softres");
 
 const SOFTRES_BASE = "https://softres.it";

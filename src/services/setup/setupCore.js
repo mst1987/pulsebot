@@ -69,7 +69,7 @@ function setupSummary(event) {
 /**
  * The one reading of where a setup stands, shared by the raid detail's
  * Freigabe step (web/events/raidDetailSteps.js) and the Orga-Zentrale
- * (services/events/orgaStatus.js), so the two can never disagree:
+ * (services/orgaHub/orgaStatus.js), so the two can never disagree:
  *   "none"      nobody placed (no setup, or an empty one)
  *   "draft"     placed, never approved
  *   "changed"   approved once, the draft differs from that approval
