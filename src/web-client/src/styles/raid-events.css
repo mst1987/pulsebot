@@ -143,6 +143,17 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-more-body { padding: 4px 12px 2px; border-top: 1px solid var(--line-soft); }
 .re-more-body .field:last-child { margin-bottom: 10px; }
 .re-review { margin: 0 0 14px; background: var(--panel); }
+/* "Sprachkanal fuer dieses Event": closed one line with the category's choice, open the event's own plan */
+.re-voice-summary { margin: 0; }
+.re-voice-summary > .btn { flex: 0 0 auto; }
+.re-voice-plan { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.re-voice-plan > select, .re-voice-plan > .re-label-row { align-self: stretch; }
+.re-voice-plan > .note { margin: 0; }
+.re-voice-name { display: flex; flex-direction: column; gap: 4px; align-self: stretch; margin: 0; }
+.re-voice-name > input { width: 100%; }
+@media (max-width: 560px) {
+    .re-voice-summary { flex-wrap: wrap; }
+}
 .re-review .re-ev { flex: 1; }
 .re-review .re-when { text-align: right; }
 .re-facts { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 8px 14px; margin: 0; font-size: 14px; }

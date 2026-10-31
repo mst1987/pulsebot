@@ -558,6 +558,24 @@ describe("web/apiRoutes/raids", () => {
             discord.listCategories.mockReturnValue([]);
         });
 
+        it("hands the dialog each category's voice plan", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
+            activeGuildFor.mockReturnValue("guild-1");
+            settingsStore.getConfig.mockReturnValue({
+                mainVersion: "tbc", categoryVoiceChannel: { cat1: "v1" }, categoryTempVoice: { cat2: { mode: "temp", leadMinutes: 15 } },
+            });
+            settingsStore.listRaidTemplates.mockReturnValue([]);
+            discord.listTextChannels.mockReturnValue([]);
+            discord.listCategories.mockReturnValue([{ id: "cat1", name: "A" }, { id: "cat2", name: "B" }]);
+            raidEventGroups.loadEventGroups.mockResolvedValue({ groups: [], error: null });
+            const res = mockRes();
+            await handle("/api/raids/new", { method: "GET" }, res, new URL("http://x/api/raids/new"));
+            const plans = json(res).data.categoryTempVoice;
+            expect(plans.cat1).toMatchObject({ mode: "existing", voiceChannelId: "v1", leadMinutes: 30 });
+            expect(plans.cat2).toMatchObject({ mode: "temp", leadMinutes: 15 });
+            discord.listCategories.mockReturnValue([]);
+        });
+
         it("names the main version and the categories that play another one (#541)", async () => {
             auth.getUser.mockReturnValue({ id: "42", name: "Admin", isAdmin: true });
             activeGuildFor.mockReturnValue("guild-1");

@@ -42,6 +42,7 @@ import { useConfirm } from "../../../components/ui/overlay/Modal";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import WowIcon from "../../../components/ui/icons/WowIcon";
 import { useJobs } from "../../../components/shell/Jobs";
+import VoiceChannelRow from "./VoiceChannelRow";
 import { CrownIcon, LockIcon, XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
@@ -973,6 +974,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                     {primary && <PostSplit button={primary} options={postOptions} />}
                 </div>
             </div>
+            <VoiceChannelRow eventId={eventId} canWrite={data.canWrite} />
             {/* overbooked: a calm line under the bar, the way out inside it (#811) */}
             {overbooked && (
                 <div className="se-overbooked" role="status">

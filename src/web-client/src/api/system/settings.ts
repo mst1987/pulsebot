@@ -10,6 +10,7 @@ import type { VersionOverrides, VersionSettingsBlock } from "../../lib/settings/
 import type { CapabilityMatrix } from "../../lib/settings/versionFeatures";
 import type { AddonSetting } from "./addons";
 import type { WclGuild, WclGuildInput } from "./wclGuilds";
+import type { TempVoiceSettings } from "../../lib/discord/tempVoice";
 
 /**
  * `color`: the role's Discord colour as hex, "" when it has none. `managed`: a
@@ -169,6 +170,9 @@ export type AdminConfig = {
     categoryServerOverview?: Record<string, boolean>;
     // The voice channel a category's raids meet in (#305), keyed by category id.
     categoryVoiceChannel?: Record<string, string>;
+    // The voice channel per raid (none / fixed / temporary), keyed by category id; the GET lists
+    // only what differs from the defaults, a save sends the whole settings of a category.
+    categoryTempVoice?: Record<string, Partial<TempVoiceSettings>>;
     // The look of a category's signup message: raid picture below it (default on)
     // and the size of the title tiles ("normal" | "large" | "huge", default "large").
     // Only what differs from the default is listed.

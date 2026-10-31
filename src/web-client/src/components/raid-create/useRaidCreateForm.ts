@@ -12,6 +12,7 @@ import {
 } from "../../lib/raids/eventPlan";
 import { useToast } from "../shell/Jobs";
 import { useContentVersion } from "../../hooks/useContentVersion";
+import { tempVoiceFor, type TempVoiceSettings, type VoicePlan } from "../../lib/discord/tempVoice";
 import { berlinDay, channelNameForDate, clockOf, latestPerCategory, nextSameWeekday, type ChannelMode, type Choice, type StartTab, type TemplateMode } from "./createHelpers";
 
 /** What the dialog sends: the event's fields, where it is posted and how people sign up. */
@@ -34,6 +35,8 @@ export type RaidForm = {
     /** The raid's voice channel (#305): preset from the category until it is picked by hand. */
     voiceChannelId: string;
     voiceTouched: boolean;
+    /** The event's own voice plan (KanalStep "Für dieses Event ändern"); null = the category's. */
+    voicePlan: VoicePlan | null;
     channelMode: ChannelMode;
     channelId: string;
     channelName: string;
@@ -46,9 +49,23 @@ export type RaidForm = {
 const EMPTY_FORM = (): RaidForm => ({
     title: "", date: "", time: "", leaderId: "", leaderOther: false, description: "", categoryId: "",
     source: "raidhelper", announce: false, announceTouched: false, plan: emptyPlan(null), freeSize: false, planTouched: false,
-    voiceChannelId: "", voiceTouched: false, channelMode: "new", channelId: "", channelName: "", channelTouched: false,
+    voiceChannelId: "", voiceTouched: false, voicePlan: null, channelMode: "new", channelId: "", channelName: "", channelTouched: false,
     templateId: "", templateTouched: false,
 });
+
+/** A category's voice channel per raid; an older server without it: its fixed channel or none. */
+export function categoryVoiceOf(data: RaidCreateContext | null, catId: string): TempVoiceSettings & { voiceChannelId: string } {
+    const given = ((data && data.categoryTempVoice) || {})[catId];
+    if (given) return given;
+    const fixed = ((data && data.categoryVoiceChannel) || {})[catId] || "";
+    return { ...tempVoiceFor(undefined, fixed), voiceChannelId: fixed };
+}
+
+/** The fixed channel a category presets: only when its raids meet in one. */
+function presetVoiceOf(data: RaidCreateContext, catId: string): string {
+    const s = categoryVoiceOf(data, catId);
+    return s.mode === "existing" ? s.voiceChannelId : "";
+}
 
 /**
  * The state of "Neues Event": the context the server hands (categories,
@@ -114,17 +131,20 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         if (!form.announceTouched) next.announce = ((data.categoryAnnounce || {})[catId] || {}).enabled === true;
         if (!form.templateTouched) next.templateId = (data.categoryTemplates || {})[catId] || data.defaults.templateId || "";
         if (!form.planTouched && choice?.kind !== "template") next.plan = categoryPlan(data, catId);
-        if (!form.voiceTouched) next.voiceChannelId = (data.categoryVoiceChannel || {})[catId] || "";
+        if (!form.voiceTouched) {
+            next.voiceChannelId = presetVoiceOf(data, catId);
+            next.voicePlan = null;
+        }
         patch(next);
     };
 
     const applyChoice = (data: RaidCreateContext, next: NonNullable<Choice>) => {
         setChoice(next);
-        patch({ channelTouched: false, templateTouched: false, planTouched: false, freeSize: false, voiceTouched: false });
+        patch({ channelTouched: false, templateTouched: false, planTouched: false, freeSize: false, voiceTouched: false, voicePlan: null });
         const vs = data.versions || [];
         const defaultChannel = data.channels.find((c) => c.id === data.defaults.channelId);
         // The voice channel a category's raids meet in (#305) — the preset of every start.
-        const presetVoice = (catId: string) => (data.categoryVoiceChannel || {})[catId] || "";
+        const presetVoice = (catId: string) => presetVoiceOf(data, catId);
         if (next.kind === "event") {
             const ev = data.reusableEvents.find((e) => e.id === next.id);
             if (!ev) return;
@@ -216,6 +236,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
                         channelName: ev.channelName,
                         voiceChannelId: ev.voiceChannelId || "",
                         voiceTouched: true,
+                        voicePlan: ev.voicePlan || null,
                     });
                     return;
                 }
@@ -297,6 +318,10 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
 
     const changePlan = (next: EventPlan) => patch({ plan: next, planTouched: true });
 
+    // The voice channel per raid: the category's settings and what holds for this event.
+    const categoryVoice = categoryVoiceOf(ctx, categoryId);
+    const voiceMode = form.voicePlan ? form.voicePlan.mode : categoryVoice.mode;
+
     const readyAt = (key: StepKey): boolean => {
         if (key === "start") return choice !== null;
         if (key === "termin") return !!(form.title.trim() && date && form.time && form.leaderId.trim() && (categoryId || !categories.length));
@@ -310,11 +335,13 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
     };
 
     const submit = async () => {
-        const { title, time, leaderId, description, voiceChannelId, channelName, channelId, templateId, source, announce } = form;
+        const { title, time, leaderId, description, channelName, channelId, templateId, source, announce, voicePlan } = form;
+        // A fixed channel only goes along when the raid meets in one; "" otherwise.
+        const voiceChannelId = voiceMode === "existing" ? form.voiceChannelId : "";
         setSaving(true);
         try {
             if (editing) {
-                const r = await updateRaid({ id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId });
+                const r = await updateRaid({ id: editEventId, title, date, time, leaderId, description, ...planBody(plan), voiceChannelId, voicePlan });
                 if (r.messageError) toast(t("raidCreate.toast.savedWithError", { error: r.messageError }), "err");
                 else toast(t("raidCreate.toast.saved"));
             } else {
@@ -323,7 +350,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
                     : channelMode === "new" ? { newChannel: { name: channelName, categoryId } } : { channelId };
                 const r = await createRaid({
                     title, date, time, templateId, leaderId, description, signupSource: source, ...where,
-                    ...(eh ? { ...planBody(plan), announce, voiceChannelId } : { raidTemplateId: plan.raidTemplateId }),
+                    ...(eh ? { ...planBody(plan), announce, voiceChannelId, voicePlan } : { raidTemplateId: plan.raidTemplateId }),
                 });
                 if (r.messageError) toast(t("raidCreate.toast.createdWithError", { error: r.messageError }), "err");
                 else if (r.announceError) toast(t("raidCreate.toast.announceError", { error: r.announceError }), "err");
@@ -365,7 +392,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         form, patch, changePlan, applyCategory, applyChoice,
         versions, version, raidTemplates, categories, sourceEvent, baseTemplate, steps, stepAt,
         schema, naming, options, rhTemplates, rhTemplate, categoryChannels, channel, categoryName, canClone, eh, problem,
-        startPreview, endPreview, chosenInstances, readyAt, submit,
+        startPreview, endPreview, chosenInstances, readyAt, submit, categoryVoice, voiceMode,
         template: { open: tplOpen, setOpen: setTplOpen, mode: tplMode, setMode: setTplMode, name: tplName, setName: setTplName, saving: tplSaving, openSave: openSaveTemplate, save: saveTemplate },
     };
 }

@@ -287,7 +287,9 @@ describe("Event anlegen: Kanal & Anmeldung", () => {
         const mode = screen.getByRole("radiogroup", { name: t("raidCreate.kanal.channel") });
         expect(within(mode).getByRole("radio", { name: t("raidCreate.kanal.modeNew") })).toBeInTheDocument();
         await waitFor(() => expect(screen.getByRole("textbox", { name: new RegExp(`^${esc(t("raidCreate.kanal.channel"))}`) })).toHaveValue("kara-do-01-10"));
-        expect(field(t("raidCreate.kanal.voice"))).toHaveValue("v1");
+        // closed, the voice field names what the category sets; no select until "change for this event"
+        expect(screen.getByText("Raid 1")).toBeInTheDocument();
+        expect(screen.queryByLabelText(new RegExp(`^${esc(t("raidCreate.kanal.voice"))}`))).not.toBeInTheDocument();
         expect(field(t("raidCreate.kanal.deadline"))).toBeInTheDocument();
         // the event plans in the EventHelper: no Raid-Helper template to pick
         expect(screen.queryByLabelText(new RegExp(`^${esc(t("raidCreate.kanal.rhTemplate"))}`))).not.toBeInTheDocument();
@@ -298,7 +300,31 @@ describe("Event anlegen: Kanal & Anmeldung", () => {
         const [method, path, body] = vi.mocked(client.send).mock.calls[0];
         expect([method, path]).toEqual(["POST", "/api/raids"]);
         // no raid template with a duration, nobody typed one: sent as "not set"
-        expect(body).toMatchObject({ title: "Kara Donnerstag", signupSource: "eventhelper", voiceChannelId: "v1", durationMinutes: null });
+        expect(body).toMatchObject({ title: "Kara Donnerstag", signupSource: "eventhelper", voiceChannelId: "v1", durationMinutes: null, voicePlan: null });
+    });
+
+    it("overrides the voice channel for this event and goes back to the category", async () => {
+        const user = userEvent.setup();
+        const { onCreated } = await open({ sourceId: "e1" });
+        await user.click(next());
+        await user.click(next());
+        await user.click(screen.getByRole("button", { name: t("raidCreate.kanal.voiceEdit") }));
+        expect(screen.getByRole("combobox", { name: t("raidCreate.kanal.voice") })).toHaveValue("v1");
+        expect(screen.getByText(t("raidCreate.kanal.voiceDiffers"))).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("raidCreate.kanal.voiceReset") }));
+        expect(screen.queryByText(t("raidCreate.kanal.voiceDiffers"))).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("raidCreate.kanal.voiceEdit") }));
+        const modes = screen.getByRole("radiogroup", { name: t("raidCreate.kanal.voice") });
+        await user.click(within(modes).getByRole("radio", { name: t("raidCreate.kanal.voiceModeTemp") }));
+        expect(screen.getByTestId("voice-preview").textContent).toMatch(/Kara/);
+        await user.click(screen.getByRole("button", { name: t("raidCreate.kanal.voiceMore") }));
+        await user.click(next());
+        await user.click(screen.getByRole("button", { name: t("raidCreate.footer.create") }));
+        await waitFor(() => expect(onCreated).toHaveBeenCalled());
+        const body = vi.mocked(client.send).mock.calls[0][2] as { voicePlan: { mode: string; leadMinutes: number; nameTemplate: string } };
+        expect(body.voicePlan.mode).toBe("temp");
+        expect(body.voicePlan.leadMinutes).toBe(35);
+        expect(body.voicePlan.nameTemplate).toBeTruthy();
     });
 
     it("says in Prüfen that the raid has no planned end, and the duration with its end when there is one", async () => {

@@ -14,6 +14,9 @@ import NumberStepper from "../../../components/ui/form/NumberStepper";
 import CategoryField, { CategorySubField } from "./CategoryField";
 import AvailabilityPanelRow, { type AvailabilityPanels } from "./AvailabilityPanelRow";
 import OrgaHubRow, { type OrgaHubs } from "./OrgaHubRow";
+import TempVoiceFields from "./TempVoiceFields";
+import type { Category } from "../../../api/discord/channels";
+import type { TempVoiceSettings } from "../../../lib/discord/tempVoice";
 import { ChannelsIcon, CheckMark, ClockIcon, CommentIcon, GiftIcon, RosterIcon, RowsIcon } from "../../../components/ui/icons/icons";
 
 // The expanded card of one raid category (Einstellungen → Kategorien), design
@@ -70,6 +73,12 @@ export type CategorySettings = {
     categoryDiscordEvent?: Record<string, boolean>;
     categoryVoiceChannel?: Record<string, string>;
     voiceChannels?: { id: string; name: string; category?: string }[];
+    /** The voice channel per raid (docs/channels.md); only what differs from the defaults. */
+    categoryTempVoice?: Record<string, Partial<TempVoiceSettings>>;
+    /** The Discord categories a temporary channel can go under. */
+    voiceParents?: Category[];
+    /** The category's voice settings, handed over whole. */
+    onTempVoice?: (categoryId: string, value: TempVoiceSettings) => void;
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     onMessageLook?: (categoryId: string, look: { raidArt: boolean; titleSize: string }) => void;
     categoryAnnounce?: Record<string, { enabled: boolean }>;
@@ -306,18 +315,11 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                 </CategoryField>
             ) });
         }
-        if (onVoiceChannel) {
-            const voiceChannels = s.voiceChannels || [];
+        if (onVoiceChannel && s.onTempVoice) {
             out.push({ key: "voice", node: (
-                <CategoryField label={t("settings.categories.voice")} htmlFor={voiceChannels.length ? `catvoice-${cat.id}` : undefined}
-                    sub={t("settings.categories.voiceShort")} more={t("settings.categories.voiceSub")}>
-                    {voiceChannels.length ? (
-                        <select id={`catvoice-${cat.id}`} value={(s.categoryVoiceChannel || {})[cat.id] || ""} onChange={(e) => onVoiceChannel(cat.id, e.target.value)}>
-                            <option value="">{t("settings.categories.noVoiceOption")}</option>
-                            {voiceChannels.map((c) => <option key={c.id} value={c.id}>{c.name}{c.category ? ` · ${c.category}` : ""}</option>)}
-                        </select>
-                    ) : <span className="note">{t("settings.categories.noVoice")}</span>}
-                </CategoryField>
+                <TempVoiceFields cat={cat} name={name} stored={(s.categoryTempVoice || {})[cat.id]}
+                    voiceChannelId={(s.categoryVoiceChannel || {})[cat.id] || ""} voiceChannels={s.voiceChannels || []}
+                    parents={s.voiceParents || []} onChange={s.onTempVoice} onVoiceChannel={onVoiceChannel} />
             ) });
         }
         if (onAnnounce) {

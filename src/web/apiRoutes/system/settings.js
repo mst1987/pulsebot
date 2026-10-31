@@ -9,7 +9,7 @@ const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../../stores/settings/settingsStore");
 const {
-    normalizeCategoryLanguagePatch, attendanceSettings, normalizeCategoryVersion, MAX_SERVERS,
+    normalizeCategoryLanguagePatch, attendanceSettings, tempVoiceSettings, normalizeCategoryVersion, MAX_SERVERS,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../../stores/settings/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
@@ -1100,6 +1100,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categoryDiscordEvent !== undefined) partial.categoryDiscordEvent = normalizeCategoryDiscordEvent(body.categoryDiscordEvent);
     if (body.categoryServerOverview !== undefined) partial.categoryServerOverview = normalizeCategoryServerOverviewPatch(body.categoryServerOverview);
     if (body.categoryVoiceChannel !== undefined) partial.categoryVoiceChannel = normalizeCategoryVoiceChannel(body.categoryVoiceChannel);
+    // The voice channel per raid (tempVoiceSettings.js): each category sent whole, like the attendance.
+    if (body.categoryTempVoice !== undefined && body.categoryTempVoice && typeof body.categoryTempVoice === "object") {
+        partial.categoryTempVoice = Object.fromEntries(Object.entries(body.categoryTempVoice)
+            .filter(([id]) => String(id).trim())
+            .map(([id, value]) => [String(id).trim(), tempVoiceSettings(value)]));
+    }
     if (body.categoryMessageLook !== undefined) partial.categoryMessageLook = normalizeCategoryMessageLookPatch(body.categoryMessageLook);
     if (body.categoryAnnounce !== undefined) partial.categoryAnnounce = normalizeCategoryAnnounce(body.categoryAnnounce);
     if (body.categorySignupNotes !== undefined) partial.categorySignupNotes = normalizeCategorySignupNotesPatch(body.categorySignupNotes);

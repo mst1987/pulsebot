@@ -311,6 +311,8 @@ const REQUIRED_BOT_PERMISSIONS = [
     { key: "SendMessages", label: "Nachrichten senden" },
     { key: "EmbedLinks", label: "Links einbetten" },
     { key: "ManageRoles", label: "Rollen verwalten" },
+    // the raids' temporary voice channels: whoever is left at the latest close moves to the fixed channel
+    { key: "MoveMembers", label: "Mitglieder verschieben" },
     { key: "GuildMembers", label: "Mitglieder lesen", intent: true },
 ];
 

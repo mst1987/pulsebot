@@ -608,6 +608,32 @@ tr.perm-foreign .perm-who-label { color: var(--muted); }
 .cat-panel > select { flex: 1 1 180px; min-width: 0; font-size: 13px; }
 .cat-panel-state { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
 .cat-panel-state > .note { margin: 0; }
+/* "Sprachkanal je Raid": three choices as a quiet list (radio, name, one line), then the temporary channels' settings. */
+.cat-field-control > .cat-voice { align-self: stretch; }
+.cat-voice-modes { display: flex; flex-direction: column; }
+.cat-voice-mode { display: flex; align-items: flex-start; gap: 10px; margin: 0; padding: 8px 0; border-top: 1px solid var(--line-soft); cursor: pointer; }
+.cat-voice-mode:first-child { border-top: 0; padding-top: 2px; }
+.cat-voice-mode > input { margin: 3px 0 0; flex: 0 0 auto; width: 16px; height: 16px; accent-color: var(--accent); }
+.cat-voice-mode-text { display: flex; flex-direction: column; min-width: 0; }
+.cat-voice-mode-text > strong { font-size: 14px; font-weight: 600; }
+.cat-voice-mode-text > span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
+.cat-voice-mode[data-on] .cat-voice-mode-text > strong { color: var(--accent); }
+.cat-voice-existing { margin: 8px 0 0 26px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+.cat-voice-temp .cat-subfield-control > select { min-width: 220px; max-width: 100%; }
+.cat-voice-name { flex-direction: column; align-items: stretch; gap: 8px; }
+.cat-voice-name > input { width: 100%; }
+.cat-voice-name > .chip-row { align-items: center; }
+.cat-voice-name .note { margin: 0; }
+.cat-voice-preview { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 14px; margin: 0; padding: 8px 10px; border-left: 2px solid var(--line); font-size: 13px; }
+.cat-voice-preview > dt { color: var(--muted); }
+.cat-voice-preview > dd { margin: 0; overflow-wrap: anywhere; }
+@media (max-width: 560px) {
+    .cat-voice-existing { margin-left: 0; }
+    .cat-voice-temp .cat-subfield-control > select { min-width: 0; width: 100%; }
+    .cat-voice-temp .cat-subfield-control { width: 100%; }
+    .cat-voice-preview { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .cat-voice-preview > dd + dt { margin-top: 6px; }
+}
 .cat-links { display: flex; flex-direction: column; gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); align-self: stretch; }
 .cat-links > .note { margin: 0; }
 .cat-features { display: flex; flex-direction: column; gap: 6px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--line); align-self: stretch; }
