@@ -453,6 +453,13 @@ describe("services/voice/tempVoiceJob", () => {
             expect(voice.createVoice).toHaveBeenCalledTimes(1);
         });
 
+        it("refuses 'Jetzt anlegen' while a create mark has no running create", async () => {
+            mockEvents.push(raid());
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", creatingAt: START - 1800, name: "SSC · Sa 31.10.", parentId: PARENT });
+            expect(await job.openNow("eh-1", { now: START - 1700 })).toMatchObject({ status: 409, error: expect.stringContaining("angelegt") });
+            expect(voice.createVoice).not.toHaveBeenCalled();
+        });
+
         it("offers 'Jetzt anlegen' again after a close, until the latest close", async () => {
             mockEvents.push(raid());
             await job.runTempVoice({ now: START - 1800 });

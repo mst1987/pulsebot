@@ -310,7 +310,12 @@ async function openNow(eventId, { now = nowSeconds() } = {}) {
     if (error) return { error, status };
     if (!plan) return { error: "Für diesen Raid ist kein temporärer Sprachkanal vorgesehen.", status: 409 };
     if (now >= plan.limitAt) return { error: "Der Raid ist vorbei.", status: 409 };
-    if (!opening.has(event.id) && isOpen(tempVoiceStore.getEntry(event.id))) return { error: "Der Kanal ist schon offen.", status: 409 };
+    const entry = tempVoiceStore.getEntry(event.id);
+    if (!opening.has(event.id) && isOpen(entry)) return { error: "Der Kanal ist schon offen.", status: 409 };
+    // A mark without a running create: a channel may exist already - the next run looks for it first.
+    if (!opening.has(event.id) && isCreating(entry)) {
+        return { error: "Der Kanal wird gerade angelegt, gleich noch einmal versuchen.", status: 409 };
+    }
     const result = await open(event, plan, now, { manual: true });
     return result.ok ? { ok: true } : { error: result.error, status: 502 };
 }
