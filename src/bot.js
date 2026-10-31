@@ -23,6 +23,7 @@ const { handleMemberUpdate, handleMemberAdd } = require("./services/discord/role
 const rosterRoleSync = require("./services/roster/rosterRoleSync.js");
 const memberActivity = require("./services/discord/members/memberActivity.js");
 const pugInvites = require("./services/discord/pug/pugInvites.js");
+const tempVoiceJob = require("./services/voice/tempVoiceJob.js");
 const { guardInteraction } = require("./services/discord/botAccess.js");
 const { trackAck } = require("./services/discord/ackTiming.js");
 const { runMode } = require("./config/runMode.js");
@@ -56,6 +57,9 @@ const client = new Client({
         // not privileged: inviteCreate / inviteDelete speed up the invite check (they only come
         // with "Kanäle verwalten"; services/discord/pug/pugInvites.js does not rely on them, #905)
         GatewayIntentBits.GuildInvites,
+        // not privileged: who sits in which voice channel, so a raid's temporary channel
+        // closes once it is empty (services/voice/tempVoiceJob.js)
+        GatewayIntentBits.GuildVoiceStates,
     ],
     // The role messages' reactions must work on messages from before a restart too, which
     // are not in the cache: without these partials discord.js drops such reaction events
@@ -152,6 +156,14 @@ client.on("guildMemberRemove", (member) => memberActivity.onMemberRemove(member)
 // marked deleted (never made again on its own, only by a click in the settings).
 client.on(Events.InviteCreate, (invite) => pugInvites.onInviteCreate(invite));
 client.on(Events.InviteDelete, (invite) => pugInvites.onInviteDelete(invite));
+// Temporary raid voice channels: somebody joining or leaving starts or stops the empty clock.
+client.on(Events.VoiceStateUpdate, (oldState, newState) => {
+    try {
+        tempVoiceJob.onVoiceStateUpdate(oldState, newState);
+    } catch (error) {
+        logger.warn("temp voice state update failed:", error.message);
+    }
+});
 
 // Role messages: a reaction on one gives its role, removing it takes the role back
 // (services/discord/roles/roleMessages.js; bots are ignored, nothing is answered; the Bot-Befehle

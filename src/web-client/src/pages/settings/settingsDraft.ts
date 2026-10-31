@@ -4,6 +4,7 @@ import { blockOf, type VersionSettingsBlock } from "../../lib/settings/versionLi
 import { disabledFromConfig } from "../../lib/settings/versionFeatures";
 import { DISCORD_VISUAL_KEYS, discordVisualsOf, type CategoryAttendance, type DiscordVisualKey } from "../../lib/settings/settingsLogic";
 import type { SwitchFix } from "../../lib/settings/categoryVersions";
+import type { TempVoiceSettings } from "../../lib/discord/tempVoice";
 
 export const splitList = (s: string) => s.split(",").map((x) => x.trim()).filter(Boolean);
 
@@ -39,6 +40,8 @@ export type Draft = {
     /** false = left out of the server overview; missing or true = shown. */
     categoryServerOverview: Record<string, boolean>;
     categoryVoiceChannel: Record<string, string>;
+    /** The voice channel per raid; only what differs from the defaults (tempVoiceSettings.js). */
+    categoryTempVoice: Record<string, Partial<TempVoiceSettings>>;
     /** The look of the signup message; missing = raid picture on, title "large". */
     categoryMessageLook: Record<string, { raidArt?: boolean; titleSize?: string }>;
     /** "Beim Anlegen ankündigen" per category (#306); missing = off. */
@@ -139,6 +142,7 @@ export function toDraft(config: AdminConfig, guildId = ""): Draft {
         categoryDiscordEvent: config.categoryDiscordEvent || {},
         categoryServerOverview: config.categoryServerOverview || {},
         categoryVoiceChannel: config.categoryVoiceChannel || {},
+        categoryTempVoice: config.categoryTempVoice || {},
         categoryMessageLook: config.categoryMessageLook || {},
         categoryAnnounce: config.categoryAnnounce || {},
         categorySignupNotes: config.categorySignupNotes || {},

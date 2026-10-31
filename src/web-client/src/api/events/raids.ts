@@ -4,6 +4,7 @@ import type { EventLog } from "../system/dashboard";
 import type { Channel, ChannelNameSuggestion } from "../discord/channels";
 import type { EventSource } from "./raidDetail";
 import type { RoleRange, EmbedImage, EmojiStyle, RaidTemplate, GameVersion, VersionChoice, OverflowMode } from "./raidTemplates";
+import type { TempVoiceSettings, VoicePlan } from "../../lib/discord/tempVoice";
 
 // A row of the Raid-Events list — mirrors src/web/raidListing.js. `contentIds`
 // are the raid(s) the event is (for the boss icon), [] when nothing was
@@ -101,6 +102,8 @@ export type OwnEvent = {
     channelName: string;
     /** the voice channel the raid meets in (#305); "" = none */
     voiceChannelId: string;
+    /** the event's own voice plan (KanalStep), null = the category's */
+    voicePlan?: VoicePlan | null;
     title: string;
     description: string;
     leaderId: string;
@@ -148,6 +151,8 @@ export type RaidCreateContext = {
     voiceChannels?: Channel[];
     /** category id → the voice channel its raids meet in (#305) */
     categoryVoiceChannel?: Record<string, string>;
+    /** category id → its voice channel per raid, defaults filled in, with its fixed channel */
+    categoryTempVoice?: Record<string, TempVoiceSettings & { voiceChannelId: string; lang?: string }>;
     templates: RaidTemplate[];
     reusableEvents: ReusableEvent[];
     /** category id → "eventhelper" for categories whose new events live in the EventHelper */
@@ -234,6 +239,8 @@ export type CreateRaidInput = Partial<EventPlanInput> & {
     signupSource?: EventSource;
     /** the voice channel the raid meets in (#305); "" = none */
     voiceChannelId?: string;
+    /** the event's own voice plan; null = the category's */
+    voicePlan?: VoicePlan | null;
     /** "Beim Anlegen ankündigen" (#306); omitted = as the category has it */
     announce?: boolean;
     leaderId: string;
@@ -253,6 +260,8 @@ export type UpdateRaidInput = Partial<EventPlanInput> & {
     description: string;
     /** the voice channel the raid meets in (#305); "" = none */
     voiceChannelId?: string;
+    /** the event's own voice plan; null = the category's */
+    voicePlan?: VoicePlan | null;
 };
 
 /** Edit an own (EventHelper) event with the same dialog (#261). */

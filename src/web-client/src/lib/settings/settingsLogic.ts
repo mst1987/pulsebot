@@ -8,6 +8,7 @@
 import type { AreaAccess, ReminderRule, RoleSyncRule, TalkOverviewStatus } from "../../api";
 import { t, tOr } from "../../i18n";
 import { changedFeatureVersions } from "./versionFeatures";
+import { tempVoiceFor, type TempVoiceSettings } from "../discord/tempVoice";
 
 export type Level = "none" | "read" | "write";
 export type Grants = Record<string, AreaAccess | undefined>;
@@ -134,6 +135,8 @@ export type DraftShape = {
     categoryServerOverview?: Record<string, boolean>;
     /** The voice channel a category's raids meet in (#305); missing = none. */
     categoryVoiceChannel?: Record<string, string>;
+    /** The voice channel per raid (docs/channels.md); only what differs from the defaults. */
+    categoryTempVoice?: Record<string, Partial<TempVoiceSettings>>;
     /** The look of the signup message; missing = raid picture on, title "large". */
     categoryMessageLook?: Record<string, { raidArt?: boolean; titleSize?: string }>;
     categoryAnnounce?: Record<string, { enabled: boolean }>;
@@ -355,6 +358,7 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         ...Object.keys(saved.categoryDiscordEvent || {}), ...Object.keys(draft.categoryDiscordEvent || {}),
         ...Object.keys(saved.categoryServerOverview || {}), ...Object.keys(draft.categoryServerOverview || {}),
         ...Object.keys(saved.categoryVoiceChannel || {}), ...Object.keys(draft.categoryVoiceChannel || {}),
+        ...Object.keys(saved.categoryTempVoice || {}), ...Object.keys(draft.categoryTempVoice || {}),
         ...Object.keys(saved.categoryMessageLook || {}), ...Object.keys(draft.categoryMessageLook || {}),
         ...Object.keys(saved.categoryAnnounce || {}), ...Object.keys(draft.categoryAnnounce || {}),
         ...Object.keys(saved.categorySignupNotes || {}), ...Object.keys(draft.categorySignupNotes || {}),
@@ -395,6 +399,11 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
         const voiceWas = (saved.categoryVoiceChannel || {})[id] || "";
         const voiceIs = (draft.categoryVoiceChannel || {})[id] || "";
         if (voiceWas !== voiceIs) out.push(t(voiceIs ? "settings.changes.voiceSet" : "settings.changes.voiceRemoved", { name }));
+        // A new fixed channel alone flips an unset mode to "existing" - voiceSet says that already.
+        const tvWas = tempVoiceFor((saved.categoryTempVoice || {})[id], voiceWas);
+        const tvIs = tempVoiceFor((draft.categoryTempVoice || {})[id], voiceIs);
+        const tvMode = voiceWas === voiceIs || (draft.categoryTempVoice || {})[id]?.mode !== (saved.categoryTempVoice || {})[id]?.mode;
+        if (JSON.stringify({ ...tvWas, mode: tvMode ? tvWas.mode : "" }) !== JSON.stringify({ ...tvIs, mode: tvMode ? tvIs.mode : "" })) out.push(t("settings.changes.tempVoice", { name }));
         const lookWas = messageLook(saved.categoryMessageLook, id);
         const lookIs = messageLook(draft.categoryMessageLook, id);
         if (lookWas.raidArt !== lookIs.raidArt) out.push(t(lookIs.raidArt ? "settings.changes.raidArtOn" : "settings.changes.raidArtOff", { name }));

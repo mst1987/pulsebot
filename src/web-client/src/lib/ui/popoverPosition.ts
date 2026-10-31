@@ -14,6 +14,19 @@ export type Placement = (anchor: Rect | null, box: Size, viewport: Size) => Popo
 /** How far a box stays away from the viewport's edge. */
 export const VIEWPORT_MARGIN = 8;
 
+/**
+ * The area fixed coordinates refer to: without a classic scrollbar's width,
+ * since `right` counts from the scrollbar's inner edge (innerWidth includes
+ * it, which put a right-aligned menu that far past the left edge). Falls back
+ * to the window where the root reports no size (jsdom).
+ */
+export function fixedViewport(
+    root: { clientWidth: number; clientHeight: number } = document.documentElement,
+    win: { innerWidth: number; innerHeight: number } = window,
+): Size {
+    return { width: root.clientWidth || win.innerWidth, height: root.clientHeight || win.innerHeight };
+}
+
 /** Where a box of w x h opened at (x, y) sits so it stays inside the viewport (opens up / left when there is no room). */
 export function clampToViewport(x: number, y: number, w: number, h: number, vw: number, vh: number): { x: number; y: number } {
     const margin = VIEWPORT_MARGIN;
@@ -57,9 +70,16 @@ export function besidePosition(anchor: Rect, box: Size, viewport: Size, gap = 10
     return tipPosition(anchor, box, viewport, gap);
 }
 
-/** A menu under its button, its right edge on the button's right edge. */
-export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6): { top: number; right: number } {
-    return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, viewport.width - anchor.right) };
+/**
+ * A menu under its button, its right edge on the button's right edge, kept
+ * inside the viewport on both sides: with the box measured, a button near the
+ * left edge (a phone row that wrapped) moves the menu right until its left edge
+ * keeps the margin; a box wider than the viewport keeps the right margin.
+ */
+export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6, box?: Size): { top: number; right: number } {
+    let right = viewport.width - anchor.right;
+    if (box) right = Math.min(right, viewport.width - box.width - VIEWPORT_MARGIN);
+    return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, right) };
 }
 
 /**
@@ -98,9 +118,9 @@ export function besidePlacement(gap = 10): Placement {
     return (anchor, box, viewport) => (anchor ? besidePosition(anchor, box, viewport, gap) : {});
 }
 
-/** Placement: a menu under its button, right-aligned (see belowEndPosition). */
+/** Placement: a menu under its button, right-aligned, kept inside the viewport (see belowEndPosition). */
 export function belowEndPlacement(gap = 6): Placement {
-    return (anchor, _box, viewport) => (anchor ? belowEndPosition(anchor, viewport, gap) : {});
+    return (anchor, box, viewport) => (anchor ? belowEndPosition(anchor, viewport, gap, box) : {});
 }
 
 /** Placement: a menu under its button, left-aligned, flipped above when it must (see belowStartPosition). */

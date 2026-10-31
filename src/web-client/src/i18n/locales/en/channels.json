@@ -384,5 +384,26 @@
         "templateChannelSub": "The new channels take over the permissions, topic and slowmode of this channel. Without a choice they copy the latest event channel of the category – only a category without an event channel gets plain text channels.",
         "noTemplateOption": "— no template —",
         "remember": "Remember schema, raid and template for “{name}”"
+    },
+    "voiceRow": {
+        "members": { "one": "{count} inside", "other": "{count} inside" },
+        "fixed": "existing channel",
+        "temp": "temporary",
+        "planned": "created at {time}",
+        "plannedIn": "created at {time}, category “{parent}”",
+        "open": "open",
+        "closesBy": "closes once empty, at the latest {time}",
+        "closed": "closed",
+        "closedAt": "closed at {time}",
+        "failed": "not created: {error}",
+        "creating": "being created",
+        "unknownError": "unknown error",
+        "noName": "Voice channel",
+        "missingRights": "The bot lacks in the Discord category: {rights}",
+        "botOffline": "The bot is not connected right now – the channel is only created or closed once it is back.",
+        "menu": "Channel",
+        "openNow": "Create now",
+        "close": "Close",
+        "inDiscord": "Open in Discord"
     }
 }

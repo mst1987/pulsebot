@@ -24,3 +24,85 @@ The server's channels as Discord's sidebar (issue #259): `pages/ChannelsPage.tsx
 - **Rollen (`pages/channels/ServerRolesPage.tsx`, display only).** Every role of the picked server as Discord orders it, from `GET /api/discord/roles?guildId=` (`src/services/discord/servers/serverRoles.js` → `apiRoutes/discord/discordRoles.js`, area `channels` read): colour dot and name in the role colour, rank (1 = top, @everyone none), *N Mitglieder* (from the member cache; `membersError` when the GuildMembers fetch failed), what the role means for the bot (`uses`: orga, bot commands, web rights, category raider, roster, role sync, role message, addon ping, the bot's own role — words in `lib/discord/serverRoles.ts`), sensitive permissions (the one list `SENSITIVE` of `services/discord/roles/roleHygiene.js`, so the Discord overview counts the same roles; the client copy in `lib/discord/permissions.ts` is kept equal by `serverRoles.test.js`; two by name, the rest as *+N weitere* with a tooltip) and *Bot kann vergeben* with the reason (`assign.reason`: `everyone`, `managed`, `botRole`, `noManageRoles`, `above` — via `memberRoles.roleBelowBot`, i.e. `comparePositionTo`). `hints` mark what to look at: `empty` (nobody has it), `sensitive` (only an *unusual* one, see below), `aboveBot` (a role the bot hands out sits above it; for a roster only its member/trial roles count, not former/staff). Permission aliases (`ManageEmojisAndStickers` = `ManageGuildExpressions`) count once; the bot's own role is always `botRole`, never `managed`. **Damping:** a sensitive permission that @everyone has, or that at least three other roles and more than half of them have, is *common* (`commonSensitive` of the list, `unusual` per role = the rest): the table shows it grey and names it once in a calm line above the table ("Üblich auf diesem Server, daher grau: … (17 von 19 Rollen)"); orange stays for the outliers, which come first in the cell. Red only where the bot should act but cannot (`aboveBot`, `noManageRoles`). Sorted by position, a **divider row** sits at the bot's role (its text sticks to the left while the table scrolls) — every other sort drops it and marks the bot's role with a small *Bot-Rolle* tag instead. *Nur Rollen mit Hinweis* is a switch. **Phone (≤ 600 px):** the uses and sensitive columns are hidden (uses already ≤ 900 px); a small second line under the name carries the meaning and the outliers (orange), *Bot kann vergeben* is one word (`assignShort`, full text as tooltip), members only the number, the divider the short text; the drawer is a bottom sheet over a dimmed backdrop that closes on a tap. A row opens **`ServerRoleDrawer.tsx`** (`GET /api/discord/roles/detail?guildId=&roleId=`, 404 `not_found` = "gone"): facts (rank as in the table, where it stands to the bot read from `assign`), permissions grouped like Discord's role editor (`groupPermissions`; only the set ones unless *Alle Rechte zeigen*, "x von N gesetzt"), the channel overwrites for this role (allow green, deny red) and the members with avatars and a search (from nine members, sixty shown; for @everyone the server sends the first 200 and `membersTotal`, the drawer says so). Creating, moving and editing roles stays in Discord. Tests: `test/services/discord/servers/serverRoles.test.js`, `test/web/apiRoutes/discord/discordRoles.test.js`, `ServerRolesPage.test.tsx`, `lib/discord/__tests__/serverRoles.test.ts`. A member's name in the drawer links to it on the member page (`/channels/members?user=<id>`, `&guild=<id>` on any server but the first). The open role is in the URL (`?role=<id>`, `&guild=<id>`), so a link opens it; the drawer's heading takes the role colour (`lib/discord/roleColor.ts`, a light and a dark variant for the two themes).
 - **Mitglieder (`pages/channels/MembersPage.tsx`, display only).** Every member of the picked server from `GET /api/discord/members?guildId=` (`src/services/discord/servers/serverMembers.js` → `apiRoutes/discord/discordMembers.js`, area `channels` read; head as on the roles page, `membersError` when the GuildMembers fetch failed): avatar and name (Discord name beside it), the roles in their role colour, highest first (three, then *+N* with the rest as tooltip), *beigetreten* (short date) and the roster column — the roster with the character of its version in class colour, else the character (*nicht im Roster*), else *kein Charakter verknüpft*. Orange only for `missingRosters`: the member holds a roster's member or trial role without being in that roster. Roster ties come from **`src/services/discord/members/memberRelation.js`** (`relationOf(userId)` for one account — the Discord overview's join/leave list uses it, contract unchanged —, `relationIndex()` reads the roster, character and profile stores once for a whole server). Filters (`lib/discord/members.ts`): search (name, Discord name, characters), one role select, the switches *ohne Rolle*, *nicht im Roster* (never a bot) and *Bots ausblenden* (on by default), each with its count; columns sort with `useTableSort`; 50 rows, then *N weitere · alle zeigen*. **Phone (≤ 600 px):** roles, join date and roster columns go (the date already ≤ 900 px), a small second line under the name carries roster/character and the highest role. A row (or `?user=<id>`, also from the role drawer) opens **`MemberDrawer.tsx`** (`GET /api/discord/members/detail?guildId=&userId=`, 404 `not_found` or `gone: true` = "gone"; bottom sheet on a phone): its roles, its characters by version with the rosters each one actually stands in (`rosterIds` per character from `memberRelation.js`; the roster column likewise takes the character that is in the roster, not just the first of its version), and the channels it can see by category (`visibleChannels()` — `permissionsFor(member).has(ViewChannel)`, "x von N Kanälen", categories fold; names exactly as in Discord, decorations like `╭ ・` or emojis included). Roles and channels are changed in Discord. **Drawers on both pages and the URL:** opening one pushes a history step (`?user=` / `?role=`), so the browser's back button closes it; Esc, the close button and switching the server replace the entry instead of adding one. Without a configured server no drawer opens. Known gap: the page behind an open drawer still scrolls (no body scroll lock — there is no shared drawer component yet to put it in). Tests: `test/services/discord/servers/serverMembers.test.js`, `test/services/discord/members/memberRelation.test.js`, `test/web/apiRoutes/discord/discordMembers.test.js`, `MembersPage.test.tsx`, `lib/discord/__tests__/members.test.ts`.
 - Discord writes live in `src/services/discord/discordChannels.js` (edit/archive/delete/createCategory/createFromTemplate), not in `discord.js`; the upcoming-event badges come from `raidEventGroups.fetchEventsCached()` bounded to 4 s, past ones from `raidEventStore`.
+
+## Sprachkanal je Raid
+
+Wo ein Raid spricht, legt die Kategorie fest (Einstellungen → Kategorien → Reiter *Neue Events*,
+`pages/settings/categories/TempVoiceFields.tsx`). Drei Quellen (`mode`):
+
+- **`none`** — kein Sprachkanal.
+- **`existing`** — ein fester Kanal (`config.categoryVoiceChannel[categoryId]`, wie bisher am Event als
+  `voiceChannelId`). Mit dem Schalter **„Ab Raid 2 temporär"** (`fromRaid2`, Vorgabe aus) bekommt jeder weitere Raid
+  derselben Gruppe (Raid-Gruppen, docs/setup.md) einen eigenen temporären Kanal.
+- **`temp`** — jeder Raid bekommt einen temporären Kanal.
+
+Ohne gespeicherten Modus gilt `existing`, wenn ein fester Kanal gesetzt ist, sonst `none` — alte Kategorien
+bleiben, wie sie waren.
+
+**Einstellungen** (`src/stores/settings/tempVoiceSettings.js`, gespeichert als
+`config.categoryTempVoice[categoryId]`, nur die Abweichung von der Vorgabe; je Server, weil Kategorien je Server sind):
+
+| Feld | Bedeutung | Vorgabe / Grenzen |
+|---|---|---|
+| `parentId` | Discord-Kategorie, unter der die Kanäle entstehen; ihre Rechte gelten (Parent-Sync) | leer = ohne Kategorie |
+| `nameTemplate` | Name mit Platzhaltern `{raid}`, `{nr}`, `{datum}`, `{zeit}`, `{leader}` (Chips + Vorschau) | `{raid} {nr} · {datum}`, max. 100 Zeichen |
+| `leadMinutes` | Anlegen so viele Minuten vor dem Start | 30, 0–240 |
+| `closeAfterMinutes` | Schließen spätestens so viele Minuten nach dem Ende | 60, 0–360 |
+| `onlyAssigned` | Nur die Eingeteilten (Gruppen ohne Bank) dürfen beitreten | aus |
+
+`{nr}` wird nur gefüllt, wenn die Gruppe mindestens zwei Raids hat; ein leerer Platzhalter fällt samt Trenner weg.
+Datum und Uhrzeit in Berliner Zeit; der Wochentag in der Sprache der Kategorie (`eventLang`: „Sa 31.10." bzw. „Sat
+31.10."), die Vorschau in Einstellungen und Anlege-Dialog ebenso.
+
+**Je Event überschreiben:** im Schritt *Kanal & Anmeldung* des Anlege-Dialogs (`VoicePlanField.tsx`, „Für dieses Event
+ändern") — `event.voicePlan = { mode, nameTemplate, leadMinutes }` (`null` = wie die Kategorie). Discord-Kategorie,
+Schließzeit und „Nur Eingeteilte" bleiben bei der Kategorie. Der Plan je Raid: `src/services/voice/tempVoicePlan.js`.
+
+**Der Job** (`src/services/voice/tempVoiceJob.js`, Name `tempVoice` in `jobs.js`): jede Minute und kurz nach jeder
+Event-Änderung.
+
+- Öffnet einen geplanten Kanal `leadMinutes` vor dem Start (bis zum spätesten Schließen; ein fehlgeschlagenes Anlegen
+  erst nach 10 Minuten wieder). Vor dem Anlegen markiert er den Eintrag als `creatingAt`: Stirbt der Bot dazwischen,
+  findet der nächste Lauf den Kanal an Name und Discord-Kategorie wieder, statt einen zweiten anzulegen. Ein zweiter
+  Aufruf (Job und „Jetzt anlegen" zugleich) wartet auf den laufenden.
+- Schließt einen offenen Kanal, wenn er **5 Minuten leer** war (`EMPTY_CLOSE_MINUTES`) — **nie vor dem Ende** des Raids
+  — und **spätestens `closeAfterMinutes` nach dem Ende**: Wer dann noch drin ist, wird in den festen Kanal der
+  Kategorie verschoben; ohne festen Kanal wird der Kanal mit ihnen gelöscht. Ohne Dauer gilt das Ende aus
+  `plannedEndOrDefault()` (Start + 3 h).
+- Schließt sofort, wenn der Raid gelöscht, abgesagt oder in Raid 1 gemergt ist (`gone`), und löscht einen leeren Kanal,
+  wenn der Raid später verschoben wurde (`moved`; er öffnet zur neuen Zeit wieder). Löscht ihn jemand in Discord
+  (belegt durch Discords „Unknown Channel"), schließt der Eintrag als `missing` und öffnet nicht von selbst wieder.
+- **Moduswechsel:** Gibt die Kategorie dem Raid keinen temporären Kanal mehr, läuft ein offener mit den Zeiten weiter,
+  mit denen er geöffnet wurde, und schließt wie sonst.
+- Der erste Lauf (eine Minute nach dem Start) räumt auf, was ein Neustart offen gelassen hat.
+- `voiceStateUpdate` (`bot.js`, Intent **GuildVoiceStates**) hält `emptySince` zwischen den Ticks genau.
+- Der Name zieht mit (Umbenennen bei geändertem Titel/Datum), höchstens alle 5 Minuten (`RENAME_SECONDS`; Discord
+  erlaubt 2 Umbenennungen je 10 Minuten), ein Ratelimit wartet bis zum nächsten Lauf. „Nur Eingeteilte" setzt
+  Connect-Overwrites für die Eingeteilten und sperrt @everyone (`tempVoiceDiscord.onlyAssignedOverwrites`), sichtbar
+  bleibt der Kanal; wer freigegeben wurde, steht in `granted`, so dass nur die Änderung an der Einteilung nachgezogen wird.
+
+**Zustand:** `data/settings/temp-voice.json` (`src/stores/events/tempVoiceStore.js`):
+`{ channels: { [eventId]: { guildId, channelId, name, createdAt, emptySince, closedAt, closeReason, manual, error } } }`,
+`closeReason` ∈ `empty`, `limit`, `manual`, `gone`, `moved`, `missing`; dazu `creatingAt`, `renameAt`, `granted`. Geschlossene Einträge bleiben 7 Tage (der
+Setup-Editor zeigt „geschlossen"), dann räumt `prune()` sie weg. Nach `limit`, `empty`, `manual` und `missing`
+öffnet der Job den Kanal nicht von selbst wieder; „Jetzt anlegen" geht bis zum spätesten Schließen.
+
+**Bot-Rechte** (`src/services/voice/tempVoiceDiscord.js`): **Kanäle verwalten** und **Mitglieder verschieben**, für
+„Nur Eingeteilte" zusätzlich **Berechtigungen verwalten**. Fehlt eines, nennt es die Setup-Zeile (`missingRights` als Discord-Rechtenamen wie `MoveMembers`, der Client übersetzt sie); der Job schreibt den Fehler an den Eintrag statt zu werfen.
+Die Einstellungen zeigen es schon vorher: `GET /api/settings` liefert `tempVoiceRights` (je Discord-Kategorie, `""` = der
+Server, nur für den Server der Einstellungen; `null`, solange der Bot es nicht weiß), `TempVoiceFields` warnt unter der
+gewählten Kategorie. Eine neu gewählte Discord-Kategorie muss auf dem aktiven Server liegen (sonst 403 `other_server`;
+Voll-Admins ausgenommen).
+
+**Im Setup-Editor** (`pages/raid-detail/setup/VoiceChannelRow.tsx`, eine Zeile unter dem Kopf): Name und Zustand des
+Kanals des gewählten Raids (geplant ab …, wird gerade angelegt, offen mit Teilnehmerzahl und Link, geschlossen), dazu
+das Menü *Kanal* mit **Jetzt öffnen** (wenn der Server `canOpen` meldet) und **Schließen**. Liegt das späteste Schließen
+nach Mitternacht, steht der Wochentag davor („So 00:30"). Daten aus `GET /api/raids/voice?event=` (`{ botOnline, raids: [...] }` für alle
+Raids der Gruppe), Aktionen `POST /api/raids/voice/open` und `/close` mit `{ event }`
+(`src/web/apiRoutes/events/voice.js`, Bereich `raids`: Orga oder Manager der Kategorie; ein archivierter Raid nur
+lesend).
+
+**Tests:** `test/stores/settings/tempVoiceSettings.test.js`, `test/stores/events/tempVoiceStore.test.js`,
+`test/services/voice/` (Plan, Discord-Seite mit Fake-Guild, Job mit Fake-Uhr), `test/web/apiRoutes/events/voice.test.js`;
+im Client `lib/discord/__tests__/tempVoice.test.ts`, `TempVoiceFields.test.tsx`, `VoiceChannelRow.test.tsx`,
+`RaidCreateDialog.plan.test.tsx` und `api/events/__tests__/voice.test.ts`.

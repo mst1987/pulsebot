@@ -38,6 +38,7 @@ const { MIN_DURATION, MAX_DURATION, durationOf, eventEndTime, plannedEndOrDefaul
 // Colour and picture of the event message (#307) — a planning field like the
 // duration, inherited from the raid template. The rules live in embedLook.js.
 const { normalizeColor, normalizeImage, normalizeLook } = require("../../services/events/embedLook");
+const { normalizeVoicePlan } = require("../settings/tempVoiceSettings");
 // The emoji style of the event message: letter tiles and role icons (arcane unless chosen otherwise).
 const { emojiStyleOf } = require("../../services/discord/appEmojis");
 const { str } = require("../../utils/text");
@@ -213,6 +214,9 @@ function complete(e) {
         // The voice channel the raid meets in (#305): shown on the signup
         // message and used as the place of the Discord event. "" = none.
         voiceChannelId: e.voiceChannelId || "",
+        // The event's own voice plan per raid (docs/channels.md "Sprachkanal je Raid"):
+        // `{ mode, nameTemplate, leadMinutes }`, null = the category's (tempVoiceSettings.js).
+        voicePlan: normalizeVoicePlan(e.voicePlan),
         title: e.title || "",
         description: e.description || "",
         leaderId: e.leaderId || "",
@@ -357,6 +361,7 @@ function createEvent(input = {}) {
         channelId,
         channelName: str(input.channelName),
         voiceChannelId: str(input.voiceChannelId),
+        voicePlan: normalizeVoicePlan(input.voicePlan),
         title,
         description: String(input.description || ""),
         leaderId: str(input.leaderId),
@@ -398,6 +403,7 @@ function updateEvent(id, patch = {}) {
     }
     if (!next.title) return { error: "Das Event braucht einen Titel." };
     if (patch.description !== undefined) next.description = String(patch.description || "");
+    if (patch.voicePlan !== undefined) next.voicePlan = normalizeVoicePlan(patch.voicePlan);
     if (patch.startTime !== undefined) {
         next.startTime = int(patch.startTime);
         if (!next.startTime) return { error: "Ungültiger Termin." };

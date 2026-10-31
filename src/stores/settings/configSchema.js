@@ -15,6 +15,7 @@ const { isSnowflake } = require("../../utils/ids");
 const { rulesFor, DEFAULT_VERSION, VERSIONS } = require("../../config/gameVersions");
 const { versionSettingsOf, normalizeVersionSettings, versionsWithDefaults } = require("./versionSettingsSchema");
 const { normalizeBackupSettings } = require("../../services/backup/backupConfig");
+const { normalizeCategoryTempVoice, tempVoiceSettings, categoryTempVoiceFor } = require("./tempVoiceSettings");
 const { defaultAddons, storedAddonList, normalizeGithub } = require("../../services/addons/addonConfig");
 
 /** The pictures of `config.discordVisuals`, each on by default. */
@@ -125,6 +126,9 @@ const CONFIG_DEFAULTS = {
     // category id: { [categoryId]: channelId }. Only the preset of a new event
     // (`event.voiceChannelId`) — an event keeps whatever was picked for it.
     categoryVoiceChannel: {},
+    // The voice channel per raid (tempVoiceSettings.js): none, the fixed channel above
+    // (optionally temporary from raid 2), or always a temporary channel; only what differs.
+    categoryTempVoice: {},
     // The look of a category's signup message (embedLook.js): the raid picture
     // below it (`raidArt`, on by default) and the size of the title tiles
     // (`titleSize` "normal" | "large" | "huge", default "large"). Only what
@@ -1121,6 +1125,7 @@ function normalizeConfig(raw) {
         categoryDiscordEvent: normalizeCategoryFlags(stored.categoryDiscordEvent),
         categoryServerOverview: normalizeCategoryServerOverview(stored.categoryServerOverview),
         categoryVoiceChannel: normalizeCategoryVoiceChannel(stored.categoryVoiceChannel),
+        categoryTempVoice: normalizeCategoryTempVoice(stored.categoryTempVoice),
         categoryMessageLook: normalizeCategoryMessageLook(stored.categoryMessageLook),
         categoryAnnounce: normalizeCategoryAnnounce(stored.categoryAnnounce),
         categorySignupNotes: normalizeCategorySignupNotes(stored.categorySignupNotes),
@@ -1156,4 +1161,5 @@ module.exports = {
     normalizeRaidhelperRetirement, normalizeVersionLaunch, VERSION_LAUNCH_MANUAL, normalizeCategorySheets, normalizeCategoryPlanning, normalizeCategoryRoles,
     normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings, normalizeBotLanguage,
     normalizeDiscordVisuals, DISCORD_VISUALS_DEFAULT, normalizeDungeonRecords,
+    normalizeCategoryTempVoice, tempVoiceSettings, categoryTempVoiceFor,
 };

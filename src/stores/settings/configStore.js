@@ -17,7 +17,7 @@ const {
     normalizeCategorySetupDms, normalizeCategoryLanguage, normalizeCategoryAttendance, normalizeCategoryFlags, normalizeCategoryServerOverview, normalizeCategoryVoiceChannel, normalizeCategoryAnnounce,
     normalizeCategorySignupNotes, normalizeCategorySignupCharacters, normalizeCategoryRaidTemplate, normalizeCategorySheets, normalizeCategoryPlanning,
     normalizeRoleSync, roleSyncContext, normalizeCategoryReminders, normalizeMainVersion, normalizeCategoryVersion, normalizeCategoryEras, normalizeVersionSettings,
-    normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings,
+    normalizeDiscordVisuals, normalizeDungeonRecords, mergeServerSettings, normalizeCategoryTempVoice,
 } = require("./configSchema");
 const { planningOf } = require("../../services/events/planning");
 const { normalizeBackupSettings } = require("../../services/backup/backupConfig");
@@ -114,6 +114,7 @@ function resolveEventSheetLink(eventSheet, categoryId) {
  * - categoryAttendance: a category's object is replaced whole, one back at the defaults drops out;
  * - categoryLanguage: "" = back to the server language, the category drops out;
  * - categoryVoiceChannel (#305), categorySignupNoteChannel (#335): "" = back to the default;
+ * - categoryTempVoice: a category's object is replaced whole, one back at the defaults drops out;
  * - categoryMessageLook: merged per category, one back at the defaults drops out;
  * - categoryAnnounce (#306), categorySignupNotes ("optional" drops out);
  * - categorySignupCharacters: 8 (the default) drops the category again;
@@ -129,6 +130,7 @@ const MERGED_CATEGORY_MAPS = [
     ["categoryDiscordEvent", normalizeCategoryFlags],
     ["categoryServerOverview", normalizeCategoryServerOverview],
     ["categoryVoiceChannel", normalizeCategoryVoiceChannel],
+    ["categoryTempVoice", normalizeCategoryTempVoice],
     ["categoryMessageLook", normalizeCategoryMessageLook],
     ["categoryAnnounce", normalizeCategoryAnnounce],
     ["categorySignupNotes", normalizeCategorySignupNotes],

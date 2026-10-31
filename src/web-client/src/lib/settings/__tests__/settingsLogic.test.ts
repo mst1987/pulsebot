@@ -230,6 +230,19 @@ describe("save bar change list", () => {
         ]);
     });
 
+    it("names a changed voice channel per raid once, not again for a fixed channel alone", () => {
+        const line = t("settings.changes.tempVoice", { name: "Hyjal & BT" });
+        const draft = base();
+        draft.categoryTempVoice = { c1: { mode: "temp", leadMinutes: 15 } };
+        expect(logic.draftChanges(base(), draft, names)).toEqual([line]);
+        const saved = { ...base(), categoryTempVoice: { c1: { mode: "temp", leadMinutes: 15 } } };
+        expect(logic.draftChanges(saved, { ...base(), categoryTempVoice: { c1: { mode: "temp", leadMinutes: 15 } } }, names)).toEqual([]);
+        expect(logic.draftChanges(saved, { ...base(), categoryTempVoice: { c1: { mode: "temp", leadMinutes: 15, onlyAssigned: true } } }, names)).toEqual([line]);
+        // a fixed channel set and its mode switched with it: both lines
+        const both = { ...base(), categoryVoiceChannel: { c1: "123456789012345678" }, categoryTempVoice: { c1: { mode: "existing", fromRaid2: true } } };
+        expect(logic.draftChanges(base(), both, names)).toEqual([t("settings.changes.voiceSet", { name: "Hyjal & BT" }), line]);
+    });
+
     it("names the server overview switch per category, missing = shown", () => {
         const draft = base();
         draft.categoryServerOverview = { c1: false, c2: true };

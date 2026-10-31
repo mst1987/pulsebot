@@ -51,7 +51,12 @@ export function CheckStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm; 
                                     : <span className="re-muted">{t("raidCreate.check.durationNone")}</span>}
                             </dd>
                             <dt>{t("raidCreate.check.voice")}</dt>
-                            <dd>{voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : t("raidCreate.check.none")}</dd>
+                            <dd>
+                                {f.voiceMode === "temp"
+                                    ? t("raidCreate.kanal.voiceAlwaysTemp")
+                                    : f.voiceMode === "existing" && voiceChannelId ? (ctx.voiceChannels || []).find((c) => c.id === voiceChannelId)?.name || voiceChannelId : t("raidCreate.check.none")}
+                                {form.voicePlan && <Badge tone="mid">{t("raidCreate.check.differs")}</Badge>}
+                            </dd>
                             <dt>{t("raidCreate.check.deadline")}</dt>
                             <dd>{plan.deadlineHours > 0 ? t("raidCreate.check.deadlineValue", { hours: plan.deadlineHours }) : t("raidCreate.check.none")}</dd>
                             <dt>{t("raidCreate.check.whenFull")}</dt>
