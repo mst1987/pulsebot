@@ -174,6 +174,7 @@
             "late": "Late",
             "tentative": "Tentative",
             "bench": "Reserve",
+            "benched": "Bench",
             "absence": "Signed off",
             "cancelled": "Cancelled"
         },
