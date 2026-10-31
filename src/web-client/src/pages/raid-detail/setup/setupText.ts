@@ -52,6 +52,7 @@ export function weightLabels(): { key: string; label: string; tip: string }[] {
         { key: "raidBuffs", label: t("setup.weights.raidBuffs.label"), tip: t("setup.weights.raidBuffs.tip") },
         { key: "attendance", label: t("setup.weights.attendance.label"), tip: t("setup.weights.attendance.tip") },
         { key: "gear", label: t("setup.weights.gear.label"), tip: t("setup.weights.gear.tip") },
+        { key: "loot", label: t("setup.weights.loot.label"), tip: t("setup.weights.loot.tip") },
     ];
 }
 

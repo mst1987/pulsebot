@@ -62,6 +62,9 @@ function startJob(logId, section, runner) {
         already: false,
         incomplete: false,
         raids: [],
+        // an error's codes for the client's own text ("Loot-Daten laden", #1037)
+        failed: [],
+        hadPrevious: false,
     };
     jobs.set(key, job);
 
@@ -89,6 +92,8 @@ function startJob(logId, section, runner) {
                 // Which bosses lie and which still stand, so the question can
                 // show them instead of a sentence about them.
                 job.raids = job.incomplete && res.progress ? raidSummary(res.progress) : [];
+                job.failed = res && Array.isArray(res.failed) ? res.failed.map(String) : [];
+                job.hadPrevious = !!(res && res.hadPrevious);
             }
         })
         .catch((e) => {
@@ -117,6 +122,8 @@ function getJob(logId, section) {
         already: job.already,
         incomplete: !!job.incomplete,
         raids: job.raids || [],
+        failed: job.failed || [],
+        hadPrevious: !!job.hadPrevious,
         runningMs: (job.finishedAt || Date.now()) - job.startedAt,
     };
 }

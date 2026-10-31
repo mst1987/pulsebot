@@ -138,6 +138,12 @@ describe("services/loot/softresStatus", () => {
             expect(missing).toEqual([]);
         });
 
+        it("pairs each filled raider with the reserve that counted (#1037)", () => {
+            const two = [{ userId: "A", names: ["Aa"], label: "Aa" }, { userId: "B", names: ["Bb"], label: "Bb" }];
+            const { matched } = s.matchReserves(two, [reserve("Bb", "A"), reserve("Aa", "A")]);
+            expect(matched.map((m) => [m.raider.userId, m.reserve.name])).toEqual([["A", "Aa"], ["B", "Bb"]]);
+        });
+
         it("still takes a reserve by Discord id alone when no name fits", () => {
             const { filled } = s.matchReserves([{ userId: "A", names: ["Aa"] }], [reserve("Other", "A")]);
             expect(filled).toHaveLength(1);
