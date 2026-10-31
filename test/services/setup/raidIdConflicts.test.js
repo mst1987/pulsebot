@@ -19,7 +19,19 @@ jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: (userId) => mockProfiles[userId] || { userId, characters: [] },
     firstCharacter: (profile, versionId) => (profile.characters || []).find((c) => !versionId || c.versionId === versionId) || null,
 }));
-jest.mock("../../../src/services/versions/mainVersion", () => ({ versionOfEvent: (e) => (e && e.versionId) || "tbc" }));
+jest.mock("../../../src/services/versions/mainVersion", () => ({
+    ...jest.requireActual("../../../src/services/versions/mainVersion"),
+    versionOfEvent: (e) => (e && e.versionId) || "tbc",
+}));
+// the realm of a server: the version block, a server's override wins (#923)
+let mockConfig = {};
+const mockConfigReads = [];
+jest.mock("../../../src/stores/settings/configStore", () => ({
+    getConfig: () => {
+        mockConfigReads.push(1);
+        return mockConfig;
+    },
+}));
 
 const { takenInRaidId, markLineup, takenKeysFor } = require("../../../src/services/setup/raidIdConflicts");
 const { raidIdOf } = require("../../../src/utils/time/raidId");
@@ -38,6 +50,8 @@ beforeEach(() => {
     mockEvents.length = 0;
     mockCalls.length = 0;
     mockCloned.length = 0;
+    mockConfigReads.length = 0;
+    mockConfig = { versionSettings: { tbc: { blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike" } } };
     for (const k of Object.keys(mockProfiles)) delete mockProfiles[k];
 });
 
@@ -132,6 +146,31 @@ describe("takenInRaidId", () => {
         const hint = takenInRaidId(ev()).get("jaina");
         expect(hint).toEqual({ other: true });
         expect(JSON.stringify(hint)).not.toMatch(/eh-x|Geheim|g2/);
+    });
+
+    test("another server counts only on the same realm and region of the raid's version", () => {
+        mockConfig.serverSettings = {
+            g2: { versionOverrides: { tbc: { blizzardRealmSlug: "spineshatter" } } },
+            g3: { versionOverrides: { tbc: { blizzardRegion: "us" } } },
+            g4: { versionOverrides: { tbc: { blizzardRealmSlug: "Thunderstrike" } } },
+        };
+        mockEvents.push(ev({ id: "eh-b", guildId: "g2", setup: setupOf(["Jaina"]) }));
+        mockEvents.push(ev({ id: "eh-c", guildId: "g3", setup: setupOf(["Arthas"]) }));
+        mockEvents.push(ev({ id: "eh-d", guildId: "g4", setup: setupOf(["Thrall"]) }));
+        mockEvents.push(ev({ id: "eh-e", guildId: "g5", setup: setupOf(["Uther"]) }));
+        const taken = takenInRaidId(ev());
+        // g2 another realm, g3 another region: own lockouts; g4 the same realm by override, g5 by the version block
+        expect([...taken.keys()].sort()).toEqual(["thrall", "uther"]);
+        expect(taken.get("thrall")).toEqual({ other: true });
+        // and the other way round: the raid on g2 does not see g1's
+        mockEvents.push(ev({ id: "eh-f", guildId: "g1", setup: setupOf(["Sylvanas"]) }));
+        expect(takenInRaidId(ev({ id: "eh-x", guildId: "g2" })).has("sylvanas")).toBe(false);
+    });
+
+    test("the realm is read once per pass, not per raid", () => {
+        for (const g of ["g2", "g3", "g4"]) mockEvents.push(ev({ id: `eh-${g}`, guildId: g, setup: setupOf([`N${g}`]) }));
+        takenKeysFor([ev(), ev({ id: "eh-a2", raidGroupId: "rg", raidGroupIndex: 2 })]);
+        expect(mockConfigReads).toHaveLength(1);
     });
 
     test("the own server's raid wins over a foreign one, the earlier raid over the later", () => {

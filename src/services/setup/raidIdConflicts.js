@@ -7,6 +7,9 @@
 // whose instanceIds overlap and whose start falls in the same raid ID — past or
 // upcoming, any server of the Verbund, the other raids of a raid group too.
 // Cancelled events do not count, deleted ones are gone from the store.
+// Another server counts only when it plays on the same realm: region and realm
+// of the raid's version (settingsForVersion with that server's overrides) must
+// match - a guild on another realm has its own lockouts.
 //
 // Per character (characterKeyOf), never per person. A raid of another server
 // only says "another raid of this ID" — no title, no id, no person (Daten je
@@ -21,6 +24,7 @@ const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { inRaidGroup, raidIndexOf } = require("../../utils/raidGroup");
 const profileStore = require("../../stores/roster/raiderProfileStore");
 const { versionOfEvent } = require("../versions/mainVersion");
+const { settingsForVersion } = require("../versions/versionSettings");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
 
@@ -114,12 +118,41 @@ function takenInRaidId(event, { excludeIds = [] } = {}) {
     return collect(event, placed);
 }
 
-/** Folds the placed characters of the other raids that share `event`'s instance into one map. */
-function collect(event, placed) {
+/**
+ * A reader "same realm?" for one pass: region + realm slug of a version on a
+ * server (its overrides win), read once per server and version. Two empty
+ * realms are the same (an install without realm settings).
+ */
+function realmReader() {
+    let config = null;
+    const cache = new Map();
+    const realmOf = (versionId, guildId) => {
+        const k = `${versionId}|${guildId}`;
+        if (!cache.has(k)) {
+            if (config === null) {
+                try {
+                    config = require("../../stores/settings/configStore").getConfig() || {};
+                } catch {
+                    config = {};
+                }
+            }
+            const s = settingsForVersion(versionId, { config, guildId: guildId || undefined });
+            cache.set(k, `${str(s.blizzardRegion).toLowerCase()}|${str(s.blizzardRealmSlug).toLowerCase()}`);
+        }
+        return cache.get(k);
+    };
+    return (versionId, a, b) => str(a) === str(b) || realmOf(versionId, str(a)) === realmOf(versionId, str(b));
+}
+
+/** Folds the placed characters of the other raids that share `event`'s instance (and realm) into one map. */
+function collect(event, placed, sameRealm = realmReader()) {
     const taken = new Map();
     const instances = instancesOf(event);
+    let versionId = null;
     for (const { other, keys } of placed) {
         if (!keys.size || !overlaps(instancesOf(other), instances)) continue;
+        if (versionId === null) versionId = versionOfEvent(event) || "";
+        if (!sameRealm(versionId, other.guildId, event.guildId)) continue;
         const entry = entryOf(other, event.guildId);
         for (const key of keys) taken.set(key, better(taken.get(key), entry));
     }
@@ -170,10 +203,11 @@ function takenKeysFor(events) {
         for (const i of instancesOf(event)) week.instances.add(i);
     }
     const out = {};
+    const sameRealm = realmReader();
     for (const [id, week] of byId) {
         const placed = weekEvents(id, week.instances, exclude).map((other) => ({ other, keys: placedKeys(other) }));
         for (const event of week.events) {
-            const keys = [...collect(event, placed).keys()];
+            const keys = [...collect(event, placed, sameRealm).keys()];
             if (keys.length) out[str(event.id)] = keys;
         }
     }
