@@ -18,12 +18,12 @@ export function fileLabel(file: { name: string; size: number }): string {
 
 /** The game client folder of each version, under the WoW install folder. */
 const CLIENT_FOLDER: Record<string, string> = {
-    forever: "_classic_beta_",
+    forever: "_forever_",
     tbc: "_anniversary_",
     classic: "_classic_era_",
 };
 
-/** `<WoW>\_classic_beta_\Interface\AddOns\` for a version (WoW Forever's folder when unknown). */
+/** `<WoW>\_forever_\Interface\AddOns\` for a version (WoW Forever's folder when unknown). */
 export function addonFolder(versionId: string): string {
     const folder = CLIENT_FOLDER[versionId] || CLIENT_FOLDER.forever;
     return `<WoW>\\${folder}\\Interface\\AddOns\\`;
