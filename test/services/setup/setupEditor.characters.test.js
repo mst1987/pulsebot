@@ -5,9 +5,13 @@
 // snapshot, the setup message, the DMs, the bot's lookup) shows the PLACED
 // character, never the signup's first one.
 const mockEvents = new Map();
+const mockListCalls = [];
 jest.mock("../../../src/stores/events/eventStore", () => ({
     getEvent: (id) => (mockEvents.has(id) ? JSON.parse(JSON.stringify(mockEvents.get(id))) : null),
-    listEvents: () => [...mockEvents.values()],
+    listEvents: (guildId, opts) => {
+        mockListCalls.push(opts);
+        return [...mockEvents.values()];
+    },
     isOwnEventId: (id) => String(id || "").startsWith("eh-"),
     setEventSetup: (id, setup) => {
         if (!mockEvents.has(id)) return null;
@@ -138,6 +142,14 @@ describe("one instance per raid ID in the editor's payload", () => {
         expect(z.characters.find((c) => c.character === "Zibboshadow").raidIdTaken).toEqual({ other: true });
         expect(z.characters.find((c) => c.character === "Zibbo").raidIdTaken).toBeUndefined();
         expect(JSON.stringify(view())).not.toMatch(/eh-foreign/);
+    });
+
+    it("reads the raid ID once per call - the blank start reuses it", () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), instanceIds: ["kara"] });
+        mockEvents.set("eh-kara2", placedElsewhere("eh-kara2", "g1", "Zibbowar"));
+        mockListCalls.length = 0;
+        view();
+        expect(mockListCalls.filter((o) => o && typeof o.where === "function")).toHaveLength(1);
     });
 
     it("marks nothing for a raid without an instance", () => {

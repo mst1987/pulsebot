@@ -805,9 +805,9 @@ function withCharacters(lineup, signups, table) {
  * version). Should the valuation fail, the groups stay empty all the same and
  * the pool is filled from the signups (addUnplacedSignups).
  */
-function emptyValued(event, now) {
+function emptyValued(event, now, raidIdTaken) {
     try {
-        const input = collectSetupInput([event.id], { now });
+        const input = collectSetupInput([event.id], { now, raidIdTaken });
         if (!input) return null;
         return { ...evaluateSetup(input, { groups: [], bench: [] }, runOptions(mergeOptions({}, {}))), historySource: input.historySource };
     } catch {
@@ -815,8 +815,8 @@ function emptyValued(event, now) {
     }
 }
 
-function blankSetup(event, { now = Date.now() } = {}) {
-    const result = emptyValued(event, now);
+function blankSetup(event, { now = Date.now(), raidIdTaken } = {}) {
+    const result = emptyValued(event, now, raidIdTaken);
     return {
         ...(result ? stored(result) : { groups: [], bench: [], pool: [] }),
         status: "draft",
@@ -847,8 +847,10 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
         raidGroup: groupSummary(event),
     };
     if (!canWrite) return head;
+    // one instance per raid ID: read once per call - the blank start's valuation takes the same answer
+    const taken = takenInRaidId(event);
     // nothing stored yet: the empty start the orga drags into (no proposal needed)
-    const setup = event.setup || (blank ? blankSetup(event) : null);
+    const setup = event.setup || (blank ? blankSetup(event, { raidIdTaken: { [event.id]: [...taken.keys()] } }) : null);
     const groupCount = Math.max(1, Math.ceil((Number(event.size) || 0) / 5));
     // a raid group (#811): the pool "Angemeldet" is shared — whoever stands in another raid of the group is not in it
     const elsewhere = placedElsewhere(event);
@@ -857,7 +859,7 @@ function editorView(event, { canWrite = false, names = {}, signups = [], hasApiK
     return {
         ...head,
         // one instance per raid ID: who already stands in another raid of it is marked (a hint, no block)
-        setup: lineup ? markLineup(withCharacters(withBuffInfoAll(lineup, table), signups, table), takenInRaidId(event)) : null,
+        setup: lineup ? markLineup(withCharacters(withBuffInfoAll(lineup, table), signups, table), taken) : null,
         // how many signed-up raiders the other raids of the group hold (they are left out of "Angemeldet")
         placedElsewhere: elsewhere.size,
         // per raider: attendance and how sure the character link is — only on the page load, the client keeps it across moves

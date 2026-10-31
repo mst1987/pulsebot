@@ -12,8 +12,9 @@
 // only says "another raid of this ID" — no title, no id, no person (Daten je
 // Server): the payload never carries a foreign event's id or name.
 //
-// Cheap: listEvents filters the cached index by start time and clones only the
-// events of that one week.
+// Cheap: listEvents filters the frozen cached index by start time, instance,
+// status and raid ID before it clones - only the matching raids of that week
+// are copied. takenKeysFor asks once per raid ID, not once per raid.
 const eventStore = require("../../stores/events/eventStore");
 const { raidIdOf, DAY_MS } = require("../../utils/time/raidId");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
@@ -33,19 +34,25 @@ function raidIdOfEvent(event) {
     return Number.isFinite(start) && start > 0 ? raidIdOf(start * 1000) : null;
 }
 
-/** The other events of the same instance in the same raid ID (not cancelled, not in `exclude`). */
-function sameIdEvents(event, exclude) {
-    const instances = instancesOf(event);
-    const id = raidIdOfEvent(event);
+const overlaps = (a, b) => [...a].some((i) => b.has(i));
+
+/**
+ * The events of raid ID `id` with a group setup and an instance in `instances`
+ * (not cancelled, not in `exclude`) - filtered on the stored record, so only
+ * these are cloned.
+ */
+function weekEvents(id, instances, exclude) {
     if (!instances.size || id === null) return [];
     // a day of margin either side: the week starts Wednesday 05:00 server time, raidIdOf decides exactly
     const sinceSeconds = Math.floor((id - DAY_MS) / 1000);
     const untilSeconds = Math.floor((id + 8 * DAY_MS) / 1000);
-    return (eventStore.listEvents("", { sinceSeconds, untilSeconds, siblings: true }) || []).filter((e) =>
-        e && !exclude.has(str(e.id))
-        && e.status !== "cancelled"
-        && raidIdOfEvent(e) === id
-        && [...instancesOf(e)].some((i) => instances.has(i)));
+    const where = (raw) => !exclude.has(str(raw.id))
+        && raw.status !== "cancelled"
+        && !!(raw.setup && Array.isArray(raw.setup.groups) && raw.setup.groups.length)
+        && overlaps(instancesOf(raw), instances)
+        && raidIdOfEvent(raw) === id;
+    // (checked again on the copies: a store without `where` must not hand the raid itself back)
+    return (eventStore.listEvents("", { sinceSeconds, untilSeconds, siblings: true, where }) || []).filter((e) => e && where(e));
 }
 
 /**
@@ -103,9 +110,16 @@ function takenInRaidId(event, { excludeIds = [] } = {}) {
     const taken = new Map();
     if (!event) return taken;
     const exclude = new Set([str(event.id), ...excludeIds.map(str)]);
-    for (const other of sameIdEvents(event, exclude)) {
-        const keys = placedKeys(other);
-        if (!keys.size) continue;
+    const placed = weekEvents(raidIdOfEvent(event), instancesOf(event), exclude).map((other) => ({ other, keys: placedKeys(other) }));
+    return collect(event, placed);
+}
+
+/** Folds the placed characters of the other raids that share `event`'s instance into one map. */
+function collect(event, placed) {
+    const taken = new Map();
+    const instances = instancesOf(event);
+    for (const { other, keys } of placed) {
+        if (!keys.size || !overlaps(instancesOf(other), instances)) continue;
         const entry = entryOf(other, event.guildId);
         for (const key of keys) taken.set(key, better(taken.get(key), entry));
     }
@@ -144,11 +158,24 @@ function markLineup(lineup, taken) {
  */
 function takenKeysFor(events) {
     const list = (events || []).filter(Boolean);
-    const ids = list.map((e) => str(e.id));
-    const out = {};
+    const exclude = new Set(list.map((e) => str(e.id)));
+    // one store pass per raid ID (a raid group shares one), with every instance the raids of it play
+    const byId = new Map();
     for (const event of list) {
-        const keys = [...takenInRaidId(event, { excludeIds: ids }).keys()];
-        if (keys.length) out[str(event.id)] = keys;
+        const id = raidIdOfEvent(event);
+        if (id === null || !instancesOf(event).size) continue;
+        if (!byId.has(id)) byId.set(id, { events: [], instances: new Set() });
+        const week = byId.get(id);
+        week.events.push(event);
+        for (const i of instancesOf(event)) week.instances.add(i);
+    }
+    const out = {};
+    for (const [id, week] of byId) {
+        const placed = weekEvents(id, week.instances, exclude).map((other) => ({ other, keys: placedKeys(other) }));
+        for (const event of week.events) {
+            const keys = [...collect(event, placed).keys()];
+            if (keys.length) out[str(event.id)] = keys;
+        }
     }
     return out;
 }

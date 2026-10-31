@@ -2,10 +2,15 @@
 // instance and raid ID - and what the hint may say about it.
 const mockEvents = [];
 const mockCalls = [];
+const mockCloned = [];
 jest.mock("../../../src/stores/events/eventStore", () => ({
+    // like the store: `where` sees the stored record, only what passes is copied
     listEvents: (guildId, opts) => {
         mockCalls.push({ guildId, opts });
-        return mockEvents.map((e) => JSON.parse(JSON.stringify(e)));
+        return mockEvents.filter((e) => !opts.where || opts.where(Object.freeze(JSON.parse(JSON.stringify(e))))).map((e) => {
+            mockCloned.push(e.id);
+            return JSON.parse(JSON.stringify(e));
+        });
     },
 }));
 
@@ -32,6 +37,7 @@ const ev = (over = {}) => ({
 beforeEach(() => {
     mockEvents.length = 0;
     mockCalls.length = 0;
+    mockCloned.length = 0;
     for (const k of Object.keys(mockProfiles)) delete mockProfiles[k];
 });
 
@@ -48,6 +54,17 @@ describe("takenInRaidId", () => {
         expect(mockCalls[0].guildId).toBe("");
         expect(mockCalls[0].opts.siblings).toBe(true);
         expect(mockCalls[0].opts.untilSeconds - mockCalls[0].opts.sinceSeconds).toBeLessThanOrEqual(9 * DAY);
+    });
+
+    test("copies only the raids of the instance and ID with a group setup - the rest is filtered before the copy", () => {
+        mockEvents.push(ev({ id: "eh-b", setup: setupOf(["Jaina"]) }));
+        mockEvents.push(ev({ id: "eh-bt", instanceIds: ["bt"], setup: setupOf(["Arthas"]) }));
+        mockEvents.push(ev({ id: "eh-c", status: "cancelled", setup: setupOf(["Uther"]) }));
+        mockEvents.push(ev({ id: "eh-d", setup: null }));
+        mockEvents.push(ev({ id: "eh-e", startTime: WED + 7 * DAY, setup: setupOf(["Thrall"]) }));
+        mockEvents.push(ev({ id: "eh-a", setup: setupOf(["Sylvanas"]) }));
+        expect([...takenInRaidId(ev()).keys()]).toEqual(["jaina"]);
+        expect(mockCloned).toEqual(["eh-b"]);
     });
 
     test("a past raid of the ID counts too (Tuesday after, Wednesday before)", () => {
@@ -180,6 +197,17 @@ describe("takenKeysFor", () => {
         mockEvents.push(ev({ id: "eh-b", setup: setupOf(["Jaina"]) }));
         const out = takenKeysFor([ev({ id: "eh-a" }), ev({ id: "eh-a2" })]);
         expect(out).toEqual({ "eh-a": ["jaina"], "eh-a2": ["jaina"] });
+    });
+
+    test("one store read per raid ID - however many raids are planned together", () => {
+        mockEvents.push(ev({ id: "eh-x", instanceIds: ["bt"], setup: setupOf(["Jaina"]) }));
+        mockEvents.push(ev({ id: "eh-y", setup: setupOf(["Arthas"]) }));
+        const out = takenKeysFor([ev({ id: "eh-a" }), ev({ id: "eh-a2", raidGroupId: "eh-a" }), ev({ id: "eh-a3", instanceIds: ["bt"] })]);
+        expect(mockCalls).toHaveLength(1);
+        // each raid only against its own instance
+        expect(out).toEqual({ "eh-a": ["arthas"], "eh-a2": ["arthas"], "eh-a3": ["jaina"] });
+        takenKeysFor([ev({ id: "eh-a" }), ev({ id: "eh-n", startTime: WED + 7 * DAY })]);
+        expect(mockCalls).toHaveLength(3);
     });
 
     test("an empty object when nothing is taken", () => {

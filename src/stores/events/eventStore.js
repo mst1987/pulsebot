@@ -310,17 +310,21 @@ const isSiblingRecord = (e) => !!(e && e.raidGroupId && String(e.raidGroupId) !=
  * signup, sees the group once. The setup, the raid list, log matching and
  * attendance ask for them.
  * @param {string} guildId  "" = every guild
- * @param {{ sinceSeconds?: number, untilSeconds?: number, siblings?: boolean }} [opts] start-time bounds, inclusive
+ * `where` filters the frozen stored record before it is cloned - a cheap
+ * predicate (instance, status) keeps the copy to the events the caller needs.
+ * @param {{ sinceSeconds?: number, untilSeconds?: number, siblings?: boolean, where?: (raw: object) => boolean }} [opts] start-time bounds, inclusive
  */
 function listEvents(guildId, opts = {}) {
     const gid = str(guildId);
     const since = Number(opts.sinceSeconds) || 0;
     const until = Number(opts.untilSeconds) || 0;
     const siblings = opts.siblings === true;
+    const where = typeof opts.where === "function" ? opts.where : null;
     return peekAll()
         .filter((e) => e && e.id && (!gid || e.guildId === gid))
         .filter((e) => siblings || !isSiblingRecord(e))
         .filter((e) => (!since || (Number(e.startTime) || 0) >= since) && (!until || (Number(e.startTime) || 0) <= until))
+        .filter((e) => !where || where(e))
         .map(handOut)
         .sort((a, b) => b.startTime - a.startTime);
 }

@@ -209,9 +209,10 @@ function leaderFacts(event, userIds, allLeads, { config, guildId, known, cache, 
 /**
  * Everything buildSetupProposal() needs for these own events (several = they
  * run in parallel and share the raiders). Unknown ids are skipped; `null` when
- * none is left.
+ * none is left. `raidIdTaken` (per event id the character keys to leave out)
+ * skips the raid-ID read when the caller already has it.
  */
-function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, shadowbannedOf = null } = {}) {
+function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, shadowbannedOf = null, raidIdTaken = null } = {}) {
     const events = [...new Set((Array.isArray(eventIds) ? eventIds : [eventIds]).map(String))]
         .map((id) => eventStore.getEvent(id))
         .filter(Boolean);
@@ -269,7 +270,8 @@ function collectSetupInput(eventIds, { now = Date.now(), keepPlaced = false, sha
         // raider reads, which must never load the Vermerke (vermerkeNeverToPerson.test.js).
         shadowbanned: typeof shadowbannedOf === "function" ? (shadowbannedOf(guildId, [...userIds], { now }) || []).map(String) : [],
         // one instance per raid ID: characters already placed in another raid of it stay in the pool
-        raidIdTaken: takenKeysFor(events),
+        // (the editor hands in what it already read for the same raid)
+        raidIdTaken: raidIdTaken || takenKeysFor(events),
         ...lootOf(events, config),
     };
 }

@@ -207,6 +207,16 @@ describe("stores/events/eventStore", () => {
         expect(listEvents("").length).toBe(3);
     });
 
+    it("filters by a predicate on the stored record before it hands out a copy", () => {
+        createEvent(base({ title: "Kara", instanceIds: ["kara"] }));
+        createEvent(base({ title: "Gruul", instanceIds: ["gruul"] }));
+        const seen = [];
+        const list = listEvents("g1", { where: (raw) => { seen.push(raw); return raw.instanceIds.includes("kara"); } });
+        expect(list.map((e) => e.title)).toEqual(["Kara"]);
+        expect(seen).toHaveLength(2);
+        expect(Object.isFrozen(seen[0])).toBe(true);
+    });
+
     it("updates fields and re-validates the plan", () => {
         const { event } = createEvent(base({ instanceIds: ["kara"] }));
         const { event: next } = updateEvent(event.id, { title: "Kara Freitag", size: 10, composition: { tank: 2, healer: 2 } });
