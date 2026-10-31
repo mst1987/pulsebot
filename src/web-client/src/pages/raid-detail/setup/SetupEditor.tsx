@@ -42,7 +42,7 @@ import { useConfirm } from "../../../components/ui/overlay/Modal";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import WowIcon from "../../../components/ui/icons/WowIcon";
 import { useJobs } from "../../../components/shell/Jobs";
-import { LockIcon, XIcon } from "../../../components/ui/icons/icons";
+import { CrownIcon, LockIcon, XIcon } from "../../../components/ui/icons/icons";
 import type { RaidCtx } from "../meta";
 import "../../../styles/setup-editor.css";
 import { clock, readCompact, storeCompact } from "./setupText";
@@ -55,7 +55,7 @@ import { PEEK_DELAY_MS } from "./peek";
 import Popover from "../../../components/ui/overlay/Popover";
 import { besidePlacement } from "../../../lib/ui/popoverPosition";
 import { Summary, SummaryLine } from "./Summary";
-import { roleFigures, summaryOptions } from "./summaryFigures";
+import { leaderFigure, roleFigures, summaryOptions } from "./summaryFigures";
 import { SlotTip, type SlotActions, type SlotLead } from "./SlotTip";
 import { EditorDialog, ExplainModal, FillModal, WeightsModal } from "./SetupModals";
 import { SearchModal } from "./SearchModal";
@@ -682,6 +682,31 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     };
 
     /**
+     * "Make leader" (#1036): the orga picks the raid's leader — saved as `leaderUserId`, kept by a new
+     * proposal and by filling the free places. Somebody without a leader flag for this raid only after
+     * asking (the flag counts from `checks.leader.candidates` or a flag set here meanwhile).
+     */
+    const makeLeader = async (userId: string, character: string) => {
+        const shown = current.current;
+        if (!shown?.setup) return;
+        const raidInstances = shown.leaders?.editable || [];
+        const flagged = (shown.setup.checks.leader?.candidates || []).includes(userId)
+            || (shown.leaders?.byUser[userId] || []).some((id) => raidInstances.includes(id));
+        if (!flagged) {
+            const ok = await ask({
+                title: t("setup.leader.askTitle"),
+                text: t("setup.leader.askText", { name: character }),
+                action: t("setup.leader.set"),
+                icon: <CrownIcon />,
+                tone: "primary",
+            });
+            if (!ok) return;
+        }
+        const fresh = current.current?.setup;
+        if (fresh) await save({ ...toInput(fresh), leaderUserId: userId });
+    };
+
+    /**
      * The orga changes a raider's signup (#521). Waits for the moves still on
      * their way, then the server saves the signup and the setup follows (place
      * kept, a signed-off raider out) — its answer is drawn like any other.
@@ -765,6 +790,12 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         locked: !!inspectedPerson.locked,
         onLock: inspectedInPool ? undefined : act(() => void save(toggleLock(toInput(current.current?.setup || setup), inspectedPerson.userId))),
         onEdit: act(() => setEditing(inspectedPerson.userId)),
+        // "Als Leader setzen" (#1036): only in a group of a raid with a leader rule
+        leader: !!inspectedPerson.leader,
+        onLeader: inspectedInGroup && setup.checks.leader ? act(() => void makeLeader(inspectedPerson.userId, inspectedPerson.character)) : undefined,
+        // "Leader-Wahl aufheben" (#1036): only on the leader the orga picked, under a leader rule; the proposal picks again
+        onUnlead: inspectedInGroup && setup.checks.leader && inspectedPerson.leader && setup.leaderUserId === inspectedPerson.userId
+            ? act(() => void save({ ...toInput(current.current?.setup || setup), leaderUserId: "" })) : undefined,
     } : {};
     // who in the groups has no answer yet — "Alle bestätigen" is there only while somebody is left
     const placed = setup.groups.reduce((n, g) => n + g.slots.length, 0);
@@ -861,6 +892,16 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         tip: f.target ? t("setup.summary.statTipTarget", { label: f.label, value: f.value, target: f.target }) : t("setup.summary.statTip", { label: f.label, value: f.value }),
         tipSub: f.tip,
     }));
+    // #1036: one leader per raid — green with one, red without; only for a raid with a leader rule
+    const lead = leaderFigure(setup);
+    if (lead) {
+        counts.push({
+            key: lead.key, tone: lead.ok ? "ok" : "bad",
+            text: <><CrownIcon /> {lead.label} <b>{`${lead.value}/${lead.target}`}</b></>,
+            tip: t("setup.summary.statTipTarget", { label: lead.label, value: lead.value, target: lead.target }),
+            tipSub: lead.tip,
+        });
+    }
     if (size.size) {
         counts.push({
             key: "places", tone: size.ok ? "ok" : size.count === 0 ? "bad" : "mid",
@@ -964,7 +1005,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
                         </GroupGrid>
                         <BenchCard bench={setup.bench} ui={ui} />
                     </div>
-                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} />
+                    <PoolPanel pool={setup.pool || []} ui={ui} absent={data.absent || 0} leaders={setup.checks.leader?.candidates} />
                     <SummaryLine data={data} setup={setup} onDetails={() => setDialog("details")} />
                     <ActivityFeed activity={presence.activity} />
                 </div>

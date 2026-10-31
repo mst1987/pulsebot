@@ -62,6 +62,8 @@ export type SetupPerson = {
     fit?: Record<string, number>;
     /** Every character they signed up with, in their order — only for somebody with more than one (#293). */
     characters?: SetupCharacter[];
+    /** #1036: leads this raid — exactly one slot per raid of the proposal carries it. */
+    leader?: boolean;
     name: string;
     classColor: string;
     classLabel: string;
@@ -86,6 +88,11 @@ export type SetupChecks = {
     wishes: { met: number; total: number };
     /** "Nicht zusammen" pairs among the signups — counts only, never names. */
     avoid?: { on: boolean; together: number; total: number };
+    /**
+     * #1036: the raid's leader — only when the event has a leader rule. `count` = leaders in the groups,
+     * `candidates` = user ids with a leader flag for the raid's version and instance.
+     */
+    leader?: { count: number; ok: boolean; candidates: string[] };
 };
 
 export type SetupWeights = Record<string, number>;
@@ -103,6 +110,8 @@ export type StoredSetup = {
     /** "Angemeldet" (#517): signed up, neither placed nor benched — derived by the server, never sent back, never posted */
     pool?: SetupPerson[];
     checks: SetupChecks;
+    /** #1036: the leader the orga chose ("Als Leader setzen") — kept by "Neu vorschlagen" and "Freie Plätze füllen". */
+    leaderUserId?: string;
     weights: SetupWeights;
     score: { total: number };
     warnings: string[];
@@ -359,6 +368,8 @@ export type SetupPlacementInput = {
     wishes?: boolean;
     avoid?: boolean;
     weights?: SetupWeights;
+    /** #1036 "Als Leader setzen": the orga's choice of the raid's leader ("" clears it); missing = keep it. */
+    leaderUserId?: string;
 };
 
 /** `light`: what an open editor fetches after somebody else changed the setup — no Discord names, no attendance (the page keeps its own). */

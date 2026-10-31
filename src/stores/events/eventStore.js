@@ -530,12 +530,14 @@ function setEventDiscordEvent(id, patch) {
  * and the last approved snapshot in one object (null clears it). Returns the
  * event or null. Apart from updateEvent() on purpose: the setup is no planning
  * field and must not re-validate the plan.
+ * `leaderId` (#1036): the leader of an approved setup becomes the event's leader;
+ * empty or missing leaves the event's leader as it is.
  */
-function setEventSetup(id, setup) {
+function setEventSetup(id, setup, { leaderId = "" } = {}) {
     const events = readAll();
     const idx = events.findIndex((e) => e && e.id === str(id));
     if (idx < 0) return null;
-    events[idx] = { ...events[idx], setup: setup && typeof setup === "object" ? setup : null };
+    events[idx] = { ...events[idx], setup: setup && typeof setup === "object" ? setup : null, ...(str(leaderId) ? { leaderId: str(leaderId) } : {}) };
     writeAll(events);
     return complete(events[idx]);
 }

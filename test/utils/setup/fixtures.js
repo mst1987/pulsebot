@@ -117,6 +117,12 @@ function randomInput(random, { events = 1 } = {}) {
         const s = signups[Math.floor(random() * signups.length)];
         fixed.push({ userId: s.userId, eventId: s.eventId, group: 1 + Math.floor(random() * 2), spec: s.spec });
     }
+    // leader flags (#1036): drawn last so the inputs above stay as they were
+    for (const ev of evs) {
+        if (random() < 0.6) ev.leaders = signups.filter((x) => x.eventId === ev.id && random() < 0.15).map((x) => x.userId);
+        if (random() < 0.3 && signups.length) ev.raidLeadId = signups[Math.floor(random() * signups.length)].userId;
+        if (random() < 0.2 && signups.length) ev.leaderUserId = signups[Math.floor(random() * signups.length)].userId;
+    }
     return { versionId: "tbc", events: evs, signups, profiles, attendance, history, fixed };
 }
 

@@ -56,6 +56,16 @@ function normalizeEvents(input) {
             requiredBuffs: [...new Set((Array.isArray(e.requiredBuffs) ? e.requiredBuffs : []).map(str).filter(Boolean))],
             fairness: e.fairness === true,
             wishes: e.wishes === true,
+            // one leader per raid (#1036): only when the input says who may lead (an array, maybe
+            // empty) - an input without it (an old fixture, a script) knows no leader rule
+            leaderRule: Array.isArray(e.leaders),
+            leaders: new Set((Array.isArray(e.leaders) ? e.leaders : []).map(str).filter(Boolean)),
+            // the orga chose this raider as the leader (after a question when they hold no flag)
+            leaderUserId: str(e.leaderUserId),
+            // the raid lead entered in the event (`event.leaderId`): leads the raid once placed there, flag or not
+            raidLeadId: str(e.raidLeadId),
+            // the instances short, for the reason "Leitet diesen Raid (Kara)"
+            instanceShort: str(e.instanceShort),
         });
     }
     return events;
@@ -512,6 +522,20 @@ function indexOptions(cands, specInfo, specData) {
 }
 
 /**
+ * `leadsIn` on every candidate: the events (idx) they may lead - their flag covers
+ * the raid, the orga chose them there, or they are its entered raid lead (#1036).
+ * Empty without a leader rule.
+ */
+function markLeaders(events, cands) {
+    for (const c of cands) {
+        c.leadsIn = new Set();
+        for (const e of events) {
+            if (e.leaderRule && (e.leaders.has(c.userId) || e.leaderUserId === c.userId || e.raidLeadId === c.userId)) c.leadsIn.add(e.idx);
+        }
+    }
+}
+
+/**
  * Build the model. `warnings` collects what the input asked for but a hard rule
  * refuses (a fixed slot for a raider who signed off, …) — never an exception.
  */
@@ -531,6 +555,7 @@ function buildModel(input = {}, weights) {
     const candByUser = new Map(cands.map((c) => [c.userId, c]));
     applyFixed(fixedList, candByUser, ctx, warnings);
     widenHardMax(events, cands);
+    markLeaders(events, cands);
     // wishes: mutual or not, a one-sided wish counts half
     const pairs = namedPairs(cands, candByUser, "wishes").map((p) => ({ ...p, factor: p.mutual ? 1 : 0.5 }));
     const avoidPairs = namedPairs(cands, candByUser, "avoid");

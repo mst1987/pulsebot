@@ -413,6 +413,24 @@
         "dmsPending": "{count} DMs pending",
         "liveSub": "Changes to the setup update the message right away — no ping, no DMs. \"Post setup\" sends pending DMs."
     },
+    "leader": {
+        "set": "Make leader",
+        "setSub": "This person leads the raid. Kept by \"Propose again\" and \"Fill free places\".",
+        "is": "Leads the raid",
+        "isSub": "Exactly one per raid. Taken over as the raid lead when posting.",
+        "askTitle": "Make leader without the lead right?",
+        "askText": "{name} has no lead right for this instance. Make them this raid's leader anyway?",
+        "unset": "Undo leader choice",
+        "unsetSub": "The proposal then picks the leader itself again.",
+        "canLead": "Can lead",
+        "canLeadSub": "Lead right for these instances. Leads this raid only when the crown stands at the place.",
+        "figure": "Leader",
+        "figureOk": "The raid has a leader.",
+        "figureMissing": "No leader in the raid. {count} of the signups may lead it.",
+        "filter": "Leader",
+        "filterSub": "Only those who may lead this instance.",
+        "filterAria": "Filter by leader"
+    },
     "signupEdit": {
         "open": "Edit signup …",
         "short": "Signup",
