@@ -115,6 +115,18 @@ function listAll() {
     return readAll().map(decorate).sort(byAwardedDesc);
 }
 
+/**
+ * The rows awarded in [sinceMs, untilMs) - the stored, frozen rows themselves
+ * (peek), undecorated: nothing is copied, never change them. For a cheap look at
+ * one week (services/setup/raidIdHistory.js).
+ */
+function itemsBetween(sinceMs, untilMs) {
+    return store.peek().items.filter((it) => {
+        const at = Number(it && it.awardedAt) || 0;
+        return at >= sinceMs && at < untilMs;
+    });
+}
+
 /** All loot for one event, newest award first. */
 function listByEvent(eventId) {
     const id = String(eventId || "").trim();
@@ -317,7 +329,7 @@ async function repairItemNames() {
 }
 
 module.exports = {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
+    addImport, listAll, itemsBetween, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
     // Exported for the addon inbox, which shows loot that is not stored yet:
     // running it through the same decoration makes the preview look exactly like
     // the history it is about to become (reason badge, raid, tier).

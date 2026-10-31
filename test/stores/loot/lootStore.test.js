@@ -12,7 +12,7 @@ jest.mock("../../../src/utils/loot/wowhead", () => ({
 
 const fs = require("fs");
 const {
-    addImport, listAll, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
+    addImport, listAll, itemsBetween, listByEvent, listByCharacter, eventsWithLoot, characters, setEventCategory, removeItems, clearEvent, repairItemNames,
     charLootPreview,
 } = require("../../../src/stores/loot/lootStore.js");
 
@@ -28,6 +28,14 @@ const item = (over = {}) => ({
 });
 
 describe("stores/loot/lootStore", () => {
+    it("itemsBetween hands out the stored rows awarded in the window, undecorated", () => {
+        addImport("e1", [item({ awardedAt: 1000 }), item({ rawId: "r2", awardedAt: 2000 }), item({ rawId: "r3", awardedAt: 0 })]);
+        const rows = itemsBetween(1000, 2000);
+        expect(rows.map((r) => r.rawId)).toEqual(["r1"]);
+        expect(rows[0]).not.toHaveProperty("reason");
+        expect(itemsBetween(1, 3000)).toHaveLength(2);
+    });
+
     // A row imported before the alias table keeps the Anniversary re-issue's
     // id in its stored link — Wowhead does not know it, so it is served rewritten.
     it("serves a stored Anniversary re-issue link as the original Wowhead knows", () => {

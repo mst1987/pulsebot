@@ -440,6 +440,8 @@
         "short": "ID",
         "local": "Lockout: already in {title}",
         "localRaid": "Lockout: already in {title} · Raid {n}",
+        "log": "Lockout: per log already in {title}",
+        "loot": "Lockout: per loot already in {title}",
         "other": "Already in another raid of this lockout",
         "sub": "A character can enter each instance once per lockout. Only a hint – you can still place them."
     },

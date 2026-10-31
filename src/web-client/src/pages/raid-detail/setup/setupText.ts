@@ -180,13 +180,16 @@ export function matchesQuery(p: SetupPerson, query: string): boolean {
  * One instance per raid ID: the line naming where the character already stands —
  * "ID: schon in Hyjal F · Raid 1 (Mi 09.12.)" for a raid of this server, only
  * "Schon in einem anderen Raid dieser ID" for one of another server (the server
- * sends nothing more about it). Empty without a hint.
+ * sends nothing more about it). Without a setup place but in a log or with loot
+ * of the instance: "ID: laut Log schon in Hyjal F (Mi 04.11.)". Empty without a hint.
  */
 export function raidIdText(taken: SetupRaidIdTaken | undefined): string {
     if (!taken) return "";
     if (!taken.local) return t("setup.raidId.other");
     const title = taken.title || "?";
-    const base = taken.raidNo ? t("setup.raidId.localRaid", { title, n: taken.raidNo }) : t("setup.raidId.local", { title });
+    const base = taken.source === "log" || taken.source === "loot"
+        ? t(`setup.raidId.${taken.source}`, { title })
+        : taken.raidNo ? t("setup.raidId.localRaid", { title, n: taken.raidNo }) : t("setup.raidId.local", { title });
     // Server time zone (DISPLAY_TZ), like the raid ID itself: a raid at 00:30 shows its server day.
     const day = taken.startTime ? formatDayDate(taken.startTime * 1000) : "";
     return day ? `${base} (${day})` : base;

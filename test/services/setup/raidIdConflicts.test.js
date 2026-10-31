@@ -18,6 +18,20 @@ const mockProfiles = {};
 jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
     getProfile: (userId) => mockProfiles[userId] || { userId, characters: [] },
     firstCharacter: (profile, versionId) => (profile.characters || []).find((c) => !versionId || c.versionId === versionId) || null,
+    charactersOfVersion: (profile, versionId) => ((profile && profile.characters) || []).filter((c) => !versionId || c.versionId === versionId),
+}));
+// the log and loot records of a raid ID (raidIdHistory.js has its own test)
+const mockHistory = [];
+const mockHistoryIds = [];
+jest.mock("../../../src/services/setup/raidIdHistory", () => ({
+    historyOfRaidId: (id) => {
+        mockHistoryIds.push(id);
+        return mockHistory;
+    },
+}));
+const mockSignups = {};
+jest.mock("../../../src/stores/events/signupStore", () => ({
+    listSignups: (eventId) => mockSignups[eventId] || [],
 }));
 jest.mock("../../../src/services/versions/mainVersion", () => ({
     ...jest.requireActual("../../../src/services/versions/mainVersion"),
@@ -53,6 +67,9 @@ beforeEach(() => {
     mockConfigReads.length = 0;
     mockConfig = { versionSettings: { tbc: { blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike" } } };
     for (const k of Object.keys(mockProfiles)) delete mockProfiles[k];
+    for (const k of Object.keys(mockSignups)) delete mockSignups[k];
+    mockHistory.length = 0;
+    mockHistoryIds.length = 0;
 });
 
 describe("takenInRaidId", () => {
@@ -266,5 +283,77 @@ describe("takenKeysFor", () => {
     test("an empty object when nothing is taken", () => {
         expect(takenKeysFor([ev()])).toEqual({});
         expect(takenKeysFor([])).toEqual({});
+    });
+});
+
+describe("logs and loot (raidIdHistory)", () => {
+    const rec = (over = {}) => ({ source: "log", contentIds: new Set(["hyjal"]), guildId: "g1", eventId: "", startTime: WED - DAY * 0 + 3600, keys: new Set(["jaina"]), ...over });
+
+    test("a character in a log of the instance counts without any setup entry - with the instance and the day", () => {
+        mockHistory.push(rec());
+        expect(takenInRaidId(ev()).get("jaina")).toEqual({ local: true, title: "Hyjal", startTime: WED + 3600, source: "log" });
+        expect(mockHistoryIds).toEqual([raidIdOf(WED * 1000)]);
+    });
+
+    test("a character with loot of the instance counts too", () => {
+        mockHistory.push(rec({ source: "loot", keys: new Set(["arthas"]) }));
+        expect(takenInRaidId(ev()).get("arthas")).toMatchObject({ local: true, source: "loot" });
+    });
+
+    test("another instance, the raid's own log and the raids planned together do not count", () => {
+        mockHistory.push(rec({ contentIds: new Set(["bt"]) }));
+        mockHistory.push(rec({ eventId: "eh-a", keys: new Set(["uther"]) }));
+        mockHistory.push(rec({ eventId: "eh-a2", keys: new Set(["arthas"]) }));
+        expect(takenInRaidId(ev()).size).toBe(1);
+        expect([...takenInRaidId(ev(), { excludeIds: ["eh-a2"] }).keys()]).toEqual([]);
+        expect(takenKeysFor([ev(), ev({ id: "eh-a2", raidGroupId: "eh-a" })])).toEqual({});
+    });
+
+    test("another server only says \"another raid\" - and only on the same realm", () => {
+        mockHistory.push(rec({ guildId: "g2" }));
+        expect(takenInRaidId(ev()).get("jaina")).toEqual({ other: true });
+        mockConfig.serverSettings = { g2: { versionOverrides: { tbc: { blizzardRealmSlug: "spineshatter" } } } };
+        expect(takenInRaidId(ev()).has("jaina")).toBe(false);
+    });
+
+    test("a setup place wins over a log or loot of the same character", () => {
+        mockEvents.push(ev({ id: "eh-b", title: "Hyjal F", startTime: WED + 2 * DAY, setup: setupOf(["Jaina"]) }));
+        mockHistory.push(rec({ startTime: WED - 3600 }));
+        expect(takenInRaidId(ev()).get("jaina")).toEqual({ local: true, title: "Hyjal F", raidNo: 0, startTime: WED + 2 * DAY });
+    });
+
+    test("the proposal leaves them out as well", () => {
+        mockHistory.push(rec({ source: "loot" }));
+        expect(takenKeysFor([ev()])).toEqual({ "eh-a": ["jaina"] });
+    });
+
+    describe("a Forever first name alone", () => {
+        const fev = (over = {}) => ev({ instanceIds: ["forever-hyjal"], versionId: "forever", ...over });
+        const frec = (keys) => rec({ contentIds: new Set(["forever-hyjal"]), keys: new Set(keys) });
+
+        test("stands for the one signed-up character with that first name", () => {
+            mockSignups["eh-a"] = [{ userId: "u1", character: "Devi Res" }, { userId: "u2", character: "Mora Tal" }];
+            mockProfiles.u2 = { userId: "u2", characters: [{ name: "Mora Tal", versionId: "forever" }, { name: "Kel Dun", versionId: "forever" }] };
+            mockHistory.push(frec(["devi", "kel", "mora tal"]));
+            const taken = takenInRaidId(fev());
+            expect([...taken.keys()].sort()).toEqual(["devi res", "kel dun", "mora tal"]);
+            expect(taken.get("devi res")).toMatchObject({ local: true, title: "Hyjal F", source: "log" });
+        });
+
+        test("counts for nobody when two signed-up characters share it", () => {
+            mockSignups["eh-a"] = [{ userId: "u1", character: "Devi Res" }, { userId: "u2", character: "Devi Kar" }];
+            mockHistory.push(frec(["devi"]));
+            const taken = takenInRaidId(fev());
+            expect(taken.has("devi res")).toBe(false);
+            expect(taken.has("devi kar")).toBe(false);
+            expect(takenKeysFor([fev()])).toEqual({});
+        });
+
+        test("reads the signups of the whole raid group and only the characters of the raid's version", () => {
+            mockSignups["eh-a"] = [{ userId: "u1", character: "" }];
+            mockProfiles.u1 = { userId: "u1", characters: [{ name: "Devi Res", versionId: "forever" }, { name: "Devi Old", versionId: "tbc" }] };
+            mockHistory.push(frec(["devi"]));
+            expect([...takenInRaidId(fev({ id: "eh-a2", raidGroupId: "eh-a", raidGroupIndex: 2 })).keys()]).toEqual(["devi res"]);
+        });
     });
 });

@@ -14,6 +14,13 @@
 // of the raid's version (settingsForVersion with that server's overrides) must
 // match - a guild on another realm has its own lockouts.
 //
+// Logs and loot count too, without any setup entry (raidIdHistory.js): a
+// character in a report or with loot of the instance this raid ID is saved
+// there ("laut Log" / "laut Loot"). A setup entry wins over them. Their names are
+// what the game wrote - a Forever character often only by its first name
+// ("Devi" for "Devi Res"): such a name counts only when exactly one character of
+// the raid's signups has that first name, never on a guess.
+//
 // Per character (characterKeyOf), never per person. A raid of another server
 // only says "another raid of this ID" — no title, no id, no person (Daten je
 // Server): the payload never carries a foreign event's id or name.
@@ -28,7 +35,10 @@ const { inRaidGroup, raidIndexOf } = require("../../utils/raidGroup");
 const profileStore = require("../../stores/roster/raiderProfileStore");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { settingsForVersion } = require("../versions/versionSettings");
-const { resetDaysOf } = require("../../config/gameVersions");
+const { resetDaysOf, instanceById } = require("../../config/gameVersions");
+const signupStore = require("../../stores/events/signupStore");
+const { signupEventIdOf } = require("../../utils/raidGroup");
+const { historyOfRaidId } = require("./raidIdHistory");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
 
@@ -102,25 +112,30 @@ function entryOf(other, guildId) {
     };
 }
 
-/** A local entry beats a foreign one; among locals the earlier raid. */
+/** A local entry beats a foreign one; a setup entry one from a log or loot; then the earlier raid. */
 function better(a, b) {
     if (!a) return b;
-    if (a.local !== b.local) return a.local ? a : b;
+    if (!!a.local !== !!b.local) return a.local ? a : b;
+    if (!a.source !== !b.source) return a.source ? b : a;
     return (b.startTime || 0) < (a.startTime || 0) ? b : a;
 }
 
 /**
  * The characters already placed in another raid of this event's instance and
- * raid ID: Map<characterKey, { local, title, raidNo, startTime } | { other: true }>.
+ * raid ID: Map<characterKey, { local, title, raidNo, startTime, source? } | { other: true }>
+ * (`source`: "log" | "loot" for an entry without a setup place).
  * @param {object} event
  * @param {{ excludeIds?: string[] }} [opts] further event ids that do not count (the proposal's own raids)
  */
 function takenInRaidId(event, { excludeIds = [] } = {}) {
-    const taken = new Map();
-    if (!event) return taken;
+    if (!event) return new Map();
     const exclude = new Set([str(event.id), ...excludeIds.map(str)]);
-    const placed = weekEvents(raidIdOfEvent(event), instancesOf(event), exclude).map((other) => ({ other, keys: placedKeys(other) }));
-    return collect(event, placed);
+    const id = raidIdOfEvent(event);
+    const placed = weekEvents(id, instancesOf(event), exclude).map((other) => ({ other, keys: placedKeys(other) }));
+    const sameRealm = realmReader();
+    const taken = collect(event, placed, sameRealm);
+    if (instancesOf(event).size) collectHistory(event, historyOfRaidId(id), exclude, sameRealm, taken);
+    return taken;
 }
 
 /**
@@ -160,6 +175,70 @@ function collect(event, placed, sameRealm = realmReader()) {
         if (!sameRealm(versionId, other.guildId, event.guildId)) continue;
         const entry = entryOf(other, event.guildId);
         for (const key of keys) taken.set(key, better(taken.get(key), entry));
+    }
+    return taken;
+}
+
+/**
+ * The first names of the characters signed up for `event` (its version): first
+ * name -> the full character keys. "devi" -> {"devi res"}. Only names of two words or more.
+ */
+function firstNamesOf(event) {
+    const versionId = versionOfEvent(event) || "";
+    const byFirst = new Map();
+    const add = (name) => {
+        const key = characterKeyOf(name);
+        const space = key.indexOf(" ");
+        if (space <= 0) return;
+        const first = key.slice(0, space);
+        if (!byFirst.has(first)) byFirst.set(first, new Set());
+        byFirst.get(first).add(key);
+    };
+    let signups;
+    try {
+        signups = signupStore.listSignups(signupEventIdOf(event)) || [];
+    } catch {
+        signups = [];
+    }
+    for (const s of signups) {
+        if (!s) continue;
+        add(s.character);
+        for (const c of profileStore.charactersOfVersion(profileStore.getProfile(s.userId), versionId)) add(c && c.name);
+    }
+    return byFirst;
+}
+
+/**
+ * Folds the log and loot records of the raid ID into `taken`: same instance,
+ * not one of the raids planned here, same realm. A one-word name stands for the
+ * one signed-up character with that first name - or for nobody.
+ */
+function collectHistory(event, records, exclude, sameRealm, taken) {
+    const instances = instancesOf(event);
+    let versionId = null;
+    let firstNames = null;
+    const keyOf = (key) => {
+        if (key.includes(" ")) return key;
+        if (firstNames === null) firstNames = firstNamesOf(event);
+        const full = firstNames.get(key);
+        if (full) return full.size === 1 ? [...full][0] : "";
+        return key;
+    };
+    for (const rec of records || []) {
+        if (str(rec.eventId) && exclude.has(str(rec.eventId))) continue;
+        const shared = [...rec.contentIds].filter((i) => instances.has(i));
+        if (!shared.length) continue;
+        if (versionId === null) versionId = versionOfEvent(event) || "";
+        if (!sameRealm(versionId, rec.guildId, event.guildId)) continue;
+        const local = !!str(event.guildId) && str(rec.guildId) === str(event.guildId);
+        const inst = instanceById(shared[0]);
+        const entry = local
+            ? { local: true, title: str(inst && (inst.short || inst.name)) || shared[0], startTime: rec.startTime || 0, source: rec.source }
+            : { other: true };
+        for (const raw of rec.keys) {
+            const key = keyOf(raw);
+            if (key) taken.set(key, better(taken.get(key), entry));
+        }
     }
     return taken;
 }
@@ -211,8 +290,10 @@ function takenKeysFor(events) {
     const sameRealm = realmReader();
     for (const [id, week] of byId) {
         const placed = weekEvents(id, week.instances, exclude).map((other) => ({ other, keys: placedKeys(other) }));
+        const history = historyOfRaidId(id);
         for (const event of week.events) {
-            const keys = [...collect(event, placed, sameRealm).keys()];
+            const taken = collectHistory(event, history, exclude, sameRealm, collect(event, placed, sameRealm));
+            const keys = [...taken.keys()];
             if (keys.length) out[str(event.id)] = keys;
         }
     }

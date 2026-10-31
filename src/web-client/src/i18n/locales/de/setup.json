@@ -440,6 +440,8 @@
         "short": "ID",
         "local": "ID: schon in {title}",
         "localRaid": "ID: schon in {title} · Raid {n}",
+        "log": "ID: laut Log schon in {title}",
+        "loot": "ID: laut Loot schon in {title}",
         "other": "Schon in einem anderen Raid dieser ID",
         "sub": "Ein Charakter kann jede Instanz nur einmal je ID besuchen. Nur ein Hinweis – einteilen geht trotzdem."
     },

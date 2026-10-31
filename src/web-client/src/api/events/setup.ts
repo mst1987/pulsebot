@@ -27,7 +27,8 @@ export type SetupAttendance = {
 };
 
 /** One instance per raid ID: the character stands in a group of another raid of this instance and ID - details only for a raid of this server. */
-export type SetupRaidIdTaken = { local?: boolean; title?: string; raidNo?: number; startTime?: number; other?: boolean };
+/** `source`: not placed in a setup here but seen in a log or with loot of the instance (title = the instance). */
+export type SetupRaidIdTaken = { local?: boolean; title?: string; raidNo?: number; startTime?: number; other?: boolean; source?: "log" | "loot" };
 
 /** One character a raider signed up with (#293), decorated like a slot; `priority` 0 = their choice, then "kann auch mit"; its own status (#320). */
 export type SetupCharacter = {

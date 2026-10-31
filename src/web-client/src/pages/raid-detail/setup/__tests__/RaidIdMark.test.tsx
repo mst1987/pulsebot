@@ -37,6 +37,13 @@ describe("raidIdText", () => {
         expect(raidIdText({ local: true, title: "Hyjal F", startTime: night })).toBe("ID: schon in Hyjal F (Do 05.11.)");
     });
 
+    it("names a log or loot of the instance as the source", () => {
+        // Wed 04.11.2026 20:00 server time
+        const at = Date.UTC(2026, 10, 4, 19, 0) / 1000;
+        expect(raidIdText({ local: true, title: "Hyjal F", startTime: at, source: "log" })).toBe("ID: laut Log schon in Hyjal F (Mi 04.11.)");
+        expect(raidIdText({ local: true, title: "Hyjal F", source: "loot" })).toBe("ID: laut Loot schon in Hyjal F");
+    });
+
     it("says nothing more about a raid of another server", () => {
         expect(raidIdText(OTHER)).toBe("Schon in einem anderen Raid dieser ID");
     });
@@ -49,6 +56,8 @@ describe("raidIdText", () => {
         await switchLang("en");
         expect(raidIdText(OTHER)).toBe("Already in another raid of this lockout");
         expect(raidIdText({ local: true, title: "Hyjal F", raidNo: 2 })).toBe("Lockout: already in Hyjal F · Raid 2");
+        expect(raidIdText({ local: true, title: "Hyjal F", source: "log" })).toBe("Lockout: per log already in Hyjal F");
+        expect(raidIdText({ local: true, title: "Hyjal F", source: "loot" })).toBe("Lockout: per loot already in Hyjal F");
         await switchLang("de");
     });
 });

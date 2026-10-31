@@ -107,6 +107,23 @@ function listLogs() {
     return readAll().slice().sort((a, b) => (b.detectedAt || 0) - (a.detectedAt || 0));
 }
 
+/** When a log was played: the report's start, else its raid's start, else when it was posted or seen (ms, 0 = unknown). */
+function playedAtOf(log) {
+    return Number(log && log.reportStart) || (Number(log && log.eventStartTime) * 1000) || Number(log && log.postedAt) || Number(log && log.detectedAt) || 0;
+}
+
+/**
+ * The logs played in [sinceMs, untilMs) (playedAtOf) - the stored, frozen rows
+ * themselves (peek): nothing is copied, never change them. For a cheap look at
+ * one week (services/setup/raidIdHistory.js).
+ */
+function logsBetween(sinceMs, untilMs) {
+    return store.peek().filter((l) => {
+        const at = playedAtOf(l);
+        return at >= sinceMs && at < untilMs;
+    });
+}
+
 /** A single tracked log by internal id, or null. */
 function getLog(id) {
     return readAll().find((l) => l.id === id) || null;
@@ -416,7 +433,7 @@ function deleteLog(id) {
 }
 
 module.exports = {
-    listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
+    listLogs, logsBetween, playedAtOf, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog, LOGS_FILE,
     linkEvent, unlinkEvent, listLogsForEvent, migrateGuilds, useFile: store.useFile,
 };

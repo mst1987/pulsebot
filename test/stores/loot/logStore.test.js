@@ -3,7 +3,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listLogs, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
+    listLogs, logsBetween, playedAtOf, getLog, getByReportId, getByReportRefId, saveLog, setButtonMessage,
     markEvaluated, evaluatedSections, clearEvaluation, clearSection, setLogTitle, setReportStart, setLogRaids, deleteLog,
     linkEvent, unlinkEvent, listLogsForEvent, migrateGuilds,
 } = require("../../../src/stores/loot/logStore.js");
@@ -509,5 +509,25 @@ describe("stores/loot/logStore server of a log (#917)", () => {
         expect(log).not.toHaveProperty("guildFrom");
         expect(log).not.toHaveProperty("postGuildId");
         expect(migrateGuilds(() => null)).toBe(0);
+    });
+
+    describe("logsBetween / playedAtOf (raid-ID hint)", () => {
+        it("is played at the report's start, else the raid's start, else when posted or seen", () => {
+            expect(playedAtOf({ reportStart: 5000, eventStartTime: 1, postedAt: 2, detectedAt: 3 })).toBe(5000);
+            expect(playedAtOf({ eventStartTime: 4, postedAt: 2, detectedAt: 3 })).toBe(4000);
+            expect(playedAtOf({ postedAt: 2, detectedAt: 3 })).toBe(2);
+            expect(playedAtOf({ detectedAt: 3 })).toBe(3);
+            expect(playedAtOf(null)).toBe(0);
+        });
+
+        it("hands out only the logs played in the window, end excluded", () => {
+            const a = saveLog(base());
+            const b = saveLog(base({ reportId: "RPT2", messageId: "m2" }));
+            setReportStart(a.id, 1000);
+            setReportStart(b.id, 2000);
+            expect(logsBetween(1000, 2000).map((l) => l.reportId)).toEqual(["RPT1"]);
+            expect(logsBetween(0, 5000)).toHaveLength(2);
+            expect(logsBetween(3000, 5000)).toEqual([]);
+        });
     });
 });
