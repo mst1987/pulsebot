@@ -131,6 +131,54 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
         expect(settingsStore.saveConfig.mock.calls[0][0].categoryVersion).toMatchObject({ far: "forever" });
     });
 
+    it("takes back another server's voice and attendance settings unchanged, as the client sends them whole", async () => {
+        // stored as the difference to the defaults, sent with every default filled in
+        const stored = {
+            ...FOREIGN,
+            categoryTempVoice: { far: { mode: "temp", leadMinutes: 10 }, mon: { mode: "temp" } },
+            categoryAttendance: { far: { window: 6 } },
+        };
+        settingsStore.getConfig.mockReturnValue(stored);
+        settingsStore.saveConfig.mockReturnValue(stored);
+        auth.getUser.mockReturnValue(LIMITED);
+        const full = (v) => ({ mode: "temp", fromRaid2: false, parentId: "", nameTemplate: "{raid} {nr} \u00b7 {datum}", leadMinutes: 30, closeAfterMinutes: 60, onlyAssigned: false, ...v });
+        const back = await patch("/api/settings", {
+            categoryTempVoice: { far: full({ leadMinutes: 10 }), mon: full({ leadMinutes: 20 }) },
+            categoryAttendance: { far: { show: true, window: 6, absences: true }, mon: { show: false, window: 10, absences: true } },
+        });
+        expect(back.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        // a changed entry of the other server stays refused
+        settingsStore.saveConfig.mockClear();
+        for (const body of [
+            { categoryTempVoice: { far: full({ leadMinutes: 15 }) } },
+            { categoryAttendance: { far: { show: true, window: 8, absences: true } } },
+        ]) {
+            const res = await patch("/api/settings", body);
+            expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
+        }
+        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+    });
+
+    it("takes a newly picked voice parent of the active server only", async () => {
+        settingsStore.getConfig.mockReturnValue({ ...FOREIGN, categoryTempVoice: { mon: { mode: "temp", parentId: "300000000000000001" } } });
+        settingsStore.saveConfig.mockReturnValue(FOREIGN);
+        auth.getUser.mockReturnValue(LIMITED);
+        const channels = new Map([["300000000000000002", { guildId: "g1" }], ["300000000000000003", { guildId: "g2" }]]);
+        discord.getClient.mockReturnValue({ isReady: () => true, channels: { cache: channels } });
+        const send = (parentId) => patch("/api/settings", { categoryTempVoice: { mon: { mode: "temp", parentId } } });
+        // the stored one goes back unchanged even when the bot does not see it, an own one is fine
+        expect((await send("300000000000000001")).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect((await send("300000000000000002")).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        // one of another server, or one the bot does not see, is refused
+        for (const parentId of ["300000000000000003", "300000000000000009"]) {
+            const res = await send(parentId);
+            expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
+        }
+        // a full admin may pick any
+        auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+        expect((await send("300000000000000003")).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+    });
+
     it("closes and previews the active server's categories only, a full admin all of them", async () => {
         settingsStore.getConfig.mockReturnValue(FOREIGN);
         auth.getUser.mockReturnValue(LIMITED);

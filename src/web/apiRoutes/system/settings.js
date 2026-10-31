@@ -4,12 +4,13 @@ const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../../utils/raidhelper/servers");
 const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/servers/serverOf");
-const { mayUseServer, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../../stores/settings/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, tempVoiceSettings, normalizeCategoryVersion, MAX_SERVERS,
+    normalizeCategoryAttendance, normalizeCategoryTempVoice,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../../stores/settings/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
@@ -1167,6 +1168,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #925: everybody but a full admin changes the categories of the active server only
     // (after the merge, so the other servers' kept part is no "edit")
     if (foreignCategoryEdits(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
+    // the parent category of the temporary voice channels: a newly picked one only of the active server
+    if (foreignVoiceParents(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -1218,6 +1221,9 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
 const WHOLE_CATEGORY_MAPS = new Set(["categoryRaidTemplate", "categoryVersion", "categoryReminders"]);
 // Derived by this route (from categoryVersion, which is checked), not sent by the client.
 const DERIVED_CATEGORY_MAPS = new Set(["categoryEras"]);
+// Sent whole per category (defaults filled in), stored as the difference to the defaults:
+// compared in the stored form, so an unchanged entry sent back is no "edit".
+const STORED_FORM = { categoryAttendance: normalizeCategoryAttendance, categoryTempVoice: normalizeCategoryTempVoice };
 
 /** Key order does not make a value different. */
 function stableJson(value) {
@@ -1260,12 +1266,25 @@ function foreignCategoryEdits(partial, before, { user, req }) {
         if (!/^category[A-Z]/.test(key) || DERIVED_CATEGORY_MAPS.has(key)) continue;
         if (!map || typeof map !== "object" || Array.isArray(map)) continue;
         const stored = before[key] && typeof before[key] === "object" ? before[key] : {};
+        const form = STORED_FORM[key] || null;
         for (const [id, value] of Object.entries(map)) {
-            if (stableJson(value) !== stableJson(stored[id])) touched.add(String(id));
+            const sent = form ? form({ [id]: value })[id] : value;
+            const was = form ? form({ [id]: stored[id] })[id] : stored[id];
+            if (stableJson(sent) !== stableJson(was)) touched.add(String(id));
         }
         if (WHOLE_CATEGORY_MAPS.has(key)) for (const id of Object.keys(stored)) if (!(id in map)) touched.add(String(id));
     }
     return [...touched].filter((id) => !mayEditCategory(user, req, id));
+}
+
+/** The voice parents (categoryTempVoice.parentId) a PATCH newly picks on another server - [] for a full admin. */
+function foreignVoiceParents(partial, before, { user, req }) {
+    if (user && user.isAdmin) return [];
+    const stored = (before && before.categoryTempVoice) || {};
+    return Object.entries(partial.categoryTempVoice || {})
+        .map(([id, value]) => [value.parentId, tempVoiceSettings(stored[id]).parentId])
+        .filter(([parentId, was]) => parentId && parentId !== was && !mayUseChannel(user, req, parentId))
+        .map(([parentId]) => parentId);
 }
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
