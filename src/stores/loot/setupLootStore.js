@@ -14,20 +14,50 @@ function groupsOf(data) {
     return data && data.groups && typeof data.groups === "object" ? data.groups : {};
 }
 
-/** The stored snapshot of a raid group, or null. */
-function getSetupLoot(eventId) {
-    const id = String(eventId || "").trim();
-    if (!id) return null;
-    return groupsOf(store.read())[id] || null;
+const SOURCES = new Set(["softres", "armory", "logs", "all"]);
+
+const tooOld = (g, now) => !g || now - Number(g.at || 0) > MAX_AGE_MS;
+
+/** The sources a load could not reach (`softres`, `armory`, `logs`, `all`), once each. */
+function failedOf(list) {
+    return [...new Set((Array.isArray(list) ? list : []).map(String).filter((x) => SOURCES.has(x)))];
 }
 
-/** Store (replace) the snapshot of a raid group; drops snapshots older than 30 days. */
+/**
+ * The stored snapshot of a raid group, or null - also when it is older than 30 days:
+ * the limit holds on read, not only when the next save happens to clean up.
+ */
+function getSetupLoot(eventId, { now = Date.now() } = {}) {
+    const id = String(eventId || "").trim();
+    if (!id) return null;
+    const g = groupsOf(store.read())[id];
+    return tooOld(g, now) ? null : g;
+}
+
+/**
+ * A load that reached none of its sources (#1037): the snapshot keeps its data and its
+ * `at`, it only learns which sources failed and when. Null without a (fresh) snapshot.
+ */
+function markSetupLootFailed(eventId, failed, { now = Date.now() } = {}) {
+    const id = String(eventId || "").trim();
+    const groups = { ...groupsOf(store.read()) };
+    if (!id || tooOld(groups[id], now)) return null;
+    groups[id] = { ...groups[id], failed: failedOf(failed), failedAt: now, keptAt: groups[id].at };
+    store.write({ groups });
+    return groups[id];
+}
+
+/**
+ * Store (replace) the snapshot of a raid group; drops snapshots older than 30 days.
+ * `failed`/`keptAt`: the sources this load could not reach and the time of the older
+ * data a raider kept in their place (0 = nothing kept).
+ */
 function saveSetupLoot(eventId, snapshot = {}) {
     const id = String(eventId || "").trim();
     if (!id) return null;
     const now = Date.now();
     const groups = { ...groupsOf(store.read()) };
-    for (const [key, g] of Object.entries(groups)) if (!g || now - Number(g.at || 0) > MAX_AGE_MS) delete groups[key];
+    for (const [key, g] of Object.entries(groups)) if (tooOld(g, now)) delete groups[key];
     const counts = snapshot.counts || {};
     const saved = {
         eventId: id,
@@ -43,10 +73,13 @@ function saveSetupLoot(eventId, snapshot = {}) {
             bis: Number(counts.bis || 0),
             spec: Number(counts.spec || 0),
         },
+        failed: failedOf(snapshot.failed),
+        failedAt: failedOf(snapshot.failed).length ? now : 0,
+        keptAt: Number(snapshot.keptAt) || 0,
     };
     groups[id] = saved;
     store.write({ groups });
     return saved;
 }
 
-module.exports = { getSetupLoot, saveSetupLoot, useFile: store.useFile };
+module.exports = { getSetupLoot, saveSetupLoot, markSetupLootFailed, MAX_AGE_MS, useFile: store.useFile };

@@ -73,7 +73,7 @@ export function SummaryLine({ data, setup, onDetails }: { data: SetupEditorData;
 }
 
 /** "Details" of the summary line: the role tiles, buffs, and the switches for fairness, wishes and "nicht zusammen". */
-export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLoadLoot }: {
+export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLoadLoot, lootReady = false, onLootPropose }: {
     data: SetupEditorData;
     setup: StoredSetup;
     busy: boolean;
@@ -82,6 +82,9 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLo
     onAvoid: (on: boolean) => void;
     /** "Loot-Daten laden" (#1037) — only a raid group's orga gets `data.loot` */
     onLoadLoot?: () => void;
+    /** the loot job just finished: offer "Neu vorschlagen?" instead of proposing on its own */
+    lootReady?: boolean;
+    onLootPropose?: () => void;
 }) {
     const t = useT();
     const { checks } = setup;
@@ -146,7 +149,7 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLo
             {!!setup.warnings.length && (
                 <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
             )}
-            {data.loot && onLoadLoot && <LootPanel status={data.loot} check={checks.loot} busy={busy} onLoad={onLoadLoot} />}
+            {data.loot && onLoadLoot && <LootPanel status={data.loot} check={checks.loot} busy={busy} onLoad={onLoadLoot} ready={lootReady} onPropose={onLootPropose} />}
         </aside>
     );
 }

@@ -430,9 +430,75 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const got = new Set(result.groups.flatMap((g) => g.slots.map((s) => String(s.userId))));
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
-    const groups = inPlacedOrder(result.groups, checked.value.groups);
-    const setup = nextSetup(prev, { ...result, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
-    return storeSetup(event, setup, { userId, now });
+    // #1037: loot spans the raid group - valued as a whole, this raid takes the group's loot
+    const group = groupLootOf(event, checked.value, { options, now, leaderUserId });
+    const own = group ? withGroupLoot(result, group.events.find((x) => x.eventId === event.id), group.checks.loot) : result;
+    const groups = inPlacedOrder(own.groups, checked.value.groups);
+    const setup = nextSetup(prev, { ...own, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
+    const saved = storeSetup(event, setup, { userId, now });
+    if (group && !saved.error) refreshGroupLoot(group);
+    return saved;
+}
+
+/**
+ * The raid group valued as a whole after a manual change of one raid (#1037): this raid as the
+ * orga placed it, the others as they stand. Null outside a group, without loot data or when the
+ * others no longer value (their own save tells why) - the raid then keeps its single evaluation.
+ */
+function groupLootOf(event, placement, { options, now, leaderUserId }) {
+    if (!inRaidGroup(event)) return null;
+    const others = groupEvents(event).filter((e) => e.id !== event.id);
+    if (!others.length) return null;
+    const input = collectSetupInput([event.id, ...others.map((e) => e.id)], { now });
+    if (!input || !input.loot) return null;
+    if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
+    try {
+        const result = evaluateSetup(input, {
+            groups: placement.groups,
+            bench: placement.bench,
+            others: others.map((e) => ({ eventId: e.id, groups: (e.setup && e.setup.groups) || [] })),
+        }, runOptions(options));
+        if (!result.checks || !result.checks.loot || !Array.isArray(result.events)) return null;
+        return { checks: result.checks, events: result.events, others };
+    } catch {
+        return null;
+    }
+}
+
+/** A raider's loot reason swapped for the group's: the old text out of `reasons`, the new one in. */
+function withSlotLoot(slot, fresh) {
+    const old = slot.lootReason && slot.lootReason.text;
+    const reasons = (slot.reasons || []).filter((r) => r !== old);
+    const next = fresh && fresh.lootReason;
+    const rest = { ...slot };
+    delete rest.lootReason;
+    if (!next) return { ...rest, reasons };
+    return { ...rest, reasons: reasons.includes(next.text) ? reasons : [...reasons, next.text], lootReason: next };
+}
+
+/** One raid's valued result with the group's loot: `checks.loot` and every slot's loot reason. */
+function withGroupLoot(result, part, loot) {
+    const fresh = new Map();
+    for (const g of (part && part.groups) || []) for (const s of g.slots || []) fresh.set(String(s.userId), s);
+    return {
+        ...result,
+        groups: (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map((s) => withSlotLoot(s, fresh.get(String(s.userId)))) })),
+        checks: { ...result.checks, loot },
+    };
+}
+
+/**
+ * The other raids of the group after a manual change (#1037): only their loot check and loot
+ * reasons follow - no new version, no status change, no repost, the leader untouched.
+ */
+function refreshGroupLoot(group) {
+    group.others.forEach((e) => {
+        const fresh = eventStore.getEvent(e.id);
+        if (!fresh || !fresh.setup) return;
+        const part = group.events.find((x) => x.eventId === e.id);
+        const next = withGroupLoot(fresh.setup, part, group.checks.loot);
+        eventStore.setEventSetup(e.id, { ...fresh.setup, groups: next.groups, checks: next.checks });
+    });
 }
 
 /**

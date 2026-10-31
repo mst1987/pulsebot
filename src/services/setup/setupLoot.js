@@ -22,7 +22,7 @@ const eventStore = require("../../stores/events/eventStore");
 const signupStore = require("../../stores/events/signupStore");
 const settingsStore = require("../../stores/settings/settingsStore");
 const { getEventSoftres } = require("../../stores/events/eventSoftresStore");
-const { getSetupLoot, saveSetupLoot } = require("../../stores/loot/setupLootStore");
+const { getSetupLoot, saveSetupLoot, markSetupLootFailed } = require("../../stores/loot/setupLootStore");
 const { versionOfEvent } = require("../versions/mainVersion");
 const { signupEventIdOf } = require("../../utils/raidGroup");
 const { rulesFor } = require("../../config/gameVersions");
@@ -92,7 +92,7 @@ function reserveItems(reserve) {
  * One expected entry per character, so a raider who reserved on two characters keeps
  * both; a reserve found only by the Discord id goes to the character it was paired with.
  */
-async function softresByCharacter(events, raiders) {
+async function softresByCharacter(events, raiders, failed = new Set()) {
     const out = new Map();
     const expected = raiders.flatMap((r) => r.chars.map((c) => ({ userId: r.userId, names: [c.character], label: c.character })));
     const ids = [...new Set([signupEventIdOf(events[0]), ...events.map((e) => e.id)])];
@@ -104,6 +104,7 @@ async function softresByCharacter(events, raiders) {
             raid = await softresStatus.fetchRaidCached(sr.raidId, sr.token || "");
         } catch (e) {
             logger.warn(`softres ${sr.raidId}: ${e.message}`);
+            failed.add("softres");
             continue;
         }
         if (!raid || (raid.hideReserves && !raid.isManager)) continue;
@@ -151,10 +152,120 @@ function itemTable(wants, versionId) {
     return items;
 }
 
+/** The raiders of a raid group with their characters (absences left out). */
+function raidersOf(groupId) {
+    const raiders = [];
+    for (const s of signupStore.listSignups(groupId)) {
+        if (!s || !s.userId || s.status === "absence") continue;
+        const chars = signupCharacters(s);
+        if (chars.length) raiders.push({ userId: str(s.userId), chars });
+    }
+    return raiders;
+}
+
+/**
+ * The armory pass: one character after another, with progress. Marks "armory" in
+ * `failed` when it threw or when it was asked and not one character answered - the
+ * API was not reachable, not every raider unknown.
+ */
+async function askArmory(groupId, names, { versionId, guildId, failed }) {
+    progress.set(groupId, { done: 0, total: names.length });
+    let asked = 0;
+    let answered = 0;
+    for (const name of names) {
+        let res;
+        try {
+            res = await armoryGear.primeArmoryGear([name], { full: true, versionId, guildId });
+        } catch (e) {
+            logger.warn(`armory ${name}: ${e.message}`);
+            failed.add("armory");
+            break;
+        }
+        const p = progress.get(groupId);
+        progress.set(groupId, { ...p, done: p.done + 1 });
+        // no armory for this version (no realm, no key): the logs still know some gear
+        if (!res || !res.configured) break;
+        asked += Number(res.asked) || 0;
+        answered += Number(res.answered) || 0;
+    }
+    if (asked > 0 && answered === 0) failed.add("armory");
+}
+
+/** The gear the logs (and the armory cache) know; "logs" in `failed` when reading them threw. */
+function gearOf({ versionId, guildId, failed }) {
+    try {
+        return charGear.gearByCharacter({ versionId, guildId });
+    } catch (e) {
+        logger.warn(`gear from logs: ${e.message}`);
+        failed.add("logs");
+        return new Map();
+    }
+}
+
+/**
+ * The stored entry of a character that this run could not replace (#1037): a failed
+ * source must not overwrite good data. Softres down and no reserve now, while the last
+ * run had one; or armory/logs down, no gear now, while the last run had a BiS list.
+ */
+function keptEntry(old, fresh, { failed, worn }) {
+    if (!old) return null;
+    const freshSource = fresh ? fresh.source : "";
+    if (failed.has("softres") && old.source === "softres" && freshSource !== "softres") return old;
+    const gearDown = failed.has("armory") || failed.has("logs");
+    if (gearDown && !worn && old.source === "bis" && freshSource !== "softres") return old;
+    return null;
+}
+
+/** The wants per raider and character, with the old entries a failed source keeps, and the counts. */
+function collectWants(raiders, { reserves, bis, gear, previous, failed }) {
+    const wants = {};
+    let kept = 0;
+    const counts = { signups: raiders.length, gear: 0, softres: 0, bis: 0, spec: 0 };
+    for (const r of raiders) {
+        let hasGear = false;
+        const sources = new Set();
+        for (const c of r.chars) {
+            const key = characterKeyOf(c.character);
+            const snap = gear.get(key);
+            const worn = snap && Array.isArray(snap.items) ? snap.items.map((it) => Number(it.itemId)).filter(Boolean) : null;
+            if (worn) hasGear = true;
+            const own = bis.get(`${r.userId}|${key}`);
+            const fresh = lootWants(r.userId, c.character, { reserves: reserves.get(`${r.userId}|${key}`), bis: own ? own.list : [], worn, spec: c.spec });
+            const old = keptEntry(((previous || {})[r.userId] || {})[key], fresh, { failed, worn });
+            const entry = old || fresh;
+            if (!entry) continue;
+            if (old) kept++;
+            (wants[r.userId] = wants[r.userId] || {})[key] = entry;
+            sources.add(entry.source);
+        }
+        if (hasGear) counts.gear++;
+        const best = ["softres", "bis", "spec"].find((x) => sources.has(x));
+        if (best) counts[best]++;
+    }
+    return { wants, counts, kept };
+}
+
+/** The sources a run asked at all: softres only with a list, armory/logs only with a BiS list. */
+function askedSources(events, bis) {
+    const ids = [...new Set([signupEventIdOf(events[0]), ...events.map((e) => e.id)])];
+    const out = [];
+    if (ids.some((id) => { const sr = getEventSoftres(id); return !!(sr && sr.raidId); })) out.push("softres");
+    if (bis.size) out.push("armory", "logs");
+    return out;
+}
+
+const FAILED_ALL = "Loot-Daten konnten nicht geladen werden – die alten Daten bleiben.";
+
 /**
  * The background job of "Loot-Daten laden" (evalJobs, section "setup-loot"):
  * gathers and stores the loot data of a raid group. Never throws.
- * @returns {Promise<{ ok: boolean, error?: string, counts?: object }>}
+ *
+ * A source that fails (softres.it, armory, logs) never overwrites good data: each
+ * raider keeps the last run's entry where the failed source would have filled it,
+ * and the snapshot names the failed sources (`failed`, `keptAt` = the old data's time).
+ * When every source the run asked failed, nothing is replaced at all - the job ends as
+ * an error and the old snapshot only learns `failed`.
+ * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], partial?: boolean }>}
  */
 async function loadLootData(eventIds) {
     const events = [...new Set((eventIds || []).map(str).filter(Boolean))].map((id) => eventStore.getEvent(id)).filter(Boolean);
@@ -165,14 +276,13 @@ async function loadLootData(eventIds) {
     const groupId = signupEventIdOf(events[0]);
     const guildId = events[0].guildId;
     const instances = instancesOf(events);
+    const failed = new Set();
+    // the last run's data counts only for the same version and instances
+    const before = getSetupLoot(groupId);
+    const previous = before && before.versionId === versionId && (before.instanceIds || []).join("|") === instances.join("|") ? before : null;
     try {
-        const raiders = [];
-        for (const s of signupStore.listSignups(groupId)) {
-            if (!s || !s.userId || s.status === "absence") continue;
-            const chars = signupCharacters(s);
-            if (chars.length) raiders.push({ userId: str(s.userId), chars });
-        }
-        const reserves = await softresByCharacter(events, raiders);
+        const raiders = raidersOf(groupId);
+        const reserves = await softresByCharacter(events, raiders, failed);
 
         // BiS first, so the armory is asked only for characters a BiS list could matter for.
         const bis = new Map();
@@ -181,44 +291,28 @@ async function loadLootData(eventIds) {
             if (list.length && !reserves.has(`${r.userId}|${characterKeyOf(c.character)}`)) bis.set(`${r.userId}|${characterKeyOf(c.character)}`, { name: c.character, list });
         }
         const names = [...new Set([...bis.values()].map((b) => b.name))].slice(0, MAX_ARMORY);
-        progress.set(groupId, { done: 0, total: names.length });
-        for (const name of names) {
-            const asked = await armoryGear.primeArmoryGear([name], { full: true, versionId, guildId });
-            const p = progress.get(groupId);
-            progress.set(groupId, { ...p, done: p.done + 1 });
-            // no armory for this version (no realm, no key): the logs still know some gear
-            if (!asked.configured) break;
-        }
-        const gear = bis.size ? charGear.gearByCharacter({ versionId, guildId }) : new Map();
+        await askArmory(groupId, names, { versionId, guildId, failed });
+        const gear = bis.size ? gearOf({ versionId, guildId, failed }) : new Map();
 
-        const wants = {};
-        const counts = { signups: raiders.length, gear: 0, softres: 0, bis: 0, spec: 0 };
-        for (const r of raiders) {
-            let hasGear = false;
-            const sources = new Set();
-            for (const c of r.chars) {
-                const key = characterKeyOf(c.character);
-                const snap = gear.get(key);
-                const worn = snap && Array.isArray(snap.items) ? snap.items.map((it) => Number(it.itemId)).filter(Boolean) : null;
-                if (worn) hasGear = true;
-                const own = bis.get(`${r.userId}|${key}`);
-                const entry = lootWants(r.userId, c.character, { reserves: reserves.get(`${r.userId}|${key}`), bis: own ? own.list : [], worn, spec: c.spec });
-                if (!entry) continue;
-                (wants[r.userId] = wants[r.userId] || {})[key] = entry;
-                sources.add(entry.source);
-            }
-            if (hasGear) counts.gear++;
-            const best = ["softres", "bis", "spec"].find((x) => sources.has(x));
-            if (best) counts[best]++;
+        const asked = askedSources(events, bis);
+        const failedList = ["softres", "armory", "logs"].filter((x) => failed.has(x));
+        if (asked.length && asked.every((x) => failed.has(x))) {
+            if (previous) markSetupLootFailed(groupId, failedList);
+            return { ok: false, error: FAILED_ALL, failed: failedList };
         }
-        saveSetupLoot(groupId, { versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts });
-        return { ok: true, counts };
+        const { wants, counts, kept } = collectWants(raiders, { reserves, bis, gear, previous: previous && previous.wants, failed });
+        saveSetupLoot(groupId, {
+            versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts,
+            failed: failedList, keptAt: kept && previous ? previous.at : 0,
+        });
+        return { ok: true, counts, failed: failedList, partial: failedList.length > 0 };
     } catch (e) {
         logger.error(`loot data ${groupId}: ${e.message}`);
-        return { ok: false, error: "Loot-Daten konnten nicht geladen werden." };
+        if (previous) markSetupLootFailed(groupId, ["all"]);
+        return { ok: false, error: FAILED_ALL, failed: ["all"] };
     } finally {
         progress.delete(groupId);
     }
 }
 
-module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable } };
+module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry } };

@@ -243,10 +243,14 @@
 .se-loot-head > :last-child { margin-left: auto; }
 .se-loot-cap { margin: 0; color: var(--muted); font-size: 13px; }
 .se-loot-list { list-style: none; margin: 0; padding: 0; }
-.se-loot-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.se-loot-list li { display: flex; flex-direction: column; gap: 2px; padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; }
 .se-loot-list li:last-child { border-bottom: 0; }
-.se-loot-list li > :first-child { min-width: 0; overflow-wrap: anywhere; }
-.se-loot-spec { font-weight: 600; }
+.se-loot-item { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; min-width: 0; overflow-wrap: anywhere; }
+/* "Kara 1: Heilbert softres · Kara 3: …" - who wants it in which raid, the source as a small word */
+.se-loot-raids { font-size: 13px; overflow-wrap: anywhere; }
+.se-loot-sep { color: var(--muted); }
+.se-loot-src { color: var(--muted); font-size: 12px; }
+.se-loot-ready { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 10px; font-size: 13px; font-weight: 700; }
 .se-loot-meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
 .se-loot-mid { color: var(--medium); font-weight: 700; }
 .se-loot-ok { color: var(--good); }

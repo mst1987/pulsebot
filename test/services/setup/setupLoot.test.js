@@ -150,7 +150,51 @@ describe("services/setup/setupLoot loadLootData (#1037)", () => {
 
     it("reports a failure instead of throwing", async () => {
         signupStore.listSignups.mockImplementation(() => { throw new Error("broken"); });
-        expect(await setupLoot.loadLootData(["a", "b"])).toEqual({ ok: false, error: expect.any(String) });
+        expect(await setupLoot.loadLootData(["a", "b"])).toEqual({ ok: false, error: expect.any(String), failed: ["all"] });
+    });
+
+    it("keeps the old Softres entry of a raider when softres.it is down, takes the rest fresh (partial)", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Softy", spec: "Warrior-Fury" },
+            { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        getEventSoftres.mockImplementation((id) => (id === "a" ? { raidId: "sr1", token: "" } : null));
+        softresStatus.fetchRaidCached.mockResolvedValue({ reserves: [{ name: "Softy", items: [30000] }] });
+        await setupLoot.loadLootData(["a", "b"]);
+        const first = getSetupLoot("a");
+        expect(first.wants.u1.softy.source).toBe("softres");
+
+        softresStatus.fetchRaidCached.mockRejectedValue(new Error("down"));
+        signupStore.listSignups.mockReturnValue([
+            { userId: "u1", character: "Softy", spec: "Warrior-Fury" },
+            { userId: "u2", character: "Other", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+            { userId: "u3", character: "Newbie", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out).toEqual(expect.objectContaining({ ok: true, failed: ["softres"], partial: true }));
+        const snap = getSetupLoot("a");
+        expect(snap.wants.u1.softy).toEqual(first.wants.u1.softy);
+        expect(snap.wants.u3.newbie.source).toBe("spec");
+        expect(snap.failed).toEqual(["softres"]);
+        expect(snap.keptAt).toBe(first.at);
+    });
+
+    it("replaces nothing when every source it asked failed (total), only marks the snapshot", async () => {
+        // a spec without a BiS list: softres.it is the only source this run asks
+        signupStore.listSignups.mockReturnValue([{ userId: "u1", character: "Softy", spec: "Priest-Holy-Wotlk-Not-A-Spec" }]);
+        getEventSoftres.mockImplementation((id) => (id === "a" ? { raidId: "sr1", token: "" } : null));
+        softresStatus.fetchRaidCached.mockResolvedValue({ reserves: [{ name: "Softy", items: [30000] }] });
+        await setupLoot.loadLootData(["a", "b"]);
+        const first = getSetupLoot("a");
+
+        softresStatus.fetchRaidCached.mockRejectedValue(new Error("down"));
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out).toEqual({ ok: false, error: expect.any(String), failed: ["softres"] });
+        const snap = getSetupLoot("a");
+        expect(snap.wants).toEqual(first.wants);
+        expect(snap.at).toBe(first.at);
+        expect(snap.failed).toEqual(["softres"]);
+        expect(snap.keptAt).toBe(first.at);
     });
 });
 

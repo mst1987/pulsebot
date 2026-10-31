@@ -163,6 +163,9 @@ function lootStatusOf(event) {
         progress: setupLoot.progressOf(groupId),
         counts: (snapshot && snapshot.counts) || null,
         at: (snapshot && snapshot.at) || 0,
+        // the sources the last load could not reach, and the time of the older data that stayed (#1037)
+        failed: (snapshot && Array.isArray(snapshot.failed) ? snapshot.failed : []),
+        keptAt: (snapshot && snapshot.keptAt) || 0,
         // the items' Wowhead section is the raid's version ("" = no links, never TBC's in its place)
         wowheadPath: links.versionId === versionId ? links.wowheadPath : "",
     };

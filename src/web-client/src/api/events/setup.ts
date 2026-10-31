@@ -64,6 +64,8 @@ export type SetupPerson = {
     characters?: SetupCharacter[];
     /** #1036: leads this raid — exactly one slot per raid of the proposal carries it. */
     leader?: boolean;
+    /** #1037: why loot put them into this raid — the client says it in its own language. */
+    lootReason?: SetupLootReason;
     name: string;
     classColor: string;
     classLabel: string;
@@ -97,23 +99,38 @@ export type SetupChecks = {
     loot?: SetupLootCheck;
 };
 
+/** Who wants a listed item in one raid (#1037), with where the wish comes from. */
+export type SetupLootRaid = {
+    eventId: string;
+    title: string;
+    raiders: { userId: string; character: string; source: "softres" | "bis" | "" }[];
+};
+
 /**
- * One item more than one placed raider wants (#1037). `spec` = the spec fallback: `name` is the spec's
- * label and there is no item behind it. `conflictIn` = the raids where more than one wants it.
+ * A real item (Softres, BiS minus gear) more than one placed raider wants in the same raid (#1037).
+ * `conflictIn` = those raids, `raids` = every raid it is wanted in. Spec overlaps only weigh in the
+ * proposal and are never listed.
  */
 export type SetupLootItem = {
-    itemId: number | string;
+    itemId: number;
     name: string;
     icon: string;
     quality: number | null;
-    spec: boolean;
     count: number;
     eventIds: string[];
     conflictIn: string[];
+    raids: SetupLootRaid[];
 };
+
+/** A placed raider's loot reason (#1037), for the page's language; `text` is the German one in `reasons`. */
+export type SetupLootReason =
+    | { kind: "only"; text: string; item: string }
+    | { kind: "raid"; text: string; item: string; raid: string; other: string }
+    | { kind: "spec"; text: string; raid: string; other: string };
 
 export type SetupLootCheck = {
     on: boolean;
+    /** the number of listed items */
     conflicts: number;
     items: SetupLootItem[];
     /** how many placed raiders each source covers */
@@ -127,6 +144,10 @@ export type SetupLootStatus = {
     counts: { signups: number; gear: number; softres: number; bis: number; spec: number } | null;
     /** when the stored data was gathered (ms), 0 = never */
     at: number;
+    /** the sources the last load could not reach (softres, armory, logs, all) */
+    failed?: string[];
+    /** when the older data that stayed in place was gathered (ms), 0 = nothing kept */
+    keptAt?: number;
     /** the Wowhead section of the raid's version, "" = no item links */
     wowheadPath?: string;
 };

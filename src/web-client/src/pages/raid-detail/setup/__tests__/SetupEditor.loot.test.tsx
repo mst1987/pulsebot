@@ -1,7 +1,8 @@
-// "Loot verteilen" in the setup editor (#1037): "Loot: n Überschneidungen" in the summary line, the
-// list of contested items in "Details" (item links to Wowhead of the raid's version, spec wishes as text),
-// the status of the loaded data, and "Loot-Daten laden" — the POST with `loadLoot`, polling while the
-// job runs and a new proposal once it is done. The API is mocked at its transport.
+// "Loot verteilen" in the setup editor (#1037): "Loot: n Items mehrfach in einem Raid" in the summary
+// line, the list of contested items in "Details" (item links to Wowhead of the raid's version, who wants
+// each item in which raid, the source as a small word), the status of the loaded data and of sources that
+// could not be reached, and "Loot-Daten laden" — the POST with `loadLoot`, polling while the job runs and
+// then only the hint "Neu vorschlagen?" (no proposal on its own). The API is mocked at its transport.
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -12,17 +13,23 @@ import { renderPage } from "../../../../test/render";
 import { editorData, setupCtx } from "../../../../test/fixtures/setupEditor";
 import SetupEditor from "../SetupEditor";
 import { LootPanel } from "../LootPanel";
+import { clock } from "../setupText";
 
 vi.mock("../../../../api/client", async (orig) => ({ ...(await orig<typeof import("../../../../api/client")>()), get: vi.fn(), send: vi.fn() }));
 
 const CHECK: SetupLootCheck = {
     on: true,
-    conflicts: 2,
+    conflicts: 1,
     sources: { softres: 6, bis: 3, spec: 1, none: 0 },
     items: [
-        // invented ids: the test checks the link, not the game data
-        { itemId: 900001, name: "Testklinge", icon: "", quality: 4, spec: false, count: 3, eventIds: ["e1", "e2"], conflictIn: ["e1"] },
-        { itemId: "spec:Mage-Fire", name: "Feuer-Magier", icon: "", quality: null, spec: true, count: 2, eventIds: ["e1", "e2"], conflictIn: [] },
+        // invented ids and names: the test checks the rendering, not the game data
+        {
+            itemId: 900001, name: "Testklinge", icon: "", quality: 4, count: 3, eventIds: ["e1", "e2"], conflictIn: ["e1"],
+            raids: [
+                { eventId: "e1", title: "Kara 1", raiders: [{ userId: "u1", character: "Heilbert", source: "softres" }, { userId: "u2", character: "Berserker", source: "bis" }] },
+                { eventId: "e2", title: "Kara 3", raiders: [{ userId: "u3", character: "Schurki", source: "" }] },
+            ],
+        },
     ],
 };
 const STORED: SetupLootStatus = { job: null, progress: null, counts: { signups: 50, gear: 31, softres: 10, bis: 5, spec: 3 }, at: Date.now(), wowheadPath: "tbc" };
@@ -33,20 +40,21 @@ function lootData(loot: SetupLootStatus | null = STORED, check: SetupLootCheck |
 }
 
 describe("LootPanel (#1037)", () => {
-    it("lists the contested items with Wowhead links of the raid's version, spec wishes as plain text", () => {
+    it("lists the contested items with Wowhead links and who wants them in which raid", () => {
         render(<LootPanel status={STORED} check={CHECK} busy={false} onLoad={() => {}} />);
         const list = screen.getByRole("list", { name: t("setup.loot.listAria") });
         const items = within(list).getAllByRole("listitem");
-        expect(items).toHaveLength(2);
+        expect(items).toHaveLength(1);
         const link = within(items[0]).getByRole("link");
         expect(link.getAttribute("href")).toContain("/tbc/item=900001");
         expect(items[0]).toHaveTextContent(t("setup.loot.wanted", { count: 3 }));
-        expect(items[0]).toHaveTextContent(t("setup.loot.conflictIn", { count: 1 }));
-        expect(within(items[1]).queryByRole("link")).toBeNull();
-        expect(items[1]).toHaveTextContent(`${t("setup.loot.specItem")}: Feuer-Magier`);
-        expect(items[1]).toHaveTextContent(t("setup.loot.spread"));
+        const raids = within(items[0]).getByLabelText(t("setup.loot.raidsAria"));
+        expect(raids).toHaveTextContent(`Kara 1: Heilbert ${t("setup.loot.source.softres")}, Berserker ${t("setup.loot.source.bis")}`);
+        expect(raids).toHaveTextContent("Kara 3: Schurki");
         expect(screen.getByRole("status")).toHaveTextContent(t("setup.loot.status", { gear: 31, signups: 50 }));
         expect(screen.getByText(t("setup.loot.sources", CHECK.sources))).toBeInTheDocument();
+        // the count matches the list
+        expect(screen.getByText(t("setup.loot.conflicts", { count: 1 }))).toBeInTheDocument();
         expect(screen.getByRole("button", { name: t("setup.loot.reload") })).toBeEnabled();
     });
 
@@ -69,6 +77,29 @@ describe("LootPanel (#1037)", () => {
         expect(screen.queryByRole("list")).toBeNull();
         expect(screen.getByRole("button", { name: t("setup.loot.load") })).toBeEnabled();
     });
+
+    it("names an unreachable source and the time of the data that stays", () => {
+        const keptAt = Date.now() - 3600_000;
+        render(<LootPanel status={{ ...STORED, job: { status: "error", error: "x" }, failed: ["softres"], keptAt }} check={CHECK} busy={false} onLoad={() => {}} />);
+        expect(screen.getByText(t("setup.loot.unreachable", { sources: t("setup.loot.source.softres"), time: clock(keptAt) }))).toBeInTheDocument();
+        // the unreachable line replaces the raw job error
+        expect(screen.queryByText(t("setup.loot.failed", { error: "x" }))).toBeNull();
+    });
+
+    it("names an unreachable source without kept data", () => {
+        render(<LootPanel status={{ ...STORED, failed: ["armory"], keptAt: 0 }} check={CHECK} busy={false} onLoad={() => {}} />);
+        expect(screen.getByText(t("setup.loot.unreachableNoKept", { sources: t("setup.loot.source.armory") }))).toBeInTheDocument();
+    });
+
+    it("offers a new proposal once the data is loaded, only on a click", async () => {
+        const user = userEvent.setup();
+        const onPropose = vi.fn();
+        render(<LootPanel status={STORED} check={CHECK} busy={false} onLoad={() => {}} ready onPropose={onPropose} />);
+        expect(screen.getByText(t("setup.loot.loaded"))).toBeInTheDocument();
+        expect(onPropose).not.toHaveBeenCalled();
+        await user.click(screen.getByRole("button", { name: t("setup.loot.propose") }));
+        expect(onPropose).toHaveBeenCalledTimes(1);
+    });
 });
 
 describe("Loot verteilen im Setup-Editor (#1037)", () => {
@@ -85,15 +116,15 @@ describe("Loot verteilen im Setup-Editor (#1037)", () => {
         await screen.findByRole("region", { name: t("setup.group.title", { index: 1 }) });
     }
 
-    it("counts the overlaps in the summary line, and says nothing while the goal is off", async () => {
+    it("counts the listed items in the summary line", async () => {
         await show();
-        expect(screen.getByLabelText(t("setup.line.aria"))).toHaveTextContent(t("setup.loot.line", { count: 2 }));
+        expect(screen.getByLabelText(t("setup.line.aria"))).toHaveTextContent(t("setup.loot.line", { count: 1 }));
     });
 
     it("says nothing in the line without the goal", async () => {
         page = lootData(STORED, { ...CHECK, on: false });
         await show();
-        expect(screen.getByLabelText(t("setup.line.aria"))).not.toHaveTextContent(t("setup.loot.line", { count: 2 }));
+        expect(screen.getByLabelText(t("setup.line.aria"))).not.toHaveTextContent(t("setup.loot.line", { count: 1 }));
     });
 
     it("hides the panel from who gets no loot status (no raid group, no orga)", async () => {
@@ -105,7 +136,7 @@ describe("Loot verteilen im Setup-Editor (#1037)", () => {
         expect(screen.queryByRole("button", { name: t("setup.loot.reload") })).toBeNull();
     });
 
-    it("starts the job with loadLoot, polls while it runs and proposes anew once it is done", async () => {
+    it("starts the job with loadLoot, polls while it runs, then only offers a new proposal", async () => {
         const user = userEvent.setup();
         page = lootData({ ...STORED, counts: null, at: 0 }, undefined);
         await show();
@@ -118,11 +149,17 @@ describe("Loot verteilen im Setup-Editor (#1037)", () => {
         expect(posts()[0][2]).toMatchObject({ loadLoot: true });
         expect(await screen.findByRole("button", { name: t("setup.loot.loading") })).toBeDisabled();
 
-        // the job finishes: the next poll brings "done", and the editor proposes once more without loadLoot
+        // the job finishes during the polling: the hint appears, the setup and the details stay
         page = lootData({ ...STORED, job: { status: "done", error: "" } });
         vi.mocked(client.get).mockImplementation(() => Promise.resolve(page));
         vi.mocked(client.send).mockImplementation(() => Promise.resolve(page));
         await act(async () => { await new Promise((r) => setTimeout(r, 3100)); });
+        expect(await screen.findByText(t("setup.loot.loaded"))).toBeInTheDocument();
+        expect(posts()).toHaveLength(1);
+        expect(screen.getByRole("button", { name: t("setup.loot.reload") })).toBeInTheDocument();
+
+        // only the click proposes anew, without loadLoot
+        await user.click(screen.getByRole("button", { name: t("setup.loot.propose") }));
         await waitFor(() => expect(posts()).toHaveLength(2));
         expect(posts()[1][2]).not.toHaveProperty("loadLoot");
     }, 10000);

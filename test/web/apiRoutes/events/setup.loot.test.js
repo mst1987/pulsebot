@@ -126,10 +126,61 @@ describe("loot in GET /api/raids/setup (#1037)", () => {
         expect(view.loot.wowheadPath).toBe("tbc");
     });
 
+    it("names the sources the last load could not reach and the time of the data that stayed", async () => {
+        const sibling = await addRaid();
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], counts: { signups: 5 }, failed: ["softres"], keptAt: 1234 });
+        const view = body(await api.get("/api/raids/setup", { event: sibling }));
+        expect(view.loot).toMatchObject({ failed: ["softres"], keptAt: 1234 });
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"] });
+        expect(body(await api.get("/api/raids/setup", { event: sibling })).loot).toMatchObject({ failed: [], keptAt: 0 });
+    });
+
     it("is null for a single raid and missing for a raider", async () => {
         expect(body(await api.get("/api/raids/setup", { event: primary.id })).loot).toBeNull();
         await addRaid();
         mockUser = RAIDER;
         expect(body(await api.get("/api/raids/setup", { event: primary.id })).loot).toBeUndefined();
+    });
+});
+
+describe("a manual save of a raid group keeps the loot (#1037)", () => {
+    // an invented item id: the test checks the bookkeeping, not the game data
+    const ITEM = 900001;
+    const want = { items: [{ itemId: ITEM, weight: 1 }], source: "softres" };
+
+    beforeEach(() => {
+        signupStore.saveSignup(primary.id, "h1", { character: "H1", spec: "Priest-Holy", status: "signed" }, { versionId: "tbc" });
+        signupStore.saveSignup(primary.id, "h2", { character: "H2", spec: "Priest-Holy", status: "signed" }, { versionId: "tbc" });
+    });
+
+    const put = (event, version, slots) => api.request("PUT", "/api/raids/setup", { event, version, groups: [{ index: 1, slots }], bench: [] });
+
+    it("PUT on one raid values the whole group: checks.loot here, and the other raid follows", async () => {
+        const sibling = await addRaid();
+        saveSetupLoot(primary.id, {
+            versionId: "tbc", instanceIds: ["kara"],
+            wants: { u1: { u1: want }, h1: { h1: want }, h2: { h2: want } },
+            items: { [ITEM]: { name: "Testklinge", icon: "", quality: 4 } },
+        });
+        expect(status(await put(sibling, 0, [{ userId: "h2", spec: "Priest-Holy" }]))).toBe(200);
+        const r = await put(primary.id, 0, [{ userId: "u1", spec: "Warrior-Fury" }, { userId: "h1", spec: "Priest-Holy" }]);
+        expect(status(r)).toBe(200);
+
+        const own = eventStore.getEvent(primary.id).setup;
+        expect(own.checks.loot).toMatchObject({ on: true, conflicts: 1 });
+        expect(own.checks.loot.items.map((i) => i.itemId)).toEqual([ITEM]);
+        expect(own.checks.loot.items[0].conflictIn).toEqual([primary.id]);
+
+        // the other raid: same loot check, its own placement and version untouched
+        const other = eventStore.getEvent(sibling).setup;
+        expect(other.checks.loot).toEqual(own.checks.loot);
+        expect(other.groups[0].slots.map((s) => s.userId)).toEqual(["h2"]);
+        expect(other.version).toBe(1);
+    });
+
+    it("without loot data the save stays a single raid's evaluation", async () => {
+        await addRaid();
+        expect(status(await put(primary.id, 0, [{ userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+        expect(eventStore.getEvent(primary.id).setup.checks.loot).toBeUndefined();
     });
 });

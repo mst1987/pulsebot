@@ -275,12 +275,8 @@ function lootItemName(model, item) {
     return item.name || `Item ${item.itemId}`;
 }
 
-/**
- * `checks.loot`: the conflicts (a raid and an item more than one placed raider wants),
- * the items wanted more than once across the raids, and how many placed raiders each
- * source covers. Only with loot on - otherwise the checks keep their old shape.
- */
-function lootCheck(model, state, placement) {
+/** How many placed raiders each source covers. */
+function lootSources(model, state) {
     const sources = { softres: 0, bis: 0, spec: 0, none: 0 };
     for (const c of model.cands) {
         const o = state.opt[c.idx];
@@ -288,51 +284,90 @@ function lootCheck(model, state, placement) {
         const src = c.options[o].lootSource;
         sources[src && sources[src] !== undefined ? src : "none"]++;
     }
+    return sources;
+}
+
+/** One raid of a listed item: who wants it there, with the source of the wish. */
+function lootRaidOf(model, state, e, list) {
+    const event = model.events[e];
+    return {
+        eventId: event.id,
+        title: event.title || event.id,
+        raiders: list.map((c) => {
+            const o = model.cands[c].options[state.opt[c]];
+            return { userId: model.cands[c].userId, character: o.character, source: o.lootSource || "" };
+        }),
+    };
+}
+
+/**
+ * `checks.loot`: the real items (Softres, BiS minus gear) more than one placed raider wants
+ * in the same raid, each with every raid it is wanted in and who wants it there, and how many
+ * placed raiders each source covers. `conflicts` is the number of listed items, so the summary
+ * matches the list. Spec overlaps (the fallback without data) only weigh in the score: they name
+ * no item the orga could check. Only with loot on - otherwise the checks keep their old shape.
+ */
+function lootCheck(model, state, placement) {
     const byItem = new Map();
     placement.forEach((map, e) => {
         for (const [i, list] of map) {
-            if (!byItem.has(i)) byItem.set(i, { count: 0, eventIds: [], conflictIn: [] });
+            if (model.loot.items[i].spec) continue;
+            if (!byItem.has(i)) byItem.set(i, { count: 0, eventIds: [], conflictIn: [], raids: [] });
             const entry = byItem.get(i);
             entry.count += list.length;
             entry.eventIds.push(model.events[e].id);
+            entry.raids.push(lootRaidOf(model, state, e, list));
             if (list.length > 1) entry.conflictIn.push(model.events[e].id);
         }
     });
-    let conflicts = 0;
     const items = [];
     for (const [i, entry] of byItem) {
-        conflicts += entry.conflictIn.length;
-        if (entry.count < 2) continue;
+        if (!entry.conflictIn.length) continue;
         const item = model.loot.items[i];
-        items.push({ itemId: item.itemId, name: lootItemName(model, item), icon: item.icon, quality: item.quality, spec: item.spec, ...entry });
+        items.push({ itemId: item.itemId, name: lootItemName(model, item), icon: item.icon, quality: item.quality, ...entry });
     }
     items.sort((a, b) => b.conflictIn.length - a.conflictIn.length || b.count - a.count || String(a.itemId).localeCompare(String(b.itemId)));
-    return { on: true, conflicts, items, sources };
+    return { on: true, conflicts: items.length, items, sources: lootSources(model, state) };
 }
 
 /**
  * The loot reason of a placed raider (#1037): the item they share with nobody in their raid
- * while somebody in another raid wants it - "Teilt Zwillingsklinge mit niemandem im Raid",
- * for the spec fallback "Wegen Loot in PuG 3". Null when loot is off or explains nothing.
+ * while somebody in another raid wants it - in the first such raid "Als Einziger im Raid an
+ * Zwillingsklinge interessiert", in a later one "In PuG 3, weil Zwillingsklinge in PuG 1 schon
+ * gewollt wird"; for the spec fallback (no item to name) "In PuG 3, weil in PuG 1 schon jemand mit derselben Spec
+ * Loot braucht". Null when loot is off or explains nothing. `kind`, `item`, `raid` and `other` let the
+ * web client say it in the page's language (`text` is the German reason in `reasons`).
  */
 function lootReason(model, state, placement, c) {
     if (!placement) return null;
     const o = model.cands[c].options[state.opt[c]];
     if (!o.loot) return null;
+    const elsewhere = (want) => placement.findIndex((map, e) => e !== o.eventIdx && map.has(want.i));
     const best = o.loot
         .filter((want) => {
             const here = placement[o.eventIdx].get(want.i);
-            if (!here || here.length !== 1) return false;
-            return placement.some((map, e) => e !== o.eventIdx && map.has(want.i));
+            return !!here && here.length === 1 && elsewhere(want) >= 0;
         })
         .sort((a, b) => b.w - a.w || a.i - b.i)[0];
     if (!best) return null;
     const item = model.loot.items[best.i];
+    const titleOf = (e) => model.events[e].title || model.events[e].id;
     if (item.spec) {
-        const event = model.events[o.eventIdx];
-        return { text: `Wegen Loot in ${event.title || event.id}`, raid: true };
+        const raid = titleOf(o.eventIdx);
+        const other = titleOf(elsewhere(best));
+        const text = `In ${raid}, weil in ${other} schon jemand mit derselben Spec Loot braucht`;
+        return { text, raid: true, field: { kind: "spec", text, raid, other } };
     }
-    return { text: `Teilt ${lootItemName(model, item)} mit niemandem im Raid`, raid: false };
+    const name = lootItemName(model, item);
+    const before = placement.findIndex((map, e) => e < o.eventIdx && map.has(best.i));
+    if (before >= 0) {
+        const raid = titleOf(o.eventIdx);
+        const other = titleOf(before);
+        const text = `In ${raid}, weil ${name} in ${other} schon gewollt wird`;
+        return { text, raid: true, field: { kind: "raid", text, item: name, raid, other } };
+    }
+    const text = `Als Einziger im Raid an ${name} interessiert`;
+    return { text, raid: false, field: { kind: "only", text, item: name } };
 }
 
 function eventChecks(model, facts, state, e) {
@@ -426,6 +461,12 @@ function markLeader(slot, event) {
     return { ...slot, leader: true, reasons: [...slot.reasons.slice(0, at), reason, ...slot.reasons.slice(at)] };
 }
 
+/** The slot with its `lootReason` (#1037) when one stands in its reasons - no key otherwise. */
+function withLootReason(slot, model, state, lootAt, c) {
+    const loot = lootAt ? lootReason(model, state, lootAt, c) : null;
+    return loot && slot.reasons.includes(loot.text) ? { ...slot, lootReason: loot.field } : slot;
+}
+
 /** Turn the searched state into the serializable proposal. */
 function buildOutput(model, scorer, state, { version, weights }) {
     model.weightsEffective = weights;
@@ -441,7 +482,7 @@ function buildOutput(model, scorer, state, { version, weights }) {
                 .slice()
                 .sort((a, b) => ROLE_ORDER[a.opt.role] - ROLE_ORDER[b.opt.role] || a.cand.idx - b.cand.idx)
                 .map((m) => {
-                    const slot = slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits, lootAt));
+                    const slot = withLootReason(slotOf(model, state, m.cand.idx, slotReasons(model, facts, state, m.cand.idx, ev.credits, lootAt)), model, state, lootAt, m.cand.idx);
                     return m.cand.idx === leader ? markLeader(slot, event) : slot;
                 }),
         }));

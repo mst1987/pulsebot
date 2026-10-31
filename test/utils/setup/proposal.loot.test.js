@@ -81,9 +81,16 @@ describe("loot in the setup proposal (#1037)", () => {
         expect(raidOf(out, "d0")).not.toBeNull();
         expect(raidOf(out, "d5")).not.toBeNull();
         expect(raidOf(out, "d0")).not.toBe(raidOf(out, "d5"));
-        expect(slotOf(out, "d0").reasons).toContain("Teilt Zwillingsklinge mit niemandem im Raid");
-        expect(out.checks.loot).toEqual(expect.objectContaining({ on: true, conflicts: 0 }));
-        expect(out.checks.loot.items[0]).toEqual(expect.objectContaining({ itemId: 900001, name: "Zwillingsklinge", icon: "inv_sword_1", count: 2, conflictIn: [] }));
+        // the first raid: the only one there; the later raid names why it is not the first
+        const [first, later] = raidOf(out, "d0") === "kara1" ? ["d0", "d5"] : ["d5", "d0"];
+        expect(slotOf(out, first).reasons).toContain("Als Einziger im Raid an Zwillingsklinge interessiert");
+        expect(slotOf(out, first).lootReason).toEqual({ kind: "only", text: "Als Einziger im Raid an Zwillingsklinge interessiert", item: "Zwillingsklinge" });
+        const text = "In Kara 2, weil Zwillingsklinge in Kara 1 schon gewollt wird";
+        expect(slotOf(out, later).reasons).toContain(text);
+        expect(slotOf(out, later).reasons.some((r) => r.startsWith("Eingeteilt in"))).toBe(false);
+        expect(slotOf(out, later).lootReason).toEqual({ kind: "raid", text, item: "Zwillingsklinge", raid: "Kara 2", other: "Kara 1" });
+        // nothing is wanted twice in one raid: the list is empty and the count matches it
+        expect(out.checks.loot).toEqual(expect.objectContaining({ on: true, conflicts: 0, items: [] }));
         expect(out.checks.loot.sources).toEqual({ softres: 2, bis: 0, spec: 0, none: 18 });
         expect(out.score.parts.loot).toBe(0);
     });
@@ -97,9 +104,12 @@ describe("loot in the setup proposal (#1037)", () => {
         });
         const out = buildSetupProposal(input);
         expect(raidOf(out, "d4")).not.toBe(raidOf(out, "d9"));
-        const reasons = slotOf(out, "d4").reasons;
-        expect(reasons).toContain(`Wegen Loot in ${raidOf(out, "d4") === "kara1" ? "Kara 1" : "Kara 2"}`);
-        expect(reasons.some((r) => r.startsWith("Eingeteilt in"))).toBe(false);
+        const later = raidOf(out, "d4") === "kara1" ? "d9" : "d4";
+        expect(slotOf(out, later).reasons).toContain("In Kara 2, weil in Kara 1 schon jemand mit derselben Spec Loot braucht");
+        expect(slotOf(out, later).reasons.some((r) => r.startsWith("Eingeteilt in"))).toBe(false);
+        // spec overlaps only weigh in the score: never listed, never counted
+        expect(out.checks.loot.items).toEqual([]);
+        expect(out.checks.loot.conflicts).toBe(0);
     });
 
     it("roles come first: four tanks wanting one item still fill both raids with two tanks", () => {
@@ -110,7 +120,11 @@ describe("loot in the setup proposal (#1037)", () => {
             expect(ev.checks.roles.tank.count).toBe(2);
             expect(ev.checks.size.count).toBe(10);
         }
-        expect(out.checks.loot.conflicts).toBe(2);
+        // one item, wanted twice in both raids: one list entry, the count matches the list
+        expect(out.checks.loot.conflicts).toBe(1);
+        expect(out.checks.loot.items).toHaveLength(1);
+        expect(out.checks.loot.items[0].conflictIn.sort()).toEqual(["kara1", "kara2"]);
+        expect(out.checks.loot.items[0].raids.map((r) => r.raiders.length)).toEqual([2, 2]);
         expect(out.score.parts.loot).toBeLessThan(0);
     });
 
@@ -130,6 +144,25 @@ describe("loot in the setup proposal (#1037)", () => {
         expect(out.bench).toEqual([]);
         for (const ev of out.events) for (const g of ev.groups) for (const s of g.slots) expect(s.locked).toBe(false);
         for (const p of out.pool) expect(p.locked).toBeFalsy();
+    });
+
+    it("never decides who gets a place: an overbooked group keeps the same pool with and without loot", () => {
+        // 2 x 10 places, 21 signups - one raider must stay in the pool
+        const input = group(2, base(2));
+        input.signups.push(...["kara1", "kara2"].map((eventId) => su("x0", "Mage-Fire", { eventId, at: 999 })));
+        const ids = (list) => list.map((p) => p.userId).sort();
+        const plain = buildSetupProposal(input);
+        expect(plain.pool).toHaveLength(1);
+        // every dps but the pool raider wants something shared, the pool raider wants nothing
+        const wants = {};
+        input.signups.filter((s) => s.eventId === "kara1" && s.userId.startsWith("d")).forEach((s, i) => {
+            wants[s.userId] = { [s.userId]: softres(900010 + (i % 3)) };
+        });
+        const withLoot = buildSetupProposal({ ...input, loot: loot(wants) });
+        expect(ids(withLoot.pool)).toEqual(ids(plain.pool));
+        expect(ids(withLoot.bench)).toEqual(ids(plain.bench));
+        const placed = (out) => out.events.flatMap((e) => e.groups.flatMap((g) => g.slots.map((s) => s.userId))).sort();
+        expect(placed(withLoot)).toEqual(placed(plain));
     });
 
     it("has no effect with one raid: same output, no checks.loot, no part", () => {
@@ -216,6 +249,10 @@ describe("loot in the setup proposal (#1037)", () => {
             expect(leadersOk(withLoot)).toBe(leadersOk(without));
             expect(ok(withLoot)).toHaveLength(input.events.length);
             expect(withLoot.bench).toEqual(without.bench);
+            // loot never decides who gets a place: the same people in the pool and on the bench
+            const ids = (list) => list.map((p) => p.userId).sort();
+            expect(ids(withLoot.pool)).toEqual(ids(without.pool));
+            expect(ids(withLoot.bench)).toEqual(ids(without.bench));
         }
     });
 });
