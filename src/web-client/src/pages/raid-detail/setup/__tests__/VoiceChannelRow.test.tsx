@@ -7,6 +7,7 @@ import * as client from "../../../../api/client";
 import type { VoiceRaid } from "../../../../api";
 import { t } from "../../../../i18n";
 import { formatTime, formatWeekday } from "../../../../lib/format";
+import { switchLang } from "../../../../test/i18n";
 import { renderPage } from "../../../../test/render";
 import VoiceChannelRow from "../VoiceChannelRow";
 import { voiceStateLine } from "../voiceState";
@@ -110,10 +111,23 @@ describe("VoiceChannelRow", () => {
     });
 
     it("warns about missing rights and an offline bot", async () => {
-        serve({ missingRights: ["Kanäle verwalten", "Mitglieder verschieben"] }, false);
+        serve({ missingRights: ["ManageChannels", "MoveMembers"] }, false);
         show();
-        expect(await screen.findByText(t("channels.voiceRow.missingRights", { rights: "Kanäle verwalten, Mitglieder verschieben" }))).toBeInTheDocument();
+        const rights = [t("settings.categories.tempRight.ManageChannels"), t("settings.categories.tempRight.MoveMembers")].join(", ");
+        expect(await screen.findByText(t("channels.voiceRow.missingRights", { rights }))).toBeInTheDocument();
+        expect(rights).not.toContain("ManageChannels");
         expect(screen.getByText(t("channels.voiceRow.botOffline"))).toBeInTheDocument();
+    });
+
+    it("names the missing rights in the page's language, not the API's keys", async () => {
+        serve({ missingRights: ["ManageChannels", "MoveMembers"] });
+        await switchLang("en");
+        try {
+            show();
+            expect(await screen.findByText(t("channels.voiceRow.missingRights", { rights: "Manage Channels, Move Members" }))).toBeInTheDocument();
+        } finally {
+            await switchLang("de");
+        }
     });
 
     it("offers only Discord for a fixed channel and no actions without the right to write", async () => {

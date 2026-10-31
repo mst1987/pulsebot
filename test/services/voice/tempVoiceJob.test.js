@@ -41,7 +41,7 @@ jest.mock("../../../src/services/voice/tempVoiceDiscord", () => ({
     channelGone: jest.fn(async () => true),
     findCreatedVoice: jest.fn(() => null),
     memberCount: jest.fn(() => 0),
-    missingRights: jest.fn(() => []),
+    missingRightKeys: jest.fn(() => []),
     memberName: jest.fn((g, id) => (id === "u9" ? "Lahelo" : "")),
     channelName: jest.fn((g, id) => ({ [mockParent]: "Raids", [mockFixed]: "Raid-Talk" })[id] || ""),
     channelUrl: (g, c) => `https://discord.com/channels/${g}/${c}`,
@@ -290,6 +290,19 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ closedAt: START + 60, closeReason: "missing" });
             expect(voice.channelGone).toHaveBeenCalledTimes(1);
             expect(voice.closeVoice).not.toHaveBeenCalled();
+        });
+
+        it("does not reopen a channel deleted in Discord by itself, but 'Jetzt anlegen' does", async () => {
+            await openAt();
+            voice.memberCount.mockImplementation(() => null);
+            await job.runTempVoice({ now: START });
+            expect(tempVoiceStore.getEntry("eh-1").closeReason).toBe("missing");
+            expect((await job.runTempVoice({ now: START + 60 })).opened).toEqual([]);
+            expect(job.voiceStatus(raid(), { now: START + 60 })[0]).toMatchObject({ state: "closed", canOpen: true });
+            voice.memberCount.mockImplementation(() => 0);
+            expect(await job.openNow("eh-1", { now: START + 120 })).toEqual({ ok: true });
+            expect(voice.createVoice).toHaveBeenCalledTimes(2);
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-eh-1", closedAt: 0, closeReason: "", manual: true });
         });
 
         it("does not mark it missing without Discord's proof or while the server is unavailable", async () => {

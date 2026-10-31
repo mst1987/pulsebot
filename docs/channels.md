@@ -88,7 +88,7 @@ Setup-Editor zeigt „geschlossen"), dann räumt `prune()` sie weg. Nach `limit`
 öffnet der Job den Kanal nicht von selbst wieder; „Jetzt anlegen" geht bis zum spätesten Schließen.
 
 **Bot-Rechte** (`src/services/voice/tempVoiceDiscord.js`): **Kanäle verwalten** und **Mitglieder verschieben**, für
-„Nur Eingeteilte" zusätzlich **Berechtigungen verwalten**. Fehlt eines, nennt es die Setup-Zeile (`missingRights`); der Job schreibt den Fehler an den Eintrag statt zu werfen.
+„Nur Eingeteilte" zusätzlich **Berechtigungen verwalten**. Fehlt eines, nennt es die Setup-Zeile (`missingRights` als Discord-Rechtenamen wie `MoveMembers`, der Client übersetzt sie); der Job schreibt den Fehler an den Eintrag statt zu werfen.
 Die Einstellungen zeigen es schon vorher: `GET /api/settings` liefert `tempVoiceRights` (je Discord-Kategorie, `""` = der
 Server, nur für den Server der Einstellungen; `null`, solange der Bot es nicht weiß), `TempVoiceFields` warnt unter der
 gewählten Kategorie. Eine neu gewählte Discord-Kategorie muss auf dem aktiven Server liegen (sonst 403 `other_server`;

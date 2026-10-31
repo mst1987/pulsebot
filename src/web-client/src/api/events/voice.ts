@@ -24,7 +24,7 @@ export type VoiceRaid = {
     limitAt?: number;
     parentName?: string;
     error?: string;
-    /** The rights the bot lacks under the channel's Discord category (their German labels). */
+    /** The rights the bot lacks under the channel's Discord category (Discord permission names such as "MoveMembers"; the page names them via settings.categories.tempRight). */
     missingRights?: string[];
     closeReason?: string;
     closedAt?: number;

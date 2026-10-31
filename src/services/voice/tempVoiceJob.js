@@ -337,7 +337,7 @@ function voiceStatus(event, { now = nowSeconds(), config = getConfig() || {} } =
                 url: voice.channelUrl(raid.guildId, fixed), members: voice.memberCount(raid.guildId, fixed),
             };
         }
-        const missing = voice.missingRights(raid.guildId, plan);
+        const missing = voice.missingRightKeys(raid.guildId, plan);
         const creating = opening.has(raid.id) || isCreating(entry);
         const out = {
             ...base, kind: "temp", name: isOpen(entry) ? entry.name || plan.name : plan.name,

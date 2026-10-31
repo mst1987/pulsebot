@@ -71,15 +71,15 @@ describe("services/voice/tempVoiceDiscord", () => {
         expect(voice.channelUrl("g1", "")).toBe("");
     });
 
-    describe("missingRights", () => {
-        it("names what the bot lacks, checked in the Discord category", () => {
+    describe("missingRightKeys", () => {
+        it("names what the bot lacks as Discord permission names, checked in the Discord category", () => {
             mockGuild.channels.cache.set("p1", makeChannel(mockGuild, { id: "p1", permissionsFor: () => perms(F.ManageChannels) }));
-            expect(voice.missingRights("g1", { parentId: "p1" })).toEqual(["Mitglieder verschieben"]);
-            expect(voice.missingRights("g1", { parentId: "p1", onlyAssigned: true })).toEqual(["Mitglieder verschieben", "Berechtigungen verwalten"]);
-            expect(voice.missingRights("g1", {})).toEqual([]);
+            expect(voice.missingRightKeys("g1", { parentId: "p1" })).toEqual(["MoveMembers"]);
+            expect(voice.missingRightKeys("g1", { parentId: "p1", onlyAssigned: true })).toEqual(["MoveMembers", "ManageRoles"]);
+            expect(voice.missingRightKeys("g1", {})).toEqual([]);
         });
 
-        it("gives the Discord permission names for the settings page", () => {
+        it("asks for managing permissions only with 'only assigned'", () => {
             mockGuild.channels.cache.set("p1", makeChannel(mockGuild, { id: "p1", permissionsFor: () => perms(F.MoveMembers) }));
             expect(voice.missingRightKeys("g1", { parentId: "p1", onlyAssigned: true })).toEqual(["ManageChannels", "ManageRoles"]);
             expect(voice.missingRightKeys("g1", { parentId: "p1" })).toEqual(["ManageChannels"]);
@@ -87,7 +87,6 @@ describe("services/voice/tempVoiceDiscord", () => {
 
         it("knows nothing while the bot is not on the server", () => {
             mockGuild = null;
-            expect(voice.missingRights("g1")).toBeNull();
             expect(voice.missingRightKeys("g1")).toBeNull();
         });
     });

@@ -60,7 +60,8 @@ export default function VoiceChannelRow({ eventId, canWrite = true }: { eventId:
         const url = raid.url;
         items.push({ id: "discord", label: t("channels.voiceRow.inDiscord"), icon: "discord", onSelect: () => window.open(url, "_blank", "noopener") });
     }
-    const missing = raid.missingRights || [];
+    // Discord permission names from the API ("MoveMembers"), named in the page's language.
+    const missing = (raid.missingRights || []).map((key) => t(`settings.categories.tempRight.${key}`));
 
     return (
         <div className="se-voice" data-state={raid.state}>

@@ -8,12 +8,10 @@ const linkCheck = require("../discord/linkCheck");
 const F = PermissionsBitField.Flags;
 
 // What the bot needs for the channels: create/delete them, move people out at the
-// latest close and, with "only assigned", set who may join.
-const RIGHTS = [
-    { key: "ManageChannels", label: "Kanäle verwalten" },
-    { key: "MoveMembers", label: "Mitglieder verschieben" },
-];
-const RIGHTS_ONLY_ASSIGNED = [{ key: "ManageRoles", label: "Berechtigungen verwalten" }];
+// latest close and, with "only assigned", set who may join. Discord permission names;
+// the web client names them in its own language.
+const RIGHTS = ["ManageChannels", "MoveMembers"];
+const RIGHTS_ONLY_ASSIGNED = ["ManageRoles"];
 // How long fetching the assigned that are not cached may take before the cache alone decides.
 const MEMBER_FETCH_MS = 5000;
 // Discord's "Unknown Channel" - the only answer that proves a channel is gone.
@@ -38,18 +36,10 @@ function channelOf(guildId, channelId) {
 const channelUrl = (guildId, channelId) => linkCheck.channelLink(guildId, channelId);
 
 /**
- * The rights the bot misses for the channels, as labels ("Mitglieder verschieben");
- * checked in the Discord category when it is known. Null when nothing can be known
- * (bot not on the server or not connected).
- */
-function missingRights(guildId, options = {}) {
-    const keys = missingRightKeys(guildId, options);
-    return keys && keys.map((key) => [...RIGHTS, ...RIGHTS_ONLY_ASSIGNED].find((r) => r.key === key).label);
-}
-
-/**
- * The same as Discord permission names ("MoveMembers"), for the settings page that
- * names them in its own language. Null when nothing can be known.
+ * The rights the bot misses for the channels, as Discord permission names
+ * ("MoveMembers"); the web client names them in its own language. Checked in the
+ * Discord category when it is known. Null when nothing can be known (bot not on the
+ * server or not connected).
  */
 function missingRightKeys(guildId, { parentId = "", onlyAssigned = false } = {}) {
     const guild = discord.getGuild(guildId);
@@ -59,7 +49,7 @@ function missingRightKeys(guildId, { parentId = "", onlyAssigned = false } = {})
     const perms = parent && typeof parent.permissionsFor === "function" ? parent.permissionsFor(me) : me.permissions;
     if (!perms) return null;
     const wanted = onlyAssigned ? [...RIGHTS, ...RIGHTS_ONLY_ASSIGNED] : RIGHTS;
-    return wanted.filter((r) => !perms.has(F[r.key])).map((r) => r.key);
+    return wanted.filter((key) => !perms.has(F[key]));
 }
 
 /**
@@ -289,6 +279,6 @@ function channelName(guildId, channelId) {
 }
 
 module.exports = {
-    RIGHTS, RIGHTS_ONLY_ASSIGNED, channelUrl, missingRights, missingRightKeys, onlyAssignedOverwrites, createVoice, renameVoice, syncMembers, setAccess,
+    RIGHTS, RIGHTS_ONLY_ASSIGNED, channelUrl, missingRightKeys, onlyAssignedOverwrites, createVoice, renameVoice, syncMembers, setAccess,
     channelGone, findCreatedVoice, memberCount, closeVoice, memberName, channelName,
 };
