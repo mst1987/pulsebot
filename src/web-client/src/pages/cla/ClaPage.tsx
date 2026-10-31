@@ -11,6 +11,7 @@ import Pager from "../../components/ui/table/Pager";
 import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
+import Switch from "../../components/ui/form/Switch";
 import PageHead from "../../components/ui/layout/PageHead";
 import WowIcon from "../../components/ui/icons/WowIcon";
 import "../../styles/logcheck.css";
@@ -76,13 +77,26 @@ export default function ClaPage() {
     // One game version at a time (#741): the menu's content version. A log without a raid
     // is listed under every version, a linked one only under its raid's (the server decides).
     const { version } = useContentVersion();
+    // "Nur meine Raids" (?mine=1): only logs one of the account's characters played in; the tab counts follow.
+    const mine = searchParams.get("mine") === "1";
     const cla = useApi(
-        () => (version ? getClaData(filter, sort, dir, page, version) : getClaData(filter, sort, dir, page)),
-        [filter, sort, dir, page, version],
+        () => {
+            if (mine) return getClaData(filter, sort, dir, page, version || undefined, true);
+            return version ? getClaData(filter, sort, dir, page, version) : getClaData(filter, sort, dir, page);
+        },
+        [filter, sort, dir, page, version, mine],
     );
     const { data } = cla;
 
     const switchFilter = (f: ClaFilter) => setFilter(f, (p) => { p.delete("page"); });
+
+    const switchMine = (on: boolean) => {
+        const next = new URLSearchParams(searchParams);
+        if (on) next.set("mine", "1");
+        else next.delete("mine");
+        next.delete("page");
+        setSearchParams(next);
+    };
 
     const sortBy = (key: string) => {
         const nextDir: Dir = sort === key ? (dir === "asc" ? "desc" : "asc") : (SORT_DEFAULTS[key] || "desc");
@@ -218,6 +232,7 @@ export default function ClaPage() {
                 <div className="part-head la-filter">
                     <FilterSegment value={data.filter} counts={data.counts} onChange={switchFilter} />
                     <div className="ph-act">
+                        <Switch checked={mine} onChange={switchMine} label={t("cla.mine.label")} tip={t("cla.mine.tip")} />
                         {data.autoMatchCount > 0 && (
                             <Button
                                 variant="ghost" size="sm" icon="simulate" running={automatching} onClick={automatch}
@@ -275,7 +290,7 @@ export default function ClaPage() {
                             <Pager page={list} onPage={goToPage} />
                         </>
                     )
-                    : <div className="empty">{filterMeta(data.filter).empty}</div>}
+                    : <div className="empty">{mine ? t("cla.mine.empty") : filterMeta(data.filter).empty}</div>}
             </div>
             <NewEvaluationDialog open={newOpen} onClose={() => setNewOpen(false)} onChanged={cla.reload} />
             <AssignDialog row={assignRow} onClose={() => setAssignRow(null)} onAssign={assign} onUnlink={unlink} />

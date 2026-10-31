@@ -81,6 +81,8 @@ jest.mock("../../../../src/services/logcheck/reportList", () => ({
     prepareClaList: jest.fn((...args) => jest.requireActual("../../../../src/services/logcheck/reportList").prepareClaList(...args)),
     claRowFromLog: jest.fn((...args) => jest.requireActual("../../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
+// "Nur meine Raids": the account's rows are tested in myLogs.test.js
+jest.mock("../../../../src/services/logcheck/myLogs", () => ({ mineFilter: jest.fn(() => () => false) }));
 jest.mock("../../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
@@ -198,6 +200,7 @@ const logStore = require("../../../../src/stores/loot/logStore");
 const { reportsOfGuild } = require("../../../../src/services/logcheck/reportGuild");
 const reportList = require("../../../../src/services/logcheck/reportList");
 const logEventMatch = require("../../../../src/services/logcheck/logEventMatch");
+const { mineFilter } = require("../../../../src/services/logcheck/myLogs");
 const logChannel = require("../../../../src/services/logcheck/logChannel");
 const evalJobs = require("../../../../src/web/logcheck/evalJobs");
 // Background jobs settle a microtask after they are queued.
@@ -259,6 +262,29 @@ describe("web/apiRoutes/cla", () => {
             expect(reportList.prepareClaList).toHaveBeenCalledWith(
                 [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function), guildId: "" },
             );
+        });
+
+        it("shows only the caller's raids with ?mine=1 and counts the tabs over those", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", guildId: "guild-1", eventId: "e1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
+                { id: "l2", guildId: "guild-1", reportRefId: "r2", sections: ["cla"], postedAt: 2000 },
+                { id: "l3", guildId: "guild-1", postedAt: 1000 },
+            ]);
+            reportStore.listReports.mockReturnValue([{ id: "r1" }, { id: "r2" }]);
+            mineFilter.mockImplementation((userId) => (row) => userId === "1" && Boolean(row.report && row.report.id === "r1"));
+
+            const data = json(await get("/api/cla", { mine: "1" })).data;
+            expect(mineFilter).toHaveBeenCalledWith("1");
+            expect(data.mine).toBe(true);
+            expect(data.page.items.map((r) => r.id)).toEqual(["l1"]);
+            expect(data.counts).toEqual({ all: 1, open: 0, unlinked: 0, done: 1 });
+
+            mineFilter.mockClear();
+            const all = json(await get("/api/cla")).data;
+            expect(mineFilter).not.toHaveBeenCalled();
+            expect(all.mine).toBe(false);
+            expect(all.page.items).toHaveLength(3);
         });
 
         it("reads title and bosses of the page's logs from WCL, and only of those", async () => {

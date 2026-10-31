@@ -368,6 +368,7 @@ Technik: [logcheck.md](logcheck.md)
 
 - Auswertung eines Warcraft-Logs: Kampfverlauf, Buffs/Debuffs, Cooldown-Nutzung, Heiler-Performance, vermeidbare Tode.
 - Empfehlungen je Raider prüfen, per KI umformulieren lassen, freigeben und per DM verschicken.
+- Der Schalter **Nur meine Raids** zeigt nur Logs, in denen einer deiner Charaktere (aus *Mein Profil* und den Kategorie-Zuordnungen, Abgleich über den Namen) mitgespielt hat; die Zahlen an den Reitern zählen dann nur diese. Ein Log zählt erst, wenn es ausgewertet ist — vorher kennt der Bot die Teilnehmer nicht. Der Zustand steht in der Adresse (`?mine=1`).
 - Ein Schutz verhindert versehentlich die Auswertung eines noch laufenden Raids (lässt sich mit Bestätigung übergehen). Details: [docs/logcheck.md](logcheck.md).
 
 ## Discord-Übersicht

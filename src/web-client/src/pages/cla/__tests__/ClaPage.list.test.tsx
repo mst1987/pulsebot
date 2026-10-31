@@ -354,6 +354,48 @@ describe("Log-Auswertung in English", () => {
     });
 });
 
+// "Nur meine Raids": a switch in the filter bar, kept in the URL (?mine=1); the server filters and counts.
+describe("ClaPage only my raids", () => {
+    afterEach(() => localStorage.clear());
+
+    it("is off by default and asks the API for my raids once switched on, back on page one", async () => {
+        const user = userEvent.setup();
+        show("/cla?page=2");
+        const toggle = await screen.findByRole("switch", { name: "Nur meine Raids" });
+        expect(toggle).not.toBeChecked();
+        expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 2);
+
+        await user.click(toggle);
+        await waitFor(() => expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, undefined, true));
+        expect(screen.getByTestId("where")).toHaveTextContent(/^\/cla\?mine=1$/);
+        expect(screen.getByRole("switch", { name: "Nur meine Raids" })).toBeChecked();
+
+        await user.click(screen.getByRole("switch", { name: "Nur meine Raids" }));
+        await waitFor(() => expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1));
+        expect(screen.getByTestId("where")).toHaveTextContent(/^\/cla$/);
+    });
+
+    it("opens switched on from ?mine=1, keeps the filter, and shows the server's counts", async () => {
+        serve([row()], { counts: { all: 1, open: 0, unlinked: 0, done: 1 }, mine: true });
+        show("/cla?filter=done&mine=1");
+        expect(await screen.findByRole("switch", { name: "Nur meine Raids" })).toBeChecked();
+        expect(api.getClaData).toHaveBeenLastCalledWith("done", "date", "desc", 1, undefined, true);
+        expect(screen.getByRole("radio", { name: /^Ausgewertet/ })).toHaveTextContent("1");
+    });
+
+    it("says why the list is empty, in German and English", async () => {
+        serve([]);
+        const first = show("/cla?mine=1");
+        expect(await screen.findByText("Keine ausgewerteten Logs mit einem deiner Charaktere.")).toBeInTheDocument();
+        first.unmount();
+
+        await switchLang("en");
+        show("/cla?mine=1");
+        expect(await screen.findByRole("switch", { name: "Only my raids" })).toBeChecked();
+        expect(screen.getByText("No evaluated logs with one of your characters.")).toBeInTheDocument();
+    });
+});
+
 // One game version at a time (#741): the list of the menu's version, loaded again on a switch.
 describe("ClaPage per game version", () => {
     it("asks for the shown version and loads again when the menu switches", async () => {
@@ -364,6 +406,15 @@ describe("ClaPage per game version", () => {
         expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, "tbc");
         await userEvent.click(within(screen.getAllByRole("radiogroup", { name: t(CONTENT_ARIA) })[0]).getByRole("radio", { name: "Forever" }));
         await waitFor(() => expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, "forever"));
+        localStorage.clear();
+    });
+
+    it("asks for my raids of the shown version", async () => {
+        localStorage.clear();
+        serve([row()]);
+        renderPage(<ClaPage />, { route: "/cla?mine=1", content: twoVersions() });
+        await screen.findByText("Hyjal Mittwoch");
+        expect(api.getClaData).toHaveBeenLastCalledWith("all", "date", "desc", 1, "tbc", true);
         localStorage.clear();
     });
 });
