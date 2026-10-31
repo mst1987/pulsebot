@@ -81,6 +81,8 @@ jest.mock("../../../../src/services/logcheck/reportList", () => ({
     prepareClaList: jest.fn((...args) => jest.requireActual("../../../../src/services/logcheck/reportList").prepareClaList(...args)),
     claRowFromLog: jest.fn((...args) => jest.requireActual("../../../../src/services/logcheck/reportList").claRowFromLog(...args)),
 }));
+// "Nur meine Raids": the account's rows are tested in myLogs.test.js
+jest.mock("../../../../src/services/logcheck/myLogs", () => ({ mineFilter: jest.fn(() => () => false) }));
 jest.mock("../../../../src/services/logcheck/logEventMatch", () => ({
     annotateMatches: jest.fn((items) => items),
     autoMatches: jest.fn(() => []),
@@ -198,6 +200,7 @@ const logStore = require("../../../../src/stores/loot/logStore");
 const { reportsOfGuild } = require("../../../../src/services/logcheck/reportGuild");
 const reportList = require("../../../../src/services/logcheck/reportList");
 const logEventMatch = require("../../../../src/services/logcheck/logEventMatch");
+const { mineFilter } = require("../../../../src/services/logcheck/myLogs");
 const logChannel = require("../../../../src/services/logcheck/logChannel");
 const evalJobs = require("../../../../src/web/logcheck/evalJobs");
 // Background jobs settle a microtask after they are queued.
@@ -259,6 +262,57 @@ describe("web/apiRoutes/cla", () => {
             expect(reportList.prepareClaList).toHaveBeenCalledWith(
                 [], [], { filter: "unlinked", sort: "event", dir: "asc", page: "2" }, { allLogs: [], inVersion: expect.any(Function), guildId: "" },
             );
+        });
+
+        it("shows only the caller's raids with ?mine=1 and counts the tabs over those", async () => {
+            activeGuildFor.mockReturnValue("guild-1");
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", guildId: "guild-1", eventId: "e1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
+                { id: "l2", guildId: "guild-1", reportRefId: "r2", sections: ["cla"], postedAt: 2000 },
+                { id: "l3", guildId: "guild-1", postedAt: 1000 },
+            ]);
+            reportStore.listReports.mockReturnValue([{ id: "r1" }, { id: "r2" }]);
+            mineFilter.mockImplementation((userId) => (row) => userId === "1" && Boolean(row.report && row.report.id === "r1"));
+
+            const data = json(await get("/api/cla", { mine: "1" })).data;
+            // the filter reads the report metadata the route already listed, on the active server
+            expect(mineFilter).toHaveBeenCalledWith("1", expect.objectContaining({ guildId: "guild-1", config: {} }));
+            const { reportById } = mineFilter.mock.calls[0][1];
+            expect([...reportById.keys()]).toEqual(["r1", "r2"]);
+            expect(data.mine).toBe(true);
+            expect(data.page.items.map((r) => r.id)).toEqual(["l1"]);
+            expect(data.counts).toEqual({ all: 1, open: 0, unlinked: 0, done: 1 });
+
+            mineFilter.mockClear();
+            const all = json(await get("/api/cla")).data;
+            expect(mineFilter).not.toHaveBeenCalled();
+            expect(all.mine).toBe(false);
+            expect(all.page.items).toHaveLength(3);
+        });
+
+        it("never lets ?mine=1 reach past the active server, even with a filter that keeps everything", async () => {
+            mineFilter.mockImplementation(() => () => true);
+            logStore.listLogs.mockReturnValue([
+                { id: "l1", guildId: "guild-1", sections: ["cla"], reportRefId: "r1", postedAt: 3000 },
+                { id: "l2", guildId: "guild-2", sections: ["cla"], reportRefId: "r2", postedAt: 2000 },
+            ]);
+            reportStore.listReports.mockReturnValue([
+                { id: "r1", generatedAt: 5 },
+                { id: "r2", generatedAt: 4 },
+                { id: "r3", title: "Eigener Link", generatedAt: 500, guildId: "guild-1" },
+                { id: "r4", title: "Fremder Link", generatedAt: 400, guildId: "guild-2" },
+            ]);
+
+            activeGuildFor.mockReturnValue("guild-1");
+            const onGuild1 = json(await get("/api/cla", { mine: "1" })).data;
+            expect(onGuild1.page.items.map((r) => r.id)).toEqual(["l1", "report:r3"]);
+            expect(onGuild1.counts.all).toBe(2);
+
+            // without an active server there is nothing to show
+            activeGuildFor.mockReturnValue("");
+            const noServer = json(await get("/api/cla", { mine: "1" })).data;
+            expect(noServer.page.items).toEqual([]);
+            expect(noServer.counts.all).toBe(0);
         });
 
         it("reads title and bosses of the page's logs from WCL, and only of those", async () => {
