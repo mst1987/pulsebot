@@ -57,9 +57,16 @@ export function besidePosition(anchor: Rect, box: Size, viewport: Size, gap = 10
     return tipPosition(anchor, box, viewport, gap);
 }
 
-/** A menu under its button, its right edge on the button's right edge. */
-export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6): { top: number; right: number } {
-    return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, viewport.width - anchor.right) };
+/**
+ * A menu under its button, its right edge on the button's right edge, kept
+ * inside the viewport on both sides: with the box measured, a button near the
+ * left edge (a phone row that wrapped) moves the menu right until its left edge
+ * keeps the margin; a box wider than the viewport keeps the right margin.
+ */
+export function belowEndPosition(anchor: Rect, viewport: Size, gap = 6, box?: Size): { top: number; right: number } {
+    let right = viewport.width - anchor.right;
+    if (box) right = Math.min(right, viewport.width - box.width - VIEWPORT_MARGIN);
+    return { top: anchor.bottom + gap, right: Math.max(VIEWPORT_MARGIN, right) };
 }
 
 /**
@@ -98,9 +105,9 @@ export function besidePlacement(gap = 10): Placement {
     return (anchor, box, viewport) => (anchor ? besidePosition(anchor, box, viewport, gap) : {});
 }
 
-/** Placement: a menu under its button, right-aligned (see belowEndPosition). */
+/** Placement: a menu under its button, right-aligned, kept inside the viewport (see belowEndPosition). */
 export function belowEndPlacement(gap = 6): Placement {
-    return (anchor, _box, viewport) => (anchor ? belowEndPosition(anchor, viewport, gap) : {});
+    return (anchor, box, viewport) => (anchor ? belowEndPosition(anchor, viewport, gap, box) : {});
 }
 
 /** Placement: a menu under its button, left-aligned, flipped above when it must (see belowStartPosition). */
