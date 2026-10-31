@@ -59,7 +59,7 @@
     },
     "row": {
         "tentative": "{count} tentative",
-        "bench": "{count} bench",
+        "bench": "{count} reserve",
         "absence": "{count} signed off",
         "raidHelperState": "As reported by Raid-Helper.",
         "selectAria": "Select {title}",

@@ -149,7 +149,7 @@
         "canAlso": "can also: {roles}",
         "comment": "Comment",
         "benchCount": "{count} on the waiting list",
-        "benchSub": "Bench – you decide in the setup who moves up. {names}",
+        "benchSub": "Reserve – you decide in the setup who moves up. {names}",
         "absentCount": "{count} signed off",
         "noRolesTip": "No raider roles",
         "noRolesSub": "No raider roles are assigned to this category yet — without them nobody checks who is missing.",

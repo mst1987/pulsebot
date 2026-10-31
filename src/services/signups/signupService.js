@@ -291,7 +291,7 @@ function applyOverflow(event, value, { previous = null, byOrga = false, signups 
     return {
         value: benched(value),
         waitlisted: true,
-        notice: `Der Raid ist voll (${taken}/${size}) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung.`,
+        notice: `Der Raid ist voll (${taken}/${size}) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung.`,
     };
 }
 

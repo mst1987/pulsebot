@@ -379,7 +379,7 @@ function resultLine(result, profile, lang = "de") {
         const chars = (s.characters || []).map((c, i) => `${i ? "+" : ""}${characterText(profile, c, lang)}`).join(", ");
         // A "Dabei" the full raid turned into a bench seat says so in words (#306).
         const status = result.waitlisted
-            ? ` – **${tr(lang, "Waiting list (bench)")}**`
+            ? ` – **${tr(lang, "Waiting list (reserve)")}**`
             : (s.status && s.status !== "signed" ? ` – ${statusState(lang, s.status)}` : "");
         return `✅ ${head}: ${s.status === "absence" ? tr(lang, "signed off") : chars}${status}${skipped.length ? `\n   ↳ ${skipped.join("; ")}` : ""}`;
     }

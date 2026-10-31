@@ -149,7 +149,7 @@
         "canAlso": "kann auch: {roles}",
         "comment": "Kommentar",
         "benchCount": "{count} auf der Warteliste",
-        "benchSub": "Bank – wer nachrückt, entscheidest du im Setup. {names}",
+        "benchSub": "Ersatz – wer nachrückt, entscheidest du im Setup. {names}",
         "absentCount": "{count} abgemeldet",
         "noRolesTip": "Keine Raider-Rollen",
         "noRolesSub": "Dieser Kategorie sind noch keine Raider-Rollen zugeordnet — ohne sie prüft niemand, wer fehlt.",
