@@ -148,7 +148,7 @@ describe("Event anlegen: plan rules (client)", () => {
         expect(logic.withVersion(plan, v("classic"))).toMatchObject({ overflow: "refuse", lockAtLimit: true });
         expect(logic.overflowLine(plan)).toBe("voll: keine Anmeldung mehr · Anmeldung schließt bei Voll");
         expect(logic.overflowLine(logic.emptyPlan(v("tbc")))).toBe("voll: keine Grenze, Auswahl im Setup");
-        expect(logic.overflowLine({ ...logic.emptyPlan(v("tbc")), overflow: "waitlist" })).toBe("voll: Warteliste (Bank)");
+        expect(logic.overflowLine({ ...logic.emptyPlan(v("tbc")), overflow: "waitlist" })).toBe("voll: Warteliste (Ersatz)");
         // und der Server nimmt die Vorlage so an
         const server = requireBackend("services/events/raidTemplates");
         const saved = logic.templateFromPlan(plan, null, "Kara");
