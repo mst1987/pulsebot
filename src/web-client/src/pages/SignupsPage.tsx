@@ -16,6 +16,7 @@ import AvailabilitySection from "../components/signup/AvailabilitySection";
 import { ExternalIcon, SignedIcon, XIcon } from "../components/ui/icons/icons";
 import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileForRows, roleCountText, rowSubline, signedUpLabel, statusBadgeLabel } from "../lib/signups/status";
 import { specLabel } from "../lib/wow/wowNames";
+import { classColorProps } from "../components/character/ClassSpec";
 import { weekBands } from "../lib/raids/raidTime";
 import { useT } from "../i18n";
 import "../styles/signups.css";
@@ -249,11 +250,12 @@ function OwnStatus({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
     const mine = row.mine;
     if (mine) {
         const meta = SIGNUP_STATUS[mine.status];
+        const absent = mine.status === "absence";
         const alternates = (mine.characters || []).length - 1;
-        const mineSpec = mine.specLabel ? specLabel(mine.spec, mine.specLabel) : "";
-        const label = mine.status === "absence"
-            ? statusBadgeLabel(mine.status)
-            : `${meta.label}${mineSpec ? ` · ${mineSpec}` : ""}${alternates > 0 ? ` +${alternates}` : ""}`;
+        const more = alternates > 0 ? ` +${alternates}` : "";
+        // the character by name behind its spec icon; the spec's name only where no character is named
+        const first = mine.character || (mine.specLabel ? specLabel(mine.spec, mine.specLabel) : "");
+        const label = absent ? statusBadgeLabel(mine.status) : `${meta.label}${first ? ` · ${first}` : ""}${more}`;
         // every named character, the first as the choice, the rest "kann auch mit" (#293);
         // a character whose own status differs from the signup's says so: "Zibbowar (Schutz, Dabei)"
         const who = (mine.characters || []).length
@@ -270,7 +272,14 @@ function OwnStatus({ row, onOpen }: { row: OwnSignupRow; onOpen: () => void }) {
                 onClick={(e) => { e.stopPropagation(); onOpen(); }} data-tip={label} data-tip-sub={sub || undefined}
             >
                 <i className="an-dot" style={{ "--an-c": meta.color } as CSSProperties} />
-                {label}
+                {absent || !first ? label : (
+                    <>
+                        {`${meta.label} · `}
+                        {mine.specIcon && <WowIcon name={mine.specIcon} size={16} />}
+                        <span {...classColorProps(mine.classColor)}>{first}</span>
+                        {more}
+                    </>
+                )}
             </button>
         );
     }
