@@ -273,3 +273,82 @@ describe("stores/loot/lootInboxStore per server (#919)", () => {
         expect(resolutionFor("s2").guildId).toBe("");
     });
 });
+
+// #1002: waiting uploads, first accept wins, dismissed uploads kept 14 days.
+describe("stores/lootInboxStore - waiting and dismissed", () => {
+    const store = require("../../../src/stores/loot/lootInboxStore.js");
+    const DAY = 24 * 60 * 60 * 1000;
+
+    it("stores the game version and the waiting servers, deduplicated", () => {
+        const { entry } = store.upsertPending(session(), { gameVersion: "tbc", waiting: true, servers: ["gA", "gB", "gA", ""] });
+        expect(entry).toMatchObject({ gameVersion: "tbc", waiting: true, servers: ["gA", "gB"] });
+        const plain = store.upsertPending(session({ sessionId: "s2" }), {}).entry;
+        expect(plain).toMatchObject({ gameVersion: "", waiting: false, servers: [] });
+    });
+
+    it("updates the waiting state when the same session comes again", () => {
+        store.upsertPending(session(), { gameVersion: "tbc", waiting: true, servers: ["gA", "gB"] });
+        const again = store.upsertPending(session({ items: [item(), item({ rawId: "c2" })] }), { waiting: false, guildId: "gA" });
+        expect(again.created).toBe(false);
+        expect(store.getPending(again.entry.id)).toMatchObject({ waiting: false, servers: [] });
+    });
+
+    it("remembers the decision by inbox id for a second assign", () => {
+        const { entry } = store.upsertPending(session());
+        expect(store.resolvedById(entry.id)).toBeNull();
+        store.resolvePending(entry.id, "accepted", { eventId: "e1", guildId: "gA" });
+        expect(store.resolvedById(entry.id)).toMatchObject({ action: "accepted", eventId: "e1", guildId: "gA" });
+        expect(store.resolvePending(entry.id, "accepted", { eventId: "e2" })).toBeNull();
+        expect(store.resolvedById("")).toBeNull();
+    });
+
+    it("keeps a dismissed upload with who dismissed it and brings it back", () => {
+        const { entry } = store.upsertPending(session(), { waiting: true, servers: ["gA"] });
+        store.resolvePending(entry.id, "dismissed", { by: "Admin" });
+        expect(store.listPending()).toHaveLength(0);
+        expect(store.listDismissed()).toHaveLength(1);
+        expect(store.getDismissed(entry.id)).toMatchObject({ dismissedBy: "Admin", waiting: true });
+        expect(store.getDismissed("nope")).toBeNull();
+
+        const back = store.restorePending(entry.id);
+        expect(back).toMatchObject({ id: entry.id, waiting: true, servers: ["gA"] });
+        expect(back.dismissedAt).toBeUndefined();
+        expect(store.listPending()).toHaveLength(1);
+        expect(store.listDismissed()).toHaveLength(0);
+        expect(store.resolutionFor("s1")).toBeNull();
+        expect(store.restorePending(entry.id)).toBeNull();
+    });
+
+    it("sorts dismissed uploads newest first", () => {
+        const spy = jest.spyOn(Date, "now");
+        spy.mockReturnValue(1000);
+        const a = store.upsertPending(session()).entry;
+        store.resolvePending(a.id, "dismissed");
+        spy.mockReturnValue(5000);
+        const b = store.upsertPending(session({ sessionId: "s2" })).entry;
+        store.resolvePending(b.id, "dismissed");
+        expect(store.listDismissed(6000).map((d) => d.sessionId)).toEqual(["s2", "s1"]);
+        spy.mockRestore();
+    });
+
+    it("forgets dismissed uploads after 14 days", () => {
+        const { entry } = store.upsertPending(session());
+        store.resolvePending(entry.id, "dismissed");
+        const at = store.getDismissed(entry.id).dismissedAt;
+        expect(store.DISMISS_KEEP_MS).toBe(14 * DAY);
+        expect(store.listDismissed(at + 13 * DAY)).toHaveLength(1);
+        expect(store.listDismissed(at + 15 * DAY)).toHaveLength(0);
+        expect(store.pruneDismissed(at + 13 * DAY)).toBe(0);
+        expect(store.pruneDismissed(at + 15 * DAY)).toBe(1);
+        expect(store.listDismissed(at)).toHaveLength(0);
+    });
+
+    it("cannot restore a dismissal older than 14 days", () => {
+        const spy = jest.spyOn(Date, "now").mockReturnValue(1000);
+        const { entry } = store.upsertPending(session());
+        store.resolvePending(entry.id, "dismissed");
+        spy.mockReturnValue(1000 + 15 * DAY);
+        expect(store.restorePending(entry.id)).toBeNull();
+        spy.mockRestore();
+    });
+});

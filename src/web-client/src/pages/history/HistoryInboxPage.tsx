@@ -3,22 +3,27 @@
 // A page rather than a dialog from the head button: a raid week with four raids
 // brings four cards, each with its own event choice, and that does not fit into
 // a modal. The head button on the history page leads here with the open count.
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     getHistoryData, getLootInbox } from "../../api";
 import { useApi } from "../../hooks/useApi";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { useToast } from "../../components/shell/Jobs";
-import { IconButton, buttonClass } from "../../components/ui/Button";
+import { Button, IconButton, buttonClass } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import WowIcon from "../../components/ui/icons/WowIcon";
-import { ChevronLeftIcon } from "../../components/ui/icons/icons";
+import { ChevronLeftIcon, ChevronRightIcon } from "../../components/ui/icons/icons";
 import AllSettingsLink from "../../components/settings/AllSettingsLink";
 import { InboxSessionCard, LinkedSessions } from "./LootInboxTab";
 import { InfoTip } from "../../components/loot/LootFilters";
 import "../../styles/history-loot.css";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
+import Segment from "../../components/ui/form/Segment";
+import { DismissedList, WaitingList } from "./InboxWaiting";
 import { tParts, useT } from "../../i18n";
+
+type Tab = "ready" | "waiting" | "dismissed";
 
 export default function HistoryInboxPage() {
     const t = useT();
@@ -37,8 +42,17 @@ export default function HistoryInboxPage() {
     const events = history.data?.events || [];
     const categories = history.data?.categories || [];
 
-    const afterChange = (msg: string) => {
-        toast(msg);
+    // Uploads that found no raid by themselves (#1002) and those dismissed in the last 14 days.
+    const waiting = inbox.data?.waiting || [];
+    const waitingBanks = inbox.data?.waitingBanks || [];
+    const dismissed = inbox.data?.dismissed || [];
+    const waitCount = waiting.length + waitingBanks.length;
+    const [picked, setTab] = useState<Tab | null>(null);
+    // Open on "Wartet auf Zuordnung" when nothing is ready but something waits.
+    const tab: Tab = picked || (!sessions?.length && waitCount ? "waiting" : "ready");
+
+    const afterChange = (msg: string, error?: boolean) => {
+        toast(msg, error ? "err" : undefined);
         inbox.reload();
     };
 
@@ -64,6 +78,23 @@ export default function HistoryInboxPage() {
                 </div>
             </div>
 
+            {inbox.data && (waitCount > 0 || dismissed.length > 0) && (
+                <div className="hl-inbox-tabs">
+                    <Segment<Tab>
+                        ariaLabel={t("history.waiting.tabs")}
+                        value={tab}
+                        onChange={setTab}
+                        options={[
+                            { value: "ready", label: t("history.waiting.tabReady", { count: sessions?.length || 0 }) },
+                            { value: "waiting", label: t("history.waiting.tabWaiting", { count: waitCount }), tip: t("history.waiting.tabWaitingTip") },
+                            { value: "dismissed", label: t("history.waiting.tabDismissed", { count: dismissed.length }), tip: t("history.waiting.tabDismissedTip") },
+                        ]}
+                    />
+                </div>
+            )}
+            {tab === "waiting" && <WaitingList waiting={waiting} banks={waitingBanks} onDone={afterChange} />}
+            {tab === "dismissed" && <DismissedList dismissed={dismissed} onDone={afterChange} />}
+            {tab === "ready" && <>
             {loadError && <div className="empty">{tParts("history.inbox.loadError", { message: loadError.message })}</div>}
             {!loadError && !sessions && <RaidLoader text={t("history.inbox.loading")} />}
             {!loadError && sessions && !sessions.length && (
@@ -72,6 +103,13 @@ export default function HistoryInboxPage() {
                         {t("history.inbox.empty")}<br />
                         {t("history.inbox.emptyHint")}{" "}
                         <AllSettingsLink inline className="mlink" section="verbindungen">{t("history.inbox.emptyLink")}</AllSettingsLink>.
+                        {waitCount > 0 && (
+                            // Nothing ready, but uploads wait for their raid: say so and jump there.
+                            <div className="hl-inbox-waithint">
+                                <b>{t("history.inbox.emptyWaiting", { count: waitCount })}</b>
+                                <Button variant="ghost" size="sm" icon={<ChevronRightIcon />} onClick={() => setTab("waiting")}>{t("history.inbox.emptyWaitingLink")}</Button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}
@@ -82,6 +120,7 @@ export default function HistoryInboxPage() {
                 />
             ))}
             <LinkedSessions linked={linked} />
+            </>}
         </>
     );
 }
