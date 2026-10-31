@@ -3,8 +3,9 @@
 
 let mockConfig = {};
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
+jest.mock("../../../src/services/events/eventServer", () => ({ guildOfCategory: (id) => ({ catA: "g1", catB: "g2" })[id] || "" }));
 
-const { covers, scopeOf, scopeCovers, charactersOf, charactersFor, eventServer, specLabel, scopeView, charactersView } = require("../../../src/services/signups/availabilityScope");
+const { covers, scopeOf, scopeCovers, entryOnServer, charactersOf, charactersFor, eventServer, specLabel, scopeView, charactersView } = require("../../../src/services/signups/availabilityScope");
 
 const START = Math.floor(Date.UTC(2030, 2, 20, 18) / 1000); // 2030-03-20 19:00 server time
 const event = (over = {}) => ({ id: "eh-1", startTime: START, categoryId: "cat1", ...over });
@@ -40,6 +41,26 @@ describe("eventServer / scopeCovers", () => {
         // older entries: one category anywhere, or everything
         expect(scopeCovers({ categoryId: "cat1" }, event({ guildId: "g2" }))).toBe(true);
         expect(scopeCovers({ categoryId: "" }, event({ guildId: "g2", categoryId: "x" }))).toBe(true);
+    });
+});
+
+describe("entryOnServer (welche Einträge eine Server-Ansicht zeigt)", () => {
+    it("zeigt Einträge mit einem Teil auf dem Server, keine eines anderen Servers", () => {
+        expect(entryOnServer({ scope: [{ guildId: "g1", categoryIds: [] }] }, "g1")).toBe(true);
+        expect(entryOnServer({ scope: [{ guildId: "g1", categoryIds: ["catA"] }] }, "g2")).toBe(false);
+        expect(entryOnServer({ scope: [{ guildId: "g1", categoryIds: [] }, { guildId: "g2", categoryIds: ["catB"] }] }, "g2")).toBe(true);
+    });
+
+    it("Alt-Einträge: die Kategorie nach ihrem Server, unbekannt und ohne Kategorie überall", () => {
+        expect(entryOnServer({ categoryId: "catA" }, "g1")).toBe(true);
+        expect(entryOnServer({ categoryId: "catA" }, "g2")).toBe(false);
+        expect(entryOnServer({ categoryId: "unbekannt" }, "g2")).toBe(true);
+        expect(entryOnServer({ categoryId: "" }, "g2")).toBe(true);
+        expect(entryOnServer({ categoryId: "x" }, "g2", { guildOfCategory: () => "g2" })).toBe(true);
+    });
+
+    it("ohne Server zeigt alles", () => {
+        expect(entryOnServer({ scope: [{ guildId: "g1", categoryIds: [] }] }, "")).toBe(true);
     });
 });
 

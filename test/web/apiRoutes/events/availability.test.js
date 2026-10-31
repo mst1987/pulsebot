@@ -130,6 +130,18 @@ describe("GET /api/availability", () => {
         expect(entryServersMod.entryServers).toHaveBeenCalledWith(ANNA.id, expect.anything());
     });
 
+    it("zeigt nur Einträge des aktiven Servers - die eines anderen Servers bearbeitet man dort", async () => {
+        availability.activeEntries.mockReturnValue([
+            entry({ id: "hier", scope: [{ guildId: "g", categoryIds: [] }] }),
+            entry({ id: "dort", scope: [{ guildId: "A", categoryIds: ["catA"] }] }),
+            entry({ id: "beide", scope: [{ guildId: "A", categoryIds: [] }, { guildId: "g", categoryIds: ["cat1"] }] }),
+            entry({ id: "altDort", categoryId: "catA" }),
+            entry({ id: "altAlles" }),
+        ]);
+        const ids = json(await call("GET", "/api/availability", ANNA)).data.entries.map((e) => e.id);
+        expect(ids).toEqual(["hier", "beide", "altAlles"]);
+    });
+
     it("zeigt Scope mit Servernamen und mehrere Charaktere", async () => {
         availability.activeEntries.mockReturnValue([entry({
             kind: "presence",
@@ -468,7 +480,8 @@ describe("the orga's overview", () => {
     it("hands the weeks and the category on, the reasons and editing only to the raid lead, with Discord names", async () => {
         const res = await call("GET", "/api/availability/overview", ORGA, { query: "weeks=4&category=cat1" });
         expect(status(res)).toBe(200);
-        expect(absenceOverview.buildOverview).toHaveBeenCalledWith(expect.objectContaining({ weeks: 4, categoryId: "cat1", withReasons: true }));
+        // one server at a time: the active one
+        expect(absenceOverview.buildOverview).toHaveBeenCalledWith(expect.objectContaining({ weeks: 4, categoryId: "cat1", withReasons: true, guildId: "g" }));
         expect(json(res).data).toMatchObject({ canEdit: true, withReasons: true, raiders: [{ userId: "u1", name: "Bananajoe#discord" }], hints: [{ userId: "u2", name: "u2" }] });
 
         // an orga role that may not change raids: the overview, without reasons and editing
@@ -491,7 +504,7 @@ describe("the orga's overview", () => {
     it("answers one raider's detail and needs a raider", async () => {
         const res = await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1" });
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", canEdit: true });
-        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true, servers: { g: "Pulse", A: "Server A" }, categoryNames: expect.any(Object) }));
+        expect(absenceOverview.raiderDetail).toHaveBeenCalledWith("u1", expect.objectContaining({ withReasons: true, guildId: "g", servers: { g: "Pulse", A: "Server A" }, categoryNames: expect.any(Object) }));
         expect(status(await call("GET", "/api/availability/overview/raider", ORGA))).toBe(400);
     });
 
