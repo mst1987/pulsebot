@@ -179,6 +179,17 @@ describe("actions", () => {
         expect(eventStore.getEvent(event.id).log.at(-1)).toMatchObject({ action: "close", byName: "Orga" });
     });
 
+    it("names a raider without a signup by the first character of the event's version, not of all versions", async () => {
+        const OTHER = "800000000000000002";
+        profiles.addCharacter(OTHER, { name: "Foreverheld", className: "Warrior", specs: [{ key: "Warrior-Protection" }] }, { versionId: "forever" });
+        profiles.addCharacter(OTHER, { name: "Tbcheld", className: "Warrior", specs: [{ key: "Warrior-Protection" }] }, { versionId: "tbc" });
+        const pick = interaction({ customId: bot._internal.manageId("u", event.id), values: [OTHER] });
+        await stepCommand.execute(pick);
+        const lines = lastPayload(pick.editReply).embeds[0].description.split("\n");
+        expect(lines[0]).toBe(`**Tbcheld** · <@${OTHER}>`);
+        expect(lines[1]).toBe("Nicht eingetragen.");
+    });
+
     it("picks a raider, signs them up with a profile character, and signs them off", async () => {
         const pick = interaction({ customId: bot._internal.manageId("u", event.id), values: [RAIDER] });
         await stepCommand.execute(pick);
@@ -186,6 +197,8 @@ describe("actions", () => {
         expect(panel.embeds[0].description).toContain("Eingetragen: **Dabei**");
         // the character as text before the mention, which alone can read "@unknown-user"
         expect(panel.embeds[0].description.split("\n")[0]).toBe(`**Thorwald** · <@${RAIDER}>`);
+        // the character stands in the head only, not once more behind the status
+        expect(panel.embeds[0].description.split("\n")[1]).toBe("Eingetragen: **Dabei** · Schutz");
         const select = buttons(panel).find((c) => c.type === 3);
         expect(select.options[0]).toMatchObject({ label: "Thorwald · Schutz", value: "thorwald|Warrior-Protection" });
 

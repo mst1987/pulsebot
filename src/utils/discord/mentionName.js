@@ -7,12 +7,13 @@
 // The silent mention edit (tried on the dev server, 31.10.2026): Discord fills `mentions` only from the text of a create
 // or of an edit that CHANGES the text — an edit that sends the same text again leaves them as they were, and an edit
 // with changed text and `parse: []` empties them. So a card goes out without the mentions first and an edit puts them in
-// with `allowedMentions: { users }`; every later edit of the card sends the same users. Whether such an edit notifies the
-// mentioned person (a push, an entry under "Mentions", a red badge) is not checked yet — that needs a person, not the
-// bot. Until it is, SILENT_MENTION_EDIT stays false and silentMentionSteps/mentionEdit send what they always sent.
+// with `allowedMentions: { users }`; every later edit of the card sends the same users. An edit with
+// `allowedMentions.users` resolves the name and does not ping (no push, no badge, no entry under "Mentions") — checked
+// on the dev server on 31.10.2026 with a person. postPayload/editPayload use it for `silentMentions: true`.
 const { isSnowflake } = require("../ids");
 
-const SILENT_MENTION_EDIT = false;
+// Discord takes at most 100 ids in allowedMentions.users; mentions past that stay in the text, unresolved, unpinged.
+const MAX_USERS = 100;
 const SEPARATOR = " · ";
 const ZWSP = String.fromCharCode(0x200b);
 
@@ -50,7 +51,9 @@ function nameOrMention(name, userId) {
 function nameFromSignups(signups, userId) {
     const uid = str(userId);
     if (!uid) return "";
-    const row = [...(Array.isArray(signups) ? signups : [])].reverse().find((s) => s && str(s.userId) === uid);
+    // the newest row WITH a name: a later row without one (a status change) must not hide the name
+    const row = [...(Array.isArray(signups) ? signups : [])].reverse()
+        .find((s) => s && str(s.userId) === uid && str(s.character || s.name).trim());
     return row ? str(row.character || row.name).trim() : "";
 }
 
@@ -69,20 +72,29 @@ function textsOf(payload) {
     return out;
 }
 
-/** The user ids mentioned (`<@id>`, `<@!id>`) in a payload's texts, each once. */
+/** The user ids mentioned (`<@id>`, `<@!id>`) in a payload's texts, each once, at most MAX_USERS. */
 function mentionedUserIds(payload) {
     const ids = new Set();
     for (const text of textsOf(payload)) for (const m of text.matchAll(/<@!?(\d{5,25})>/g)) ids.add(m[1]);
-    return [...ids];
+    return [...ids].slice(0, MAX_USERS);
 }
 
-/** `text` without the mentions of `ids` and the " · " that joined them in. */
+/**
+ * `text` without the mentions of `ids` and the " · " that joined them in. A line that held a mention and is left
+ * empty or with just a label ("An:", "**An:**") goes away, so the first post shows no dangling label.
+ */
 function stripText(text, ids) {
-    let out = text;
-    for (const id of ids) {
-        out = out.replace(new RegExp(`( · )?<@!?${id}>( · )?`, "g"), (_, before, after) => (before && after ? SEPARATOR : ""));
+    const pattern = ids.length ? new RegExp(`( · )?<@!?(?:${ids.join("|")})>( · )?`, "g") : null;
+    if (!pattern) return text;
+    const lines = [];
+    for (const line of text.split("\n")) {
+        if (!line.match(pattern)) { lines.push(line); continue; }
+        const out = line.replace(pattern, (_, before, after) => (before && after ? SEPARATOR : "")).replace(/[ \t]+$/, "");
+        const bare = out.replace(/[*_~>\-\s]/g, "");
+        if (!bare || /^[^:]{0,40}:$/.test(bare)) continue;
+        lines.push(out);
     }
-    return out;
+    return lines.join("\n");
 }
 
 /** A copy of `payload` whose texts no longer carry the mentions of `ids` (the first step of the silent edit). */
@@ -103,29 +115,30 @@ function withoutMentions(payload, ids) {
 }
 
 /**
- * An edit of a card that shows people without pinging them: the same users as the silent edit put in (an edit never
- * pings), `parse: []` while SILENT_MENTION_EDIT is off.
+ * An edit of a card that shows people without pinging them: the users it mentions in `allowedMentions.users` (resolves
+ * the names, an edit does not ping), `parse: []` when it mentions nobody.
  */
-function mentionEdit(payload, { enabled = SILENT_MENTION_EDIT } = {}) {
-    const users = enabled ? mentionedUserIds(payload) : [];
+function mentionEdit(payload) {
+    const users = mentionedUserIds(payload);
     return { ...payload, allowedMentions: users.length ? { parse: [], users } : { parse: [] } };
 }
 
 /**
- * How to post a card that shows people without pinging them: `first` goes out (without the mentions when the silent
- * edit is on, else the card as it is, `parse: []`), `then` is the edit that puts them in — null when there is nothing
- * to edit (switch off, nobody mentioned).
+ * How to post a card that shows people without pinging them: `first` goes out without the mentions (`parse: []`),
+ * `then` is the edit that puts them in — null when nobody is mentioned. `then` leaves out `files` and
+ * `attachments`: the post already carries them, sending them again would upload them twice (or drop them).
  * @returns {{ first: object, then: object|null }}
  */
-function silentMentionSteps(payload, { enabled = SILENT_MENTION_EDIT } = {}) {
-    const users = enabled ? mentionedUserIds(payload) : [];
+function silentMentionSteps(payload) {
+    const users = mentionedUserIds(payload);
     if (!users.length) return { first: { ...payload, allowedMentions: { parse: [] } }, then: null };
+    const { files, attachments, ...rest } = payload; // eslint-disable-line no-unused-vars
     return {
         first: { ...withoutMentions(payload, users), allowedMentions: { parse: [] } },
-        then: { ...payload, allowedMentions: { parse: [], users } },
+        then: { ...rest, allowedMentions: { parse: [], users } },
     };
 }
 
 module.exports = {
-    SILENT_MENTION_EDIT, nameAndMention, nameOrMention, nameFromSignups, plainName, mentionedUserIds, withoutMentions, mentionEdit, silentMentionSteps,
+    MAX_USERS, nameAndMention, nameOrMention, nameFromSignups, plainName, mentionedUserIds, withoutMentions, mentionEdit, silentMentionSteps,
 };

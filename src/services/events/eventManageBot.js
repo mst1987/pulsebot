@@ -139,11 +139,12 @@ function raiderView(event, userId) {
     const profile = profiles.getProfile(userId) || { characters: [] };
     // Only characters of the event's game version (#543).
     const chars = profiles.charactersOfVersion(profile, versionOfEvent(event)).filter((c) => c.specs.length);
-    // a name as text first (the signup's character, else the profile's first): the mention alone can read "@unknown-user"
-    const firstChar = (profile.characters || []).find((c) => c && c.name);
+    // a name as text first (the signup's character, else the first of the event's version — no main, #543): the mention
+    // alone can read "@unknown-user"; the signup line below leaves the character out, the head already shows it
+    const firstChar = profiles.firstCharacter(profile, versionOfEvent(event));
     const lines = [nameAndMention((signup && signup.character) || (firstChar && firstChar.name) || "", userId)];
     lines.push(signup
-        ? `Eingetragen: **${manage.STATUS_LABELS[signup.status] || signup.status}**${signup.character ? ` · ${signup.character}` : ""}${signup.spec ? ` · ${(profiles.specInfo(signup.spec) || {}).label || signup.spec}` : ""}`
+        ? `Eingetragen: **${manage.STATUS_LABELS[signup.status] || signup.status}**${signup.spec ? ` · ${(profiles.specInfo(signup.spec) || {}).label || signup.spec}` : ""}`
         : "Nicht eingetragen.");
     const components = [];
     if (chars.length) {

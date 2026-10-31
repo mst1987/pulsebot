@@ -79,7 +79,7 @@ describe("services/vermerke/orgaSignupNotice", () => {
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
         const [channelId, payload, opts] = discord.postPayload.mock.calls[0];
         expect(channelId).toBe(ORGA);
-        expect(opts).toEqual({ guildId: "A" });
+        expect(opts).toEqual({ guildId: "A", silentMentions: true });
         const text = JSON.stringify(payload);
         expect(text).toContain("Anmeldung mit Vermerk");
         expect(text).toContain("Nicht erschienen ×2");

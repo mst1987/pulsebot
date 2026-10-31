@@ -736,24 +736,48 @@ describe("services/discord/discord channel management", () => {
     });
 
     describe("postPayload / editPayload with silentMentions (mentionName)", () => {
-        const payload = () => ({ content: "**Thrall** · <@123456789012345678>" });
+        const UID = "123456789012345678";
+        const payload = () => ({ content: `**Thrall** · <@${UID}>` });
 
-        it("the switch is off: one send with parse [] and no second edit", async () => {
+        it("posts without the mention (parse []), then edits it in with the users", async () => {
             const edit = jest.fn(async () => ({}));
             const send = jest.fn(async () => ({ id: "m1", url: "u", edit }));
             setClientWithChannels(dc.makeChannel({ id: "chan", send }));
-            const res = await discord.postPayload("chan", payload(), { silentMentions: true });
+            const res = await discord.postPayload("chan", { ...payload(), files: [{ name: "a.png" }], attachments: [] }, { silentMentions: true });
             expect(res).toMatchObject({ channelId: "chan", messageId: "m1" });
             expect(send).toHaveBeenCalledTimes(1);
+            expect(send.mock.calls[0][0]).toEqual({ content: "**Thrall**", files: [{ name: "a.png" }], attachments: [], allowedMentions: { parse: [] } });
+            expect(edit).toHaveBeenCalledTimes(1);
+            expect(edit.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [], users: [UID] } });
+        });
+
+        it("a failing follow-up edit only logs: the post still counts", async () => {
+            const edit = jest.fn(async () => { throw new Error("Missing Access"); });
+            const send = jest.fn(async () => ({ id: "m2", url: "u2", edit }));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
+            const res = await discord.postPayload("chan", payload(), { silentMentions: true });
+            expect(res).toMatchObject({ channelId: "chan", messageId: "m2", url: "u2" });
+            expect(edit).toHaveBeenCalledTimes(1);
+        });
+
+        it("without silentMentions or without a mention: one send with parse [], no edit", async () => {
+            const edit = jest.fn(async () => ({}));
+            const send = jest.fn(async () => ({ id: "m3", url: "u", edit }));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
+            await discord.postPayload("chan", payload());
+            await discord.postPayload("chan", { content: "hi" }, { silentMentions: true });
             expect(send.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [] } });
+            expect(send.mock.calls[1][0]).toEqual({ content: "hi", allowedMentions: { parse: [] } });
             expect(edit).not.toHaveBeenCalled();
         });
 
-        it("editPayload keeps parse [] with the switch off", async () => {
+        it("editPayload sends the users with silentMentions, parse [] without", async () => {
             const message = { id: "m9", url: "u", author: { id: "bot" }, edit: jest.fn(async () => {}) };
             setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));
             await discord.editPayload("chan", "m9", payload(), { silentMentions: true });
-            expect(message.edit.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [] } });
+            await discord.editPayload("chan", "m9", payload());
+            expect(message.edit.mock.calls[0][0]).toEqual({ ...payload(), allowedMentions: { parse: [], users: [UID] } });
+            expect(message.edit.mock.calls[1][0]).toEqual({ ...payload(), allowedMentions: { parse: [] } });
         });
     });
 

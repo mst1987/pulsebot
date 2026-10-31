@@ -145,7 +145,7 @@ async function postBatch(guildId, items, { config = getConfig(), now = Date.now(
     for (const [channelId, channelLines] of byChannel) {
         for (const post of buildNoticePosts(channelLines)) {
             try {
-                await discord.postPayload(channelId, post, { guildId });
+                await discord.postPayload(channelId, post, { guildId, silentMentions: true });
                 posted += 1;
             } catch (e) {
                 console.warn(`[orgaSignupNotice] Hinweis nicht in ${channelId} gepostet: ${(e && e.message) || e}`);

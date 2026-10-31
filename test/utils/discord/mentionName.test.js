@@ -1,5 +1,5 @@
 const {
-    SILENT_MENTION_EDIT, nameAndMention, nameOrMention, nameFromSignups, plainName, mentionedUserIds, withoutMentions, mentionEdit, silentMentionSteps,
+    MAX_USERS, nameAndMention, nameOrMention, nameFromSignups, plainName, mentionedUserIds, withoutMentions, mentionEdit, silentMentionSteps,
 } = require("../../../src/utils/discord/mentionName");
 const { card } = require("../../../src/utils/discord/card");
 
@@ -45,6 +45,10 @@ describe("nameFromSignups", () => {
         expect(nameFromSignups(null, UID)).toBe("");
         expect(nameFromSignups([{ userId: UID }], "")).toBe("");
     });
+    test("the newest row WITH a name: a later row without one does not hide it", () => {
+        expect(nameFromSignups([{ userId: UID, character: "Thrall" }, { userId: UID, status: "late" }], UID)).toBe("Thrall");
+        expect(nameFromSignups([{ userId: UID, character: " " }], UID)).toBe("");
+    });
 });
 
 describe("mentions in a payload", () => {
@@ -65,27 +69,45 @@ describe("mentions in a payload", () => {
         expect(withoutMentions({ content: `<@${UID}>` }, [UID]).content).toBe("");
     });
 
-    test("the switch is off: nothing but parse []", () => {
-        expect(SILENT_MENTION_EDIT).toBe(false);
-        const steps = silentMentionSteps(payload());
-        expect(steps.then).toBeNull();
-        expect(steps.first.allowedMentions).toEqual({ parse: [] });
-        expect(steps.first.components).toEqual(payload().components);
-        expect(mentionEdit(payload()).allowedMentions).toEqual({ parse: [] });
+    test("a label left alone goes away with its line, other lines stay", () => {
+        const stripped = withoutMentions(payload(), [UID, UID2]);
+        const text = stripped.components[0].components.find((c) => c.type === 10 && c.content.includes("Thrall")).content;
+        expect(text).not.toContain("An:");
+        expect(withoutMentions({ content: `Kopf\n**An:** <@${UID}>\n- <@${UID2}>\nFuß` }, [UID, UID2]).content).toBe("Kopf\nFuß");
+        expect(withoutMentions({ content: `Leader: **Thrall** · <@${UID}>` }, [UID]).content).toBe("Leader: **Thrall**");
+        expect(withoutMentions({ content: "Zeit: 20:00\nLeer: " }, [UID]).content).toBe("Zeit: 20:00\nLeer: ");
     });
 
-    test("switched on: post without the mentions, then the edit with the users", () => {
-        const steps = silentMentionSteps(payload(), { enabled: true });
+    test("silentMentionSteps: post without the mentions, then the edit with the users", () => {
+        const steps = silentMentionSteps(payload());
         expect(JSON.stringify(steps.first.components)).not.toContain(`<@${UID}>`);
         expect(steps.first.allowedMentions).toEqual({ parse: [] });
         expect(steps.then.components).toEqual(payload().components);
         expect(steps.then.allowedMentions).toEqual({ parse: [], users: [UID, UID2] });
-        expect(mentionEdit(payload(), { enabled: true }).allowedMentions).toEqual({ parse: [], users: [UID, UID2] });
+        expect(mentionEdit(payload()).allowedMentions).toEqual({ parse: [], users: [UID, UID2] });
     });
 
-    test("switched on but nobody mentioned: one plain post", () => {
-        const steps = silentMentionSteps({ content: "hi" }, { enabled: true });
+    test("the edit leaves files and attachments out, the post keeps them", () => {
+        const withFiles = { ...payload(), files: [{ name: "a.png" }], attachments: [] };
+        const steps = silentMentionSteps(withFiles);
+        expect(steps.first.files).toEqual([{ name: "a.png" }]);
+        expect(steps.first.attachments).toEqual([]);
+        expect(steps.then).not.toHaveProperty("files");
+        expect(steps.then).not.toHaveProperty("attachments");
+    });
+
+    test("nobody mentioned: one plain post", () => {
+        const steps = silentMentionSteps({ content: "hi" });
         expect(steps).toEqual({ first: { content: "hi", allowedMentions: { parse: [] } }, then: null });
-        expect(mentionEdit({ content: "hi" }, { enabled: true }).allowedMentions).toEqual({ parse: [] });
+        expect(mentionEdit({ content: "hi" }).allowedMentions).toEqual({ parse: [] });
+    });
+
+    test("at most MAX_USERS users, the rest stays in the text unpinged", () => {
+        const ids = Array.from({ length: MAX_USERS + 5 }, (_, i) => String(100000000000000000 + i * 1000));
+        const content = ids.map((id) => `<@${id}>`).join(" ");
+        const steps = silentMentionSteps({ content });
+        expect(steps.then.allowedMentions.users).toHaveLength(MAX_USERS);
+        expect(steps.first.content).toContain(`<@${ids[MAX_USERS]}>`);
+        expect(steps.first.content).not.toContain(`<@${ids[0]}>`);
     });
 });
