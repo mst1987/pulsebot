@@ -46,7 +46,8 @@
         "raidBuffs": { "label": "Raid-Buffs", "tip": "Jeder Raid-Buff, den jemand im Raid mitbringt." },
         "attendance": { "label": "Anwesenheit", "tip": "Anwesenheit in dieser Kategorie." },
         "roster": { "label": "Roster-Status", "tip": "Stamm vor Probe vor Ersatz, wer nicht im Roster ist, danach. Nur wenn die Kategorie ein Roster hat." },
-        "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." }
+        "gear": { "label": "Gear", "tip": "„Bereit“ vor „brauchbar“ laut Profil." },
+        "loot": { "label": "Loot verteilen", "tip": "Nur bei mehreren Raids gleichzeitig: wer dieselben Items will, kommt in verschiedene Raids. Softres zählt voll, BiS halb, die Spec ein Viertel. Braucht „Loot-Daten laden“." }
     },
     "status": {
         "approvedSubSince": "Raider sehen dieses Setup · seit {time}. Jede Änderung geht sofort in die Nachricht.",
@@ -430,6 +431,32 @@
         "filter": "Leader",
         "filterSub": "Nur, wer diese Instanz leiten darf.",
         "filterAria": "Nach Leader filtern"
+    },
+    "loot": {
+        "title": "Loot",
+        "line": { "one": "Loot: {count} Überschneidung", "other": "Loot: {count} Überschneidungen" },
+        "lineTip": "Loot über die Raids verteilt",
+        "lineSub": "Eine Überschneidung: ein Item, das in einem Raid mehr als eine Person will.",
+        "conflicts": { "one": "{count} Überschneidung", "other": "{count} Überschneidungen" },
+        "load": "Loot-Daten laden",
+        "reload": "Loot-Daten neu laden",
+        "loadSub": "Liest Softres, BiS-Listen und das getragene Gear im Hintergrund. Danach wird neu vorgeschlagen.",
+        "loading": "Lädt …",
+        "progress": "Gear {done} von {total} geprüft",
+        "status": "Gear für {gear} von {signups} Angemeldeten",
+        "statusAt": "Stand {time}",
+        "notLoaded": "Noch keine Loot-Daten. Ohne sie verteilt der Vorschlag kein Loot.",
+        "sources": "Softres {softres} · BiS {bis} · Spec {spec}",
+        "sourcesTip": "Woher die Wünsche der eingeteilten Raider kommen",
+        "sourcesSub": "Je Charakter zählt die erste Quelle: Softres, sonst BiS ohne das, was er schon trägt, sonst die Spec.",
+        "wanted": { "one": "{count} Person will es", "other": "{count} Personen wollen es" },
+        "conflictIn": { "one": "mehrfach in {count} Raid", "other": "mehrfach in {count} Raids" },
+        "spread": "verteilt",
+        "specItem": "Spec",
+        "specItemSub": "Ohne Softres und BiS: gleiche Spec teilt sich das Loot.",
+        "more": { "one": "{count} weiteres Item", "other": "{count} weitere Items" },
+        "listAria": "Items, die mehrere wollen",
+        "failed": "Loot-Daten konnten nicht geladen werden: {error}"
     },
     "signupEdit": {
         "open": "Anmeldung bearbeiten …",

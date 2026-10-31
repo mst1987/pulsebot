@@ -331,7 +331,12 @@ function proposeGroupSetup(event, body, { userId, now, shadowbannedOf }) {
         let result = {
             ...proposed,
             groups: part.groups,
-            checks: { ...part.checks, avoid: proposed.checks && proposed.checks.avoid },
+            checks: {
+                ...part.checks,
+                avoid: proposed.checks && proposed.checks.avoid,
+                // #1037: the loot overlaps span the whole group - every raid shows the same list
+                ...(proposed.checks && proposed.checks.loot ? { loot: proposed.checks.loot } : {}),
+            },
             bench: (proposed.bench || []).filter((b) => benchOwner.get(String(b.userId)) === e.id),
             pool: proposed.pool || [],
         };

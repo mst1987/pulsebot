@@ -236,6 +236,21 @@
 .se-side-v { font-size: 18px; font-weight: 800; }
 .se-side-v small { font-size: 12px; color: var(--muted); font-weight: 700; }
 .se-side-off { color: var(--muted); font-size: 13px; }
+/* "Loot verteilen" (#1037): a list with dividers, colour only for good/needs a look */
+.se-loot { display: flex; flex-direction: column; gap: 6px; padding-top: 10px; border-top: 1px solid var(--line); }
+/* the load button drops below label and count when the dialog is narrow (390 px) */
+.se-loot-head { flex-wrap: wrap; row-gap: 6px; }
+.se-loot-head > :last-child { margin-left: auto; }
+.se-loot-cap { margin: 0; color: var(--muted); font-size: 13px; }
+.se-loot-list { list-style: none; margin: 0; padding: 0; }
+.se-loot-list li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 12px; padding: 6px 0; border-bottom: 1px solid var(--line); min-width: 0; }
+.se-loot-list li:last-child { border-bottom: 0; }
+.se-loot-list li > :first-child { min-width: 0; overflow-wrap: anywhere; }
+.se-loot-spec { font-weight: 600; }
+.se-loot-meta { color: var(--muted); font-size: 13px; white-space: nowrap; }
+.se-loot-mid { color: var(--medium); font-weight: 700; }
+.se-loot-ok { color: var(--good); }
+.se-loot-bad { color: var(--high); }
 .se-weights-btn { align-self: flex-start; background: none; border: 0; padding: 0; color: var(--accent); font-weight: 700; font-size: 13px; cursor: pointer; }
 .se-weights-btn:hover { color: var(--accent-2); }
 .se-weights-btn:disabled { color: var(--muted); cursor: default; }

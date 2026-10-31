@@ -93,6 +93,42 @@ export type SetupChecks = {
      * `candidates` = user ids with a leader flag for the raid's version and instance.
      */
     leader?: { count: number; ok: boolean; candidates: string[] };
+    /** #1037 "Loot verteilen": only for parallel raids with loaded loot data and the weight above 0. */
+    loot?: SetupLootCheck;
+};
+
+/**
+ * One item more than one placed raider wants (#1037). `spec` = the spec fallback: `name` is the spec's
+ * label and there is no item behind it. `conflictIn` = the raids where more than one wants it.
+ */
+export type SetupLootItem = {
+    itemId: number | string;
+    name: string;
+    icon: string;
+    quality: number | null;
+    spec: boolean;
+    count: number;
+    eventIds: string[];
+    conflictIn: string[];
+};
+
+export type SetupLootCheck = {
+    on: boolean;
+    conflicts: number;
+    items: SetupLootItem[];
+    /** how many placed raiders each source covers */
+    sources: { softres: number; bis: number; spec: number; none: number };
+};
+
+/** "Loot-Daten laden" of a raid group (#1037): the job, the armory progress while it runs, what is stored. */
+export type SetupLootStatus = {
+    job: (NonNullable<SetupJob> & { runningMs?: number }) | null;
+    progress: { done: number; total: number } | null;
+    counts: { signups: number; gear: number; softres: number; bis: number; spec: number } | null;
+    /** when the stored data was gathered (ms), 0 = never */
+    at: number;
+    /** the Wowhead section of the raid's version, "" = no item links */
+    wowheadPath?: string;
 };
 
 export type SetupWeights = Record<string, number>;
@@ -174,6 +210,8 @@ export type SetupEditorData = {
     shadowbanInPool?: { userId: string; name: string }[];
     /** Orga only (#1034): the raid's version, its instances and who of the raid leads which of them. */
     leaders?: LeadersView;
+    /** Orga only (#1037): "Loot-Daten laden" of the raid group; null for a single raid. */
+    loot?: SetupLootStatus | null;
     message?: string;
 };
 
@@ -415,6 +453,14 @@ export function leaveSetupPresence(eventId: string): Promise<{ left: boolean }> 
 
 export function proposeRaidSetup(eventId: string, options: { weights?: SetupWeights; fairness?: boolean; wishes?: boolean; avoid?: boolean; keep?: "placed" } = {}): Promise<SetupEditorData> {
     return send("POST", "/api/raids/setup/propose", { event: eventId, ...options });
+}
+
+/**
+ * "Loot-Daten laden" (#1037): starts the background job of the raid group (no route of its own:
+ * `loadLoot` on the propose POST). Proposes nothing; the editor polls GET and proposes when it is done.
+ */
+export function loadSetupLoot(eventId: string): Promise<SetupEditorData> {
+    return send("POST", "/api/raids/setup/propose", { event: eventId, loadLoot: true });
 }
 
 export function saveRaidSetup(eventId: string, input: SetupPlacementInput): Promise<SetupEditorData> {

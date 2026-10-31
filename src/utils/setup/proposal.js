@@ -526,6 +526,8 @@ function prepare(input, options) {
     if (!wishOn) effective.wishes = 0;
     // without a roster in the category (#658) nobody has a status: the weight does nothing
     if (!model.hasRoster) effective.roster = 0;
+    // loot (#1037) only with parallel raids and loaded data of the raid's version (model.js)
+    if (!model.lootOn) effective.loot = 0;
     return { model, effective };
 }
 
