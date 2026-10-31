@@ -105,6 +105,7 @@ describe("TempVoiceFields", () => {
             render(<Harness stored={{ mode: "temp" }} onChange={onChange} />);
             const input = screen.getByLabelText(t("settings.categories.tempName"));
             expect(input).toHaveValue("{raid} {no} · {date}");
+            expect(screen.getByText(/^\{no\} is left out while there is only one raid\. \{raid\} is/)).toBeInTheDocument();
             await user.click(screen.getByRole("button", { name: "{date}" }));
             expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ nameTemplate: `${DEFAULT_NAME_TEMPLATE} {datum}` }));
             await user.clear(input);

@@ -137,7 +137,7 @@ export default function TempVoiceFields({ cat, name, stored, voiceChannelId, voi
                             <dt>{t("settings.categories.tempPreviewLeader", { tag: "{leader}" })}</dt>
                             <dd className="mono">{preview("{raid} {nr} · {leader}", 2, 2, SAMPLE.leader)}</dd>
                         </dl>
-                        <span className="note">{t("settings.categories.tempNameHint")}</span>
+                        <span className="note">{t("settings.categories.tempNameHint", { nr: `{${placeholderName("nr", uiLang)}}`, raid: "{raid}" })}</span>
                     </div>
                     <CategorySubField label={t("settings.categories.tempLead")} sub={t("settings.categories.tempLeadExample", { time: clockMinus(SAMPLE_START, s.leadMinutes) })}>
                         <div className="cat-quota">
