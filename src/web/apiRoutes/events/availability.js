@@ -2,7 +2,8 @@
 // signs a raider off from the raids of that period, "there from … to … with
 // this character" signs them up — now and for raids created later, with a DM.
 //
-// GET    /api/availability[?userId=]      area signup   — the active entries (readable `scope`, `characters`), the characters
+// GET    /api/availability[?userId=]      area signup   — the active entries of the active server (entryOnServer; readable
+//                                                         `scope`, `characters`), the characters
 //                                                         to pick from and `servers` [{ guildId, name, icon, categories }]:
 //                                                         the servers the raider is a member of (entryServers.js)
 // POST   /api/availability/preview        area signup   — the raids a period covers; body { kind, from, to, scope, characters, id?, userId? };
@@ -46,7 +47,7 @@ const absenceOverview = require("../../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../../availability/raiderAttendance");
 const { entryCategoryIds, eventCategoryNames } = require("../../availability/entryCategories");
 const { entryServers, serverNames } = require("../../availability/entryServers");
-const { scopeOf, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
+const { scopeOf, entryOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -148,7 +149,9 @@ const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
-    const entries = availability.activeEntries(target.userId);
+    // only what concerns the server the web shows - another server's entries are edited there
+    const activeGuildId = activeGuildFor(req);
+    const entries = availability.activeEntries(target.userId).filter((e) => entryOnServer(e, activeGuildId));
     const names = viewNames(config, entries);
     // the servers of the raider the entry is for (their memberships), each with its categories;
     // for somebody else only the servers the caller may use (#925) - a save elsewhere is refused anyway
@@ -165,7 +168,7 @@ const getAvailability = withUser({}, async ({ user, req, query, res }) => {
         characters: characterChoices(profile, config),
         servers,
         // the server the web shows: a new entry starts with it picked
-        activeGuildId: activeGuildFor(req),
+        activeGuildId,
         // the flat list of before the server blocks (older clients)
         categories: servers.flatMap((s) => s.categories),
     });
@@ -376,13 +379,14 @@ async function namerFor(ids, config) {
 /** Everybody's absences are the orga's (full admins, orga roles) - a raider role with `roster` read sees only its own. */
 const ORGA_ONLY = "Die Übersicht aller Raider sieht nur die Orga.";
 
-const getOverview = withUser({}, async ({ user, query, res }) => {
+const getOverview = withUser({}, async ({ user, req, query, res }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", ORGA_ONLY);
     const config = getConfig();
     const view = absenceOverview.buildOverview({
         weeks: Number(query.get("weeks")) || 8,
         categoryId: str(query.get("category")),
         versionId: versionOf(query, config),
+        guildId: activeGuildFor(req),
         config,
         withReasons: isOrga(user),
         categoryNames: categoryNamesOf(config),
@@ -393,13 +397,13 @@ const getOverview = withUser({}, async ({ user, query, res }) => {
 });
 
 /** GET /api/availability/overview/raider?userId= — one raider's entries and their last raids. */
-const getOverviewRaider = withUser({}, async ({ user, query, res }) => {
+const getOverviewRaider = withUser({}, async ({ user, req, query, res }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", ORGA_ONLY);
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     const config = getConfig();
     const names = viewNames(config);
-    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers });
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), guildId: activeGuildFor(req), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });

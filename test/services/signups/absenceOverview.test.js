@@ -219,6 +219,21 @@ describe("buildOverview", () => {
         expect(overview.buildOverview({ now: NOW }).raiders.map((r) => r.userId)).toEqual(["onG2"]);
         expect(overview.buildOverview({ now: NOW, categoryId: "mon" }).raiders).toEqual([]);
     });
+
+    it("shows one server with `guildId`: its raids and the entries that concern it, never another server's", () => {
+        mockConfig = { ...mockConfig, categoryIds: ["mon", "wed"], guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-25", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-26", { guildId: "g2", categoryId: "wed" }));
+        entry("onG1", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("onG2", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g2", categoryIds: ["wed"] }] });
+        entry("both", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: ["mon"] }, { guildId: "g2", categoryIds: [] }] });
+        entry("older", "2030-03-24", "2030-03-30");
+        const view = overview.buildOverview({ now: NOW, guildId: "g2" });
+        expect(view.raiders.map((r) => r.userId).sort()).toEqual(["both", "older", "onG2"]);
+        expect(view.raids.map((r) => r.id)).toEqual(["eh-b"]);
+        expect(view.categories.map((c) => c.id)).toEqual(["wed"]);
+        expect(overview.buildOverview({ now: NOW, guildId: "g1" }).raiders.map((r) => r.userId).sort()).toEqual(["both", "older", "onG1"]);
+    });
 });
 
 describe("raiderDetail", () => {
@@ -251,6 +266,19 @@ describe("raiderDetail", () => {
         ]);
         expect(presence.characters[1].specLabel).not.toBe("Priest-Holy");
         expect(older).toMatchObject({ scope: [{ guildId: "", name: "", categories: [{ id: "wed", name: "Mittwoch" }] }], characters: [], categoryName: "Mittwoch" });
+    });
+
+    it("with `guildId` lists only the entries and last raids of that server", () => {
+        mockConfig = { ...mockConfig, guildId: "g1", discordServers: { servers: [{ guildId: "g1" }, { guildId: "g2" }] } };
+        mockEvents.set("eh-a", raid("eh-a", "2030-03-11", { guildId: "g1" }));
+        mockEvents.set("eh-b", raid("eh-b", "2030-03-12", { guildId: "g2" }));
+        signup("eh-a", "u1", "signed");
+        signup("eh-b", "u1", "signed");
+        entry("u1", "2030-03-25", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("u1", "2030-04-01", "2030-04-05", { scope: [{ guildId: "g2", categoryIds: [] }] });
+        const detail = overview.raiderDetail("u1", { now: NOW, guildId: "g2" });
+        expect(detail.entries.map((e) => e.from)).toEqual(["2030-04-01"]);
+        expect(detail.history.map((h) => h.eventId)).toEqual(["eh-b"]);
     });
 });
 
