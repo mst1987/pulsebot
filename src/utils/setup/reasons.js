@@ -33,6 +33,8 @@ const ROLE_PLURAL = { tank: "Tanks", healer: "Heiler", melee: "Nahkämpfer", ran
 
 /** One instance per raid ID: the character already stands in another raid of the same instance this ID. */
 const RAID_ID_TAKEN = "Schon in einem anderen Raid dieser ID";
+/** The same after the names of several characters on the bench: "Zibbo, Zibbowar: schon in einem anderen Raid dieser ID" ("ID" stays upper case for botEnglish). */
+const RAID_ID_TAKEN_PART = "schon in einem anderen Raid dieser ID";
 
 /**
  * Which of several named characters (#293) the raider plays, and why:
@@ -159,7 +161,7 @@ function benchReasons(model, facts, state, c) {
     }
     out.push(...full);
     const blockedNames = [...new Set(blocked.map((o) => o.character))];
-    if (blockedNames.length) out.push(`${blockedNames.join(", ")}: ${RAID_ID_TAKEN.toLowerCase()}`);
+    if (blockedNames.length) out.push(`${blockedNames.join(", ")}: ${RAID_ID_TAKEN_PART}`);
     const best = cand.options[0];
     if (best.status !== "signed" && STATUS_TEXT[best.status]) out.push(STATUS_TEXT[best.status]);
     if (model.weightsEffective.fairness > 0 && cand.fairness.last === "placed") out.push("War zuletzt dabei");

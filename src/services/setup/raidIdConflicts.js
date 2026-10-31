@@ -18,6 +18,8 @@ const eventStore = require("../../stores/events/eventStore");
 const { raidIdOf, DAY_MS } = require("../../utils/time/raidId");
 const { characterKeyOf } = require("../../utils/loot/lootImport");
 const { inRaidGroup, raidIndexOf } = require("../../utils/raidGroup");
+const profileStore = require("../../stores/roster/raiderProfileStore");
+const { versionOfEvent } = require("../versions/mainVersion");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
 
@@ -46,21 +48,36 @@ function sameIdEvents(event, exclude) {
         && [...instancesOf(e)].some((i) => instances.has(i)));
 }
 
-/** The character keys standing in a group of a stored setup (the bench and the pool do not count). */
-function placedKeys(setup) {
+/**
+ * The character keys standing in a group of the event's stored setup (the bench
+ * and the pool do not count). A slot without a character name plays the
+ * raider's first character of the event's version - as setupInput reads such a signup.
+ */
+function placedKeys(event) {
     const keys = new Set();
-    for (const g of (setup && setup.groups) || []) {
+    let versionId = null;
+    for (const g of (event.setup && event.setup.groups) || []) {
         for (const s of (g && g.slots) || []) {
-            const key = s && s.character ? characterKeyOf(s.character) : "";
+            if (!s) continue;
+            let name = str(s.character);
+            if (!name && str(s.userId)) {
+                if (versionId === null) versionId = versionOfEvent(event) || "";
+                name = (profileStore.firstCharacter(profileStore.getProfile(s.userId), versionId) || {}).name || "";
+            }
+            const key = name ? characterKeyOf(name) : "";
             if (key) keys.add(key);
         }
     }
     return keys;
 }
 
-/** What the hint may say about the other raid: details on the same server, nothing elsewhere. */
+/**
+ * What the hint may say about the other raid: details on the same server,
+ * nothing elsewhere. A raid without a server is never "the same" - not even
+ * against an event without one (Daten je Server).
+ */
 function entryOf(other, guildId) {
-    if (str(other.guildId) !== str(guildId)) return { other: true };
+    if (!str(guildId) || str(other.guildId) !== str(guildId)) return { other: true };
     return {
         local: true,
         title: str(other.title),
@@ -87,7 +104,7 @@ function takenInRaidId(event, { excludeIds = [] } = {}) {
     if (!event) return taken;
     const exclude = new Set([str(event.id), ...excludeIds.map(str)]);
     for (const other of sameIdEvents(event, exclude)) {
-        const keys = placedKeys(other.setup);
+        const keys = placedKeys(other);
         if (!keys.size) continue;
         const entry = entryOf(other, event.guildId);
         for (const key of keys) taken.set(key, better(taken.get(key), entry));

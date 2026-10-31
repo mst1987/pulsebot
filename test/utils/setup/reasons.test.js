@@ -3,6 +3,7 @@
 // and the search state are built by hand here, so every reason is reached
 // directly instead of through a whole proposal run (proposal.test.js does that).
 const { buildOutput, slotReasons, benchReasons, eventChecks } = require("../../../src/utils/setup/reasons");
+const { toEnglish } = require("../../../src/utils/signup/botEnglish");
 
 const ROLE_IDX = { tank: 0, healer: 1, melee: 2, ranged: 3 };
 const RAID_BUFFS = [
@@ -202,6 +203,15 @@ describe("slotReasons: which of several characters", () => {
             .toBe("Als Fernkampf statt 1. Wahl (passte besser in die Aufstellung)");
     });
 
+    it("explains the switch with the first choice saved in another raid of this ID - in words botEnglish knows", () => {
+        const other = pick({}, { raidIdTaken: true }, { roles: [0, 3, 0, 0] });
+        expect(other).toBe("Mit Alphadk als Heiler statt Alpha (Alpha ist in dieser ID schon in einem anderen Raid)");
+        expect(toEnglish(other)).toBe("With Alphadk as Healer instead of Alpha (Alpha is already in another raid of this lockout)");
+        const same = pick({ character: "alpha", role: "ranged" }, { role: "healer", character: "Alpha", raidIdTaken: true });
+        expect(same).toBe("Als Fernkampf statt 1. Wahl (Alpha ist in dieser ID schon in einem anderen Raid)");
+        expect(toEnglish(same)).toBe("As Ranged instead of the first choice (Alpha is already in another raid of this lockout)");
+    });
+
     it("says nothing without a preference for this raid", () => {
         const c0 = cand(0, { preferred: new Map([[1, { role: "healer", character: "X", status: "signed" }]]) });
         expect(reasonsOf(world([c0]), 0)).toEqual(["Angemeldet mit Hauptspec"]);
@@ -213,6 +223,16 @@ describe("benchReasons", () => {
         const w = world([c], { m, ev, state: { opt: [-1] } });
         return benchReasons(w.model, w.facts, w.state, 0);
     };
+
+    it("names the characters saved in another raid of this ID - in words botEnglish knows", () => {
+        const blocked = [opt({ character: "Zibbo" }), opt({ character: "Zibbo", role: "melee" }), opt({ character: "Zab" })];
+        const all = bench(cand(0, { options: [], raidIdBlocked: blocked }));
+        expect(all).toEqual(["Schon in einem anderen Raid dieser ID"]);
+        expect(toEnglish(all[0])).toBe("Already in another raid of this lockout");
+        const part = bench(cand(0, { options: [opt({ role: "healer" })], raidIdBlocked: blocked }), { ev: { roles: [0, 3, 0, 0] } });
+        expect(part).toContain("Zibbo, Zab: schon in einem anderen Raid dieser ID");
+        expect(toEnglish("Zibbo, Zab: schon in einem anderen Raid dieser ID")).toBe("Zibbo, Zab: already in another raid of this lockout");
+    });
 
     it("names an orga decision first", () => {
         expect(bench(cand(0, { fixed: { bench: true } }))).toEqual(["Von der Orga auf die Bank gesetzt"]);

@@ -9,6 +9,13 @@ jest.mock("../../../src/stores/events/eventStore", () => ({
     },
 }));
 
+const mockProfiles = {};
+jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({
+    getProfile: (userId) => mockProfiles[userId] || { userId, characters: [] },
+    firstCharacter: (profile, versionId) => (profile.characters || []).find((c) => !versionId || c.versionId === versionId) || null,
+}));
+jest.mock("../../../src/services/versions/mainVersion", () => ({ versionOfEvent: (e) => (e && e.versionId) || "tbc" }));
+
 const { takenInRaidId, markLineup, takenKeysFor } = require("../../../src/services/setup/raidIdConflicts");
 const { raidIdOf } = require("../../../src/utils/time/raidId");
 
@@ -25,6 +32,7 @@ const ev = (over = {}) => ({
 beforeEach(() => {
     mockEvents.length = 0;
     mockCalls.length = 0;
+    for (const k of Object.keys(mockProfiles)) delete mockProfiles[k];
 });
 
 describe("takenInRaidId", () => {
@@ -74,6 +82,20 @@ describe("takenInRaidId", () => {
         mockEvents.push(ev({ id: "eh-b", setup: { ...setupOf(["Jaina"], ["Arthas"]), pool: [slot("Uther")], groups: [{ index: 1, slots: [slot("Jaina"), { userId: "x" }] }] } }));
         const taken = takenInRaidId(ev());
         expect([...taken.keys()]).toEqual(["jaina"]);
+    });
+
+    test("a slot without a character name plays the raider's first character of the raid's version", () => {
+        mockProfiles.p1 = { userId: "p1", characters: [{ name: "Classicchar", versionId: "classic" }, { name: "Tbcchar", versionId: "tbc" }] };
+        mockEvents.push(ev({ id: "eh-b", setup: { groups: [{ index: 1, slots: [{ userId: "p1", spec: "s", role: "tank" }] }] } }));
+        expect([...takenInRaidId(ev()).keys()]).toEqual(["tbcchar"]);
+    });
+
+    test("a raid without a server is always foreign - even against an event without one", () => {
+        mockEvents.push(ev({ id: "eh-b", guildId: "", setup: setupOf(["Jaina"]) }));
+        expect(takenInRaidId(ev({ guildId: "" })).get("jaina")).toEqual({ other: true });
+        expect(takenInRaidId(ev()).get("jaina")).toEqual({ other: true });
+        mockEvents[0].guildId = "g1";
+        expect(takenInRaidId(ev({ guildId: "" })).get("jaina")).toEqual({ other: true });
     });
 
     test("signed up as Ersatz without a place is no conflict - only a group slot is", () => {

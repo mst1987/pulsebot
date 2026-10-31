@@ -234,6 +234,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Abschnitt Teile je Server enthält (z. B. Spielversion je Kategorie, Server-Schlüssel aus
     `SERVER_SCOPED_KEYS`): die bleiben auf der Server-Seite, sonst kann sie der Einstellungs-Schreiber
     nicht mehr ändern. Das Speichern schickt je Seite nur ihre Schlüssel (`save()` in `SettingsPage`).
+28. Charakter-Abgleich über Server hinweg (Raid-ID-Hinweis): `characterKeyOf` kennt keinen Realm —
+    gleicher Name auf einem anderen Server ist nur derselbe Charakter, wenn Realm und Region der
+    Version dort gleich sind (`settingsForVersion(versionId, { guildId })`, #923). Raid-Resets sind
+    nicht überall wöchentlich (Classic Era ZG/AQ20 3 Tage, Onyxia 5 Tage): Rhythmus je Instanz aus dem
+    Regelsatz, nie pauschal `raidIdOf`.
 
 ## Fach-Agenten
 

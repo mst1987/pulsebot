@@ -60,6 +60,13 @@ const RULES = [
     [/^Andere passten besser in die Aufstellung$/, "Others fitted the lineup better"],
     [/^Schon in einem anderen Raid dieser ID$/, "Already in another raid of this lockout"],
     [/^(.+): schon in einem anderen Raid dieser ID$/, "$1: already in another raid of this lockout"],
+    // utils/setup/reasons.characterChoiceReason: the first choice is saved in another raid of this ID
+    ...[["Tank", "Tank"], ["Heiler", "Healer"], ["Nahkampf", "Melee"], ["Fernkampf", "Ranged"]].flatMap(([de, en]) => [
+        [new RegExp(String.raw`^Mit (.+) als ${de} statt (.+) \((.+) ist in dieser ID schon in einem anderen Raid\)$`),
+            `With $1 as ${en} instead of $2 ($3 is already in another raid of this lockout)`],
+        [new RegExp(String.raw`^Als ${de} statt 1\. Wahl \((.+) ist in dieser ID schon in einem anderen Raid\)$`),
+            `As ${en} instead of the first choice ($1 is already in another raid of this lockout)`],
+    ]),
     // raiderProfileStore.addCharacter
     [/^Kein Konto\.$/, "No account."],
     [/^Bitte eine Klasse angeben\.$/, "Please pick a class."],
