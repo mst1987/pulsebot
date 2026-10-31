@@ -149,6 +149,8 @@ a.re-title:hover { color: var(--accent); text-decoration: none; }
 .re-voice-plan { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
 .re-voice-plan > select, .re-voice-plan > .re-label-row { align-self: stretch; }
 .re-voice-plan > .note { margin: 0; }
+/* the announce switch keeps the fields' distance to "Anmeldeschluss" below it */
+.re-announce { margin-bottom: 14px; }
 .re-voice-name { display: flex; flex-direction: column; gap: 4px; align-self: stretch; margin: 0; }
 .re-voice-name > input { width: 100%; }
 @media (max-width: 560px) {

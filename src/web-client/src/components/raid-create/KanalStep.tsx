@@ -90,7 +90,7 @@ export function KanalStep({ f, ctx }: { f: RaidCreateForm; ctx: RaidCreateContex
                 )}
             {eh && <VoicePlanField f={f} ctx={ctx} />}
             {eh && !editing && (
-                <div className="rt-switches">
+                <div className="rt-switches re-announce">
                     <SwitchRow
                         label={t("raidCreate.kanal.announce")}
                         tip={t("raidCreate.kanal.announceTip")}

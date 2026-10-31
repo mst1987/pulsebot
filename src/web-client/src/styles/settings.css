@@ -619,6 +619,8 @@ tr.perm-foreign .perm-who-label { color: var(--muted); }
 .cat-voice-mode-text > span { font-size: 12.5px; line-height: 1.45; color: var(--muted); }
 .cat-voice-mode[data-on] .cat-voice-mode-text > strong { color: var(--accent); }
 .cat-voice-existing { margin: 8px 0 0 26px; padding-top: 10px; border-top: 1px solid var(--line-soft); }
+/* "Ab Raid 2": the long line under the name wraps, the switch stays on the right */
+.cat-voice-existing > .cat-subfield:last-child > .cat-field-head { flex: 1 1 0; min-width: 0; }
 .cat-voice-temp .cat-subfield-control > select { min-width: 220px; max-width: 100%; }
 .cat-voice-name { flex-direction: column; align-items: stretch; gap: 8px; }
 .cat-voice-name > input { width: 100%; }
