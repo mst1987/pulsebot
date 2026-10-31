@@ -47,22 +47,23 @@ describe("services/signups/signupNotes", () => {
         expect(embed.title).toBe("Notification received!");
         expect(typeof embed.color).toBe("number");
         const lines = embed.description.split("\n");
-        expect(lines[0]).toBe("**<@123456> (zibbo)** signed up as **Absent** with the following reason:");
+        expect(lines[0]).toBe("**zibbo** · <@123456> signed up as **Absent** with the following reason:");
         expect(lines[1]).toBe("");
         expect(lines[2]).toBe("\\*\\*krank\\*\\* @​everyone \\> x");
         expect(lines[3]).toBe("");
-        expect(lines[4]).toBe("<@123456> | **[SSC + TK](https://discord.com/channels/10000/20000/30000)** <t:1760000000:f>");
+        // the character as plain text, not the bare mention that can read "@unknown-user"
+        expect(lines[4]).toBe("zibbo | **[SSC + TK](https://discord.com/channels/10000/20000/30000)** <t:1760000000:f>");
 
         const noCharacter = notes.buildNotePost({ title: "Kara" }, signup({ status: "tentative", character: "" }), { lang: "en" });
         const noCharacterLines = noCharacter.embeds[0].description.split("\n");
-        expect(noCharacterLines[0]).toBe("**<@123456>** signed up as **Tentative** with the following reason:");
+        expect(noCharacterLines[0]).toBe("<@123456> signed up as **Tentative** with the following reason:");
         expect(noCharacterLines[4]).toBe("<@123456> | **Kara**");
     });
 
     it("writes the post in the server language, German by default", () => {
         const embed = notes.buildNotePost(EVENT, signup()).embeds[0];
         expect(embed.title).toBe("Benachrichtigung erhalten!");
-        expect(embed.description.split("\n")[0]).toBe("**<@123456> (zibbo)** hat sich als **Abgemeldet** gemeldet, mit folgender Begründung:");
+        expect(embed.description.split("\n")[0]).toBe("**zibbo** · <@123456> hat sich als **Abgemeldet** gemeldet, mit folgender Begründung:");
         const tentative = notes.buildNotePost(EVENT, signup({ status: "tentative" })).embeds[0];
         expect(tentative.description).toContain("als **Vielleicht** gemeldet");
     });

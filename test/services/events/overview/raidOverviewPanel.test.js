@@ -7,8 +7,10 @@ const at = (iso) => Math.floor(DateTime.fromISO(iso, { zone: "Europe/Berlin" }).
 // Wednesday 14 Oct 2026, 12:00 - the running ID is 14.10. - 20.10.
 const NOW = DateTime.fromISO("2026-10-14T12:00:00", { zone: "Europe/Berlin" }).toMillis();
 const attending = (e) => (e.signUps || []).length;
-const raid = (id, iso, over = {}) => ({
-    id, title: `Raid ${id}`, startTime: at(iso), channelId: `ch-${id}`, leaderId: `lead-${id}`, size: 25, signUps: [], ...over,
+// a snowflake per raid letter: "a" -> 900000000000000097
+const lead = (id) => `9000000000000000${String(id).charCodeAt(0)}`;
+const raid =(id, iso, over = {}) => ({
+    id, title: `Raid ${id}`, startTime: at(iso), channelId: `ch-${id}`, leaderId: lead(id), size: 25, signUps: [], ...over,
 });
 const build = (events, over = {}) => raidOverviewPayload({ categoryName: "🔥 PUG Raids", events, now: NOW, lang: "en", attending, ...over });
 const texts = (payload) => cardText(payload);
@@ -31,7 +33,7 @@ describe("services/events/overview/raidOverviewPanel", () => {
         expect(text).toContain("**ID** · Wed 28.10. – Tue 03.11.");
         // the per-raid lines
         expect(text).toContain(`**Sat 17.10.** · **Raid a** · <t:${at("2026-10-17T20:00:00")}:t> · <t:${at("2026-10-17T20:00:00")}:R>`);
-        expect(text).toContain("<#ch-a> · led by <@lead-a>");
+        expect(text).toContain("<#ch-a> · led by <@900000000000000097>");
         expect(text).toContain("🟩🟩🟩▫️▫️ 17 / 25 signed up");
         expect(cardButtons(payload)).toEqual([]);
     });
@@ -40,7 +42,7 @@ describe("services/events/overview/raidOverviewPanel", () => {
         const text = texts(build([raid("a", "2026-10-17T20:00:00")], { lang: "de" }));
         expect(text).toContain("**Diese ID** · Mi 14.10. – Di 20.10.");
         expect(text).toContain("Sa 17.10.");
-        expect(text).toContain("geleitet von <@lead-a>");
+        expect(text).toContain("geleitet von <@900000000000000097>");
         expect(text).toContain("0 / 25 angemeldet");
         expect(text).toContain("Aktualisiert sich selbst");
     });
@@ -70,6 +72,15 @@ describe("services/events/overview/raidOverviewPanel", () => {
         expect(text).toContain("**Big raidx**");
         expect(text).not.toContain("led by");
         expect(text).not.toContain("<#");
+    });
+
+    it("names a signed-up lead by character instead of a bare mention (@unknown-user)", () => {
+        const signed = raid("a", "2026-10-17T20:00:00", { signUps: [{ userId: lead("a"), character: "Thrall" }] });
+        const text = texts(build([signed]));
+        expect(text).toContain("<#ch-a> · led by Thrall");
+        expect(text).not.toContain(`<@${lead("a")}>`);
+        // a lead id that is no snowflake drops the part instead of printing "led by "
+        expect(texts(build([raid("a", "2026-10-17T20:00:00", { leaderId: "lead-a" })]))).not.toContain("led by");
     });
 
     it("says so when no raid is planned", () => {
@@ -221,7 +232,7 @@ describe("services/events/overview/raidOverviewPanel", () => {
             const text = texts(build([raid("a", "2026-10-17T20:00:00", { signUps: Array.from({ length: 13 }, (_, i) => ({ userId: "u" + i })) })], { emojis: icons }));
             expect(text).toContain("-# " + e("g").repeat(3) + e("e").repeat(2) + " 13 / 25 signed up");
             expect(text).toContain("<:eh_ui_time:5> <t:");
-            expect(text).toContain("<:eh_ui_leader:6> led by <@lead-a>");
+            expect(text).toContain("<:eh_ui_leader:6> led by <@900000000000000097>");
             expect(text).toContain("<:eh_ui_date:7> **This ID**");
         });
 
@@ -239,14 +250,15 @@ describe("services/events/overview/raidOverviewPanel", () => {
     describe("footer and hash", () => {
         it("keeps a category overview's hash of before the server overview (else every overview would be redrawn)", () => {
             // fixed values, computed once with the code of origin/main c0537c47 - change them only on purpose
+            // (re-computed with snowflake lead ids on origin/main e9a99e40: a lead who did not sign up still reads <@id>)
             const events = () => [
                 raid("a", "2026-10-17T20:00:00", { signUps: Array.from({ length: 17 }, (_, i) => ({ userId: `u${i}` })) }),
                 raid("b", "2026-10-21T20:00:00", { size: 10, signUps: [{ userId: "x" }] }),
                 raid("c", "2026-10-30T20:00:00", { leaderId: "" }),
                 raid("gone", "2026-10-18T20:00:00", { status: "cancelled" }),
             ];
-            expect(payloadHash(build(events(), { emojis: {} }), "en")).toBe("dd9cd623b8c482ff");
-            expect(payloadHash(build(events(), { emojis: {}, lang: "de" }), "de")).toBe("942c4481db911734");
+            expect(payloadHash(build(events(), { emojis: {} }), "en")).toBe("ed3d35242e6df1c3");
+            expect(payloadHash(build(events(), { emojis: {}, lang: "de" }), "de")).toBe("e352154347b12fe0");
         });
 
         it("shows the last change only when given, and leaves it out of the hash", () => {
@@ -287,7 +299,7 @@ describe("services/events/overview/raidOverviewPanel", () => {
             const text = texts(payload);
             // the title lines are in the picture now; the raid lines stay
             expect(text).not.toContain("**This ID**");
-            expect(text).toContain("<#ch-a> · led by <@lead-a>");
+            expect(text).toContain("<#ch-a> · led by <@900000000000000097>");
             expect(text).toContain("<#ch-b>");
         });
 
@@ -332,11 +344,11 @@ describe("services/events/overview/raidOverviewPanel", () => {
             const text = texts(build(events(), { categoryName: "", server: true }));
             expect(text).toContain("## Raids");
             expect(text).not.toContain("## PUG Raids");
-            expect(text).toContain("10er · <#ch-a> · led by <@lead-a>");
+            expect(text).toContain("10er · <#ch-a> · led by <@900000000000000097>");
             expect(text).toContain("40er · <#ch-b>");
             expect(text).not.toContain("40er · <#ch-b> · led by");
             // a raid without category or channel just keeps its leader
-            expect(text).toContain("led by <@lead-c>");
+            expect(text).toContain("led by <@900000000000000099>");
             expect(text).not.toContain("⚔️");
         });
 
@@ -351,7 +363,7 @@ describe("services/events/overview/raidOverviewPanel", () => {
             expect(payloadHash(off, "en")).toBe(payloadHash(plain, "en"));
             const text = texts(plain);
             expect(text).toContain("## PUG Raids");
-            expect(text).toContain("\n<#ch-a> · led by <@lead-a>");
+            expect(text).toContain("\n<#ch-a> · led by <@900000000000000097>");
             expect(text).not.toContain("10er");
             expect(payloadHash(build(events(), { server: true }), "en")).not.toBe(payloadHash(plain, "en"));
         });

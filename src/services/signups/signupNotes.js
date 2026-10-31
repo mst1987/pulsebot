@@ -24,6 +24,7 @@ const { appEmojiMap, emojiText, statusEmojiName } = require("../discord/appEmoji
 const { messageUrl } = require("../events/eventAnnounce");
 const { embedAccentColor } = require("../../config/variables");
 const { isSnowflake } = require("../../utils/ids");
+const { nameAndMention, nameOrMention } = require("../../utils/discord/mentionName");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const serverDefaults = require("../discord/servers/serverDefaults");
@@ -97,8 +98,10 @@ function plainText(text) {
 /**
  * The post: one embed shaped like Raid-Helper's own signup notification (title
  * bar "Notification received!", who signed up as what with their reason, and
- * a closing line with the raid). `<@id>` shows the name; discord.postNotice
- * pings nobody. Returned as `{ embeds: [...] }`, ready for `discord.postNotice`.
+ * a closing line with the raid). The character as text, the mention behind it
+ * (mentionName.nameAndMention: discord.postNotice pings nobody, and such a
+ * mention alone can read "@unknown-user"); the closing line names them once
+ * more without the mention. Returned as `{ embeds: [...] }`, ready for `discord.postNotice`.
  * The channel is the orga's, one post for everybody: the server language (`lang`).
  */
 function buildNotePost(event, signup, { emojis = {}, lang = "de" } = {}) {
@@ -106,12 +109,11 @@ function buildNotePost(event, signup, { emojis = {}, lang = "de" } = {}) {
     const url = messageUrl(event);
     const start = Number(event && event.startTime) || 0;
     const icon = emojiText(emojis, statusEmojiName(signup.status));
-    const mention = `<@${signup.userId}>`;
-    const who = [mention, characterName(signup) ? `(${plainText(characterName(signup))})` : ""].filter(Boolean).join(" ");
+    const who = nameAndMention(characterName(signup), signup.userId);
     const raidLink = url ? `[${title}](${url})` : title;
-    const footer = [mention, "|", `**${raidLink}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" ");
+    const footer = [nameOrMention(characterName(signup), signup.userId), "|", `**${raidLink}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" ");
     const statusText = [icon, `**${STATUS_TEXT[signup.status] ? tr(lang, STATUS_TEXT[signup.status]) : signup.status}**`].filter(Boolean).join(" ");
-    const headline = tr(lang, "{who} signed up as {status} with the following reason:", { who: `**${who}**`, status: statusText });
+    const headline = tr(lang, "{who} signed up as {status} with the following reason:", { who, status: statusText });
     const description = [
         headline,
         "",

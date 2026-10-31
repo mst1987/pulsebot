@@ -67,7 +67,7 @@ describe("services/signups/guildBank", () => {
 
     it("posts only into a channel of the request's server and counts one elsewhere as no guild bank (#924)", async () => {
         await create();
-        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "111111" });
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "111111", silentMentions: true });
         discord.postPayload.mockClear();
         discord.postPayload.mockRejectedValueOnce(Object.assign(new Error("Kanal liegt auf einem anderen Server."), { code: "wrong_guild" }));
         expect(await create()).toEqual({ error: "Die Gildenbank ist gerade nicht eingerichtet." });

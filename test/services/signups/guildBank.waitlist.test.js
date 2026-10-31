@@ -87,7 +87,7 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(result.position).toBe(1);
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
         // only into a channel of the bank's server (#924)
-        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1" });
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1", silentMentions: true });
     });
 
     it("a new request waits in full while somebody waits; the list moves up in turns, a rest goes to the end", async () => {
@@ -109,7 +109,7 @@ describe("services/signups/guildBank — waiting list", () => {
         expect(run.moved).toHaveLength(1);
         expect(run.posted).toBe(1);
         const card = discord.postPayload.mock.calls[0][1];
-        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1" });
+        expect(discord.postPayload.mock.calls[0][2]).toEqual({ guildId: "g1", silentMentions: true });
         expect(cardText(card)).toContain("## 2× Crimson Spinal");
         expect(cardText(card)).toContain("aus der Warteliste · Rest 1 wartet (Platz 2) · offen");
         expect(cardButtons(card).map((b) => b.label)).toEqual(["Bestätigen", "Charakter ändern …", "Ablehnen …"]);

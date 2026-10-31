@@ -17,6 +17,7 @@ const hubs = require("../../stores/discord/orgaHubStore");
 const { noteChannelFor, plainText } = require("../signups/signupNotes");
 const { shortFor, levelRank } = require("./vermerkeShort");
 const { card, CARD_TEXT_LIMIT } = require("../../utils/discord/card");
+const { nameAndMention } = require("../../utils/discord/mentionName");
 const { publicBaseUrl } = require("../../utils/publicUrl");
 const queue = require("./orgaSignupQueue");
 
@@ -53,8 +54,8 @@ function reasonsText(reasons = {}) {
 
 /** One line of the message for a signup and the person's short form. */
 function buildNoticeLine(item, short, { base = publicBaseUrl() } = {}) {
-    const name = plainText(item.name);
-    const who = `<@${item.userId}>${name ? ` (${name})` : ""}`;
+    // the name as text first: a mention that pings nobody can read "@unknown-user"
+    const who = nameAndMention(item.name, item.userId);
     // startTime is unix seconds, as in the event store
     const start = Number(item.startTime) > 0 ? ` <t:${Math.floor(Number(item.startTime))}:f>` : "";
     const raid = `**${plainText(item.title) || "Raid"}**${start}`;
@@ -144,7 +145,7 @@ async function postBatch(guildId, items, { config = getConfig(), now = Date.now(
     for (const [channelId, channelLines] of byChannel) {
         for (const post of buildNoticePosts(channelLines)) {
             try {
-                await discord.postPayload(channelId, post, { guildId });
+                await discord.postPayload(channelId, post, { guildId, silentMentions: true });
                 posted += 1;
             } catch (e) {
                 console.warn(`[orgaSignupNotice] Hinweis nicht in ${channelId} gepostet: ${(e && e.message) || e}`);

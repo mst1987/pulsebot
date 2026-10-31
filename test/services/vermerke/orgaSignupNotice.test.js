@@ -53,10 +53,13 @@ describe("services/vermerke/orgaSignupNotice", () => {
     it("writes a line with name, raid, level and reasons with counts - no text, no author", () => {
         notes.addEntry("A", U, { level: "warning", reason: "no_show", text: "GEHEIM" }, by);
         const line = notice.buildNoticeLine(item(U), { level: "warning", reasons: { no_show: 3, behavior: 1 } }, { base: BASE });
-        expect(line).toBe(`<@${U}> (Zed) · **Karazhan** <t:1800000000:f> · Warnung · Nicht erschienen ×3 · Verhalten · [Vermerke](${BASE}/vermerke?user=${U})`);
+        expect(line).toBe(`**Zed** · <@${U}> · **Karazhan** <t:1800000000:f> · Warnung · Nicht erschienen ×3 · Verhalten · [Vermerke](${BASE}/vermerke?user=${U})`);
         // a name or title cannot format or ping
         const odd = notice.buildNoticeLine(item(U, { name: "@everyone *x*", title: "", startTime: 0 }), { level: "shadowban", reasons: {} }, { base: "" });
-        expect(odd).toBe(`<@${U}> (@\u200beveryone \\*x\\*) · **Raid** · Shadowban`);
+        expect(odd).toBe(`**@\u200beveryone \\*x\\*** · <@${U}> · **Raid** · Shadowban`);
+        // without a stored name just the mention
+        expect(notice.buildNoticeLine(item(U, { name: "", title: "", startTime: 0 }), { level: "shadowban", reasons: {} }, { base: "" }))
+            .toBe(`<@${U}> · **Raid** · Shadowban`);
     });
 
     it("counts by the server's switch: from warning, or shadowban only", () => {
@@ -76,7 +79,7 @@ describe("services/vermerke/orgaSignupNotice", () => {
         expect(discord.postPayload).toHaveBeenCalledTimes(1);
         const [channelId, payload, opts] = discord.postPayload.mock.calls[0];
         expect(channelId).toBe(ORGA);
-        expect(opts).toEqual({ guildId: "A" });
+        expect(opts).toEqual({ guildId: "A", silentMentions: true });
         const text = JSON.stringify(payload);
         expect(text).toContain("Anmeldung mit Vermerk");
         expect(text).toContain("Nicht erschienen ×2");
