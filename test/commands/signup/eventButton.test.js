@@ -290,7 +290,7 @@ describe("commands/signup/eventButton", () => {
 
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { character: "Zibbo" } });
             await command.execute(submit);
-            expect(answerOf(updateOf(submit))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Bench**" });
+            expect(answerOf(updateOf(submit))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Zibbo · Holy – **Reserve**" });
             expect(profiles.getProfile(ANNA).characters.map((c) => c.name)).toEqual(["Zibbo"]);
             expect(stored()).toMatchObject({ status: "bench", character: "Zibbo" });
         });
@@ -445,15 +445,15 @@ describe("commands/signup/eventButton", () => {
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:b");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["devire|Mage-Arcane"] }), select);
             await command.execute(pick);
-            expect(answerOf(updateOf(pick))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Devire · Arcane – **Bench**" });
+            expect(answerOf(updateOf(pick))).toMatchObject({ title: "Saved for Karazhan", body: "`1.` Devire · Arcane – **Reserve**" });
             expect(stored()).toMatchObject({ status: "bench", character: "Devire" });
             expect(statuses()).toEqual([["Devire", "bench"]]);
 
             // what the channel sees, built from the same store
             const { _internal: { buildEventMessage } } = require("../../../src/services/events/eventMessage");
             const payload = buildEventMessage(mocks.events.get("eh-kara"), mocks.signupStore().listSignups("eh-kara"), { lang: "en" });
-            const lines = payload.embeds[0].fields.find((f) => !f.inline && /Bench|Absence/.test(f.value)).value.split("\n");
-            expect(lines).toEqual(["Bench (1): `1` Devire"]);
+            const lines = payload.embeds[0].fields.find((f) => !f.inline && /Reserve|Absence/.test(f.value)).value.split("\n");
+            expect(lines).toEqual(["Reserve (1): `1` Devire"]);
         });
 
         it("keeps a character that is re-added in its place", () => {
@@ -477,8 +477,8 @@ describe("commands/signup/eventButton", () => {
             // #508: the head line is the embed's title, the characters its description
             expect(noIds(saved.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
             expect(noIds(saved.body).split("\n")).toEqual([
-                "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_bench> **Bench**",
-                "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Bench**",
+                "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_bench> **Reserve**",
+                "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Reserve**",
             ]);
             const start = mocks.events.get("eh-kara").startTime;
             expect(saved.description.split("\n").pop()).toBe(`🗓️ <t:${start}:d> <t:${start}:t> · <t:${start}:R>`);

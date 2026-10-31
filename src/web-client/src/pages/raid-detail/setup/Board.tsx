@@ -1,10 +1,10 @@
-import { useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type KeyboardEvent, type ReactNode } from "react";
 import { useZone } from "./useZone";
 import { peekHandlers } from "./peek";
 import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGroup, SetupPerson } from "../../../api";
 import type { VermerkShortMap } from "../../../api/roster/vermerke";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
-import { placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { balancedColumns, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
@@ -99,9 +99,10 @@ export function CharacterNumber({ order }: { order: number }) {
  * `inPool` (#517): signed up, not in the setup, a "Bank" signup marked.
  * `inGroup`: a place in a group — only there a Confirm/Cancel is drawn (green resp. red, the mark as a big icon behind the line).
  * `as` (#293): the character this line stands for when it is not the one the raider stands as — a drag or pick takes it.
+ * `note`: a short line instead of the spec text, e.g. "2. Char von <first char>" for a further character in "Angemeldet".
  * `order`: their order number (1 = their choice, 2 and up = "kann auch mit"), drawn for somebody with several characters.
  */
-export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number }) {
+export function Slot({ p, ui, inPool = false, inGroup = false, as, order, note, label }: { p: SetupPerson; ui: Interaction; inPool?: boolean; inGroup?: boolean; as?: string; order?: number; note?: string; label?: string }) {
     const t = useT();
     // late, tentative or bench: a labelled square field on the line (#setup-bar), not a dot
     const sig = markedStatus(p.status);
@@ -134,6 +135,8 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
             aria-pressed={ui.editable ? selected : undefined}
             draggable={movable}
             data-user={p.userId}
+            data-character={as}
+            aria-label={label}
             // the raider's info beside the line while the mouse rests on it or the focus is here (peek.ts)
             {...peekHandlers(ui, p.userId, as)}
             onClick={ui.editable ? () => (held ? ui.onHeld?.(p.userId) : ui.onPick(p.userId, as)) : undefined}
@@ -171,7 +174,9 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order }: { p:
                     {sig && <SigBadge status={sig} />}
                     {/* the role only where the spec does not say it on its own: tank and healer, never melee/ranged.
                         An off-spec is tinted — the role where it is shown, else the spec; "Zweitspec" itself is in the tooltip */}
-                    {showsRole(p.role)
+                    {note
+                        ? <span className="se-note">{note}</span>
+                        : showsRole(p.role)
                         ? <>{specText(p)} · <span className={p.main === false ? "se-offrole" : undefined}>{roleLabel(p.role)}</span></>
                         : <span className={p.main === false ? "se-offrole" : undefined}>{specText(p)}</span>}
                     {(ui.extraRoles[p.userId] || []).map((r) => (
@@ -278,42 +283,88 @@ export function GroupCard({ group, buffs, ui }: { group: SetupEditorGroup; buffs
  * The grid of the group cards. `count` (the number of groups) caps its width at that many cards of
  * --se-group-max, so a 10er's two groups are wide cards and a 25er still shows five side by side;
  * every head in a row is as tall as the tallest, so all places start on one line (setup-editor.css).
+ * Where not all fit in one row, the cards spread evenly over the rows (balancedColumns): 3 + 2, never 4 + 1.
  */
 export function GroupGrid({ count, children }: { count: number; children: ReactNode }) {
-    return <div className="se-groups" style={{ "--se-n": Math.max(1, count) } as CSSProperties}>{children}</div>;
+    const ref = useRef<HTMLDivElement>(null);
+    const [cols, setCols] = useState<number | null>(null);
+    useLayoutEffect(() => {
+        const el = ref.current;
+        if (!el || typeof ResizeObserver === "undefined") return undefined;
+        const fit = () => {
+            const css = getComputedStyle(el);
+            const min = parseFloat(css.getPropertyValue("--se-col-min")) || 188;
+            const gap = parseFloat(css.columnGap) || 0;
+            if (el.clientWidth > 0) setCols(balancedColumns(count, el.clientWidth, min, gap));
+        };
+        fit();
+        const watch = new ResizeObserver(fit);
+        watch.observe(el);
+        return () => watch.disconnect();
+    }, [count]);
+    const style = { "--se-n": Math.max(1, count), ...(cols ? { "--se-cols": cols } : {}) } as CSSProperties;
+    return <div ref={ref} className={`se-groups${cols ? " se-fit" : ""}`} style={style}>{children}</div>;
 }
 
+/** "Tank 1 · Heiler 1 · Schaden 1" — the bench's roles at a glance (melee and ranged count as damage). */
+function benchRoles(people: SetupPerson[]): { tank: number; healer: number; dps: number } {
+    const tank = people.filter((p) => p.role === "tank").length;
+    const healer = people.filter((p) => p.role === "healer").length;
+    return { tank, healer, dps: people.length - tank - healer };
+}
+
+/** Where the bench stands: a row under the groups (default) or a sixth column beside them ("Ansicht › Bank als Spalte"). */
+export type BenchLayout = "row" | "column";
+
 /**
- * The bench (#354) as ONE row under the groups: its name and count, then its
- * raiders side by side — never a real group: no roles, no buffs, and dropping
- * anywhere on the row just means "onto the bench". Picked somebody? A
- * "Hierher" place takes them. "Angemeldet" (#517) has a panel of its own
- * (PoolPanel.tsx).
+ * The bench (#354): under the groups as one row in their five columns, or — the
+ * viewer's choice — as a sixth column beside them with compact name-only lines.
+ * Never a real group: no buffs, and dropping anywhere on it just means "onto the
+ * bench"; a double click takes a raider back to "Angemeldet" (Slot). Picked
+ * somebody? A "Hierher" place takes them. The head says whether the bench goes
+ * out with the post (`posted`: the ping split's bench toggle; missing = read-only,
+ * then only the count). Empty, the drop area stays where it is, so the grid never
+ * jumps on the first drag. "Angemeldet" (#517) has a panel of its own (PoolPanel.tsx).
  */
-function SlotRow({ people, ui }: { people: SetupPerson[]; ui: Interaction }) {
+function SlotRow({ people, ui, layout, posted }: { people: SetupPerson[]; ui: Interaction; layout: BenchLayout; posted?: boolean }) {
     const t = useT();
     const target: SetupTarget = { bench: true };
     const zone = useZone(target, ui);
     const canTake = ui.editable && !!ui.selected && !people.some((s) => s.userId === ui.selected);
+    const column = layout === "column";
+    const roles = benchRoles(people);
+    const reach = posted === undefined ? "" : t(posted ? "setup.bench.posted" : "setup.bench.notPosted");
+    const count = t("setup.bench.count", { count: people.length });
+    const state = column || !reach ? count : `${count} · ${reach}`;
     return (
-        <section className={`se-bench se-row${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
+        <section className={`se-bench se-row${column ? " se-col" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
             <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
                 <span className="se-group-title">{t("setup.bench.title")}</span>
-                <span className="se-count">{people.length}</span>
+                <span className="se-bench-state">{people.length || column ? state : t("setup.bench.empty")}</span>
+                {!column && people.length > 0 && (
+                    <span className="se-bench-roles">{t("setup.bench.roles", roles)}</span>
+                )}
             </header>
             <div className="se-row-slots">
                 {people.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
                 {canTake && (
                     <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(target)}>{t("setup.group.here")}</button>
                 )}
-                {!people.length && !canTake && <span className="se-row-empty">{t("setup.bench.empty")}</span>}
+                {ui.editable && !canTake && (
+                    <span className={`se-bench-drop${!people.length ? " se-empty" : ""}`} aria-hidden="true">
+                        {column && !people.length
+                            ? <>{t("setup.bench.dropHere")}{reach && <small>{reach}</small>}</>
+                            : t("setup.bench.drop")}
+                    </span>
+                )}
+                {!ui.editable && !people.length && <span className="se-row-empty">{t("setup.bench.nobody")}</span>}
             </div>
         </section>
     );
 }
 
-export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
-    return <SlotRow people={bench} ui={ui} />;
+export function BenchCard({ bench, ui, layout = "row", posted }: { bench: SetupPerson[]; ui: Interaction; layout?: BenchLayout; posted?: boolean }) {
+    return <SlotRow people={bench} ui={ui} layout={layout} posted={posted} />;
 }
 
 /** The approved lineup, read-only — what someone without write access sees. */

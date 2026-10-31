@@ -75,7 +75,7 @@ describe("buildSignupDialog", () => {
         // the raider's first character is preselected — never labelled "Main"
         expect(charSelect.options[0]).toMatchObject({ default: true, description: "gear raid ready" });
         const statuses = byPrefix(payload, "signup-status:");
-        expect(statuses.map((b) => b.label)).toEqual(["Sign up", "Tentative", "Late", "Bench", "Absence"]);
+        expect(statuses.map((b) => b.label)).toEqual(["Sign up", "Tentative", "Late", "Reserve", "Absence"]);
         expect(statuses.every((b) => !b.disabled)).toBe(true);
         // Mage-Arcane is ranged; the priest's healing belongs to the priest, not to the mage.
         const [also] = byPrefix(payload, "signup-pick:eh-kara:a");
@@ -141,7 +141,7 @@ describe("buildSignupDialog", () => {
         expect(text).toContain("⚠️ Höchstens 3 Charaktere.");
         const [charSelect] = byPrefix(payload, "signup-pick:eh-kara:s");
         expect(charSelect.options.find((o) => o.value === "nerathil|Mage-Arcane")).toMatchObject({ label: "Nerathil · Arkan", description: "Gear raidbereit" });
-        expect(byPrefix(payload, "signup-status:").map((b) => b.label)).toEqual(["Anmelden", "Vielleicht", "Spät", "Bank", "Abmelden"]);
+        expect(byPrefix(payload, "signup-status:").map((b) => b.label)).toEqual(["Anmelden", "Vielleicht", "Spät", "Ersatz", "Abmelden"]);
         expect(flat(payload).some((c) => c.label === "Im Web öffnen")).toBe(true);
         expect(dialog.savedNotice({ status: "late", character: "Nerasol", spec: "Priest-Holy" }, profiles.getProfile(ANNA))).toBe("✅ Gespeichert: **Spät** (Nerasol · Heilig)");
         expect(dialog.buildCommentModal("x").toJSON().title).toBe("Kommentar");

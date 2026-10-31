@@ -415,6 +415,7 @@ describe("what raiders see", () => {
         const view = editor.editorView(event, { canWrite: true, names: { [uid]: "discordname" }, signups: mockSignups, hasApiKey: true });
         expect(view.setup.groups[0].slots[0]).toMatchObject({ name: "discordname", specIcon: expect.any(String) });
         expect(view).toMatchObject({ canWrite: true, groupCount: 2, signupCount: 12, absent: 1, hasApiKey: true });
+        expect(view.absentNames).toEqual([mockSignups.find((s) => s.status === "absence").character]);
         expect(view.defaults.weights.fairness).toBe(150);
     });
 });

@@ -22,7 +22,7 @@ describe("i18n: raidCreate / raidPlan", () => {
             dialog: ["Wovon ausgehen?", "Leer beginnen", "Event-Leiter (Discord-User-ID)", "Neue Vorlage", "Beim Anlegen ankündigen", "Anmeldeschluss", "Neues Raid-Event", "Event angelegt."],
             fields: ["Instanzen", "Raidgröße", "Pflicht-Buffs", "Zurücksetzen", "Gruppen-Buff"],
             comp: ["für DPS", "Heiler"],
-            plan: ["Kanal & Anmeldung", "voll: Warteliste (Bank)", "Die Raidgröße muss"],
+            plan: ["Kanal & Anmeldung", "voll: Warteliste (Ersatz)", "Die Raidgröße muss"],
             templates: ["Name fehlt.", "Standard für", "Die Bild-Adresse muss"],
         };
         for (const [file, literals] of Object.entries(gone)) {

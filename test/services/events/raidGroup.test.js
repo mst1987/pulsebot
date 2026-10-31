@@ -155,6 +155,16 @@ describe("the suggested number of raids (#1035)", () => {
         expect(raidGroup.suggestedRaidTotal({ active: 0, size: 10 })).toBe(0);
         expect(raidGroup.suggestedRaidTotal({ active: 30, size: 0 })).toBe(0);
     });
+    it("suggests a split only when every raid would be filled to 70 % (a 25-man)", () => {
+        expect(raidGroup.SPLIT_MIN_FILL).toBe(0.7);
+        expect(raidGroup.suggestedRaidTotal({ active: 25, size: 25 })).toBe(1);
+        expect(raidGroup.suggestedRaidTotal({ active: 26, size: 25 })).toBe(1);
+        expect(raidGroup.suggestedRaidTotal({ active: 34, size: 25 })).toBe(1);
+        expect(raidGroup.suggestedRaidTotal({ active: 35, size: 25 })).toBe(2);
+        expect(raidGroup.suggestedRaidTotal({ active: 52, size: 25 })).toBe(2);
+        expect(raidGroup.suggestedRaidTotal({ active: 53, size: 25 })).toBe(3);
+        expect(raidGroup.suggestedRaidTotal({ active: 1000, size: 25 })).toBe(8);
+    });
     it("the editor counts who is signed up — maybe and bench too, not who is absent", () => {
         for (let i = 0; i < 12; i += 1) signupStore.saveSignup(primary.id, `m${i}`, { character: `M${i}`, spec: "Mage-Fire", status: i < 4 ? "tentative" : "bench" }, { versionId: "tbc" });
         for (let i = 0; i < 5; i += 1) signupStore.saveSignup(primary.id, `a${i}`, { status: "absence" }, { versionId: "tbc" });

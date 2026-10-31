@@ -214,7 +214,7 @@ describe("Übersicht for a raider", () => {
         expect(await badgeOf({ placement: null })).toBe(`${t("dashboard.personal.status.signed")} · Holy`);
         expect(await badgeOf({ placement: null, setupApproved: false, status: "tentative" })).toBe(`${t("dashboard.personal.status.tentative")} · Holy`);
         expect(await badgeOf({ placement: { group: 3 }, setupApproved: true })).toBe(`${t("dashboard.personal.status.placed")} · Holy`);
-        expect(await badgeOf({ placement: { bench: true }, setupApproved: true })).toBe(`${t("dashboard.personal.status.bench")} · Holy`);
+        expect(await badgeOf({ placement: { bench: true }, setupApproved: true })).toBe(`${t("dashboard.personal.status.benched")} · Holy`);
         expect(await badgeOf({ placement: null, setupApproved: true })).toBe(`${t("dashboard.personal.status.notPlaced")} · Holy`);
         expect(await badgeOf({ placement: null, setupApproved: true, status: "absence" })).toBe(t("dashboard.personal.status.absence"));
     });

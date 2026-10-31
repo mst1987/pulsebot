@@ -30,8 +30,8 @@ describe("utils/signup/botEnglish", () => {
         expect(toEnglish("Diese Spezialisierung ist für Zibbo nicht im Profil hinterlegt.")).toBe("This spec is not in your profile for Zibbo.");
         expect(toEnglish("Der Raid ist voll (25/25) – es geht keine Anmeldung mehr. Frag die Raidleitung."))
             .toBe("The raid is full (25/25) – no more signups. Ask the raid lead.");
-        expect(toEnglish("Der Raid ist voll (25/25) – du stehst auf der Warteliste (Bank). Ob jemand nachrückt, entscheidet die Raidleitung."))
-            .toBe("The raid is full (25/25) – you are on the waiting list (bench). The raid lead decides who moves up.");
+        expect(toEnglish("Der Raid ist voll (25/25) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung."))
+            .toBe("The raid is full (25/25) – you are on the waiting list (reserve). The raid lead decides who moves up.");
         expect(toEnglish("Keiner der gewählten Charaktere passt")).toBe("None of the picked characters fits");
         expect(toEnglish("Klasse passt nicht zu diesem Raid")).toBe("class does not fit this raid");
     });

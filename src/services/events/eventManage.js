@@ -83,7 +83,7 @@ const ACTION_LABELS = {
 };
 
 const STATUS_LABELS = {
-    signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abgemeldet",
+    signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Ersatz", absence: "Abgemeldet",
 };
 
 /** "Do 24.09. 19:30" in Berlin time. */

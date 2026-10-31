@@ -1,8 +1,8 @@
 // Signup states at a glance in the setup editor (#setup-bar): a late, tentative or
-// bench signup is a labelled square field on the line (pool cards and group places,
-// never just a dot), "Angemeldet" sorts each role block signed first, then late,
-// tentative, bench — each after a divider with its name — and status chips beside the
-// role chips show one state only. The API is mocked at its transport (api/client).
+// reserve ("Ersatz") signup is a labelled square field on the line (never just a dot),
+// "Angemeldet" sorts each role column signed first, then late, tentative, reserve —
+// each after a divider with its name — and a status segment shows one state only.
+// The API is mocked at its transport (api/client).
 import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -79,7 +79,7 @@ describe("signup states at a glance", () => {
         }
         expect(t("signups.status.tentative")).toBe("Vielleicht");
         expect(t("signups.status.late")).toBe("Spät");
-        expect(t("signups.status.bench")).toBe("Bank");
+        expect(t("signups.status.bench")).toBe("Ersatz");
         expect(line("Aal", pool()).querySelector(".se-sig")).toBeNull();
         expect(line("Aal", pool())).not.toHaveClass("se-has-sig");
         // no dot any more
@@ -99,7 +99,7 @@ describe("signup states at a glance", () => {
         expect(dividers.map((d) => d.getAttribute("aria-label"))).toEqual([
             t("setup.poolPanel.statusHead", { status: "Spät", count: 1 }),
             t("setup.poolPanel.statusHead", { status: "Vielleicht", count: 1 }),
-            t("setup.poolPanel.statusHead", { status: "Bank", count: 1 }),
+            t("setup.poolPanel.statusHead", { status: "Ersatz", count: 1 }),
         ]);
         expect(dividers[0]).toHaveTextContent("Spät · 1");
         // a block of plain signups has no divider; a block that starts late starts with one
@@ -107,32 +107,30 @@ describe("signup states at a glance", () => {
         expect(order(block("tank"))).toEqual(["Zibbowar"]);
     });
 
-    it("keeps a small field on a further character's line only where its state differs", async () => {
+    it("puts a further character into the section of its own state", async () => {
         await show();
-        // healer block: Zibbo leads (signed), Zibbowar under him is late
-        const healerAlt = block("healer").querySelector<HTMLElement>(".se-alt[data-character=\"Zibbowar\"]")!;
-        expect(within(healerAlt).getByRole("img", { name: t("signups.status.late") })).toBeInTheDocument();
-        // tank block: Zibbowar leads with the full field, Zibbo under him is a plain signup — that differs too
-        expect(within(line("Zibbowar", block("tank"))).getByText(t("signups.status.late"))).toBeInTheDocument();
-        const tankAlt = block("tank").querySelector<HTMLElement>(".se-alt[data-character=\"Zibbo\"]")!;
-        expect(within(tankAlt).getByRole("img", { name: t("signups.status.signed") })).toBeInTheDocument();
+        // Zibbo stands as a plain healer; his warrior signed up late: under Tanks after the late divider
+        const tanks = block("tank");
+        const war = tanks.querySelector<HTMLElement>(".se-slot[data-character=\"Zibbowar\"]")!;
+        expect(war).toHaveClass("se-sigv-late");
+        expect(within(tanks).getByRole("separator")).toHaveTextContent(t("setup.poolPanel.statusHead", { status: t("signups.status.late"), count: 1 }));
+        expect(within(block("healer")).queryByText("Zibbowar")).not.toBeInTheDocument();
     });
 
-    it("filters by state with chips beside the role chips — counted by person, a second click shows everybody again", async () => {
+    it("filters by state with a segment, counted by person; 'Alle' shows everybody again", async () => {
         const user = userEvent.setup();
         await show();
-        // late: Cid and Zibbo (his warrior), tentative: Bork and Eve, bench: Dax
+        const all = within(within(pool()).getByRole("group", { name: t("setup.poolPanel.statusFilter") })).getByRole("button", { name: new RegExp(`^${t("setup.poolPanel.statusAll")}`) });
+        expect(all).toHaveAttribute("aria-pressed", "true");
+        // late: Cid and Zibbo (his warrior), tentative: Bork and Eve, reserve: Dax
         expect(statusChip("late")).toHaveTextContent("2");
         expect(statusChip("tentative")).toHaveTextContent("2");
         expect(statusChip("bench")).toHaveTextContent("1");
         await user.click(statusChip("tentative"));
         expect(statusChip("tentative")).toHaveAttribute("aria-pressed", "true");
+        expect(all).toHaveAttribute("aria-pressed", "false");
         expect(order(pool())).toEqual(["Bork", "Eve"]);
-        // combined with a role chip
-        await user.click(within(pool()).getByRole("button", { name: new RegExp(`^${t("setup.poolPanel.filters.dps")}`) }));
-        expect(order(pool())).toEqual(["Eve"]);
-        await user.click(within(pool()).getByRole("button", { name: new RegExp(`^${t("setup.poolPanel.filters.all")}`) }));
-        await user.click(statusChip("tentative"));
+        await user.click(all);
         expect(statusChip("tentative")).toHaveAttribute("aria-pressed", "false");
         expect(order(pool())).toHaveLength(7);
     });
@@ -142,7 +140,7 @@ describe("signup states at a glance", () => {
         try {
             await show();
             expect(within(line("Bork", pool())).getByText("Tentative")).toBeInTheDocument();
-            expect(statusChip("bench")).toHaveTextContent("Bench 1");
+            expect(statusChip("bench")).toHaveTextContent("Reserve 1");
             expect(within(block("healer")).getAllByRole("separator")[0]).toHaveTextContent("Late · 1");
         } finally {
             await switchLang("de");

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import type { SetupEditorData, StoredSetup } from "../../../api";
 import { pingTextToSave, publishHint, setupState, GROUP_SIZE } from "../../../lib/signups/setupEditor";
 import { belowEndPlacement } from "../../../lib/ui/popoverPosition";
@@ -6,24 +6,54 @@ import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Popover from "../../../components/ui/overlay/Popover";
-import Switch from "../../../components/ui/form/Switch";
 import WowIcon from "../../../components/ui/icons/WowIcon";
-import { ChevronDownIcon } from "../../../components/ui/icons/icons";
+import { BenchIcon, ChevronDownIcon } from "../../../components/ui/icons/icons";
 import { clock, dateTime, MAX_RAID_SIZE } from "./setupText";
 
-/** One entry of the bar's "Mehr" menu. `on` marks a switch (fairness, the compact view …): checked or not. */
-export type MoreItem = { id: string; label: string; sub: string; icon: string; on?: boolean; disabled?: boolean; onSelect: () => void };
+/**
+ * One entry of the bar's "Aktionen" menu. `on` marks a switch (fairness, the compact
+ * view …): checked or not. `value` is a short figure on the right ("2 frei"), `tone`
+ * lifts the one suggested step ("hot") or marks a destructive one ("danger").
+ */
+export type MoreItem = { id: string; label: string; sub: string; icon: string; on?: boolean; disabled?: boolean; value?: string; tone?: "hot" | "danger"; onSelect: () => void };
+
+/** A heading inside the menu ("Raid", "Vorschlag" …): the entries below it belong together. */
+export type MoreSection = { section: string };
 
 /**
- * "Mehr ▾" in the bar: everything that is not the evening's one action — propose
- * anew, the group count, the ping text, the switches (fairness, wishes, "nicht
- * zusammen"), the compact view, search, the AI explanation,
- * the weights. "sep" draws a line between kinds. Portalled like "Event verwalten".
+ * "Aktionen ▾" in the bar: everything that is not the evening's one action, in four
+ * sections (Raid, Vorschlag, Posten und benachrichtigen, Ansicht) — split or add
+ * raids, fill, confirm, propose anew, the switches, the ping text, the compact view
+ * and the bench as a column. "sep" draws a line between kinds. Portalled like
+ * "Event verwalten".
  */
-export function MoreMenu({ items }: { items: (MoreItem | "sep")[] }) {
+export function MoreMenu({ items }: { items: (MoreItem | MoreSection | "sep")[] }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     const anchor = useRef<HTMLDivElement>(null);
+    const box = useRef<HTMLDivElement>(null);
+    // roving focus like ToolMenu: the first entry on open, arrows (with wrap) and Home / End move,
+    // Esc closes and hands the focus back to "Aktionen", Tab closes and lets the focus go on
+    useEffect(() => {
+        if (!open || !box.current) return;
+        const first = box.current.querySelector<HTMLButtonElement>("button:not(:disabled)");
+        if (first) first.focus();
+    }, [open]);
+    const close = (focusBack: boolean) => {
+        setOpen(false);
+        if (focusBack) anchor.current?.querySelector<HTMLButtonElement>("button")?.focus();
+    };
+    const onKey = (e: KeyboardEvent<HTMLDivElement>) => {
+        const list = box.current ? Array.from(box.current.querySelectorAll<HTMLButtonElement>("button:not(:disabled)")) : [];
+        const at = list.indexOf(document.activeElement as HTMLButtonElement);
+        const go = (i: number) => { if (list.length > 0) list[(i + list.length) % list.length].focus(); };
+        if (e.key === "ArrowDown") { e.preventDefault(); go(at + 1); }
+        else if (e.key === "ArrowUp") { e.preventDefault(); go(at < 0 ? list.length - 1 : at - 1); }
+        else if (e.key === "Home") { e.preventDefault(); go(0); }
+        else if (e.key === "End") { e.preventDefault(); go(list.length - 1); }
+        else if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); close(true); }
+        else if (e.key === "Tab") close(false);
+    };
     return (
         <div className="se-more" ref={anchor}>
             <Button
@@ -34,65 +64,75 @@ export function MoreMenu({ items }: { items: (MoreItem | "sep")[] }) {
                 {t("setup.editor.more")}<span className="se-more-chev" aria-hidden="true"><ChevronDownIcon /></span>
             </Button>
             {open && (
-                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu">
-                    {items.map((it, i) => (it === "sep" ? <div key={`sep-${i}`} className="se-more-sep" role="separator" /> : (
-                        <button
-                            key={it.id} type="button" role={it.on === undefined ? "menuitem" : "menuitemcheckbox"}
-                            aria-checked={it.on === undefined ? undefined : it.on}
-                            className={`se-more-item${it.on ? " is-on" : ""}`} disabled={it.disabled}
-                            onClick={() => { setOpen(false); it.onSelect(); }}
-                        >
-                            <WowIcon name={it.icon} size={24} />
-                            <span className="se-more-text">
-                                <span className="se-more-label">{it.label}</span>
-                                <span className="se-more-sub">{it.sub}</span>
-                            </span>
-                        </button>
-                    )))}
+                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-more-pop" role="menu" aria-label={t("setup.editor.more")} boxRef={box} onKeyDown={onKey}>
+                    {items.map((it, i) => {
+                        if (it === "sep") return <div key={`sep-${i}`} className="se-more-sep" role="separator" />;
+                        if ("section" in it) return <div key={`sec-${i}`} className="se-more-head" role="presentation">{it.section}</div>;
+                        return (
+                            <button
+                                key={it.id} type="button" role={it.on === undefined ? "menuitem" : "menuitemcheckbox"}
+                                aria-checked={it.on === undefined ? undefined : it.on}
+                                className={["se-more-item", it.on ? "is-on" : "", it.tone ? `se-tone-${it.tone}` : ""].filter(Boolean).join(" ")}
+                                disabled={it.disabled}
+                                onClick={() => { close(true); it.onSelect(); }}
+                            >
+                                <WowIcon name={it.icon} size={24} />
+                                <span className="se-more-text">
+                                    <span className="se-more-label">{it.label}</span>
+                                    <span className="se-more-sub">{it.sub}</span>
+                                </span>
+                                {it.on !== undefined
+                                    ? <span className={`se-more-switch${it.on ? " is-on" : ""}`} aria-hidden="true" />
+                                    : it.value && <span className="se-more-value">{it.value}</span>}
+                            </button>
+                        );
+                    })}
                 </Popover>
             )}
         </div>
     );
 }
 
+/** One icon toggle of the ping split: pressed with the go colour when on, grey and struck through when off. */
+function PostToggle({ on, disabled, icon, label, sub, onChange }: { on: boolean; disabled: boolean; icon: ReactNode; label: string; sub: string; onChange: (on: boolean) => void }) {
+    const t = useT();
+    const state = `${label}: ${on ? t("setup.postOptions.on") : t("setup.postOptions.off")}`;
+    return (
+        <button
+            type="button" className={`se-post-toggle ${on ? "is-on" : "se-off"}`} aria-pressed={on} aria-label={label}
+            data-tip={state} data-tip-sub={sub} disabled={disabled}
+            onClick={() => onChange(!on)}
+        >
+            {icon}
+        </button>
+    );
+}
+
 /**
- * The bar's ONE primary button as a split button (#setup-bar): the action itself
- * ("Setup posten", or "Alle pingen" once it is out) and a chevron whose menu holds
- * what posting sends along — the switches "Bank mitposten" and "DMs an Spieler".
- * Their state stays visible beside the button ("mit DMs · ohne Bank"), so nothing
- * hides in the menu. `options` missing (no channel to post to, cancelled): the
- * button alone.
+ * The bar's ONE primary button as a split (#setup-bar, head variant B): the action
+ * itself ("Setup posten", or "Alle pingen" once it is out) and two icon toggles for
+ * what it sends along — DMs to the placed players and the bench in the message. On:
+ * pressed, go-coloured icon; off: grey and struck through. Their state is in the
+ * icon, the tooltip and `aria-pressed`, so nothing hides in a menu. `options`
+ * missing (no channel to post to, cancelled): the button alone.
  */
 export function PostSplit({ button, options }: {
     button: ReactNode;
     options?: { bench: boolean; dms: boolean; disabled: boolean; dmsTip: string; onBench: (on: boolean) => void; onDms: (on: boolean) => void };
 }) {
     const t = useT();
-    const [open, setOpen] = useState(false);
-    const anchor = useRef<HTMLDivElement>(null);
     if (!options) return <>{button}</>;
-    const state = [options.dms ? t("setup.postOptions.withDms") : t("setup.postOptions.withoutDms"), options.bench ? t("setup.postOptions.withBench") : t("setup.postOptions.withoutBench")].join(" · ");
     return (
-        <div className="se-post">
-            <span className="se-post-state" data-tip={t("setup.postOptions.menu")} data-tip-sub={t("setup.postOptions.menuSub")}>{state}</span>
-            <div className="split se-post-split" ref={anchor}>
-                {button}
-                <button
-                    type="button" className="btn-caret se-post-caret" aria-haspopup="true" aria-expanded={open}
-                    aria-label={t("setup.postOptions.menu")}
-                    data-tip={open ? undefined : t("setup.postOptions.menu")} data-tip-sub={open ? undefined : t("setup.postOptions.menuSub")}
-                    onClick={() => setOpen((o) => !o)}
-                >
-                    <ChevronDownIcon />
-                </button>
-            </div>
-            {open && (
-                <Popover anchor={anchor} place={belowEndPlacement()} follow="reposition" onClose={() => setOpen(false)} className="se-post-pop" role="group" aria-label={t("setup.postOptions.aria")}>
-                    <span className="se-post-head">{t("setup.postOptions.head")}</span>
-                    <Switch className="se-postopt" checked={options.bench} disabled={options.disabled} label={t("setup.postOptions.bench")} tip={t("setup.postOptions.benchSub")} onChange={options.onBench} />
-                    <Switch className="se-postopt" checked={options.dms} disabled={options.disabled} label={t("setup.postOptions.dms")} tip={options.dmsTip} onChange={options.onDms} />
-                </Popover>
-            )}
+        <div className="split se-post-split" role="group" aria-label={t("setup.postOptions.aria")}>
+            {button}
+            <PostToggle
+                on={options.dms} disabled={options.disabled} icon={<WowIcon name="message" size={20} />}
+                label={t("setup.postOptions.dms")} sub={options.dmsTip} onChange={options.onDms}
+            />
+            <PostToggle
+                on={options.bench} disabled={options.disabled} icon={<BenchIcon />}
+                label={t("setup.postOptions.bench")} sub={t("setup.postOptions.benchSub")} onChange={options.onBench}
+            />
         </div>
     );
 }

@@ -3,7 +3,7 @@
         "signed": "Angemeldet",
         "tentative": "Vielleicht",
         "late": "Spät",
-        "bench": "Bank",
+        "bench": "Ersatz",
         "absence": "Abmelden"
     },
     "statusTip": {
@@ -59,7 +59,7 @@
     },
     "row": {
         "tentative": "{count} vielleicht",
-        "bench": "{count} Bank",
+        "bench": "{count} Ersatz",
         "absence": "{count} abgemeldet",
         "raidHelperState": "Stand aus Raid-Helper.",
         "selectAria": "{title} auswählen",

@@ -95,7 +95,7 @@ describe("services/events/eventMessage", () => {
             expect(text).toContain(word);
         }
         const buttons = payload.components[0].components.map((b) => b.label);
-        expect(buttons).toEqual(["Anmelden", "Spät", "Vielleicht", "Bank", "Absagen"]);
+        expect(buttons).toEqual(["Anmelden", "Spät", "Vielleicht", "Ersatz", "Absagen"]);
         for (const english of ["Healers", "Ranged", "Melee", "Leader", "Deadline", "signed up", "My characters"]) {
             expect(text).not.toContain(english);
         }
@@ -329,7 +329,7 @@ describe("services/events/eventMessage", () => {
         expect(other.value.split("\n").map(emojiless)).toEqual([
             "<:eh_ui_late> Late (1): `2` <:eh_priest_holy> Ysolde",
             "<:eh_ui_tentative> Tentative (1): `4` <:eh_rogue_combat> Kael",
-            "<:eh_ui_bench> Bench (1): `8` <:eh_mage_frost> Bänki",
+            "<:eh_ui_bench> Reserve (1): `8` <:eh_mage_frost> Bänki",
             // no spec on this absence (no character was chosen) — the raw mention stays plain
             "<:eh_ui_absence> Absence (1): `5` <@5>",
         ]);
@@ -339,8 +339,8 @@ describe("services/events/eventMessage", () => {
         // the case of the screenshot in #303: signed off before, then Bank
         const devire = { userId: "11", status: "bench", character: "Devire", spec: "Mage-Arcane", role: "ranged", at: 11, comment: "Arbeit",
             characters: [{ character: "Devire", spec: "Mage-Arcane", role: "ranged", status: "bench" }] };
-        const lines = (list) => buildEventMessage(event(), list, { now: NOW }).embeds[0].fields.find((f) => !f.inline && f.name === ZWS && /Bench|Absence/.test(f.value));
-        expect(lines([devire]).value).toBe("Bench (1): `1` Devire");
+        const lines = (list) => buildEventMessage(event(), list, { now: NOW }).embeds[0].fields.find((f) => !f.inline && f.name === ZWS && /Reserve|Absence/.test(f.value));
+        expect(lines([devire]).value).toBe("Reserve (1): `1` Devire");
         // the first character on Bank, the second still signed: both where their own status puts them
         const two = { ...devire, characters: [devire.characters[0], { character: "Devheal", spec: "Priest-Holy", role: "healer", status: "signed" }] };
         const payload = buildEventMessage(event(), [two], { now: NOW });
@@ -349,7 +349,7 @@ describe("services/events/eventMessage", () => {
         expect(priest.value).toContain("`1` Devheal");
         expect(priest.value).not.toContain("**Devheal**");
         expect(priest.name).toBe("__Priest__ (0)");
-        expect(lines([two]).value).toBe("Bench (1): `1` Devire");
+        expect(lines([two]).value).toBe("Reserve (1): `1` Devire");
         // an absence is one line per person, whatever its characters stored
         expect(lines([{ ...devire, status: "absence", characters: [{ character: "Devire", spec: "Mage-Arcane" }] }]).value).toBe("Absence (1): `1` Devire");
     });
@@ -400,7 +400,7 @@ describe("services/events/eventMessage", () => {
             ["Sign up", "event-btn:eh-1:quick", 3],
             ["Late", "event-btn:eh-1:late", 2],
             ["Tentative", "event-btn:eh-1:tentative", 2],
-            ["Bench", "event-btn:eh-1:bench", 2],
+            ["Reserve", "event-btn:eh-1:bench", 2],
             ["Absence", "event-btn:eh-1:absence", 4],
         ]);
         expect(buttons[0].emoji).toEqual({ id: expect.any(String), name: "eh_ui_signed", animated: false });
@@ -737,7 +737,7 @@ describe("services/events/eventMessage", () => {
         listSignups.mockReturnValue([...signups, su("8", "Devire", "Mage-Arcane", "ranged", "bench")]);
         await expect(sweepEventMessages()).resolves.toEqual({ checked: 1, redrawn: 1 });
         expect(message.edit).toHaveBeenCalledTimes(1);
-        expect(message.edit.mock.calls[0][0].embeds[0].fields.some((f) => f.value.includes("Bench (1): `8` Devire"))).toBe(true);
+        expect(message.edit.mock.calls[0][0].embeds[0].fields.some((f) => f.value.includes("Reserve (1): `8` Devire"))).toBe(true);
         // the deadline passed: the buttons change
         current.message.hash = payloadHash(message.edit.mock.calls[0][0], "en");
         await sweepEventMessages();

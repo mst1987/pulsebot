@@ -79,7 +79,14 @@
         "empty": "Niemand auf der Bank — Raider hierher ziehen.",
         "aria": "Ersatzbank",
         "title": "Bank",
-        "tip": "Nur wer von Hand hierher geschoben wurde. Wird mit dem Setup nur gepostet (und per DM benachrichtigt), wenn „Bench mitposten“ angehakt ist."
+        "tip": "Nur wer von Hand hierher geschoben wurde. Steht in der Setup-Nachricht (und bekommt eine DM) nur, wenn „Bank mitposten“ am Knopf „Setup posten“ an ist.",
+        "count": { "one": "{count} Spieler", "other": "{count} Spieler" },
+        "posted": "in der Nachricht, mit DM",
+        "notPosted": "nicht in der Nachricht, keine DM",
+        "roles": "Tank {tank} · Heiler {healer} · Schaden {dps}",
+        "drop": "hier ablegen",
+        "dropHere": "Raider hierher ziehen",
+        "nobody": "Niemand auf der Bank"
     },
     "pool": {
         "empty": "Alle Angemeldeten stehen im Setup.",
@@ -215,7 +222,10 @@
         "places": "{count} von {size} Plätzen",
         "confirmed": "{count} von {total} bestätigt",
         "confirmedTip": "Bestätigt",
-        "confirmedSub": "Wer in den Gruppen bestätigt hat — per Klick unter der Setup-Nachricht oder von der Orga."
+        "confirmedSub": "Wer in den Gruppen bestätigt hat — per Klick unter der Setup-Nachricht oder von der Orga.",
+        "overbookedChip": "{signed} Anmeldungen / {places} Plätze",
+        "overbooked": "{signed} angemeldet für {places} Plätze",
+        "overbookedSub": "Mehr Anmeldungen als Plätze – wer übrig ist, bleibt unter „Angemeldet“. Weitere Raids gehen jederzeit über Aktionen › Raids hinzufügen / aufteilen …"
     },
     "ping": {
         "button": "Alle pingen",
@@ -230,7 +240,18 @@
         "size": "Gruppenzahl",
         "sizeSub": "{size} Plätze · {groups} × 5",
         "pingDefault": "Standardtext",
-        "wishesOffSub": "Aus — „gerne zusammen mit“ aus den Profilen"
+        "wishesOffSub": "Aus — „gerne zusammen mit“ aus den Profilen",
+        "sectionRaid": "Raid",
+        "sectionProposal": "Vorschlag",
+        "sectionPost": "Posten und benachrichtigen",
+        "sectionView": "Ansicht",
+        "sizeValue": "{size} Plätze",
+        "freeValue": "{count} frei",
+        "openValue": "{count} offen",
+        "benchColumn": "Bank als Spalte",
+        "benchColumnSub": "Die Bank steht als Spalte neben den Gruppen statt als Zeile darunter. Wird in diesem Browser gemerkt.",
+        "poolSide": "Angemeldet als Seitenleiste",
+        "poolSideSub": "Angemeldet steht links neben den Gruppen und scrollt für sich – ab 1280 px Breite, schmaler wieder darunter. Wird in diesem Browser gemerkt."
     },
     "line": {
         "aria": "Kurz zusammengefasst",
@@ -248,19 +269,25 @@
     },
     "drawer": {
         "kicker": "Raider",
-        "picked": "{name} gewählt – Ziel antippen",
+        "picked": "{name} ausgewählt · tippe auf einen freien Platz",
         "details": "Details",
         "less": "Ziel wählen"
     },
     "poolPanel": {
         "statusFilter": "Nach Status filtern",
-        "statusChipTip": "Nur „{status}“ zeigen",
-        "statusChipSub": "Ein Klick zeigt nur diese Anmeldungen, ein zweiter wieder alle. Lässt sich mit den Rollen kombinieren.",
         "statusHead": "{status} · {count}",
+        "statusAll": "Alle",
+        "leadOnly": "Nur Leader",
+        "leadOnlySub": "Zeigt nur, wer diesen Raid leiten darf.",
+        "altOf": "{n}. Char von {character}",
+        "altCount": { "one": "+{count} Zweitchar", "other": "+{count} Zweitchars" },
+        "altCountSub": "Weitere Chars von Raidern, die schon in einer anderen Rolle stehen – zählen nicht doppelt.",
+        "emptyCol": "Niemand in dieser Rolle",
+        "tabs": "Rollen",
+        "showAbsent": "zeigen",
+        "hideAbsent": "ausblenden",
         "notPlaced": "noch nicht eingeteilt",
         "search": "Raider oder Spec suchen",
-        "filter": "Nach Rolle filtern",
-        "filters": { "all": "Alle", "tank": "Tanks", "healer": "Heiler", "dps": "DD" },
         "sections": { "tank": "Tanks", "healer": "Heiler", "melee": "Nahkampf", "ranged": "Fernkampf" },
         "noMatch": "Niemand passt zur Suche.",
         "absent": { "one": "{count} abgemeldet · kommt nicht ins Setup", "other": "{count} abgemeldet · kommen nicht ins Setup" },
@@ -282,19 +309,14 @@
         "go": "Füllen"
     },
     "postOptions": {
-        "menu": "Post-Optionen",
-        "menuSub": "Was beim Posten mitgeht: die Bank und die DMs an die Spieler.",
-        "head": "Beim Posten",
-        "withDms": "mit DMs",
-        "withoutDms": "ohne DMs",
-        "withBench": "mit Bank",
-        "withoutBench": "ohne Bank",
         "aria": "Was mit dem Setup gepostet wird",
         "bench": "Bank mitposten",
         "benchSub": "An: Die Bank steht in der Setup-Nachricht, und die Bank-Spieler bekommen eine DM. Aus: Die Bank bleibt intern. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt.",
         "dms": "DMs an Spieler",
         "dmsSub": "An: Jeder im Setup bekommt eine DM mit seinem Platz („Gruppe 2 als Heiler“), bei Änderungen nur wessen Platz sich geändert hat. Voreinstellung aus der Kategorie, gilt beim nächsten „Setup posten“.",
-        "dmsSubOwn": "Für diesen Raid anders als in der Kategorie eingestellt. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt."
+        "dmsSubOwn": "Für diesen Raid anders als in der Kategorie eingestellt. Gilt beim nächsten „Setup posten“ und wird für diesen Raid gemerkt.",
+        "on": "an",
+        "off": "aus"
     },
     "live": {
         "one": "{name} ist auch hier",
@@ -340,8 +362,8 @@
         "confirmAllSub": "Setzt den grünen Haken bei allen in den Gruppen, die noch nicht geantwortet haben. Wer „Cancel“ geklickt hat, bleibt abgesagt. Die Discord-Nachricht zieht mit.",
         "confirmAllNone": "Alle in den Gruppen haben schon geantwortet.",
         "confirmAllDone": { "one": "{count} Raider bestätigt.", "other": "{count} Raider bestätigt." },
-        "more": "Mehr",
-        "moreSub": "Neu vorschlagen, Gruppenzahl, Ping-Text, Fairness, Wünsche, Kompakt, Suche, KI-Begründung und Gewichte",
+        "more": "Aktionen",
+        "moreSub": "Raids aufteilen, Vorschlag, Posten und Ansicht",
         "explainSub": "Claude erklärt in ein paar Absätzen, warum das Setup so steht.",
         "weightsSub": "Wie stark Rollen, Buffs, Anwesenheit und Fairness beim Vorschlag zählen.",
         "postFailed": "Posten fehlgeschlagen.",
@@ -427,10 +449,7 @@
         "canLeadSub": "Leader-Recht für diese Instanzen. Leitet diesen Raid nur, wenn die Krone am Platz steht.",
         "figure": "Leader",
         "figureOk": "Der Raid hat einen Leader.",
-        "figureMissing": "Kein Leader im Raid. Unter den Angemeldeten dürfen {count} leiten.",
-        "filter": "Leader",
-        "filterSub": "Nur, wer diese Instanz leiten darf.",
-        "filterAria": "Nach Leader filtern"
+        "figureMissing": "Kein Leader im Raid. Unter den Angemeldeten dürfen {count} leiten."
     },
     "loot": {
         "title": "Loot",
@@ -492,7 +511,6 @@
         "failed": "Anmeldung nicht gespeichert."
     },
     "raidGroup": {
-        "overbookedHint": { "one": "{count} Anmeldung für {places} Plätze", "other": "{count} Anmeldungen für {places} Plätze" },
         "aria": "Raids dieser Gruppe",
         "tab": "Raid {index}",
         "tabTip": "{title} · {placed} von {size} eingeteilt",
@@ -501,8 +519,7 @@
         "state": { "none": "leer", "draft": "Entwurf", "approved": "freigegeben", "posted": "gepostet" },
         "primary": "Anmeldung",
         "primaryTip": "Hier melden sich alle an – die Angemeldeten verteilst du auf die Raids der Gruppe.",
-        "add": "Weiteren Raid hinzufügen",
-        "addSub": "Gleicher Termin, gleiche Vorlage und Größe – die Angemeldeten bleiben am ersten Raid und werden auf beide verteilt.",
+        "addSub": "Gleicher Termin, gleiche Vorlage und Größe – die Angemeldeten bleiben am ersten Raid und werden auf alle Raids verteilt. Wie viele Raids es werden, wählst du im nächsten Schritt.",
         "addOverbooked": "{signed} angemeldet für {places} Plätze – ein weiterer Raid nimmt den Rest auf.",
         "addTitle": "Weiteren Raid hinzufügen",
         "addText": "Weitere Raids zur selben Zeit: gleiche Kategorie, Vorlage, Größe und Komposition, derselbe Kanal. Die Raider melden sich weiter nur am ersten Raid an; du teilst sie hier auf die Raids auf. Jeder Raid bekommt sein eigenes Setup und seine eigene Setup-Nachricht.",
@@ -530,6 +547,7 @@
         "elsewhere": { "one": "{count} steht in einem anderen Raid der Gruppe", "other": "{count} stehen in anderen Raids der Gruppe" },
         "places": "{count} Raids · {places} Plätze",
         "head": "Raid {index} von {count}",
-        "headTip": "Die Raids dieses Abends teilen sich eine Anmeldung; jeder hat sein eigenes Setup."
+        "headTip": "Die Raids dieses Abends teilen sich eine Anmeldung; jeder hat sein eigenes Setup.",
+        "addOrSplit": "Raids hinzufügen / aufteilen …"
     }
 }

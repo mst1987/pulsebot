@@ -28,7 +28,7 @@ import { useT } from "../../i18n";
 type Tone = "ok" | "mid" | "bad" | "accent" | undefined;
 
 // "signed" is only signed up ("Angemeldet", neutral); being in the raid is "placed" (green), read off the approved setup
-const STATUS_TONE: Record<string, Tone> = { signed: undefined, late: "mid", tentative: "mid", bench: undefined, absence: undefined, placed: "ok", notPlaced: undefined };
+const STATUS_TONE: Record<string, Tone> = { signed: undefined, late: "mid", tentative: "mid", bench: undefined, benched: undefined, absence: undefined, placed: "ok", notPlaced: undefined };
 const NIGHT_TONE: Record<string, Tone> = { present: "ok", bench: undefined, vacation: undefined, absence: undefined, noSignup: "mid", noShow: "bad", tentative: undefined };
 
 /** Where the raider signs up for one raid: the "Anmeldungen" page opened on it. */
@@ -53,7 +53,7 @@ function canSignUp(raid: PersonalRaid): boolean {
  */
 export function shownStatus(raid: PersonalRaid): string {
     if (!raid.status || raid.status === "absence") return raid.status;
-    if (raid.placement) return raid.placement.bench ? "bench" : "placed";
+    if (raid.placement) return raid.placement.bench ? "benched" : "placed";
     return raid.setupApproved ? "notPlaced" : raid.status;
 }
 

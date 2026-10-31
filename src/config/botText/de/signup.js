@@ -120,7 +120,7 @@ module.exports = {
     "empty = skip": "leer = überspringen",
     "Which characters?": "Welche Charaktere?",
     "{character} skipped: {reason}": "{character} übersprungen: {reason}",
-    "Waiting list (bench)": "Warteliste (Bank)",
+    "Waiting list (reserve)": "Warteliste (Ersatz)",
     "signed off": "abgemeldet",
     "skipped (no character picked)": "übersprungen (kein Charakter gewählt)",
     "not saved": "nicht gespeichert",

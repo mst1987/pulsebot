@@ -47,10 +47,10 @@ const STATUS_BY_CODE = Object.fromEntries(Object.entries(STATUS_CODES).map(([k, 
 // STATUS_LABELS names the action (a button "Anmelden"), STATUS_STATE the state
 // a signup is in ("Dabei"). A pair, not tr(): "Absence" means "Abwesenheit"
 // elsewhere, here it is the button "Abmelden".
-const STATUS_LABELS = { signed: "Sign up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence" };
-const STATUS_LABELS_DE = { signed: "Anmelden", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abmelden" };
-const STATUS_STATE = { signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Bench", absence: "Absence" };
-const STATUS_STATE_DE = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Bank", absence: "Abgemeldet" };
+const STATUS_LABELS = { signed: "Sign up", tentative: "Tentative", late: "Late", bench: "Reserve", absence: "Absence" };
+const STATUS_LABELS_DE = { signed: "Anmelden", tentative: "Vielleicht", late: "Spät", bench: "Ersatz", absence: "Abmelden" };
+const STATUS_STATE = { signed: "Signed up", tentative: "Tentative", late: "Late", bench: "Reserve", absence: "Absence" };
+const STATUS_STATE_DE = { signed: "Dabei", tentative: "Vielleicht", late: "Spät", bench: "Ersatz", absence: "Abgemeldet" };
 const ROLE_CODES = { tank: "t", healer: "h", melee: "m", ranged: "r" };
 // English sentences, translated with tr(lang, TABLE[key]).
 const ALSO_LABELS = { tank: "Off-tank", healer: "Heal", melee: "Melee (off-spec)", ranged: "Ranged (off-spec)" };

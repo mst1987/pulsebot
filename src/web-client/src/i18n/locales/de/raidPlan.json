@@ -13,7 +13,7 @@
         "waitlist": "Warteliste",
         "refuse": "ablehnen",
         "lineNone": "voll: keine Grenze, Auswahl im Setup",
-        "lineWaitlist": "voll: Warteliste (Bank)",
+        "lineWaitlist": "voll: Warteliste (Ersatz)",
         "lineRefuse": "voll: keine Anmeldung mehr",
         "lock": "{full} · Anmeldung schließt bei Voll"
     },
