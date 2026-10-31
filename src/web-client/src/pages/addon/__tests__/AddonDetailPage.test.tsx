@@ -112,7 +112,7 @@ describe("page Addon-Detail", () => {
 
     it("explains the installation with the addon's version folder and states the download limit", async () => {
         open();
-        expect(await screen.findByText(/_classic_beta_\\Interface\\AddOns\\/)).toBeInTheDocument();
+        expect(await screen.findByText(/_forever_\\Interface\\AddOns\\/)).toBeInTheDocument();
         expect(screen.getByText("Herunterladen nur nach dem Login, höchstens 30 Downloads pro Stunde.")).toBeInTheDocument();
     });
 
@@ -127,14 +127,14 @@ describe("page Addon-Detail", () => {
         it("names the folder of the menu's version when the addon is for it", async () => {
             renderPage(<AddonDetailPage />, { route: "/addon/eventhelper-sync", path: "/addon/:addonId", content: twoVersions({ mainVersion: "forever" }) });
             const step = await screen.findByText(/Die Zip nach/);
-            expect(step.textContent).toContain("_classic_beta_");
+            expect(step.textContent).toContain("_forever_");
             expect(step.textContent).not.toContain("_anniversary_");
         });
 
         it("names every version's folder when the menu shows none of them", async () => {
             open("eventhelper-sync");
             const step = await screen.findByText(/Die Zip nach/);
-            expect(step.textContent).toContain("<WoW>\\_anniversary_\\Interface\\AddOns\\ (WoW TBC) oder <WoW>\\_classic_beta_\\Interface\\AddOns\\ (WoW Forever)");
+            expect(step.textContent).toContain("<WoW>\\_anniversary_\\Interface\\AddOns\\ (WoW TBC) oder <WoW>\\_forever_\\Interface\\AddOns\\ (WoW Forever)");
         });
     });
 

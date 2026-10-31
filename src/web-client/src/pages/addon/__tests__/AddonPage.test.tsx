@@ -173,7 +173,7 @@ describe("page Addons", () => {
     it("explains the installation per kind of file, with the version's folder and the admin's note", async () => {
         renderPage(<AddonPage />, { route: "/addon" });
         await screen.findByRole("heading", { name: "LevelHelper" });
-        expect(screen.getAllByText(/_classic_beta_\\Interface\\AddOns\\/).length).toBeGreaterThan(0);
+        expect(screen.getAllByText(/_forever_\\Interface\\AddOns\\/).length).toBeGreaterThan(0);
         expect(screen.getByText(/Die exe starten/)).toBeInTheDocument();
         expect(screen.getByText("Im Sync-Tool den Token eintragen.")).toBeInTheDocument();
     });
@@ -274,9 +274,9 @@ describe("formatSize", () => {
 
 describe("addon install helpers", () => {
     it("knows the addon folder of each version", () => {
-        expect(addonFolder("forever")).toBe("<WoW>\\_classic_beta_\\Interface\\AddOns\\");
+        expect(addonFolder("forever")).toBe("<WoW>\\_forever_\\Interface\\AddOns\\");
         expect(addonFolder("tbc")).toBe("<WoW>\\_anniversary_\\Interface\\AddOns\\");
-        expect(addonFolder("unknown")).toContain("_classic_beta_");
+        expect(addonFolder("unknown")).toContain("_forever_");
     });
 
     it("turns Markdown notes into plain text (more in lib/addons/__tests__/addonInstall.test.ts)", () => {
