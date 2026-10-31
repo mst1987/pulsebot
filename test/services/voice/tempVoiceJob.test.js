@@ -172,6 +172,20 @@ describe("services/voice/tempVoiceJob", () => {
             expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-found", createdAt: START - 1800, creatingAt: 0, closedAt: 0 });
         });
 
+        it("keeps the mark and creates nothing while several channels could be the raid's", async () => {
+            mockEvents.push(raid());
+            tempVoiceStore.updateEntry("eh-1", { guildId: "g1", creatingAt: START - 1800, name: "SSC", parentId: PARENT });
+            voice.findCreatedVoice.mockImplementation(() => {
+                throw Object.assign(new Error("2 channels"), { code: "ambiguous" });
+            });
+            await job.runTempVoice({ now: START - 1700 });
+            expect(voice.createVoice).not.toHaveBeenCalled();
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ creatingAt: START - 1800, channelId: "", error: "2 channels" });
+            voice.findCreatedVoice.mockImplementation(() => ({ id: "v-left", name: "SSC" }));
+            await job.runTempVoice({ now: START - 1600 });
+            expect(tempVoiceStore.getEntry("eh-1")).toMatchObject({ channelId: "v-left", creatingAt: 0, error: "" });
+        });
+
         it("creates again when a crash left no channel behind, but not while the server is unavailable", async () => {
             mockEvents.push(raid());
             tempVoiceStore.updateEntry("eh-1", { guildId: "g1", creatingAt: START - 1800, name: "SSC · Sa 31.10.", parentId: PARENT });

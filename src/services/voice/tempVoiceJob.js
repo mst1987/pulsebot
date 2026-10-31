@@ -156,11 +156,20 @@ async function close(eventId, entry, reason, now, { moveTo = "", remove = false 
  * An entry marked "creating" without a running create: the bot stopped between the
  * create and saving its id. A voice channel of that name in that Discord category,
  * created since, is taken over; none - the mark goes and the raid may open again.
- * Returns the entry as it is now; null while the server is not available.
+ * Returns the entry as it is now; null while the server is not available or several
+ * channels fit (the mark stays, so no second one is created).
  */
 function adoptCreated(eventId, entry, plan, now) {
     if (!discord.isGuildAvailable(entry.guildId)) return null;
-    const found = voice.findCreatedVoice(entry.guildId, { name: entry.name, parentId: entry.parentId, since: entry.creatingAt });
+    let found;
+    try {
+        found = voice.findCreatedVoice(entry.guildId, { name: entry.name, parentId: entry.parentId, since: entry.creatingAt });
+    } catch (e) {
+        // Several candidates: keep the mark (no second channel) until only one is left.
+        logger.warn(`[tempVoice] Kanal für ${eventId} nicht eindeutig:`, errorText(e));
+        tempVoiceStore.updateEntry(eventId, { error: errorText(e) });
+        return null;
+    }
     if (!found) return tempVoiceStore.updateEntry(eventId, { creatingAt: 0 });
     logger.info(`[tempVoice] ${found.name} nach Neustart wiedergefunden (${eventId})`);
     return tempVoiceStore.updateEntry(eventId, {

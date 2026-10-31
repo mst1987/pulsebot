@@ -234,6 +234,13 @@ describe("services/voice/tempVoiceDiscord", () => {
         expect(voice.findCreatedVoice("g1", { name: "TK", parentId: "p1", since: at })).toBeNull();
     });
 
+    it("refuses to pick when several channels fit", () => {
+        const at = 1800000000;
+        mockGuild.channels.cache.set("v2", makeChannel(mockGuild, { id: "v2", name: "SSC", type: ChannelType.GuildVoice, parentId: "p1", createdTimestamp: (at + 2) * 1000 }));
+        mockGuild.channels.cache.set("v3", makeChannel(mockGuild, { id: "v3", name: "SSC", type: ChannelType.GuildVoice, parentId: "p1", createdTimestamp: (at + 9) * 1000 }));
+        expect(() => voice.findCreatedVoice("g1", { name: "SSC", parentId: "p1", since: at })).toThrow(expect.objectContaining({ code: "ambiguous" }));
+    });
+
     it("renames, counts and names channels", async () => {
         mockGuild.channels.cache.set("v1", makeChannel(mockGuild, { id: "v1", name: "SSC 1", members: [{ id: "a" }] }));
         expect(await voice.renameVoice("g1", "v1", "SSC")).toBe("SSC");

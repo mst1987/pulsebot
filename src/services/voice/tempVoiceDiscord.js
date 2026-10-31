@@ -208,18 +208,19 @@ async function channelGone(guildId, channelId) {
 /**
  * A voice channel the bot created for a raid before it could note the id (a crash
  * between create and save): same name, same Discord category, created since `since`
- * (seconds, a minute's slack). The channel, or null.
+ * (seconds, a minute's slack). The channel, or null. Several such channels throw
+ * (code "ambiguous"): which one is the raid's cannot be told, so the caller waits.
  */
 function findCreatedVoice(guildId, { name = "", parentId = "", since = 0 } = {}) {
     const guild = discord.getGuild(guildId);
     if (!guild || !name) return null;
     const from = (Number(since) - 60) * 1000;
-    for (const ch of guild.channels.cache.values()) {
-        if (ch.type !== ChannelType.GuildVoice || ch.name !== name) continue;
-        if (String(ch.parentId || "") !== String(parentId || "")) continue;
-        if (Number(ch.createdTimestamp || 0) >= from) return ch;
+    const hits = [...guild.channels.cache.values()].filter((ch) => ch.type === ChannelType.GuildVoice && ch.name === name
+        && String(ch.parentId || "") === String(parentId || "") && Number(ch.createdTimestamp || 0) >= from);
+    if (hits.length > 1) {
+        throw Object.assign(new Error(`${hits.length} Sprachkanäle namens „${name}“ gefunden - bitte die überzähligen in Discord löschen.`), { code: "ambiguous" });
     }
-    return null;
+    return hits[0] || null;
 }
 
 /**
