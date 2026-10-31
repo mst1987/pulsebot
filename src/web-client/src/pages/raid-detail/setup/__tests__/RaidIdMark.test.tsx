@@ -31,6 +31,12 @@ describe("raidIdText", () => {
         expect(raidIdText({ local: true, title: "Hyjal F" })).toBe("ID: schon in Hyjal F");
     });
 
+    it("shows the day in server time, like the raid ID itself (a raid at 00:30)", () => {
+        // Thu 05.11. 00:30 in Berlin is still Wed 23:30 in UTC.
+        const night = Date.UTC(2026, 10, 4, 23, 30) / 1000;
+        expect(raidIdText({ local: true, title: "Hyjal F", startTime: night })).toBe("ID: schon in Hyjal F (Do 05.11.)");
+    });
+
     it("says nothing more about a raid of another server", () => {
         expect(raidIdText(OTHER)).toBe("Schon in einem anderen Raid dieser ID");
     });

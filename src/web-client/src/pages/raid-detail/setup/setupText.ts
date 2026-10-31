@@ -187,6 +187,7 @@ export function raidIdText(taken: SetupRaidIdTaken | undefined): string {
     if (!taken.local) return t("setup.raidId.other");
     const title = taken.title || "?";
     const base = taken.raidNo ? t("setup.raidId.localRaid", { title, n: taken.raidNo }) : t("setup.raidId.local", { title });
+    // Server time zone (DISPLAY_TZ), like the raid ID itself: a raid at 00:30 shows its server day.
     const day = taken.startTime ? formatDayDate(taken.startTime * 1000) : "";
     return day ? `${base} (${day})` : base;
 }
