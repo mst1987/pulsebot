@@ -113,6 +113,16 @@ describe("belowEndPosition", () => {
     });
 });
 
+describe("fixedViewport", () => {
+    it("leaves a classic scrollbar out, as fixed coordinates do", () => {
+        expect(lib.fixedViewport({ clientWidth: 375, clientHeight: 844 }, { innerWidth: 390, innerHeight: 844 })).toEqual({ width: 375, height: 844 });
+    });
+
+    it("falls back to the window where the root has no size (jsdom)", () => {
+        expect(lib.fixedViewport({ clientWidth: 0, clientHeight: 0 }, { innerWidth: 390, innerHeight: 844 })).toEqual({ width: 390, height: 844 });
+    });
+});
+
 describe("belowStartPosition", () => {
     const box = { width: 300, height: 200 };
 

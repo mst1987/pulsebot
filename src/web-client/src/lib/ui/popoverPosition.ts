@@ -14,6 +14,19 @@ export type Placement = (anchor: Rect | null, box: Size, viewport: Size) => Popo
 /** How far a box stays away from the viewport's edge. */
 export const VIEWPORT_MARGIN = 8;
 
+/**
+ * The area fixed coordinates refer to: without a classic scrollbar's width,
+ * since `right` counts from the scrollbar's inner edge (innerWidth includes
+ * it, which put a right-aligned menu that far past the left edge). Falls back
+ * to the window where the root reports no size (jsdom).
+ */
+export function fixedViewport(
+    root: { clientWidth: number; clientHeight: number } = document.documentElement,
+    win: { innerWidth: number; innerHeight: number } = window,
+): Size {
+    return { width: root.clientWidth || win.innerWidth, height: root.clientHeight || win.innerHeight };
+}
+
 /** Where a box of w x h opened at (x, y) sits so it stays inside the viewport (opens up / left when there is no room). */
 export function clampToViewport(x: number, y: number, w: number, h: number, vw: number, vh: number): { x: number; y: number } {
     const margin = VIEWPORT_MARGIN;
