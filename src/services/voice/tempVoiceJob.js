@@ -185,6 +185,41 @@ async function keepInLine(eventId, entry, plan, now) {
     }
 }
 
+/** An open channel's step: track emptiness, close when it is time, keep name and access in line. */
+async function stepOpen(eventId, event, entry, plan, now, out) {
+    const follow = alive(event) ? followedPlan(plan, entry) : null;
+    if (!follow) {
+        out.closed.push(eventId);
+        return close(eventId, entry, "gone", now, { remove: true });
+    }
+    const count = voice.memberCount(entry.guildId, entry.channelId);
+    if (count === null) {
+        // Not in the cache: deleted in Discord - or the bot is not connected yet, or the cache is behind.
+        if (!discord.isOnline() || !discord.isGuildAvailable(entry.guildId)) return null;
+        if (!(await voice.channelGone(entry.guildId, entry.channelId))) return null;
+        tempVoiceStore.updateEntry(eventId, { closedAt: now, closeReason: "missing", emptySince: 0 });
+        out.closed.push(eventId);
+        return null;
+    }
+    const emptySince = count > 0 ? 0 : entry.emptySince || now;
+    if (emptySince !== entry.emptySince) tempVoiceStore.updateEntry(eventId, { emptySince });
+    if (now >= follow.limitAt) {
+        out.closed.push(eventId);
+        return close(eventId, entry, "limit", now, { moveTo: follow.fixedChannelId });
+    }
+    if (now >= follow.endAt && emptySince && now - emptySince >= follow.emptyMinutes * 60) {
+        out.closed.push(eventId);
+        return close(eventId, entry, "empty", now);
+    }
+    if (follow.kept) return null;
+    if (count === 0 && !entry.manual && now < plan.openAt) {
+        // The raid moved later: the empty channel goes and opens again on the new time.
+        out.closed.push(eventId);
+        return close(eventId, entry, "moved", now, { remove: true });
+    }
+    return keepInLine(eventId, entry, plan, now);
+}
+
 /** One raid's step: open when due, track emptiness, close when it is time. */
 async function stepRaid(eventId, event, config, now, out) {
     if (opening.has(eventId)) return null;
@@ -194,39 +229,7 @@ async function stepRaid(eventId, event, config, now, out) {
         entry = adoptCreated(eventId, entry, plan, now);
         if (!entry) return null;
     }
-    if (isOpen(entry)) {
-        const follow = alive(event) ? followedPlan(plan, entry) : null;
-        if (!follow) {
-            out.closed.push(eventId);
-            return close(eventId, entry, "gone", now, { remove: true });
-        }
-        const count = voice.memberCount(entry.guildId, entry.channelId);
-        if (count === null) {
-            // Not in the cache: deleted in Discord - or the bot is not connected yet, or the cache is behind.
-            if (!discord.isOnline() || !discord.isGuildAvailable(entry.guildId)) return null;
-            if (!(await voice.channelGone(entry.guildId, entry.channelId))) return null;
-            tempVoiceStore.updateEntry(eventId, { closedAt: now, closeReason: "missing", emptySince: 0 });
-            out.closed.push(eventId);
-            return null;
-        }
-        const emptySince = count > 0 ? 0 : entry.emptySince || now;
-        if (emptySince !== entry.emptySince) tempVoiceStore.updateEntry(eventId, { emptySince });
-        if (now >= follow.limitAt) {
-            out.closed.push(eventId);
-            return close(eventId, entry, "limit", now, { moveTo: follow.fixedChannelId });
-        }
-        if (now >= follow.endAt && emptySince && now - emptySince >= follow.emptyMinutes * 60) {
-            out.closed.push(eventId);
-            return close(eventId, entry, "empty", now);
-        }
-        if (follow.kept) return null;
-        if (count === 0 && !entry.manual && now < plan.openAt) {
-            // The raid moved later: the empty channel goes and opens again on the new time.
-            out.closed.push(eventId);
-            return close(eventId, entry, "moved", now, { remove: true });
-        }
-        return keepInLine(eventId, entry, plan, now);
-    }
+    if (isOpen(entry)) return stepOpen(eventId, event, entry, plan, now, out);
     if (!plan || (entry && entry.closedAt && BLOCKING.has(entry.closeReason))) return null;
     if (now < plan.openAt || now >= plan.limitAt) return null;
     if (now - (lastFailure.get(eventId) || 0) < RETRY_SECONDS) return null;
