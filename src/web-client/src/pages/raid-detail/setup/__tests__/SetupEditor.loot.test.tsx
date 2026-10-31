@@ -2,7 +2,7 @@
 // line, the list of contested items in "Details" (item links to Wowhead of the raid's version, who wants
 // each item in which raid, the source as a small word), the status of the loaded data and of sources that
 // could not be reached, and "Loot-Daten laden" — the POST with `loadLoot`, polling while the job runs and
-// then only the hint "Neu vorschlagen?" (no proposal on its own). The API is mocked at its transport.
+// then only the hint to propose anew (no proposal on its own). The API is mocked at its transport.
 import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";

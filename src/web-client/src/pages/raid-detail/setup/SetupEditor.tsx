@@ -492,7 +492,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
     };
 
     // "Loot-Daten laden" (#1037): the job runs on the server; poll only its state. Once it is
-    // done the panel offers "Neu vorschlagen?" - the setup itself never changes without a click.
+    // done the panel offers a new proposal (setup.loot.propose) - the setup itself never changes without a click.
     const loadLoot = async () => {
         setLootReady(false);
         const next = await jobs.run({ label: t("setup.loot.load"), detail: data?.event.title || "", icon: "home", quiet: true }, () => loadSetupLoot(eventId));

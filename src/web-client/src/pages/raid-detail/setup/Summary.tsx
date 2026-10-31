@@ -82,7 +82,7 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLo
     onAvoid: (on: boolean) => void;
     /** "Loot-Daten laden" (#1037) — only a raid group's orga gets `data.loot` */
     onLoadLoot?: () => void;
-    /** the loot job just finished: offer "Neu vorschlagen?" instead of proposing on its own */
+    /** the loot job just finished: offer a new proposal instead of proposing on its own */
     lootReady?: boolean;
     onLootPropose?: () => void;
 }) {

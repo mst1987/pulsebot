@@ -50,14 +50,14 @@ function ItemRaids({ item, t }: { item: SetupLootItem; t: T }) {
  * "Loot verteilen" (#1037) in the details of a raid group: the items more than one placed
  * raider wants in the same raid, who wants them in which raid, where the wishes come from -
  * and "Loot-Daten laden", the background job that gathers Softres, BiS and the worn gear.
- * The proposal itself never asks an API, and a finished load only offers "Neu vorschlagen?".
+ * The proposal itself never asks an API, and a finished load only offers a new proposal.
  */
 export function LootPanel({ status, check, busy, onLoad, ready = false, onPropose }: {
     status: SetupLootStatus;
     check: SetupLootCheck | undefined;
     busy: boolean;
     onLoad: () => void;
-    /** the load just finished: show "Loot-Daten geladen – Neu vorschlagen?" */
+    /** the load just finished: show the hint setup.loot.loaded with its button */
     ready?: boolean;
     onPropose?: () => void;
 }) {
