@@ -169,31 +169,45 @@ function raidersOf(groupId) {
 }
 
 /**
- * The armory pass: one character after another, with progress. Marks "armory" in
- * `failed` when it threw or when it was asked and not one character answered - the
- * API was not reachable, not every raider unknown.
+ * The armory pass: one character after another, with progress. The first `bisCount`
+ * names are the BiS characters (their wants depend on the read): a throw there, or not
+ * one of them answering, marks "armory" in `failed` - the API was not reachable, not
+ * every raider unknown. The rest is asked for the raids' strength only (#1038): a failed
+ * read there neither stops the pass nor marks a loot source - it only lowers the silent
+ * count it returns ("gear for `read` of `of`").
+ * @returns {{ read: number, of: number }} the gear-only characters read / asked
  */
-async function askArmory(groupId, names, { versionId, guildId, failed }) {
+async function askArmory(groupId, names, { versionId, guildId, failed, bisCount = names.length }) {
     progress.set(groupId, { done: 0, total: names.length });
     let asked = 0;
     let answered = 0;
-    for (const name of names) {
+    const gearOnly = { read: 0, of: Math.max(0, names.length - bisCount) };
+    for (let i = 0; i < names.length; i++) {
+        const forBis = i < bisCount;
         let res;
+        let threw = false;
         try {
-            res = await armoryGear.primeArmoryGear([name], { full: true, versionId, guildId });
+            res = await armoryGear.primeArmoryGear([names[i]], { full: true, versionId, guildId });
         } catch (e) {
-            logger.warn(`armory ${name}: ${e.message}`);
-            failed.add("armory");
-            break;
+            logger.warn(`armory ${names[i]}: ${e.message}`);
+            if (forBis) {
+                failed.add("armory");
+                break;
+            }
+            threw = true;
         }
         const p = progress.get(groupId);
         progress.set(groupId, { ...p, done: p.done + 1 });
+        if (threw) continue;
         // no armory for this version (no realm, no key): the logs still know some gear
         if (!res || !res.configured) break;
-        asked += Number(res.asked) || 0;
-        answered += Number(res.answered) || 0;
+        if (forBis) {
+            asked += Number(res.asked) || 0;
+            answered += Number(res.answered) || 0;
+        } else if (Number(res.answered) > 0) gearOnly.read++;
     }
     if (asked > 0 && answered === 0) failed.add("armory");
+    return gearOnly;
 }
 
 /** The gear the logs (and the armory cache) know; "logs" in `failed` when reading them threw. */
@@ -321,7 +335,7 @@ const FAILED_ALL = "failed_all";
  * When every source the run asked failed, nothing is replaced at all - the job ends as
  * an error (`error: "failed_all"`, `hadPrevious` = old data stayed) and the old snapshot
  * only learns `failed`.
- * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], hadPrevious?: boolean, partial?: boolean }>}
+ * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], hadPrevious?: boolean, partial?: boolean, gearRead?: { read: number, of: number } }>}
  */
 async function loadLootData(eventIds) {
     const events = [...new Set((eventIds || []).map(str).filter(Boolean))].map((id) => eventStore.getEvent(id)).filter(Boolean);
@@ -347,9 +361,12 @@ async function loadLootData(eventIds) {
             if (list.length && !reserves.has(`${r.userId}|${characterKeyOf(c.character)}`)) bis.set(`${r.userId}|${characterKeyOf(c.character)}`, { name: c.character, list });
         }
         // the armory and the gear serve the raids' strength too (#1038), so every character is asked -
-        // but without a BiS list a failed read only costs the strength, it is no failed loot source
+        // but a failed read of a character without a BiS list only costs the strength, it is no
+        // failed loot source (askArmory: only the first, BiS names can mark "armory")
         const gearFailed = bis.size ? failed : new Set();
-        await askArmory(groupId, armoryNames(raiders, bis), { versionId, guildId, failed: gearFailed });
+        const names = armoryNames(raiders, bis);
+        const bisCount = Math.min(names.length, new Set([...bis.values()].map((b) => characterKeyOf(b.name))).size);
+        const gearRead = await askArmory(groupId, names, { versionId, guildId, failed: gearFailed, bisCount });
         const gear = gearOf({ versionId, guildId, failed: gearFailed });
         const { levels, kept: keptLevels } = mergeLevels(raiders, meanItemLevels(raiders, gear), previous && previous.gear);
 
@@ -366,7 +383,8 @@ async function loadLootData(eventIds) {
             // (kept item levels count the same: they expire with the snapshot, 30 days after their load)
             failed: failedList, keptAt: (kept || keptLevels) && previous ? (previous.keptAt || previous.at) : 0,
         });
-        return { ok: true, counts, failed: failedList, partial: failedList.length > 0 };
+        // gearRead: the silent count of the strength-only armory reads, never part of `partial`
+        return { ok: true, counts, failed: failedList, partial: failedList.length > 0, gearRead };
     } catch (e) {
         logger.error(`loot data ${groupId}: ${e.message}`);
         if (previous) markSetupLootFailed(groupId, ["all"]);

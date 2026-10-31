@@ -63,6 +63,8 @@ export const WEAKER_BY = 10;
 /**
  * The raid strengths of a group (#1038) for the tabs: the value per raid id and the clearly
  * weaker raid, if any (the weakest one only). Nothing without strength data (`known` 0).
+ * "Underfilled" comes before "weaker": while any raid has open places its strength covers
+ * only the placed raiders, so no raid is called weaker (no red) until all are full.
  */
 export function raidBalance(balance: SetupBalanceCheck | undefined): { byId: Record<string, number>; weakId: string | null } | null {
     if (!balance || !balance.known || balance.raids.length < 2) return null;
@@ -71,6 +73,7 @@ export function raidBalance(balance: SetupBalanceCheck | undefined): { byId: Rec
     const ids = Object.keys(byId);
     if (ids.length < 2) return null;
     let weakId: string | null = null;
+    if (underfilledRaid(balance)) return { byId, weakId };
     let gap = 0;
     for (const id of ids) {
         const others = ids.filter((o) => o !== id);

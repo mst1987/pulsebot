@@ -81,9 +81,10 @@ export function RaidTabs({ group, current, moving, editable, elsewhere, balance,
     onMove: (id: string, userId?: string) => void;
 }) {
     const t = useT();
+    // underfilled before weaker: raidBalance names no weaker raid while one has open places
     const strengths = raidBalance(balance);
-    const weakRaid = strengths && strengths.weakId ? group.raids.find((r) => r.id === strengths.weakId) : undefined;
-    const open = strengths && !weakRaid ? underfilledRaid(balance) : null;
+    const open = strengths ? underfilledRaid(balance) : null;
+    const weakRaid = strengths && strengths.weakId && !open ? group.raids.find((r) => r.id === strengths.weakId) : undefined;
     const openRaid = open ? group.raids.find((r) => r.id === open.eventId) : undefined;
     const summary = weakRaid
         ? t("setup.raidGroup.weaker", { name: weakRaid.title })

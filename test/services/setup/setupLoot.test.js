@@ -264,6 +264,34 @@ describe("services/setup/setupLoot strength gear (#1038)", () => {
         expect(out).toEqual(expect.objectContaining({ ok: true, failed: [] }));
     });
 
+    it("a rate limit at read 50 of 80 (a character without BiS) neither marks the armory nor stops the rest", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "b", character: "Bissy", spec: "Warrior-Fury" },
+            ...Array.from({ length: 79 }, (_, i) => ({ userId: `u${i}`, character: `Heal${i}`, spec: "Priest-Holy-Wotlk-Not-A-Spec" })),
+        ]);
+        let call = 0;
+        armoryGear.primeArmoryGear.mockImplementation(() => {
+            call++;
+            return call === 50 ? Promise.reject(new Error("429 rate limited")) : Promise.resolve({ asked: 1, answered: 1, configured: true });
+        });
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(armoryGear.primeArmoryGear).toHaveBeenCalledTimes(80);
+        expect(armoryGear.primeArmoryGear.mock.calls[0][0]).toEqual(["Bissy"]);
+        expect(out).toEqual(expect.objectContaining({ ok: true, failed: [], partial: false, gearRead: { read: 78, of: 79 } }));
+        expect(getSetupLoot("a").failed).toEqual([]);
+    });
+
+    it("a failing read of a BiS character still marks the armory", async () => {
+        signupStore.listSignups.mockReturnValue([
+            { userId: "b", character: "Bissy", spec: "Warrior-Fury" },
+            { userId: "u1", character: "Healy", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
+        ]);
+        armoryGear.primeArmoryGear.mockRejectedValue(new Error("429 rate limited"));
+        const out = await setupLoot.loadLootData(["a", "b"]);
+        expect(out.failed).toContain("armory");
+        expect(out.partial).toBe(true);
+    });
+
     it("keeps the last level per character where this load read none, as long as the raider is signed up", async () => {
         signupStore.listSignups.mockReturnValue([
             { userId: "u1", character: "Strong", spec: "Priest-Holy-Wotlk-Not-A-Spec" },
