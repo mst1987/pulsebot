@@ -283,37 +283,65 @@ export function GroupGrid({ count, children }: { count: number; children: ReactN
     return <div className="se-groups" style={{ "--se-n": Math.max(1, count) } as CSSProperties}>{children}</div>;
 }
 
+/** "Tank 1 · Heiler 1 · Schaden 1" — the bench's roles at a glance (melee and ranged count as damage). */
+function benchRoles(people: SetupPerson[]): { tank: number; healer: number; dps: number } {
+    const tank = people.filter((p) => p.role === "tank").length;
+    const healer = people.filter((p) => p.role === "healer").length;
+    return { tank, healer, dps: people.length - tank - healer };
+}
+
+/** Where the bench stands: a row under the groups (default) or a sixth column beside them ("Ansicht › Bank als Spalte"). */
+export type BenchLayout = "row" | "column";
+
 /**
- * The bench (#354) as ONE row under the groups: its name and count, then its
- * raiders side by side — never a real group: no roles, no buffs, and dropping
- * anywhere on the row just means "onto the bench". Picked somebody? A
- * "Hierher" place takes them. "Angemeldet" (#517) has a panel of its own
- * (PoolPanel.tsx).
+ * The bench (#354): under the groups as one row in their five columns, or — the
+ * viewer's choice — as a sixth column beside them with compact name-only lines.
+ * Never a real group: no buffs, and dropping anywhere on it just means "onto the
+ * bench"; a double click takes a raider back to "Angemeldet" (Slot). Picked
+ * somebody? A "Hierher" place takes them. The head says whether the bench goes
+ * out with the post (`posted`: the ping split's bench toggle; missing = read-only,
+ * then only the count). Empty, the drop area stays where it is, so the grid never
+ * jumps on the first drag. "Angemeldet" (#517) has a panel of its own (PoolPanel.tsx).
  */
-function SlotRow({ people, ui }: { people: SetupPerson[]; ui: Interaction }) {
+function SlotRow({ people, ui, layout, posted }: { people: SetupPerson[]; ui: Interaction; layout: BenchLayout; posted?: boolean }) {
     const t = useT();
     const target: SetupTarget = { bench: true };
     const zone = useZone(target, ui);
     const canTake = ui.editable && !!ui.selected && !people.some((s) => s.userId === ui.selected);
+    const column = layout === "column";
+    const roles = benchRoles(people);
+    const reach = posted === undefined ? "" : t(posted ? "setup.bench.posted" : "setup.bench.notPosted");
+    const count = t("setup.bench.count", { count: people.length });
+    const state = column || !reach ? count : `${count} · ${reach}`;
     return (
-        <section className={`se-bench se-row${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
+        <section className={`se-bench se-row${column ? " is-col" : ""}${zone.over ? " se-over" : ""}${canTake ? " se-target" : ""}`} {...zone.props} aria-label={t("setup.bench.aria")}>
             <header className="se-bench-head" data-tip={t("setup.bench.title")} data-tip-sub={t("setup.bench.tip")}>
                 <span className="se-group-title">{t("setup.bench.title")}</span>
-                <span className="se-count">{people.length}</span>
+                <span className="se-bench-state">{people.length || column ? state : t("setup.bench.empty")}</span>
+                {!column && people.length > 0 && (
+                    <span className="se-bench-roles">{t("setup.bench.roles", roles)}</span>
+                )}
             </header>
             <div className="se-row-slots">
                 {people.map((p) => <Slot key={p.userId} p={p} ui={ui} />)}
                 {canTake && (
                     <button type="button" className="se-ph se-ph-take" onClick={() => ui.onDrop(target)}>{t("setup.group.here")}</button>
                 )}
-                {!people.length && !canTake && <span className="se-row-empty">{t("setup.bench.empty")}</span>}
+                {ui.editable && !canTake && (
+                    <span className={`se-bench-drop${!people.length ? " is-empty" : ""}`} aria-hidden="true">
+                        {column && !people.length
+                            ? <>{t("setup.bench.dropHere")}{reach && <small>{reach}</small>}</>
+                            : t("setup.bench.drop")}
+                    </span>
+                )}
+                {!ui.editable && !people.length && <span className="se-row-empty">{t("setup.bench.nobody")}</span>}
             </div>
         </section>
     );
 }
 
-export function BenchCard({ bench, ui }: { bench: SetupPerson[]; ui: Interaction }) {
-    return <SlotRow people={bench} ui={ui} />;
+export function BenchCard({ bench, ui, layout = "row", posted }: { bench: SetupPerson[]; ui: Interaction; layout?: BenchLayout; posted?: boolean }) {
+    return <SlotRow people={bench} ui={ui} layout={layout} posted={posted} />;
 }
 
 /** The approved lineup, read-only — what someone without write access sees. */
