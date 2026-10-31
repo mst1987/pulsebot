@@ -52,6 +52,13 @@ describe("web/logcheck/evalJobs", () => {
         expect(getJob("l1", "rpb")).toMatchObject({ status: "error", error: "Report ist privat." });
         // ...and it is not the raid-still-running case, which the client asks about.
         expect(getJob("l1", "rpb").incomplete).toBe(false);
+        expect(getJob("l1", "rpb")).toMatchObject({ failed: [], hadPrevious: false });
+    });
+
+    it("passes an error's codes through for the client's own text (#1037)", async () => {
+        startJob("ev1", "setup-loot", async () => ({ ok: false, error: "failed_all", failed: ["softres", 7], hadPrevious: true }));
+        await flush();
+        expect(getJob("ev1", "setup-loot")).toMatchObject({ status: "error", error: "failed_all", failed: ["softres", "7"], hadPrevious: true });
     });
 
     it("marks a refusal over a still-running raid as such, not as a plain failure", async () => {

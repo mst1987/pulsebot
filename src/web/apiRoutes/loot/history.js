@@ -27,7 +27,12 @@ const { bestDayMatch, formatDayDisplay, dayKey } = require("../../loot/lootEvent
 const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
+    resolvedById: resolvedInboxById, listDismissed: listDismissedSessions, getDismissed: getDismissedSession,
+    restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions,
 } = require("../../../stores/loot/lootInboxStore");
+const guildBankStockStore = require("../../../stores/loot/guildBankStockStore");
+const guildBankStock = require("../../../services/guildbank/guildBankStock");
+const guildRoles = require("../../../services/discord/roles/guildRoles");
 const { sessionContentLabel } = require("../../loot/lootSessionContent");
 const { previewImport } = require("../../loot/lootImportPreview");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../../utils/setup/setupView");
@@ -44,6 +49,7 @@ const { userCan } = require("../../../config/permissions");
 const discord = require("../../../services/discord/discord");
 const linkCheck = require("../../../services/discord/linkCheck");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
+const { versionHead } = require("../../../services/discord/servers/ingestServers");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -609,7 +615,7 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
  * has filed yet, each with the event it was matched to (a suggestion only) and
  * its loot, so the admin can see what they are accepting before they accept it.
  */
-const getLootInbox = withUser({}, async ({ req, res, url }) => {
+const getLootInbox = withUser({}, async ({ user, req, res, url }) => {
     // One game version (#741): a session matched to a raid only under that raid's
     // version, one without a match under every version (like a log without a raid).
     const cfg = getConfig();
@@ -626,7 +632,10 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
     const suggestedOf = (s) => (s && s.match && s.match.suggested ? s.match.suggested.eventId : "");
     // Decorated like stored loot (reason badge, raid, tier) even though it isn't
     // stored yet — the preview should look like the history it is about to be.
-    const sessions = listPendingSessions().filter((s) => inVersion(suggestedOf(s)) && sessionInGuild(serverCtx, s, guildId)).map((s) => {
+    // An upload that names its game version (#1002) shows under that version only.
+    const ofVersion = (s) => (s.gameVersion ? s.gameVersion === versionId : inVersion(suggestedOf(s)));
+    const visible = (s) => ofVersion(s) && sessionInGuild(serverCtx, s, guildId);
+    const decorate = (s) => {
         // Welcher Raid das war, notfalls aus den Item-IDs — das Addon kann es
         // nicht immer wissen (siehe lootSessionContent.js).
         const content = sessionContentLabel(s);
@@ -637,11 +646,117 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
             contentSource: content.source,
             contentMatched: content.derived.matched,
         };
-    });
+    };
+    const pending = listPendingSessions().filter(visible);
+    const names = serverNames(cfg);
+    // Uploads that wait for the orga of several servers (#1002): with their
+    // candidates, each naming its server and whether it is the active one.
+    const fullAdmin = !!(user && user.isAdmin);
+    const waiting = pending.filter((s) => s.waiting).map((s) => withCandidates(decorate(s), guildId, names, fullAdmin, cfg));
+    const sessions = pending.filter((s) => !s.waiting).map(decorate);
+    // Dismissed uploads past their 14 days leave the file too (writes only when one is due).
+    pruneDismissedSessions();
+    const dismissed = listDismissedSessions().filter(visible).map((s) => withCandidates(decorate(s), guildId, names, fullAdmin, cfg));
     // Accepted sessions that keep appending by themselves — the quiet list under
     // the cards, so nobody wonders where last night's second half went.
-    ok(res, { sessions, linked: listLinkedSessions().filter((s) => s && inVersion(s.eventId) && linkedInGuild(s)) });
+    ok(res, {
+        sessions,
+        waiting,
+        dismissed,
+        waitingBanks: waitingBanksFor(guildId, versionId, names, cfg),
+        linked: listLinkedSessions().filter((s) => s && inVersion(s.eventId) && linkedInGuild(s)),
+    });
 });
+
+/** Server id -> its name for the Addon-Inbox: the label of the server list, else Discord's name. */
+function serverNames(cfg) {
+    const names = new Map();
+    try {
+        for (const g of discord.listGuilds()) names.set(String(g.id), g.name || "");
+    } catch { /* bot offline: labels only */ }
+    for (const gid of guildRoles.eventGuildIds(cfg)) {
+        const label = guildRoles.serverLabel(gid, cfg);
+        if (label) names.set(String(gid), label);
+    }
+    return names;
+}
+
+/**
+ * A waiting or dismissed upload with its candidates ready for the tab (#1002).
+ * `assignable`: the active server's raids, for a full admin every server's (like the banks, #926).
+ * `versionShort`: the version's short name as the sync app shows it (`versionHead`, #1001).
+ */
+function withCandidates(session, guildId, names, fullAdmin = false, cfg = undefined) {
+    const match = session.match || {};
+    const candidates = (Array.isArray(match.candidates) ? match.candidates : []).map((c) => ({
+        ...c,
+        serverName: names.get(String(c.guildId || "")) || "",
+        ownServer: String(c.guildId || "") === String(guildId),
+        assignable: String(c.guildId || "") === String(guildId) || (fullAdmin && !!c.guildId),
+        suggested: !!match.best && c.eventId === match.best,
+    }));
+    return { ...session, versionShort: versionShortOf(session.gameVersion, guildId, cfg), candidates, servers: Array.isArray(session.servers) ? session.servers : [] };
+}
+
+/** "TBC" for "tbc" on this server, "" without a version. */
+function versionShortOf(versionId, guildId, cfg) {
+    return versionId ? versionHead(versionId, guildId, cfg).short : "";
+}
+
+/** Guild banks waiting for the orga of the active server (#1002): new banks of a personal key. */
+function waitingBanksFor(guildId, versionId, names, cfg = undefined) {
+    const active = String(guildId || "");
+    if (!active) return [];
+    return guildBankStockStore.listBanks()
+        .filter((b) => b.pending && b.waitingFor.includes(active) && (!versionId || b.gameVersion === versionId))
+        .map((b) => ({
+            key: b.key, gameVersion: b.gameVersion, versionShort: versionShortOf(b.gameVersion, active, cfg), realm: b.realm, guild: b.guild, faction: b.faction,
+            receivedAt: b.receivedAt, uploadedBy: b.uploadedBy, items: b.counts.items,
+            servers: b.waitingFor.map((gid) => ({ guildId: gid, name: names.get(gid) || "", ownServer: gid === active })),
+        }));
+}
+
+const GONE = "Diese Session liegt nicht mehr in der Inbox.";
+const TAKEN = "Diese Session hat schon ein anderer Server zugeordnet.";
+const DISMISSED = "Dieser Upload wurde inzwischen verworfen.";
+const EVENT_GONE = "Diesen Raid gibt es auf dem anderen Server nicht mehr.";
+const NO_CATEGORY = "Dieser Raid liegt auf dem anderen Server in keiner Kategorie.";
+
+/** Why a card left the inbox: 409 for the first decision taken elsewhere, else 404. */
+function goneAnswer(res, id) {
+    const done = resolvedInboxById(id);
+    if (done && done.action === "accepted") return error(res, 409, "already_assigned", TAKEN);
+    if (done && done.action === "dismissed") return error(res, 409, "already_dismissed", DISMISSED);
+    return error(res, 404, "not_found", GONE);
+}
+
+/**
+ * The candidate raid of a waiting upload on another server than the active one,
+ * when a full admin picks it (#1002, like the banks #926): it is filed under
+ * that raid and server. The candidate list only names it: the raid itself is
+ * looked up on that server again (it may have been deleted since the upload), and
+ * its category comes from there - never the active server's. null for anything
+ * else - the active server's raids go through resolveImportTarget; a 403 for
+ * anyone but a full admin, a 404 for a raid that is gone, a 409 for one without
+ * a category.
+ */
+async function foreignCandidate(user, entry, eventId, active) {
+    if (!entry.waiting || !eventId) return null;
+    const list = entry.match && Array.isArray(entry.match.candidates) ? entry.match.candidates : [];
+    const hit = list.find((c) => c && String(c.eventId) === eventId);
+    if (!hit || !hit.guildId || String(hit.guildId) === String(active)) return null;
+    // Everyone else only assigns the raids of the server they work on (#919).
+    if (!user || !user.isAdmin) return { error: OTHER_SERVER, status: 403, code: "other_server" };
+    const guildId = String(hit.guildId);
+    const { groups } = await loadEventGroups(guildId, { sinceSeconds: eventLookbackSince() });
+    for (const g of groups || []) {
+        const ev = (g.events || []).find((e) => e && String(e.id) === String(hit.eventId));
+        if (!ev) continue;
+        if (!g.categoryId) return { error: NO_CATEGORY, status: 409, code: "no_category" };
+        return { eventId: String(ev.id), eventLabel: ev.title || hit.eventLabel || String(ev.id), categoryId: String(g.categoryId), guildId };
+    }
+    return { error: EVENT_GONE, status: 404, code: "event_gone" };
+}
 
 /**
  * POST /api/history/inbox-accept — body: { id, event, manualLabel, categoryId }.
@@ -649,9 +764,11 @@ const getLootInbox = withUser({}, async ({ req, res, url }) => {
  * `event` defaults to the suggested match; the admin can override it with any
  * event id, "__auto__" or "__manual__" (same vocabulary as the paste import).
  */
-const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
-    const entry = getPendingSession(String(body.id || "").trim());
-    if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const id = String(body.id || "").trim();
+    const entry = getPendingSession(id);
+    // First decision wins (#1002): the other server learns it was taken or dismissed.
+    if (!entry) return goneAnswer(res, id);
     // A card the active server does not show is not this server's to file (#919).
     if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
 
@@ -661,16 +778,23 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
     // No explicit choice → take the match the upload already suggested, and only
     // fall back to re-matching by date when there was none.
     const suggested = entry.match && entry.match.suggested ? entry.match.suggested.eventId : "";
-    const target = await resolveImportTarget(req, {
-        event: String(body.event || "").trim() || suggested || "__auto__",
+    const asked = String(body.event || "").trim();
+    const foreign = await foreignCandidate(user, entry, asked, activeGuildFor(req));
+    const target = foreign || await resolveImportTarget(req, {
+        event: asked || suggested || "__auto__",
         manualLabel: body.manualLabel,
         items: entry.items,
-        // The version the session was matched under (the inbox lists it there), else the client's.
-        versionId: importVersion(body, storedVersionOf(suggested)),
+        // The version the session was matched under (the inbox lists it there), else the
+        // upload's own (#1002), else the client's.
+        versionId: importVersion(body, storedVersionOf(suggested) || entry.gameVersion || ""),
     });
     if (target.error) return error(res, target.status, target.code, target.error);
+    // The match above awaited: another server may have assigned or dismissed the upload
+    // meanwhile. From here on everything runs without a pause, so exactly one decision wins.
+    if (!getPendingSession(entry.id)) return goneAnswer(res, entry.id);
 
-    const categoryId = target.categoryId || picked.id;
+    // A foreign raid keeps its own server's category; the picked one belongs to the active server.
+    const categoryId = foreign ? target.categoryId : (target.categoryId || picked.id);
     linkItemsForImport(entry.items, { eventId: target.eventId, categoryId });
     const { added, skipped } = addLootImport(target.eventId, entry.items, {
         categoryId,
@@ -695,15 +819,51 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ body, req,
  * importing it. The decision sticks: the sync tool re-uploads the same session
  * as long as it is in the addon's SavedVariables, and it must not come back.
  */
-const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const id = String(body.id || "").trim();
     const entry = getPendingSession(id);
-    if (!entry) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+    if (!entry) return goneAnswer(res, id);
     // Same rule as the list (#919): only a card the active server shows.
     if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
-    const removed = resolvePendingSession(id, "dismissed");
-    if (!removed) return error(res, 404, "not_found", "Diese Session liegt nicht mehr in der Inbox.");
+    const removed = resolvePendingSession(id, "dismissed", { by: (user && (user.name || user.username || user.id)) || "" });
+    if (!removed) return error(res, 404, "not_found", GONE);
     ok(res, { id: removed.id, sessionId: removed.sessionId });
+});
+
+/**
+ * POST /api/history/inbox-restore — body: { id }. Brings a dismissed upload of
+ * the last 14 days back into the inbox (#1002), on a server that saw it.
+ */
+const restoreLootInbox = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const id = String(body.id || "").trim();
+    const entry = getDismissedSession(id);
+    if (!entry) return error(res, 404, "not_found", "Diese Session ist nicht mehr unter „Verworfen“.");
+    if (!sessionInGuild(serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
+    const restored = restorePendingSession(id);
+    if (!restored) return error(res, 404, "not_found", "Diese Session ist nicht mehr unter „Verworfen“.");
+    ok(res, { id: restored.id, sessionId: restored.sessionId, waiting: !!restored.waiting });
+});
+
+/**
+ * POST /api/history/inbox-bank-assign — body: { key, guildId }. Gives a guild
+ * bank that waits for several servers (#1002) to one of them. Only a server the
+ * bank waits for, and only one the user may act on (a non-admin: the active one).
+ * The first to pick decides: a bank that has a server already answers 409.
+ */
+const assignInboxBank = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const key = String(body.key || "").trim();
+    const guildId = String(body.guildId || "").trim();
+    const bank = key ? guildBankStockStore.getBank(key) : null;
+    if (!bank) return error(res, 404, "not_found", "Gildenbank nicht gefunden.");
+    if (!bank.pending) return error(res, 409, "already_assigned", "Diese Gildenbank hat schon ein Server bekommen.");
+    const active = String(activeGuildFor(req) || "");
+    if (!active || !bank.waitingFor.includes(active)) return error(res, 403, "other_server", OTHER_SERVER);
+    if (!guildId || !bank.waitingFor.includes(guildId) || !mayUseServer(user, req, guildId)) {
+        return error(res, 403, "other_server", "Diesen Server kannst du hier nicht wählen.");
+    }
+    const result = guildBankStock.assignBank(key, guildId);
+    if (result.code) return error(res, result.code === "not_found" ? 404 : 400, result.code, result.error);
+    ok(res, { key, guildId: result.bank.guildId });
 });
 
 /**
@@ -839,6 +999,8 @@ const routes = [
     { method: "GET", path: "/api/history/inbox", handler: getLootInbox, area: "history" },
     { method: "POST", path: "/api/history/inbox-accept", handler: acceptLootInbox, area: "history" },
     { method: "POST", path: "/api/history/inbox-dismiss", handler: dismissLootInbox, area: "history" },
+    { method: "POST", path: "/api/history/inbox-restore", handler: restoreLootInbox, area: "history" },
+    { method: "POST", path: "/api/history/inbox-bank-assign", handler: assignInboxBank, area: "history" },
     { method: "POST", path: "/api/history/loot-category", handler: setLootCategory, area: "history" },
     { method: "POST", path: "/api/history/loot-delete", handler: deleteLootItems, area: "history" },
     { method: "GET", path: "/api/history/loot-picker", handler: getLootPicker, area: "history" },
@@ -850,7 +1012,7 @@ const routes = [
 ];
 
 module.exports = {
-    getLootInbox, acceptLootInbox, dismissLootInbox,
+    getLootInbox, acceptLootInbox, dismissLootInbox, restoreLootInbox, assignInboxBank,
     getHistoryData, getLootStats, getLootAwards, deleteHistoryLog, importLoot, setLootCategory, deleteLootItems, clearHistoryEvent, getHistoryEvent,
     getLootPicker, addLootItem, previewLootImport,
     resolveCharacters, getHistoryChar,
