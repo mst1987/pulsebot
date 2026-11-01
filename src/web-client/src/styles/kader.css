@@ -189,6 +189,10 @@
     container: kp-htabs / inline-size; position: sticky; top: var(--topbar-h, 64px); z-index: 3;
     min-width: 0; background: var(--bg); border-bottom: 1px solid var(--line);
 }
+/* from 600 px down the topbar scrolls away (shared.css), so nothing is left to stick under */
+@media (max-width: 600px) {
+    .kp-htabs { top: 0; }
+}
 .kp-htabs-in { display: flex; align-items: stretch; }
 .kp-status { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; }
 /* the steps are drop zones and stay in view; out of room, only the decided states scroll, inside the line */
