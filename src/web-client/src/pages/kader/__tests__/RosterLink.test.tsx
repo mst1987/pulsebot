@@ -1,15 +1,16 @@
-// The Kader's raid roster on the decision page (#658): "Roster anlegen" for a
-// full admin while there is none, "Ins Roster übernehmen (n)" and "Zum Roster"
-// once there is one — rendered inside the real Kaderplaner against a mocked api.
+// The Kader's raid roster in the status bar (#658): the green button creates a roster
+// (assistant, Discord optional), "Ins Roster übernehmen (n)" and "Zum Roster" once
+// there is one, the smaller ways in the menu "Mehr" — rendered inside the real
+// Kaderplaner against a mocked api.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
-import type { KaderRosterState } from "../../../api";
+import type { KaderRosterState, KaderTakeoverCheck } from "../../../api";
 import { t } from "../../../i18n";
 import { switchLang } from "../../../test/i18n";
 import { adminUser, renderPage } from "../../../test/render";
-import { CAT, kaderView } from "../kader.fixture";
+import { CAT, kaderView, U } from "../kader.fixture";
 import KaderPage from "../KaderPage";
 
 vi.mock("../../../api", async (orig) => ({
@@ -18,8 +19,9 @@ vi.mock("../../../api", async (orig) => ({
     getKaderLive: vi.fn(),
     leaveKaderLive: vi.fn(),
     getKaderRoster: vi.fn(),
+    getKaderTakeover: vi.fn(),
+    startKaderTakeover: vi.fn(),
     syncKaderRoster: vi.fn(),
-    getKaderRosterCategories: vi.fn(),
     createKaderRoster: vi.fn(),
     linkKaderRoster: vi.fn(),
     updateKader: vi.fn(),
@@ -31,13 +33,29 @@ const state = (over: Partial<KaderRosterState> = {}): KaderRosterState => ({
 });
 const withRoster = (over: Partial<KaderRosterState> = {}) => state({ roster: { id: "forever-raid", name: "Forever-Raid", members: 2 }, pending: 1, canCreate: false, canSync: true, ...over });
 
+/** The precheck of a Kader without a roster: nothing keeps either way. */
+const noRosterCheck = (over: Partial<KaderTakeoverCheck> = {}): KaderTakeoverCheck => ({
+    kader: { id: "k1", name: "Forever-Kader", versionId: "forever", rev: 4 },
+    roster: null, createsRoster: true, notes: ["creates_roster"],
+    newRoster: { name: "Forever-Kader", versionId: "forever" },
+    rosterCategories: [{ id: "c1", name: "Donnerstag Raid", suggested: false }],
+    online: true, canManageRoles: true, canManageChannels: true, iconPossible: false, premiumTier: 1,
+    blockers: [], outsideCount: 0, takeover: null, role: null, category: null, running: false, aborted: false,
+    pending: [], pendingCount: 0, pullCount: 0, pendingAway: 0,
+    players: [
+        { userId: U.tank, state: "roster", onServer: true, hasRole: null, inRoster: false, result: null },
+        { userId: U.sham, state: "bench", onServer: true, hasRole: null, inRoster: false, result: null },
+        { userId: U.tent, state: "tentative", onServer: true, hasRole: null, inRoster: false, result: null },
+    ],
+    categories: [],
+    canStart: true,
+    ...over,
+});
+
 beforeEach(() => {
     localStorage.clear();
     vi.mocked(api.getKader).mockImplementation(async () => kaderView());
-    vi.mocked(api.getKaderRosterCategories).mockResolvedValue({ categories: [
-        { id: "c1", name: "Donnerstag Raid", rosterId: null },
-        { id: "c2", name: "Mittwoch", rosterId: "taken" },
-    ] });
+    vi.mocked(api.getKaderTakeover).mockResolvedValue(noRosterCheck());
 });
 
 async function show(user = adminUser()) {
@@ -45,33 +63,46 @@ async function show(user = adminUser()) {
     await screen.findByRole("button", { name: /Forever-Kader/ });
 }
 
+/** Opens the green button and leaves the assistant on the roster-only first step. */
+async function openRosterOnly() {
+    await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.createButton") }));
+    const dialog = await screen.findByRole("dialog");
+    await userEvent.click(within(dialog).getByRole("switch", { name: t("kader.takeover.discordSwitch") }));
+    return dialog;
+}
+
+/** Opens the menu next to the green button. */
+async function openMenu() {
+    await userEvent.click(await screen.findByRole("button", { name: t("kader.nav.more") }));
+    return screen.findByRole("menu", { name: t("kader.nav.more") });
+}
+
 describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
-    it("creates a roster from the Kader: name prefilled, a free category, then says how many came along", async () => {
+    it("creates a roster from the Kader: name prefilled, a free category, says how many came along, the bar follows at once", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValueOnce(state()).mockResolvedValue(withRoster({ pending: 0 }));
         vi.mocked(api.createKaderRoster).mockResolvedValue({ roster: { id: "forever-raid", name: "Forever-Raid" }, initial: { added: 3, skipped: 0, roleFailures: [] } });
         await show();
-        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.createButton") }));
-        const dialog = await screen.findByRole("dialog");
-        expect(within(dialog).getByLabelText(t("kader.field.name"))).toHaveValue("Forever-Kader");
-        const select = within(dialog).getByLabelText(t("kader.roster.category"));
-        // a category that already has a roster is not offered
-        await waitFor(() => expect(within(select).getAllByRole("option").map((o) => o.textContent)).toEqual([t("kader.roster.noCategory"), "Donnerstag Raid"]));
-        await userEvent.selectOptions(select, "c1");
-        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.create") }));
+        const dialog = await openRosterOnly();
+        expect(within(dialog).getByLabelText(t("kader.takeover.roster.name"))).toHaveValue("Forever-Kader");
+        await userEvent.selectOptions(within(dialog).getByLabelText(t("kader.takeover.roster.category")), "c1");
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.takeover.next") }));
+        await userEvent.click(within(dialog).getByRole("switch", { name: t("kader.takeover.rosterOnly.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.takeover.rosterOnly.start") }));
         expect(api.createKaderRoster).toHaveBeenCalledWith("k1", { name: "Forever-Kader", categoryId: "c1" });
-        expect(await screen.findByText(t("kader.roster.created", { count: 3 }))).toBeInTheDocument();
-        // afterwards the bar leads to the roster
+        expect(api.startKaderTakeover).not.toHaveBeenCalled();
+        expect(await within(dialog).findByText(t("kader.roster.created", { count: 3 }))).toBeInTheDocument();
+        // afterwards the bar leads to the roster, without a reload of the page
         expect(await screen.findByRole("link", { name: t("kader.roster.open") })).toHaveAttribute("href", "/roster/r/forever-raid");
-        expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
     });
 
-    it("says a refusal of the create dialog in words", async () => {
+    it("says a refusal of the roster way in words", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(state());
         vi.mocked(api.createKaderRoster).mockRejectedValue({ code: "category_taken", message: "Roster: category_taken" });
         await show();
-        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.createButton") }));
-        const dialog = await screen.findByRole("dialog");
-        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.create") }));
+        const dialog = await openRosterOnly();
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.takeover.next") }));
+        await userEvent.click(within(dialog).getByRole("switch", { name: t("kader.takeover.rosterOnly.confirm") }));
+        await userEvent.click(within(dialog).getByRole("button", { name: t("kader.takeover.rosterOnly.start") }));
         expect(await within(dialog).findByRole("alert")).toHaveTextContent(t("kader.roster.error.category_taken"));
     });
 
@@ -89,18 +120,31 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         await waitFor(() => expect(screen.queryByRole("button", { name: t("kader.roster.syncButton", { count: 1 }) })).not.toBeInTheDocument());
     });
 
-    it("shows nothing to somebody who may neither create nor take over, and only the link once there is a roster", async () => {
+    it("says in words when the server refuses the sync because the Kader was taken over meanwhile", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster());
+        vi.mocked(api.syncKaderRoster).mockRejectedValue({ code: "kader_taken_over", message: "Roster: kader_taken_over" });
+        await show();
+        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.syncButton", { count: 1 }) }));
+        const confirm = await screen.findByRole("dialog");
+        await userEvent.click(within(confirm).getByRole("button", { name: t("kader.roster.sync") }));
+        expect(await screen.findByText(t("kader.roster.syncTakenOver"))).toBeInTheDocument();
+        expect(screen.queryByText("Roster: kader_taken_over")).not.toBeInTheDocument();
+    });
+
+    it("shows nothing to a reader without a roster", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(state({ canCreate: false }));
         const reader = adminUser({ isAdmin: false, access: { kader: { read: true, write: false } } });
         await show(reader);
         await waitFor(() => expect(api.getKaderRoster).toHaveBeenCalledWith("k1"));
         expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
+        expect(document.querySelector(".kp-tools")).toBeNull();
     });
 
-    it("links a roster running as Loot-Council to the council, preselecting it (#676)", async () => {
+    it("links a roster running as Loot-Council to the council through the menu, preselecting it (#676)", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: true }));
         await show();
-        const link = await screen.findByRole("link", { name: t("kader.roster.council") });
+        const menu = await openMenu();
+        const link = within(menu).getByRole("menuitem", { name: t("kader.roster.council") });
         expect(link).toHaveAttribute("href", "/lootcouncil?roster=forever-raid");
     });
 
@@ -108,10 +152,40 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: false }));
         await show();
         await screen.findByRole("link", { name: t("kader.roster.open") });
-        expect(screen.queryByRole("link", { name: t("kader.roster.council") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("kader.nav.more") })).not.toBeInTheDocument();
+        expect(screen.queryByText(t("kader.roster.council"))).not.toBeInTheDocument();
     });
 
-    it("links an existing roster - the suggestion first - and counts its category in the Kader's attendance", async () => {
+    it("walks the menu by keyboard, Escape closes it and gives the focus back", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: true, canLink: true, rosters: [] }));
+        await show();
+        const menu = await openMenu();
+        const items = within(menu).getAllByRole("menuitem");
+        expect(items).toHaveLength(2);
+        expect(items[0]).toHaveFocus();
+        await userEvent.keyboard("{ArrowDown}");
+        expect(items[1]).toHaveFocus();
+        await userEvent.keyboard("{ArrowDown}");
+        expect(items[0]).toHaveFocus();
+        await userEvent.keyboard("{ArrowUp}");
+        expect(items[1]).toHaveFocus();
+        await userEvent.keyboard("{Escape}");
+        expect(screen.queryByRole("menu", { name: t("kader.nav.more") })).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: t("kader.nav.more") })).toHaveFocus();
+    });
+
+    it("closes the menu on Tab, so the button does not stay expanded while the focus moves on", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: true, canLink: true, rosters: [] }));
+        await show();
+        await openMenu();
+        const button = screen.getByRole("button", { name: t("kader.nav.more") });
+        expect(button).toHaveAttribute("aria-expanded", "true");
+        await userEvent.keyboard("{Tab}");
+        expect(screen.queryByRole("menu", { name: t("kader.nav.more") })).not.toBeInTheDocument();
+        expect(button).toHaveAttribute("aria-expanded", "false");
+    });
+
+    it("links an existing roster through the menu - the suggestion first - and counts its category in the Kader's attendance", async () => {
         const rosters = [
             { id: "mo-raider", name: "Mo-Raider", categoryId: CAT.mo, members: 18, linkedKaderId: null, suggested: true },
             { id: "pug", name: "PUG", categoryId: CAT.pug, members: 9, linkedKaderId: null, suggested: false },
@@ -121,7 +195,8 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         vi.mocked(api.linkKaderRoster).mockResolvedValue(withRoster({ roster: { id: "pug", name: "PUG", members: 9 }, canLink: true, rosters }));
         vi.mocked(api.updateKader).mockImplementation(async () => ({ kader: kaderView().kader, kaders: kaderView().kaders }));
         await show();
-        const linkButton = await screen.findByRole("button", { name: t("kader.roster.linkButton") });
+        const menu = await openMenu();
+        const linkButton = within(menu).getByRole("menuitem", { name: t("kader.roster.linkButton") });
         expect(linkButton).toHaveAttribute("data-tip-sub", t("kader.roster.linkTipSuggestion", { name: "Mo-Raider" }));
         await userEvent.click(linkButton);
         const dialog = await screen.findByRole("dialog");
@@ -141,11 +216,12 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
     });
 
-    it("unlinks after asking, and says a refusal in words", async () => {
+    it("unlinks through the menu after asking, and says so", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ canLink: true, rosters: [{ id: "forever-raid", name: "Forever-Raid", categoryId: null, members: 2, linkedKaderId: null, suggested: false }] }));
         vi.mocked(api.linkKaderRoster).mockResolvedValue(state({ canLink: true, rosters: [] }));
         await show();
-        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.relink") }));
+        const menu = await openMenu();
+        await userEvent.click(within(menu).getByRole("menuitem", { name: t("kader.roster.relink") }));
         const dialog = await screen.findByRole("dialog");
         await userEvent.click(within(dialog).getByRole("button", { name: t("kader.roster.unlink") }));
         const confirms = await screen.findAllByRole("dialog");
@@ -154,11 +230,11 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         expect(await screen.findByText(t("kader.roster.unlinked"))).toBeInTheDocument();
     });
 
-    it("offers no link to somebody who may not link", async () => {
+    it("offers no link to somebody who may not link: the green button without a menu", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(state({ canLink: false, rosters: [] }));
         await show();
         await screen.findByRole("button", { name: t("kader.roster.createButton") });
-        expect(screen.queryByRole("button", { name: t("kader.roster.linkButton") })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: t("kader.nav.more") })).not.toBeInTheDocument();
     });
 
     it("reads in English", async () => {

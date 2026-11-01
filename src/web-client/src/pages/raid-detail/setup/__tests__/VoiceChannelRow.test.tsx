@@ -43,12 +43,21 @@ describe("voiceStateLine", () => {
         expect(voiceStateLine({ ...base, ...SAT, openAt: undefined, limitAt: sunday, state: "open" }, t)).toContain(formatWeekday(sunday * 1000));
     });
 
+    it("gives a close on the raid's own day as the plain time, seen that day", () => {
+        vi.useFakeTimers({ toFake: ["Date"] });
+        vi.setSystemTime(SAT.openAt * 1000);
+        try {
+            expect(voiceStateLine({ ...base, ...SAT, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: "23:30" })].join(" · "));
+        } finally {
+            vi.useRealTimers();
+        }
+    });
+
     it("words every state", () => {
         expect(voiceStateLine({ ...base, kind: "fixed", state: "fixed", members: 3 }, t)).toBe(`${t("channels.voiceRow.fixed")} · ${t("channels.voiceRow.members", { count: 3 })}`);
         expect(voiceStateLine(base, t)).toContain(at(base.openAt!));
         expect(voiceStateLine(base, t)).toContain("Raids");
         expect(voiceStateLine({ ...base, parentName: undefined }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.planned", { time: at(base.openAt!) })}`);
-        expect(voiceStateLine({ ...base, ...SAT, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: "23:30" })].join(" · "));
         expect(voiceStateLine({ ...base, state: "creating" }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.creating")}`);
         expect(voiceStateLine({ ...base, state: "open", members: null }, t)).not.toContain(t("channels.voiceRow.members", { count: 0 }));
         expect(voiceStateLine({ ...base, state: "closed", closedAt: NOW }, t)).toBe(t("channels.voiceRow.closedAt", { time: at(NOW) }));

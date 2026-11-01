@@ -254,6 +254,21 @@ describe("services/kader/kaderRoster takeover", () => {
         });
     });
 
+    it("drops a player jumping from a takeover state straight to the Vorauswahl or the pool, like a step would", () => {
+        save();
+        const before = kaderStore.readPlanner("g1");
+        for (const to of ["selected", "pool"]) {
+            const after = JSON.parse(JSON.stringify(before));
+            after.kaders[0].players[U.a].state = to;
+            expect(kaderRoster.takeoverDrops(before, after, { actor: "o1", now: "2026-10-21T10:00:00.000Z" }).drops)
+                .toEqual([expect.objectContaining({ userId: U.a })]);
+        }
+        // within the takeover states nothing drops
+        const within = JSON.parse(JSON.stringify(before));
+        within.kaders[0].players[U.a].state = "provisional";
+        expect(kaderRoster.takeoverDrops(before, within, { actor: "o1", now: "2026-10-21T10:00:00.000Z" }).drops).toEqual([]);
+    });
+
     it("drops nobody for a deleted Kader or one without a takeover", () => {
         const before = kaderStore.readPlanner("g1");
         expect(kaderRoster.takeoverDrops(before, { ...before, kaders: [] })).toEqual({ drops: [], lines: {} });

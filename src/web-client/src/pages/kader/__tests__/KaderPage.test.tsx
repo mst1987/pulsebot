@@ -2,7 +2,7 @@
 // first Kader, the pool and the import from Discord roles, the interview with
 // its autosave, the overview's filters, the Vorläufig drawer (votes, comments,
 // decision), the questions, the example setups, a read-only grant and English.
-import { screen, waitFor, within } from "@testing-library/react";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
@@ -11,7 +11,9 @@ import { t } from "../../../i18n";
 import { switchLang } from "../../../test/i18n";
 import { CONTENT_ARIA, adminUser, renderPage, twoVersions } from "../../../test/render";
 import { CAT, kader as kaderData, kaderView, ME, U } from "../kader.fixture";
+import { DRAG_TYPE } from "../dnd";
 import KaderPage from "../KaderPage";
+import { losesRole } from "../useMovePlayer";
 
 vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),
@@ -21,6 +23,7 @@ vi.mock("../../../api", async (orig) => ({
     leaveKaderLive: vi.fn(),
     // the roster button of the decision page (#658, RosterLink.test.tsx tests it)
     getKaderRoster: vi.fn(async () => null),
+    getKaderTakeover: vi.fn(async () => null),
     createKader: vi.fn(),
     setKaderState: vi.fn(),
     addKaderPlayers: vi.fn(),
@@ -164,7 +167,6 @@ describe("KaderPage · Kader", () => {
     it("counts the players per state in the status bar, every count with the words behind it", async () => {
         await show("/kader/k1/pool");
         const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
-        expect(within(nav).getByText(t("kader.nav.kicker"))).toBeInTheDocument();
         expect(within(nav).getByRole("link", { name: t("kader.nav.count.pool", { count: 1 }) })).toHaveAttribute("aria-current", "page");
         expect(within(nav).getByRole("link", { name: t("kader.nav.count.selected", { count: 2 }) })).not.toHaveAttribute("aria-current");
         // bench and tentative are segments of their own, next to the roster
@@ -175,11 +177,194 @@ describe("KaderPage · Kader", () => {
         expect(within(nav).queryByText("4")).toBeNull();
     });
 
-    it("marks every state the roster page shows", async () => {
+    it("builds the head from three lines side by side in the page, so that only the tabs stick to it", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValueOnce({ roster: { id: "r1", name: "Forever-Raid", members: 2 }, candidates: 3, pending: 0, canCreate: false, canSync: false });
+        await show("/kader/k1/roster");
+        await waitFor(() => expect(document.querySelector(".kp-tools .kp-toollab")).toHaveTextContent(t("kader.nav.rosterGroup")));
+        const title = document.querySelector(".kp-title") as HTMLElement;
+        const tabs = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const tools = document.querySelector(".kp-tools") as HTMLElement;
+        expect(tabs.previousElementSibling).toBe(title);
+        expect(tabs.nextElementSibling).toBe(tools);
+        expect(tabs.parentElement).toBe(title.parentElement);
+        // the Kader's name, the way back and the people share the title line
+        expect(title).toContainElement(screen.getByRole("button", { name: /Forever-Kader/ }));
+        expect(title).toContainElement(screen.getByRole("link", { name: t("kader.header.all") }));
+        expect(title.querySelector(".kp-leads .kp-lab")).toHaveTextContent(t("kader.header.leads"));
+    });
+
+    it("draws the states as tabs without an icon or a box around the count", async () => {
+        await show("/kader/k1/pool");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        expect(nav.querySelector(".kp-status .kp-sico")).toBeNull();
+        expect(nav.querySelectorAll(".kp-status .kp-htab .kp-htab-n")).toHaveLength(6);
+    });
+
+    it("offers the planning pages as tabs and again in the menu a narrow page folds them into", async () => {
+        await show("/kader/k1/zusammensetzung");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const plan = nav.querySelector(".kp-plan") as HTMLElement;
+        expect(within(plan).getByRole("link", { name: t("kader.nav.composition") })).toHaveAttribute("aria-current", "page");
+        // the short name on the tab, the whole task in its tooltip
+        expect(within(plan).getByRole("link", { name: t("kader.nav.setups") })).toHaveAttribute("data-tip", t("kader.nav.setupsTip"));
+
+        const trigger = within(nav).getByRole("button", { name: t("kader.nav.planGroup") });
+        expect(trigger).toHaveClass("kp-active");
+        await userEvent.click(trigger);
+        const menu = within(nav).getByRole("menu", { name: t("kader.nav.planGroup") });
+        expect(within(menu).getByRole("menuitem", { name: t("kader.nav.composition") })).toHaveAttribute("href", "/kader/k1/zusammensetzung");
+        expect(within(menu).getByRole("menuitem", { name: t("kader.nav.setups") })).toHaveAttribute("href", "/kader/k1/setups");
+        await userEvent.keyboard("{Escape}");
+        expect(within(nav).queryByRole("menu")).toBeNull();
+        expect(trigger).toHaveFocus();
+    });
+
+    it("keeps the pages without a status bar free of the tabs", async () => {
+        await show("/kader/k1/setups");
+        expect(screen.queryByRole("navigation", { name: t("kader.nav.aria") })).toBeNull();
+        expect(document.querySelector(".kp-title")).not.toBeNull();
+    });
+
+    it("underlines every state the roster page shows, and tells a screen reader only the roster", async () => {
         await show("/kader/k1/roster");
         const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
-        const current = within(nav).getAllByRole("link").filter((a) => a.getAttribute("aria-current") === "page");
-        expect(current.map((a) => a.getAttribute("aria-label"))).toEqual(["provisional", "roster", "bench", "tentative"].map((s) => t(`kader.nav.count.${s}`, { count: 1 })));
+        const label = (s: string) => t(`kader.nav.count.${s}`, { count: 1 });
+        expect(Array.from(nav.querySelectorAll(".kp-htab.kp-active")).map((a) => a.getAttribute("aria-label"))).toEqual(["provisional", "roster", "bench", "tentative"].map(label));
+        expect(Array.from(nav.querySelectorAll("[aria-current]")).map((a) => a.getAttribute("aria-label"))).toEqual([label("roster")]);
+    });
+
+    it("marks only the composition on its page, not the states it counts", async () => {
+        await show("/kader/k1/zusammensetzung");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        expect(nav.querySelector(".kp-status .kp-active")).toBeNull();
+        expect(nav.querySelector(".kp-status [aria-current]")).toBeNull();
+        // the tab or the menu's button is on screen, never both (kader.css)
+        const trigger = within(nav).getByRole("button", { name: t("kader.nav.planGroup") });
+        expect(trigger).toHaveAttribute("aria-current", "page");
+        await userEvent.click(trigger);
+        const entry = within(within(nav).getByRole("menu")).getByRole("menuitem", { name: t("kader.nav.composition") });
+        expect(entry).toHaveClass("kp-current");
+        expect(entry).not.toHaveAttribute("aria-current");
+    });
+
+    it("closes the planning menu on Escape even with the focus outside it, and puts the focus on its button", async () => {
+        await show("/kader/k1/roster");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const trigger = within(nav).getByRole("button", { name: t("kader.nav.planGroup") });
+        await userEvent.click(trigger);
+        expect(within(nav).getByRole("menu")).toBeInTheDocument();
+        (document.activeElement as HTMLElement).blur();
+        fireEvent.keyDown(document.body, { key: "Escape" });
+        expect(within(nav).queryByRole("menu")).toBeNull();
+        expect(trigger).toHaveFocus();
+    });
+
+    it("keeps the way back a real button, and the whole name of a Kader as a tooltip on the picker and in its menu", async () => {
+        await show("/kader/k1/pool");
+        expect(screen.getByRole("link", { name: t("kader.header.all") })).toHaveClass("btn", "back-btn");
+        const picker = screen.getByRole("button", { name: /Forever-Kader/ });
+        expect(picker).toHaveAttribute("data-tip", "Forever-Kader");
+        await userEvent.click(picker);
+        expect(screen.getByRole("menuitemradio", { name: /Zweiter Kader/ })).toHaveAttribute("data-tip", "Zweiter Kader");
+    });
+
+    describe("the tabs as a grid", () => {
+        const widthOf = (px: number) => vi.spyOn(HTMLElement.prototype, "clientWidth", "get").mockReturnValue(px);
+
+        it("stay a sticking line from the narrowest page next to the sidebar on, with a scrollbar", async () => {
+            const width = widthOf(588);
+            await show("/kader/k1/pool");
+            expect(screen.getByRole("navigation", { name: t("kader.nav.aria") })).not.toHaveClass("kp-htabs-grid");
+            width.mockRestore();
+        });
+
+        it("become a grid only where the line itself is narrower than that", async () => {
+            const width = widthOf(362);
+            await show("/kader/k1/pool");
+            expect(screen.getByRole("navigation", { name: t("kader.nav.aria") })).toHaveClass("kp-htabs-grid");
+            width.mockRestore();
+        });
+    });
+
+    describe("while a card is dragged", () => {
+        const drag = (type: "dragStart" | "dragEnd" | "drop", from: Element, id = U.heal) => {
+            const data: Record<string, string> = { [DRAG_TYPE]: id };
+            const dataTransfer = { types: [DRAG_TYPE], setData: () => {}, getData: (k: string) => data[k] || "", effectAllowed: "", dropEffect: "" };
+            if (type === "dragStart") fireEvent.dragStart(from, { dataTransfer });
+            if (type === "dragEnd") fireEvent.dragEnd(from, { dataTransfer });
+            if (type === "drop") fireEvent.drop(from, { dataTransfer });
+        };
+        const tabs = () => screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const tab = (s: string, count = 1) => within(tabs()).getByRole("link", { name: t(`kader.nav.count.${s}`, { count }) });
+        const marked = () => tabs().querySelectorAll(".kp-htab-drop, .kp-htab-dim, .kp-over");
+
+        it("shows where it can land from the start and fades the rest, until the drag ends", async () => {
+            await show("/kader/k1/roster");
+            expect(marked()).toHaveLength(0);
+            drag("dragStart", document.body);
+            await waitFor(() => expect(tab("pool")).toHaveClass("kp-htab-drop"));
+            expect(tab("selected", 2)).toHaveClass("kp-htab-drop");
+            for (const s of ["provisional", "roster", "bench", "tentative"]) expect(tab(s)).toHaveClass("kp-htab-dim");
+            expect(tabs().querySelector(".kp-plan-menu button")).toHaveClass("kp-htab-dim");
+            // over a landing place it says so on top
+            fireEvent.dragOver(tab("pool"), { dataTransfer: { types: [DRAG_TYPE] } });
+            expect(tab("pool")).toHaveClass("kp-over", "kp-htab-drop");
+            fireEvent.dragLeave(tab("pool"), { dataTransfer: { types: [DRAG_TYPE] } });
+            expect(tab("pool")).not.toHaveClass("kp-over");
+            // Escape or letting go outside: the browser ends the drag, with no drop
+            drag("dragEnd", document.body);
+            await waitFor(() => expect(marked()).toHaveLength(0));
+        });
+
+        it("clears up after a drop as well", async () => {
+            vi.mocked(api.setKaderState).mockResolvedValue(change());
+            await show("/kader/k1/roster");
+            drag("dragStart", document.body);
+            await waitFor(() => expect(tab("pool")).toHaveClass("kp-htab-drop"));
+            drag("drop", tab("pool"));
+            await waitFor(() => expect(marked()).toHaveLength(0));
+        });
+
+        it("offers only the states MOVES allows: one in the preselection goes to the pool alone", async () => {
+            await show("/kader/k1/roster");
+            drag("dragStart", document.body, U.mage);
+            await waitFor(() => expect(tab("pool")).toHaveClass("kp-htab-drop"));
+            expect(tab("selected", 2)).toHaveClass("kp-htab-dim");
+        });
+
+        it("still ends when the dragged card left the page, where nothing bubbles up any more", async () => {
+            await show("/kader/k1/roster");
+            const card = document.createElement("div");
+            document.body.appendChild(card);
+            drag("dragStart", card);
+            await waitFor(() => expect(tab("pool")).toHaveClass("kp-htab-drop"));
+            card.remove();
+            drag("dragEnd", card);
+            await waitFor(() => expect(marked()).toHaveLength(0));
+        });
+
+        it("marks nothing for a reader, on another page, or for another kind of drag", async () => {
+            const reading = renderPage(<KaderPage />, { route: "/kader/k1/roster", path: PATH, user: reader });
+            await screen.findByRole("button", { name: /Forever-Kader/ });
+            const pause = () => new Promise((done) => { setTimeout(done, 5); });
+            drag("dragStart", document.body);
+            await act(pause);
+            expect(marked()).toHaveLength(0);
+            drag("dragEnd", document.body);
+            reading.unmount();
+
+            const pool = await show("/kader/k1/pool");
+            drag("dragStart", document.body);
+            await act(pause);
+            expect(marked()).toHaveLength(0);
+            drag("dragEnd", document.body);
+            pool.unmount();
+
+            await show("/kader/k1/roster");
+            fireEvent.dragStart(document.body, { dataTransfer: { types: ["text/plain"], getData: () => "" } });
+            await act(pause);
+            expect(marked()).toHaveLength(0);
+        });
     });
 });
 
@@ -696,6 +881,96 @@ describe("KaderPage · spec picker in the setups", () => {
         await userEvent.click(second);
         const groups = vi.mocked(api.saveKaderVariant).mock.calls.at(-1)?.[2].groups;
         expect(groups?.[0][1]).toEqual({ userId: U.heal, spec: "Shaman-Enhancement" });
+    });
+});
+
+describe("KaderPage · moving back", () => {
+    const TAKEOVER = { rosterId: "r9", roleId: "role1", roleName: "Raider", categoryId: "c1", channelIds: [], by: ME, at: "2026-10-01T18:00:00.000Z", status: "done" as const, results: {} };
+    const drawerOf = (name: string) => screen.getByRole("complementary", { name: t("kader.decide.drawer", { name }) });
+    const stage = (state: "pool" | "selected", count: number) => screen.getByRole("link", { name: t(`kader.nav.count.${state}`, { count }) });
+    const drag = (userId: string) => ({ dataTransfer: { types: [DRAG_TYPE], dropEffect: "", getData: () => userId } });
+    const dropOn = (target: HTMLElement, userId: string) => {
+        fireEvent.dragOver(target, drag(userId));
+        fireEvent.drop(target, drag(userId));
+    };
+    const withKader = (k: KaderData) => {
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        vi.mocked(api.setKaderState).mockResolvedValue(change(k));
+    };
+    const backLabels = (drawer: HTMLElement) => {
+        const labels = ["provisional", "selected", "pool"].map((to) => t(`kader.decide.back.${to}`));
+        return within(drawer).getAllByRole("button").map((b) => b.textContent || "").filter((text) => labels.includes(text));
+    };
+
+    it("offers every state before the current one in the drawer, the nearest first", async () => {
+        withKader(kaderData());
+        await show(`/kader/k1/roster?spieler=${U.tank}`);
+        expect(backLabels(drawerOf("Aldric"))).toEqual([t("kader.decide.back.provisional"), t("kader.decide.back.selected"), t("kader.decide.back.pool")]);
+        await userEvent.click(within(drawerOf("Aldric")).getByRole("button", { name: t("kader.decide.back.pool") }));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+    });
+
+    it("offers a provisional player only Vorauswahl and Pool", async () => {
+        withKader(kaderData());
+        await show(`/kader/k1/roster?spieler=${U.heal}`);
+        expect(backLabels(drawerOf("Mira"))).toEqual([t("kader.decide.back.selected"), t("kader.decide.back.pool")]);
+    });
+
+    it("takes a card dropped on Pool or Vorauswahl in the status bar, without asking", async () => {
+        withKader(kaderData());
+        await show("/kader/k1/roster");
+        fireEvent.dragOver(stage("pool", 1), drag(U.tank));
+        expect(stage("pool", 1)).toHaveClass("kp-over");
+        fireEvent.drop(stage("pool", 1), drag(U.tank));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(await screen.findByText(t("kader.decide.moved", { name: "Aldric", state: t("kader.state.pool") }))).toBeInTheDocument();
+        dropOn(stage("selected", 2), U.heal);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.heal], "selected", undefined);
+    });
+
+    it("takes no drop off the decision page, nor from a reader, nor on the player's own state", async () => {
+        withKader(kaderData());
+        const view = await show("/kader/k1/pool");
+        fireEvent.dragOver(stage("pool", 1), drag(U.tank));
+        expect(stage("pool", 1)).not.toHaveClass("kp-over");
+        fireEvent.drop(stage("pool", 1), drag(U.tank));
+        view.unmount();
+        const readerView = await show("/kader/k1/roster", reader);
+        dropOn(stage("pool", 1), U.tank);
+        readerView.unmount();
+        await show("/kader/k1/roster");
+        dropOn(stage("pool", 1), U.hand);
+        expect(api.setKaderState).not.toHaveBeenCalled();
+    });
+
+    it("asks before a move takes the Discord role away, and only then", async () => {
+        withKader(kaderData({ takeover: TAKEOVER }));
+        await show("/kader/k1/roster");
+        // cancelled: nothing happens
+        dropOn(stage("pool", 1), U.tank);
+        const asked = await screen.findByRole("dialog");
+        expect(asked).toHaveTextContent(t("kader.decide.roleLoss.title", { name: "Aldric", state: t("kader.state.pool") }));
+        expect(asked).toHaveTextContent("Raider");
+        await userEvent.click(within(asked).getByRole("button", { name: t("common.cancel") }));
+        expect(api.setKaderState).not.toHaveBeenCalled();
+        // confirmed: moved
+        dropOn(stage("pool", 1), U.tank);
+        const again = await screen.findByRole("dialog");
+        await userEvent.click(within(again).getByRole("button", { name: t("kader.decide.roleLoss.action") }));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+        // a player who holds no role moves without a question
+        dropOn(stage("pool", 1), U.mage);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.mage], "pool", undefined);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("knows which moves cost the role", () => {
+        expect(losesRole(TAKEOVER, { state: "roster" }, "pool")).toBe(true);
+        expect(losesRole(TAKEOVER, { state: "provisional" }, "selected")).toBe(true);
+        expect(losesRole(TAKEOVER, { state: "roster" }, "provisional")).toBe(false);
+        expect(losesRole(TAKEOVER, { state: "selected" }, "pool")).toBe(false);
+        expect(losesRole(null, { state: "roster" }, "pool")).toBe(false);
     });
 });
 

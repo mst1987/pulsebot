@@ -5,8 +5,9 @@
 // and count only with the switch, remembered per Kader.
 //
 // The "Planspiel": one shared draft per Kader. With write access each row gets the
-// spec picker (the same menu as the decision, naming the spec) and an eye button
-// to leave the player out ("Ausklammern"); sums and
+// spec picker (the same menu as the decision, naming the spec, always with "Spec
+// hinzufügen …"; without any spec a button for just that) and an eye button to
+// leave the player out ("Ausklammern"); sums and
 // buffs follow the draft, the bar above says by whom, how old and what it changes
 // ("+1 Heiler · −1 Fernkampf · Kampfrausch jetzt doppelt"), and offers "Verwerfen"
 // and "Als Entscheidung übernehmen" (sets decisions, never a state). Own edits are
@@ -21,7 +22,7 @@ import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { usePersistedState } from "../../../lib/ui/persistedState";
 import { useTableSort, type Dir } from "../../../lib/ui/tableSort";
-import { classColor, className, nameOf, playerName, ROLES, specName, wishOptions } from "../../../lib/kader/model";
+import { classColor, className, nameOf, playerName, ROLES, specName } from "../../../lib/kader/model";
 import { pickParts, sortTable, type SortParts } from "../../../lib/kader/sort";
 import { buffLabel } from "../../../lib/kader/setup";
 import {
@@ -32,6 +33,7 @@ import { roleLabel, rolePluralLabel } from "../../../lib/wow/wowNames";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import { ClassIcon, EmptyState, PlayerAvatar, PickIcon, PlayerName, RoleIcon, SortHead, StateBadge, TableNote, WishIcons } from "../parts";
 import WishPicker from "../modals/WishPicker";
+import { AddSpecButton } from "../modals/AddSpecDialog";
 import { useKader } from "../kaderContext";
 
 type CompSortKey = "name" | "spec" | "role" | "state";
@@ -108,11 +110,17 @@ function CompRow({ row, canPlan, onSpec, onExclude }: RowProps) {
     const { view } = useKader();
     const { userId, entry, pick, role, counted, was, undecided, excluded } = row;
     const name = playerName(view, userId, entry);
-    const pickable = canPlan && !excluded && !!pick && !!pick.spec && wishOptions(entry, pick.spec).length > 1;
+    const editable = canPlan && !excluded;
     let spec: ReactNode;
-    if (!pick || !pick.spec) spec = <span className="kp-muted">{t("kader.composition.noSpecRow")}</span>;
-    else if (pickable) spec = <WishPicker entry={entry} value={pick.spec} label={t("kader.composition.plan.specOf", { name })} onChange={(p) => onSpec(row, p)} specLabel />;
-    else spec = <SpecCell pick={pick} />;
+    if (!pick || !pick.spec) {
+        spec = editable
+            ? <AddSpecButton userId={userId} entry={entry} />
+            : <span className="kp-muted">{t("kader.composition.noSpecRow")}</span>;
+    } else if (editable) {
+        spec = <WishPicker entry={entry} value={pick.spec} addFor={userId} label={t("kader.composition.plan.specOf", { name })} onChange={(p) => onSpec(row, p)} specLabel />;
+    } else {
+        spec = <SpecCell pick={pick} />;
+    }
     return (
         <div className={`kp-trow kp-comp-grid${canPlan ? " kp-comp-planning" : ""}${counted ? "" : " kp-comp-off"}${excluded ? " kp-comp-excluded" : ""}`} role="row">
             <span role="cell" className="kp-cell-who">

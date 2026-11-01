@@ -15,6 +15,7 @@ export type KaderModal =
     | { type: "settings" }
     | { type: "create" }
     | { type: "activity" }
+    | { type: "wishes"; userId: string }
     | null;
 
 /** What a part of the page has open with a player — reported with the live poll, so the others see it. */

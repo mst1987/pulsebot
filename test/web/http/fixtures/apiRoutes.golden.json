@@ -340,6 +340,7 @@
   "PUT /api/kader/plan",
   "PUT /api/kader/questions",
   "PUT /api/kader/variants",
+  "PUT /api/kader/wishes",
   "PUT /api/orga-hub/features",
   "PUT /api/orga-hub/links",
   "PUT /api/profile",

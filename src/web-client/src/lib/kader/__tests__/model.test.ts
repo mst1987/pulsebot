@@ -4,7 +4,7 @@ import { CAT, kader, kaderView, RAID_CATEGORIES, U, ME } from "../../../pages/ka
 import {
     attPartsText, attText, attendanceCategoriesOf, attendanceOf, byId, canMove, categoryLabel, className, countStates, dayOf, daysSince, entriesIn,
     historyText, mainPick, nameOf, playerName, roleCounts, rolesOf, searchText, specName, specRole, stampOf, togglePick, otherVersion, categoryGroups, attendanceUnloaded, wishLabel,
-    wishOptions, MOVES, STATES,
+    wishOptions, backTargets, MOVES, STATES,
 } from "../model";
 
 describe("lib/kader/model", () => {
@@ -19,6 +19,18 @@ describe("lib/kader/model", () => {
         expect(wishOptions(k.players[U.heal], "Mage-Frost")[0]).toEqual({ rank: -1, pick: { className: "Mage", spec: "Mage-Frost" } });
     });
     const players = byId(view.players);
+
+    it("lists the steps back from a state, the nearest first, each one a move the server allows", () => {
+        expect(backTargets("pool")).toEqual([]);
+        expect(backTargets("selected")).toEqual(["pool"]);
+        expect(backTargets("provisional")).toEqual(["selected", "pool"]);
+        for (const state of ["roster", "bench", "tentative"] as const) {
+            expect(backTargets(state)).toEqual(["provisional", "selected", "pool"]);
+        }
+        for (const state of STATES) {
+            for (const to of backTargets(state)) expect(canMove(state, to)).toBe(true);
+        }
+    });
 
     it("knows the moves the server allows, back steps included", () => {
         expect(canMove("pool", "selected")).toBe(true);
