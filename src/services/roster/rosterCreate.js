@@ -345,7 +345,8 @@ function kaderRosterState(guildId, kaderId) {
  * @param {string} kaderId
  * @param {{ guildId?: string, actor?: string, rosterId?: string }} [opts]  `rosterId` defaults to the roster linked to the Kader
  * @returns {Promise<{ ok: true, roster: object, added: number, skipped: number, kept: number, roleFailures: object[] } | { ok: false, code: string }>}
- *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster is not linked to it), "kader_not_found"
+ *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster is not linked to it), "kader_not_found",
+ *   "kader_taken_over" (the role follows the Kader from then on, and this path would map status differently)
  */
 async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId = "" } = {}) {
     const roster = rosterId ? rosterStore.getRoster(str(rosterId)) : rosterOfKader(guildId, kaderId);
@@ -353,6 +354,7 @@ async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId
     if (roster.kaderId !== str(kaderId)) return { ok: false, code: "not_from_kader" };
     const kader = rosterPlayers(roster.guildId || str(guildId), str(kaderId));
     if (!kader) return { ok: false, code: "kader_not_found" };
+    if (kaderTakenOver(roster.guildId || str(guildId), kaderId)) return { ok: false, code: "kader_taken_over" };
     const pending = pendingPlayers(roster, kader);
     const result = { added: 0, skipped: 0, roleFailures: [] };
     const entries = pending.map((p) => ({

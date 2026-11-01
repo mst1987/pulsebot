@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../../api";
@@ -256,15 +256,16 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
             expect(vi.mocked(api.saveKaderWishes).mock.invocationCallOrder.at(-1)).toBeLessThan(vi.mocked(api.saveKaderPlan).mock.invocationCallOrder.at(-1) as number);
         });
 
-        it("offers a player without any spec the add button, and plans what was added", async () => {
+        it("offers a player without any spec the add button, which saves the wish and starts no draft", async () => {
             withoutSpec();
             vi.mocked(api.saveKaderWishes).mockResolvedValue(change(null));
-            vi.mocked(api.saveKaderPlan).mockResolvedValue(change(draft({ specs: { [U.heal]: PROT }, by: ME })));
+            vi.mocked(api.saveKaderPlan).mockClear();
             await show("/kader/k1/zusammensetzung");
             await userEvent.click(within(row("Mira")).getByRole("button", { name: t("kader.wishes.add") }));
             await addIn();
             expect(api.saveKaderWishes).toHaveBeenCalledWith("k1", U.heal, [PROT], { baseRev: 0 });
-            expect(api.saveKaderPlan).toHaveBeenCalledWith("k1", U.heal, { spec: PROT });
+            await waitFor(() => expect(screen.queryByRole("dialog")).not.toBeInTheDocument());
+            expect(api.saveKaderPlan).not.toHaveBeenCalled();
         });
 
         it("gives a reader no add button", async () => {

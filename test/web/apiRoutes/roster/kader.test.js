@@ -815,6 +815,16 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         expect(rosterStore.getRoster(roster.id).kaderId).toBe(kaderId);
     });
 
+    it("a taken-over Kader refuses the sync on the server too (409 kader_taken_over), and nobody joins", async () => {
+        const { kaderId, roster } = await linkedKader();
+        kaderRoster.saveTakeover("g1", kaderId, { rosterId: roster.id, roleId: "role1", roleName: "Raider", categoryId: "", channelIds: [] });
+        const members = rosterStore.getRoster(roster.id).members;
+        const res = await post("/api/kader/roster/sync", { kaderId });
+        expect([status(res), body(res).error.code]).toEqual([409, "kader_taken_over"]);
+        expect(body(res).error.message).toMatch(/Rolle nachziehen/);
+        expect(rosterStore.getRoster(roster.id).members).toEqual(members);
+    });
+
     it("POST: answers a refusal with its code, a stale one with the current rev", async () => {
         const { kaderId } = await linkedKader();
         takeover.start.mockRejectedValueOnce(new AppError("base_rev_required", 400, "baseRev fehlt"));

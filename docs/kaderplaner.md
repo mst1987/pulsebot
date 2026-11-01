@@ -87,7 +87,7 @@ is no separate roster dialog any more. Beside it:
   /api/kader/roster/sync` (`rosterCreate.syncRosterFromKader`) takes them in the same way (status, character, main
   role); **members already in the roster are never touched**, and nobody is taken out because the Kader moved them
   back. Role failures are counted in the toast. After the takeover the client hides it: from then on the role follows
-  the Kader ("Rolle nachziehen"), and this path would map status differently. The route itself has no takeover check.
+  the Kader ("Rolle nachziehen"), and this path would map status differently. The server refuses it as well (409 `kader_taken_over`).
 - **Menu "Mehr"** (`RosterMenu`, the `kp-menu` pattern with keyboard and `useDismiss`) for the side actions:
   - **"Mit bestehendem Roster verknüpfen"** — while the Kader has no roster, for full admins with `kader` write. A
     dialog with the server's rosters (the one whose category the Kader counts attendance in first, "Vorschlag"; one
@@ -374,7 +374,7 @@ A player's **entry**:
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
-| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays); cleared when the player leaves the roster. Old decisions left outside the roster are cleared once at start (see "Aufräumen der alten Entscheidungen") |
+| `decision` | `{ className, spec }` — set when the player goes into the roster, and by "Planspiel übernehmen" for every planned player of the composition (also provisional, bench and tentative, whose state stays); cleared when the player leaves the roster or moves to pool or selected from any state. Old decisions left outside the roster are cleared once at start (see "Aufräumen der alten Entscheidungen") |
 
 ### States and moves
 

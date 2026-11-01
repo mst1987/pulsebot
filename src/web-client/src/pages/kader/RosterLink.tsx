@@ -123,7 +123,8 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
 
 /**
  * The smaller roster actions behind one button, right next to the green one:
- * arrows walk the entries, Escape and a click elsewhere close (focus back on the button).
+ * arrows walk the entries, Escape and a click elsewhere close (focus back on the button),
+ * Tab closes and moves on as usual.
  */
 function RosterMenu({ children }: { children: (close: () => void) => ReactNode }) {
     const t = useT();
@@ -137,6 +138,10 @@ function RosterMenu({ children }: { children: (close: () => void) => ReactNode }
         if (shown) menu.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
     }, [shown]);
     const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Tab") {
+            close();
+            return;
+        }
         if (e.key === "Escape") {
             e.stopPropagation();
             close();
@@ -196,7 +201,8 @@ export default function RosterLink() {
                 res.roleFailures.length ? "err" : undefined);
             await state.reload();
         } catch (e) {
-            toast((e as ApiError).message || t("kader.error"), "err");
+            const err = e as ApiError;
+            toast(err.code === "kader_taken_over" ? t("kader.roster.syncTakenOver") : err.message || t("kader.error"), "err");
         } finally {
             setBusy(false);
         }

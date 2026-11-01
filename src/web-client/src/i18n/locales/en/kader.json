@@ -20,6 +20,7 @@
             "other": "{count} players join the roster and get the roster role. Whoever is in it already stays as they are."
         },
         "sync": "Take over",
+        "syncTakenOver": "This Kader was already taken over to Discord. New players join through \"Pull role\".",
         "synced": {
             "one": "{count} player taken into the roster.",
             "other": "{count} players taken into the roster."

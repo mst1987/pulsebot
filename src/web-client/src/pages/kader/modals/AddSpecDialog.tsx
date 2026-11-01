@@ -1,8 +1,8 @@
 // One new spec for a player, from wherever a spec is chosen (WishPicker's "Spec
 // hinzufügen …", a row without any spec): class and spec as in the wish editor.
-// The spec is saved at the end of the wishes first and only then handed on,
-// because the server checks the composition plan and the setup slots against
-// the wishes. A version somebody else saved meanwhile is reloaded with a hint
+// The spec is saved at the end of the wishes first and only then handed on (if
+// the caller wants it), because the server checks the composition plan and the
+// setup slots against the wishes. A version somebody else saved meanwhile is reloaded with a hint
 // and the choice stays, so one more click adds it to the fresh wishes.
 import { useState } from "react";
 import { isStale, saveKaderWishes, type KaderEntry, type KaderWish } from "../../../api";
@@ -18,7 +18,7 @@ import { WishAddRow } from "../WishEditor";
 export default function AddSpecDialog({ userId, entry, onAdded, onClose }: {
     userId: string;
     entry: KaderEntry;
-    onAdded: (pick: KaderWish) => void;
+    onAdded?: (pick: KaderWish) => void;
     onClose: () => void;
 }) {
     const t = useT();
@@ -29,7 +29,7 @@ export default function AddSpecDialog({ userId, entry, onAdded, onClose }: {
     const add = async (pick: KaderWish): Promise<boolean> => {
         if (entry.wishes.some((w) => w.spec === pick.spec)) {
             onClose();
-            onAdded(pick);
+            onAdded?.(pick);
             return true;
         }
         if (entry.wishes.length >= MAX_WISHES) return false;
@@ -51,7 +51,7 @@ export default function AddSpecDialog({ userId, entry, onAdded, onClose }: {
         }
         if (!saved) return false;
         onClose();
-        onAdded(pick);
+        onAdded?.(pick);
         return true;
     };
 
@@ -66,8 +66,8 @@ export default function AddSpecDialog({ userId, entry, onAdded, onClose }: {
     );
 }
 
-/** "Spec hinzufügen" where a player has none to choose from yet; `onAdded` runs once the spec is saved. */
-export function AddSpecButton({ userId, entry, onAdded }: { userId: string; entry: KaderEntry; onAdded: (pick: KaderWish) => void }) {
+/** "Spec hinzufügen" where a player has none to choose from yet; `onAdded`, if given, runs once the spec is saved. */
+export function AddSpecButton({ userId, entry, onAdded }: { userId: string; entry: KaderEntry; onAdded?: (pick: KaderWish) => void }) {
     const t = useT();
     const [open, setOpen] = useState(false);
     return (

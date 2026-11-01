@@ -120,6 +120,17 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         await waitFor(() => expect(screen.queryByRole("button", { name: t("kader.roster.syncButton", { count: 1 }) })).not.toBeInTheDocument());
     });
 
+    it("says in words when the server refuses the sync because the Kader was taken over meanwhile", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster());
+        vi.mocked(api.syncKaderRoster).mockRejectedValue({ code: "kader_taken_over", message: "Roster: kader_taken_over" });
+        await show();
+        await userEvent.click(await screen.findByRole("button", { name: t("kader.roster.syncButton", { count: 1 }) }));
+        const confirm = await screen.findByRole("dialog");
+        await userEvent.click(within(confirm).getByRole("button", { name: t("kader.roster.sync") }));
+        expect(await screen.findByText(t("kader.roster.syncTakenOver"))).toBeInTheDocument();
+        expect(screen.queryByText("Roster: kader_taken_over")).not.toBeInTheDocument();
+    });
+
     it("shows nothing to a reader without a roster", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValue(state({ canCreate: false }));
         const reader = adminUser({ isAdmin: false, access: { kader: { read: true, write: false } } });
@@ -161,6 +172,17 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         await userEvent.keyboard("{Escape}");
         expect(screen.queryByRole("menu", { name: t("kader.nav.more") })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: t("kader.nav.more") })).toHaveFocus();
+    });
+
+    it("closes the menu on Tab, so the button does not stay expanded while the focus moves on", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValue(withRoster({ lootCouncil: true, canLink: true, rosters: [] }));
+        await show();
+        await openMenu();
+        const button = screen.getByRole("button", { name: t("kader.nav.more") });
+        expect(button).toHaveAttribute("aria-expanded", "true");
+        await userEvent.keyboard("{Tab}");
+        expect(screen.queryByRole("menu", { name: t("kader.nav.more") })).not.toBeInTheDocument();
+        expect(button).toHaveAttribute("aria-expanded", "false");
     });
 
     it("links an existing roster through the menu - the suggestion first - and counts its category in the Kader's attendance", async () => {

@@ -7,15 +7,15 @@ import { useToast } from "../../components/shell/Jobs";
 import { useConfirm } from "../../components/ui/overlay/Modal";
 import { useT } from "../../i18n";
 import { canMove, playerName, wishLabel } from "../../lib/kader/model";
+import { TAKEOVER_STATES } from "../../lib/kader/takeover";
 import { useKader } from "./kaderContext";
 
-/** The states that hold a place in the Discord roster, and the ones that give it up. */
-const HOLDS_ROLE: KaderState[] = ["provisional", "roster", "bench", "tentative"];
+/** The states that give up the place in the Discord roster (TAKEOVER_STATES are the ones holding it). */
 const LOSES_ROLE: KaderState[] = ["selected", "pool"];
 
 /** Whether this move costs the player the role: a taken-over Kader, from a roster state to before it. */
 export function losesRole(takeover: KaderTakeover | null | undefined, entry: Pick<KaderEntry, "state">, to: KaderState): boolean {
-    return !!takeover && HOLDS_ROLE.includes(entry.state) && LOSES_ROLE.includes(to);
+    return !!takeover && TAKEOVER_STATES.includes(entry.state) && LOSES_ROLE.includes(to);
 }
 
 /** Moves one player; true when the move went through (a refused or cancelled one is false). */

@@ -20,6 +20,7 @@
             "other": "{count} Spieler kommen neu ins Roster und bekommen die Roster-Rolle. Wer schon drin ist, bleibt unverändert."
         },
         "sync": "Übernehmen",
+        "syncTakenOver": "Dieser Kader wurde schon nach Discord übernommen. Neue Spieler kommen über „Rolle nachziehen“ dazu.",
         "synced": {
             "one": "{count} Spieler ins Roster übernommen.",
             "other": "{count} Spieler ins Roster übernommen."

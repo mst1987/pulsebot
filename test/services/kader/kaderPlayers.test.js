@@ -97,6 +97,20 @@ describe("services/kader/kaderPlayers", () => {
             expect(entry(p, U.c).decision.spec).toBe("Priest-Holy");
         });
 
+        it.each(["pool", "selected"])("clears a decision on the direct jump provisional -> %s, so the next way into the roster takes the current first wish", (back) => {
+            const { planner, kaderId } = setup();
+            let p = move(move(planner, kaderId, [U.a], "selected"), kaderId, [U.a], "provisional");
+            // set by "Planspiel übernehmen" while the player was provisional
+            p.kaders[0].players[U.a].decision = { className: "Mage", spec: "Mage-Frost" };
+            p = move(p, kaderId, [U.a], back);
+            expect(entry(p, U.a)).toMatchObject({ state: back, decision: null });
+            p = players.saveInterview(p, { kaderId, userId: U.a, wishes: [{ className: "Shaman", spec: "Shaman-Restoration" }, { className: "Mage", spec: "Mage-Frost" }] }, ctx);
+            if (back === "pool") p = move(p, kaderId, [U.a], "selected");
+            p = move(p, kaderId, [U.a], "provisional");
+            p = move(p, kaderId, [U.a], "roster");
+            expect(entry(p, U.a).decision).toEqual({ className: "Shaman", spec: "Shaman-Restoration" });
+        });
+
         it("refuses a jump the pipeline does not know, and skips such players in a batch", () => {
             const { planner, kaderId } = setup();
             expect(refusal(() => move(planner, kaderId, [U.a], "roster")).status).toBe(409);
@@ -210,6 +224,17 @@ describe("services/kader/kaderPlayers", () => {
             // sorted: the ids are random, and one made of digits only sorts first among object keys
             expect(Object.keys(entry(p, U.a).interview.answers).sort()).toEqual([days.id, other.id].sort());
             expect(entry(p, U.a).interview.startedAt).toBe("2026-10-05T20:00:00.000Z");
+        });
+
+        it("keeps a player in the setup slot without a spec when the last wish goes and there is no decision", () => {
+            const { planner, kaderId } = setup();
+            let p = move(move(planner, kaderId, [U.a], "selected"), kaderId, [U.a], "provisional");
+            const groups = model.emptyGroups();
+            groups[0][0] = { userId: U.a, spec: "Mage-Frost" };
+            p.kaders[0].setups = [{ id: "v1", name: "A", size: 10, groups }];
+            p = players.saveInterview(p, { kaderId, userId: U.a, wishes: [] }, ctx);
+            expect(entry(p, U.a)).toMatchObject({ wishes: [], decision: null });
+            expect(p.kaders[0].setups[0].groups[0][0]).toEqual({ userId: U.a, spec: "" });
         });
 
         it("refuses what does not fit: unknown questions and options, a lead from outside, too long texts, doubled wishes", () => {

@@ -335,6 +335,15 @@ describe("services/roster/rosterCreate linking a Kader to an existing roster", (
         expect(rosterOfKader("g1", "k1").id).toBe(migrated.id);
     });
 
+    it("a Kader taken over into Discord takes nobody in through the sync any more: the role follows the Kader", async () => {
+        const { saveTakeover } = require("../../../src/services/kader/kaderRoster");
+        expect(linkRosterToKader("k1", migrated.id, { guildId: "g1" }).ok).toBe(true);
+        saveTakeover("g1", "k1", { rosterId: migrated.id, roleId: ROLE, roleName: "Raider", categoryId: "", channelIds: [] });
+        const members = rosterStore.getRoster(migrated.id).members;
+        await expect(syncRosterFromKader("k1", { guildId: "g1" })).resolves.toEqual({ ok: false, code: "kader_taken_over" });
+        expect(rosterStore.getRoster(migrated.id).members).toEqual(members);
+    });
+
     it("answers a code for an unknown Kader or roster, and a roster of another server", () => {
         expect(linkRosterToKader("nope", migrated.id, { guildId: "g1" })).toEqual({ ok: false, code: "kader_not_found" });
         expect(linkRosterToKader("k1", "nope", { guildId: "g1" })).toEqual({ ok: false, code: "not_found" });

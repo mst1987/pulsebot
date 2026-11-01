@@ -191,7 +191,8 @@ function removePlayers(planner, input) {
  * not know (MOVES) is skipped; when nothing could move, the call is refused.
  * Into the roster a player goes with a decision: the one given, else the one
  * they had (only "Planspiel übernehmen" sets one outside the roster), else their
- * first wish. Leaving the roster clears the decision.
+ * first wish. Leaving the roster clears the decision, and so does going back to
+ * pool or selected from any state.
  */
 function setState(planner, input, ctx) {
     const to = str(input.to);
@@ -219,9 +220,10 @@ function setState(planner, input, ctx) {
                 entry.since = ctx.now;
                 entry.by = ctx.actor || "";
                 pushHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "state", from, to });
-                // The decision belongs to the roster: whoever leaves it loses it, so
-                // a later move back in starts from the current first wish again.
-                if (from === "roster") entry.decision = null;
+                // The decision belongs to the composition: whoever leaves the roster, or
+                // goes back before the composition (a jump from provisional, say), loses
+                // it, so a later move into the roster starts from the current first wish.
+                if (from === "roster" || to === "pool" || to === "selected") entry.decision = null;
             }
             if (to === "roster") {
                 const next = decision || entry.decision || entry.wishes[0] || null;

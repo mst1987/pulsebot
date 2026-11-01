@@ -114,7 +114,7 @@ function CompRow({ row, canPlan, onSpec, onExclude }: RowProps) {
     let spec: ReactNode;
     if (!pick || !pick.spec) {
         spec = editable
-            ? <AddSpecButton userId={userId} entry={entry} onAdded={(p) => onSpec(row, p)} />
+            ? <AddSpecButton userId={userId} entry={entry} />
             : <span className="kp-muted">{t("kader.composition.noSpecRow")}</span>;
     } else if (editable) {
         spec = <WishPicker entry={entry} value={pick.spec} addFor={userId} label={t("kader.composition.plan.specOf", { name })} onChange={(p) => onSpec(row, p)} specLabel />;
