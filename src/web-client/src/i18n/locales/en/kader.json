@@ -483,6 +483,7 @@
             "tentative": "Tentative"
         },
         "back": {
+            "pool": "Back to the pool",
             "selected": "Back to preselection",
             "provisional": "Back to provisional"
         },
@@ -519,6 +520,11 @@
         "toRosterDone": "{name} is in the roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "This move is not possible directly.",
+        "roleLoss": {
+            "title": "{name}: {state}?",
+            "text": "{name} loses the role “{role}” and the roster spot goes away.",
+            "action": "Move back"
+        },
         "noVoteYet": "No vote yet.",
         "dropHere": "Drop here",
         "emptyRead": "Nobody",
@@ -534,6 +540,7 @@
     },
     "history": {
         "added": "added to the pool",
+        "wishes": "Specs changed",
         "state": "{from} → {to}",
         "decision": "Decision: {pick}",
         "completed": "Interview completed",
@@ -793,7 +800,18 @@
     "picker": {
         "rank": "Wish {n}",
         "decision": "Decision",
-        "before": "chosen before"
+        "before": "chosen before",
+        "addSpec": "Add spec …",
+        "addFull": "At most {n} specs"
+    },
+    "wishes": {
+        "title": "Specs of {name}",
+        "kicker": "Edit specs",
+        "edit": "Edit specs",
+        "editOf": "Edit the specs of {name}",
+        "add": "Add spec",
+        "addOf": "Add a spec for {name}",
+        "addStale": "The specs have changed in the meantime. The new version is loaded, please confirm again."
     },
     "lead": {
         "tip": "Interview by: {name}",
@@ -824,6 +842,7 @@
         "removed": "{by} removed {who} from the squad",
         "decision": "{by} changed the decision for {who}",
         "interview": "{by} edited the interview with {who}",
+        "wishes": "{by} changed the specs of {who}",
         "lead": "{by} handed the interview with {who} to {lead}",
         "leadSelf": "{by} now leads the interview with {who}",
         "leadNone": "{by} removed the interviewer of {who}",
@@ -880,6 +899,7 @@
         },
         "conflict": {
             "interview": "{name} has changed this interview in the meantime.",
+            "wishes": "{name} has changed the specs in the meantime.",
             "account": "{name} has changed the characters in the meantime.",
             "question": "{name} has changed this question in the meantime.",
             "hint": "Your input is still here. “Reload” takes the new version, “Save anyway” overwrites it with yours.",

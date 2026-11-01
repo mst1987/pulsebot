@@ -15,6 +15,7 @@ vi.mock("../../../../api", async (orig) => ({
     leaveKaderLive: vi.fn(),
     getKaderRoster: vi.fn(async () => null),
     setKaderState: vi.fn(),
+    saveKaderWishes: vi.fn(),
     saveKaderPlan: vi.fn(),
     discardKaderPlan: vi.fn(),
     applyKaderPlan: vi.fn(),
@@ -52,8 +53,10 @@ describe("KaderPage · Zusammensetzung", () => {
         expect(within(table).getAllByText(t("kader.composition.notCounted"))).toHaveLength(2);
         expect(within(table).getAllByText("Schamane").length).toBeGreaterThan(0);
         // the spec column names the spec, the class stands in the group head and the tooltip;
-        // a player with more than one wish gets the draft's spec picker instead
-        expect(within(table).getByText("Verstärkung")).toHaveAttribute("data-tip", "Schamane · Verstärkung");
+        // with write access every player with a spec gets the draft's picker, one wish or more
+        const tomas = within(table).getByRole("button", { name: /Spec von Tomas im Planspiel/ });
+        expect(within(tomas).getByText("Verstärkung")).toBeInTheDocument();
+        expect(tomas.getAttribute("data-tip")).toContain("Schamane · Verstärkung");
         expect(within(table).getByRole("button", { name: /Spec von Mira im Planspiel/ })).toBeInTheDocument();
         expect(within(table).getAllByText(t("kader.composition.classExtra", { count: 1 }))).toHaveLength(2);
     });
@@ -222,5 +225,53 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
         expect(screen.queryByRole("button", { name: t("kader.composition.plan.excludeAria", { name: "Aldric" }) })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: /Spec von Mira/ })).not.toBeInTheDocument();
         expect(within(row("Mira")).getByText("Verstärkung")).toBeInTheDocument();
+    });
+
+    describe("a spec added right in the row", () => {
+        const PROT = { className: "Warrior", spec: "Warrior-Protection" };
+        const addIn = async () => {
+            const dialog = await screen.findByRole("dialog");
+            await userEvent.selectOptions(within(dialog).getByRole("combobox", { name: t("kader.field.class") }), "Warrior");
+            await userEvent.click(within(dialog).getByRole("button", { name: t("kader.interview.addWish") }));
+        };
+        /** Mira with no wish, no decision and nothing known from her profile or the logs. */
+        const withoutSpec = () => {
+            const base = kaderView();
+            base.kader.players[U.heal] = { ...base.kader.players[U.heal], wishes: [], decision: null };
+            base.players = base.players.map((p) => (p.userId === U.heal ? { ...p, prefill: null } : p));
+            vi.mocked(api.getKader).mockResolvedValue(base);
+        };
+
+        it("saves the new wish first, then plans it", async () => {
+            withPlan(null);
+            vi.mocked(api.saveKaderWishes).mockResolvedValue(change(null));
+            vi.mocked(api.saveKaderPlan).mockResolvedValue(change(draft({ specs: { [U.heal]: PROT }, by: ME })));
+            await show("/kader/k1/zusammensetzung");
+            await userEvent.click(within(row("Mira")).getByRole("button", { name: /Spec von Mira im Planspiel/ }));
+            await userEvent.click(screen.getByRole("menuitem", { name: t("kader.picker.addSpec") }));
+            await addIn();
+            const wishes = kaderData().players[U.heal].wishes;
+            expect(api.saveKaderWishes).toHaveBeenCalledWith("k1", U.heal, [...wishes, PROT], { baseRev: 0 });
+            expect(api.saveKaderPlan).toHaveBeenCalledWith("k1", U.heal, { spec: PROT });
+            expect(vi.mocked(api.saveKaderWishes).mock.invocationCallOrder.at(-1)).toBeLessThan(vi.mocked(api.saveKaderPlan).mock.invocationCallOrder.at(-1) as number);
+        });
+
+        it("offers a player without any spec the add button, and plans what was added", async () => {
+            withoutSpec();
+            vi.mocked(api.saveKaderWishes).mockResolvedValue(change(null));
+            vi.mocked(api.saveKaderPlan).mockResolvedValue(change(draft({ specs: { [U.heal]: PROT }, by: ME })));
+            await show("/kader/k1/zusammensetzung");
+            await userEvent.click(within(row("Mira")).getByRole("button", { name: t("kader.wishes.add") }));
+            await addIn();
+            expect(api.saveKaderWishes).toHaveBeenCalledWith("k1", U.heal, [PROT], { baseRev: 0 });
+            expect(api.saveKaderPlan).toHaveBeenCalledWith("k1", U.heal, { spec: PROT });
+        });
+
+        it("gives a reader no add button", async () => {
+            withoutSpec();
+            await show("/kader/k1/zusammensetzung", reader);
+            expect(screen.queryByRole("button", { name: t("kader.wishes.add") })).not.toBeInTheDocument();
+            expect(within(row("Mira")).getByText(t("kader.composition.noSpecRow"))).toBeInTheDocument();
+        });
     });
 });

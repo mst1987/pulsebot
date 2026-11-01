@@ -184,6 +184,7 @@
 .kp-stage.kp-active { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
 .kp-stage.kp-active .kp-sico { color: var(--accent); }
 .kp-stage.kp-active .kp-stage-n { background: var(--accent); color: var(--accent-ink); }
+.kp-stage.kp-over { border-color: var(--accent-2); background-color: color-mix(in srgb, var(--accent-2) 8%, var(--panel)); }
 .kp-stage-arrow { display: inline-flex; color: var(--muted); }
 .kp-stage-arrow svg { width: 16px; height: 16px; }
 .kp-stage-group { display: inline-flex; }

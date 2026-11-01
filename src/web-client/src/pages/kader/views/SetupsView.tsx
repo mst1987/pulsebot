@@ -4,7 +4,7 @@
 // the provisional roster, bench and tentative can be added. Drag a player onto a
 // slot, or click the player and then the slot; whoever sits there swaps places.
 // The spec of a slot is one of the player's wishes, picked from its spec icons
-// (WishPicker); the class colour, role counts and buff hints follow it. Each
+// (WishPicker, which can also add one); the class colour, role counts and buff hints follow it. Each
 // group names the party buffs it has and the important ones it misses. A setup
 // never changes a state.
 import { useState } from "react";
@@ -65,7 +65,7 @@ function Slot({ slot, gi, si, picked, onPick, onDropUser, onSpec }: {
     return (
         <div className={`kp-slot${picked ? " kp-picked" : ""}${drop.over ? " kp-over" : ""}`} {...drop.props}>
             {entry ? (
-                <WishPicker entry={entry} value={slot.spec} compact disabled={!canWrite} label={t("kader.setups.specOf", { name })} onChange={(pick) => onSpec(pick.spec)} />
+                <WishPicker entry={entry} value={slot.spec} compact disabled={!canWrite} addFor={canWrite ? slot.userId : ""} label={t("kader.setups.specOf", { name })} onChange={(pick) => onSpec(pick.spec)} />
             ) : <PickIcon pick={slot.spec ? { className: classOfSpec(slot.spec), spec: slot.spec } : null} size={20} />}
             <button type="button" className="kp-slot-main" aria-pressed={picked} disabled={!canWrite} onClick={onPick} {...dragProps(slot.userId, canWrite)}>
                 <span className={`kp-slot-name kp-grow${color.className ? ` ${color.className}` : ""}`} style={color.style}>{name}</span>

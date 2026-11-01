@@ -483,6 +483,7 @@
             "tentative": "Tentative"
         },
         "back": {
+            "pool": "Zurück in den Pool",
             "selected": "Zurück in die Vorauswahl",
             "provisional": "Zurück ins vorläufige Roster"
         },
@@ -519,6 +520,11 @@
         "toRosterDone": "{name} ist im Roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "Dieser Wechsel geht nicht direkt.",
+        "roleLoss": {
+            "title": "{name}: {state}?",
+            "text": "{name} verliert damit die Rolle „{role}“, und der Roster-Platz fällt weg.",
+            "action": "Zurückschieben"
+        },
         "noVoteYet": "Noch keine Stimme.",
         "dropHere": "Hierher ziehen",
         "emptyRead": "Niemand",
@@ -534,6 +540,7 @@
     },
     "history": {
         "added": "in den Pool übernommen",
+        "wishes": "Specs geändert",
         "state": "{from} → {to}",
         "decision": "Entscheidung: {pick}",
         "completed": "Gespräch abgeschlossen",
@@ -793,7 +800,18 @@
     "picker": {
         "rank": "{n}. Wunsch",
         "decision": "Entscheidung",
-        "before": "bisher gewählt"
+        "before": "bisher gewählt",
+        "addSpec": "Spec hinzufügen …",
+        "addFull": "Höchstens {n} Specs"
+    },
+    "wishes": {
+        "title": "Specs von {name}",
+        "kicker": "Specs bearbeiten",
+        "edit": "Specs bearbeiten",
+        "editOf": "Specs von {name} bearbeiten",
+        "add": "Spec hinzufügen",
+        "addOf": "Spec für {name} hinzufügen",
+        "addStale": "Die Specs wurden inzwischen geändert. Der neue Stand ist geladen, bitte noch einmal bestätigen."
     },
     "lead": {
         "tip": "Gespräch führt: {name}",
@@ -824,6 +842,7 @@
         "removed": "{by} hat {who} aus dem Kader entfernt",
         "decision": "{by} hat die Entscheidung für {who} geändert",
         "interview": "{by} hat das Gespräch mit {who} bearbeitet",
+        "wishes": "{by} hat die Specs von {who} geändert",
         "lead": "{by} hat das Gespräch mit {who} an {lead} gegeben",
         "leadSelf": "{by} führt jetzt das Gespräch mit {who}",
         "leadNone": "{by} hat die Gesprächsführung bei {who} entfernt",
@@ -880,6 +899,7 @@
         },
         "conflict": {
             "interview": "{name} hat dieses Gespräch inzwischen geändert.",
+            "wishes": "{name} hat die Specs inzwischen geändert.",
             "account": "{name} hat die Charaktere inzwischen geändert.",
             "question": "{name} hat diese Frage inzwischen geändert.",
             "hint": "Deine Eingaben sind noch da. „Neu laden“ übernimmt den neuen Stand, „Trotzdem speichern“ überschreibt ihn mit deinem.",

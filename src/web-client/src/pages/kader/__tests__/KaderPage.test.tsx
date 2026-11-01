@@ -2,7 +2,7 @@
 // first Kader, the pool and the import from Discord roles, the interview with
 // its autosave, the overview's filters, the Vorläufig drawer (votes, comments,
 // decision), the questions, the example setups, a read-only grant and English.
-import { screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
@@ -11,7 +11,9 @@ import { t } from "../../../i18n";
 import { switchLang } from "../../../test/i18n";
 import { CONTENT_ARIA, adminUser, renderPage, twoVersions } from "../../../test/render";
 import { CAT, kader as kaderData, kaderView, ME, U } from "../kader.fixture";
+import { DRAG_TYPE } from "../dnd";
 import KaderPage from "../KaderPage";
+import { losesRole } from "../useMovePlayer";
 
 vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),
@@ -696,6 +698,96 @@ describe("KaderPage · spec picker in the setups", () => {
         await userEvent.click(second);
         const groups = vi.mocked(api.saveKaderVariant).mock.calls.at(-1)?.[2].groups;
         expect(groups?.[0][1]).toEqual({ userId: U.heal, spec: "Shaman-Enhancement" });
+    });
+});
+
+describe("KaderPage · moving back", () => {
+    const TAKEOVER = { rosterId: "r9", roleId: "role1", roleName: "Raider", categoryId: "c1", channelIds: [], by: ME, at: "2026-10-01T18:00:00.000Z", status: "done" as const, results: {} };
+    const drawerOf = (name: string) => screen.getByRole("complementary", { name: t("kader.decide.drawer", { name }) });
+    const stage = (state: "pool" | "selected", count: number) => screen.getByRole("link", { name: t(`kader.nav.count.${state}`, { count }) });
+    const drag = (userId: string) => ({ dataTransfer: { types: [DRAG_TYPE], dropEffect: "", getData: () => userId } });
+    const dropOn = (target: HTMLElement, userId: string) => {
+        fireEvent.dragOver(target, drag(userId));
+        fireEvent.drop(target, drag(userId));
+    };
+    const withKader = (k: KaderData) => {
+        vi.mocked(api.getKader).mockResolvedValue(kaderView({ kader: k }));
+        vi.mocked(api.setKaderState).mockResolvedValue(change(k));
+    };
+    const backLabels = (drawer: HTMLElement) => {
+        const labels = ["provisional", "selected", "pool"].map((to) => t(`kader.decide.back.${to}`));
+        return within(drawer).getAllByRole("button").map((b) => b.textContent || "").filter((text) => labels.includes(text));
+    };
+
+    it("offers every state before the current one in the drawer, the nearest first", async () => {
+        withKader(kaderData());
+        await show(`/kader/k1/roster?spieler=${U.tank}`);
+        expect(backLabels(drawerOf("Aldric"))).toEqual([t("kader.decide.back.provisional"), t("kader.decide.back.selected"), t("kader.decide.back.pool")]);
+        await userEvent.click(within(drawerOf("Aldric")).getByRole("button", { name: t("kader.decide.back.pool") }));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+    });
+
+    it("offers a provisional player only Vorauswahl and Pool", async () => {
+        withKader(kaderData());
+        await show(`/kader/k1/roster?spieler=${U.heal}`);
+        expect(backLabels(drawerOf("Mira"))).toEqual([t("kader.decide.back.selected"), t("kader.decide.back.pool")]);
+    });
+
+    it("takes a card dropped on Pool or Vorauswahl in the status bar, without asking", async () => {
+        withKader(kaderData());
+        await show("/kader/k1/roster");
+        fireEvent.dragOver(stage("pool", 1), drag(U.tank));
+        expect(stage("pool", 1)).toHaveClass("kp-over");
+        fireEvent.drop(stage("pool", 1), drag(U.tank));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(await screen.findByText(t("kader.decide.moved", { name: "Aldric", state: t("kader.state.pool") }))).toBeInTheDocument();
+        dropOn(stage("selected", 2), U.heal);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.heal], "selected", undefined);
+    });
+
+    it("takes no drop off the decision page, nor from a reader, nor on the player's own state", async () => {
+        withKader(kaderData());
+        const view = await show("/kader/k1/pool");
+        fireEvent.dragOver(stage("pool", 1), drag(U.tank));
+        expect(stage("pool", 1)).not.toHaveClass("kp-over");
+        fireEvent.drop(stage("pool", 1), drag(U.tank));
+        view.unmount();
+        const readerView = await show("/kader/k1/roster", reader);
+        dropOn(stage("pool", 1), U.tank);
+        readerView.unmount();
+        await show("/kader/k1/roster");
+        dropOn(stage("pool", 1), U.hand);
+        expect(api.setKaderState).not.toHaveBeenCalled();
+    });
+
+    it("asks before a move takes the Discord role away, and only then", async () => {
+        withKader(kaderData({ takeover: TAKEOVER }));
+        await show("/kader/k1/roster");
+        // cancelled: nothing happens
+        dropOn(stage("pool", 1), U.tank);
+        const asked = await screen.findByRole("dialog");
+        expect(asked).toHaveTextContent(t("kader.decide.roleLoss.title", { name: "Aldric", state: t("kader.state.pool") }));
+        expect(asked).toHaveTextContent("Raider");
+        await userEvent.click(within(asked).getByRole("button", { name: t("common.cancel") }));
+        expect(api.setKaderState).not.toHaveBeenCalled();
+        // confirmed: moved
+        dropOn(stage("pool", 1), U.tank);
+        const again = await screen.findByRole("dialog");
+        await userEvent.click(within(again).getByRole("button", { name: t("kader.decide.roleLoss.action") }));
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.tank], "pool", undefined);
+        // a player who holds no role moves without a question
+        dropOn(stage("pool", 1), U.mage);
+        expect(api.setKaderState).toHaveBeenCalledWith("k1", [U.mage], "pool", undefined);
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("knows which moves cost the role", () => {
+        expect(losesRole(TAKEOVER, { state: "roster" }, "pool")).toBe(true);
+        expect(losesRole(TAKEOVER, { state: "provisional" }, "selected")).toBe(true);
+        expect(losesRole(TAKEOVER, { state: "roster" }, "provisional")).toBe(false);
+        expect(losesRole(TAKEOVER, { state: "selected" }, "pool")).toBe(false);
+        expect(losesRole(null, { state: "roster" }, "pool")).toBe(false);
     });
 });
 

@@ -3,8 +3,9 @@
 // activity log ("Aktivität"), the settings — and the status bar: how many players
 // stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
 // Tentative), each state with its icon and its count, the states of the open
-// page marked. On the decision page the bar ends with the raid roster action
-// (RosterLink.tsx, #658) and the example setups; on the composition page with
+// page marked. On the decision page Pool and Vorauswahl also take a dropped card,
+// and the bar ends with the raid roster action (RosterLink.tsx, #658) and the
+// example setups; on the composition page with
 // "In Discord übernehmen" (TakeoverWizard.tsx), and a taken-over Kader shows its
 // role and "Rolle nachziehen" in the head.
 import { Fragment, useRef, useState } from "react";
@@ -15,7 +16,9 @@ import { BackButton, IconButton, IconTile, buttonClass } from "../../components/
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
+import { useDropZone } from "./dnd";
 import { StateIcon } from "./parts";
+import { useMovePlayer } from "./useMovePlayer";
 import { HeaderPeople } from "./live/Presence";
 import RosterLink from "./RosterLink";
 import { TakeoverEntry, TakeoverLine } from "./modals/TakeoverWizard";
@@ -28,6 +31,8 @@ const FLOW: KaderState[] = ["pool", "selected", "provisional"];
 const DECIDED: KaderState[] = ["roster", "bench", "tentative"];
 /** The states the composition page counts (lib/kader/composition BASE_STATES). */
 const COMPOSED: KaderState[] = ["provisional", "roster"];
+/** The states a card can be dropped on in the bar: straight back from the decision page. */
+const DROP_BACK: KaderState[] = ["pool", "selected"];
 
 function KaderPicker() {
     const t = useT();
@@ -88,33 +93,43 @@ export default function KaderHeader() {
     );
 }
 
+/**
+ * One state in the status bar, always a link. On the decision page the steps
+ * before it also take a dropped card; only there, because the setup page drags
+ * the same kind of card for something else.
+ */
+function StageSegment({ state, sub, count }: { state: KaderState; sub: KaderSub; count: number }) {
+    const t = useT();
+    const { kader, canWrite } = useKader();
+    const move = useMovePlayer();
+    const drop = useDropZone((userId) => void move(userId, state), sub === "roster" && canWrite && DROP_BACK.includes(state));
+    const active = STATE_SUB[state] === sub || (state === "selected" && sub === "uebersicht") || (sub === "zusammensetzung" && COMPOSED.includes(state));
+    const tip = t(`kader.nav.count.${state}`, { count });
+    return (
+        <Link to={`/kader/${kader.id}/${STATE_SUB[state]}`} className={`kp-stage kp-stage-${state}${active ? " kp-active" : ""}${drop.over ? " kp-over" : ""}`}
+            aria-current={active ? "page" : undefined} aria-label={tip} data-tip={tip} {...drop.props}>
+            <StateIcon state={state} />
+            <span className="kp-stage-label">{t(`kader.state.${state}`)}</span>
+            <span className="kp-stage-n" aria-hidden="true">{count}</span>
+        </Link>
+    );
+}
+
 /** How many players stand in each state; the states of the open page stand out. */
 export function StageNav({ sub }: { sub: KaderSub }) {
     const t = useT();
     const { kader } = useKader();
     const counts = countStates(kader);
-    const segment = (s: KaderState) => {
-        const active = STATE_SUB[s] === sub || (s === "selected" && sub === "uebersicht") || (sub === "zusammensetzung" && COMPOSED.includes(s));
-        const tip = t(`kader.nav.count.${s}`, { count: counts[s] });
-        return (
-            <Link key={s} to={`/kader/${kader.id}/${STATE_SUB[s]}`} className={`kp-stage kp-stage-${s}${active ? " kp-active" : ""}`}
-                aria-current={active ? "page" : undefined} aria-label={tip} data-tip={tip}>
-                <StateIcon state={s} />
-                <span className="kp-stage-label">{t(`kader.state.${s}`)}</span>
-                <span className="kp-stage-n" aria-hidden="true">{counts[s]}</span>
-            </Link>
-        );
-    };
     return (
         <nav className="kp-stages" aria-label={t("kader.nav.aria")}>
             <span className="kicker kp-stages-kicker">{t("kader.nav.kicker")}</span>
             {FLOW.map((s) => (
                 <Fragment key={s}>
-                    {segment(s)}
+                    <StageSegment state={s} sub={sub} count={counts[s]} />
                     <span className="kp-stage-arrow" aria-hidden="true"><ChevronRightIcon /></span>
                 </Fragment>
             ))}
-            <span className="kp-stage-group">{DECIDED.map(segment)}</span>
+            <span className="kp-stage-group">{DECIDED.map((s) => <StageSegment key={s} state={s} sub={sub} count={counts[s]} />)}</span>
             {(sub === "roster" || sub === "zusammensetzung") && (
                 <>
                     <span className="kp-grow" />

@@ -50,6 +50,7 @@ import AccountModal from "./modals/AccountModal";
 import AddAccountModal from "./modals/AddAccountModal";
 import ImportModal from "./modals/ImportModal";
 import KaderSettingsModal from "./modals/KaderSettingsModal";
+import WishesModal from "./modals/WishesModal";
 import "../../styles/kader.css";
 
 /** Swaps an answer into the loaded view: the whole view, or `{ kader, kaders }` of a change inside one Kader. */
@@ -245,6 +246,7 @@ export default function KaderPage() {
                 {sub === "zusammensetzung" && <CompositionView />}
             </div>
             {modal && modal.type === "account" && <AccountModal key={modal.userId} userId={modal.userId} onClose={close} />}
+            {modal && modal.type === "wishes" && <WishesModal key={modal.userId} userId={modal.userId} onClose={close} />}
             {modal && modal.type === "import" && <ImportModal onClose={close} onById={() => setModal({ type: "addById" })} />}
             {modal && modal.type === "addById" && <AddAccountModal startWay="id" onClose={close} />}
             {modal && modal.type === "settings" && <KaderSettingsModal mode="edit" view={view} me={user.id} onClose={close} run={run} onDeleted={() => { close(); navigate("/kader"); }} />}
