@@ -33,6 +33,7 @@ const eventStore = require("../../../../src/stores/events/eventStore");
 const signupStore = require("../../../../src/stores/events/signupStore");
 const setupLoot = require("../../../../src/services/setup/setupLoot");
 const { saveSetupLoot } = require("../../../../src/stores/loot/setupLootStore");
+const setupEditor = require("../../../../src/services/setup/setupEditor");
 const evalJobs = require("../../../../src/web/logcheck/evalJobs");
 const route = require("../../../../src/web/apiRoutes/events/setup");
 const { routerClient, status, body } = require("../../../helpers/http");
@@ -218,5 +219,76 @@ describe("a manual save of a raid group keeps the loot (#1037)", () => {
         await addRaid();
         expect(status(await put(primary.id, 0, [{ userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
         expect(eventStore.getEvent(primary.id).setup.checks.loot).toBeUndefined();
+    });
+});
+
+describe("a manual save of a raid group keeps the balance (#1038)", () => {
+    beforeEach(() => {
+        signupStore.saveSignup(primary.id, "h1", { character: "H1", spec: "Priest-Holy", status: "signed" }, { versionId: "tbc" });
+        signupStore.saveSignup(primary.id, "h2", { character: "H2", spec: "Priest-Holy", status: "signed" }, { versionId: "tbc" });
+        signupStore.saveSignup(primary.id, "t1", { character: "T1", spec: "Warrior-Protection", status: "signed" }, { versionId: "tbc" });
+    });
+
+    const put = (event, version, slots) => api.request("PUT", "/api/raids/setup", { event, version, groups: [{ index: 1, slots }], bench: [] });
+    const gear = { u1: { u1: 140 }, h1: { h1: 138 }, h2: { h2: 100 }, t1: { t1: 101 } };
+
+    it("PUT on one raid gives checks.balance in both raids, the other raid keeps lineup, version and approval", async () => {
+        const sibling = await addRaid();
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], gear });
+        expect(status(await put(sibling, 0, [{ userId: "h2", spec: "Priest-Holy" }, { userId: "t1", spec: "Warrior-Protection" }]))).toBe(200);
+        const other = eventStore.getEvent(sibling).setup;
+        expect(setupEditor.approveEventSetup(sibling, { version: other.version, userId: "orga" }).error).toBeUndefined();
+        const approved = eventStore.getEvent(sibling).setup;
+        expect(approved.status).toBe("approved");
+
+        expect(status(await put(primary.id, 0, [{ userId: "u1", spec: "Warrior-Fury" }, { userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+        const own = eventStore.getEvent(primary.id).setup;
+        expect(own.checks.balance).toMatchObject({ known: 4 });
+        expect(own.checks.balance.raids.map((r) => r.eventId)).toEqual([primary.id, sibling]);
+        expect(own.checks.balance.spread).toBeGreaterThan(0);
+
+        // the other raid gets the new check only: no new lineup, version or status
+        const after = eventStore.getEvent(sibling).setup;
+        expect(after.checks.balance).toEqual(own.checks.balance);
+        expect(after.groups).toEqual(approved.groups);
+        expect(after.version).toBe(approved.version);
+        expect(after.status).toBe("approved");
+    });
+
+    it("checks.balance survives the next manual move of the same raid", async () => {
+        const sibling = await addRaid();
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], gear });
+        expect(status(await put(sibling, 0, [{ userId: "h2", spec: "Priest-Holy" }]))).toBe(200);
+        expect(status(await put(primary.id, 0, [{ userId: "u1", spec: "Warrior-Fury" }, { userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+        const first = eventStore.getEvent(primary.id).setup;
+        expect(status(await put(primary.id, first.version, [{ userId: "h1", spec: "Priest-Holy" }, { userId: "t1", spec: "Warrior-Protection" }]))).toBe(200);
+        const moved = eventStore.getEvent(primary.id).setup;
+        expect(moved.checks.balance.raids).toHaveLength(2);
+        expect(eventStore.getEvent(sibling).setup.checks.balance).toEqual(moved.checks.balance);
+    });
+
+    it("a single raid gets no checks.balance, also with gear stored", async () => {
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], gear });
+        expect(status(await put(primary.id, 0, [{ userId: "h1", spec: "Priest-Holy" }]))).toBe(200);
+        expect(eventStore.getEvent(primary.id).setup.checks.balance).toBeUndefined();
+    });
+
+    it("re-proposing an approved group with the same lineup keeps the approval", async () => {
+        const sibling = await addRaid();
+        saveSetupLoot(primary.id, { versionId: "tbc", instanceIds: ["kara"], gear });
+        expect(status(await api.post("/api/raids/setup/propose", { event: primary.id }))).toBe(200);
+        for (const id of [primary.id, sibling]) {
+            const s = eventStore.getEvent(id).setup;
+            expect(setupEditor.approveEventSetup(id, { version: s.version, userId: "orga" }).error).toBeUndefined();
+        }
+        const ids = (s) => s.groups.map((g) => g.slots.map((x) => x.userId));
+        const before = [primary.id, sibling].map((id) => eventStore.getEvent(id).setup);
+        expect(status(await api.post("/api/raids/setup/propose", { event: primary.id }))).toBe(200);
+        const after = [primary.id, sibling].map((id) => eventStore.getEvent(id).setup);
+        after.forEach((s, i) => {
+            expect(s.status).toBe("approved");
+            expect(ids(s)).toEqual(ids(before[i]));
+            expect(s.checks.balance).toBeDefined();
+        });
     });
 });

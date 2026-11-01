@@ -715,12 +715,15 @@
 .se-raidtab-here { font-size: 12px; font-weight: 700; color: var(--accent); }
 .se-raidtab-primary { font-size: var(--fs-label); }
 .se-raidtabs-meta { align-self: center; margin-left: auto; font-size: 13px; color: var(--muted); }
+/* #1038 even raids: a calm number per raid, red only for the clearly weaker raid */
+.se-raidtab-strength { font-family: var(--font-mono); font-size: var(--fs-label); color: var(--muted); }
+.se-raidtab-strength.se-weak, .se-raidtabs-balance.se-weak { color: var(--high); font-weight: 600; }
 .se-addraid input { width: 100%; }
 /* several raids at once (#1035): number, then the title or the titles, then the fill switch */
 .se-addraid-form { display: grid; gap: 14px; }
 .se-addraid-preview { margin: 0; color: var(--text); font-weight: 600; }
 @media (max-width: 640px) {
-    .se-raidtab { flex: 1 1 100%; }
+    .se-raidtab { flex: 1 1 100%; flex-wrap: wrap; row-gap: 2px; min-width: 0; }
     .se-raidtab-title { max-width: none; flex: 1 1 auto; }
     .se-raidtabs-meta { margin-left: 0; }
 }

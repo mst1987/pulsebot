@@ -19,7 +19,7 @@
 // reasons.js then says, for every raider, why they are where they are.
 
 const { ROLES } = require("../../config/gameVersions");
-const { buildModel } = require("./model");
+const { buildModel, charKey } = require("./model");
 const { makeScorer, resolveWeights } = require("./score");
 const { buildOutput } = require("./reasons");
 
@@ -431,13 +431,22 @@ function tryGroupMoves(s) {
     return improved;
 }
 
-/** Swap raiders a and b between their (different) events, each on an option of the other's event. */
-function swapAcrossEvents(s, a, b) {
+/** The same place as `o` - character, spec and role - in another event. */
+const samePlace = (o, x) => x.role === o.role && x.spec === o.spec && charKey(x.character) === charKey(o.character);
+
+/**
+ * Swap raiders a and b between their (different) events, each on an option of the other's event.
+ * `keep` (the arrange phase, #1038): each keeps the character, spec and role it plays - only the
+ * event changes, so loot and balance never trade a tank for a damage dealer.
+ */
+function swapAcrossEvents(s, a, b, keep = false) {
     const ea = eventOf(s, a);
     const eb = eventOf(s, b);
     if (ea === eb) return false;
-    const oa = s.cands[a].options.filter((o) => o.eventIdx === eb);
-    const ob = s.cands[b].options.filter((o) => o.eventIdx === ea);
+    const curA = s.cands[a].options[s.opt[a]];
+    const curB = s.cands[b].options[s.opt[b]];
+    const oa = s.cands[a].options.filter((o) => o.eventIdx === eb && (!keep || samePlace(curA, o)));
+    const ob = s.cands[b].options.filter((o) => o.eventIdx === ea && (!keep || samePlace(curB, o)));
     let done = false;
     for (const x of oa) {
         for (const y of ob) {
@@ -447,14 +456,14 @@ function swapAcrossEvents(s, a, b) {
     return done;
 }
 
-/** Swap two raiders between parallel events. */
-function tryEventSwaps(s) {
+/** Swap two raiders between parallel events (`keep`: see swapAcrossEvents). */
+function tryEventSwaps(s, keep = false) {
     let improved = false;
     for (let a = 0; a < s.n; a++) {
         if (s.opt[a] < 0 || s.lockOpt[a]) continue;
         for (let b = a + 1; b < s.n; b++) {
             if (s.opt[b] < 0 || s.lockOpt[b] || s.opt[a] < 0) continue;
-            if (swapAcrossEvents(s, a, b)) improved = true;
+            if (swapAcrossEvents(s, a, b, keep)) improved = true;
         }
     }
     return improved;
@@ -473,21 +482,24 @@ function localSearchPass(s) {
 }
 
 /**
- * The loot phase (#1037): only moves that keep the same people placed - a swap between
- * the parallel raids and moves between groups. Loot decides who plays in which raid,
- * never who gets a place: the first phase settled that without it.
+ * The arrange phase - loot (#1037) and balance (#1038): only moves that keep the same people
+ * placed - a swap between the parallel raids and moves between groups. Loot and balance decide
+ * who plays in which raid, never who gets a place: the first phase settled that without them.
+ * A swap between raids keeps everybody's character, spec and role from the first phase.
+ * Both weigh in one score that has to rise strictly with every move, so they cannot trade a
+ * raider back and forth, and MAX_PASSES ends it in any case.
  */
 function lootPass(s) {
     let improved = false;
-    if (tryEventSwaps(s)) improved = true;
+    if (tryEventSwaps(s, true)) improved = true;
     if (tryGroupMoves(s)) improved = true;
     return improved;
 }
 
 /**
- * The search. With loot (`lootScorer`) it runs twice over: first without loot - who is
- * placed, who stays in the pool -, then the loot phase on top with only the moves of
- * `lootPass`, so pool and bench come out the same with and without loot data.
+ * The search. With loot or balance (`lootScorer`, the scorer with both) it runs twice over:
+ * first without them - who is placed, who stays in the pool -, then the arrange phase on top
+ * with only the moves of `lootPass`, so pool and bench come out the same with and without them.
  */
 function search(model, scorer, lootScorer) {
     const s = newSearchState(model, scorer);
@@ -559,12 +571,12 @@ function search(model, scorer, lootScorer) {
  */
 function buildSetupProposal(input = {}, options = {}) {
     const { model, effective } = prepare(input, options);
-    if (!(effective.loot > 0)) {
+    if (!(effective.loot > 0) && !(effective.balance > 0)) {
         const scorer = makeScorer(model);
         return buildOutput(model, scorer, search(model, scorer), { version: SETUP_PROPOSAL_VERSION, weights: effective });
     }
-    // #1037: the places are settled without loot, the loot scorer only arranges the raids
-    const placeScorer = makeScorer({ ...model, weights: { ...model.weights, loot: 0 } });
+    // #1037/#1038: the places are settled without loot and balance, the full scorer only arranges the raids
+    const placeScorer = makeScorer({ ...model, weights: { ...model.weights, loot: 0, balance: 0 } });
     const lootScorer = makeScorer(model);
     const state = search(model, placeScorer, lootScorer);
     return buildOutput(model, lootScorer, state, { version: SETUP_PROPOSAL_VERSION, weights: effective });
@@ -587,6 +599,8 @@ function prepare(input, options) {
     if (!model.hasRoster) effective.roster = 0;
     // loot (#1037) only with parallel raids and loaded data of the raid's version (model.js)
     if (!model.lootOn) effective.loot = 0;
+    // balance (#1038) only with parallel raids - one raid has nothing to even out
+    if (!model.balanceOn) effective.balance = 0;
     return { model, effective };
 }
 

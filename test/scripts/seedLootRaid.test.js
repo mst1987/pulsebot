@@ -80,4 +80,13 @@ describe("seed-loot-raid", () => {
         expect([...seen.values()].some((n) => n > 1)).toBe(true);
         // no API call: test/setup/noNetwork.js would have thrown on any request
     });
+
+    it("the snapshot carries a staggered mean item level per character for even raids (#1038)", () => {
+        const { roster, lootSnapshot } = require(FILE);
+        const snap = lootSnapshot(roster(), (i) => `u${i}`);
+        const levels = Object.values(snap.gear).flatMap((byChar) => Object.values(byChar));
+        expect(levels.length).toBeGreaterThan(40);
+        expect(Math.max(...levels)).toBeGreaterThan(Math.min(...levels));
+        expect(Object.values(snap.gear.u0)[0]).toBeGreaterThan(Math.min(...levels));
+    });
 });

@@ -336,6 +336,8 @@ function proposeGroupSetup(event, body, { userId, now, shadowbannedOf }) {
                 avoid: proposed.checks && proposed.checks.avoid,
                 // #1037: the loot overlaps span the whole group - every raid shows the same list
                 ...(proposed.checks && proposed.checks.loot ? { loot: proposed.checks.loot } : {}),
+                // #1038: the strength of all raids of the group - every raid shows the same comparison
+                ...(proposed.checks && proposed.checks.balance ? { balance: proposed.checks.balance } : {}),
             },
             bench: (proposed.bench || []).filter((b) => benchOwner.get(String(b.userId)) === e.id),
             pool: proposed.pool || [],
@@ -430,12 +432,12 @@ function saveEventSetup(eventId, body = {}, { userId = "", now = Date.now() } = 
     const got = new Set(result.groups.flatMap((g) => g.slots.map((s) => String(s.userId))));
     const lost = [...placedIds].filter((id) => !got.has(id));
     if (lost.length) return fail("invalid", `Nicht platzierbar: ${lost.join(", ")}.`);
-    // #1037: loot spans the raid group - valued as a whole, this raid takes the group's loot;
-    // without a group value (data gone after 30 days, or the others no longer value) no raid of
-    // the group keeps a loot check or loot reason: an old one would describe another setup
+    // #1037/#1038: loot and balance span the raid group - valued as a whole, this raid takes the
+    // group's loot and strengths; without a group value (no loot data and no balance, or the others no
+    // longer value) no raid of the group keeps them: an old one would describe another setup
     const others = groupOthers(event);
     const group = others.length ? groupLootOf(event, checked.value, others, { options, now, leaderUserId }) : null;
-    const own = others.length ? withGroupLoot(result, group && group.events.find((x) => x.eventId === event.id), group && group.checks.loot) : result;
+    const own = others.length ? withGroupLoot(result, group && group.events.find((x) => x.eventId === event.id), group && group.checks) : result;
     const groups = inPlacedOrder(own.groups, checked.value.groups);
     const setup = nextSetup(prev, { ...own, groups, historySource: input.historySource, leaderUserId }, { origin: "manual", options, userId, now });
     const saved = storeSetup(event, setup, { userId, now });
@@ -450,12 +452,12 @@ function groupOthers(event) {
 
 /**
  * The raid group valued as a whole after a manual change of one raid (#1037): this raid as the
- * orga placed it, the others as they stand. Null without loot data or when the others no longer
- * value (their own save tells why) - the group then shows no loot at all.
+ * orga placed it, the others as they stand. Null without loot data and balance (#1038), or when the
+ * others no longer value (their own save tells why) - the group then shows neither.
  */
 function groupLootOf(event, placement, others, { options, now, leaderUserId }) {
     const input = collectSetupInput([event.id, ...others.map((e) => e.id)], { now });
-    if (!input || !input.loot) return null;
+    if (!input) return null;
     if (input.events[0]) input.events[0].leaderUserId = leaderUserId;
     try {
         const result = evaluateSetup(input, {
@@ -463,7 +465,7 @@ function groupLootOf(event, placement, others, { options, now, leaderUserId }) {
             bench: placement.bench,
             others: others.map((e) => ({ eventId: e.id, groups: (e.setup && e.setup.groups) || [] })),
         }, runOptions(options));
-        if (!result.checks || !result.checks.loot || !Array.isArray(result.events)) return null;
+        if (!result.checks || !(result.checks.loot || result.checks.balance) || !Array.isArray(result.events)) return null;
         return { checks: result.checks, events: result.events, others };
     } catch {
         return null;
@@ -482,15 +484,19 @@ function withSlotLoot(slot, fresh) {
 }
 
 /**
- * One raid's valued result with the group's loot: `checks.loot` and every slot's loot reason.
- * Without `loot` (no group value) both go: no loot check, no loot reason.
+ * One raid's valued result with the group's loot and strengths: `checks.loot`, every slot's loot
+ * reason and `checks.balance` (#1038). What the group value lacks goes: no stale check, no stale reason.
  */
-function withGroupLoot(result, part, loot) {
+function withGroupLoot(result, part, groupChecks) {
+    const loot = groupChecks && groupChecks.loot;
+    const balance = groupChecks && groupChecks.balance;
     const fresh = new Map();
     for (const g of (part && part.groups) || []) for (const s of g.slots || []) fresh.set(String(s.userId), s);
     const checks = { ...result.checks };
     if (loot) checks.loot = loot;
     else delete checks.loot;
+    if (balance) checks.balance = balance;
+    else delete checks.balance;
     return {
         ...result,
         groups: (result.groups || []).map((g) => ({ ...g, slots: (g.slots || []).map((s) => withSlotLoot(s, fresh.get(String(s.userId)))) })),
@@ -499,8 +505,8 @@ function withGroupLoot(result, part, loot) {
 }
 
 /**
- * The other raids of the group after a manual change (#1037): only their loot check and loot
- * reasons follow - no new version, no status change, no repost, the leader untouched. Without
+ * The other raids of the group after a manual change (#1037): only their loot check, loot
+ * reasons and strengths (#1038) follow - no new version, no status change, no repost, the leader untouched. Without
  * a group value (`events` empty, no `checks.loot`) both are cleared.
  */
 function refreshGroupLoot(group) {
@@ -508,7 +514,7 @@ function refreshGroupLoot(group) {
         const fresh = eventStore.getEvent(e.id);
         if (!fresh || !fresh.setup) return;
         const part = group.events.find((x) => x.eventId === e.id);
-        const next = withGroupLoot(fresh.setup, part, group.checks.loot);
+        const next = withGroupLoot(fresh.setup, part, group.checks);
         eventStore.setEventSetup(e.id, { ...fresh.setup, groups: next.groups, checks: next.checks });
     });
 }

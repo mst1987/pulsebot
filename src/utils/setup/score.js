@@ -19,19 +19,21 @@
 //   ROLE_MIN = LEADER_MIN (48000)  >  FILL (16000)  >  BENCH_STATUS (8000)  >  14 × MAX_WEIGHT (7000)
 //
 // The minimum rules sit above the SUM of every soft goal at its maximum: the 14
-// weights (the 13 of DEFAULT_WEIGHTS plus the planned `balance`, #1038) at
-// MAX_WEIGHT each are 7000. So even with every slider pushed to the end no
+// weights of DEFAULT_WEIGHTS (the last one `balance`, #1038) at MAX_WEIGHT each
+// are 7000. So even with every slider pushed to the end no
 // weight can trade a missing healer, a missing leader, an empty place or a
 // raider of the bench for a nicer group. Each weight is built so one unit of it
-// is worth at most its weight per raider (loot is capped at 1 per raider, see
-// the loot part below). FILL keeps ROLE_MIN = 3 × FILL as before; LEADER_ORDER
+// is worth at most its weight per raider (loot is capped at 1 per raider, balance
+// too - see raidStrength.js balanceCost). FILL keeps ROLE_MIN = 3 × FILL as before; LEADER_ORDER
 // stays below FILL. A new weight raises the count above - and these constants
 // with it, keep score.test.js asserting the ranking.
 
 const { ROLES } = require("../../config/gameVersions");
 const { GROUP_SIZE, STATUS_FACTOR, GEAR_FACTOR, ROSTER_FACTOR } = require("./model");
 
-// soft goals the ranking above budgets for: DEFAULT_WEIGHTS today plus `balance` (#1038)
+const { CLASS_OF_ROLE, CLASSES, balanceCost } = require("./raidStrength");
+
+// soft goals the ranking above budgets for: the weights of DEFAULT_WEIGHTS
 const SOFT_GOALS = 14;
 const FILL = 16000;
 const ROLE_MIN = 48000;
@@ -76,6 +78,10 @@ const UNIVERSAL_FACTOR = 0.5;
  *                  per raid and item, n interested raiders cost n−1 (a Softres reserve
  *                  counts 1, a BiS item ½, the spec fallback ¼). A raider's wants add up to
  *                  at most 1, so it only moves raiders between raids - never onto the bench
+ *   balance        "Raids gleich stark" (#1038), only for parallel raids: per class (tanks,
+ *                  healers, damage) how far each raid's strength is from its share of the
+ *                  mean (raidStrength.js); tanks and healers count fully, damage half. At most
+ *                  1 per raider, and like loot it only moves raiders between the raids
  */
 const DEFAULT_WEIGHTS = {
     partyBuffs: 60,
@@ -91,6 +97,7 @@ const DEFAULT_WEIGHTS = {
     avoid: 100,
     roster: 200,
     loot: 150,
+    balance: 100,
 };
 
 /** Defaults overridden by whatever numbers `given` carries, each clamped to 0…MAX_WEIGHT. */
@@ -219,6 +226,16 @@ function makeScorer(model) {
     const lootSum = lootOn ? new Float64Array(lootItems * events.length) : null;
     const lootMax = lootOn ? new Float64Array(lootItems * events.length) : null;
     const touched = [];
+    // Balance (#1038): per raid and class the strength sum and the count of the placed raiders
+    const balanceOn = !!(model.balanceOn && weights.balance > 0 && events.length > 1);
+    const strengthSum = balanceOn ? new Float64Array(events.length * CLASSES) : null;
+    const strengthCount = balanceOn ? new Float64Array(events.length * CLASSES) : null;
+
+    /** The balance cost of a state (≥ 0, at most 1 per placed raider, in units of the weight). */
+    // The sums are gathered in run's one pass over the raiders (no second pass per evaluate).
+    function strengthCost() {
+        return balanceCost(strengthSum, strengthCount, events.length);
+    }
 
     /** The loot cost of a state (≥ 0, in units of the weight); every want is > 0 (model.js). */
     function lootCost(opt) {
@@ -251,7 +268,12 @@ function makeScorer(model) {
         if (detail && events.some((e) => e.leaderRule)) parts.leader = 0;
         // the same for loot: only with parallel raids and loaded loot data
         if (detail && lootOn) parts.loot = 0;
+        if (detail && balanceOn) parts.balance = 0;
         let total = 0;
+        if (balanceOn) {
+            strengthSum.fill(0);
+            strengthCount.fill(0);
+        }
         const ev = events.map((e) => ({
             count: 0,
             leaders: 0,
@@ -269,6 +291,11 @@ function makeScorer(model) {
             if (detail) for (const [k, v] of Object.entries(option.parts)) parts[k] += v;
             s.count++;
             s.roles[option.roleIdx]++;
+            if (balanceOn) {
+                const k = option.eventIdx * CLASSES + CLASS_OF_ROLE[option.roleIdx];
+                strengthSum[k] += option.strength;
+                strengthCount[k] += 1;
+            }
             if (cands[c].leadsIn && cands[c].leadsIn.has(option.eventIdx)) s.leaders++;
             s.groups[grp[c]].push({ cand: cands[c], opt: option });
             for (const b of option.data.raid) s.raid[b] = 1;
@@ -334,6 +361,11 @@ function makeScorer(model) {
             const loot = lootCost(opt) * weights.loot;
             total -= loot;
             if (detail) parts.loot -= loot;
+        }
+        if (balanceOn) {
+            const balance = strengthCost() * weights.balance;
+            total -= balance;
+            if (detail) parts.balance -= balance;
         }
         if (!detail) return total;
         return { total, parts, events: ev };

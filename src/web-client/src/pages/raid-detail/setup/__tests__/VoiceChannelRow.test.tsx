@@ -9,6 +9,7 @@ import { t } from "../../../../i18n";
 import { formatTime, formatWeekday } from "../../../../lib/format";
 import { switchLang } from "../../../../test/i18n";
 import { renderPage } from "../../../../test/render";
+import { clock } from "../setupText";
 import VoiceChannelRow from "../VoiceChannelRow";
 import { voiceStateLine } from "../voiceState";
 
@@ -48,7 +49,9 @@ describe("voiceStateLine", () => {
         expect(voiceStateLine(base, t)).toContain(at(base.openAt!));
         expect(voiceStateLine(base, t)).toContain("Raids");
         expect(voiceStateLine({ ...base, parentName: undefined }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.planned", { time: at(base.openAt!) })}`);
-        expect(voiceStateLine({ ...base, ...SAT, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: "23:30" })].join(" · "));
+        // clock() adds the date on any other day than today, so the fixed Saturday only keeps its time
+        expect(voiceStateLine({ ...base, ...SAT, state: "open", members: 7 }, t)).toBe([t("channels.voiceRow.open"), t("channels.voiceRow.members", { count: 7 }), t("channels.voiceRow.closesBy", { time: clock(SAT.limitAt * 1000) })].join(" · "));
+        expect(clock(SAT.limitAt * 1000)).toContain("23:30");
         expect(voiceStateLine({ ...base, state: "creating" }, t)).toBe(`${t("channels.voiceRow.temp")} · ${t("channels.voiceRow.creating")}`);
         expect(voiceStateLine({ ...base, state: "open", members: null }, t)).not.toContain(t("channels.voiceRow.members", { count: 0 }));
         expect(voiceStateLine({ ...base, state: "closed", closedAt: NOW }, t)).toBe(t("channels.voiceRow.closedAt", { time: at(NOW) }));

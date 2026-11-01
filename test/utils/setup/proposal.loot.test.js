@@ -5,7 +5,7 @@
 const { buildSetupProposal, evaluateSetup } = require("../../../src/utils/setup/proposal");
 const { lootWants, attachLoot, SOURCE_WEIGHT } = require("../../../src/utils/setup/lootWants");
 const { lineupSignature } = require("../../../src/services/setup/setupEditor")._internal;
-const { su, rng, randomInput } = require("./fixtures");
+const { su, rng, randomInput, samePlaces } = require("./fixtures");
 
 /** `n` Karazhan raids sharing `base` (every signup on every raid, like collectSetupInput). */
 function group(n, base, extra = () => ({})) {
@@ -273,6 +273,8 @@ describe("loot in the setup proposal (#1037)", () => {
             const ids = (list) => list.map((p) => p.userId).sort();
             expect(ids(withLoot.pool)).toEqual(ids(without.pool));
             expect(ids(withLoot.bench)).toEqual(ids(without.bench));
+            // #1038: a swap between raids keeps everybody's character, spec and role
+            expect(samePlaces(withLoot, without)).toBe(true);
         }
     });
 });

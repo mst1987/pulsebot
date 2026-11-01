@@ -5,7 +5,8 @@ const { createJsonStore } = require("../jsonStore");
 // raid group, so the proposal itself reads it from here and never calls an API.
 // One snapshot per group, keyed by the signup event (the first raid of the group).
 // `wants` is the shape of utils/setup/lootWants.js, `items` the names and icons of
-// the items in it, `counts` what the status line says ("Gear für 31 von 50").
+// the items in it, `gear` the mean item level per raider and character ("Raids gleich
+// stark", #1038), `counts` what the status line says ("Gear für 31 von 50").
 const store = createJsonStore({ file: settingsPath("setup-loot.json"), defaults: { groups: {} } });
 
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
@@ -27,6 +28,20 @@ const tooOld = (g, now) => !g || now - oldestOf(g) > MAX_AGE_MS;
 /** The sources a load could not reach (`softres`, `armory`, `logs`, `all`), once each. */
 function failedOf(list) {
     return [...new Set((Array.isArray(list) ? list : []).map(String).filter((x) => SOURCES.has(x)))];
+}
+
+/** `gear` = `{ [userId]: { [charKey]: meanItemLevel } }` (#1038): only positive numbers stay. */
+function gearOf(gear) {
+    const out = {};
+    if (!gear || typeof gear !== "object") return out;
+    for (const [userId, byChar] of Object.entries(gear)) {
+        if (!byChar || typeof byChar !== "object") continue;
+        for (const [key, lvl] of Object.entries(byChar)) {
+            const n = Number(lvl);
+            if (Number.isFinite(n) && n > 0) (out[userId] = out[userId] || {})[key] = Math.round(n * 10) / 10;
+        }
+    }
+    return out;
 }
 
 /**
@@ -72,6 +87,7 @@ function saveSetupLoot(eventId, snapshot = {}) {
         at: now,
         wants: snapshot.wants && typeof snapshot.wants === "object" ? snapshot.wants : {},
         items: snapshot.items && typeof snapshot.items === "object" ? snapshot.items : {},
+        gear: gearOf(snapshot.gear),
         counts: {
             signups: Number(counts.signups || 0),
             gear: Number(counts.gear || 0),

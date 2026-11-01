@@ -11,6 +11,7 @@ const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { characterKeyOf } = require("../loot/lootImport");
 const { str } = require("../text");
 const { attachLoot } = require("./lootWants");
+const { attachStrength, spanOf } = require("./raidStrength");
 
 const GROUP_SIZE = 5;
 // How many earlier raid nights fairness looks back over, per raider.
@@ -564,10 +565,15 @@ function buildModel(input = {}, weights) {
     // loot (#1037): only parallel raids and only data of this version - anything else changes nothing
     const lootIn = input.loot && events.length > 1 && input.loot.versionId === rules.id ? input.loot : null;
     const loot = lootIn ? attachLoot(cands, lootIn) : null;
+    // "Raids gleich stark" (#1038): only parallel raids; item levels only from this version's data
+    const balanceOn = events.length > 1;
+    const strengthKnown = balanceOn ? attachStrength(cands, lootIn ? lootIn.gear : null, { span: spanOf(rules) }) : 0;
 
     return {
         loot,
         lootOn: !!loot,
+        balanceOn,
+        strengthKnown,
         versionId: rules.id,
         rules,
         events,

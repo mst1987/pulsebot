@@ -5,7 +5,7 @@
 // place. "Angemeldet" is one pool for every raid, so the tabs are the only way
 // between them. Also the dialog "Weiteren Raid hinzufügen".
 import { useEffect, useState, type DragEvent } from "react";
-import type { RaidGroup, RaidGroupRaid } from "../../../api";
+import type { RaidGroup, RaidGroupRaid, SetupBalanceCheck } from "../../../api";
 import { useT } from "../../../i18n";
 import { Button } from "../../../components/ui/Button";
 import { Modal } from "../../../components/ui/overlay/Modal";
@@ -13,6 +13,7 @@ import Badge from "../../../components/ui/Badge";
 import Field from "../../../components/ui/form/Field";
 import NumberStepper from "../../../components/ui/form/NumberStepper";
 import Switch from "../../../components/ui/form/Switch";
+import { raidBalance, underfilledRaid } from "./setupText";
 
 /** The state word of a raid's setup: empty, draft, approved or posted. */
 function stateOf(raid: RaidGroupRaid): "none" | "draft" | "approved" | "posted" {
@@ -21,8 +22,12 @@ function stateOf(raid: RaidGroupRaid): "none" | "draft" | "approved" | "posted" 
     return raid.placed > 0 || raid.status !== "none" ? "draft" : "none";
 }
 
-function RaidTab({ raid, current, moving, editable, onSwitch, onMove }: {
+function RaidTab({ raid, current, moving, editable, strength, weak, onSwitch, onMove }: {
     raid: RaidGroupRaid;
+    /** #1038: the raid's strength 0-100, undefined without strength data */
+    strength?: number;
+    /** #1038: clearly weaker than the other raids */
+    weak: boolean;
     current: boolean;
     /** a raider is being dragged or is picked: the other tabs are drop targets */
     moving: boolean;
@@ -51,6 +56,11 @@ function RaidTab({ raid, current, moving, editable, onSwitch, onMove }: {
             <span className="se-raidtab-no">{t("setup.raidGroup.tab", { index: raid.index })}</span>
             <span className="se-raidtab-title">{raid.title}</span>
             <span className="se-raidtab-count">{raid.placed}/{raid.size}</span>
+            {strength !== undefined && (
+                <span className={`se-raidtab-strength${weak ? " se-weak" : ""}`} data-testid="se-raidtab-strength" data-tip={t("setup.raidGroup.strengthTip")}>
+                    {t("setup.raidGroup.strength", { value: strength })}
+                </span>
+            )}
             {target ? <span className="se-raidtab-here">{t("setup.raidGroup.dropHere")}</span> : <span className={`se-raidtab-state se-st-${state}`}>{t(`setup.raidGroup.state.${state}`)}</span>}
             {raid.index === 1 && <Badge tone="accent" className="se-raidtab-primary">{t("setup.raidGroup.primary")}</Badge>}
         </button>
@@ -58,25 +68,52 @@ function RaidTab({ raid, current, moving, editable, onSwitch, onMove }: {
 }
 
 /** The raids of the group as tabs, plus how many stand in the other raids. */
-export function RaidTabs({ group, current, moving, editable, elsewhere, onSwitch, onMove }: {
+export function RaidTabs({ group, current, moving, editable, elsewhere, balance, onSwitch, onMove }: {
     group: RaidGroup;
     current: string;
     moving: boolean;
     editable: boolean;
     /** signed-up raiders standing in the other raids (not in "Angemeldet" here) */
     elsewhere: number;
+    /** #1038 even raids: the strength of every raid of the group */
+    balance?: SetupBalanceCheck;
     onSwitch: (id: string) => void;
     onMove: (id: string, userId?: string) => void;
 }) {
     const t = useT();
+    // underfilled before weaker: raidBalance names no weaker raid while one has open places
+    const strengths = raidBalance(balance);
+    const open = strengths ? underfilledRaid(balance) : null;
+    const weakRaid = strengths && strengths.weakId && !open ? group.raids.find((r) => r.id === strengths.weakId) : undefined;
+    const openRaid = open ? group.raids.find((r) => r.id === open.eventId) : undefined;
+    const summary = weakRaid
+        ? t("setup.raidGroup.weaker", { name: weakRaid.title })
+        : open
+            ? t("setup.raidGroup.underfilled", { name: openRaid ? openRaid.title : t("setup.raidGroup.tab", { index: balance!.raids.findIndex((r) => r.eventId === open.eventId) + 1 }), placed: open.placed, size: open.size })
+            : t("setup.raidGroup.balanced");
     return (
         <div className="se-raidtabs" role="tablist" aria-label={t("setup.raidGroup.aria")}>
             {group.raids.map((raid) => (
-                <RaidTab key={raid.id} raid={raid} current={raid.id === current} moving={moving} editable={editable} onSwitch={onSwitch} onMove={onMove} />
+                <RaidTab
+                    key={raid.id} raid={raid} current={raid.id === current} moving={moving} editable={editable}
+                    strength={strengths ? strengths.byId[raid.id] : undefined} weak={!!weakRaid && weakRaid.id === raid.id}
+                    onSwitch={onSwitch} onMove={onMove}
+                />
             ))}
             <span className="se-raidtabs-meta">
                 {t("setup.raidGroup.places", { count: group.count, places: group.places })}
                 {elsewhere > 0 && <> · {t("setup.raidGroup.elsewhere", { count: elsewhere })}</>}
+                {strengths && (
+                    <>
+                        {" · "}
+                        <span
+                            className={`se-raidtabs-balance${weakRaid ? " se-weak" : ""}`} data-testid="se-raidtabs-balance"
+                            data-tip={t("setup.raidGroup.balanceTip", { spread: balance ? balance.spread : 0 })} data-tip-side="right"
+                        >
+                            {summary}
+                        </span>
+                    </>
+                )}
             </span>
         </div>
     );

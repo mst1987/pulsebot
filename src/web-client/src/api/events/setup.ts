@@ -97,6 +97,19 @@ export type SetupChecks = {
     leader?: { count: number; ok: boolean; candidates: string[] };
     /** #1037 "Loot verteilen": only for parallel raids with loaded loot data and the weight above 0. */
     loot?: SetupLootCheck;
+    /**
+     * #1038 even raids: only for parallel raids with strength data (also with the weight at 0,
+     * which only switches the balancing off), the same in every raid of the group. `strength` 0-100
+     * per raid over its placed raiders, `placed`/`size` = how full the raid is, `spread` = strongest
+     * minus weakest, `known` = the raiders with gear or attendance (0 = nobody, every raid neutral).
+     */
+    balance?: SetupBalanceCheck;
+};
+
+export type SetupBalanceCheck = {
+    spread: number;
+    known: number;
+    raids: { eventId: string; strength: number | null; placed: number; size: number }[];
 };
 
 /** Who wants a listed item in one raid (#1037), with where the wish comes from. */
