@@ -4,17 +4,6 @@
     "system": "System",
     "roster": {
         "createButton": "Roster anlegen",
-        "createTip": "Ein Raid-Roster aus diesem Kader anlegen",
-        "createTipSub": {
-            "one": "{count} Spieler geht mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner.",
-            "other": "{count} Spieler gehen mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner."
-        },
-        "createTitle": "Roster aus dem Kader anlegen",
-        "createHint": "Es gehen nur der Status und der entschiedene Charakter mit. Danach ist im Roster alles bearbeitbar – Name, Mitglieder, Status, Rollen.",
-        "create": "Anlegen",
-        "category": "Raid-Kategorie",
-        "noCategory": "Ohne Kategorie",
-        "categoryHint": "Mit Kategorie gelten Erinnerungen, „fehlt“-Listen und der Setup-Vorschlag für dieses Roster. Sie lässt sich im Roster später ändern.",
         "created": {
             "one": "Roster angelegt – {count} Spieler übernommen.",
             "other": "Roster angelegt – {count} Spieler übernommen."
@@ -98,6 +87,9 @@
         "setups": "Beispiel-Setup bauen",
         "composition": "Zusammensetzung",
         "kicker": "Spieler je Status",
+        "planGroup": "Planung",
+        "rosterGroup": "Roster",
+        "more": "Mehr",
         "count": {
             "pool": {
                 "one": "{count} Spieler im Pool",
@@ -1040,9 +1032,40 @@
         "entry": "In Discord übernehmen",
         "entryTip": "Kader in Discord übernehmen",
         "entryTipSub": "Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
-        "entryTipSubNew": "Neues Roster, Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
+        "createTip": "Legt ein Roster aus diesem Kader an, auf Wunsch auch in Discord.",
+        "createTipSub": "Im Assistenten wählst du, ob Rolle, Kategorie und Kanäle dazukommen.",
+        "discordSwitch": "Auch in Discord anlegen (Rolle, Kategorie, Kanäle)",
+        "discordSwitchTip": "An: Rolle, Kategorie und Kanäle entstehen, alle ab Vorläufig kommen als Stamm. Aus: nur das Roster.",
+        "rosterOnly": {
+            "whoTitle": "Wer kommt ins Roster?",
+            "count": {
+                "one": "{count} Spieler kommt ins Roster",
+                "other": "{count} Spieler kommen ins Roster"
+            },
+            "asColumn": "Im Roster als",
+            "as": {
+                "roster": "Stamm",
+                "bench": "Ersatz",
+                "tentative": "Probe"
+            },
+            "provisionalStayOut": {
+                "one": "{count} Vorläufiger bleibt draußen, bis du entschieden hast.",
+                "other": "{count} Vorläufige bleiben draußen, bis du entschieden hast."
+            },
+            "noDiscord": "In Discord entsteht nichts.",
+            "noPlayers": "Noch niemand ist entschieden: Das Roster startet leer.",
+            "confirm": "Roster jetzt anlegen",
+            "confirmTip": "Legt das Roster mit den Spielern aus der Liste an. Danach ist dort alles bearbeitbar.",
+            "start": "Roster anlegen",
+            "resultTitle": "Roster angelegt",
+            "skipped": {
+                "one": "{count} Spieler konnte nicht aufgenommen werden.",
+                "other": "{count} Spieler konnten nicht aufgenommen werden."
+            }
+        },
         "kicker": "Übernahme · {name}",
         "title": {
+            "roster": "Wie heißt das Roster?",
             "role": "Welche Rolle bekommt der Kader?",
             "channels": "Kategorie und Kanäle",
             "who": "Wer bekommt die Rolle?",
@@ -1050,6 +1073,7 @@
         },
         "stepsAria": "Schritte der Übernahme",
         "step": {
+            "roster": "Roster",
             "role": "Rolle",
             "channels": "Kanäle",
             "who": "Wer",

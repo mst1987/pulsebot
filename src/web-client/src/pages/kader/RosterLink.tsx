@@ -1,99 +1,38 @@
-// The Kader's raid roster (#658, docs/kaderplaner.md "Roster aus einem Kader"):
-// on the decision page (/kader/<id>/roster) the Kader is linked to exactly one
-// roster (`roster.kaderId`, 1:1). Without a link a full admin either creates a
-// roster ("Roster anlegen": POST /api/rosters/create with source "kader") or
-// links an existing one ("Mit bestehendem Roster verknüpfen": POST
-// /api/kader/roster/link - the roster whose category the Kader counts
-// attendance in is suggested first, e.g. a migrated "Mo-Raider"). Once linked,
-// "Ins Roster übernehmen (n)" (managers of that roster: POST
-// /api/kader/roster/sync) takes the players decided since then into THAT
-// roster, and "Zum Roster" opens it; a roster running as Loot-Council also
-// gets "Zum Loot-Council" (#676, /lootcouncil?roster=<id>, only for a reader
-// of the council). Only the state (Roster → Stamm, Bench →
-// Ersatz, Tentative → Probe) and the decided character cross; interviews,
-// answers, votes and comments stay here. Members already in the roster are
-// never touched.
-import { useState } from "react";
+// The Kader's raid roster and the actions around it (#658, docs/kaderplaner.md
+// "Roster aus einem Kader"): the "Roster" group of the status bar, on the decision
+// and the composition page. The Kader is linked to exactly one roster
+// (`roster.kaderId`, 1:1). The green button (TakeoverWizard.tsx) creates a roster
+// or takes the Kader into Discord; next to it the menu "Mehr" holds the smaller
+// ways: without a roster "Mit bestehendem Roster verknüpfen" (POST
+// /api/kader/roster/link - the roster whose category the Kader counts attendance
+// in is suggested first, e.g. a migrated "Mo-Raider"), with one "Zum Loot-Council"
+// (#676, /lootcouncil?roster=<id>, only for a reader of the council) and
+// "Verknüpfung". Once linked, "Ins Roster übernehmen (n)" (managers of that roster:
+// POST /api/kader/roster/sync) takes the players decided since then into THAT
+// roster, and "Zum Roster" opens it. Only the state (Roster → Stamm, Bench → Ersatz,
+// Tentative → Probe) and the decided character cross; interviews, answers, votes
+// and comments stay here. Members already in the roster are never touched.
+// After a takeover sync and link are gone: there "Rolle nachziehen" brings everybody
+// in as Stamm (a sync would map differently) and the server refuses another link.
+import { useEffect, useRef, useState, type KeyboardEvent, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
-    createKaderRoster, getKaderRoster, getKaderRosterCategories, linkKaderRoster, syncKaderRoster, updateKader,
-    type ApiError, type KaderLinkRoster, type KaderRosterCategory, type KaderRosterState,
+    getKaderRoster, linkKaderRoster, syncKaderRoster, updateKader,
+    type ApiError, type KaderLinkRoster, type KaderRosterState,
 } from "../../api";
 import { Button, Field, Modal, Switch, buttonClass } from "../../components/ui";
 import { useConfirm } from "../../components/ui/overlay/Modal";
-import { PlusIcon, LinkIcon } from "../../components/ui/icons/icons";
+import { ChevronDownIcon, LinkIcon } from "../../components/ui/icons/icons";
 import { useToast } from "../../components/shell/Jobs";
+import { useDismiss } from "../../hooks/useDismiss";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
+import { TakeoverEntry } from "./modals/TakeoverWizard";
 import { useKader } from "./kaderContext";
 
-/** The refusals the create dialog says in words; anything else shows the server's message. */
-const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken", "version_mismatch", "version_hidden"];
 /** The refusals of a link in words. */
 const LINK_CODES = ["kader_taken", "kader_not_found", "not_found", "version_mismatch", "kader_taken_over"];
-
-function CreateRosterModal({ kaderId, kaderName, onClose, onCreated }: {
-    kaderId: string; kaderName: string; onClose: () => void; onCreated: (rosterId: string, added: number) => void;
-}) {
-    const t = useT();
-    const [name, setName] = useState(kaderName.slice(0, 40));
-    const [categoryId, setCategoryId] = useState("");
-    const [busy, setBusy] = useState(false);
-    const [problem, setProblem] = useState("");
-    const { kader } = useKader();
-    // the categories of the Kader's version only (#741): a roster from a Kader plays its version
-    const options = useApi(() => getKaderRosterCategories(kader.versionId || ""), [kader.versionId]);
-    const free: KaderRosterCategory[] = (options.data?.categories || []).filter((c) => !c.rosterId);
-    const submit = async () => {
-        if (!name.trim() || busy) return;
-        setBusy(true);
-        setProblem("");
-        try {
-            const res = await createKaderRoster(kaderId, { name: name.trim(), categoryId });
-            onCreated(res.roster.id, res.initial.added);
-        } catch (e) {
-            const err = e as ApiError;
-            setProblem(CREATE_CODES.includes(err.code) ? t(`kader.roster.error.${err.code}`) : err.message || t("kader.error"));
-        } finally {
-            setBusy(false);
-        }
-    };
-    return (
-        <Modal
-            open
-            onClose={onClose}
-            icon="kader"
-            tone="kader"
-            title={t("kader.roster.createTitle")}
-            width={520}
-            className="kp-dialog"
-            initialFocus="input"
-            hint={t("kader.roster.createHint")}
-            footer={(
-                <>
-                    <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button icon={<PlusIcon />} disabled={!name.trim()} running={busy} onClick={() => void submit()}>{t("kader.roster.create")}</Button>
-                </>
-            )}
-        >
-            <div className="kp-stack">
-                <Field label={t("kader.field.name")} htmlFor="kp-roster-name">
-                    <input id="kp-roster-name" value={name} maxLength={40} onChange={(e) => setName(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === "Enter") void submit(); }} />
-                </Field>
-                <Field label={t("kader.roster.category")} htmlFor="kp-roster-cat">
-                    <select id="kp-roster-cat" value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                        <option value="">{t("kader.roster.noCategory")}</option>
-                        {free.map((c) => <option key={c.id} value={c.id}>{c.name || c.id}</option>)}
-                    </select>
-                </Field>
-                <div className="hint">{t("kader.roster.categoryHint")}</div>
-                {problem && <p className="kp-livehint" role="alert">{problem}</p>}
-            </div>
-        </Modal>
-    );
-}
 
 /** One roster as the link picker names it: "Mo-Raider (Vorschlag)", "PuG · verknüpft mit einem anderen Kader". */
 function rosterOption(r: KaderLinkRoster, t: ReturnType<typeof useT>): string {
@@ -183,21 +122,57 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
 }
 
 /**
- * The roster action in the decision page's bar: without a link "Mit
- * bestehendem Roster verknüpfen" and "Roster anlegen" (full admins); with one
- * "Ins Roster übernehmen (n)", "Zum Roster" and, for full admins, "Verknüpfung".
- * Nothing for somebody who may do none of it and no roster to show.
+ * The smaller roster actions behind one button, right next to the green one:
+ * arrows walk the entries, Escape and a click elsewhere close (focus back on the button).
+ */
+function RosterMenu({ children }: { children: (close: () => void) => ReactNode }) {
+    const t = useT();
+    const [shown, setShown] = useState(false);
+    const wrap = useRef<HTMLDivElement>(null);
+    const btn = useRef<HTMLButtonElement>(null);
+    const menu = useRef<HTMLDivElement>(null);
+    const close = () => setShown(false);
+    useDismiss(wrap, shown, close);
+    useEffect(() => {
+        if (shown) menu.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    }, [shown]);
+    const onKey = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+            e.stopPropagation();
+            close();
+            btn.current?.focus();
+            return;
+        }
+        if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+        e.preventDefault();
+        const items = Array.from(menu.current?.querySelectorAll<HTMLElement>("[role=menuitem]") || []);
+        const at = items.indexOf(document.activeElement as HTMLElement);
+        items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
+    };
+    return (
+        <div className="kp-menuwrap kp-rostermenu" ref={wrap} onKeyDown={onKey}>
+            <button ref={btn} type="button" className={buttonClass("ghost", "md", false, "kp-stage-act")} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown(!shown)}>
+                {t("kader.nav.more")}<ChevronDownIcon />
+            </button>
+            {shown && <div className="kp-menu" ref={menu} role="menu" aria-label={t("kader.nav.more")}>{children(close)}</div>}
+        </div>
+    );
+}
+
+/**
+ * The bar's "Roster" group: the sync when players wait, "Zum Roster", the menu of
+ * the smaller ways and the green button far right. Nothing for a reader without a
+ * roster to show.
  */
 export default function RosterLink() {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
-    const { kader } = useKader();
+    const { kader, canWrite } = useKader();
     const counts = countStates(kader);
     // the decided players: a state change refetches what is pending
     const decided = `${counts.roster}/${counts.bench}/${counts.tentative}`;
     const state = useApi(() => getKaderRoster(kader.id), [kader.id, decided]);
-    const [creating, setCreating] = useState(false);
     const [linking, setLinking] = useState(false);
     const [busy, setBusy] = useState(false);
     const s = state.data;
@@ -239,66 +214,61 @@ export default function RosterLink() {
         />
     );
 
-    if (!s.roster) {
-        const canLink = !!s.canLink && (s.rosters || []).length > 0;
-        if (!s.canCreate && !canLink) return null;
-        const suggestion = (s.rosters || []).find((r) => r.suggested && !r.linkedKaderId);
-        return (
-            <>
-                {canLink && (
-                    <Button variant="ghost" className="kp-stage-act" onClick={() => setLinking(true)}
-                        data-tip={t("kader.roster.linkTip")} data-tip-sub={suggestion ? t("kader.roster.linkTipSuggestion", { name: suggestion.name }) : t("kader.roster.linkTipSub")}>
-                        {t("kader.roster.linkButton")}
-                    </Button>
-                )}
-                {s.canCreate && (
-                    <Button variant="ghost" icon={<PlusIcon />} className="kp-stage-act" onClick={() => setCreating(true)}
-                        data-tip={t("kader.roster.createTip")} data-tip-sub={t("kader.roster.createTipSub", { count: s.candidates })}>
-                        {t("kader.roster.createButton")}
-                    </Button>
-                )}
-                {creating && (
-                    <CreateRosterModal
-                        kaderId={kader.id}
-                        kaderName={kader.name}
-                        onClose={() => setCreating(false)}
-                        onCreated={(_id, added) => {
-                            setCreating(false);
-                            toast(t("kader.roster.created", { count: added }));
-                            void state.reload();
-                        }}
-                    />
-                )}
-                {linkModal}
-            </>
-        );
-    }
+    const roster = s.roster;
+    const taken = !!kader.takeover;
+    // only with a free choice: without a roster to pick the entry leads nowhere
+    const canLinkNew = !roster && !!s.canLink && (s.rosters || []).length > 0;
+    const canRelink = !!roster && !!s.canLink && !taken;
+    const council = !!roster && !!s.lootCouncil;
+    if (!roster && !canWrite && !canLinkNew) return null;
+    const suggestion = (s.rosters || []).find((r) => r.suggested && !r.linkedKaderId);
+    const hasMenu = canLinkNew || canRelink || council;
     return (
-        <>
-            {s.canSync && s.pending > 0 && (
-                <Button variant="ghost" className="kp-stage-act" running={busy} onClick={() => void sync()}
-                    data-tip={t("kader.roster.syncTip")} data-tip-sub={t("kader.roster.syncTipSub")}>
-                    {t("kader.roster.syncButton", { count: s.pending })}
-                </Button>
-            )}
-            <Link to={`/roster/r/${encodeURIComponent(s.roster.id)}`} className={buttonClass("ghost", "md", false, "kp-stage-act")}
-                data-tip={t("kader.roster.openTip", { name: s.roster.name })} data-tip-sub={t("kader.roster.openTipSub", { count: s.roster.members })}>
-                {t("kader.roster.open")}
-            </Link>
-            {/* #676: the roster runs as Loot-Council - only its id crosses, nothing of the Kader */}
-            {s.lootCouncil && (
-                <Link to={`/lootcouncil?roster=${encodeURIComponent(s.roster.id)}`} className={buttonClass("ghost", "md", false, "kp-stage-act")}
-                    data-tip={t("kader.roster.councilTip", { name: s.roster.name })}>
-                    {t("kader.roster.council")}
-                </Link>
-            )}
-            {s.canLink && (
-                <Button variant="ghost" className="kp-stage-act" onClick={() => setLinking(true)}
-                    data-tip={t("kader.roster.relinkTip", { name: s.roster.name })}>
-                    {t("kader.roster.relink")}
-                </Button>
-            )}
+        <div className="kp-navgroup kp-navgroup-main">
+            <span className="kicker">{t("kader.nav.rosterGroup")}</span>
+            <div className="kp-navrow kp-navrow-acts">
+                {roster && !taken && s.canSync && s.pending > 0 && (
+                    <Button variant="ghost" className="kp-stage-act" running={busy} onClick={() => void sync()}
+                        data-tip={t("kader.roster.syncTip")} data-tip-sub={t("kader.roster.syncTipSub")}>
+                        {t("kader.roster.syncButton", { count: s.pending })}
+                    </Button>
+                )}
+                {roster && (
+                    <Link to={`/roster/r/${encodeURIComponent(roster.id)}`} className={buttonClass("ghost", "md", false, "kp-stage-act")}
+                        data-tip={t("kader.roster.openTip", { name: roster.name })} data-tip-sub={t("kader.roster.openTipSub", { count: roster.members })}>
+                        {t("kader.roster.open")}
+                    </Link>
+                )}
+                {hasMenu && (
+                    <RosterMenu>
+                        {(close) => (
+                            <>
+                                {canLinkNew && (
+                                    <button type="button" role="menuitem" className="kp-menuopt" onClick={() => { close(); setLinking(true); }}
+                                        data-tip={t("kader.roster.linkTip")} data-tip-sub={suggestion ? t("kader.roster.linkTipSuggestion", { name: suggestion.name }) : t("kader.roster.linkTipSub")}>
+                                        {t("kader.roster.linkButton")}
+                                    </button>
+                                )}
+                                {/* #676: the roster runs as Loot-Council - only its id crosses, nothing of the Kader */}
+                                {roster && council && (
+                                    <Link role="menuitem" to={`/lootcouncil?roster=${encodeURIComponent(roster.id)}`} className="kp-menuopt" onClick={close}
+                                        data-tip={t("kader.roster.councilTip", { name: roster.name })}>
+                                        {t("kader.roster.council")}
+                                    </Link>
+                                )}
+                                {roster && canRelink && (
+                                    <button type="button" role="menuitem" className="kp-menuopt" onClick={() => { close(); setLinking(true); }}
+                                        data-tip={t("kader.roster.relinkTip", { name: roster.name })}>
+                                        {t("kader.roster.relink")}
+                                    </button>
+                                )}
+                            </>
+                        )}
+                    </RosterMenu>
+                )}
+                <TakeoverEntry canCreate={!!s.canCreate} linked={!!roster} onDone={state.reload} />
+            </div>
             {linkModal}
-        </>
+        </div>
     );
 }

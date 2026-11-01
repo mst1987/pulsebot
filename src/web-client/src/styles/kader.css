@@ -98,7 +98,8 @@
 /* ---- header: Kader picker, leads, settings ---- */
 .kp-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
 .kp-top-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kp-back-row { flex-basis: 100%; display: flex; }
+.kp-top-id { display: flex; flex-wrap: nowrap; align-items: center; gap: 14px; min-width: 0; }
+.kp-back-row { display: flex; flex: none; }
 .kp-picker { position: relative; min-width: 0; }
 .kp-picker-btn {
     display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0; border: 0; background: none;
@@ -107,7 +108,7 @@
 .kp-picker-btn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .kp-picker-btn:hover svg, .kp-picker-btn:focus-visible svg { color: var(--accent); }
 .kp-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kp-leads { display: flex; align-items: center; gap: 8px; }
+.kp-leads { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; }
 .kp-avatars { display: flex; gap: 4px; }
 .kp-avatar {
     display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; flex: none;
@@ -167,12 +168,20 @@
 .kp-check svg { width: 11px; height: 11px; }
 
 /* ---- the status bar: players per state ---- */
-.kp-stages { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.kp-stages-kicker { margin-right: 4px; }
+/* Labelled groups, the label above; a group wraps as a whole, never one button in it.
+   The bar is a named container: only it decides how far the groups may fold. */
+.kp-stages {
+    display: flex; align-items: flex-end; gap: 10px 20px; flex-wrap: wrap; min-width: 0;
+    container: kp-nav / inline-size; position: relative; z-index: 5;
+}
+.kp-navgroup { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.kp-navgroup-main { margin-left: auto; }
+.kp-navrow { display: flex; flex-wrap: nowrap; align-items: center; gap: 8px; min-width: 0; }
+.kp-rostermenu.kp-menuwrap .kp-menu { left: auto; right: 0; }
 .kp-stage {
-    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px 0 12px;
+    display: inline-flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 8px 0 10px;
     border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
-    color: var(--text); font-size: 15px; font-weight: 600; text-decoration: none; white-space: nowrap;
+    color: var(--text); font-size: 14px; font-weight: 600; text-decoration: none; white-space: nowrap;
     transition: border-color .12s ease, background-color .12s ease;
 }
 .kp-stage:hover, .kp-stage:focus-visible { border-color: var(--accent); outline: none; }
@@ -193,10 +202,30 @@
 .kp-stage-group .kp-stage:first-child { border-radius: 6px 0 0 6px; }
 .kp-stage-group .kp-stage:last-child { border-radius: 0 6px 6px 0; }
 .kp-stage-group .kp-stage:hover, .kp-stage-group .kp-stage:focus-visible, .kp-stage-group .kp-stage.kp-active { position: relative; z-index: 1; }
+/* the status bar alone no longer fits: the flow above the decided states */
+@container kp-nav (max-width: 760px) {
+    .kp-navrow-status { flex-wrap: wrap; }
+    .kp-navgroup-main { margin-left: 0; }
+}
+/* phone width: everything stacked, the actions may share lines, the menu spans the group */
+@container kp-nav (max-width: 520px) {
+    .kp-navgroup { width: 100%; }
+    .kp-navrow-acts { flex-wrap: wrap; }
+    .kp-navrow-acts > * { flex: 1 1 auto; }
+    .kp-navrow-acts .kp-stage-act, .kp-navrow-acts .kp-tk-entry .btn { width: 100%; justify-content: center; }
+    .kp-navgroup-main { position: relative; }
+    .kp-rostermenu.kp-menuwrap { position: static; }
+    .kp-rostermenu.kp-menuwrap .kp-menu { left: 0; right: 0; max-width: none; }
+    .kp-navrow-flow { flex-wrap: wrap; }
+    /* two-digit counts in all three decided states still fit; narrower phones wrap inside the group */
+    .kp-stage-group { flex-wrap: wrap; max-width: 100%; }
+    .kp-stage-group .kp-stage { padding: 0 6px; }
+}
 @media (max-width: 640px) {
-    .kp-stages-kicker { flex-basis: 100%; }
     .kp-stage-arrow { display: none; }
-    .kp-stage { font-size: 14px; padding: 0 8px 0 10px; gap: 6px; }
+    .kp-stage { min-height: 44px; padding: 0 8px 0 10px; gap: 6px; }
+    .kp-stages .btn, .kp-top .btn, .kp-top .kp-picker-btn { min-height: 44px; }
+    .kp-stages .ibtn, .kp-top .ibtn { width: 44px; height: 44px; }
 }
 
 /* ---- the start page without a Kader ---- */

@@ -23,6 +23,7 @@ vi.mock("../../../api", async (orig) => ({
     leaveKaderLive: vi.fn(),
     // the roster button of the decision page (#658, RosterLink.test.tsx tests it)
     getKaderRoster: vi.fn(async () => null),
+    getKaderTakeover: vi.fn(async () => null),
     createKader: vi.fn(),
     setKaderState: vi.fn(),
     addKaderPlayers: vi.fn(),
@@ -175,6 +176,18 @@ describe("KaderPage · Kader", () => {
         }
         // no step numbers: the only figures are the counts
         expect(within(nav).queryByText("4")).toBeNull();
+    });
+
+    it("heads each group of the second line with its label, the actions grouped apart from the states", async () => {
+        vi.mocked(api.getKaderRoster).mockResolvedValueOnce({ roster: { id: "r1", name: "Forever-Raid", members: 2 }, candidates: 3, pending: 0, canCreate: false, canSync: false });
+        await show("/kader/k1/roster");
+        await waitFor(() => expect(document.querySelector(".kp-navgroup-main")).not.toBeNull());
+        const groups = [...document.querySelectorAll(".kp-stages .kp-navgroup")];
+        expect(groups.map((g) => g.firstElementChild?.textContent)).toEqual([t("kader.nav.kicker"), t("kader.nav.planGroup"), t("kader.nav.rosterGroup")]);
+        for (const g of groups) expect(g.firstElementChild).toHaveClass("kicker");
+        // the Kader's name and the way back share the first line, the people lead there
+        expect(document.querySelector(".kp-top-id")).toContainElement(screen.getByRole("button", { name: /Forever-Kader/ }));
+        expect(document.querySelector(".kp-leads .kicker")).toHaveTextContent(t("kader.header.leads"));
     });
 
     it("marks every state the roster page shows", async () => {

@@ -1,13 +1,14 @@
 // The head of every Kader page: which Kader (a picker with every Kader and "Neuer
 // Kader"), who leads it and who is here right now (Presence.tsx), the Kader's
-// activity log ("Aktivität"), the settings — and the status bar: how many players
-// stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
+// activity log ("Aktivität"), the settings, on one line — and the status bar: how
+// many players stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
 // Tentative), each state with its icon and its count, the states of the open
-// page marked. On the decision page Pool and Vorauswahl also take a dropped card,
-// and the bar ends with the raid roster action (RosterLink.tsx, #658) and the
-// example setups; on the composition page with
-// "In Discord übernehmen" (TakeoverWizard.tsx), and a taken-over Kader shows its
-// role and "Rolle nachziehen" in the head.
+// page marked. On the decision page Pool and Vorauswahl also take a dropped card.
+// On the decision and the composition page the bar goes on with labelled groups, the
+// label above each: "Planung" (composition, example setups) and, far right, "Roster"
+// (RosterLink.tsx, #658, with the green button of TakeoverWizard.tsx). Groups wrap as
+// a whole, never a single button (kader.css, container kp-nav). A taken-over Kader
+// shows its role and "Rolle nachziehen" in the head.
 import { Fragment, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
@@ -21,7 +22,7 @@ import { StateIcon } from "./parts";
 import { useMovePlayer } from "./useMovePlayer";
 import { HeaderPeople } from "./live/Presence";
 import RosterLink from "./RosterLink";
-import { TakeoverEntry, TakeoverLine } from "./modals/TakeoverWizard";
+import { TakeoverLine } from "./modals/TakeoverWizard";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */
@@ -71,11 +72,13 @@ export default function KaderHeader() {
     const { canWrite, open } = useKader();
     return (
         <div className="kp-top">
-            <div className="kp-back-row"><BackButton to="/kader" label={t("kader.header.all")} size="sm" /></div>
-            <IconTile icon="kader" tone="kader" size="lg" />
-            <div className="kp-top-text">
-                <span className="kicker kp-accent2">{t("kader.header.kicker")}</span>
-                <KaderPicker />
+            <div className="kp-top-id">
+                <div className="kp-back-row"><BackButton to="/kader" label={t("kader.header.all")} size="sm" /></div>
+                <IconTile icon="kader" tone="kader" size="lg" />
+                <div className="kp-top-text">
+                    <span className="kicker kp-accent2">{t("kader.header.kicker")}</span>
+                    <KaderPicker />
+                </div>
             </div>
             <span className="kp-grow" />
             <div className="kp-leads">
@@ -122,23 +125,32 @@ export function StageNav({ sub }: { sub: KaderSub }) {
     const counts = countStates(kader);
     return (
         <nav className="kp-stages" aria-label={t("kader.nav.aria")}>
-            <span className="kicker kp-stages-kicker">{t("kader.nav.kicker")}</span>
-            {FLOW.map((s) => (
-                <Fragment key={s}>
-                    <StageSegment state={s} sub={sub} count={counts[s]} />
-                    <span className="kp-stage-arrow" aria-hidden="true"><ChevronRightIcon /></span>
-                </Fragment>
-            ))}
-            <span className="kp-stage-group">{DECIDED.map((s) => <StageSegment key={s} state={s} sub={sub} count={counts[s]} />)}</span>
+            <div className="kp-navgroup kp-navgroup-status">
+                <span className="kicker">{t("kader.nav.kicker")}</span>
+                <div className="kp-navrow kp-navrow-status">
+                    <div className="kp-navrow kp-navrow-flow">
+                        {FLOW.map((s) => (
+                            <Fragment key={s}>
+                                <StageSegment state={s} sub={sub} count={counts[s]} />
+                                <span className="kp-stage-arrow" aria-hidden="true"><ChevronRightIcon /></span>
+                            </Fragment>
+                        ))}
+                    </div>
+                    <span className="kp-stage-group">{DECIDED.map((s) => <StageSegment key={s} state={s} sub={sub} count={counts[s]} />)}</span>
+                </div>
+            </div>
             {(sub === "roster" || sub === "zusammensetzung") && (
                 <>
-                    <span className="kp-grow" />
-                    {sub === "roster" && <RosterLink />}
-                    {sub === "roster" && (
-                        <Link to={`/kader/${kader.id}/zusammensetzung`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.composition")}</Link>
-                    )}
-                    <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
-                    {sub === "zusammensetzung" && <TakeoverEntry />}
+                    <div className="kp-navgroup">
+                        <span className="kicker">{t("kader.nav.planGroup")}</span>
+                        <div className="kp-navrow kp-navrow-acts">
+                            {sub === "roster" && (
+                                <Link to={`/kader/${kader.id}/zusammensetzung`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.composition")}</Link>
+                            )}
+                            <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
+                        </div>
+                    </div>
+                    <RosterLink />
                 </>
             )}
         </nav>

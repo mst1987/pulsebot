@@ -74,29 +74,34 @@ roster and nowhere else — a migrated roster ("Mo-Raider") that the Kader is me
 roster being created. Linking copies nothing of the Kader; the privacy rule stays: only status and the decided
 character cross, and only through "Ins Roster übernehmen".
 
-**In the planner (#658):** the bar of the decision page (`/kader/<id>/roster`, `pages/kader/RosterLink.tsx`, beside
-"Beispiel-Setups") shows the roster action:
+**In the planner (#658):** the roster group sits at the right end of the second header line on the decision page
+(`/kader/<id>/roster`, `pages/kader/RosterLink.tsx`) and on "Zusammensetzung". Its main action is one green button,
+the same on both pages (`TakeoverEntry`, see "The web assistant"): **"Roster anlegen"** without a linked roster, **"In
+Discord übernehmen"** with a linked roster before the takeover, no button after it (the "In Discord" line stays). There
+is no separate roster dialog any more. Beside it:
 
-- **"Mit bestehendem Roster verknüpfen"** — while the Kader has no roster, for full admins with `kader` write. A
-  dialog with the server's rosters (the one whose category the Kader counts attendance in first, "Vorschlag"; one
-  another Kader holds greyed out), then `POST /api/kader/roster/link`. When the picked roster's category is not among
-  the Kader's attendance categories, a switch (on) adds it through the ordinary `PUT /api/kader/kaders` — the
-  Kader's own route and rights.
-- **"Roster anlegen"** — while the Kader has no roster, for full admins only. A dialog with the
-  name (default the Kader's) and an optional raid category (only categories without roster, from `GET
-  /api/rosters/options`), then `POST /api/rosters/create` with `source: "kader"`; the toast says how many came along.
-  Without a category the roster plays the planner's version (Forever when that rule set exists — the characters are
-  looked up there), with one the category's version.
-- **"Ins Roster übernehmen (n)"** — once the roster exists, for whoever has `kader` write and manages that roster
-  (`canManageRosterLive`: full admin, a manager account or role). `n` = players in roster / bench / tentative who are
-  not in the roster yet; after a confirmation `POST /api/kader/roster/sync` (`rosterCreate.syncRosterFromKader`) takes
-  them in the same way (status, character, main role); **members already in the roster are never touched**, and nobody
-  is taken out because the Kader moved them back. Role failures are counted in the toast.
 - **"Zum Roster"** — the link to `/roster/r/<id>`: name, members, status and roles are edited there.
-- **"Zum Loot-Council"** (#676) — when the linked roster runs as Loot-Council (`rosterLootSystem`) and the caller may read the loot council, a link `/lootcouncil?roster=<id>` next to "Zum Roster" opens the council with that roster picked (`GET /api/kader/roster` → `lootCouncil: true`). Only the roster id crosses; interviews, votes and notes stay here.
-- **"Verknüpfung"** — full admins: the same dialog to link another roster or "Verknüpfung lösen" (the roster stays
-  with all its members). The roster page links back: its Komposition's "Zum Kaderplaner" opens `/kader/<kaderId>/roster`
-  of the linked Kader, and the roster settings ("Kader im Kaderplaner") set or clear the same link from that side.
+- **"Ins Roster übernehmen (n)"** — visible while `n > 0`, once the roster exists and **before** the takeover, for
+  whoever has `kader` write and manages that roster (`canManageRosterLive`: full admin, a manager account or role).
+  `n` = players in roster / bench / tentative who are not in the roster yet; after a confirmation `POST
+  /api/kader/roster/sync` (`rosterCreate.syncRosterFromKader`) takes them in the same way (status, character, main
+  role); **members already in the roster are never touched**, and nobody is taken out because the Kader moved them
+  back. Role failures are counted in the toast. After the takeover the client hides it: from then on the role follows
+  the Kader ("Rolle nachziehen"), and this path would map status differently. The route itself has no takeover check.
+- **Menu "Mehr"** (`RosterMenu`, the `kp-menu` pattern with keyboard and `useDismiss`) for the side actions:
+  - **"Mit bestehendem Roster verknüpfen"** — while the Kader has no roster, for full admins with `kader` write. A
+    dialog with the server's rosters (the one whose category the Kader counts attendance in first, "Vorschlag"; one
+    another Kader holds greyed out), then `POST /api/kader/roster/link`. When the picked roster's category is not
+    among the Kader's attendance categories, a switch (on) adds it through the ordinary `PUT /api/kader/kaders` — the
+    Kader's own route and rights.
+  - **"Zum Loot-Council"** (#676) — when the linked roster runs as Loot-Council (`rosterLootSystem`) and the caller may
+    read the loot council, a link `/lootcouncil?roster=<id>` opens the council with that roster picked (`GET
+    /api/kader/roster` → `lootCouncil: true`). Only the roster id crosses; interviews, votes and notes stay here.
+  - **"Verknüpfung"** — full admins, before the takeover (the link route answers `kader_taken_over` after it): the same
+    dialog to link another roster or "Verknüpfung lösen" (the roster stays with all its members).
+
+The roster page links back: its Komposition's "Zum Kaderplaner" opens `/kader/<kaderId>/roster` of the linked Kader, and
+the roster settings ("Kader im Kaderplaner") set or clear the same link from that side.
 
 `GET /api/kader/roster?kader=<id>` (area `kader` read, `rosterCreate.kaderRosterState`) answers counts only: `{ roster:
 { id, name, members } | null, candidates, pending, canCreate, canSync, canLink, rosters }` — `rosters` (only with
@@ -181,9 +186,27 @@ Routes (area `kader`, writes with CSRF):
 color ("#rrggbb", "" for none), gone }`, `category { id, name, gone }`; null before a takeover or with the bot
 offline.
 
-**The web assistant** (`pages/kader/modals/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`): the button "In Discord
-übernehmen" in the stage bar of "Zusammensetzung" (only with `kader` write; locked with the blocker as tooltip while
-`canStart` is false) opens four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
+**One button, Discord optional** (`TakeoverEntry` in `pages/kader/modals/TakeoverWizard.tsx`): the same green button on
+the decision page and on "Zusammensetzung" — readers (no `kader` write) do not see it. Without a linked roster it says
+"Roster anlegen" and the first step of the assistant has the switch **"Auch in Discord anlegen (Rolle, Kategorie,
+Kanäle)"**, on by default; with a linked roster it says "In Discord übernehmen" and there is no switch.
+
+- **Switch off** creates the roster alone: only the roster name and the optional raid category, no role fields, no step
+  "Kanäle"; "Wer" lists roster / bench / tentative as Stamm / Ersatz / Probe; the roster comes from
+  `createKaderRoster(kaderId, { name, categoryId })` (`POST /api/rosters/create` with `source: "kader"`). Without a
+  category the roster plays the planner's version (Forever when that rule set exists — the characters are looked up
+  there), with one the category's version. The result step says how many came along; afterwards `RosterLink` shows the
+  new state at once.
+- **Switch on** is the takeover below; everybody from provisional upwards comes along as Stamm.
+- **Locking.** The two ways have different rights and are not mixed: the roster alone needs `canCreate` (full admin),
+  Discord needs `canStart` and no Discord blocker. A Discord blocker never locks the roster way: the switch is off and
+  locked with the reason as tooltip. The button is locked only when neither way works (for example a Kader lead who is no
+  full admin and has no roster: `admin_only`). `no_players` locks only Discord, `version_hidden` both.
+- **Fresh precheck.** The precheck loads when the button appears and again on every click — never per `rev`: the server
+  has one vCPU and a Kader moves often. A blocker found on click shows as a toast instead of opening the dialog.
+
+**The web assistant** (`pages/kader/modals/TakeoverWizard.tsx`, logic in `lib/kader/takeover.ts`) with Discord on has
+four steps — **Rolle** (name, colour, emoji; the emoji field is off with the boost-level
 reason unless `iconPossible`, otherwise the picker has the section "Server" with the server's emojis first and the
 preview shows the picked picture; without a linked roster also the block "Neues Roster" with its name and the optional
 raid category, "Keine" by default, the select off when no category is free), **Kanäle** (new or existing category, channels with "Nur Orga schreibt"), **Wer**
@@ -347,7 +370,7 @@ A player's **entry**:
 | `state`, `since`, `by` | `pool` · `selected` · `provisional` · `roster` · `bench` · `tentative`, with when and who (the Verlauf says it; the working surfaces do not) |
 | `addedAt`, `addedBy` | when and by whom the player came into this Kader |
 | `history` | the last 50 events: `added`, `state {from,to}`, `decision {className,spec}`, `interview_saved`, `lead {to}`, `interview_completed`, `interview_reopened`, `vote {vote|none}`, `migrated {to}` — with `at` and `by`. `interview_saved` and `lead` are coalesced: the same person within ten minutes replaces their line, also with other people's lines in between, and it moves to the end (`kaderPlayers.noteHistory`) |
-| `wishes` | `[{ className, spec }]` in order (≤ 6, no spec twice); prefilled with the account's character when taken in |
+| `wishes` | `[{ className, spec }]` in order (≤ 6, no spec twice); prefilled with the account's character when taken in; "Specs bearbeiten" (`WishesModal`) changes them without an interview |
 | `interview` | `{ lead, answers: { [questionId]: optionId \| [optionId] \| text }, note (≤ 2000), startedAt, updatedAt, updatedBy, completedAt, completedBy, rev? }` |
 | `votes` | `{ [leadUserId]: yes \| unsure \| no }` |
 | `comments` | `[{ id, by, at, text (≤ 1000) }]` (≤ 200), only the author deletes one |
@@ -362,6 +385,10 @@ the one given, else the one it had (outside the roster only "Planspiel übernehm
 roster → roster with a new decision only changes it. Leaving the roster (roster → any other state, one player or a
 batch) clears the decision, so the composition counts the first wish again and a later move back in starts from it. A batch
 move skips who does not fit and answers `moved`/`skipped`; only when nothing moved it is a 409.
+
+**Back directly:** a player can go back any number of states at once (`useMovePlayer`): from the drawer to Pool or
+Vorauswahl, and on the decision page by dropping a card on the "Pool" or "Vorauswahl" segment of the status bar. No step
+in between.
 
 ### Interview
 
@@ -475,7 +502,7 @@ Who changed what and when is in two logs, not on the working surfaces (no "seit 
 - **Verlauf** of a player (`ActivityLog.tsx` `HistoryButton`, a clock button in the interview's head, the drawer's
   head and the account dialog): the player's `history`, newest first, each line with date and time, what and who.
 - **Aktivität** of the Kader (header, next to the settings): the activity log, newest first, filterable by person
-  (remembered in `kader-activity-person`).
+  (remembered in `kader-activity-person`). "Specs bearbeiten" writes the type `wishes`, an interview save `interview`.
 
 The interview keeps only a small save-state icon (saved, saving, unsaved, paused, nothing yet — the words in the
 tooltip) and "n Pflichtfragen offen" (the list in the tooltip) next to it, so the action buttons stay where they are.
@@ -524,6 +551,7 @@ Parameters in the body; `kaderId` names the Kader.
 | `POST /api/kader/players/remove` | `{ kaderId, userIds }` |
 | `POST /api/kader/players/state` | `{ kaderId, userIds, to, decision? }` |
 | `PUT /api/kader/interview` | `{ kaderId, userId, wishes?, answers? (only those given; "" clears one), note?, lead?, baseRev?, force? }` |
+| `PUT /api/kader/wishes` | `{ kaderId, userId, wishes, baseRev?, force? }` — "Specs bearbeiten" outside the interview: does not start it (activity type `wishes`) |
 | `POST /api/kader/interview/complete` · `…/reopen` | `{ kaderId, userId }` |
 | `POST /api/kader/votes` | `{ kaderId, userId, vote: yes\|unsure\|no\|"" }` — leads only |
 | `POST /api/kader/comments` · `…/delete` | `{ kaderId, userId, text }` · `{ kaderId, userId, commentId }` — own only |
@@ -553,9 +581,14 @@ geöffnet"; there is no automatic jump into it any more. The head's "Neuer Kader
 the create dialog (write access only). Without any Kader the start page shows the flow and "Ersten Kader anlegen".
 Deleting a Kader and switching the menu's version away from the open one land on the overview.
 
-- **Header**: a coloured back button "Alle Kader" (to `/kader`), the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader"), the leads as avatars,
-  the settings (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a
-  checklist with their nights, delete behind a confirmation). Below the
+- **Header** in two lines (`KaderHeader`, `StageNav`). Line 1: a coloured back button "Alle Kader" (to `/kader`), the
+  Kader icon with "Kaderplaner" and the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader") in one
+  row; right the leads as avatars under the kicker "Leitung", activity, and the settings (name, leads as rows with a
+  remove button, add a member, the raid categories attendance counts in as a checklist with their nights, delete behind
+  a confirmation). Line 2: groups with their kicker **above** them ("Spieler je Status", "Planung", "Roster") on a
+  common baseline, the main action at the far right. **A group wraps only as a whole** (`nowrap` inside, `flex-wrap`
+  outside, stepped by a container query on `kp-nav`); on a phone the groups stack without horizontal page scroll, with
+  touch targets of at least 44 px. The drop zones of the status bar stay in place. The
   **status bar** "Spieler je Status": one rectangular segment per state — icon, label, the count as a badge, the
   words ("3 Spieler im Pool") as tooltip and accessible name; Pool → Vorauswahl → Vorläufig, then Roster · Bench ·
   Tentative as one group. The states of the open page are marked (filled, accent underline); no step numbers.
