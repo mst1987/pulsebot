@@ -2,8 +2,9 @@
 // across classes (1 Paladin · Vergeltung, 2 Magier · Feuer, …). The same menu in
 // the setup slots and in the drawer's decision, so both look alike. The trigger
 // shows the chosen spec's icon (with the class in its colour when there is
-// room, or the spec with `specLabel`) and a chevron; the menu: rank, spec icon, class in class colour, the
-// full "Klasse · Spec" as tooltip and label, a check on the current one. A
+// room, or the spec with `specLabel`) and a chevron; the menu: rank, spec icon, class
+// in class colour (the spec with `specLabel`, like the trigger), the full
+// "Klasse · Spec" as tooltip and label, a check on the current one. A
 // decision that is none of the wishes (a roster player) comes first, labelled
 // "Entscheidung". With `addFor` (write access) it is always a menu, also with one
 // spec or none, and ends with "Spec hinzufügen …" (AddSpecDialog): the new spec is
@@ -41,7 +42,7 @@ export default function WishPicker({ entry, value, onChange, label, addFor = "",
     compact?: boolean;
     /** The trigger fills its row (the drawer). */
     wide?: boolean;
-    /** The trigger names the spec instead of the class (the composition: the class heads the group). */
+    /** Trigger and menu name the spec instead of the class (the composition: the class heads the group). */
     specLabel?: boolean;
 }) {
     const t = useT();
@@ -125,7 +126,7 @@ export default function WishPicker({ entry, value, onChange, label, addFor = "",
                                 data-tip={wishLabel(view.classes, o.pick)} className={`kp-wopt${on ? " kp-on" : ""}`} onClick={() => choose(o)}>
                                 <span className="kp-wopt-rank">{o.rank > 0 ? o.rank : <StateIcon state={o.rank === 0 ? "roster" : "pool"} />}</span>
                                 <PickIcon pick={o.pick} size={22} />
-                                <PickLabel pick={o.pick} className="kp-grow kp-ellipsis" />
+                                <PickLabel pick={o.pick} spec={specLabel} className="kp-grow kp-ellipsis" />
                                 {o.rank <= 0 && <span className="kp-sub">{rankText(o)}</span>}
                                 <span className="kp-wopt-check" aria-hidden="true">{on && <CheckIcon />}</span>
                             </button>

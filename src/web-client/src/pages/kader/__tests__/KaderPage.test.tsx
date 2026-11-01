@@ -167,7 +167,6 @@ describe("KaderPage · Kader", () => {
     it("counts the players per state in the status bar, every count with the words behind it", async () => {
         await show("/kader/k1/pool");
         const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
-        expect(within(nav).getByText(t("kader.nav.kicker"))).toBeInTheDocument();
         expect(within(nav).getByRole("link", { name: t("kader.nav.count.pool", { count: 1 }) })).toHaveAttribute("aria-current", "page");
         expect(within(nav).getByRole("link", { name: t("kader.nav.count.selected", { count: 2 }) })).not.toHaveAttribute("aria-current");
         // bench and tentative are segments of their own, next to the roster
@@ -178,16 +177,52 @@ describe("KaderPage · Kader", () => {
         expect(within(nav).queryByText("4")).toBeNull();
     });
 
-    it("heads each group of the second line with its label, the actions grouped apart from the states", async () => {
+    it("builds the head from three lines side by side in the page, so that only the tabs stick to it", async () => {
         vi.mocked(api.getKaderRoster).mockResolvedValueOnce({ roster: { id: "r1", name: "Forever-Raid", members: 2 }, candidates: 3, pending: 0, canCreate: false, canSync: false });
         await show("/kader/k1/roster");
-        await waitFor(() => expect(document.querySelector(".kp-navgroup-main")).not.toBeNull());
-        const groups = [...document.querySelectorAll(".kp-stages .kp-navgroup")];
-        expect(groups.map((g) => g.firstElementChild?.textContent)).toEqual([t("kader.nav.kicker"), t("kader.nav.planGroup"), t("kader.nav.rosterGroup")]);
-        for (const g of groups) expect(g.firstElementChild).toHaveClass("kicker");
-        // the Kader's name and the way back share the first line, the people lead there
-        expect(document.querySelector(".kp-top-id")).toContainElement(screen.getByRole("button", { name: /Forever-Kader/ }));
-        expect(document.querySelector(".kp-leads .kicker")).toHaveTextContent(t("kader.header.leads"));
+        await waitFor(() => expect(document.querySelector(".kp-tools .kp-toollab")).toHaveTextContent(t("kader.nav.rosterGroup")));
+        const title = document.querySelector(".kp-title") as HTMLElement;
+        const tabs = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const tools = document.querySelector(".kp-tools") as HTMLElement;
+        expect(tabs.previousElementSibling).toBe(title);
+        expect(tabs.nextElementSibling).toBe(tools);
+        expect(tabs.parentElement).toBe(title.parentElement);
+        // the Kader's name, the way back and the people share the title line
+        expect(title).toContainElement(screen.getByRole("button", { name: /Forever-Kader/ }));
+        expect(title).toContainElement(screen.getByRole("link", { name: t("kader.header.all") }));
+        expect(title.querySelector(".kp-leads .kp-lab")).toHaveTextContent(t("kader.header.leads"));
+    });
+
+    it("draws the states as tabs without an icon or a box around the count", async () => {
+        await show("/kader/k1/pool");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        expect(nav.querySelector(".kp-status .kp-sico")).toBeNull();
+        expect(nav.querySelectorAll(".kp-status .kp-htab .kp-htab-n")).toHaveLength(6);
+    });
+
+    it("offers the planning pages as tabs and again in the menu a narrow page folds them into", async () => {
+        await show("/kader/k1/zusammensetzung");
+        const nav = screen.getByRole("navigation", { name: t("kader.nav.aria") });
+        const plan = nav.querySelector(".kp-plan") as HTMLElement;
+        expect(within(plan).getByRole("link", { name: t("kader.nav.composition") })).toHaveAttribute("aria-current", "page");
+        // the short name on the tab, the whole task in its tooltip
+        expect(within(plan).getByRole("link", { name: t("kader.nav.setups") })).toHaveAttribute("data-tip", t("kader.nav.setupsTip"));
+
+        const trigger = within(nav).getByRole("button", { name: t("kader.nav.planGroup") });
+        expect(trigger).toHaveClass("kp-active");
+        await userEvent.click(trigger);
+        const menu = within(nav).getByRole("menu", { name: t("kader.nav.planGroup") });
+        expect(within(menu).getByRole("menuitem", { name: t("kader.nav.composition") })).toHaveAttribute("href", "/kader/k1/zusammensetzung");
+        expect(within(menu).getByRole("menuitem", { name: t("kader.nav.setups") })).toHaveAttribute("href", "/kader/k1/setups");
+        await userEvent.keyboard("{Escape}");
+        expect(within(nav).queryByRole("menu")).toBeNull();
+        expect(trigger).toHaveFocus();
+    });
+
+    it("keeps the pages without a status bar free of the tabs", async () => {
+        await show("/kader/k1/setups");
+        expect(screen.queryByRole("navigation", { name: t("kader.nav.aria") })).toBeNull();
+        expect(document.querySelector(".kp-title")).not.toBeNull();
     });
 
     it("marks every state the roster page shows", async () => {

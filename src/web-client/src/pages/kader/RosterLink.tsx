@@ -1,6 +1,6 @@
 // The Kader's raid roster and the actions around it (#658, docs/kaderplaner.md
-// "Roster aus einem Kader"): the "Roster" group of the status bar, on the decision
-// and the composition page. The Kader is linked to exactly one roster
+// "Roster aus einem Kader"): the tools line of the head (KaderHeader.tsx), on the
+// decision and the composition page. The Kader is linked to exactly one roster
 // (`roster.kaderId`, 1:1). The green button (TakeoverWizard.tsx) creates a roster
 // or takes the Kader into Discord; next to it the menu "Mehr" holds the smaller
 // ways: without a roster "Mit bestehendem Roster verknüpfen" (POST
@@ -28,7 +28,7 @@ import { useDismiss } from "../../hooks/useDismiss";
 import { useApi } from "../../hooks/useApi";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
-import { TakeoverEntry } from "./modals/TakeoverWizard";
+import { TakeoverEntry, TakeoverLine } from "./modals/TakeoverWizard";
 import { useKader } from "./kaderContext";
 
 /** The refusals of a link in words. */
@@ -122,12 +122,17 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
 }
 
 /**
- * The smaller roster actions behind one button, right next to the green one:
- * arrows walk the entries, Escape and a click elsewhere close (focus back on the button),
- * Tab closes and moves on as usual.
+ * A menu of the head behind one button ("Mehr", "Planung"): arrows walk the entries,
+ * Escape and a click elsewhere close (focus back on the button), Tab closes and moves
+ * on as usual.
  */
-function RosterMenu({ children }: { children: (close: () => void) => ReactNode }) {
-    const t = useT();
+export function BarMenu({ label, className = "", buttonClass: triggerClass = buttonClass("ghost", "sm", false), children }: {
+    label: string;
+    className?: string;
+    /** The trigger's classes: a button by default, a tab in the tabs line. */
+    buttonClass?: string;
+    children: (close: () => void) => ReactNode;
+}) {
     const [shown, setShown] = useState(false);
     const wrap = useRef<HTMLDivElement>(null);
     const btn = useRef<HTMLButtonElement>(null);
@@ -155,19 +160,20 @@ function RosterMenu({ children }: { children: (close: () => void) => ReactNode }
         items[(at + (e.key === "ArrowDown" ? 1 : items.length - 1)) % items.length]?.focus();
     };
     return (
-        <div className="kp-menuwrap kp-rostermenu" ref={wrap} onKeyDown={onKey}>
-            <button ref={btn} type="button" className={buttonClass("ghost", "md", false, "kp-stage-act")} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown(!shown)}>
-                {t("kader.nav.more")}<ChevronDownIcon />
+        <div className={`kp-menuwrap kp-barmenu ${className}`.trim()} ref={wrap} onKeyDown={onKey}>
+            <button ref={btn} type="button" className={triggerClass} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown(!shown)}>
+                {label}<ChevronDownIcon />
             </button>
-            {shown && <div className="kp-menu" ref={menu} role="menu" aria-label={t("kader.nav.more")}>{children(close)}</div>}
+            {shown && <div className="kp-menu" ref={menu} role="menu" aria-label={label}>{children(close)}</div>}
         </div>
     );
 }
 
 /**
- * The bar's "Roster" group: the sync when players wait, "Zum Roster", the menu of
- * the smaller ways and the green button far right. Nothing for a reader without a
- * roster to show.
+ * The tools line: the sync when players wait, "Zum Roster", the menu of the smaller
+ * ways and the green button far right, or the line of a taken-over Kader. A reader
+ * without a roster keeps only what is left of that; while the state loads the line
+ * holds its place so the page below does not jump.
  */
 export default function RosterLink() {
     const t = useT();
@@ -181,7 +187,7 @@ export default function RosterLink() {
     const [linking, setLinking] = useState(false);
     const [busy, setBusy] = useState(false);
     const s = state.data;
-    if (!s) return null;
+    if (!s) return state.loading ? <div className="kp-tools" /> : <TakeoverLine />;
 
     const sync = async () => {
         if (!s.roster) return;
@@ -226,27 +232,27 @@ export default function RosterLink() {
     const canLinkNew = !roster && !!s.canLink && (s.rosters || []).length > 0;
     const canRelink = !!roster && !!s.canLink && !taken;
     const council = !!roster && !!s.lootCouncil;
-    if (!roster && !canWrite && !canLinkNew) return null;
+    if (!roster && !canWrite && !canLinkNew) return <TakeoverLine />;
     const suggestion = (s.rosters || []).find((r) => r.suggested && !r.linkedKaderId);
     const hasMenu = canLinkNew || canRelink || council;
     return (
-        <div className="kp-navgroup kp-navgroup-main">
-            <span className="kicker">{t("kader.nav.rosterGroup")}</span>
-            <div className="kp-navrow kp-navrow-acts">
+        <div className="kp-tools">
+            <div className="kp-tools-in">
+                <span className="kp-toollab">{t("kader.nav.rosterGroup")}</span>
                 {roster && !taken && s.canSync && s.pending > 0 && (
-                    <Button variant="ghost" className="kp-stage-act" running={busy} onClick={() => void sync()}
+                    <Button variant="ghost" size="sm" className="kp-tool-wide" running={busy} onClick={() => void sync()}
                         data-tip={t("kader.roster.syncTip")} data-tip-sub={t("kader.roster.syncTipSub")}>
                         {t("kader.roster.syncButton", { count: s.pending })}
                     </Button>
                 )}
                 {roster && (
-                    <Link to={`/roster/r/${encodeURIComponent(roster.id)}`} className={buttonClass("ghost", "md", false, "kp-stage-act")}
+                    <Link to={`/roster/r/${encodeURIComponent(roster.id)}`} className={buttonClass("ghost", "sm", false, hasMenu ? "" : "kp-tool-wide")}
                         data-tip={t("kader.roster.openTip", { name: roster.name })} data-tip-sub={t("kader.roster.openTipSub", { count: roster.members })}>
                         {t("kader.roster.open")}
                     </Link>
                 )}
                 {hasMenu && (
-                    <RosterMenu>
+                    <BarMenu label={t("kader.nav.more")} className={roster ? "" : "kp-barmenu-left kp-tool-wide"}>
                         {(close) => (
                             <>
                                 {canLinkNew && (
@@ -270,9 +276,10 @@ export default function RosterLink() {
                                 )}
                             </>
                         )}
-                    </RosterMenu>
+                    </BarMenu>
                 )}
                 <TakeoverEntry canCreate={!!s.canCreate} linked={!!roster} onDone={state.reload} />
+                <TakeoverLine />
             </div>
             {linkModal}
         </div>

@@ -85,7 +85,8 @@
         "selection": "Preselection",
         "vorauswahl": "Interviews",
         "uebersicht": "Overview",
-        "setups": "Build an example setup",
+        "setups": "Example setup",
+        "setupsTip": "Build an example setup",
         "composition": "Composition",
         "kicker": "Players per status",
         "planGroup": "Planning",
@@ -144,7 +145,6 @@
         }
     },
     "header": {
-        "kicker": "Roster planner",
         "pick": "Choose a squad",
         "new": "New squad",
         "leads": "Leads",

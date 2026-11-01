@@ -24,7 +24,7 @@ import { Button, DataTable, Field, IconButton, Modal, Segment, Switch, type Colu
 import EmojiPicker from "../../../components/ui/overlay/EmojiPicker";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { useConfirm } from "../../../components/ui/overlay/Modal";
-import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronRightIcon, DiscordIcon, PlusIcon, RefreshIcon, TrashIcon, XIcon } from "../../../components/ui/icons/icons";
+import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronRightIcon, DiscordIcon, PlusIcon, TrashIcon, XIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useApi } from "../../../hooks/useApi";
 import { useT } from "../../../i18n";
@@ -657,7 +657,7 @@ function EntryButton({ canCreate, linked, onDone, shown, setShown }: {
         <>
             {!taken && c && (
                 <span className="kp-tk-entry" data-tip={tip} data-tip-sub={sub}>
-                    <Button variant="go" icon={linked ? <DiscordIcon /> : <PlusIcon />} className="kp-stage-act" disabled={!!stop} running={opening} onClick={() => void open()}>
+                    <Button variant="go" size="sm" disabled={!!stop} running={opening} onClick={() => void open()}>
                         {t(linked ? "kader.takeover.entry" : "kader.roster.createButton")}
                     </Button>
                 </span>
@@ -681,9 +681,9 @@ export function TakeoverEntry({ canCreate, linked, onDone }: { canCreate: boolea
 }
 
 /**
- * The head's line of a taken-over Kader: the role as Discord has it, how many
- * planned players have it, the category, and "Rolle nachziehen (n)" when some
- * wait for it (also after an aborted hand-out).
+ * The tools line of a taken-over Kader (KaderHeader.tsx): the role as Discord has
+ * it, how many planned players have it, the category, and "Rolle nachziehen (n)"
+ * when some wait for it (also after an aborted hand-out).
  */
 export function TakeoverLine() {
     const t = useT();
@@ -732,7 +732,7 @@ export function TakeoverLine() {
     };
     return (
         <div className="kp-tk-line">
-            <span className="kicker">{t("kader.takeover.lineKicker")}</span>
+            <strong className="kp-tk-linelab">{t("kader.takeover.lineKicker")}</strong>
             <span className={`kp-tk-rolechip${c?.role?.gone ? " kp-tk-gone" : ""}`} data-tip={c?.role?.gone ? t("kader.takeover.roleGone") : undefined}>
                 <RoleSwatch color={c?.role?.color || ""} />@{roleName}
             </span>
@@ -743,9 +743,8 @@ export function TakeoverLine() {
             {running && <span className="kp-sub">{t("kader.takeover.lineRunning")}</span>}
             {c?.aborted && <span className="kp-tk-bad">{t("kader.takeover.lineAborted")}</span>}
             {away > 0 && !running && <span className="kp-sub" data-tip={t("kader.takeover.lineAwayTip")}>{t("kader.takeover.lineAway", { count: away })}</span>}
-            <span className="kp-grow" />
             {pending > 0 && c?.canStart && !running && (
-                <Button variant="go" size="sm" icon={<RefreshIcon />} running={busy} disabled={!!c.role?.gone} onClick={() => void pull()}
+                <Button variant="ghost" size="sm" running={busy} disabled={!!c.role?.gone} onClick={() => void pull()}
                     data-tip={c.role?.gone ? t("kader.takeover.error.role_gone") : t("kader.takeover.pullTip")}>
                     {t("kader.takeover.pull", { count: pending })}
                 </Button>

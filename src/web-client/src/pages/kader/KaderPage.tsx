@@ -36,7 +36,7 @@ import {
 } from "./kaderContext";
 import { useKaderLive } from "./live/useKaderLive";
 import ActivityModal from "./live/ActivityLog";
-import KaderHeader, { StageNav } from "./KaderHeader";
+import KaderHeader from "./KaderHeader";
 import KaderOverview from "./KaderOverview";
 import KaderStart from "./KaderStart";
 import PoolView from "./views/PoolView";
@@ -234,9 +234,8 @@ export default function KaderPage() {
     return (
         <KaderContext.Provider value={ctx}>
             <div className="kp-page" data-kader-view={sub}>
-                <KaderHeader />
+                <KaderHeader sub={sub} />
                 {view.warnings.length > 0 && <div className="kp-warn" role="status">{view.warnings.join(" · ")}</div>}
-                {sub !== "fragen" && sub !== "setups" && <StageNav sub={sub} />}
                 {sub === "pool" && <PoolView />}
                 {sub === "vorauswahl" && <InterviewsView />}
                 {sub === "uebersicht" && <OverviewView />}

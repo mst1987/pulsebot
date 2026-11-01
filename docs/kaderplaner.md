@@ -581,17 +581,25 @@ geöffnet"; there is no automatic jump into it any more. The head's "Neuer Kader
 the create dialog (write access only). Without any Kader the start page shows the flow and "Ersten Kader anlegen".
 Deleting a Kader and switching the menu's version away from the open one land on the overview.
 
-- **Header** in two lines (`KaderHeader`, `StageNav`). Line 1: a coloured back button "Alle Kader" (to `/kader`), the
-  Kader icon with "Kaderplaner" and the Kader picker (every Kader with "n im Roster · m gesamt", "Neuer Kader") in one
-  row; right the leads as avatars under the kicker "Leitung", activity, and the settings (name, leads as rows with a
-  remove button, add a member, the raid categories attendance counts in as a checklist with their nights, delete behind
-  a confirmation). Line 2: groups with their kicker **above** them ("Spieler je Status", "Planung", "Roster") on a
-  common baseline, the main action at the far right. **A group wraps only as a whole** (`nowrap` inside, `flex-wrap`
-  outside, stepped by a container query on `kp-nav`); on a phone the groups stack without horizontal page scroll, with
-  touch targets of at least 44 px. The drop zones of the status bar stay in place. The
-  **status bar** "Spieler je Status": one rectangular segment per state — icon, label, the count as a badge, the
-  words ("3 Spieler im Pool") as tooltip and accessible name; Pool → Vorauswahl → Vorläufig, then Roster · Bench ·
-  Tentative as one group. The states of the open page are marked (filled, accent underline); no step numbers.
+- **Header** in three fixed lines with one job each (`KaderHeader.tsx`, the report head of Warcraft Logs as the model):
+  - **Title:** the link "Alle Kader" (to `/kader`), the Kader icon and the Kader picker (every Kader with "n im Roster
+    · m gesamt", "Neuer Kader"); right the leads as avatars with the label "Leitung", activity, and the settings
+    (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a checklist
+    with their nights, delete behind a confirmation). A long name is cut, never wrapped.
+  - **Tabs** (`KaderTabs`, `nav.kp-htabs`): Pool → Vorauswahl → Vorläufig | Roster | Bench | Tentative as links with
+    the count and no icon; the words ("3 Spieler im Pool") are tooltip and accessible name; the states of the open
+    page carry the underline. Then the planning pages Zusammensetzung and "Beispiel-Setup" (tooltip: the whole task).
+    Below 1000 px of **content** width (a container query, not the window) the planning pages move into a menu at the
+    right of this line. Pool and Vorauswahl stay drop zones on the Roster page, with write access only. `fragen` and
+    `setups` show no tabs.
+  - **Tools of the page** (`RosterLink.tsx`, `kp-tools`): "Ins Roster übernehmen (n)", "Zum Roster", "Mehr", at the far
+    right the one green main action, the same on the Roster page and Zusammensetzung. In a state with nothing to do
+    the line shows the `TakeoverLine` or only what there is; without a roster or rights to act it is absent. Other
+    pages show only the `TakeoverLine`.
+
+  No group wraps across another (there is no `flex-wrap` over groups). **Only the tabs stick**, right below the topbar,
+  whose real height comes from `--topbar-h` (measured in `Shell.tsx`, 64 to 164 px, also after wrapping); on a phone
+  nothing sticks, the lines stack without horizontal page scroll, with touch targets of at least 44 px.
 - **Numbers say what they count**: a figure always stands next to its word ("18 von 18 Spielern", "Im Pool 3",
   "7 von 20 Plätzen", "2 von 5 Plätzen") or carries it as tooltip and screen-reader text (`Count` in
   `pages/kader/parts.tsx`: section heads, filter options, role counts, list heads).
@@ -694,8 +702,8 @@ Deleting a Kader and switching the menu's version away from the open one land on
   lists the raid and party buffs of the version: "n Spender" in `--good` (the names in the tooltip) or "fehlt" in
   `--high`, with who could bring it. Below 700 px the table folds into two lines per player without wishes.
   **Planspiel** (the shared draft, `kader.plan`): with `kader` write the spec cell of a player with more than one
-  plannable spec is a `WishPicker` ("Spec von Mira im Planspiel"; the trigger shows the spec icon and name in the
-  class colour, "Klasse · Spec" in the tooltip; one plannable spec gives no menu), and a narrow last column with an
+  plannable spec is a `WishPicker` ("Spec von Mira im Planspiel"; the trigger and the lines of its menu show the spec
+  icon and name in the class colour, "Klasse · Spec" in the tooltip; one plannable spec gives no menu), and a narrow last column with an
   eye icon button (eye / eye struck through, pressed when left out, `aria-label` "Ausklammern: Mira" /
   "Einklammern: Mira") leaves a player out (greyed, "ausgeklammert", counted nowhere). Sums and buffs count with the
   draft (`composition(…, plan)`), a planned spec shows "vorher ~~Wiederherstellung~~" ("vorher ~~keine

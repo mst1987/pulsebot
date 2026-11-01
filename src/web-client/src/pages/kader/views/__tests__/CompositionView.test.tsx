@@ -109,6 +109,15 @@ describe("KaderPage · Zusammensetzung · Planspiel", () => {
     const bar = () => screen.getByRole("region", { name: REGION() });
     const sumOf = (count: number) => screen.getByText(t("kader.composition.players", { count }), { exact: false }).closest("p");
 
+    it("names the spec in the lines of the menu, not the class", async () => {
+        withPlan(null);
+        await show("/kader/k1/zusammensetzung");
+        await userEvent.click(within(row("Mira")).getByRole("button", { name: /Spec von Mira im Planspiel/ }));
+        const line = screen.getByRole("menuitemradio", { name: /Verstärkung/ });
+        expect(within(line).getByText("Verstärkung")).toBeInTheDocument();
+        expect(within(line).queryByText("Schamane")).not.toBeInTheDocument();
+    });
+
     it("plans another spec for a player: sums, buffs and the bar follow the draft", async () => {
         withPlan(null);
         vi.mocked(api.saveKaderPlan).mockResolvedValue(change(draft({ specs: { [U.heal]: ENH }, by: ME })));

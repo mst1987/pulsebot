@@ -85,7 +85,8 @@
         "selection": "Vorauswahl",
         "vorauswahl": "Gespräche",
         "uebersicht": "Übersicht",
-        "setups": "Beispiel-Setup bauen",
+        "setups": "Beispiel-Setup",
+        "setupsTip": "Beispiel-Setup bauen",
         "composition": "Zusammensetzung",
         "kicker": "Spieler je Status",
         "planGroup": "Planung",
@@ -144,8 +145,7 @@
         }
     },
     "header": {
-        "kicker": "Kaderplaner",
-        "pick": "Kader wählen",
+        "pick":"Kader wählen",
         "new": "Neuer Kader",
         "leads": "Leitung",
         "noLeads": "noch niemand",

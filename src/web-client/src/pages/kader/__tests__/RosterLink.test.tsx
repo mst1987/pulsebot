@@ -137,7 +137,7 @@ describe("Kaderplaner · Roster aus dem Kader (#658)", () => {
         await show(reader);
         await waitFor(() => expect(api.getKaderRoster).toHaveBeenCalledWith("k1"));
         expect(screen.queryByRole("button", { name: t("kader.roster.createButton") })).not.toBeInTheDocument();
-        expect(document.querySelector(".kp-navgroup-main")).toBeNull();
+        expect(document.querySelector(".kp-tools")).toBeNull();
     });
 
     it("links a roster running as Loot-Council to the council through the menu, preselecting it (#676)", async () => {

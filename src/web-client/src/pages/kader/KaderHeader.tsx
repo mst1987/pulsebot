@@ -1,38 +1,40 @@
-// The head of every Kader page: which Kader (a picker with every Kader and "Neuer
-// Kader"), who leads it and who is here right now (Presence.tsx), the Kader's
-// activity log ("Aktivität"), the settings, on one line — and the status bar: how
-// many players stand in each state (Pool → Vorauswahl → Vorläufig → Roster · Bench ·
-// Tentative), each state with its icon and its count, the states of the open
-// page marked. On the decision page Pool and Vorauswahl also take a dropped card.
-// On the decision and the composition page the bar goes on with labelled groups, the
-// label above each: "Planung" (composition, example setups) and, far right, "Roster"
-// (RosterLink.tsx, #658, with the green button of TakeoverWizard.tsx). Groups wrap as
-// a whole, never a single button (kader.css, container kp-nav). A taken-over Kader
-// shows its role and "Rolle nachziehen" in the head.
-import { Fragment, useRef, useState } from "react";
+// The head of every Kader page, after the report head of Warcraft Logs: three fixed
+// lines with one job each, direct children of the page so that the middle one can
+// stick to the page and not to a short wrapper.
+// 1. Title: back to all Kader, the Kader's icon and name with its picker (long names
+//    are cut, never wrapped), right the leads and who is here (Presence.tsx), the
+//    activity log and the settings.
+// 2. Tabs: how many players stand in each state (Pool → Vorauswahl → Vorläufig | Roster
+//    · Bench · Tentative) and the planning pages, which fold into a menu in a narrow
+//    page. Only this line sticks, right under the topbar (--topbar-h, Shell.tsx). On the
+//    decision page Pool and Vorauswahl also take a dropped card.
+// 3. Tools of the page, on the decision and the composition page: RosterLink.tsx with
+//    the one green button of TakeoverWizard.tsx. Every other page keeps only the line
+//    of a taken-over Kader there.
+import { useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { KaderState } from "../../api";
-import { ChevronDownIcon, ChevronRightIcon, ClockIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons/icons";
-import { BackButton, IconButton, IconTile, buttonClass } from "../../components/ui";
+import { ArrowLeftIcon, ChevronDownIcon, PlusIcon, SettingsIcon } from "../../components/ui/icons/icons";
+import { IconButton, WowIcon, buttonClass } from "../../components/ui";
 import { useDismiss } from "../../hooks/useDismiss";
 import { useT } from "../../i18n";
 import { countStates } from "../../lib/kader/model";
 import { useDropZone } from "./dnd";
-import { StateIcon } from "./parts";
 import { useMovePlayer } from "./useMovePlayer";
 import { HeaderPeople } from "./live/Presence";
-import RosterLink from "./RosterLink";
+import RosterLink, { BarMenu } from "./RosterLink";
 import { TakeoverLine } from "./modals/TakeoverWizard";
 import { useKader, type KaderSub } from "./kaderContext";
 
 /** Which page shows a state. */
 const STATE_SUB: Record<KaderState, KaderSub> = { pool: "pool", selected: "vorauswahl", provisional: "roster", roster: "roster", bench: "roster", tentative: "roster" };
-/** The steps before a decision, then the three states a decision leads to (one group). */
-const FLOW: KaderState[] = ["pool", "selected", "provisional"];
-const DECIDED: KaderState[] = ["roster", "bench", "tentative"];
+/** The tabs in their order: the steps before a decision, then the three states a decision leads to. */
+const STATES: KaderState[] = ["pool", "selected", "provisional", "roster", "bench", "tentative"];
+/** The sign in front of a tab: an arrow between the steps, a line before the decided states. */
+const TAB_MARK: Partial<Record<KaderState, string>> = { selected: " kp-htab-arrow", provisional: " kp-htab-arrow", roster: " kp-htab-line" };
 /** The states the composition page counts (lib/kader/composition BASE_STATES). */
 const COMPOSED: KaderState[] = ["provisional", "roster"];
-/** The states a card can be dropped on in the bar: straight back from the decision page. */
+/** The states a card can be dropped on in the tabs: straight back from the decision page. */
 const DROP_BACK: KaderState[] = ["pool", "selected"];
 
 function KaderPicker() {
@@ -43,7 +45,7 @@ function KaderPicker() {
     useDismiss(ref, shown, () => setShown(false));
     return (
         <div className="kp-picker" ref={ref}>
-            <button type="button" className="kp-picker-btn" aria-haspopup="true" aria-expanded={shown} onClick={() => setShown(!shown)}>
+            <button type="button" className="kp-picker-btn" aria-haspopup="true" aria-expanded={shown} data-tip={kader.name} onClick={() => setShown(!shown)}>
                 <span className="kp-picker-name">{kader.name}</span>
                 <ChevronDownIcon />
             </button>
@@ -67,41 +69,12 @@ function KaderPicker() {
     );
 }
 
-export default function KaderHeader() {
-    const t = useT();
-    const { canWrite, open } = useKader();
-    return (
-        <div className="kp-top">
-            <div className="kp-top-id">
-                <div className="kp-back-row"><BackButton to="/kader" label={t("kader.header.all")} size="sm" /></div>
-                <IconTile icon="kader" tone="kader" size="lg" />
-                <div className="kp-top-text">
-                    <span className="kicker kp-accent2">{t("kader.header.kicker")}</span>
-                    <KaderPicker />
-                </div>
-            </div>
-            <span className="kp-grow" />
-            <div className="kp-leads">
-                <span className="kicker">{t("kader.header.leads")}</span>
-                <HeaderPeople />
-            </div>
-            <span className="kp-top-act">
-                <button type="button" className={buttonClass("ghost", "sm", true, "kp-logbtn")} data-tip={t("kader.log.activityTip")} onClick={() => open({ type: "activity" })}>
-                    <ClockIcon />{t("kader.log.activity")}
-                </button>
-                {canWrite && <IconButton icon={<SettingsIcon />} tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}
-            </span>
-            <TakeoverLine />
-        </div>
-    );
-}
-
 /**
- * One state in the status bar, always a link. On the decision page the steps
- * before it also take a dropped card; only there, because the setup page drags
- * the same kind of card for something else.
+ * One state as a tab, always a link. On the decision page the steps before it also
+ * take a dropped card; only there, because the setup page drags the same kind of
+ * card for something else.
  */
-function StageSegment({ state, sub, count }: { state: KaderState; sub: KaderSub; count: number }) {
+function StateTab({ state, sub, count }: { state: KaderState; sub: KaderSub; count: number }) {
     const t = useT();
     const { kader, canWrite } = useKader();
     const move = useMovePlayer();
@@ -109,50 +82,71 @@ function StageSegment({ state, sub, count }: { state: KaderState; sub: KaderSub;
     const active = STATE_SUB[state] === sub || (state === "selected" && sub === "uebersicht") || (sub === "zusammensetzung" && COMPOSED.includes(state));
     const tip = t(`kader.nav.count.${state}`, { count });
     return (
-        <Link to={`/kader/${kader.id}/${STATE_SUB[state]}`} className={`kp-stage kp-stage-${state}${active ? " kp-active" : ""}${drop.over ? " kp-over" : ""}`}
+        <Link to={`/kader/${kader.id}/${STATE_SUB[state]}`} className={`kp-htab${TAB_MARK[state] || ""}${active ? " kp-active" : ""}${drop.over ? " kp-over" : ""}`}
             aria-current={active ? "page" : undefined} aria-label={tip} data-tip={tip} {...drop.props}>
-            <StateIcon state={state} />
-            <span className="kp-stage-label">{t(`kader.state.${state}`)}</span>
-            <span className="kp-stage-n" aria-hidden="true">{count}</span>
+            <span>{t(`kader.state.${state}`)}</span>
+            <span className="kp-htab-n" aria-hidden="true">{count}</span>
         </Link>
     );
 }
 
-/** How many players stand in each state; the states of the open page stand out. */
-export function StageNav({ sub }: { sub: KaderSub }) {
+/** The sticky line: the states with their counts and the planning pages. */
+function KaderTabs({ sub }: { sub: KaderSub }) {
     const t = useT();
     const { kader } = useKader();
     const counts = countStates(kader);
+    const composing = sub === "zusammensetzung";
+    const composition = `/kader/${kader.id}/zusammensetzung`;
+    const setups = `/kader/${kader.id}/setups`;
     return (
-        <nav className="kp-stages" aria-label={t("kader.nav.aria")}>
-            <div className="kp-navgroup kp-navgroup-status">
-                <span className="kicker">{t("kader.nav.kicker")}</span>
-                <div className="kp-navrow kp-navrow-status">
-                    <div className="kp-navrow kp-navrow-flow">
-                        {FLOW.map((s) => (
-                            <Fragment key={s}>
-                                <StageSegment state={s} sub={sub} count={counts[s]} />
-                                <span className="kp-stage-arrow" aria-hidden="true"><ChevronRightIcon /></span>
-                            </Fragment>
-                        ))}
+        <nav className="kp-htabs" aria-label={t("kader.nav.aria")}>
+            <div className="kp-htabs-in">
+                <div className="kp-status">
+                    {STATES.map((s) => <StateTab key={s} state={s} sub={sub} count={counts[s]} />)}
+                </div>
+                <div className="kp-plan">
+                    <Link to={composition} className={`kp-htab${composing ? " kp-active" : ""}`} aria-current={composing ? "page" : undefined}>{t("kader.nav.composition")}</Link>
+                    <Link to={setups} className="kp-htab" data-tip={t("kader.nav.setupsTip")}>{t("kader.nav.setups")}</Link>
+                </div>
+                <BarMenu label={t("kader.nav.planGroup")} className="kp-plan-menu" buttonClass={`kp-htab kp-htab-btn${composing ? " kp-active" : ""}`}>
+                    {(close) => (
+                        <>
+                            <Link role="menuitem" to={composition} className="kp-menuopt" aria-current={composing ? "page" : undefined} onClick={close}>{t("kader.nav.composition")}</Link>
+                            <Link role="menuitem" to={setups} className="kp-menuopt" data-tip={t("kader.nav.setupsTip")} onClick={close}>{t("kader.nav.setups")}</Link>
+                        </>
+                    )}
+                </BarMenu>
+            </div>
+        </nav>
+    );
+}
+
+export default function KaderHeader({ sub }: { sub: KaderSub }) {
+    const t = useT();
+    const { canWrite, open } = useKader();
+    return (
+        <>
+            <div className="kp-title">
+                <div className="kp-title-in">
+                    <Link to="/kader" className="kp-back"><ArrowLeftIcon />{t("kader.header.all")}</Link>
+                    <div className="kp-title-name">
+                        <WowIcon name="kader" size={30} />
+                        <KaderPicker />
                     </div>
-                    <span className="kp-stage-group">{DECIDED.map((s) => <StageSegment key={s} state={s} sub={sub} count={counts[s]} />)}</span>
+                    <div className="kp-title-meta">
+                        <div className="kp-leads">
+                            <span className="kp-lab">{t("kader.header.leads")}</span>
+                            <HeaderPeople />
+                        </div>
+                        <button type="button" className={buttonClass("ghost", "sm", false, "kp-txtbtn")} data-tip={t("kader.log.activityTip")} onClick={() => open({ type: "activity" })}>
+                            {t("kader.log.activity")}
+                        </button>
+                        {canWrite && <IconButton icon={<SettingsIcon />} size="sm" tip={t("kader.header.settings")} onClick={() => open({ type: "settings" })} />}
+                    </div>
                 </div>
             </div>
-            {(sub === "roster" || sub === "zusammensetzung") && (
-                <>
-                    <div className="kp-navgroup">
-                        <span className="kicker">{t("kader.nav.planGroup")}</span>
-                        <div className="kp-navrow kp-navrow-acts">
-                            {sub === "roster" && (
-                                <Link to={`/kader/${kader.id}/zusammensetzung`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.composition")}</Link>
-                            )}
-                            <Link to={`/kader/${kader.id}/setups`} className={buttonClass("ghost", "md", false, "kp-stage-act")}>{t("kader.nav.setups")}</Link>
-                        </div>
-                    </div>
-                    <RosterLink />
-                </>
-            )}
-        </nav>
+            {sub !== "fragen" && sub !== "setups" && <KaderTabs sub={sub} />}
+            {sub === "roster" || sub === "zusammensetzung" ? <RosterLink /> : <TakeoverLine />}
+        </>
     );
 }
