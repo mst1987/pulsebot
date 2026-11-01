@@ -531,6 +531,18 @@ describe("services/events/eventCreate", () => {
             expect(eventStore.getEvent(picked.body.id).voiceChannelId).toBe("v-own");
         });
 
+        it("presets the fixed voice channel only when the category or the event's plan uses it", async () => {
+            getConfig.mockReturnValue({
+                categorySignupSource: { "cat-eh": "eventhelper" },
+                categoryVoiceChannel: { "cat-eh": "v-cat" },
+                categoryTempVoice: { "cat-eh": { mode: "temp" } },
+            });
+            const temp = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2" }) });
+            expect(eventStore.getEvent(temp.body.id)).toMatchObject({ voiceChannelId: "", voicePlan: null });
+            const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", voicePlan: { mode: "existing", leadMinutes: 15 } }) });
+            expect(eventStore.getEvent(own.body.id)).toMatchObject({ voiceChannelId: "v-cat", voicePlan: { mode: "existing", leadMinutes: 15 } });
+        });
+
         it("refuses a composition that does not fit the size", async () => {
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", size: 10, composition: { tank: 2, healer: 3, melee: { min: 4, max: 3 } } }) });
             expect(result.error).toMatchObject({ code: "invalid_plan", message: expect.stringMatching(/Nahkampf/) });

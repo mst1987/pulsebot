@@ -124,7 +124,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         requests.setMessage(entry.id, { channelId: "900000", messageId: "m9" });
         res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u8", characterKey: "skerra" } });
         expect(body(res).request).toMatchObject({ userId: "u8", characterName: "Skerra", realm: "Spineshatter", linked: true });
-        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
+        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything(), { silentMentions: true });
     });
 
     it("#806: 'Im Spiel geprüft' for an entry's own name links it without a profile, redraws an open card; refuses a stranger bank, a reader", async () => {
@@ -138,7 +138,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         requests.setMessage(entry.id, { channelId: "900000", messageId: "m9" });
         res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: entry.id } });
         expect(status(res)).toBe(200);
-        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
+        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything(), { silentMentions: true });
         res = await call(verifyGuildBankRequest, { payload: { key: "nope", id: entry.id } });
         expect(status(res)).toBe(404);
         res = await call(verifyGuildBankRequest, { payload: { key: KEY, id: "nope" } });
@@ -161,7 +161,7 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Gentletwowl" } });
         expect(status(res)).toBe(200);
         expect(body(res)).toMatchObject({ request: { id: entry.id, characterName: "Gentletwowl", realm: "Spineshatter", linked: true }, profile: "" });
-        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything());
+        expect(discord.editPayload).toHaveBeenCalledWith("900000", "m9", expect.anything(), { silentMentions: true });
         // a name nobody knows: only once the orga checked it in game
         res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuling" } });
         expect(status(res)).toBe(400);

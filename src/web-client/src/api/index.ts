@@ -40,6 +40,7 @@ export * from "./events/signups";
 export * from "./events/availability";
 export * from "./discord/orgaHub";
 export * from "./events/setup";
+export * from "./events/voice";
 export * from "./raidplan/raidplan";
 export * from "./roster/kader";
 export * from "./roster/vermerke";

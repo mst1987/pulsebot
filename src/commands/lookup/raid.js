@@ -8,6 +8,7 @@ const linkCheck = require("../../services/discord/linkCheck");
 const { webUrl, lookupReply, deferLookup, discordTime, respondChoices, clip } = require("../../utils/discord/botLookup");
 const { addVersionOption, versionOfCommand, eventsOfVersion, versionNote } = require("../../services/versions/commandVersion");
 const { TIMEZONE } = require("../../config/timezone");
+const { nameAndMention, nameFromSignups } = require("../../utils/discord/mentionName");
 
 /** "Mi 24.09. 20:00" in the guild's time zone — autocomplete names cannot carry Discord timestamps. */
 function shortDate(startTime) {
@@ -67,7 +68,9 @@ module.exports = {
             { name: "Anmeldungen", value: `**${counts.signed + counts.late}**${others ? `\n${others}` : ""}`, inline: true },
             { name: "Du", value: mine ? `${STATUS_ICONS[mine]} ${STATUS_LABELS[mine]}` : "⚪ nicht reagiert", inline: true },
         ];
-        if (event.leaderId) fields.push({ name: "Raidleitung", value: `<@${event.leaderId}>`, inline: true });
+        // the lead's character as text first (when they signed up): the mention alone can read "@unknown-user"
+        const leader = event.leaderId ? nameAndMention(nameFromSignups(event.signUps, event.leaderId), event.leaderId) : "";
+        if (leader) fields.push({ name: "Raidleitung", value: leader, inline: true });
 
         // The raid's own server, whichever server the command came from.
         const guildId = event.guildId || serverIds()[0] || (interaction.guild && interaction.guild.id) || "";

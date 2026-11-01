@@ -123,6 +123,23 @@ fields, thumbnail, buttons, note, mentions, allowedMentions, ephemeral })`:
 - Reading a card in a test: `test/helpers/card.js` (`asEmbed`, `cardButtons`, `cardTexts`).
 - Tests: `test/utils/discord/card.test.js`.
 
+### Names before mentions: `mentionName` (Oct 2026)
+Rule: **never a bare `<@id>` in a message that pings nobody.** With `allowedMentions: { parse: [] }` Discord leaves the
+message's `mentions` empty, and a client that has not loaded the member shows "@unknown-user". `utils/discord/mentionName.js`:
+
+- `nameAndMention(name, userId)` → `**Name** · <@id>` (the name always readable, escaped, no `@` ping); just the mention
+  without a name. `nameOrMention` for the same person a second time in a card (the name, the mention only without one).
+  `nameFromSignups(signups, userId)` takes the newest signup row WITH a name (`character`, Raid-Helper `name`).
+- **Silent mention edit:** Discord fills `mentions` only from the text of a create or of an edit that changes the text. So
+  `discord.postPayload(…, { silentMentions: true })` posts the card without the mentions (`parse: []`) and edits them in with
+  `allowedMentions: { parse: [], users }` (at most 100 ids); `editPayload(…, { silentMentions: true })` sends the same users
+  on every later edit. An edit with `allowedMentions.users` resolves the name and does **not** ping (no push, no badge, no
+  entry under "Mentions") — checked on the dev server on 31.10.2026. A failed follow-up edit only logs. The follow-up edit
+  leaves `files`/`attachments` out (the post carries them); a line left with just a label ("An:") is dropped in the first post.
+- Wired up: guild bank orga card (`guildBank.js`), orga notice for signups with a Vermerk (`orgaSignupNotice.js`), raid
+  overviews (`raidOverview.js`). Embeds (`postNotice`, event post) do not need it; they show the name first.
+- Tests: `test/utils/discord/mentionName.test.js`, `test/services/discord/discord.test.js`.
+
 ## API Clients
 
 **`classes/httpClient.js` is the base of every HTTP client in `src/classes`** (#429): `createClient({ service, baseURL, timeout, headers?, retry? })` is an `axios.create` instance with the shared `utils/httpAgent.js` (certificate checks only in `NODE_ENV=production`), a mandatory timeout and one response interceptor. It retries only a 5xx, a network error or a timeout, only for idempotent methods unless the client lists more (`retry.methods`), never a 4xx (default: 2 retries, 250 ms → 500 ms; `retry: { timeouts: false }` for a server that hangs rather than fails), and turns everything that still fails into an **`ApiError { service, status, code, kind, message, cause, data }`** (`kind`: `timeout` | `network` | `http` | `canceled`; `err.response` stays readable for old callers). What a failure means for the caller is each client's own contract, written in its file head — they are deliberately not unified, because the callers rely on them:

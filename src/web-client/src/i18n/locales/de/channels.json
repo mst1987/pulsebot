@@ -384,5 +384,26 @@
         "templateChannelSub": "Die neuen Kanäle übernehmen Rechte, Thema und Slowmode dieses Kanals. Ohne Auswahl sind sie eine Kopie des letzten Event-Kanals der Kategorie – nur eine Kategorie ohne Event-Kanal bekommt einfache Text-Kanäle.",
         "noTemplateOption": "— keine Vorlage —",
         "remember": "Schema, Raid und Vorlage für „{name}“ merken"
+    },
+    "voiceRow": {
+        "members": { "one": "{count} drin", "other": "{count} drin" },
+        "fixed": "vorhandener Kanal",
+        "temp": "temporär",
+        "planned": "wird um {time} angelegt",
+        "plannedIn": "wird um {time} angelegt, Kategorie „{parent}“",
+        "open": "offen",
+        "closesBy": "schließt, sobald leer, spätestens {time}",
+        "closed": "geschlossen",
+        "closedAt": "geschlossen um {time}",
+        "failed": "nicht angelegt: {error}",
+        "creating": "wird gerade angelegt",
+        "unknownError": "unbekannter Fehler",
+        "noName": "Sprachkanal",
+        "missingRights": "Dem Bot fehlt in der Discord-Kategorie: {rights}",
+        "botOffline": "Der Bot ist gerade nicht verbunden – der Kanal wird erst angelegt oder geschlossen, wenn er wieder da ist.",
+        "menu": "Kanal",
+        "openNow": "Jetzt anlegen",
+        "close": "Schließen",
+        "inDiscord": "In Discord öffnen"
     }
 }

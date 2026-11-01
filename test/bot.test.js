@@ -32,6 +32,8 @@ jest.mock("../src/services/discord/pug/pugInvites", () => ({
     onInviteDelete: (...a) => mockPugInvites.onInviteDelete(...a),
     startInviteCheck: (...a) => mockPugInvites.startInviteCheck(...a),
 }));
+const mockVoiceState = jest.fn();
+jest.mock("../src/services/voice/tempVoiceJob", () => ({ onVoiceStateUpdate: (...a) => mockVoiceState(...a) }));
 jest.mock("discord.js", () => {
     // Keep the real exports (ChannelType, builders, Collection, …) so the real
     // command modules load; only replace Client so no gateway connection is made.
@@ -177,6 +179,18 @@ describe("invites (#905)", () => {
         bot.client._h[Events.InviteDelete](invite);
         expect(mockPugInvites.onInviteCreate).toHaveBeenCalledWith(invite);
         expect(mockPugInvites.onInviteDelete).toHaveBeenCalledWith(invite);
+    });
+});
+
+describe("temporary voice channels", () => {
+    const { Events, GatewayIntentBits } = jest.requireActual("discord.js");
+
+    it("asks for the voice states and hands them to the job, never throwing", () => {
+        expect(bot.client.options.intents).toContain(GatewayIntentBits.GuildVoiceStates);
+        bot.client._h[Events.VoiceStateUpdate]({ channelId: "a" }, { channelId: "b" });
+        expect(mockVoiceState).toHaveBeenCalledWith({ channelId: "a" }, { channelId: "b" });
+        mockVoiceState.mockImplementationOnce(() => { throw new Error("boom"); });
+        expect(() => bot.client._h[Events.VoiceStateUpdate]({}, {})).not.toThrow();
     });
 });
 

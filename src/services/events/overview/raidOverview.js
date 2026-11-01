@@ -209,7 +209,7 @@ async function postOverview({ guildId, channelId, categoryId, scope = "", config
     const earlier = server ? store.findServerInChannel(channel) : store.findInChannel(channel, cat);
     if (earlier) {
         try {
-            const edited = await discord.editPayload(channel, earlier.messageId, renderedPayload(content, lastChange, `overview:${earlier.messageId}`));
+            const edited = await discord.editPayload(channel, earlier.messageId, renderedPayload(content, lastChange, `overview:${earlier.messageId}`), { silentMentions: true });
             const overview = store.setOverview({ ...earlier, guildId: gid || earlier.guildId, hash: content.hash, lastChange });
             return { overview, url: edited.url, edited: true };
         } catch (e) {
@@ -219,7 +219,7 @@ async function postOverview({ guildId, channelId, categoryId, scope = "", config
     }
     let posted;
     try {
-        posted = await discord.postPayload(channel, renderedPayload(content, lastChange, `overview:${channel}:${server ? "server" : cat}`));
+        posted = await discord.postPayload(channel, renderedPayload(content, lastChange, `overview:${channel}:${server ? "server" : cat}`), { silentMentions: true });
     } catch (e) {
         return { error: (e && e.message) || String(e) };
     }
@@ -265,7 +265,7 @@ async function refreshOverviews({ config, onlyStale = true, messageId = "", now 
                 continue;
             }
             const lastChange = Math.floor(now / 1000);
-            await discord.editPayload(overview.channelId, overview.messageId, renderedPayload(content, lastChange, `overview:${overview.messageId}`));
+            await discord.editPayload(overview.channelId, overview.messageId, renderedPayload(content, lastChange, `overview:${overview.messageId}`), { silentMentions: true });
             store.markDrawn(overview.messageId, content.hash, lastChange);
             out.edited += 1;
             warned.delete(overview.messageId);

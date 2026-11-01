@@ -38,6 +38,7 @@ const systemMonitor = require("../../services/system/systemMonitor");
 const backupSnapshots = require("../../services/backup/snapshotJob");
 const backupAlerts = require("../../services/backup/backupAlerts");
 const backupRestoreTest = require("../../services/backup/restoreTestJob");
+const tempVoiceJob = require("../../services/voice/tempVoiceJob");
 const { versionInfo } = require("./version");
 
 const JOBS = [
@@ -97,6 +98,9 @@ const JOBS = [
     // every store; on the slot of the settings (default Wednesday 04:30), never on a raid evening. Same switch as the snapshots.
     { name: "backupRestoreTest", start: () => backupRestoreTest.startRestoreTestJob(), stop: () => backupRestoreTest.stopRestoreTestJob() },
     { name: "backupAlerts", start: () => backupAlerts.startBackupAlerts(), stop: () => backupAlerts.stopBackupAlerts() },
+    // Every minute (and right after an event changes): the raids' temporary voice channels are opened ahead of the
+    // start and closed when empty after the end or at the latest close (docs/channels.md); the state survives restarts.
+    { name: "tempVoice", start: () => tempVoiceJob.startTempVoice(), stop: () => tempVoiceJob.stopTempVoice() },
 ];
 
 let running = false;

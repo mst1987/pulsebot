@@ -36,6 +36,7 @@ const {
 } = require("discord.js");
 const { tr } = require("../i18n/botText");
 const { card } = require("../discord/card");
+const { nameAndMention } = require("../discord/mentionName");
 const { plainCategoryName } = require("./availabilityDialog");
 const { isSnowflake } = require("../ids");
 const { iconUrl } = require("../loot/wowhead");
@@ -293,8 +294,9 @@ function orgaButtons(request, { linked = true, short = false } = {}) {
  * The card in the orga channel: what, how many, for whom, what for — and the
  * buttons of its status. A request from the stock shows the item's icon and
  * the stock's numbers; a free-text one only what was typed. German (orga
- * text); `<@id>` shows the raider's name and pings nobody (discord.postPayload
- * allows no mentions).
+ * text). The raider: their stored Discord name (or the character) as text, the
+ * mention behind it (mentionName.nameAndMention) — a mention that pings nobody
+ * reads "@unknown-user" in a client that has not loaded the member.
  * @param {object} request a guildBankStore request
  * @param {{ categoryName?: string, stock?: object|null, linked?: boolean, linkProblem?: string }} [o] the organizer's category name; the item as
  *   stockView.stockItem reads it now (count, reserved, available, group, icon), null when unknown; `linked`
@@ -307,7 +309,9 @@ function orgaPayload(request, { categoryName = "", stock = null, linked = true, 
     const fromStock = !!request.itemId;
     const group = fromStock ? str((stock && stock.group) || request.group) : "";
     // an entry the orga imported by character name has no Discord account (#775)
-    const who = request.userId ? `<@${request.userId}>` : `**${plain(request.characterName) || "?"}** · ohne Discord-Konto, keine DM`;
+    const who = request.userId
+        ? nameAndMention(request.userName || request.characterName, request.userId)
+        : `**${plain(request.characterName) || "?"}** · ohne Discord-Konto, keine DM`;
     const text = [`${who}${created ? ` · <t:${created}:R>` : ""}`];
     if (str(request.purpose)) text.push(`Wofür: ${plain(request.purpose)}`);
     const to = recipientName(request);

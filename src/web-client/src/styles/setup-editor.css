@@ -727,3 +727,18 @@
     .se-raidtab-title { max-width: none; flex: 1 1 auto; }
     .se-raidtabs-meta { margin-left: 0; }
 }
+/* The raid's voice channel under the bar (VoiceChannelRow): icon, name, its state as words, "Kanal" menu */
+.se-voice { display: flex; align-items: center; gap: 10px; margin-top: -4px; padding: 6px 14px; border-bottom: 1px solid var(--line-soft); }
+.se-voice .wi { flex: 0 0 auto; border-radius: 5px; }
+.se-voice-text { display: flex; flex-direction: column; min-width: 0; flex: 1 1 auto; }
+.se-voice-name { font-size: 14px; font-weight: 600; overflow-wrap: anywhere; }
+.se-voice-state { font-size: 12.5px; color: var(--muted); }
+.se-voice[data-state="open"] .se-voice-state { color: var(--good); }
+.se-voice[data-state="failed"] .se-voice-state, .se-voice-warn { font-size: 12.5px; color: var(--medium); }
+@media (max-width: 560px) {
+    .se-voice { padding: 6px 4px; flex-wrap: wrap; }
+    /* icon and text share the first line; the menu button goes right below, at the
+       end, so its right-aligned menu stays inside the screen */
+    .se-voice-text { flex: 1 1 0; }
+    .se-voice .se-more { margin-left: auto; }
+}

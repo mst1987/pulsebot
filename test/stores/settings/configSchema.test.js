@@ -83,6 +83,8 @@ const afterLaunch = (config) => ({ ...config, versionLaunch: {} });
 const afterVisuals = (config) => ({ ...config, discordVisuals: { overviewWeekStrip: true, setupImage: true, eventCover: true } });
 // Oct 2026 adds the characters per signup per category (empty: every category allows the default 8).
 const afterSignupCharacters = (config) => ({ ...config, categorySignupCharacters: {} });
+// Oct 2026 adds the voice channel per raid (empty: every category follows its fixed channel as before).
+const afterTempVoice = (config) => ({ ...config, categoryTempVoice: {} });
 // Oct 2026 adds the dungeon record post (Einstellungen -> Dungeon-Bestzeiten), off by default.
 const afterDungeonRecords = (config) => ({ ...config, dungeonRecords: { post: false, channelId: "" } });
 // #738: the start pins every active category to the version it plays (the main version) -
@@ -224,7 +226,7 @@ function after921(config, stored = {}) {
     delete rest.logChannelIds;
     return rest;
 }
-const schemaOnly = frozen.map((g, i) => ({ ...g, config: after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config))))))))))))))), cases[i].config), cases[i].config)) }));
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterTempVoice(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))))), cases[i].config), cases[i].config)) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.

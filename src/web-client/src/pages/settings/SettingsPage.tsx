@@ -288,6 +288,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             // sent as false, a cleared voice channel as "".
             categoryDiscordEvent: draft.categoryDiscordEvent,
             categoryVoiceChannel: draft.categoryVoiceChannel,
+            categoryTempVoice: draft.categoryTempVoice,
             // merged on the server too: false leaves a category out of the server overview, true shows it again
             categoryServerOverview: draft.categoryServerOverview,
             // Merged per category on the server; one back at the defaults drops out.
@@ -450,6 +451,9 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     categoryServerOverview={draft.categoryServerOverview}
                     categoryVoiceChannel={draft.categoryVoiceChannel}
                     voiceChannels={data.voiceChannels || []}
+                    categoryTempVoice={draft.categoryTempVoice}
+                    voiceParents={data.categories}
+                    tempVoiceRights={data.tempVoiceRights}
                     categoryMessageLook={draft.categoryMessageLook}
                     onMessageLook={(id, look) => patch({ categoryMessageLook: { ...draft.categoryMessageLook, [id]: look } })}
                     categoryAnnounce={draft.categoryAnnounce}
@@ -474,6 +478,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     onDiscordEvent={(id, on) => patch({ categoryDiscordEvent: { ...draft.categoryDiscordEvent, [id]: on } })}
                     onServerOverview={(id, on) => patch({ categoryServerOverview: { ...draft.categoryServerOverview, [id]: on } })}
                     onVoiceChannel={(id, channelId) => patch({ categoryVoiceChannel: { ...draft.categoryVoiceChannel, [id]: channelId } })}
+                    onTempVoice={(id, value) => patch({ categoryTempVoice: { ...draft.categoryTempVoice, [id]: value } })}
                     onAnnounce={(id, mode) => patch({
                         categoryAnnounce: { ...draft.categoryAnnounce, [id]: { enabled: !!mode } },
                     })}

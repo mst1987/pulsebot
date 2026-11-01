@@ -11,6 +11,7 @@ const { DateTime } = require("luxon");
 const { TIMEZONE } = require("../../config/timezone");
 const { buildEmbed } = require("../../utils/discord/reply");
 const { card, cardFromEmbed } = require("../../utils/discord/card");
+const { silentMentionSteps, mentionEdit } = require("../../utils/discord/mentionName");
 const logger = require("../../logger").child("discord");
 
 let client = null;
@@ -311,6 +312,8 @@ const REQUIRED_BOT_PERMISSIONS = [
     { key: "SendMessages", label: "Nachrichten senden" },
     { key: "EmbedLinks", label: "Links einbetten" },
     { key: "ManageRoles", label: "Rollen verwalten" },
+    // the raids' temporary voice channels: whoever is left at the latest close moves to the fixed channel
+    { key: "MoveMembers", label: "Mitglieder verschieben" },
     { key: "GuildMembers", label: "Mitglieder lesen", intent: true },
 ];
 
@@ -508,13 +511,24 @@ async function postNotice(channelId, payload, { guildId = "" } = {}) {
 /**
  * Post a whole message (`{ content?, embeds?, components? }`) that pings
  * nobody — a panel with buttons, say. `guildId`: only post when the channel
- * lives on that server (assertChannelGuild).
+ * lives on that server (assertChannelGuild). `silentMentions`: a card that shows raiders by `<@id>` — goes through
+ * utils/discord/mentionName.silentMentionSteps: post without the mentions, then the edit with `allowedMentions.users`
+ * that lets Discord resolve the names without pinging (checked on the dev server, 31.10.2026). A failed follow-up edit
+ * only logs: the card is out.
  * @returns {Promise<{ guildId, channelId, messageId, url }>}
  */
-async function postPayload(channelId, payload, { guildId = "" } = {}) {
+async function postPayload(channelId, payload, { guildId = "", silentMentions = false } = {}) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     assertChannelGuild(channel, guildId);
-    const posted = await channel.send({ ...payload, allowedMentions: { parse: [] } });
+    const steps = silentMentions ? silentMentionSteps(payload) : { first: { ...payload, allowedMentions: { parse: [] } }, then: null };
+    const posted = await channel.send(steps.first);
+    if (steps.then) {
+        try {
+            await posted.edit(steps.then);
+        } catch (e) {
+            logger.warn(`silent mention edit of ${posted.id} failed:`, (e && e.message) || e);
+        }
+    }
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
@@ -529,13 +543,16 @@ async function postRolePing(channelId, roleId, content) {
     return { guildId: channel.guildId, channelId: channel.id, messageId: posted.id, url: posted.url };
 }
 
-/** Replace a bot message's content in place (postPayload's counterpart). */
-async function editPayload(channelId, messageId, payload) {
+/**
+ * Replace a bot message's content in place (postPayload's counterpart). `silentMentions`: keep the names a card posted
+ * with `silentMentions` shows (mentionName.mentionEdit — an edit with `allowedMentions.users` does not ping).
+ */
+async function editPayload(channelId, messageId, payload, { silentMentions = false } = {}) {
     if (!client) throw new Error("Bot nicht verbunden.");
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden.");
     const message = await channel.messages.fetch(String(messageId));
     if (message.author.id !== client.user.id) throw new Error("Diese Nachricht stammt nicht vom Bot.");
-    await message.edit({ ...payload, allowedMentions: { parse: [] } });
+    await message.edit(silentMentions ? mentionEdit(payload) : { ...payload, allowedMentions: { parse: [] } });
     return { guildId: channel.guildId, channelId: channel.id, messageId: message.id, url: message.url };
 }
 
@@ -826,8 +843,9 @@ async function postRecruitment(channelId, template) {
 }
 
 // Renaming a thread is limited to 2 per 10 minutes; on the 429 discord.js would wait silently for minutes. A rename of a
-// recruitment post fails fast instead: while its channel id is in this set, the REST manager rejects its rate limit.
-const renamingChannels = new Set();
+// recruitment post (or of a raid's voice channel, or a channel create) fails fast instead: while a request's URL ends
+// with one of these paths ("/channels/<id>", "/guilds/<id>/channels"), the REST manager rejects its rate limit.
+const failFastPaths = new Map();
 const guardedRests = new WeakSet();
 const RENAME_TIMEOUT_MS = 10000;
 // Discord's codes for an edit in an archived (50083) or locked (160005) thread
@@ -841,7 +859,7 @@ function guardRenameRateLimit(c) {
     const previous = rest.options.rejectOnRateLimit;
     rest.options.rejectOnRateLimit = async (data) => {
         const url = String((data && data.url) || "").split("?")[0];
-        if ([...renamingChannels].some((id) => url.endsWith(`/channels/${id}`))) return true;
+        if ([...failFastPaths.keys()].some((path) => url.endsWith(path))) return true;
         if (typeof previous === "function") return previous(data);
         return Array.isArray(previous) && previous.some((route) => String((data && data.route) || "").startsWith(route.toLowerCase()));
     };
@@ -850,28 +868,46 @@ function guardRenameRateLimit(c) {
 const isRateLimitError = (e) => !!e && (String(e.name || "").startsWith("RateLimitError") || e.code === "rename_timeout");
 
 /**
+ * Run a Discord call for one REST path without the silent wait on a rate limit: a known rate limit rejects at once
+ * (RateLimitError), and with `timeoutMs` no answer in time rejects with code "rename_timeout". `isRateLimitError` tells
+ * both apart from a refusal. After a timeout the request may still go through later.
+ */
+async function failFastOnRateLimit(path, run, { timeoutMs = 0 } = {}) {
+    guardRenameRateLimit(client);
+    failFastPaths.set(path, (failFastPaths.get(path) || 0) + 1);
+    let timer = null;
+    const running = Promise.resolve().then(run);
+    running.catch(() => {});
+    const timeout = timeoutMs > 0 ? new Promise((_, reject) => {
+        timer = setTimeout(() => reject(Object.assign(new Error("rename timeout"), { code: "rename_timeout" })), timeoutMs);
+    }) : null;
+    try {
+        return await (timeout ? Promise.race([running, timeout]) : running);
+    } finally {
+        clearTimeout(timer);
+        const left = (failFastPaths.get(path) || 1) - 1;
+        if (left > 0) failFastPaths.set(path, left);
+        else failFastPaths.delete(path);
+    }
+}
+
+/** Rename a channel without hanging on Discord's rate limit (2 renames per 10 minutes); see failFastOnRateLimit. */
+function setChannelNameFast(channel, name, reason) {
+    return failFastOnRateLimit(`/channels/${channel.id}`, () => channel.setName(name, reason), { timeoutMs: RENAME_TIMEOUT_MS });
+}
+
+/**
  * Rename a recruitment thread without hanging: a rate limit or no answer within RENAME_TIMEOUT_MS gives
  * "title_rate_limited", any other failure "title_failed"; "" when the title is set.
  */
 async function renameThread(channel, name) {
-    guardRenameRateLimit(client);
-    renamingChannels.add(channel.id);
-    let timer = null;
-    const renaming = channel.setName(name, "Recruitment-Beitrag bearbeitet");
-    renaming.catch(() => {});
-    const timeout = new Promise((_, reject) => {
-        timer = setTimeout(() => reject(Object.assign(new Error("rename timeout"), { code: "rename_timeout" })), RENAME_TIMEOUT_MS);
-    });
     try {
-        await Promise.race([renaming, timeout]);
+        await setChannelNameFast(channel, name, "Recruitment-Beitrag bearbeitet");
         return "";
     } catch (e) {
         if (isRateLimitError(e)) return "title_rate_limited";
         logger.warn(`Recruitment: Titel von ${channel.id} nicht geändert: ${e && e.message}`);
         return "title_failed";
-    } finally {
-        clearTimeout(timer);
-        renamingChannels.delete(channel.id);
     }
 }
 
@@ -1630,4 +1666,5 @@ module.exports = {
     postLogButton, finishLogButton, findLogButtonMessage, logButtonExists, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
     postLink, editLink, postPayload, postRolePing, editPayload,
+    failFastOnRateLimit, setChannelNameFast, isRateLimitError,
 };

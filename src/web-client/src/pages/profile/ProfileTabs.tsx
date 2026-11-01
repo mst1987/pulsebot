@@ -29,9 +29,9 @@ const INFO_ICON = "tasks";
 const TOAST_ROOM = 96;
 
 /** The "⋯" list under its button, right-aligned, scrolling above the toast strip. */
-const MENU_PLACEMENT: Placement = (anchor, _box, viewport) => {
+const MENU_PLACEMENT: Placement = (anchor, box, viewport) => {
     if (!anchor) return {};
-    return { ...belowEndPosition(anchor, viewport), maxHeight: Math.max(160, viewport.height - anchor.bottom - TOAST_ROOM) };
+    return { ...belowEndPosition(anchor, viewport, 6, box), maxHeight: Math.max(160, viewport.height - anchor.bottom - TOAST_ROOM) };
 };
 
 /** The icon a character's tab shows: its first spec's, else its class's. */

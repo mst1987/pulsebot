@@ -551,7 +551,7 @@ describe("commands/signup/eventButton", () => {
             const [channelId, payload] = mocks.postNotice.mock.calls[0];
             expect(channelId).toBe("777777");
             const description = payload.embeds[0].description;
-            expect(description).toContain(`<@${ANNA}> (Zibbo)`);
+            expect(description).toContain(`**Zibbo** · <@${ANNA}>`);
             expect(description).toContain("**Absent**");
             expect(description).toContain("Arbeit");
         });

@@ -88,7 +88,8 @@ describe("services/events/overview/raidOverview", () => {
             discord.postPayload.mockResolvedValue(posted());
             const res = await overview.postOverview({ guildId: "g1", channelId: "c1", categoryId: "cat1", now: NOW });
             expect(res).toMatchObject({ edited: false, url: "https://discord.com/channels/g1/c1/m1" });
-            const [channelId, payload] = discord.postPayload.mock.calls[0];
+            const [channelId, payload, opts] = discord.postPayload.mock.calls[0];
+            expect(opts).toEqual({ silentMentions: true });
             expect(channelId).toBe("c1");
             const text = cardText(payload);
             expect(text).toContain("## PUG Raids");
@@ -112,7 +113,7 @@ describe("services/events/overview/raidOverview", () => {
             const res = await overview.postOverview({ guildId: "g1", channelId: "c1", categoryId: "cat1", now: NOW });
             expect(res.edited).toBe(true);
             expect(discord.postPayload).not.toHaveBeenCalled();
-            expect(discord.editPayload).toHaveBeenCalledWith("c1", "m1", expect.any(Object));
+            expect(discord.editPayload).toHaveBeenCalledWith("c1", "m1", expect.any(Object), { silentMentions: true });
             expect(store.listOverviews()).toHaveLength(1);
         });
 
@@ -180,7 +181,7 @@ describe("services/events/overview/raidOverview", () => {
             expect(discord.editPayload).toHaveBeenCalledTimes(2);
             await overview.refreshOverviews({ now: NOW, onlyStale: false, messageId: "m2" });
             expect(discord.editPayload).toHaveBeenCalledTimes(3);
-            expect(discord.editPayload).toHaveBeenLastCalledWith("c2", "m2", expect.any(Object));
+            expect(discord.editPayload).toHaveBeenLastCalledWith("c2", "m2", expect.any(Object), { silentMentions: true });
         });
 
         it("forgets a message deleted in Discord - and does not post it again", async () => {
@@ -365,7 +366,7 @@ describe("services/events/overview/raidOverview", () => {
             discord.editPayload.mockResolvedValue({ url: "https://discord.com/channels/g1/c-ov/ms" });
             const again = await serverPost();
             expect(again.edited).toBe(true);
-            expect(discord.editPayload).toHaveBeenCalledWith("c-ov", "ms", expect.any(Object));
+            expect(discord.editPayload).toHaveBeenCalledWith("c-ov", "ms", expect.any(Object), { silentMentions: true });
             expect(discord.postPayload).toHaveBeenCalledTimes(1);
             expect(store.findInChannel("c-ov", "cat1").messageId).toBe("m1");
             expect(store.findServerInChannel("c-ov").messageId).toBe("ms");
@@ -417,7 +418,7 @@ describe("services/events/overview/raidOverview", () => {
             discord.editPayload.mockResolvedValue({});
             const res = await overview.adoptMessage({ guildId: "g1", channelId: "c1", messageId: "old1", categoryId: "cat1", now: NOW });
             expect(res.overview).toMatchObject({ messageId: "old1", categoryId: "cat1", lastChange: NOW_SEC });
-            expect(discord.editPayload).toHaveBeenCalledWith("c1", "old1", expect.any(Object));
+            expect(discord.editPayload).toHaveBeenCalledWith("c1", "old1", expect.any(Object), { silentMentions: true });
         });
 
         it("tells when it could not be drawn", async () => {
