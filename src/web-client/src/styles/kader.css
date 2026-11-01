@@ -172,16 +172,11 @@
    container reaches only what lies inside it, hence the -in wrappers. */
 .kp-title { container: kp-title / inline-size; position: relative; z-index: 4; min-width: 0; }
 .kp-title-in {
-    display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "back meta" "name meta";
-    column-gap: 24px; align-items: center;
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "back name meta";
+    column-gap: 16px; align-items: center;
 }
-.kp-back {
-    grid-area: back; justify-self: start; display: inline-flex; align-items: center; gap: 4px; padding: 2px 0;
-    color: var(--back-ink); font-size: 13px; line-height: 18px; font-weight: 500; text-decoration: none; white-space: nowrap;
-}
-.kp-back:hover { text-decoration: underline; }
-.kp-back svg { width: 14px; height: 14px; }
-.kp-title-name { grid-area: name; display: flex; align-items: center; gap: 10px; min-width: 0; margin-top: 2px; }
+.kp-title-in > .kp-backbtn { grid-area: back; justify-self: start; white-space: nowrap; }
+.kp-title-name { grid-area: name; display: flex; align-items: center; gap: 10px; min-width: 0; }
 .kp-title-name > img { flex: none; }
 .kp-title-meta { grid-area: meta; display: flex; align-items: center; gap: 4px; }
 .kp-lab { margin-right: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
@@ -195,7 +190,10 @@
     min-width: 0; background: var(--bg); border-bottom: 1px solid var(--line);
 }
 .kp-htabs-in { display: flex; align-items: stretch; }
-.kp-status { display: flex; align-items: stretch; min-width: 0; }
+.kp-status { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; }
+/* the steps are drop zones and stay in view; out of room, only the decided states scroll, inside the line */
+.kp-steps { display: flex; align-items: stretch; flex: none; }
+.kp-decided { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
 .kp-htab {
     position: relative; display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 12px;
     color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap;
@@ -212,8 +210,10 @@
 .kp-htab-arrow::before { content: "\2192"; position: absolute; left: 8px; color: var(--muted); font-weight: 400; }
 .kp-htab-line { padding-left: 29px; }
 .kp-htab-line::before { content: ""; position: absolute; left: 14px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
-/* a card held over a step it can be dropped on */
-.kp-htab.kp-over { outline: 1px solid var(--back-ink); outline-offset: -1px; background: var(--back-bg); color: var(--back-ink); }
+/* a card on its way: where it can land stands out, the rest fades; held over a landing place, more so */
+.kp-htab.kp-htab-drop { outline: 1px dashed var(--back-ink); outline-offset: -1px; background: var(--back-bg); color: var(--back-ink); }
+.kp-htab.kp-htab-dim { opacity: .42; }
+.kp-htab.kp-over { outline: 2px solid var(--back-ink); outline-offset: -2px; background: var(--back-bg-hover); color: var(--back-ink); }
 .kp-plan { display: flex; margin-left: auto; }
 .kp-plan-menu { display: none; margin-left: auto; }
 .kp-barmenu .kp-menu { left: auto; right: 0; }
@@ -246,25 +246,26 @@
     .kp-htab-line { padding-left: 15px; }
     .kp-htab-line::before { left: 7px; }
 }
-/* phone width: name on its own row, tabs as a grid of cells, tools with full-size buttons */
+/* phone width: name on its own row, tools with full-size buttons */
 @container kp-title (max-width: 560px) {
-    .kp-title-in { grid-template-areas: "back meta" "name name"; }
+    .kp-title-in { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "back meta" "name name"; }
     .kp-lab { display: none; }
     .kp-leads { margin-right: 2px; }
     .kp-title-name { margin-top: 2px; }
     .kp-picker-btn { font-size: 20px; line-height: 26px; }
     .kp-title-name > img { width: 26px; height: 26px; }
 }
-@container kp-htabs (max-width: 670px) {
-    .kp-htabs-in { display: block; }
-    .kp-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
-    .kp-htab { justify-content: space-between; padding: 0 8px; gap: 4px; font-size: 13px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
-    .kp-htab-arrow, .kp-htab-line { padding: 0 8px; }
-    .kp-htab-arrow::before, .kp-htab-line::before { display: none; }
-    .kp-plan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-left: 1px solid var(--line); }
-    .kp-plan .kp-htab { justify-content: center; }
-    .kp-plan-menu { display: none; }
-}
+/* the tabs as a grid of cells, on a phone only (GRID_MAX in KaderHeader.tsx sets the class): too high to stick */
+.kp-htabs.kp-htabs-grid { position: static; border-bottom: 0; }
+.kp-htabs-grid .kp-htabs-in { display: block; }
+.kp-htabs-grid .kp-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.kp-htabs-grid .kp-steps, .kp-htabs-grid .kp-decided { display: contents; }
+.kp-htabs-grid .kp-htab { justify-content: space-between; padding: 0 8px; gap: 4px; font-size: 13px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.kp-htabs-grid .kp-htab-arrow, .kp-htabs-grid .kp-htab-line { padding: 0 8px; }
+.kp-htabs-grid .kp-htab-arrow::before, .kp-htabs-grid .kp-htab-line::before { display: none; }
+.kp-htabs-grid .kp-plan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-left: 1px solid var(--line); }
+.kp-htabs-grid .kp-plan .kp-htab { justify-content: center; }
+.kp-htabs-grid .kp-plan-menu { display: none; }
 @container kp-tools (max-width: 560px) {
     .kp-tools-in { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
     .kp-tools-in .btn { width: 100%; height: 44px; justify-content: center; }
@@ -275,13 +276,9 @@
     .kp-tools-in .kp-tk-line { grid-column: 1 / -1; order: -1; padding-top: 0; border-top: 0; }
     .kp-tools-in .kp-tk-line .btn { flex: 1 1 100%; margin-left: 0; }
 }
-/* the tabs as a grid (kp-htabs up to 670px, with and without the 248px sidebar) are too high to stick */
-@media (max-width: 698px), (min-width: 901px) and (max-width: 966px) {
-    .kp-htabs { position: static; border-bottom: 0; }
-}
 @media (max-width: 640px) {
     .kp-tools { margin-top: -2px; }
-    .kp-title .btn, .kp-title .kp-back, .kp-title .kp-picker-btn, .kp-tools .btn { min-height: 44px; }
+    .kp-title .btn, .kp-title .kp-picker-btn, .kp-tools .btn { min-height: 44px; }
     .kp-title .ibtn { width: 44px; height: 44px; }
 }
 
@@ -866,7 +863,8 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 @media (max-width: 1100px) {
     .kp-decide.kp-open { grid-template-columns: minmax(0, 1fr); }
     .kp-drawer {
-        position: fixed; z-index: 40; top: 12px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); max-height: none;
+        /* the topbar wraps at this width: start under it, whatever its height, and end above the window's edge */
+        position: fixed; z-index: 40; top: calc(var(--topbar-h, 64px) + 8px); right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); max-height: none;
         box-shadow: 0 18px 48px var(--shade-55);
     }
 }

@@ -388,7 +388,7 @@ move skips who does not fit and answers `moved`/`skipped`; only when nothing mov
 
 **Back directly:** a player can go back any number of states at once (`useMovePlayer`): from the drawer to Pool or
 Vorauswahl, and on the decision page by dropping a card on the "Pool" or "Vorauswahl" segment of the status bar. No step
-in between.
+in between. Going back to Pool or Vorauswahl drops the decision, like every move out of the roster.
 
 ### Interview
 
@@ -582,24 +582,31 @@ the create dialog (write access only). Without any Kader the start page shows th
 Deleting a Kader and switching the menu's version away from the open one land on the overview.
 
 - **Header** in three fixed lines with one job each (`KaderHeader.tsx`, the report head of Warcraft Logs as the model):
-  - **Title:** the link "Alle Kader" (to `/kader`), the Kader icon and the Kader picker (every Kader with "n im Roster
-    · m gesamt", "Neuer Kader"); right the leads as avatars with the label "Leitung", activity, and the settings
-    (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a checklist
-    with their nights, delete behind a confirmation). A long name is cut, never wrapped.
+  - **Title**, one line: the back button "Alle Kader" (to `/kader`), the Kader icon and the Kader picker (every Kader
+    with "n im Roster · m gesamt", "Neuer Kader"); right the leads as avatars with the label "Leitung", activity, and
+    the settings (name, leads as rows with a remove button, add a member, the raid categories attendance counts in as a
+    checklist with their nights, delete behind a confirmation). A long name is cut, never wrapped, with the whole name
+    as tooltip.
   - **Tabs** (`KaderTabs`, `nav.kp-htabs`): Pool → Vorauswahl → Vorläufig | Roster | Bench | Tentative as links with
-    the count and no icon; the words ("3 Spieler im Pool") are tooltip and accessible name; the states of the open
-    page carry the underline. Then the planning pages Zusammensetzung and "Beispiel-Setup" (tooltip: the whole task).
-    Below 1000 px of **content** width (a container query, not the window) the planning pages move into a menu at the
-    right of this line. Pool and Vorauswahl stay drop zones on the Roster page, with write access only. `fragen` and
-    `setups` show no tabs.
+    the count and no icon; the words ("3 Spieler im Pool") are tooltip and accessible name. The states the open page
+    shows carry the underline (on the Roster page all four, `aria-current` only on "Roster"; on Zusammensetzung only
+    that tab, or the menu's button when it sits in the menu). Then the planning pages Zusammensetzung and
+    "Beispiel-Setup" (tooltip: the whole task). Below 1000 px of **content** width (a container query, not the window)
+    the planning pages move into a menu at the right of this line. Out of room, only the four decided states scroll
+    inside the line; Pool, Vorauswahl and the menu stay in view. Up to 500 px of the line's own width (`GRID_MAX`,
+    measured on the line, so a scrollbar cannot split it from the sticking) the tabs become a grid of cells and stop
+    sticking; next to the sidebar the line is never that narrow. Pool and Vorauswahl stay drop zones on the Roster
+    page, with write access only: from the start of a drag the places the card may go (`backTargets`) stand out and
+    the other tabs fade (`useDraggedCard`), until the drag ends in any way. `fragen` and `setups` show no tabs.
   - **Tools of the page** (`RosterLink.tsx`, `kp-tools`): "Ins Roster übernehmen (n)", "Zum Roster", "Mehr", at the far
     right the one green main action, the same on the Roster page and Zusammensetzung. In a state with nothing to do
     the line shows the `TakeoverLine` or only what there is; without a roster or rights to act it is absent. Other
     pages show only the `TakeoverLine`.
 
   No group wraps across another (there is no `flex-wrap` over groups). **Only the tabs stick**, right below the topbar,
-  whose real height comes from `--topbar-h` (measured in `Shell.tsx`, 64 to 164 px, also after wrapping); on a phone
-  nothing sticks, the lines stack without horizontal page scroll, with touch targets of at least 44 px.
+  whose real height comes from `--topbar-h` (measured in `Shell.tsx`, 64 to 164 px, also after wrapping), and the
+  open drawer starts below the same topbar up to 1100 px; on a phone nothing sticks, the lines stack without horizontal
+  page scroll, with touch targets of at least 44 px.
 - **Numbers say what they count**: a figure always stands next to its word ("18 von 18 Spielern", "Im Pool 3",
   "7 von 20 Plätzen", "2 von 5 Plätzen") or carries it as tooltip and screen-reader text (`Count` in
   `pages/kader/parts.tsx`: section heads, filter options, role counts, list heads).

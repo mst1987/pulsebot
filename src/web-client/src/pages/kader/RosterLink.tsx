@@ -123,14 +123,16 @@ function LinkRosterModal({ state, onClose, onLinked }: { state: KaderRosterState
 
 /**
  * A menu of the head behind one button ("Mehr", "Planung"): arrows walk the entries,
- * Escape and a click elsewhere close (focus back on the button), Tab closes and moves
- * on as usual.
+ * Escape closes wherever the focus is and puts it back on the button, a click elsewhere
+ * closes, Tab closes and moves on as usual.
  */
-export function BarMenu({ label, className = "", buttonClass: triggerClass = buttonClass("ghost", "sm", false), children }: {
+export function BarMenu({ label, className = "", buttonClass: triggerClass = buttonClass("ghost", "sm", false), current = false, children }: {
     label: string;
     className?: string;
     /** The trigger's classes: a button by default, a tab in the tabs line. */
     buttonClass?: string;
+    /** The open page is one of the entries: the button says so to a screen reader. */
+    current?: boolean;
     children: (close: () => void) => ReactNode;
 }) {
     const [shown, setShown] = useState(false);
@@ -138,9 +140,19 @@ export function BarMenu({ label, className = "", buttonClass: triggerClass = but
     const btn = useRef<HTMLButtonElement>(null);
     const menu = useRef<HTMLDivElement>(null);
     const close = () => setShown(false);
-    useDismiss(wrap, shown, close);
+    useDismiss(wrap, shown, close, { escape: false });
     useEffect(() => {
         if (shown) menu.current?.querySelector<HTMLElement>("[role=menuitem]")?.focus();
+    }, [shown]);
+    useEffect(() => {
+        if (!shown) return undefined;
+        const escape = (e: globalThis.KeyboardEvent) => {
+            if (e.key !== "Escape") return;
+            setShown(false);
+            btn.current?.focus();
+        };
+        document.addEventListener("keydown", escape);
+        return () => document.removeEventListener("keydown", escape);
     }, [shown]);
     const onKey = (e: KeyboardEvent) => {
         if (e.key === "Tab") {
@@ -148,6 +160,7 @@ export function BarMenu({ label, className = "", buttonClass: triggerClass = but
             return;
         }
         if (e.key === "Escape") {
+            // the menu alone answers it, not a dialog around it; the same as above otherwise
             e.stopPropagation();
             close();
             btn.current?.focus();
@@ -161,7 +174,7 @@ export function BarMenu({ label, className = "", buttonClass: triggerClass = but
     };
     return (
         <div className={`kp-menuwrap kp-barmenu ${className}`.trim()} ref={wrap} onKeyDown={onKey}>
-            <button ref={btn} type="button" className={triggerClass} aria-haspopup="menu" aria-expanded={shown} onClick={() => setShown(!shown)}>
+            <button ref={btn} type="button" className={triggerClass} aria-haspopup="menu" aria-expanded={shown} aria-current={current ? "page" : undefined} onClick={() => setShown(!shown)}>
                 {label}<ChevronDownIcon />
             </button>
             {shown && <div className="kp-menu" ref={menu} role="menu" aria-label={label}>{children(close)}</div>}

@@ -145,7 +145,7 @@
         }
     },
     "header": {
-        "pick":"Kader wählen",
+        "pick": "Kader wählen",
         "new": "Neuer Kader",
         "leads": "Leitung",
         "noLeads": "noch niemand",
