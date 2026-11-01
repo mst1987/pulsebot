@@ -260,6 +260,8 @@ const setState = kaderWrite((p, body, ctx) => players.setState(p, body, ctx));
 // -------------------------------------------------------- interview
 /** PUT /api/kader/interview — body: { kaderId, userId, wishes?, answers?, note?, lead? } */
 const saveInterview = kaderWrite((p, body, ctx) => players.saveInterview(p, body, ctx));
+/** PUT /api/kader/wishes — body: { kaderId, userId, wishes, baseRev?, force? }; "Specs bearbeiten" outside the interview: does not start it. */
+const saveWishes = kaderWrite((p, body, ctx) => players.saveWishes(p, body, ctx));
 /** POST /api/kader/interview/complete — body: { kaderId, userId } */
 const completeInterview = kaderWrite((p, body, ctx) => players.completeInterview(p, body, ctx));
 /** POST /api/kader/interview/reopen — body: { kaderId, userId } */
@@ -523,6 +525,7 @@ const routes = [
     { method: "POST", path: "/api/kader/players/remove", handler: removePlayers, area: "kader" },
     { method: "POST", path: "/api/kader/players/state", handler: setState, area: "kader" },
     { method: "PUT", path: "/api/kader/interview", handler: saveInterview, area: "kader" },
+    { method: "PUT", path: "/api/kader/wishes", handler: saveWishes, area: "kader" },
     { method: "POST", path: "/api/kader/interview/complete", handler: completeInterview, area: "kader" },
     { method: "POST", path: "/api/kader/interview/reopen", handler: reopenInterview, area: "kader" },
     { method: "POST", path: "/api/kader/votes", handler: setVote, area: "kader" },
@@ -548,7 +551,7 @@ const routes = [
 
 module.exports = {
     getKader, getKaderOnly, getLive, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
-    saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
+    saveInterview, saveWishes, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant, savePlan, discardPlan, applyPlan,
     addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster,

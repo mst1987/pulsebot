@@ -9,7 +9,7 @@ import { t } from "../../i18n";
 import { nameOf, playerName } from "./model";
 
 /** The line types an edit repeats quickly (the server folds them into one line, the toast says them once per REPEAT_MS). */
-export const REPEATED: KaderActivityType[] = ["interview", "lead", "questions", "setups", "settings", "character", "plan"];
+export const REPEATED: KaderActivityType[] = ["interview", "wishes", "lead", "questions", "setups", "settings", "character", "plan"];
 export const REPEAT_MS = 2 * 60 * 1000;
 const STATES = ["pool", "selected", "provisional", "roster", "bench", "tentative"];
 

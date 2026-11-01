@@ -112,7 +112,7 @@ const LIMITS = {
  * never an answer, a note or a comment's text.
  */
 const ACTIVITY_TYPES = [
-    "created", "added", "removed", "state", "decision", "interview", "lead", "interview_completed", "interview_reopened",
+    "created", "added", "removed", "state", "decision", "interview", "wishes", "lead", "interview_completed", "interview_reopened",
     "vote", "comment", "comment_deleted", "questions", "setups", "settings", "character",
     "plan", "plan_applied", "plan_discarded",
     "takeover", "role_given", "role_removed_kader", "role_removed_discord", "role_added_discord",

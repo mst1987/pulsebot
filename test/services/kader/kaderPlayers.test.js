@@ -110,6 +110,50 @@ describe("services/kader/kaderPlayers", () => {
             expect(p).toMatchObject({ moved: 0, skipped: 0 });
         });
 
+        it("jumps straight back from every state from Vorläufig up, but never forward over a step", () => {
+            const { planner, kaderId } = setup();
+            const up = (to) => {
+                let p = move(move(planner, kaderId, [U.a], "selected"), kaderId, [U.a], "provisional");
+                if (to !== "provisional") p = move(p, kaderId, [U.a], to);
+                return p;
+            };
+            for (const from of ["provisional", "roster", "bench", "tentative"]) {
+                for (const to of ["selected", "pool"]) {
+                    const p = move(up(from), kaderId, [U.a], to);
+                    const e = entry(p, U.a);
+                    expect(e.state).toBe(to);
+                    expect(e.decision).toBeNull();
+                    expect(e.history[e.history.length - 1]).toMatchObject({ type: "state", from, to });
+                }
+            }
+            for (const to of ["provisional", "roster", "bench", "tentative"]) {
+                expect(refusal(() => move(planner, kaderId, [U.a], to)).status).toBe(409);
+            }
+            const selected = move(planner, kaderId, [U.a], "selected");
+            for (const to of ["roster", "bench", "tentative"]) {
+                expect(refusal(() => move(selected, kaderId, [U.a], to)).status).toBe(409);
+            }
+        });
+
+        it("takes a jumping player out of the setups and the composition draft like a step does", () => {
+            const { planner, kaderId } = setup();
+            let p = move(move(planner, kaderId, [U.a], "selected"), kaderId, [U.a], "provisional");
+            p = move(p, kaderId, [U.a], "roster");
+            const groups = model.emptyGroups();
+            groups[0][0] = { userId: U.a, spec: "Mage-Frost" };
+            p = model.normalizePlanner(p);
+            p.kaders[0].setups = [{ id: "v1", name: "A", size: 10, groups }];
+            p.kaders[0].plan = { specs: { [U.a]: { className: "Mage", spec: "Mage-Frost" } }, excluded: [U.a], by: U.lead, at: NOW };
+            const stepped = model.normalizePlanner(move(move(move(p, kaderId, [U.a], "provisional"), kaderId, [U.a], "selected"), kaderId, [U.a], "pool"));
+            const jumped = model.normalizePlanner(move(p, kaderId, [U.a], "pool"));
+            for (const after of [stepped, jumped]) {
+                expect(after.kaders[0].setups.flatMap((v) => v.groups.flat()).filter(Boolean)).toEqual([]);
+                expect(after.kaders[0].plan.specs[U.a]).toBeUndefined();
+                expect(after.kaders[0].plan.excluded).not.toContain(U.a);
+                expect(entry(after, U.a).decision).toBeNull();
+            }
+        });
+
         it("moves bench, tentative and roster among each other and takes a chosen decision", () => {
             const { planner, kaderId } = setup();
             let p = move(move(planner, kaderId, [U.c], "selected"), kaderId, [U.c], "provisional");

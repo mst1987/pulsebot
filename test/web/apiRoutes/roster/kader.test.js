@@ -177,6 +177,49 @@ describe("web/apiRoutes/kader", () => {
         });
     });
 
+    describe("PUT /api/kader/wishes", () => {
+        const WISHES = [{ className: "Warrior", spec: "Warrior-Fury" }];
+
+        it("needs a login, the write grant and a CSRF token", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            const payload = { kaderId, userId: U2, wishes: WISHES };
+            auth.getUser.mockReturnValue(null);
+            expect(status(await put("/api/kader/wishes", payload))).toBe(401);
+            auth.getUser.mockReturnValue(OUTSIDER);
+            expect(status(await put("/api/kader/wishes", payload))).toBe(403);
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(status(await put("/api/kader/wishes", payload))).toBe(403);
+            auth.getUser.mockReturnValue(ADMIN);
+            auth.checkCsrf.mockReturnValue(false);
+            expect(status(await put("/api/kader/wishes", payload))).toBe(403);
+            expect(kaderStore.readPlanner("g1").kaders[0].players[U2].wishes).toEqual([]);
+        });
+
+        it("saves the wishes, leaves the interview open and tells the activity the truth", async () => {
+            const { kaderId } = await kaderWithPlayers();
+            auth.getUser.mockReturnValue(granted("write"));
+            const res = await put("/api/kader/wishes", { kaderId, userId: U2, wishes: WISHES });
+            expect(status(res)).toBe(200);
+            const e = body(res).kader.players[U2];
+            expect(e.wishes).toEqual(WISHES);
+            expect(e.interview.startedAt).toBe("");
+            expect(e.interview.rev).toBeGreaterThan(0);
+            expect(e.history[e.history.length - 1].type).toBe("wishes");
+            const stored = kaderStore.readPlanner("g1").kaders[0];
+            expect(stored.activity[stored.activity.length - 1]).toMatchObject({ type: "wishes", playerId: U2 });
+        });
+
+        it("takes only specs of the Kader's version and refuses an older revision", async () => {
+            const { kaderId, view } = await kaderWithPlayers();
+            let res = await put("/api/kader/wishes", { kaderId, userId: U2, wishes: [{ className: "Warrior", spec: "Nope" }] });
+            expect(status(res)).toBe(400);
+            const baseRev = view.kader.players[U2].interview.rev;
+            expect(status(await put("/api/kader/wishes", { kaderId, userId: U2, wishes: WISHES, baseRev }))).toBe(200);
+            res = await put("/api/kader/wishes", { kaderId, userId: U2, wishes: [], baseRev });
+            expect([status(res), body(res).error.code]).toEqual([409, "stale"]);
+        });
+    });
+
     describe("GET /api/kader", () => {
         it("answers the server's side and the chosen Kader", async () => {
             const { kaderId } = await kaderWithPlayers();
