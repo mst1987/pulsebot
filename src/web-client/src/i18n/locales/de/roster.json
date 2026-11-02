@@ -318,6 +318,7 @@
         "roleUnknownSub": "Die Mitgliederliste des Discord ist gerade nicht erreichbar",
         "noRoleSet": "Dieses Roster hat keine Discord-Rolle",
         "noChar": "Kein Charakter zugewiesen",
+        "plannedTip": "Aus dem Kaderplaner",
         "charTip": "{class} · {spec}",
         "firstChar": "Spielt diesen Charakter im Roster",
         "otherChar": "Weiterer Charakter",
@@ -844,6 +845,7 @@
             "signup": "Anmeldung",
             "logs": "Log",
             "profile": "Profil",
+            "kader": "Kaderplaner",
             "class": "Klasse"
         }
     },

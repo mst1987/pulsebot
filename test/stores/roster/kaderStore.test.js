@@ -169,12 +169,19 @@ describe("the Kaderplaner's data stays in the Kaderplaner", () => {
         // rosterCreate.js builds a roster from a Kader (#657) - through kaderRoster.js and nothing else (next test);
         // categoryLifecycle.js closes a raid category (#744) - through kaderCategories.js and nothing else;
         // contentVersions.js offers the versions the planner holds Kader for - through kaderVersions.js, version ids only
-        // rosterTakeover.js takes a Kader over into Discord - through kaderRoster.js and nothing else too
-        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/categories/categoryLifecycle.js", "services/roster/rosterCreate.js", "services/roster/rosterTakeover.js", "services/versions/contentVersions.js", "stores/settings/settingsMigration.js"]);
+        // rosterTakeover.js takes a Kader over into Discord - through kaderRoster.js and nothing else too;
+        // memberSpec.js reads a member's planned class and spec - through kaderRoster.js and nothing else too
+        expect(users.filter((rel) => !OWN(rel))).toEqual(["services/categories/categoryLifecycle.js", "services/roster/memberSpec.js", "services/roster/rosterCreate.js", "services/roster/rosterTakeover.js", "services/versions/contentVersions.js", "stores/settings/settingsMigration.js"]);
     });
 
     it("lets the takeover in through kaderRoster.js only", () => {
         const src = fs.readFileSync(path.join(SRC, "services", "roster", "rosterTakeover.js"), "utf8");
+        const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
+        expect(kaderRequires).toEqual(["../kader/kaderRoster"]);
+    });
+
+    it("lets a member's planned class in through kaderRoster.js only", () => {
+        const src = fs.readFileSync(path.join(SRC, "services", "roster", "memberSpec.js"), "utf8");
         const kaderRequires = [...src.matchAll(/require\(\s*["']([^"']*kader[^"']*)["']\s*\)/gi)].map((m) => m[1]);
         expect(kaderRequires).toEqual(["../kader/kaderRoster"]);
     });

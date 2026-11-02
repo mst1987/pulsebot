@@ -46,7 +46,9 @@ single-account grant, the CSRF refusal and the lead rule.
 ## Privacy
 
 Wishes, interview answers, notes, votes and comments **never leave the Kaderplaner**: not into the raider profile,
-the roster pages, other APIs or the logs. `src/stores/roster/kaderStore.js` is required only by
+the roster pages, other APIs or the logs. The one exception is `kaderRoster.plannedPicks` below: for a player without a
+decision, the first wish's class and spec show in the linked roster, as one class/spec that does not say it was a wish.
+`src/stores/roster/kaderStore.js` is required only by
 `src/stores/settings/settingsMigration.js`, `src/web/apiRoutes/roster/kader.js` and `src/services/kader/kaderRoster.js` (the roster
 door below; `test/stores/roster/kaderStore.test.js` keeps that list), and the route test serialises the other areas' answers and asserts none of it appears. In the other direction a
 profile leaves `kaderSource.js` as a whitelist (characters, specs, gear, main, tank/heal, raid days, the saved
@@ -60,7 +62,11 @@ A raid roster (docs/roster-profile.md "Roster anlegen und einstellen") can be cr
 `rosterPlayers(guildId, kaderId)` answers per player **only** `{ userId, state, decision, characterName }` (states
 roster, bench, tentative; `characterName` = the planner's active character), built field by field — never a wish, an
 answer, a note, a vote, a comment, the Verlauf or the activity log; `kaderSummaries(guildId)` gives the create dialog
-and the roster link id, name, two counts and the Kader's `attendanceCategories` (category ids, no person in them). `rosterCreate.js` is the only module outside the Kaderplaner that requires it, and it requires
+and the roster link id, name, two counts and the Kader's `attendanceCategories` (category ids, no person in them);
+`plannedPicks(guildId, kaderId)` answers `{ [userId]: { className, spec } }` for a linked roster's members without a
+character (the decision, else the first wish, else the active character's main spec; states of `TAKEOVER_STATES`; never the
+Planspiel, read live, not stored in the roster, every reader of the roster sees it — docs/roster-profile.md "Spec eines Mitglieds").
+Outside the Kaderplaner `rosterCreate.js`, `rosterTakeover.js` and `memberSpec.js` require it, and they require
 nothing else of the planner (`test/stores/roster/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
 roster suites fill every private field with a marker and assert it never reaches the answer or `rosters.json`. The
 roster maps roster → core, bench → bench, tentative → trial; the character is the planner's active one as the profile

@@ -202,7 +202,7 @@ export type RosterComposition = {
     /** Who counts without spec or class, and why. */
     unresolved?: { userId: string; displayName: string; character: string; className: string; reason: "no_char" | "no_class" | "no_spec" }[];
     /** How many specs came from which source. */
-    sources?: { override: number; signup: number; logs: number; profile: number; class: number };
+    sources?: { override: number; signup: number; logs: number; profile: number; kader: number; class: number };
     canManage: boolean;
 };
 

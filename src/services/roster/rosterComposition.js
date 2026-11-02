@@ -6,7 +6,8 @@
 // against slots.bench, pause not at all. A member's class, spec and role come
 // from their first character through memberSpec.js's chain (the orga's spec,
 // the last signup in the roster's category, the logs, the raider profile, the
-// class alone) - the same answer the members table and the overview cards get.
+// linked Kader's plan, the class alone) - the same answer the members table and
+// the overview cards get.
 //
 //   * classes: every member whose class is known, also without a spec;
 //   * roles:   a member with a spec by its role; without a spec by the role
@@ -59,7 +60,7 @@ function fallbackName(userId, member) {
  *   buffsAvailable: boolean,
  *   members: { userId, className, spec, role, source }[],
  *   unresolved: { userId, displayName, character, className, reason }[],
- *   sources: { override, signup, logs, profile, class } }}
+ *   sources: { override, signup, logs, profile, kader, class } }}
  */
 function rosterComposition(roster, opts = {}) {
     const rules = rulesFor(roster.versionId);
@@ -69,7 +70,7 @@ function rosterComposition(roster, opts = {}) {
     const roleCount = { tank: 0, healer: 0, melee: 0, ranged: 0, dps: 0 };
     const classCount = new Map();
     const specsInRoster = new Map(); // spec key -> [userId]
-    const sources = { override: 0, signup: 0, logs: 0, profile: 0, class: 0 };
+    const sources = { override: 0, signup: 0, logs: 0, profile: 0, kader: 0, class: 0 };
     const members = [];
     const unresolved = [];
     let unknown = 0;

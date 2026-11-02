@@ -318,6 +318,7 @@
         "roleUnknownSub": "The Discord member list cannot be reached right now",
         "noRoleSet": "This roster has no Discord role",
         "noChar": "No character assigned",
+        "plannedTip": "From the Kader planner",
         "charTip": "{class} · {spec}",
         "firstChar": "Plays this character in the roster",
         "otherChar": "Further character",
@@ -844,6 +845,7 @@
             "signup": "signup",
             "logs": "log",
             "profile": "profile",
+            "kader": "Kader planner",
             "class": "class"
         }
     },

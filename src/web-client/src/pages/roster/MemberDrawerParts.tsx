@@ -15,6 +15,7 @@ import { classLabel, specLabel } from "../../lib/wow/wowNames";
 import { assignChar, charIcon, charLine, dateInputValue, moveChar } from "../../lib/roster/rosterEdit";
 import { attendanceTone } from "../../lib/roster/rosterView";
 import AttendanceCell from "../../components/roster/AttendanceCell";
+import { PlannedChip } from "./RosterParts";
 
 
 /** A drawer section: a small heading, its hint on the right, the content. */
@@ -65,6 +66,7 @@ export function CharsSection({ member, data, busy, onSave }: {
     return (
         <DrawerSection title={t("roster.drawer.chars")} hint={data.roster.versionLabel}>
             <div className="rn-pick">
+                {member.planned && !member.chars.length && <div className="rn-chars"><PlannedChip planned={member.planned} /></div>}
                 {!member.chars.length && <p className="rn-sub">{t("roster.detail.noChar")}</p>}
                 {member.chars.map((c, i) => (
                     <CharRow key={c.key} char={c} on note={i === 0 ? t("roster.drawer.playsHere") : t("roster.drawer.extraChar")}>

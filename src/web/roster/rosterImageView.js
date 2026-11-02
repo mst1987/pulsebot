@@ -5,7 +5,8 @@
 // always drawn in the readers' view (the slim rows of rosterView.slimMember, no trial dates),
 // whoever makes it: the orga downloads and posts it for the raiders.
 //
-// Only the first char of a person is a row; the further chars ride along as icons. A spec the
+// Only the first char of a person is a row; the further chars ride along as icons. A person
+// without a char shows the linked Kader's planned class under their Discord name. A spec the
 // rule set does not know (a log's spec name in the character cache) is dropped to "", so the
 // builder falls back to the class icon instead of guessing.
 const { buildRosterDetail } = require("./rosterView");
@@ -25,7 +26,7 @@ function knownSpec(char, versionId) {
 /** One person of the detail view as the builder draws them. */
 function personOf(row, versionId) {
     const chars = Array.isArray(row.chars) ? row.chars : [];
-    const first = chars[0] || {};
+    const first = chars[0] || row.planned || {};
     const spec = knownSpec(first, versionId);
     const rec = spec ? specRecord(spec, versionId) : null;
     return {
