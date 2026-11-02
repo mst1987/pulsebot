@@ -98,7 +98,7 @@ function versionsOfServer(guildId, config) {
 
 /**
  * What the sync app shows after connecting (`GET /api/ingest/me`): each server with its Discord
- * name, the label of the settings, the owner's role there and its versions.
+ * name and icon, the label of the settings, the owner's role there and its versions.
  * @param {{ guildId: string, role?: string }[]} servers
  */
 function describeServers(servers, { config } = {}) {
@@ -108,6 +108,7 @@ function describeServers(servers, { config } = {}) {
         guildId,
         name: names.get(guildId) || "",
         label: serverLabel(guildId, cfg),
+        iconUrl: discord.guildIconUrl(guildId),
         role: role || "",
         versions: versionsOfServer(guildId, cfg),
     }));

@@ -10,6 +10,7 @@ jest.mock("../../../../src/services/roster/categoryOrga", () => ({
 }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => [{ id: "g1", name: "Pulse" }, { id: "g2", name: "Pulse Forever" }]),
+    guildIconUrl: jest.fn((id) => (id === "g1" ? "https://cdn.discordapp.com/icons/g1/abc.webp?size=64" : "")),
 }));
 jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => []),
@@ -90,11 +91,11 @@ describe("serversOfToken", () => {
 });
 
 describe("describeServers", () => {
-    it("names each server with its label, the role and its versions", () => {
+    it("names each server with its label, icon, the role and its versions", () => {
         const out = ingestServers.describeServers([{ guildId: "g1", role: "orga" }, { guildId: "g3" }], opts);
         expect(out).toEqual([
-            { guildId: "g1", name: "Pulse", label: "Hauptgilde", role: "orga", versions: [expect.objectContaining({ id: "tbc" })] },
-            { guildId: "g3", name: "", label: "", role: "", versions: [expect.objectContaining({ id: "tbc" })] },
+            { guildId: "g1", name: "Pulse", label: "Hauptgilde", iconUrl: "https://cdn.discordapp.com/icons/g1/abc.webp?size=64", role: "orga", versions: [expect.objectContaining({ id: "tbc" })] },
+            { guildId: "g3", name: "", label: "", iconUrl: "", role: "", versions: [expect.objectContaining({ id: "tbc" })] },
         ]);
         expect(out[0].versions[0]).toEqual({ id: "tbc", short: expect.any(String), realm: expect.any(String) });
         expect(out[0].versions[0].short).not.toBe("");
