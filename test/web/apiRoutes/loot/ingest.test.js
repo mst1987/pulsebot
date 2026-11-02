@@ -57,6 +57,10 @@ jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
     const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
+jest.mock("../../../../src/services/versions/mainVersion", () => {
+    const actual = jest.requireActual("../../../../src/services/versions/mainVersion");
+    return { ...actual, versionOfEvent: jest.fn(actual.versionOfEvent) };
+});
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
@@ -189,6 +193,37 @@ describe("POST /api/ingest/loot", () => {
 
     // The decisions an admin already made must survive the sync tool re-sending
     // the same raid on every SavedVariables flush.
+    // A TBC raid uploaded while Forever is the main version: Forever's section answers 404.
+    describe("Wowhead section of a pending upload", () => {
+        const wowhead = require("../../../../src/utils/loot/wowhead");
+
+        it("asks the version the upload named and links its items there", async () => {
+            await upload(payload({ gameVersion: "classic" }));
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "classic" });
+            expect(upsertPending.mock.calls[0][0].items[0].itemLink).toBe("https://www.wowhead.com/classic/item=30242");
+        });
+
+        it("asks the main version's when an older addon names no version", async () => {
+            await upload(payload());
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "tbc" });
+        });
+
+        it("asks the suggested raid's version when an older addon names none", async () => {
+            const { versionOfEvent } = require("../../../../src/services/versions/mainVersion");
+            const actual = jest.requireActual("../../../../src/services/versions/mainVersion").versionOfEvent;
+            versionOfEvent.mockImplementation((ev, opts) => (ev.id === "e1" ? "classic" : actual(ev, opts)));
+            loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "MC", startTime: 1784574000 }] }],
+            });
+            try {
+                await upload(payload());
+                expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "classic" });
+            } finally {
+                versionOfEvent.mockImplementation(actual);
+            }
+        });
+    });
+
     describe("remembered decisions", () => {
         it("appends straight to the event an accepted session went to", async () => {
             resolutionFor.mockReturnValue({

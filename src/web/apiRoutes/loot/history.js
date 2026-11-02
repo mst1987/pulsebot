@@ -1,3 +1,4 @@
+const log = require("../../../logger").child("lootHistory");
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -28,7 +29,7 @@ const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
     resolvedById: resolvedInboxById, listDismissed: listDismissedSessions, getDismissed: getDismissedSession,
-    restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions,
+    restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions, repairItemNames: repairInboxItemNames,
 } = require("../../../stores/loot/lootInboxStore");
 const guildBankStockStore = require("../../../stores/loot/guildBankStockStore");
 const guildBankStock = require("../../../services/guildbank/guildBankStock");
@@ -610,12 +611,30 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
 
 // ---- addon inbox: sessions uploaded by the loot-sync tool, awaiting a decision ----
 
+// How long the inbox waits for its icon backfill.
+const INBOX_REPAIR_WAIT_MS = 3000;
+
+/** The backfill the other loot views run, but a slow Wowhead must not hold the page: the run goes on and a later view has the icons. */
+async function inboxRepairWithinTime() {
+    let timer = null;
+    const late = new Promise((resolve) => {
+        timer = setTimeout(resolve, INBOX_REPAIR_WAIT_MS);
+        if (timer.unref) timer.unref();
+    });
+    try {
+        await Promise.race([repairInboxItemNames().catch((err) => log.warn(`Inbox icon backfill: ${err && err.message}`)), late]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
 /**
  * GET /api/history/inbox — the raid sessions the WoW addon uploaded but nobody
  * has filed yet, each with the event it was matched to (a suggestion only) and
  * its loot, so the admin can see what they are accepting before they accept it.
  */
 const getLootInbox = withUser({}, async ({ user, req, res, url }) => {
+    await inboxRepairWithinTime();
     // One game version (#741): a session matched to a raid only under that raid's
     // version, one without a match under every version (like a log without a raid).
     const cfg = getConfig();
