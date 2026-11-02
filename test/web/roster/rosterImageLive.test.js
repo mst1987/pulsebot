@@ -92,6 +92,22 @@ describe("web/roster/rosterImageLive refreshRosterImages", () => {
         expect(discordImage.renderPng).not.toHaveBeenCalled();
     });
 
+    it("reads the member list as a background job, so it never keeps a full fetch going", async () => {
+        await postPicture();
+        discord.listHumanMembers.mockClear();
+        await refreshRosterImages({ now: NOW });
+        expect(discord.listHumanMembers).toHaveBeenCalled();
+        for (const call of discord.listHumanMembers.mock.calls) expect(call).toEqual([G, { background: true }]);
+    });
+
+    it("does not edit for a change the picture does not show", async () => {
+        rosterStore.upsertMember(roster.id, BEN, { chars: ["Devi"], status: "pause" });
+        await postPicture();
+        rosterStore.upsertMember(roster.id, BEN, { status: "bench" });
+        expect(await refreshRosterImages({ now: NOW })).toMatchObject({ posts: 1, edited: 0 });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
     it("does not edit because of the date alone", async () => {
         await postPicture();
         expect(await refreshRosterImages({ now: NEXT_DAY })).toMatchObject({ posts: 1, edited: 0 });

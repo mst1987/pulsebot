@@ -2,7 +2,8 @@
 // every minute each remembered picture (rosterStore's imagePost) is compared with what the
 // roster shows now, and on a change the same message is edited - nobody is pinged, nothing is
 // posted anew. The PNG is drawn only on a change; without a remembered picture a run does nothing
-// (the server has one core). Under web/ because the picture is built from the roster page's view.
+// (the server has one core). The member list is read with `background`: the job does not keep
+// a full fetch going itself. Under web/ because the picture is built from the roster page's view.
 //
 // Deleted in Discord, a picture stays gone: services/discord/linkWatch.js forgets it at once,
 // and 10008 / 10003 here catch what happened while the bot was away. Any other refusal (the bot
@@ -39,11 +40,12 @@ function warnOnce(messageId, line) {
 /**
  * Whether the server's member list can be read now. Without it the roster view falls back to
  * profile names and user ids (rosterView.loadDiscord), and a short outage would overwrite the
- * picture with ids. The list is cached, so asking first costs nothing extra.
+ * picture with ids. Read with `background`, so a run triggers a fetch only when the list is
+ * older than discord.js' MEMBERS_STALE_MAX_MS or missing; the view below then finds it cached.
  */
 async function membersReadable(guildId) {
     try {
-        const listed = await discord.listHumanMembers(guildId);
+        const listed = await discord.listHumanMembers(guildId, { background: true });
         return !!listed && !listed.error;
     } catch {
         return false;
@@ -56,7 +58,7 @@ async function refreshPost(roster, { config, now }) {
     const line = `Roster picture ${roster.id} (message ${post.messageId})`;
     try {
         if (!(await membersReadable(post.guildId))) return "held";
-        const built = await rosterImageModel({ guildId: post.guildId, id: roster.id, config, now });
+        const built = await rosterImageModel({ guildId: post.guildId, id: roster.id, config, now, background: true });
         if (!built) return "held";
         const hash = pictureHash(built.model, { reserve: post.reserve, chars: post.chars, lang: built.lang });
         if (hash === post.hash) return "same";

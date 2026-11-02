@@ -159,6 +159,11 @@ describe("GET /api/rosters/image/info", () => {
         expect(JSON.stringify(data(res))).not.toContain(LIVE_POST.hash);
     });
 
+    it("gives no live picture that lies on another server (a roster without a server of its own)", async () => {
+        rosterStore.setImagePost(roster.id, { ...LIVE_POST, guildId: "g2" });
+        expect(data(await get("/api/rosters/image/info", { id: roster.id })).live).toBeNull();
+    });
+
     it("gives no live picture for a closed roster: nothing updates it any more", async () => {
         rosterStore.setImagePost(roster.id, LIVE_POST);
         rosterStore.closeRoster(roster.id);
@@ -287,6 +292,22 @@ describe("POST /api/rosters/image", () => {
         expect(order).toEqual(["post", "delete, store has m2"]);
         expect(discord.deleteMessage).toHaveBeenCalledTimes(1);
         expect(discord.deleteMessage).toHaveBeenCalledWith(CHANNEL, LIVE_POST.messageId);
+    });
+
+    it("leaves an old picture on another server alone: not ours to delete", async () => {
+        rosterStore.setImagePost(roster.id, { ...LIVE_POST, guildId: "g2" });
+        expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(200);
+        expect(discord.deleteMessage).not.toHaveBeenCalled();
+        expect(rosterStore.getRoster(roster.id).imagePost.guildId).toBe("g1");
+    });
+
+    it("takes the new message back when the roster is deleted during the post", async () => {
+        discord.postPayload.mockImplementationOnce(async (channelId) => {
+            rosterStore.deleteRoster(roster.id);
+            return { guildId: "g1", channelId, messageId: "m2", url: "u" };
+        });
+        expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(404);
+        expect(discord.deleteMessage).toHaveBeenCalledWith(CHANNEL, "m2");
     });
 
     it("a failed post leaves the old picture alone", async () => {

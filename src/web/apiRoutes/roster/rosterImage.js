@@ -41,10 +41,14 @@ function postFailure(err) {
     return [502, "post_failed", "Das Bild konnte nicht gepostet werden."];
 }
 
-/** The picture keeping itself current as the dialog shows it; never the message id or hash. */
-function livePost(roster) {
+/**
+ * The picture keeping itself current as the `info` answer shows it: without the message id and
+ * hash (the roster's own create/update answers to its managers still carry them raw). Only a
+ * picture on this server: a roster without a server of its own belongs to whichever is active.
+ */
+function livePost(roster, guildId) {
     const post = roster.imagePost;
-    if (!post || rosterStore.isClosed(roster)) return null;
+    if (!post || rosterStore.isClosed(roster) || post.guildId !== guildId) return null;
     return {
         channelId: post.channelId,
         url: linkCheck.messageLink(post.guildId, post.channelId, post.messageId),
@@ -74,8 +78,8 @@ const getRosterImage = withUser({}, async ({ req, res, query }) => {
  * GET /api/rosters/image/info?id=<rosterId> — what the dialog offers:
  * { canPost, channelId (the channel of the last post), channels (the roster server's text
  * channels the bot may write in), live (the picture keeping itself current: { channelId, url,
- * reserve, chars }, url "" while the bot cannot tell; null when there is none or the roster is
- * closed) }; all but canPost only for somebody who may post.
+ * reserve, chars }, url "" while the bot cannot tell; null when there is none on this server or
+ * the roster is closed) }; all but canPost only for somebody who may post.
  */
 const getRosterImageInfo = withUser({}, async ({ req, res, user, query }) => {
     const id = q.str(query, "id", { max: 64 });
@@ -87,7 +91,7 @@ const getRosterImageInfo = withUser({}, async ({ req, res, user, query }) => {
         canPost,
         channelId: canPost ? roster.imageChannelId || null : null,
         channels: canPost ? discord.listTextChannels(guildOf(roster, req)) : [],
-        live: canPost ? livePost(roster) : null,
+        live: canPost ? livePost(roster, guildOf(roster, req)) : null,
     });
 });
 
@@ -95,7 +99,8 @@ const getRosterImageInfo = withUser({}, async ({ req, res, user, query }) => {
  * POST /api/rosters/image — post the picture into a channel of the roster's server.
  * Body: { id, channelId, reserve?, chars? }. Answer: { url, channelId }; the channel is kept
  * as the roster's next suggestion and the post remembered, then the roster's previous picture
- * is deleted - in this order, so a failed post costs nothing. 404 roster, 403 not_manager /
+ * is deleted if it is on the same server - in this order, so a failed post costs nothing. A
+ * roster deleted during the post takes the new message with it. 404 roster, 403 not_manager /
  * other_server / wrong_guild / no_permission, 400 no channel, 503 bot offline, 502 anything else
  * Discord refused.
  */
@@ -129,19 +134,27 @@ const postRosterImage = withUser({ write: "roster", csrf: true, body: true }, as
         logger.warn(`Roster picture ${roster.id} -> ${channelId}: ${err && err.message}`);
         return apiError(res, status, code, message);
     }
+    const current = rosterStore.getRoster(roster.id);
+    if (!current) {
+        // deleted while posting: nothing would ever update or find this message again
+        await discord.deleteMessage(posted.channelId, posted.messageId);
+        return apiError(res, 404, "not_found", NOT_FOUND);
+    }
     rosterStore.setImageChannel(roster.id, channelId);
-    if (!rosterStore.isClosed(roster)) {
-        const previous = rosterStore.getRoster(roster.id).imagePost;
+    if (!rosterStore.isClosed(current)) {
+        const previous = current.imagePost;
+        const guildId = posted.guildId || guildOf(roster, req);
         rosterStore.setImagePost(roster.id, {
-            guildId: posted.guildId || guildOf(roster, req),
+            guildId,
             channelId: posted.channelId,
             messageId: posted.messageId,
             reserve,
             chars,
             hash: picture.hash,
         });
-        // never throws; left standing it would only be an image nothing updates any more
-        if (previous) await discord.deleteMessage(previous.channelId, previous.messageId);
+        // never throws; left standing it would only be an image nothing updates any more. A
+        // roster without a server of its own may have its old picture on another one: not ours to delete
+        if (previous && previous.guildId === guildId) await discord.deleteMessage(previous.channelId, previous.messageId);
     }
     return ok(res, { url: posted.url, channelId: posted.channelId });
 });

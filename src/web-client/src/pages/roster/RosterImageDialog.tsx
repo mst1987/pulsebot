@@ -5,8 +5,9 @@
 // who may read the roster may look at it and download it (a snapshot); posting needs the right to
 // manage this roster (GET /api/rosters/image/info says canPost) - without it the channel and the
 // post button stay hidden. A posted picture keeps itself current until it is deleted in Discord; a
-// roster has one, so posting again replaces it. A refused post goes to the shared toast and also
-// stays in the dialog as a sentence next to the button: the toast sits under the modal's backdrop.
+// roster has one, so posting again replaces it. A closed roster's post stays a snapshot. A refused
+// post goes to the shared toast and also stays in the dialog as a sentence next to the button: the
+// toast sits under the modal's backdrop.
 import { useState } from "react";
 import { getRosterImageInfo, postRosterImage, rosterImageUrl, type ApiError, type RosterDetail, type RosterImagePosted } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -139,7 +140,7 @@ export default function RosterImageDialog({ data, onClose }: { data: RosterDetai
                                     <p className="rn-sub">{t("roster.image.repostHint")}</p>
                                 </>
                             ) : (
-                                <p className="rn-sub">{t("roster.image.channelHint")}</p>
+                                <p className="rn-sub">{t(data.roster.closed ? "roster.image.closedHint" : "roster.image.channelHint")}</p>
                             )}
                             {refusal && <p className="rn-img-err" role="alert">{refusal}</p>}
                             {posted && (

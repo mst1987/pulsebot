@@ -101,13 +101,14 @@ function versionLabel(versionId) {
 /**
  * The server's members and roles, best-effort. `members` is null when the list
  * is not available (bot offline, intent missing) - then nobody's roles are known.
+ * `background`: a job reading it, see discord.fetchGuildMembersCached; a page never passes it.
  */
-async function loadDiscord(guildId) {
+async function loadDiscord(guildId, { background = false } = {}) {
     let members = null;
     let roles = new Map();
     if (!guildId) return { members, roles };
     try {
-        const listed = await discord.listHumanMembers(guildId);
+        const listed = background ? await discord.listHumanMembers(guildId, { background: true }) : await discord.listHumanMembers(guildId);
         if (listed && !listed.error) members = new Map((listed.members || []).map((m) => [String(m.id), m]));
     } catch {
         members = null;
@@ -484,12 +485,12 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
 /**
  * GET /api/rosters/roster?id=: one roster with its members, or null when it
  * does not exist or belongs to another server.
- * @param {{ guildId: string, id: string, user: object, config: object }} opts
+ * @param {{ guildId: string, id: string, user: object, config: object, background?: boolean }} opts
  */
-async function buildRosterDetail({ guildId = "", id = "", user = null, config = {} } = {}) {
+async function buildRosterDetail({ guildId = "", id = "", user = null, config = {}, background = false } = {}) {
     const roster = rosterStore.getRoster(id);
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
-    const discordData = await loadDiscord(roster.guildId || guildId);
+    const discordData = await loadDiscord(roster.guildId || guildId, { background });
     const ctx = contextCache(roster.guildId || guildId)(roster.versionId);
     const manager = await canManageRosterLive(user, roster).catch(() => false);
     // a closed roster (#739) is read only: its managers still read everything, nobody edits

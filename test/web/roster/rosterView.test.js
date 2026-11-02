@@ -125,6 +125,14 @@ describe("buildRosterOverview", () => {
         expect(after.categoriesWithoutRoster.map((c) => c.id)).toEqual(["cat2"]);
     });
 
+    it("reads the member list like any page, only the picture's job passes background", async () => {
+        discord.listHumanMembers.mockClear();
+        await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(discord.listHumanMembers).toHaveBeenLastCalledWith(G);
+        await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG, background: true });
+        expect(discord.listHumanMembers).toHaveBeenLastCalledWith(G, { background: true });
+    });
+
     it("keeps working without Discord: role unknown, names from the profile", async () => {
         discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
         discord.listRoles.mockReturnValue([]);

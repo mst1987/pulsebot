@@ -861,6 +861,7 @@
         "channel": "Kanal",
         "pickChannel": "— Kanal wählen —",
         "channelHint": "Das Bild mit einer kurzen Zeile, ohne Ping. Es aktualisiert sich danach selbst, bis du es in Discord löschst.",
+        "closedHint": "Das Bild mit einer kurzen Zeile, ohne Ping. Das Roster ist geschlossen, das Bild bleibt also eine Momentaufnahme.",
         "download": "Bild herunterladen",
         "post": "In Kanal posten",
         "posted": "In #{channel} gepostet.",

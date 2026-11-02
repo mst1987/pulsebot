@@ -79,10 +79,22 @@ describe("web/roster/rosterImageView modelFromDetail", () => {
 });
 
 describe("web/roster/rosterImageView pictureHash / pictureLine", () => {
-    const model = { name: "Kern", versionLabel: "TBC", stand: NOW, slots: { total: 10 }, members: [{ name: "Thorgrim", status: "core" }] };
+    const SECOND_CHAR = { classId: "Mage", color: "#69CCF0", spec: "" };
+    const thorgrim = { name: "Thorgrim", status: "core", role: "tank", extraChars: [SECOND_CHAR] };
+    const lunaria = { name: "Lunaria", status: "bench", extraChars: [] };
+    const model = { name: "Kern", versionLabel: "TBC", stand: NOW, slots: { total: 10 }, members: [thorgrim, lunaria] };
 
     it("ignores the date alone", () => {
         expect(pictureHash({ ...model, stand: NOW + 86400000 })).toBe(pictureHash(model));
+    });
+
+    it("ignores what the picture does not show: bench and pause or further chars with the switch off", () => {
+        const paused = { ...model, members: [thorgrim, { ...lunaria, status: "pause" }] };
+        expect(pictureHash(paused)).toBe(pictureHash(model));
+        expect(pictureHash(paused, { reserve: true })).not.toBe(pictureHash(model, { reserve: true }));
+        const noSecond = { ...model, members: [{ ...thorgrim, extraChars: [] }, lunaria] };
+        expect(pictureHash(noSecond)).toBe(pictureHash(model));
+        expect(pictureHash(noSecond, { chars: true })).not.toBe(pictureHash(model, { chars: true }));
     });
 
     it("changes with what the picture shows, its switches and its language", () => {
@@ -91,7 +103,7 @@ describe("web/roster/rosterImageView pictureHash / pictureLine", () => {
         expect(pictureHash(model, { reserve: true, lang: "de" })).not.toBe(base);
         expect(pictureHash(model, { chars: true, lang: "de" })).not.toBe(base);
         expect(pictureHash(model, { lang: "en" })).not.toBe(base);
-        expect(pictureHash({ ...model, members: [{ name: "Thorgrim", status: "bench" }] }, { lang: "de" })).not.toBe(base);
+        expect(pictureHash({ ...model, members: [{ ...thorgrim, status: "bench" }, lunaria] }, { lang: "de" })).not.toBe(base);
         expect(pictureHash({ ...model, name: "Kern 2" }, { lang: "de" })).not.toBe(base);
     });
 
@@ -152,6 +164,7 @@ describe("web/roster/rosterImageView rosterImageModel / rosterPicture", () => {
     });
 
     it("gives the picture's hash, the same one the job gets for the same switches", async () => {
+        rosterStore.upsertMember(rosterId, BERT, { status: "bench" });
         const picture = await rosterPicture({ guildId: G, id: rosterId, config: CONFIG, now: NOW, showReserve: true });
         const built = await rosterImageModel({ guildId: G, id: rosterId, config: CONFIG, now: NOW + 86400000 });
         expect(picture.hash).toBe(pictureHash(built.model, { reserve: true, chars: false, lang: built.lang }));

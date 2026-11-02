@@ -104,6 +104,15 @@ describe("RosterImageDialog", () => {
         expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: false, chars: false });
     });
 
+    it("promises no updates for a closed roster: its post stays a snapshot", async () => {
+        const closed = data();
+        closed.roster.closed = true;
+        renderPage(<RosterImageDialog data={closed} onClose={vi.fn()} />);
+        expect(await screen.findByText("Das Bild mit einer kurzen Zeile, ohne Ping. Das Roster ist geschlossen, das Bild bleibt also eine Momentaufnahme.")).toBeInTheDocument();
+        expect(screen.queryByText(/Es aktualisiert sich danach selbst/)).not.toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "In Kanal posten" })).toBeInTheDocument();
+    });
+
     it("starts from the running post: its switches, its channel, the sentence and 'Neu posten'", async () => {
         vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: LIVE });
         open();
@@ -208,7 +217,7 @@ describe("RosterImageDialog", () => {
         await switchLang("en");
         vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: LIVE });
         open();
-        expect(await screen.findByRole("button", { name: "Post anew" })).toBeInTheDocument();
+        expect(await screen.findByRole("button", { name: "Post again" })).toBeInTheDocument();
         expect(screen.getByText(/Updates itself in #news\./)).toBeInTheDocument();
         expect(screen.getByText("The current image gets deleted.")).toBeInTheDocument();
     });
