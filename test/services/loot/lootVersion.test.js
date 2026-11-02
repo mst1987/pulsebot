@@ -7,7 +7,7 @@ const { getEvent } = require("../../../src/stores/events/eventStore");
 const { getConfig } = require("../../../src/stores/settings/configStore");
 jest.mock("../../../src/utils/loot/wowhead");
 const wowhead = require("../../../src/utils/loot/wowhead");
-const { versionOfImport, relinkItems, linkItemsForImport, enrichForImport } = require("../../../src/services/loot/lootVersion");
+const { versionOfImport, relinkItems, linkItemsForImport, enrichForImport, enrichForUpload } = require("../../../src/services/loot/lootVersion");
 
 const CONFIG = {
     mainVersion: "tbc",
@@ -29,6 +29,38 @@ describe("services/loot/lootVersion", () => {
         wowhead.lookupItem.mockClear();
         await enrichForImport([{ itemId: 6, itemName: "", itemIconUrl: "" }], {});
         expect(wowhead.lookupItem).toHaveBeenCalledWith(6, { path: "tbc" });
+    });
+
+    describe("enrichForUpload", () => {
+        // Forever as the main version: its section answers 404 for a TBC raid's items.
+        const FOREVER_MAIN = { ...CONFIG, mainVersion: "forever", versionSettings: { ...CONFIG.versionSettings, forever: { wowheadPath: "forever" } } };
+        const row = (itemId) => ({ itemId, itemName: "Gloves", itemIconUrl: "", itemLink: "old" });
+
+        beforeEach(() => {
+            wowhead.lookupItem.mockReset();
+            wowhead.lookupItem.mockResolvedValue({ name: "Gloves", iconUrl: "gloves.jpg", quality: 4 });
+            getConfig.mockReturnValue(FOREVER_MAIN);
+        });
+
+        it("asks the section of the version the upload named, not the main version's", async () => {
+            const items = [row(31094)];
+            await enrichForUpload(items, { gameVersion: "tbc" });
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(31094, { path: "tbc" });
+            expect(items[0]).toMatchObject({ itemIconUrl: "gloves.jpg", itemQuality: 4, itemLink: "https://www.wowhead.com/tbc/item=31094" });
+        });
+
+        it("takes the suggested raid's version when the upload names none", async () => {
+            await enrichForUpload([row(31094)], { gameVersion: "", match: { suggested: { eventId: "rh-1", categoryId: "tb" } } });
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(31094, { path: "forever" });
+            getConfig.mockReturnValue({ ...FOREVER_MAIN, categoryVersion: { tb: "tbc" } });
+            await enrichForUpload([row(31095)], { match: { suggested: { eventId: "rh-1", categoryId: "tb" } } });
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(31095, { path: "tbc" });
+        });
+
+        it("falls back to the main version for an older addon without a match", async () => {
+            await enrichForUpload([row(31096)]);
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(31096, { path: "forever" });
+        });
     });
 
     it("takes an own event's version, else the category's, else the main version", () => {

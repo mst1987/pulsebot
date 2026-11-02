@@ -350,7 +350,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedAuth;
             jest.isolateModules(() => {
                 jest.doMock("../../../../src/stores/loot/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(),
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(),
                     getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
                 }));
                 jest.doMock("../../../../src/services/versions/storedVersion", () => ({
@@ -390,7 +390,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedGuild;
             jest.isolateModules(() => {
                 jest.doMock("../../../../src/stores/loot/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(),
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(),
                     getPending: (id) => pending.find((s) => s.id === id) || null,
                     resolvePending, upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(), unlinkEvent: jest.fn(() => 0),
                 }));

@@ -1,9 +1,12 @@
 // In-memory fs so the store never touches the repo disk.
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
+jest.mock("../../../src/utils/loot/wowhead");
 
 const fs = require("fs");
+const wowhead = require("../../../src/utils/loot/wowhead");
 const {
     listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
+    restorePending, repairItemNames,
 } = require("../../../src/stores/loot/lootInboxStore.js");
 
 beforeEach(() => {
@@ -103,6 +106,67 @@ describe("stores/loot/lootInboxStore", () => {
             upsertPending(session());
             upsertPending(session({ sessionId: "s2" }));
             expect(listPending().length).toBe(2);
+        });
+    });
+
+    describe("repairItemNames", () => {
+        const bare = (over = {}) => item({ itemIconUrl: "", itemQuality: null, itemLink: "https://www.wowhead.com/forever/item=100", ...over });
+
+        beforeEach(() => {
+            wowhead.lookupItem.mockReset();
+            wowhead.lookupItem.mockResolvedValue({ name: "Thing", iconUrl: "thing.jpg", quality: 4 });
+        });
+
+        it("fills icon, quality and link from the section of the version the card names", async () => {
+            const { entry } = upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            expect(await repairItemNames()).toBe(1);
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(100, { path: "tbc" });
+            expect(getPending(entry.id).items[0]).toMatchObject({
+                itemName: "Thing", itemIconUrl: "thing.jpg", itemQuality: 4, itemLink: "https://www.wowhead.com/tbc/item=100",
+            });
+        });
+
+        it("asks nothing for a card that has everything, and repairs nothing twice", async () => {
+            upsertPending(session({ items: [item({ itemIconUrl: "a.jpg", itemQuality: 4 })] }), { gameVersion: "tbc" });
+            expect(await repairItemNames()).toBe(0);
+            expect(wowhead.lookupItem).not.toHaveBeenCalled();
+            upsertPending(session({ sessionId: "s2", items: [bare({ rawId: "c2" })] }), { gameVersion: "tbc" });
+            expect(await repairItemNames()).toBe(1);
+            expect(await repairItemNames()).toBe(0);
+        });
+
+        it("repairs a dismissed card too, it can come back", async () => {
+            const { entry } = upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            resolvePending(entry.id, "dismissed");
+            expect(await repairItemNames()).toBe(1);
+            expect(restorePending(entry.id).items[0].itemIconUrl).toBe("thing.jpg");
+        });
+
+        // The lookups await: what happens meanwhile must survive.
+        it("keeps a row uploaded and a card filed during the lookups", async () => {
+            const { entry } = upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            const filed = upsertPending(session({ sessionId: "s2", items: [bare({ rawId: "c2" })] }), { gameVersion: "tbc" }).entry;
+            let release;
+            wowhead.lookupItem.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ name: "Thing", iconUrl: "thing.jpg", quality: 4 }); }));
+            const running = repairItemNames();
+            await Promise.resolve();
+            upsertPending(session({ items: [bare({ rawId: "late" })] }));
+            resolvePending(filed.id, "accepted", { eventId: "e1" });
+            release();
+            await new Promise((resolve) => setImmediate(resolve));
+            release();
+            await running;
+            const rows = getPending(entry.id).items;
+            expect(rows.map((r) => r.rawId)).toEqual(["c1", "late"]);
+            expect(rows[0].itemIconUrl).toBe("thing.jpg");
+            expect(getPending(filed.id)).toBeNull();
+        });
+
+        it("leaves a row Wowhead does not know as it is", async () => {
+            wowhead.lookupItem.mockResolvedValue(null);
+            const { entry } = upsertPending(session({ items: [bare({ itemLink: "https://www.wowhead.com/tbc/item=100" })] }), { gameVersion: "tbc" });
+            expect(await repairItemNames()).toBe(0);
+            expect(getPending(entry.id).items[0].itemIconUrl).toBe("");
         });
     });
 

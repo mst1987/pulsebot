@@ -189,6 +189,22 @@ describe("POST /api/ingest/loot", () => {
 
     // The decisions an admin already made must survive the sync tool re-sending
     // the same raid on every SavedVariables flush.
+    // A TBC raid uploaded while Forever is the main version: Forever's section answers 404.
+    describe("Wowhead section of a pending upload", () => {
+        const wowhead = require("../../../../src/utils/loot/wowhead");
+
+        it("asks the version the upload named and links its items there", async () => {
+            await upload(payload({ gameVersion: "classic" }));
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "classic" });
+            expect(upsertPending.mock.calls[0][0].items[0].itemLink).toBe("https://www.wowhead.com/classic/item=30242");
+        });
+
+        it("asks the main version's when an older addon names no version", async () => {
+            await upload(payload());
+            expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "tbc" });
+        });
+    });
+
     describe("remembered decisions", () => {
         it("appends straight to the event an accepted session went to", async () => {
             resolutionFor.mockReturnValue({

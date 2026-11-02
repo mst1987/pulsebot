@@ -18,7 +18,7 @@ const { loadEventGroups, eventLookbackSince } = require("../../../services/event
 const { addImport: addLootImport, eventsWithLoot } = require("../../../stores/loot/lootStore");
 const { rememberFromLoot } = require("../../../services/characters/characterInfo");
 const { parseEventHelperSessions, LootParseError } = require("../../../utils/loot/lootImport");
-const { linkItemsForImport, enrichForImport } = require("../../../services/loot/lootVersion");
+const { linkItemsForImport, enrichForImport, enrichForUpload } = require("../../../services/loot/lootVersion");
 const { bestDayMatch } = require("../../loot/lootEventMatch");
 const { scoreCandidates, decideCandidates } = require("../../loot/inboxCandidates");
 const { verifyToken, touchToken, bearerFrom } = require("../../../stores/loot/ingestTokenStore");
@@ -247,11 +247,13 @@ async function ingestLoot(req, res) {
                 continue;
             }
         }
-        // A confirmed session asks the Wowhead section of its event's version;
-        // a pending one has no event yet and asks the main version's (#750).
-        await enrichForImport(session.items, prior && prior.action === "accepted" && prior.eventId
-            ? { eventId: prior.eventId, categoryId: prior.categoryId }
-            : {});
+        // A confirmed session asks the Wowhead section of its event's version (#750);
+        // a pending one has no event yet and asks the version its upload named.
+        if (prior && prior.action === "accepted" && prior.eventId) {
+            await enrichForImport(session.items, { eventId: prior.eventId, categoryId: prior.categoryId });
+        } else {
+            await enrichForUpload(session.items, { gameVersion: meta.gameVersion });
+        }
 
         if (prior && prior.action === "accepted" && prior.eventId) {
             // Already confirmed once — the rest of the raid needs no second click.

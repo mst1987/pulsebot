@@ -42,6 +42,12 @@ describe("Historie & Loot module", () => {
         }
     });
 
+    // Without an icon ItemIcon is a <span>: inline it ignores its size and only its border shows, as a thin line.
+    it("keeps the item icon's size when it has no image", () => {
+        expect(read("styles", "loot.css")).toMatch(/\.item-ico \{ display: inline-block;/);
+        expect(src["components/loot/LootBadges.tsx"]).toContain(": <span className={cls} style={style} />");
+    });
+
     it("opens every award of an item in one dialog instead of a hover panel per recipient", () => {
         for (const file of ["pages/history/LootItemsTab.tsx", "pages/history/LootReasonsTab.tsx", "components/loot/LootBadges.tsx"]) {
             expect({ file, hover: src[file].includes("HoverPanel") }).toEqual({ file, hover: false });

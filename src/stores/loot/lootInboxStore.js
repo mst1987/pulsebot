@@ -22,6 +22,7 @@
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 const { newId } = require("../../utils/ids");
+const { needsLookup } = require("../../utils/loot/lootImport");
 
 const INBOX_FILE = settingsPath("loot-inbox.json");
 
@@ -346,9 +347,47 @@ function listLinked(limit = 10) {
     return out;
 }
 
+// What repairItemNames() can change on a row, as one comparable string.
+const itemMetaKey = (it) => `${it.itemName}|${it.itemIconUrl}|${it.itemQuality}|${it.itemLink}`;
+
+/**
+ * Backfill name/icon/quality on open cards whose rows never got them — a re-upload
+ * keeps the first row seen, so a card uploaded while the lookup asked the wrong
+ * Wowhead section would otherwise stay without icons until it is accepted. Looks up
+ * copies and reads the store again afterwards: the lookups await, and a card filed
+ * or a row uploaded meanwhile must not be overwritten. Best-effort like
+ * lootStore.repairItemNames(). Returns how many rows changed.
+ */
+async function repairItemNames() {
+    const { enrichForUpload } = require("../../services/loot/lootVersion");
+    const before = readState();
+    const open = [...before.pending, ...before.dismissed].filter((s) => (s.items || []).some(needsLookup));
+    if (!open.length) return 0;
+    const looked = new Map();
+    for (const s of open) {
+        const rows = s.items.filter(needsLookup).map((it) => ({ ...it }));
+        await enrichForUpload(rows, s);
+        looked.set(s.id, new Map(rows.map((r) => [itemKey(r), r])));
+    }
+    const state = readState();
+    let repaired = 0;
+    for (const s of [...state.pending, ...state.dismissed]) {
+        const rows = looked.get(s.id);
+        if (!rows) continue;
+        for (const it of s.items) {
+            const found = rows.get(itemKey(it));
+            if (!found || itemMetaKey(found) === itemMetaKey(it)) continue;
+            Object.assign(it, { itemName: found.itemName, itemIconUrl: found.itemIconUrl, itemQuality: found.itemQuality, itemLink: found.itemLink });
+            repaired += 1;
+        }
+    }
+    if (repaired) writeState(state);
+    return repaired;
+}
+
 module.exports = {
     listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
-    resolvedById, listDismissed, getDismissed, restorePending, pruneDismissed, DISMISS_KEEP_MS,
+    resolvedById, listDismissed, getDismissed, restorePending, pruneDismissed, repairItemNames, DISMISS_KEEP_MS,
     // tests: another file (null = back to the default)
     useFile: store.useFile,
 };

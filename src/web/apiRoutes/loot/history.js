@@ -28,7 +28,7 @@ const {
     listPending: listPendingSessions, getPending: getPendingSession, resolvePending: resolvePendingSession,
     listLinked: listLinkedSessions, unlinkEvent: unlinkInboxEvent,
     resolvedById: resolvedInboxById, listDismissed: listDismissedSessions, getDismissed: getDismissedSession,
-    restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions,
+    restorePending: restorePendingSession, pruneDismissed: pruneDismissedSessions, repairItemNames: repairInboxItemNames,
 } = require("../../../stores/loot/lootInboxStore");
 const guildBankStockStore = require("../../../stores/loot/guildBankStockStore");
 const guildBankStock = require("../../../services/guildbank/guildBankStock");
@@ -616,6 +616,8 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
  * its loot, so the admin can see what they are accepting before they accept it.
  */
 const getLootInbox = withUser({}, async ({ user, req, res, url }) => {
+    // Same backfill as the other loot views: a card without icons fills them in once.
+    await repairInboxItemNames();
     // One game version (#741): a session matched to a raid only under that raid's
     // version, one without a match under every version (like a log without a raid).
     const cfg = getConfig();
