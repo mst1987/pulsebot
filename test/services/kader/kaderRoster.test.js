@@ -5,7 +5,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const kaderStore = require("../../../src/stores/roster/kaderStore");
 const kaderRoster = require("../../../src/services/kader/kaderRoster");
-const { rosterPlayers, kaderSummaries, ROSTER_STATES } = kaderRoster;
+const { rosterPlayers, plannedPicks, kaderSummaries, ROSTER_STATES } = kaderRoster;
 
 const U = { a: "111111111111111111", b: "222222222222222222", c: "333333333333333333", d: "444444444444444444" };
 const SECRET = "GEHEIM-Antwort";
@@ -91,6 +91,55 @@ describe("services/kader/kaderRoster rosterPlayers", () => {
 
     it("takes roster, bench and tentative", () => {
         expect(ROSTER_STATES).toEqual(["roster", "bench", "tentative"]);
+    });
+});
+
+describe("services/kader/kaderRoster plannedPicks", () => {
+    /** The test planner with some entries changed. */
+    function withPlayers(change) {
+        const planner = plannerWithSecrets();
+        change(planner.kaders[0].players, planner);
+        kaderStore.writePlanner("g1", planner);
+    }
+
+    it("answers class and spec of the planned players, decision before wish, nothing below provisional", () => {
+        withPlayers((players) => {
+            players[U.a].decision = { className: "Priest", spec: "Priest-Holy" };
+            players[U.b].state = "provisional";
+        });
+        expect(plannedPicks("g1", "k1")).toEqual({
+            [U.a]: { className: "Priest", spec: "Priest-Holy" },
+            [U.b]: { className: "Mage", spec: "Mage-Frost" },
+            [U.c]: { className: "Mage", spec: "Mage-Frost" },
+        });
+    });
+
+    it("falls back to the active character's class and main spec, and leaves out who names no class", () => {
+        withPlayers((players, planner) => {
+            players[U.a] = { ...players[U.a], decision: null, wishes: [] };
+            players[U.b].wishes = [];
+            planner.assignments[U.a].activeCharacterId = "x1";
+        });
+        const picks = plannedPicks("g1", "k1");
+        expect(picks[U.a]).toEqual({ className: "Warrior", spec: "Warrior-Fury" });
+        expect(picks).not.toHaveProperty(U.b);
+    });
+
+    it("lets out two fields per player: not where they come from, nothing private, not the Planspiel", () => {
+        withPlayers((players, planner) => {
+            players[U.b].wishes = [{ className: "Druid", spec: "Druid-Balance" }, { className: "Rogue", spec: "Rogue-Combat" }];
+            planner.kaders[0].plan.specs[U.b] = { className: "Warlock", spec: "Warlock-Destruction" };
+        });
+        const picks = plannedPicks("g1", "k1");
+        for (const pick of Object.values(picks)) expect(Object.keys(pick).sort()).toEqual(["className", "spec"]);
+        expect(picks[U.b]).toEqual({ className: "Druid", spec: "Druid-Balance" });
+        const text = JSON.stringify(picks);
+        for (const word of [SECRET, "wish", "decision", "Rogue", "Warlock", "PLANSPIEL"]) expect(text).not.toContain(word);
+    });
+
+    it("answers nothing for an unknown Kader or server", () => {
+        expect(plannedPicks("g1", "nope")).toEqual({});
+        expect(plannedPicks("g2", "k1")).toEqual({});
     });
 });
 

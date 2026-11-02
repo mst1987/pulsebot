@@ -110,6 +110,20 @@ describe("RosterDetailPage — members", () => {
         expect(within(brakk).getByText(/^seit/)).toBeInTheDocument();
     });
 
+    it("shows the class the linked Kader plans instead of the warning, for a member without a character", async () => {
+        const planned = { className: "Mage", classColor: "#69CCF0", spec: "Mage-Frost", specId: "Frost", specLabel: "Frost", specIcon: "spell_frost_frostbolt02" };
+        await openPage(detail([member("Mira", { chars: [], role: "dps", planned }), member("Syl", { chars: [], role: "" })]));
+        const row = screen.getByText("Mira", { selector: ".rn-person b" }).closest("tr") as HTMLElement;
+        const chip = row.querySelector(".rn-char.is-planned") as HTMLElement;
+        expect(chip).toHaveTextContent("Magier · Frost");
+        expect(chip).toHaveAttribute("data-tip", "Aus dem Kaderplaner");
+        expect(chip).toHaveAttribute("data-tip-sub", "Kein Charakter zugewiesen");
+        expect(within(row).queryByText("Kein Charakter zugewiesen")).not.toBeInTheDocument();
+        const syl = screen.getByText("Syl", { selector: ".rn-person b" }).closest("tr") as HTMLElement;
+        expect(within(syl).getByText("Kein Charakter zugewiesen")).toBeInTheDocument();
+        expect(syl.querySelector(".is-planned")).toBeNull();
+    });
+
     it("filters by role and by a search over names and characters", async () => {
         await openPage();
         await userEvent.click(within(screen.getByRole("radiogroup", { name: "Rolle" })).getByRole("radio", { name: /Heiler/ }));

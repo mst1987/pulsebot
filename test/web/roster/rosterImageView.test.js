@@ -65,6 +65,14 @@ describe("web/roster/rosterImageView modelFromDetail", () => {
         expect(m.members[2]).toMatchObject({ name: "u3", role: "dps" });
     });
 
+    it("draws the linked Kader's planned class under the Discord name of a person without chars", () => {
+        const m = modelFromDetail({
+            roster: { versionId: "tbc" },
+            members: [{ userId: "u4", displayName: "Mira", status: "core", role: "dps", chars: [], planned: { className: "Mage", classColor: "#69CCF0", spec: "Mage-Frost" } }],
+        }, { now: NOW });
+        expect(m.members[0]).toMatchObject({ name: "Mira", classId: "Mage", color: "#69CCF0", spec: "Mage-Frost", specRole: "ranged", role: "dps", extraChars: [] });
+    });
+
     it("copes with an empty view", () => {
         expect(modelFromDetail(null, { now: NOW })).toEqual({ name: "", versionLabel: "", stand: NOW, slots: {}, members: [] });
     });

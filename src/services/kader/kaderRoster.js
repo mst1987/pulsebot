@@ -1,11 +1,12 @@
 // The one door from the Kaderplaner to the raid rosters (#657, docs/kaderplaner.md
 // "Roster aus einem Kader"): a roster created from a Kader takes who is in it,
 // in which state, the decided class/spec and the planner's active character's
-// name - and nothing else. Wishes, interview answers, notes, votes, comments,
-// the Verlauf and the activity log never leave through here; the answer is
-// built field by field, never by copying an entry
-// (test/services/kader/kaderRoster.test.js and test/stores/roster/kaderStore.test.js
-// keep it that way).
+// name - and nothing else. Its members' class and spec are read live through
+// plannedPicks: one class/spec per player, not saying where it comes from. The
+// list of wishes, interview answers, notes, votes, comments, the Verlauf and the
+// activity log never leave through here; the answer is built field by field,
+// never by copying an entry (test/services/kader/kaderRoster.test.js and
+// test/stores/roster/kaderStore.test.js keep it that way).
 //
 // The takeover into Discord (docs/kaderplaner.md "Übernahme",
 // services/roster/rosterTakeover.js) writes the planner through here too - only
@@ -58,6 +59,37 @@ function rosterPlayers(guildId, kaderId) {
         players.push(playerOut(planner, userId, entry));
     }
     return { id: kader.id, name: kader.name, versionId: kader.versionId, players };
+}
+
+/** The class and spec a player is planned with: the decision, else the first wish, else the active character's main spec; null when nothing names a class. */
+function plannedPick(planner, userId, entry) {
+    const wish = Array.isArray(entry.wishes) ? entry.wishes[0] : null;
+    const active = activeCharacter(planner.assignments[userId]);
+    const specs = active && Array.isArray(active.specs) ? active.specs : [];
+    const main = specs.find((s) => s.main) || specs[0];
+    const pick = entry.decision || wish || (active ? { className: active.className, spec: main ? main.spec : "" } : null);
+    const className = str(pick && pick.className);
+    return className ? { className, spec: str(pick.spec) } : null;
+}
+
+/**
+ * What the players of a linked Kader are planned with, for a roster's members without a
+ * character (services/roster/memberSpec.js): `{ [userId]: { className, spec } }`, the
+ * states of TAKEOVER_STATES only, without saying whether a decision or a wish answered;
+ * empty for an unknown Kader.
+ * @param {string} guildId  the server whose planner holds the Kader
+ * @param {string} kaderId
+ */
+function plannedPicks(guildId, kaderId) {
+    const planner = kaderStore.readPlanner(guildId);
+    const kader = planner.kaders.find((k) => k.id === str(kaderId));
+    const picks = {};
+    for (const [userId, entry] of Object.entries(kader ? kader.players : {})) {
+        if (!TAKEOVER_STATES.includes(entry.state)) continue;
+        const pick = plannedPick(planner, userId, entry);
+        if (pick) picks[str(userId)] = pick;
+    }
+    return picks;
 }
 
 /**
@@ -329,7 +361,7 @@ function takeoverDrops(before, after, { actor = "", now = new Date().toISOString
 }
 
 module.exports = {
-    rosterPlayers, kaderSummaries, ROSTER_STATES,
+    rosterPlayers, plannedPicks, kaderSummaries, ROSTER_STATES,
     TAKEOVER_STATES, pendingOf, takeoverPlayers, assertTakeoverFresh, saveTakeover, stillPlanned, finishTakeover, markRoleGiven,
     backToProvisional, roleGainedFromDiscord, takeoverDrops,
     // a roster the takeover creates plays the Kader's version (rosterTakeover reaches the planner only through here)

@@ -19,7 +19,11 @@
 //   4. "profile"  - the raider profile's specs of the character; with several,
 //      the one whose role matches what the logs saw the character play
 //      (attendance context `roleByKey`), else the first.
-//   5. "class"    - only the class is known (profile, character cache or a
+//   5. "kader"    - what the roster's linked Kader plans for the person
+//      (kaderRoster.plannedPicks); only when it fits the class the character is
+//      known as. The one answer for a member WITHOUT a character: the class
+//      shows and counts before anybody assigned one, and the next real source wins.
+//   6. "class"    - only the class is known (profile, character cache or a
 //      signup without a fitting spec): it counts among the classes, not in the
 //      roles or buffs, and the member is listed as "Spec unbekannt".
 //
@@ -36,8 +40,9 @@ const { lastImportedSpecOf } = require("../../stores/roster/specHistoryStore");
 const { spec: specOfVersion, rulesFor } = require("../../config/gameVersions");
 const { specKeyFromRaidHelper, ownUpcomingRaw } = require("../events/eventSources");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
+const { plannedPicks } = require("../kader/kaderRoster");
 
-const SOURCES = ["override", "signup", "logs", "profile", "class"];
+const SOURCES = ["override", "signup", "logs", "profile", "kader", "class"];
 const ATTENDING = new Set(["signed", "late", "bench", "tentative"]);
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -117,8 +122,9 @@ function signupIndex(roster, ctx) {
 
 /**
  * What a resolution needs once per roster: the signups of its category, the
- * character cache and the log roles. `ctx` = the attendance context of the
- * roster's version (rosterAttendance.buildAttendanceContext), optional.
+ * character cache, the log roles and what a linked Kader plans. `ctx` = the
+ * attendance context of the roster's version
+ * (rosterAttendance.buildAttendanceContext), optional.
  */
 function specContext(roster, ctx = null) {
     return {
@@ -126,6 +132,7 @@ function specContext(roster, ctx = null) {
         signups: signupIndex(roster, ctx),
         charMap: attempt(() => characterStore.characterMap(), {}),
         roleByKey: (ctx && ctx.roleByKey) || {},
+        planned: roster.kaderId ? attempt(() => plannedPicks(roster.guildId, roster.kaderId), {}) : {},
     };
 }
 
@@ -170,13 +177,29 @@ function autoSpec(userId, key, sctx) {
     return { className: knownClass, spec: "", source: knownClass ? "class" : "" };
 }
 
+/** What the linked Kader plans for the person, when it fits the known class: `{ className, spec, source: "kader" }`, else null. */
+function plannedSpec(userId, knownClass, sctx) {
+    const plan = sctx.planned && sctx.planned[String(userId)];
+    if (!plan || (knownClass && plan.className !== knownClass)) return null;
+    return { className: plan.className, spec: fittingSpec(plan.spec, plan.className, sctx.versionId), source: "kader" };
+}
+
+/** A member without a character: the linked Kader's plan, else nothing but the reason. */
+function withoutCharacter(userId, override, sctx) {
+    const auto = plannedSpec(userId, "", sctx) || { className: "", spec: "", source: "" };
+    const rec = auto.spec ? specRecord(auto.spec, sctx.versionId) : null;
+    let reason = "no_char";
+    if (auto.className) reason = auto.spec ? "" : "no_spec";
+    return { character: "", className: auto.className, spec: auto.spec, specRole: rec ? rec.role : "", role: rec ? roleOfSpecRole(rec.role) : "", source: auto.source, auto, override, reason };
+}
+
 /**
- * Class, spec and role of one member's first character.
+ * Class, spec and role of one member's first character (without one: of the linked Kader's plan).
  * @param {string} userId
  * @param {{ chars: string[], spec?: string, charNames?: object }} member
  * @param {object} sctx  specContext(roster, ctx)
  * @returns {{ character: string, className: string, spec: string, specRole: string,
- *   role: "tank"|"healer"|"dps"|"", source: "override"|"signup"|"logs"|"profile"|"class"|"",
+ *   role: "tank"|"healer"|"dps"|"", source: "override"|"signup"|"logs"|"profile"|"kader"|"class"|"",
  *   auto: { className: string, spec: string, source: string }, override: string,
  *   reason: ""|"no_char"|"no_class"|"no_spec" }}
  *   `specRole` the rule set's (tank / healer / melee / ranged); `reason` why
@@ -185,11 +208,11 @@ function autoSpec(userId, key, sctx) {
 function resolveMemberSpec(userId, member, sctx) {
     const key = (member && member.chars && member.chars[0]) || "";
     const override = str(member && member.spec);
-    if (!key) {
-        return { character: "", className: "", spec: "", specRole: "", role: "", source: "", auto: { className: "", spec: "", source: "" }, override, reason: "no_char" };
-    }
-    const auto = autoSpec(userId, key, sctx);
-    const chosen = override ? fittingSpec(override, auto.className, sctx.versionId) : "";
+    if (!key) return withoutCharacter(userId, override, sctx);
+    const found = autoSpec(userId, key, sctx);
+    // the orga's spec is checked against what the character is known as, a plan does not limit it
+    const chosen = override ? fittingSpec(override, found.className, sctx.versionId) : "";
+    const auto = (!found.spec && plannedSpec(userId, found.className, sctx)) || found;
     const pick = chosen
         ? { className: specRecord(chosen, sctx.versionId).classId, spec: chosen, source: "override" }
         : auto;

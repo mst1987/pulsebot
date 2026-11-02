@@ -97,6 +97,7 @@ a.rn-card:focus-visible { box-shadow: inset 0 0 0 2px var(--area-roster); }
 .rn-char em { font-style: normal; }
 .rn-char.is-first { border-color: color-mix(in srgb, var(--cc, var(--line)) 60%, transparent); }
 .rn-char.is-alt { opacity: .72; font-weight: 600; }
+.rn-char.is-planned { border-style: dashed; background: none; font-weight: 600; }
 .rn-ok, .rn-warn { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .rn-ok { color: var(--good); }
 .rn-warn { color: var(--medium); }
