@@ -25,6 +25,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     listTextChannels: jest.fn(() => [{ id: "300000000000000001", name: "roster", category: "Raid", parentId: null }]),
     getClient: jest.fn(() => ({ channels: { cache: mockChannels } })),
     postPayload: jest.fn(async (channelId) => ({ guildId: "g1", channelId, messageId: "m1", url: "https://discord.com/channels/g1/c/m1" })),
+    deleteMessage: jest.fn(async () => true),
 }));
 jest.mock("../../../../src/services/discord/discordImage", () => {
     const actual = jest.requireActual("../../../../src/services/discord/discordImage");
@@ -52,6 +53,7 @@ const MANAGER = { id: "200001", isAdmin: false, access: { roster: { read: true, 
 const READER = { id: "200002", isAdmin: false, access: { roster: { read: true, write: false } } };
 const WRITER = { id: "200003", isAdmin: false, access: { roster: { read: true, write: true } } };
 const NOBODY = { id: "200004", isAdmin: false, access: {} };
+const LIVE_POST = { guildId: "g1", channelId: CHANNEL, messageId: "400000000000000001", reserve: true, chars: false, hash: "the-hash" };
 
 const status = (res) => res.writeHead.mock.calls[0][0];
 const headers = (res) => res.writeHead.mock.calls[0][1];
@@ -132,16 +134,35 @@ describe("GET /api/rosters/image/info", () => {
         rosterStore.setImageChannel(roster.id, CHANNEL);
         const res = await get("/api/rosters/image/info", { id: roster.id });
         expect(status(res)).toBe(200);
-        expect(data(res)).toEqual({ canPost: true, channelId: CHANNEL, channels: [expect.objectContaining({ id: CHANNEL })] });
+        expect(data(res)).toEqual({ canPost: true, channelId: CHANNEL, channels: [expect.objectContaining({ id: CHANNEL })], live: null });
         expect(discord.listTextChannels).toHaveBeenCalledWith("g1");
     });
 
     it("offers a reader nothing to post with", async () => {
         mockUser = READER;
         rosterStore.setImageChannel(roster.id, CHANNEL);
+        rosterStore.setImagePost(roster.id, LIVE_POST);
         const res = await get("/api/rosters/image/info", { id: roster.id });
-        expect(data(res)).toEqual({ canPost: false, channelId: null, channels: [] });
+        expect(data(res)).toEqual({ canPost: false, channelId: null, channels: [], live: null });
         expect(discord.listTextChannels).not.toHaveBeenCalled();
+    });
+
+    it("tells a manager about the picture keeping itself current, never its hash", async () => {
+        rosterStore.setImagePost(roster.id, LIVE_POST);
+        const res = await get("/api/rosters/image/info", { id: roster.id });
+        expect(data(res).live).toEqual({
+            channelId: CHANNEL,
+            url: `https://discord.com/channels/g1/${CHANNEL}/${LIVE_POST.messageId}`,
+            reserve: true,
+            chars: false,
+        });
+        expect(JSON.stringify(data(res))).not.toContain(LIVE_POST.hash);
+    });
+
+    it("gives no live picture for a closed roster: nothing updates it any more", async () => {
+        rosterStore.setImagePost(roster.id, LIVE_POST);
+        rosterStore.closeRoster(roster.id);
+        expect(data(await get("/api/rosters/image/info", { id: roster.id })).live).toBeNull();
     });
 
     it("is 400 without id and 404 for another server's roster", async () => {
@@ -242,9 +263,46 @@ describe("POST /api/rosters/image", () => {
         expect(rosterStore.getRoster(roster.id).imageChannelId).toBeNull();
     });
 
-    it("may post a closed roster's picture (a snapshot changes nothing)", async () => {
+    it("remembers the post with its switches and the hash of what it shows", async () => {
+        await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL, reserve: true });
+        expect(rosterStore.getRoster(roster.id).imagePost).toEqual({
+            guildId: "g1", channelId: CHANNEL, messageId: "m1", reserve: true, chars: false,
+            hash: expect.stringMatching(/^[0-9a-f]{64}$/),
+        });
+        expect(discord.deleteMessage).not.toHaveBeenCalled();
+    });
+
+    it("a new post deletes the old picture, after the new one is remembered", async () => {
+        rosterStore.setImagePost(roster.id, LIVE_POST);
+        const order = [];
+        discord.postPayload.mockImplementationOnce(async (channelId) => {
+            order.push("post");
+            return { guildId: "g1", channelId, messageId: "m2", url: "u" };
+        });
+        discord.deleteMessage.mockImplementationOnce(async () => {
+            order.push(`delete, store has ${rosterStore.getRoster(roster.id).imagePost.messageId}`);
+            return true;
+        });
+        expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(200);
+        expect(order).toEqual(["post", "delete, store has m2"]);
+        expect(discord.deleteMessage).toHaveBeenCalledTimes(1);
+        expect(discord.deleteMessage).toHaveBeenCalledWith(CHANNEL, LIVE_POST.messageId);
+    });
+
+    it("a failed post leaves the old picture alone", async () => {
+        rosterStore.setImagePost(roster.id, LIVE_POST);
+        discord.postPayload.mockRejectedValueOnce(Object.assign(new Error("x"), { code: 50013 }));
+        expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(403);
+        expect(discord.deleteMessage).not.toHaveBeenCalled();
+        expect(rosterStore.getRoster(roster.id).imagePost).toEqual(LIVE_POST);
+    });
+
+    it("may post a closed roster's picture, but neither remembers it nor deletes the last one", async () => {
+        rosterStore.setImagePost(roster.id, LIVE_POST);
         rosterStore.closeRoster(roster.id);
         expect(status(await post("/api/rosters/image", { id: roster.id, channelId: CHANNEL }))).toBe(200);
+        expect(discord.deleteMessage).not.toHaveBeenCalled();
+        expect(rosterStore.getRoster(roster.id).imagePost).toEqual(LIVE_POST);
     });
 });
 

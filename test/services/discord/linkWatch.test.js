@@ -12,6 +12,7 @@ jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest
 const fs = require("fs");
 const { EventEmitter } = require("events");
 const eventStore = require("../../../src/stores/events/eventStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
 const { setOverviewState } = require("../../../src/stores/discord/talkOverviewStore");
 const { scheduleOverviewSync } = require("../../../src/services/talk/talkOverview");
 const { redrawEventMessage } = require("../../../src/services/events/eventMessage");
@@ -118,6 +119,21 @@ describe("services/discord/linkWatch", () => {
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "ov-msg" })).toMatchObject({ raidOverview: true });
         expect(onOverviewMessageDeleted).toHaveBeenCalledWith("ov-msg");
         expect(linkWatch.onMessageDelete({ channelId: "o", messageId: "m-other" })).toMatchObject({ raidOverview: false });
+    });
+
+    it("forgets a roster picture whose message or channel was deleted, without posting it again", () => {
+        const post = { guildId: "g1", channelId: "c1", messageId: "pic-1", hash: "h" };
+        const a = rosterStore.createRoster({ name: "A", guildId: "g1" });
+        const b = rosterStore.createRoster({ name: "B", guildId: "g1" });
+        rosterStore.setImagePost(a.id, post);
+        rosterStore.setImagePost(b.id, { ...post, messageId: "pic-2" });
+        expect(linkWatch.onMessageDelete({ channelId: "c1", messageId: "m-other" })).toMatchObject({ rosterImage: [] });
+        expect(rosterStore.getRoster(a.id).imagePost).not.toBeNull();
+        expect(linkWatch.onMessageDelete({ channelId: "c1", messageId: "pic-1" })).toMatchObject({ rosterImage: [a.id], redrawn: [] });
+        expect(rosterStore.getRoster(a.id).imagePost).toBeNull();
+        expect(rosterStore.getRoster(b.id).imagePost).not.toBeNull();
+        linkWatch.onChannelDelete({ id: "c1" });
+        expect(rosterStore.getRoster(b.id).imagePost).toBeNull();
     });
 
     it("hooks channelDelete and the raw MESSAGE_DELETE(_BULK) packets into the client", () => {

@@ -20,6 +20,10 @@
 //       lootSystem: "" | "softres" | "lootcouncil" | "gdkp" | "other",  // only read WITHOUT category (#676)
 //       lootProfileId: "",                  // its Loot-Council profile ("" = the default profile, #676)
 //       imageChannelId: null,               // the channel the roster picture went to last (setImageChannel)
+//       imagePost: null | {                 // the posted picture that keeps itself current (web/roster/rosterImageLive.js)
+//         guildId, channelId, messageId,    //   where it is; without channel and message there is none
+//         reserve, chars,                   //   the switches it was posted with
+//         hash },                           //   what it shows now; only for the job, never handed to a reader
 //       members: { [userId]: {              // ≤ 500
 //         status: "core" | "trial" | "bench" | "pause", since, by,
 //         chars: [charKey],                 // profile keys (characterKeyOf(name, versionId))
@@ -102,6 +106,7 @@ const LIMITS = Object.freeze({
 const STATUSES = ["core", "trial", "bench", "pause"];
 const SOURCE_KINDS = ["manual", "kader", "migration"];
 const ID_MAX = 32;
+const IMAGE_HASH_MAX = 64;
 
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -229,6 +234,22 @@ function normalizeHistory(raw) {
     return list.slice(-LIMITS.history);
 }
 
+/** The posted picture of a roster, or null when it lacks its channel or message. */
+function normalizeImagePost(raw) {
+    if (!isMap(raw)) return null;
+    const channelId = idOf(raw.channelId);
+    const messageId = idOf(raw.messageId);
+    if (!channelId || !messageId) return null;
+    return {
+        guildId: idOf(raw.guildId),
+        channelId,
+        messageId,
+        reserve: raw.reserve === true,
+        chars: raw.chars === true,
+        hash: text(raw.hash, IMAGE_HASH_MAX),
+    };
+}
+
 /** One roster, or null when it lacks an id. */
 function normalizeRoster(raw, id = raw && raw.id) {
     if (!isMap(raw)) return null;
@@ -261,6 +282,7 @@ function normalizeRoster(raw, id = raw && raw.id) {
         lootSystem: normalizeLootSystem(raw.lootSystem),
         lootProfileId: /^[a-z0-9_-]{1,40}$/i.test(str(raw.lootProfileId)) ? str(raw.lootProfileId) : "",
         imageChannelId: idOf(raw.imageChannelId) || null,
+        imagePost: normalizeImagePost(raw.imagePost),
         members: normalizeMembers(raw.members, multi, versionId),
         history: normalizeHistory(raw.history),
         createdAt: isoOf(raw.createdAt),
@@ -409,7 +431,7 @@ function markMigrated(all, categoryId) {
 }
 
 // closedAt / closedReason only through closeRoster
-const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy", "closedAt", "closedReason", "imageChannelId"];
+const FIXED_FIELDS = ["id", "members", "history", "createdAt", "createdBy", "closedAt", "closedReason", "imageChannelId", "imagePost"];
 
 /**
  * A new roster. `data` as the stored shape (missing fields get their defaults);
@@ -504,6 +526,56 @@ function setImageChannel(rosterId, channelId) {
     roster.imageChannelId = idOf(channelId) || null;
     writeAll(all);
     return true;
+}
+
+/**
+ * The picture that keeps itself current, or null for none: one per roster, a new one
+ * replaces the old. No history line, like setImageChannel.
+ * @returns {boolean} whether the roster exists
+ */
+function setImagePost(rosterId, post) {
+    const all = readAll();
+    const roster = all.rosters[str(rosterId)];
+    if (!roster) return false;
+    roster.imagePost = normalizeImagePost(post);
+    writeAll(all);
+    return true;
+}
+
+/**
+ * The job has drawn this message anew. Does nothing when the roster's picture is another
+ * message by now: a run must not overwrite a post made while it was at work.
+ * @returns {boolean} whether the hash was stored
+ */
+function markImagePostDrawn(rosterId, messageId, hash) {
+    const all = readAll();
+    const roster = all.rosters[str(rosterId)];
+    if (!roster || !roster.imagePost || roster.imagePost.messageId !== str(messageId)) return false;
+    roster.imagePost.hash = text(hash, IMAGE_HASH_MAX);
+    writeAll(all);
+    return true;
+}
+
+/** Forget every picture matching `gone`; returns the ids of their rosters. */
+function forgetImagePosts(gone) {
+    const all = readAll();
+    const hit = Object.values(all.rosters).filter((r) => r.imagePost && gone(r.imagePost));
+    if (!hit.length) return [];
+    for (const roster of hit) roster.imagePost = null;
+    writeAll(all);
+    return hit.map((r) => r.id);
+}
+
+/** The picture's message was deleted: nothing more to keep current. Returns the roster ids. */
+function forgetImagePostByMessage(messageId) {
+    const id = str(messageId);
+    return id ? forgetImagePosts((post) => post.messageId === id) : [];
+}
+
+/** The picture's channel was deleted. Returns the roster ids. */
+function forgetImagePostsInChannel(channelId) {
+    const id = str(channelId);
+    return id ? forgetImagePosts((post) => post.channelId === id) : [];
 }
 
 /**
@@ -802,6 +874,7 @@ function migrateVersions() {
 module.exports = {
     listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
     upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile, setImageChannel,
+    setImagePost, markImagePostDrawn, forgetImagePostByMessage, forgetImagePostsInChannel,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };
