@@ -247,15 +247,9 @@ async function ingestLoot(req, res) {
                 continue;
             }
         }
-        // A confirmed session asks the Wowhead section of its event's version (#750);
-        // a pending one has no event yet and asks the version its upload named.
         if (prior && prior.action === "accepted" && prior.eventId) {
+            // A confirmed session asks the Wowhead section of its event's version (#750).
             await enrichForImport(session.items, { eventId: prior.eventId, categoryId: prior.categoryId });
-        } else {
-            await enrichForUpload(session.items, { gameVersion: meta.gameVersion });
-        }
-
-        if (prior && prior.action === "accepted" && prior.eventId) {
             // Already confirmed once — the rest of the raid needs no second click.
             linkItemsForImport(session.items, { eventId: prior.eventId, categoryId: prior.categoryId });
             const { added, skipped } = addLootImport(prior.eventId, session.items, {
@@ -281,6 +275,8 @@ async function ingestLoot(req, res) {
 
         const placement = await inboxPlacement(session, servers, meta);
         const match = placement.match;
+        // A pending one has no event yet: the version the upload named, else its suggested raid's.
+        await enrichForUpload(session.items, { gameVersion: meta.gameVersion, match });
         const { entry, added, created } = upsertPending(session, {
             realm: meta.realm,
             reporter: meta.reporter,

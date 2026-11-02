@@ -350,7 +350,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedAuth;
             jest.isolateModules(() => {
                 jest.doMock("../../../../src/stores/loot/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(),
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(() => Promise.resolve(0)),
                     getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
                 }));
                 jest.doMock("../../../../src/services/versions/storedVersion", () => ({
@@ -374,6 +374,35 @@ describe("web/apiRoutes/history", () => {
             expect(tbc.linked.map((s) => s.sessionId)).toEqual(["l-tbc"]);
         });
 
+        it.each([
+            ["hangs", () => new Promise(() => {})],
+            ["fails", () => Promise.reject(new Error("wowhead down"))],
+        ])("runs the icon backfill, but answers without it when Wowhead %s", async (_label, repair) => {
+            const repairItemNames = jest.fn(repair);
+            let route;
+            let isolatedAuth;
+            jest.isolateModules(() => {
+                jest.doMock("../../../../src/stores/loot/lootInboxStore", () => ({
+                    listPending: () => [], listLinked: () => [], listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames,
+                    getPending: jest.fn(), resolvePending: jest.fn(), upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(),
+                }));
+                route = require("../../../../src/web/apiRoutes/loot/history");
+                isolatedAuth = require("../../../../src/web/http/auth");
+            });
+            isolatedAuth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+            jest.useFakeTimers();
+            try {
+                const res = mockRes();
+                const answered = route.getLootInbox({ method: "GET", headers: {} }, res, new URL("http://x/api/history/inbox"));
+                await jest.advanceTimersByTimeAsync(5000);
+                await answered;
+                expect(repairItemNames).toHaveBeenCalledTimes(1);
+                expect(json(res).data.sessions).toEqual([]);
+            } finally {
+                jest.useRealTimers();
+            }
+        });
+
         // #919, through the real router: a card shows on the server of its
         // suggested raid, one without a suggestion everywhere; server A can
         // neither file nor dismiss B's card, and without a server nothing shows.
@@ -390,7 +419,7 @@ describe("web/apiRoutes/history", () => {
             let isolatedGuild;
             jest.isolateModules(() => {
                 jest.doMock("../../../../src/stores/loot/lootInboxStore", () => ({
-                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(),
+                    listPending: () => pending, listLinked: () => linked, listDismissed: () => [], getDismissed: () => null, resolvedById: () => null, restorePending: jest.fn(), pruneDismissed: jest.fn(), repairItemNames: jest.fn(() => Promise.resolve(0)),
                     getPending: (id) => pending.find((s) => s.id === id) || null,
                     resolvePending, upsertPending: jest.fn(), resolutionFor: jest.fn(), noteAppended: jest.fn(), unlinkEvent: jest.fn(() => 0),
                 }));

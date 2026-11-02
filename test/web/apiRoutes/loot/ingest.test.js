@@ -57,6 +57,10 @@ jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
     const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
     return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
 });
+jest.mock("../../../../src/services/versions/mainVersion", () => {
+    const actual = jest.requireActual("../../../../src/services/versions/mainVersion");
+    return { ...actual, versionOfEvent: jest.fn(actual.versionOfEvent) };
+});
 // Import-time item enrichment must never hit the network.
 jest.mock("../../../../src/utils/loot/wowhead", () => ({
     lookupItem: jest.fn(async () => null),
@@ -202,6 +206,21 @@ describe("POST /api/ingest/loot", () => {
         it("asks the main version's when an older addon names no version", async () => {
             await upload(payload());
             expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "tbc" });
+        });
+
+        it("asks the suggested raid's version when an older addon names none", async () => {
+            const { versionOfEvent } = require("../../../../src/services/versions/mainVersion");
+            const actual = jest.requireActual("../../../../src/services/versions/mainVersion").versionOfEvent;
+            versionOfEvent.mockImplementation((ev, opts) => (ev.id === "e1" ? "classic" : actual(ev, opts)));
+            loadEventGroups.mockResolvedValue({
+                groups: [{ categoryId: "cat1", categoryName: "Raids", events: [{ id: "e1", title: "MC", startTime: 1784574000 }] }],
+            });
+            try {
+                await upload(payload());
+                expect(wowhead.lookupItem).toHaveBeenCalledWith(30242, { path: "classic" });
+            } finally {
+                versionOfEvent.mockImplementation(actual);
+            }
         });
     });
 

@@ -149,11 +149,8 @@ describe("stores/loot/lootInboxStore", () => {
             let release;
             wowhead.lookupItem.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ name: "Thing", iconUrl: "thing.jpg", quality: 4 }); }));
             const running = repairItemNames();
-            await Promise.resolve();
             upsertPending(session({ items: [bare({ rawId: "late" })] }));
             resolvePending(filed.id, "accepted", { eventId: "e1" });
-            release();
-            await new Promise((resolve) => setImmediate(resolve));
             release();
             await running;
             const rows = getPending(entry.id).items;
@@ -162,11 +159,60 @@ describe("stores/loot/lootInboxStore", () => {
             expect(getPending(filed.id)).toBeNull();
         });
 
-        it("leaves a row Wowhead does not know as it is", async () => {
+        it("fills a card dismissed or restored during the lookups where it is now", async () => {
+            const gone = upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" }).entry;
+            const back = upsertPending(session({ sessionId: "s2", items: [bare({ rawId: "c2" })] }), { gameVersion: "tbc" }).entry;
+            resolvePending(back.id, "dismissed");
+            let release;
+            wowhead.lookupItem.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ name: "Thing", iconUrl: "thing.jpg", quality: 4 }); }));
+            const running = repairItemNames();
+            resolvePending(gone.id, "dismissed");
+            restorePending(back.id);
+            release();
+            expect(await running).toBe(2);
+            expect(getPending(back.id).items[0].itemIconUrl).toBe("thing.jpg");
+            expect(restorePending(gone.id).items[0].itemIconUrl).toBe("thing.jpg");
+        });
+
+        it("runs again after a run that failed", async () => {
+            const { entry } = upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            const now = 5 * 60 * 60 * 1000;
+            wowhead.lookupItem.mockRejectedValueOnce(new Error("wowhead down"));
+            await expect(repairItemNames(now)).rejects.toThrow("wowhead down");
+            expect(await repairItemNames(now + 60 * 60 * 1000)).toBe(1);
+            expect(getPending(entry.id).items[0].itemIconUrl).toBe("thing.jpg");
+        });
+
+        it("answers a call during a run with that run", async () => {
+            upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            let release;
+            wowhead.lookupItem.mockImplementation(() => new Promise((resolve) => { release = () => resolve({ name: "Thing", iconUrl: "thing.jpg", quality: 4 }); }));
+            const first = repairItemNames();
+            const second = repairItemNames();
+            release();
+            expect(await first).toBe(1);
+            expect(await second).toBe(1);
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(1);
+        });
+
+        it("asks once per version, however many cards lack the same item", async () => {
+            upsertPending(session({ items: [bare()] }), { gameVersion: "tbc" });
+            upsertPending(session({ sessionId: "s2", items: [bare({ rawId: "c2" })] }), { gameVersion: "tbc" });
+            expect(await repairItemNames()).toBe(2);
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(1);
+        });
+
+        // Wowhead not knowing an item must not cost a lookup on every page view.
+        it("leaves a row Wowhead does not know as it is and rests before asking again", async () => {
             wowhead.lookupItem.mockResolvedValue(null);
+            const now = 5 * 60 * 60 * 1000;
             const { entry } = upsertPending(session({ items: [bare({ itemLink: "https://www.wowhead.com/tbc/item=100" })] }), { gameVersion: "tbc" });
-            expect(await repairItemNames()).toBe(0);
+            expect(await repairItemNames(now)).toBe(0);
             expect(getPending(entry.id).items[0].itemIconUrl).toBe("");
+            expect(await repairItemNames(now + 1000)).toBe(0);
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(1);
+            await repairItemNames(now + 60 * 60 * 1000);
+            expect(wowhead.lookupItem).toHaveBeenCalledTimes(2);
         });
     });
 
