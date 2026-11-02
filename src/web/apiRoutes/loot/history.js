@@ -614,7 +614,7 @@ const clearHistoryEvent = withUser({ csrf: true, body: true }, async ({ body, re
 // How long the inbox waits for its icon backfill.
 const INBOX_REPAIR_WAIT_MS = 3000;
 
-/** The backfill the other loot views run, but a hanging Wowhead must not hold the page: the run goes on and the next view has the icons. */
+/** The backfill the other loot views run, but a slow Wowhead must not hold the page: the run goes on and a later view has the icons. */
 async function inboxRepairWithinTime() {
     let timer = null;
     const late = new Promise((resolve) => {

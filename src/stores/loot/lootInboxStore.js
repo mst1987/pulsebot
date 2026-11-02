@@ -350,8 +350,8 @@ function listLinked(limit = 10) {
 // What repairItemNames() can change on a row, as one comparable string.
 const itemMetaKey = (it) => `${it.itemName}|${it.itemIconUrl}|${it.itemQuality}|${it.itemLink}`;
 
-// A card asked Wowhead for rests this long: an item it does not know stays unknown,
-// and the page behind the repair is opened far more often than that can change.
+// A card asked Wowhead for rests this long: an item it does not know stays unknown, a
+// timeout looks the same, and the page behind the repair is opened far more often.
 const REPAIR_RETRY_MS = 60 * 60 * 1000;
 const repairAsked = new Map(); // inbox id -> when it was last asked
 let repairRunning = null;
