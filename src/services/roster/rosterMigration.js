@@ -60,7 +60,7 @@ function categoryFacts({ snapshot = {}, events = [] } = {}) {
 /**
  * The categories to migrate, in a stable order (configured categories first,
  * then the rest as found): `[{ categoryId, guildId, name, versionId, roleIds,
- * members: { [userId]: { key, name } } }]`.
+ * members: { [userId]: { key, name } }, active }]`; `active`: in config.categoryIds.
  * @param {object} input
  * @param {object} input.config       the normalised config (categoryRoles, categoryVersion, categoryIds, servers)
  * @param {object} input.assignments  raider-characters.json: { [categoryId]: { [userId]: name } }
@@ -88,7 +88,7 @@ function categoriesToMigrate({ config = {}, assignments = {}, snapshot = {}, eve
         }
         if (!roleIds.length && !Object.keys(members).length) continue;
         const fact = facts.get(categoryId) || {};
-        out.push({ categoryId, guildId: fact.guildId || fallbackGuild, name: fact.name || categoryId, versionId, roleIds, members });
+        out.push({ categoryId, guildId: fact.guildId || fallbackGuild, name: fact.name || categoryId, versionId, roleIds, members, active: configured.includes(categoryId) });
     }
     return out;
 }
