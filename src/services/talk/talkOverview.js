@@ -10,7 +10,8 @@
 //              "This ID" / "Next ID"; a later one is a single small line. The
 //              date links to the public web page, the small line holds fill,
 //              channel link and whatever else differs.
-//   foot       a green "Pick several raids …", the select, three link buttons
+//   foot       a green "Pick several raids …", the select, three link buttons,
+//              on another server than the raids a fourth: "Join <server>"
 //
 // It keeps itself current: a roster change of an own event
 // (signupStore.onSignupsChanged), a newly created event (eventCreate.js) and a
@@ -30,6 +31,8 @@
 // text, thumbnail), one without 2, the "+N more" line 1: so at most 7 blocks of
 // their own (11 + 28 + 1 = 40). From the 8th kind on the first 6 keep theirs and
 // the others share one text with their names as small headings (11 + 24 + 2 + 1).
+// The join button makes the frame 12 and a seventh block one too many (12 + 28 + 1
+// = 41): with it the shared text starts at the 7th kind (12 + 24 + 2 + 1 = 39).
 // When the text does not fit, every kind keeps its first date that is not cancelled
 // before any kind gets a second, by start time; what is left out is counted in the last line. A
 // channel link is always a plain URL — `<#id>` and `<@id>` only resolve on the
@@ -59,6 +62,7 @@ const { embedAccentColor } = require("../../config/variables");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const guildRoles = require("../discord/roles/guildRoles");
+const { inviteUrlForLink, generalInviteUrl } = require("../discord/pug/pugInvites");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { leadInstance } = require("../events/embedLook");
 const { raidContentIds } = require("../events/overview/raidListing");
@@ -92,6 +96,8 @@ const MAX_OPTIONS = 25;
 // The blocks of their own a message can hold, and how many stay when the kinds do not fit (head comment).
 const MAX_BLOCKS = 7;
 const BLOCKS_WITH_SHARED_TEXT = 6;
+// A button label holds 80 characters; "<name> beitreten" must fit.
+const JOIN_NAME_MAX = 60;
 // A category named only by its size ("10er") says nothing the fill does not say.
 const SIZE_ONLY_CATEGORY = /^\d+er$/i;
 // How much of a raid's own title its small line shows.
@@ -398,7 +404,7 @@ function drawList(blocks, shown, ctx) {
         .map((block) => ({ block, raids: block.raids.filter((r) => shown.has(r)) }))
         .filter((b) => b.raids.length)
         .map(({ block, raids }) => ({ text: blockText(block, raids, ctx), raids }));
-    const own = listed.length > MAX_BLOCKS ? listed.slice(0, BLOCKS_WITH_SHARED_TEXT) : listed;
+    const own = listed.length > ctx.maxBlocks ? listed.slice(0, BLOCKS_WITH_SHARED_TEXT) : listed;
     const shared = listed.slice(own.length).map((b) => b.text).join("\n");
     const head = headText(listed.flatMap((b) => b.raids), ctx);
     return {
@@ -443,8 +449,20 @@ function fitList(raids, ctx) {
 const textPart = (content) => new TextDisplayBuilder().setContent(content);
 const dividerPart = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small);
 
-/** The controls below the list: the green "several raids" button, the select, the three link buttons into the web. */
-function controlRows(raids, { lang, eventGuildId, baseUrl }) {
+/**
+ * The link button to the raids' server, for a reader who is not on it. Null without a usable
+ * invite, and without a name to put on it.
+ */
+function joinButton(inviteUrl, serverName, lang) {
+    const url = String(inviteUrl || "");
+    const name = plain(serverName);
+    if (!/^https:\/\//.test(url) || !name) return null;
+    const server = name.length > JOIN_NAME_MAX ? `${name.slice(0, JOIN_NAME_MAX - 1).trimEnd()}…` : name;
+    return new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Join {server}", { server })).setURL(url);
+}
+
+/** The controls below the list: the green "several raids" button, the select, the link buttons into the web and to the raids' server. */
+function controlRows(raids, { lang, eventGuildId, baseUrl, join }) {
     const rows = [];
     // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
     const signable = raids.filter((e) => e.status !== "cancelled");
@@ -469,13 +487,13 @@ function controlRows(raids, { lang, eventGuildId, baseUrl }) {
     }
     // Without PUBLIC_BASE_URL the web buttons would lead nowhere (#537): left out.
     const links = overviewLinks(baseUrl);
-    if (links) {
-        rows.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Web overview")).setURL(links.web),
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My signups")).setURL(links.signups),
-            new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My profile")).setURL(links.profile),
-        ));
-    }
+    const buttons = links ? [
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Web overview")).setURL(links.web),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My signups")).setURL(links.signups),
+        new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My profile")).setURL(links.profile),
+    ] : [];
+    if (join) buttons.push(join);
+    if (buttons.length) rows.push(new ActionRowBuilder().addComponents(buttons));
     return rows;
 }
 
@@ -489,7 +507,8 @@ function controlRows(raids, { lang, eventGuildId, baseUrl }) {
  *   `lang` the frame language ("de" | "en", German by default), `config` for
  *   the category languages of the raids (without it they speak `lang`),
  *   `versions` the link's version filter, `leaderName(id)` a lead's display
- *   name ("" = leave the lead out)
+ *   name ("" = leave the lead out), `inviteUrl` the invite to the source server
+ *   ("" = no join button; it costs the seventh block, see the head comment)
  * @returns {{ flags: number, content: "", embeds: [], components: object[], allowedMentions: object }} plain API JSON
  */
 function buildOverviewMessage(groups, opts = {}) {
@@ -516,10 +535,12 @@ function buildOverviewMessage(groups, opts = {}) {
         ? tr(lang, "Raids from {server}", { server: plain(serverName) })
         : tr(lang, "Upcoming raids");
 
+    const join = joinButton(opts.inviteUrl, serverName, lang);
     const c = new ContainerBuilder().setAccentColor(embedAccentColor);
     if (all.length) {
         const { head, own, shared, more } = fitList(all, {
             eventGuildId, baseUrl, channelInfo, lang, now, leaderName, title,
+            maxBlocks: join ? BLOCKS_WITH_SHARED_TEXT : MAX_BLOCKS,
         });
         c.addTextDisplayComponents(textPart(head));
         for (const block of own) {
@@ -541,7 +562,7 @@ function buildOverviewMessage(groups, opts = {}) {
         c.addTextDisplayComponents(textPart(`## ${title}\n${tr(lang, "No raids are planned right now. New raids show up here by themselves.")}`));
     }
 
-    const rows = controlRows(all, { lang, eventGuildId, baseUrl });
+    const rows = controlRows(all, { lang, eventGuildId, baseUrl, join });
     if (rows.length) {
         c.addSeparatorComponents(dividerPart());
         c.addActionRowComponents(rows);
@@ -621,10 +642,13 @@ async function currentPayload({
     const guild = discord.getGuild(from);
     // without a link language: the language of the server the list is posted on (#924, per server)
     const lang = (entry && entry.lang) || serverLang(config, entry ? entry.to : from);
+    const crossServer = !!entry && entry.to !== from;
     const payload = buildOverviewMessage(groups, {
         eventGuildId: from,
         serverName: guildRoles.serverLabel(from, config) || (guild ? guild.name : ""),
-        crossServer: !!entry && entry.to !== from,
+        crossServer,
+        // The link's own invite counts where a member came from; the general one only gets them there.
+        inviteUrl: crossServer ? inviteUrlForLink(entry.key) || generalInviteUrl(from) : "",
         now,
         categoryIds: config.categoryIds || [],
         versions: entry ? entry.versions : [],
