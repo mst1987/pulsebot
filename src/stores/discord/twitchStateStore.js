@@ -7,6 +7,9 @@
 //
 // `display` holds what the last card showed, because the "ended" card is drawn when
 // Twitch no longer answers for the stream and the entry may already be gone.
+//
+// A record with no `streamId` but an `error` is a stream that ended without ever getting
+// its message: only the error is left to show, nothing was pinged yet.
 
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
@@ -21,6 +24,7 @@ const EMPTY = Object.freeze({
     lastSeenAt: 0,
     endedAt: 0,
     endPending: false, // the "ended" edit failed, the next run tries again
+    endFailingSince: 0, // the first failed try of that edit: 24 hours later the job gives up
     lastEditAt: 0,
     hash: "",
     error: "",

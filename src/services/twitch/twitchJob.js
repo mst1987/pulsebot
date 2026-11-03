@@ -11,7 +11,10 @@
 // - A new stream id within 10 minutes of the end (or of the last sighting) is the same
 //   session: the old message goes live again, without a ping, whatever the game filter says.
 // - A message deleted in Discord stays deleted for this session: no repost, no second ping.
-// - An error of one entry lands on that entry; the others go on.
+// - An error of one entry lands on that entry; the others go on. It stays after the stream,
+//   until a post or an edit works, even for a stream that never got its message.
+// - The "ended" edit gives up 24 hours after its first failed try: `end_gave_up` stays on
+//   the entry until the next stream starts, which posts as usual.
 const crypto = require("crypto");
 const Twitch = require("../../classes/twitch");
 const discord = require("../discord/discord");
@@ -36,6 +39,9 @@ const RESUME_WINDOW_MS = 10 * MINUTE_MS;
 const EDIT_MIN_GAP_MS = 5 * MINUTE_MS;
 /** After a 429: longer than one poll, shorter than two, so exactly the next run is skipped. */
 const RATE_LIMIT_PAUSE_MS = POLL_MS + 30 * 1000;
+/** How long the "ended" edit is tried, from its first failure. */
+const END_GIVE_UP_MS = 24 * 60 * MINUTE_MS;
+const END_GAVE_UP = "end_gave_up";
 
 let timer = null;
 let running = null;
@@ -100,22 +106,32 @@ const durationOf = (state, now) => {
 
 /**
  * Turn the message into its "ended" card and note the outcome. A message or channel
- * that is gone needs no further try; anything else tries again next run (endPending).
+ * that is gone needs no further try (a gone channel stays on the entry as its error);
+ * anything else tries again next run (endPending), for 24 hours from the first failure.
+ * Without a message nothing was tried, so an old error stays.
  */
 async function finishMessage(cfg, guildId, login, state, now) {
-    const patch = { endPending: false, error: "" };
+    const patch = { endPending: false, endFailingSince: 0 };
     if (state.messageId && !state.messageGone) {
         const payload = endedCard({ lang: serverLang(cfg, guildId), login, display: state.display, durationMs: durationOf(state, now) });
         try {
             await discord.editPayload(state.channelId, state.messageId, payload);
             patch.lastEditAt = now;
+            patch.error = "";
         } catch (e) {
             if (e && (e.code === 10008 || e.code === 10003)) {
                 patch.messageId = "";
                 patch.messageGone = true;
+                patch.error = e.code === 10003 ? errorCodeOf(e) : "";
             } else {
-                patch.endPending = true;
-                patch.error = errorCodeOf(e);
+                const since = state.endFailingSince || now;
+                if (now - since >= END_GIVE_UP_MS) {
+                    patch.error = END_GAVE_UP;
+                } else {
+                    patch.endPending = true;
+                    patch.endFailingSince = since;
+                    patch.error = errorCodeOf(e) || state.error;
+                }
                 logFailure(`ended card of ${login}`, e);
             }
         }
@@ -126,6 +142,9 @@ async function finishMessage(cfg, guildId, login, state, now) {
 /** Post the announcement (with the one ping) unless the game filter says no; on record at once. */
 async function announce(cfg, entry, stream, display, now) {
     const { guildId, login } = entry;
+    // an old error stays until a post works; "gave up" belongs to the stream before this one
+    const before = getTwitchState(guildId, login).error;
+    const keptError = before === END_GAVE_UP ? "" : before;
     const base = {
         announced: false,
         messageGone: false,
@@ -136,12 +155,13 @@ async function announce(cfg, entry, stream, display, now) {
         lastSeenAt: now,
         endedAt: 0,
         endPending: false,
+        endFailingSince: 0,
         offlineCount: 0,
         lastOfflineAt: 0,
         display,
     };
     if (!matchesGameFilter(entry.games, display.game)) {
-        setTwitchState(guildId, login, { ...base, hash: "", error: "" });
+        setTwitchState(guildId, login, { ...base, hash: "", error: keptError });
         return "filtered";
     }
     const payload = liveCard({ lang: serverLang(cfg, guildId), entry, display, now });
@@ -159,7 +179,7 @@ async function announce(cfg, entry, stream, display, now) {
         return "announced";
     } catch (e) {
         // not announced: the next run tries again, and only the post that works pings
-        setTwitchState(guildId, login, { ...base, hash: "", error: errorCodeOf(e) });
+        setTwitchState(guildId, login, { ...base, hash: "", error: errorCodeOf(e) || keptError });
         logFailure(`post of ${login}`, e);
         return "failed";
     }
@@ -176,7 +196,7 @@ async function refreshMessage(cfg, entry, state, display, now, extra = {}) {
         if (e && e.code === 10008) {
             setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, messageId: "", messageGone: true, error: "" });
         } else {
-            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, error: errorCodeOf(e) });
+            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, error: errorCodeOf(e) || state.error });
             logFailure(`edit of ${login}`, e);
         }
     }
@@ -203,7 +223,7 @@ async function handleLive(cfg, entry, stream, now) {
     }
 
     const alive = {
-        streamId, endedAt: 0, endPending: false, offlineCount: 0, lastOfflineAt: 0,
+        streamId, endedAt: 0, endPending: false, endFailingSince: 0, offlineCount: 0, lastOfflineAt: 0,
     };
     if (state.messageGone || !state.messageId) {
         setTwitchState(guildId, login, { ...alive, display, lastSeenAt: now });
@@ -228,8 +248,15 @@ async function handleOffline(cfg, entry, now) {
     const state = getTwitchState(guildId, login);
     if (!state.streamId) return "offline";
     if (!state.announced) {
-        // nothing out there to end: filtered out or never posted
-        removeTwitchState(guildId, login);
+        // nothing out there to end: filtered out or never posted. Only an error is left to
+        // show; the next stream finds no stream id and no announcement, so it posts (and pings) once.
+        if (state.error) {
+            setTwitchState(guildId, login, {
+                streamId: "", startedAt: "", lastSeenAt: 0, offlineCount: 0, lastOfflineAt: 0, display: null,
+            });
+        } else {
+            removeTwitchState(guildId, login);
+        }
         return "offline";
     }
     if (state.endedAt) {
@@ -309,7 +336,8 @@ async function run({ guildId = "", now = Date.now() } = {}) {
             }
         } catch (e) {
             logFailure(`entry ${entry.login} on ${entry.guildId}`, e);
-            setTwitchState(entry.guildId, entry.login, { error: errorCodeOf(e) });
+            const error = errorCodeOf(e);
+            if (error) setTwitchState(entry.guildId, entry.login, { error });
         }
     }
     lastRun = { at: now, error: "" };
@@ -334,6 +362,8 @@ function runTwitchCheck({ guildId = "", now } = {}) {
 /**
  * What the page shows for one server's list: `state` "live" (announced and running),
  * "filtered" (running, no message yet: filter or a failed post), "offline".
+ * `postedChannelId`: the channel of the running message when the entry now names another
+ * one ("" otherwise): the message stays where it is, the next stream goes to the new channel.
  */
 function twitchStatusOf(entries) {
     return (entries || []).map((entry) => {
@@ -342,6 +372,7 @@ function twitchStatusOf(entries) {
         const display = s.display || {};
         let state = "offline";
         if (running) state = s.announced ? "live" : "filtered";
+        const moved = running && s.announced && !!s.messageId && s.channelId !== entry.channelId;
         return {
             login: entry.login,
             state,
@@ -351,6 +382,7 @@ function twitchStatusOf(entries) {
             game: running ? display.game || "" : "",
             viewers: running ? display.viewers || 0 : 0,
             messageGone: !!s.messageGone,
+            postedChannelId: moved ? s.channelId : "",
             error: s.error || "",
         };
     });

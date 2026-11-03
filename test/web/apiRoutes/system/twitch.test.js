@@ -105,7 +105,7 @@ describe("the route table", () => {
 describe("GET /api/settings/twitch", () => {
     it("answers the list of the active server with its status and the limits", async () => {
         twitchJob.twitchStatusOf.mockReturnValueOnce([{
-            login: "foo", state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, error: "",
+            login: "foo", state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, postedChannelId: "", error: "",
         }]);
         const res = await call(getStreamers);
 
@@ -118,7 +118,7 @@ describe("GET /api/settings/twitch", () => {
             limits: { streamers: 25, textLength: 500, games: 5, gameNameLength: 60 },
             streamers: [{
                 ...stored(),
-                status: { state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, error: "" },
+                status: { state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, postedChannelId: "", error: "" },
             }],
         });
     });

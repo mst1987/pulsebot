@@ -11,6 +11,7 @@
 //     (config.categoryRoles), a role of a roster (roleIds, trialRoleId, managers.roleIds),
 //     a role of the role sync between the servers (config.roleSync, both sides: the sync
 //     hands out the other one or gives this one back after an unsubscribe);
+//     not a role that is only pinged (Twitch announcements): `grantingUses`;
 //   - Discord: a permission beyond those of @everyone, or a channel overwrite that allows
 //     the role anything (it unlocks a hidden channel).
 // The button is hidden for such a role, a click or reaction on an old one is refused in
@@ -54,8 +55,8 @@ function pugVersionIdsOf(c, id) {
 }
 
 /**
- * Every bot right the role carries from the config and the rosters, machine-readable and
- * in the order privilegedReason checks them (the first one is its reason):
+ * Everything the role means for the bot from the config and the rosters, machine-readable and
+ * in the order privilegedReason checks them (the first of `grantingUses` is its reason):
  *   { code: "admin" } | { code: "orga" } | { code: "officer" }
  *   { code: "rolePermissions", areas: string[], levels: { [area]: "read"|"write" } }  the areas granted to the role
  *   { code: "botCommand", commands: string[] }       the bot commands the role may run
@@ -63,7 +64,7 @@ function pugVersionIdsOf(c, id) {
  *   { code: "roleSync", guildIds: string[], pairs: { guildId, roleId, direction }[] }  the partner
  *       servers of its role-sync pairs; `pairs` names the other side of each pair
  *   { code: "pugVersion", versionIds: string[] }      the PuG version role of these versions (#906)
- *   { code: "twitchPing", logins: string[] }          pinged when these Twitch streamers go live
+ *   { code: "twitchPing", logins: string[] }          pinged when these Twitch streamers go live (grants nothing)
  *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
  * Empty when the role carries none. The roles page (services/discord/servers/serverRoles.js) shows
  * them as "Bedeutung für den Bot".
@@ -154,7 +155,16 @@ function roleUses(cfg, roleId, { rosters } = {}) {
     return out;
 }
 
-// The log/refusal text of the first use (privilegedReason's wording, unchanged).
+// Uses that only say what the role is for: the roles page shows them, but whoever takes such
+// a role gets a ping and nothing else, so alone they never stop it from being self-service.
+const USES_WITHOUT_RIGHTS = new Set(["twitchPing"]);
+
+/** `roleUses` without the uses that grant nothing: what makes a role unfit for self-service. */
+function grantingUses(cfg, roleId, opts) {
+    return roleUses(cfg, roleId, opts).filter((u) => !USES_WITHOUT_RIGHTS.has(u.code));
+}
+
+// The log/refusal text of the first granting use (privilegedReason's wording, unchanged).
 const USE_TEXT = {
     admin: () => "the role is a full-admin role",
     orga: () => "the role is an orga role",
@@ -164,13 +174,12 @@ const USE_TEXT = {
     categoryRaider: () => "the role is a raider role of a category",
     roleSync: () => "the role is part of the role sync between the servers",
     pugVersion: () => "the role is a PuG version role (Rollen & Onboarding)",
-    twitchPing: () => "the role is pinged on Twitch stream announcements",
     roster: (u) => `the role belongs to the roster ${u.name || u.rosterId}`,
 };
 
 /** Why the role carries bot rights of the config or a roster, "" when it carries none. */
 function configReason(cfg, id) {
-    const first = roleUses(cfg, id)[0];
+    const first = grantingUses(cfg, id)[0];
     return first ? USE_TEXT[first.code](first) : "";
 }
 
@@ -297,4 +306,4 @@ async function changeSelfRole({ guild, roleId, member = null, userId = "", mode 
     return { ok: true, role, on, changed: on !== has };
 }
 
-module.exports = { privilegedReason, roleUses, roleProblem, botMember, isUnknownRole, changeSelfRole };
+module.exports = { privilegedReason, roleUses, grantingUses, roleProblem, botMember, isUnknownRole, changeSelfRole };

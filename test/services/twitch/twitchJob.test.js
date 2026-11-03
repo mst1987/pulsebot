@@ -195,6 +195,65 @@ describe("the end of a stream", () => {
     });
 });
 
+describe("the ended card that keeps failing", () => {
+    const DAY = 24 * 60;
+
+    async function failingFrom4() {
+        await runAt(0, [stream()]);
+        await runAt(2, []);
+        mockDiscord.editPayload.mockRejectedValue({ code: 500 });
+        await runAt(4, []);
+    }
+
+    it("is tried for 24 hours from the first failure, then given up with its own code", async () => {
+        await failingFrom4();
+        await runAt(4 + DAY - 2, []);
+        expect(statusOf().error).toBe("post_failed");
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ endPending: true, endFailingSince: T0 + 4 * MINUTE });
+
+        await runAt(4 + DAY, []);
+        expect(statusOf()).toMatchObject({ state: "offline", error: "end_gave_up" });
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ endPending: false, endFailingSince: 0 });
+
+        // no more tries, and the code stays
+        mockDiscord.editPayload.mockClear();
+        await runAt(4 + DAY + 2, []);
+        expect(mockDiscord.editPayload).not.toHaveBeenCalled();
+        expect(statusOf().error).toBe("end_gave_up");
+    });
+
+    it("lets the next stream post as usual, with its ping and without the code", async () => {
+        await failingFrom4();
+        await runAt(4 + DAY, []);
+        mockDiscord.postPayload.mockClear();
+        mockDiscord.postPayload.mockResolvedValueOnce({ messageId: "m2", channelId: CHANNEL_A });
+
+        await runAt(4 + DAY + 2, [stream({ id: "s2" })]);
+
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+        expect(mockDiscord.postPayload.mock.calls[0][2]).toEqual({ guildId: GUILD_A, pingRoleId: ROLE });
+        expect(statusOf()).toMatchObject({ state: "live", error: "" });
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ messageId: "m2", endPending: false });
+    });
+
+    it("loses the code as well when the next stream is filtered out", async () => {
+        await failingFrom4();
+        await runAt(4 + DAY, []);
+        list(GUILD_A, entry({ games: ["Hearthstone"] }));
+
+        await runAt(4 + DAY + 2, [stream({ id: "s2" })]);
+
+        expect(statusOf()).toMatchObject({ state: "filtered", error: "" });
+    });
+
+    it("starts counting anew after an edit that worked", async () => {
+        await failingFrom4();
+        mockDiscord.editPayload.mockResolvedValueOnce({});
+        await runAt(6, []);
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ endPending: false, endFailingSince: 0, error: "" });
+    });
+});
+
 describe("a restart of the stream", () => {
     it("sets the old message live again within 10 minutes, with a new stream id and without a ping", async () => {
         await runAt(0, [stream()]);
@@ -388,6 +447,109 @@ describe("a failure of one entry", () => {
         await runAt(4, []);
         expect(mockDiscord.editPayload).not.toHaveBeenCalled();
         expect(stateStore.getTwitchState(GUILD_A, "foo").offlineCount).toBe(0);
+    });
+});
+
+describe("an error after the stream", () => {
+    async function neverPosted() {
+        mockDiscord.postPayload.mockRejectedValueOnce({ code: 50013 });
+        await runAt(0, [stream()]);
+        await runAt(2, []);
+    }
+
+    it("stays visible for a stream that was never posted", async () => {
+        await neverPosted();
+        expect(statusOf()).toMatchObject({ state: "offline", error: "no_permission", endedAt: 0, title: "" });
+
+        await runAt(4, []);
+        await runAt(6, []);
+        expect(statusOf().error).toBe("no_permission");
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+    });
+
+    it("goes with the next post that works, which is the one and only ping", async () => {
+        await neverPosted();
+        mockDiscord.postPayload.mockClear();
+
+        await runAt(4, [stream({ id: "s2" })]);
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+        expect(statusOf()).toMatchObject({ state: "live", error: "" });
+
+        await runAt(6, [stream({ id: "s2" })]);
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+    });
+
+    it("survives a next stream that is filtered out: nothing was posted", async () => {
+        await neverPosted();
+        list(GUILD_A, entry({ games: ["Hearthstone"] }));
+
+        await runAt(4, [stream({ id: "s2" })]);
+        expect(statusOf()).toMatchObject({ state: "filtered", error: "no_permission" });
+
+        await runAt(6, []);
+        expect(statusOf()).toMatchObject({ state: "offline", error: "no_permission" });
+    });
+
+    it("stays when the failed edit of a live message is followed by an ended card without a message", async () => {
+        await runAt(0, [stream()]);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code: 50013 });
+        await runAt(5, [stream({ viewer_count: 99 })]);
+        stateStore.setTwitchState(GUILD_A, "foo", { messageId: "", messageGone: true });
+
+        await runAt(7, []);
+        await runAt(9, []);
+
+        expect(statusOf()).toMatchObject({ state: "offline", error: "no_permission" });
+    });
+
+    it("names a channel that went away with the ended card", async () => {
+        await runAt(0, [stream()]);
+        await runAt(2, []);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code: 10003 });
+        await runAt(4, []);
+        expect(statusOf()).toMatchObject({ state: "offline", error: "channel_gone", messageGone: true });
+        expect(stateStore.getTwitchState(GUILD_A, "foo").endPending).toBe(false);
+    });
+
+    it("is cleaned up with the entry", async () => {
+        await neverPosted();
+        expect(stateStore.listTwitchStates()).toHaveLength(1);
+
+        mockConfig.serverSettings[GUILD_A] = { twitchStreamers: [] };
+        await job.runTwitchCheck({ now: T0 + 4 * MINUTE });
+
+        expect(stateStore.listTwitchStates()).toEqual([]);
+        expect(mockDiscord.editPayload).not.toHaveBeenCalled();
+    });
+});
+
+describe("a channel changed while live", () => {
+    const statusIn = (channelId) => job.twitchStatusOf([{ guildId: GUILD_A, login: "foo", channelId }])[0];
+
+    it("names the old channel while the message runs and posts the next stream in the new one", async () => {
+        await runAt(0, [stream()]);
+        expect(statusIn(CHANNEL_A).postedChannelId).toBe("");
+
+        list(GUILD_A, entry({ channelId: CHANNEL_B }));
+        await runAt(2, [stream()]);
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+        expect(statusIn(CHANNEL_B)).toMatchObject({ state: "live", postedChannelId: CHANNEL_A });
+
+        await runAt(4, []);
+        await runAt(6, []);
+        expect(mockDiscord.editPayload.mock.calls[0][0]).toBe(CHANNEL_A);
+        expect(statusIn(CHANNEL_B).postedChannelId).toBe("");
+
+        mockDiscord.postPayload.mockResolvedValueOnce({ messageId: "m2", channelId: CHANNEL_B });
+        await runAt(30, [stream({ id: "s2" })]);
+        expect(mockDiscord.postPayload.mock.calls[1][0]).toBe(CHANNEL_B);
+        expect(statusIn(CHANNEL_B)).toMatchObject({ state: "live", postedChannelId: "" });
+    });
+
+    it("names nothing without a message", async () => {
+        mockDiscord.postPayload.mockRejectedValueOnce({ code: 50013 });
+        await runAt(0, [stream()]);
+        expect(statusIn(CHANNEL_B).postedChannelId).toBe("");
     });
 });
 
