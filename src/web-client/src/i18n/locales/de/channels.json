@@ -14,7 +14,7 @@
     "unchanged": "unverändert",
     "exists": "existiert",
     "schemaPlaceholder": "leer = wie der letzte Event-Kanal",
-    "raidPlaceholder": "z.B. ssc-tk",
+    "raidPlaceholder": "z.B. {example}",
     "likeLastEventChannel": "— wie der letzte Event-Kanal —",
     "templateChannel": "Vorlage-Kanal",
     "namingSchema": "Namensschema",
@@ -340,7 +340,7 @@
         "kicker": "Kanäle",
         "title": "Kanal erstellen",
         "submit": "Kanal erstellen",
-        "namePlaceholder": "z.B. kara-anmeldung",
+        "namePlaceholder": "z.B. {example}-anmeldung",
         "type": "Typ",
         "assignNow": "Gleich zuordnen",
         "assignNowSub": "Der neue Kanal übernimmt gleich einen Zweck. Bei Zwecken mit nur einem Kanal ersetzt er den bisherigen."

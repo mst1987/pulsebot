@@ -1,5 +1,6 @@
 import { get, send } from "../client";
 import type { SpecCatalogEntry } from "../../lib/discord/recruitmentSpecs";
+import type { VersionExamples } from "../../lib/app/versionExamples";
 
 export type RecruitmentTemplate = {
     id: string;
@@ -100,7 +101,7 @@ export type RecruitmentData = {
     applicationChannelId: string;
     activeGuildId: string;
     /** The versions to filter by and pick for a template (#553). */
-    gameVersions: { id: string; label: string; short: string }[];
+    gameVersions: { id: string; label: string; short: string; examples?: VersionExamples }[];
     /** What an unfiltered page shows and a new template starts with. */
     mainVersion: string;
     /** The link button label a new post starts with, in the active server's language. */

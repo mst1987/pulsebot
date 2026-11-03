@@ -130,7 +130,7 @@
         },
         "createTemplate": "Vorlage anlegen",
         "nameTipSub": "Nur zur Auswahl in der Verwaltung — nicht Teil der geposteten Nachricht.",
-        "namePlaceholder": "z.B. Heiler für Hyjal & BT",
+        "namePlaceholder": "z.B. Heiler für {example}",
         "postUpdated": "Nachricht in Discord aktualisiert.",
         "titleRateLimited": "Titel konnte gerade nicht geändert werden (Discord erlaubt 2 Umbenennungen je 10 Minuten), bitte später erneut speichern.",
         "titleFailed": "Titel konnte nicht geändert werden, der Text ist gespeichert.",

@@ -9,6 +9,7 @@ import { Button } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
 import Segment from "../../components/ui/form/Segment";
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 import { ICONS, openExternal } from "./shared";
 import { DraftBadge, TipLabel } from "./RecruitmentBits";
 import { MessageFields } from "./MessageFields";
@@ -31,6 +32,7 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
     const [stored, patch, clearDraft] = useDraftState(`recruitment-template:${template?.id ?? "new"}`, initial);
     // A draft kept from before #553 has no version yet.
     const draft = { ...stored, versionId: stored.versionId || initial.versionId };
+    const examples = useVersionExamples((data.gameVersions || []).find((v) => v.id === draft.versionId));
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     const dirty = draft.name !== initial.name || draft.content !== initial.content || draft.buttonLabel !== initial.buttonLabel || draft.versionId !== initial.versionId;
@@ -75,7 +77,7 @@ export function TemplateEditor({ data, template, postedIn, onSaved, onClose }: {
                 >
                     <div className="field">
                         <TipLabel label={t("common.name")} htmlFor="rc-name" tip={t("common.name")} tipSub={t("recruitment.editor.nameTipSub")} />
-                        <input id="rc-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("recruitment.editor.namePlaceholder")} required />
+                        <input id="rc-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("recruitment.editor.namePlaceholder", { example: examples.raids })} required />
                     </div>
                     {(data.gameVersions || []).length > 1 && (
                         <div className="field">

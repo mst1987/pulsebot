@@ -1,6 +1,7 @@
 import { get, send } from "../client";
 import { setCsrfToken } from "../csrf";
 import type { DeployVersion } from "../../lib/app/deployVersion";
+import type { VersionExamples } from "../../lib/app/versionExamples";
 
 // One admin-menu section a role can be given access to (src/config/permissions.js).
 export type Area = { id: string; tab: string; label: string; description: string };
@@ -52,6 +53,8 @@ export type SessionGuild = { id: string; name: string; role?: GuildRole; label?:
 /** A game version the content switch offers (#563). */
 export type ContentVersionRef = {
     id: string; label: string; short: string;
+    /** Input hints in the terms of this version (rule set). */
+    examples?: VersionExamples;
     /** The version's launcher icon (#951), a file under public/versions; Classic and TBC share one, so always beside the label. */
     icon?: string;
     /** The version's colour (#742): the setting's, else the rule set's. Missing = the stylesheet's default. */

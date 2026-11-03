@@ -95,6 +95,14 @@ describe("Kanalname anpassen — the button and the modal", () => {
         expect(field.placeholder.length).toBeLessThanOrEqual(100);
     });
 
+    it("gives a raid of the category's game version as example", () => {
+        const hint = () => draft.nameModal(state()).toJSON().components[0].components[0].placeholder;
+        settings.getConfig.mockReturnValue({ categoryIds: [CAT], categoryVersion: { [CAT]: "forever" } });
+        expect(hint()).toContain("{raid} barrow");
+        settings.getConfig.mockReturnValue({ categoryIds: [CAT], categoryVersion: { [CAT]: "tbc" } });
+        expect(hint()).toContain("{raid} ssc-tk");
+    });
+
     it("applies the current icon pick to the prefilled pattern (placeholders survive)", async () => {
         await draft.stepMessage("g1", state({ ico: "x" }), { userId: USER });
         expect(draft.namePrefill(USER, state({ ico: "x" }))).toBe("{raid}-{dd}-{mon}");

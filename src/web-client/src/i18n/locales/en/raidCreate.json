@@ -80,7 +80,7 @@
         "tplUpdate": "Update “{name}”",
         "tplNew": "New template",
         "tplName": "Template name",
-        "tplNamePlaceholder": "Name, e.g. SSC + TK 25-man",
+        "tplNamePlaceholder": "Name, e.g. {example}",
         "fitTip": "Total fits the size",
         "fitTipSub": "Tanks, healers and the melee/ranged minimums fit into the raid.",
         "planned": "{planned} / {size} planned",

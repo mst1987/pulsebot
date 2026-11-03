@@ -29,6 +29,8 @@ const bankStore = require("../../../src/stores/loot/guildBankStore");
 const availability = require("../../../src/services/signups/availability");
 const organizer = require("../../../src/services/signups/organizer");
 const command = require("../../../src/commands/signup/availability");
+const { examplesOf } = require("../../../src/config/gameVersions");
+const { mainVersionFor } = require("../../../src/services/versions/mainVersion");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -407,6 +409,14 @@ describe("Gildenbank", () => {
         const modal = btn.showModal.mock.calls[0][0].toJSON();
         expect(modal.custom_id).toBe("availability:mb:cat1");
         expect(modal.title).toBe("Guild bank request");
+        // the examples follow the category's game version
+        const purposeHint = (m) => m.components.flatMap((row) => row.components).find((c) => c.custom_id === "purpose").placeholder;
+        expect(purposeHint(modal)).toBe(`e.g. ${examplesOf(mainVersionFor({ categoryId: "cat1", config: BANK }), "en").raid} on Thursday`);
+        mocks.access.config = { ...BANK, categoryVersion: { cat1: "classic" } };
+        const classic = click("availability:b:cat1");
+        await command.execute(classic);
+        expect(purposeHint(classic.showModal.mock.calls[0][0].toJSON())).toBe("e.g. Molten Core on Thursday");
+        mocks.access.config = BANK;
 
         const sent = submit("availability:mb:cat1", { item: "Super Mana Potion", amount: "12", purpose: "BT" });
         await command.execute(sent);

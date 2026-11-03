@@ -5,6 +5,7 @@ import {
     validAttendanceWindow, signupCharactersOf, validSignupCharacters, TITLE_SIZES, CATEGORY_TABS, ATTENDANCE_WINDOW, SIGNUP_CHARACTERS, type CategoryAttendance, type CategoryRow, type CategoryTab, type RaiderCharSummary,
 } from "../../../lib/settings/settingsLogic";
 import { tParts, t as translate, useT } from "../../../i18n";
+import { useVersionExamples } from "../../../hooks/useVersionExamples";
 import { Button } from "../../../components/ui/Button";
 import Badge from "../../../components/ui/Badge";
 import Chip from "../../../components/ui/Chip";
@@ -202,6 +203,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
     onAssign: () => void;
 }) {
     const t = useT();
+    const examples = useVersionExamples();
     const list = useRef<HTMLDivElement>(null);
     const name = cat.name;
     const fields: Record<CategoryTab, Field[]> = {
@@ -455,7 +457,7 @@ export default function CategoryDetail({ cat, s, roles, tab, onTab, summary, onA
                     <div className="sheet-field">
                         <WowIcon name="googleSheets" size={20} />
                         <div className="sheet-inputs">
-                            <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder={t("settings.categories.sheetNamePlaceholder")}
+                            <input id={`catsheet-name-${cat.id}`} type="text" value={sheet.name} placeholder={t("settings.categories.sheetNamePlaceholder", { example: examples.short })}
                                 onChange={(e) => s.onSheet(cat.id, { ...sheet, name: e.target.value })} />
                             <input type="url" className="mono" aria-label={t("settings.categories.sheetLinkAria")} value={sheet.url} placeholder={t("settings.categories.sheetUrlPlaceholder")}
                                 onChange={(e) => s.onSheet(cat.id, { ...sheet, url: e.target.value })} />

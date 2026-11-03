@@ -26,6 +26,7 @@
 // items beyond 25 are left out, the card says so.
 const { StringSelectMenuBuilder, ActionRowBuilder } = require("discord.js");
 const { tr } = require("../i18n/botText");
+const { examplesOf } = require("../../config/gameVersions");
 const { card } = require("../discord/card");
 
 const PREFIX = "availability";
@@ -145,9 +146,10 @@ const characterLabel = (c) => `${str(c.name)}${str(c.realm) ? `-${str(c.realm).r
  * Step 2: the modal for one item (plain API JSON — text display and label
  * components). `characters` are the raider's characters of the bank's game
  * version in their own order; the select shows only with two or more.
- * @param {{ categoryId?: string, item: object, characters?: { key: string, name: string, realm?: string }[], lang?: string }} o
+ * `versionId` picks the raid of the example in the purpose field.
+ * @param {{ categoryId?: string, item: object, characters?: { key: string, name: string, realm?: string }[], lang?: string, versionId?: string }} o
  */
-function itemModal({ categoryId = "", item, characters = [], lang = "de" } = {}) {
+function itemModal({ categoryId = "", item, characters = [], lang = "de", versionId = "" } = {}) {
     const components = [
         {
             type: 10,
@@ -162,7 +164,7 @@ function itemModal({ categoryId = "", item, characters = [], lang = "de" } = {})
             type: 4, custom_id: "amount", style: 1, min_length: 1, max_length: AMOUNT_MAX_LENGTH, required: true, placeholder: tr(lang, "e.g. 2"),
         }),
         labelled(tr(lang, "What for? (optional)"), {
-            type: 4, custom_id: "purpose", style: 1, max_length: PURPOSE_MAX, required: false, placeholder: tr(lang, "e.g. Black Temple on Thursday"),
+            type: 4, custom_id: "purpose", style: 1, max_length: PURPOSE_MAX, required: false, placeholder: tr(lang, "e.g. {raid} on Thursday", { raid: examplesOf(versionId, lang).raid }),
         }),
     ];
     if (characters.length > 1) {

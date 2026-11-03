@@ -11,6 +11,7 @@ import { useToast } from "../shell/Jobs";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike, ownSchemaOf } from "../../lib/discord/channels";
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 // A category's naming schema on its own place (the pencil on the category head
 // of the Kanäle page) — before, it could only be stored as a side effect of
@@ -33,6 +34,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
 }) {
     const toast = useToast();
     const t = useT();
+    const examples = useVersionExamples();
     const stored = data.schemas?.[categoryId];
     // The default schema stored by an old quick-create is no schema of the category's own.
     const [schema, setSchema] = useState(ownSchemaOf(data, categoryId));
@@ -128,7 +130,7 @@ export function CategorySchemaDialog({ data, categoryId, onClose, onSaved }: {
                                 <span className="tipped" tabIndex={0} data-tip={t("channels.raid")} data-tip-sub={t("channels.schemaDialog.raidSub")}>{t("channels.raid")}</span>
                                 <span className="kn-opt">{t("channels.optional")}</span>
                             </label>
-                            <div className="kn-input"><input id="kn-cs-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
+                            <div className="kn-input"><input id="kn-cs-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder", { example: examples.tag })} /></div>
                         </div>
                         <div className="kn-field">
                             <label htmlFor="kn-cs-tpl">

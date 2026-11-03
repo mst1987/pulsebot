@@ -23,6 +23,7 @@ import { useToast } from "../../components/shell/Jobs";
 import { InfoTip } from "../../components/loot/LootFilters";
 import { contentIcon } from "../../components/loot/LootBadges";
 import { tParts, useT, type TFunction } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 // Everything typed into the import form. Kept as a draft (see useDraftState), so
 // a pasted export survives closing the dialog and a detour to another page —
@@ -53,6 +54,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
     onImported: (msg: string) => void;
 }) {
     const t = useT();
+    const examples = useVersionExamples();
     // categoryId is only used when the import lands without a Raid-Helper event:
     // a real event brings its own Discord category along (see api/loot/loot.ts's
     // ImportLootInput).
@@ -227,7 +229,7 @@ export function ImportLootDialog({ open, onClose, data, onImported }: {
                 </div>
                 {manual && (
                     <div className="hl-manual">
-                        <input type="text" aria-label={t("history.shared.titleAria")} value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder={t("history.import.titlePlaceholder")} />
+                        <input type="text" aria-label={t("history.shared.titleAria")} value={manualLabel} onChange={(e) => patch({ manualLabel: e.target.value })} placeholder={t("history.import.titlePlaceholder", { example: examples.short })} />
                         <select
                             aria-label={t("history.shared.category")} value={categoryId} onChange={(e) => patch({ categoryId: e.target.value })}
                             data-tip={t("history.shared.category")}

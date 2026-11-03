@@ -14,7 +14,7 @@
     "unchanged": "unchanged",
     "exists": "exists",
     "schemaPlaceholder": "empty = like the latest event channel",
-    "raidPlaceholder": "e.g. ssc-tk",
+    "raidPlaceholder": "e.g. {example}",
     "likeLastEventChannel": "— like the latest event channel —",
     "templateChannel": "Template channel",
     "namingSchema": "Naming schema",
@@ -340,7 +340,7 @@
         "kicker": "Channels",
         "title": "Create channel",
         "submit": "Create channel",
-        "namePlaceholder": "e.g. kara-signup",
+        "namePlaceholder": "e.g. {example}-signup",
         "type": "Type",
         "assignNow": "Assign right away",
         "assignNowSub": "The new channel takes on a purpose right away. For purposes with only one channel it replaces the previous one."

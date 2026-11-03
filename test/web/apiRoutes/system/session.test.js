@@ -316,7 +316,10 @@ describe("web/apiRoutes/session", () => {
             await handle("/api/session", { method: "GET" }, res);
             expect(json(res).data.content).toEqual({
                 mainVersion: "forever", hideOtherVersions: true,
-                versions: [{ id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false }],
+                versions: [{
+                    id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false,
+                    examples: expect.objectContaining({ short: "Barrow" }),
+                }],
             });
             auth.getUser.mockReturnValue(null);
             const anon = mockRes();

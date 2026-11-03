@@ -42,7 +42,8 @@ const icon = require("./eventIcon");
 const { firstEmojiOf } = require("../../utils/leadEmoji");
 const archiveStore = require("../../stores/discord/channelArchiveStore");
 const { MIN_DURATION, MAX_DURATION } = require("../../stores/events/eventStore");
-const { instanceById } = require("../../config/gameVersions");
+const { instanceById, examplesOf } = require("../../config/gameVersions");
+const { mainVersionFor } = require("../versions/mainVersion");
 const { WEEKDAYS, renderChannelName, unknownPlaceholders, PATTERN_KEYS } = require("../../utils/channelNames");
 const { parseGermanDate, parseClockTime } = require("../../utils/time");
 const { webUrl, clip } = require("../../utils/discord/botLookup");
@@ -162,13 +163,14 @@ function namePrefill(userId, state, now = Date.now()) {
 
 /** The modal of "Kanalname anpassen …": one field, the same customId as the button (event-new:n:<state>). */
 function nameModal(state, prefill = "") {
+    const { tag } = examplesOf(mainVersionFor({ categoryId: state.cat, config: getConfig() }));
     const field = new TextInputBuilder()
         .setCustomId(NAME_FIELD)
         .setLabel("Kanalname ({dd} {mm} {mon} {tag} {raid})")
         .setStyle(TextInputStyle.Short)
         .setRequired(false)
         .setMaxLength(NAME_PATTERN_MAX)
-        .setPlaceholder(clip("Leer = automatisch · {dd} Tag, {mm} Monat, {mon} sep, {tag} mi, {raid} ssc-tk", 100));
+        .setPlaceholder(clip(`Leer = automatisch · {dd} Tag, {mm} Monat, {mon} sep, {tag} mi, {raid} ${tag}`, 100));
     if (prefill) field.setValue(String(prefill).slice(0, NAME_PATTERN_MAX));
     return new ModalBuilder()
         .setCustomId(stepId("n", state))
