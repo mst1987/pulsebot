@@ -1,7 +1,7 @@
 // System › Discord › Mitglieder: the tab with its count, the table with roles,
 // join date and roster, bots hidden by default, the switches, search, role filter,
-// sorting, "alle zeigen", the server picker (#895), offline, and the drawer by click and by
-// link (?user=, &guild=) — opening pushes a history entry, closing replaces it.
+// sorting, "alle zeigen", the server from the sidebar, offline, and the drawer by click and by
+// link (?user=) — opening pushes a history entry, closing replaces it.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
@@ -202,23 +202,14 @@ describe("Mitglieder: table", () => {
         expect(screen.getAllByRole("row")).toHaveLength(63);
     });
 
-    it("switches to another server of the list and keeps it in the link", async () => {
-        const user = userEvent.setup();
-        renderPage(<><MembersPage /><HistoryProbe /></>, { route: "/channels/members" });
-        await screen.findByText("Thrall");
-        expect(api.getServerMembers).toHaveBeenCalledWith("g1");
-        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
+    it("shows the server active in the sidebar and offers no switch of its own", async () => {
+        renderPage(<MembersPage />, { route: "/channels/members", activeGuildId: "g2" });
         expect(await screen.findByText("Sylvanas")).toBeInTheDocument();
         expect(screen.queryByText("Thrall")).not.toBeInTheDocument();
-        expect(api.getServerMembers).toHaveBeenLastCalledWith("g2");
-        expect(screen.getByTestId("search")).toHaveTextContent(/^\?guild=g2$/);
-    });
-
-    it("shows no picker with a single server", async () => {
-        vi.mocked(api.getServerChoices).mockResolvedValue([SERVERS[0]]);
-        renderPage(<MembersPage />, { route: "/channels/members" });
-        await screen.findByText("Thrall");
+        expect(api.getServerMembers).toHaveBeenCalledWith("g2");
+        expect(api.getServerMembers).not.toHaveBeenCalledWith("g1");
         expect(screen.queryByRole("radio", { name: "Testgilde" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("radio", { name: "Talkgilde" })).not.toBeInTheDocument();
     });
 
     it("says when the bot is offline, the list is missing or no server is set", async () => {
@@ -282,15 +273,12 @@ describe("Mitglieder: drawer", () => {
         await waitFor(() => expect(screen.queryByRole("complementary", { name: "Thrall" })).not.toBeInTheDocument());
     });
 
-    it.each([
-        ["?user=x&guild=g2", "a link to the second server"],
-    ])("opens from %s (%s)", async (search) => {
+    it("opens a member from a link on the active server", async () => {
         vi.mocked(api.getServerMemberDetail).mockResolvedValue({ ...DETAIL, guildId: "g2", member: TALK.members[0], roles: [], channels: [] });
-        renderPage(<MembersPage />, { route: `/channels/members${search}` });
+        renderPage(<MembersPage />, { route: "/channels/members?user=x", activeGuildId: "g2" });
         expect(await screen.findByRole("complementary", { name: "Sylvanas" })).toBeInTheDocument();
         expect(api.getServerMembers).toHaveBeenCalledWith("g2");
         expect(api.getServerMemberDetail).toHaveBeenCalledWith("g2", "x");
-        expect(screen.getByRole("radio", { name: "Talkgilde" })).toBeChecked();
         expect(await screen.findByText("Keine Rolle außer @everyone.")).toBeInTheDocument();
         expect(screen.getByText("Kein Charakter verknüpft.")).toBeInTheDocument();
     });

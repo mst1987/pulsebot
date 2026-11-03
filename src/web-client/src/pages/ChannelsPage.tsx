@@ -220,7 +220,7 @@ export default function ChannelsPage() {
                     />
                 ) : undefined}
             />
-            <DiscordTabs user={user} guildKey={data.activeGuildId} />
+            <DiscordTabs user={user} guildId={data.activeGuildId} />
 
             <div className="kn-tabs">
                 <Segment

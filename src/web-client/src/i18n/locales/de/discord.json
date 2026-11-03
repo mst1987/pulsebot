@@ -461,9 +461,6 @@
         }
     },
     "server": {
-        "label": "Server",
-        "none": "Kein Server eingestellt (Einstellungen › Discord).",
-        "offline": "Bot nicht da",
-        "offlineSub": "Der Bot ist nicht auf diesem Server – hier ist nichts zu sehen."
+        "none": "Kein Server eingestellt (Einstellungen › Discord)."
     }
 }

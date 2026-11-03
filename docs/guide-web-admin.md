@@ -381,7 +381,7 @@ Technik: [channels.md](channels.md), Daten: [discord-servers.md](discord-servers
 
 *Bereich "channels"* · Menü *System › Discord*, Reiter *Übersicht* (`/channels/overview`) — hier landet der Menüpunkt *Discord*.
 
-Auf einen Blick, ob auf einem Server etwas zu tun ist (Auswahl oben, sobald mindestens zwei Server eingestellt sind). Die Seite ändert nichts, sie zeigt nur und führt zur richtigen Stelle.
+Auf einen Blick, ob auf dem Server etwas zu tun ist. Gemeint ist immer der Server, der links in der Seitenleiste gewählt ist; gewechselt wird nur dort. Die Seite ändert nichts, sie zeigt nur und führt zur richtigen Stelle.
 
 - **Braucht Aufmerksamkeit:** je Punkt ein Wort wie *fehlt*, *gelöscht*, *Hinweis* oder *Aufräumen*, worum es geht, warum, und ein Knopf dorthin, wo man es behebt (z. B. *Kanal zuordnen*, *Neu posten*, *Zu den Rollen*). Ist nichts offen, steht dort **Alles in Ordnung**. Darunter eine Zeile zu den Rollen: wie viele es gibt, wie viele niemand hat und wie viele heikle Rechte haben.
 - **Neu und gegangen:** wer in den letzten 7 Tagen auf den Server gekommen ist oder ihn verlassen hat, mit Roster bzw. Zahl der Charaktere. Ein Klick auf den Namen öffnet die Person auf der Mitglieder-Seite.

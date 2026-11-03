@@ -21,7 +21,11 @@ import { pageAudience } from "../../lib/app/orgaArea";
 import { OrgaChip } from "../ui/layout/OrgaZone";
 import { t as tr, tOr, useLang, useT } from "../../i18n";
 
-export type ShellContext = { user: SessionUser };
+export type ShellContext = {
+    user: SessionUser;
+    /** the server the sidebar names (ServerHeader), the one the API answers for ("" = none chosen) */
+    activeGuildId: string;
+};
 
 // The menu entries come from src/config/menu.json, the one list the SSR chrome
 // of the report pages (src/web/adminChrome.js) renders too. `areas` are the
@@ -136,7 +140,6 @@ function DeployLine({ user }: { user: SessionUser }) {
 
 export default function Shell({ user, guilds, activeGuildId, content }: ShellContext & {
     guilds: SessionGuild[];
-    activeGuildId: string;
     /** The content switch (#563); missing = no switch, the server picks the main version. */
     content?: ContentInfo | null;
 }) {
@@ -249,7 +252,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                         <PageCrumbContext.Provider value={setCrumb}>
                             <ChunkErrorBoundary resetKey={location.pathname}>
                                 <Suspense fallback={<RaidLoader />}>
-                                    <Outlet context={{ user } satisfies ShellContext} />
+                                    <Outlet context={{ user, activeGuildId } satisfies ShellContext} />
                                 </Suspense>
                             </ChunkErrorBoundary>
                         </PageCrumbContext.Provider>

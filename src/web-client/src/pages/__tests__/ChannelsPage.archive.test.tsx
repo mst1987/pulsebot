@@ -28,6 +28,12 @@ beforeEach(() => {
 });
 
 describe("ChannelsPage — archive tab", () => {
+    it("counts the Discord tabs for the server active in the sidebar, like the other tabs", async () => {
+        await openPage({ ...channelsData(), activeGuildId: "g2" }, "/channels");
+        await waitFor(() => expect(api.getDiscordTabCounts).toHaveBeenCalledWith("g2"));
+        expect(api.getDiscordTabCounts).not.toHaveBeenCalledWith("");
+    });
+
     it("opens from the url and lists the archived channels with how long they wait", async () => {
         await openPage();
         expect(screen.getByRole("radio", { name: "Archiv · 1" })).toHaveAttribute("aria-checked", "true");
