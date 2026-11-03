@@ -294,4 +294,4 @@ function payloadHash(payload, lang = "") {
     return crypto.createHash("sha1").update(`${lang}|${JSON.stringify(payload.components)}${pictures ? `|${pictures}` : ""}`).digest("hex").slice(0, 16);
 }
 
-module.exports = { raidOverviewPayload, shownRaids, payloadHash, groupByRaidId, rangeLabel, dayLabel, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS };
+module.exports = { raidOverviewPayload, shownRaids, payloadHash, groupByRaidId, rangeLabel, dayLabel, idTitle, fillLine, fillBar, raidPicture, MAX_IDS, MAX_RAIDS, MAX_COMPONENTS, TEXT_BUDGET };

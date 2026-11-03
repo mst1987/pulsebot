@@ -61,6 +61,9 @@ const instances = [
     {
         id: "forever-barrow", name: "Barrow Deeps", short: "Barrow", sizes: [10], defaultSize: 10,
         icon: "spell_shadow_raisedead",
+        // Placeholder: Blizzard's zone art has no "barrow-deeps" yet (403). The Auchenai crypt shares the theme
+        // (a crypt, skulls, the risen dead); swap in the real slug when it exists.
+        art: "auchenai-crypts",
         color: "#5a6f8f",
         zoneNames: ["barrow deeps"],
         bosses: [], finalBoss: "", finalBossNames: [],
