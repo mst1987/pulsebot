@@ -129,6 +129,7 @@
     "gameVersion": {
         "main": "Hauptversion",
         "mainSub": "Vorbelegung für Neues: eine neu aktivierte Kategorie, eine neue Raid-Vorlage und das Raider-Profil starten damit. Bestehende Kategorien, Events und Vorlagen behalten ihre Version.",
+        "categoriesElsewhere": "Welche Version eine Kategorie spielt, legt jeder Server selbst fest:",
         "categories": "Version je Kategorie",
         "categoriesSub": "Jede aktive Kategorie spielt fest eine Version. Umstellen beginnt einen neuen Abschnitt: bisherige Raids, Roster und Quote bleiben in ihrer Version lesbar.",
         "categoryAria": "Spielversion von {name}",

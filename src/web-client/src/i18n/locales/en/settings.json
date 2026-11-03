@@ -129,6 +129,7 @@
     "gameVersion": {
         "main": "Main version",
         "mainSub": "The default for something new: a category switched on, a new raid template and the raider profile start with it. Existing categories, events and templates keep their version.",
+        "categoriesElsewhere": "Which version a category plays is set per server:",
         "categories": "Version per category",
         "categoriesSub": "Every active category plays one fixed version. Switching starts a new section: earlier raids, roster and quota stay readable in their version.",
         "categoryAria": "Game version of {name}",
