@@ -9,6 +9,7 @@ import { clearHistoryEvent, deleteLootItems, type ApiError } from "../../api";
 import { fmtMs, formatTime } from "../../lib/format";
 import { itemQualityProps } from "../../lib/wow/itemQuality";
 import { usePersistedState } from "../../lib/ui/persistedState";
+import { shownCharacterName } from "../../lib/signups/characterName";
 import { PartHead } from "../../components/ui/layout/PartHead";
 import { Button, IconButton } from "../../components/ui/Button";
 import Badge from "../../components/ui/Badge";
@@ -67,6 +68,9 @@ function ReasonBadge({ it }: { it: LootItem }) {
 export default function LootTab({ ctx }: { ctx: RaidCtx }) {
     const t = useT();
     const { data, onChanged, openModal } = ctx;
+    // A long Forever character is shortened on the line, its tooltip keeps it whole. Search and grouping use the full name.
+    const shownName = (character: string) => shownCharacterName(character, data.lastNames);
+    const nameTip = (character: string) => (shownName(character) === character ? undefined : character);
     const canLoot = ctx.canLoot ?? !!ctx.orga;
     const ask = useConfirm();
     const [groupBy, setGroupBy] = usePersistedState<GroupBy>("raid-detail-loot-group", "character");
@@ -189,7 +193,9 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                                     ? <SpecTile iconUrl={g.head.specIconUrl} classColor={g.head.classColor} />
                                                     : <IconTile icon="members" tone="none" />
                                                 : <IconTile icon="loot" tone="none" />}
-                                        <b {...(groupBy === "character" && !g.aside ? classColorProps(g.head?.classColor) : {})}>{g.title}</b>
+                                        {groupBy === "character" && !g.aside
+                                            ? <b {...classColorProps(g.head?.classColor)} data-tip={nameTip(g.title)}>{shownName(g.title)}</b>
+                                            : <b>{g.title}</b>}
                                         {groupBy === "character" && !g.aside && g.head?.className && (
                                             <span className="rd-grp-sub">{g.head.spec ? `${g.head.spec} ${g.head.className}` : g.head.className}</span>
                                         )}
@@ -206,7 +212,7 @@ export default function LootTab({ ctx }: { ctx: RaidCtx }) {
                                                     : <span {...itemQualityProps(it.itemQuality, "rd-item-name")}>{itemLabel(it)}</span>}
                                             </span>
                                             <span className="rd-muted">
-                                                {groupBy === "character" ? (it.boss || "—") : <span {...classColorProps(it.classColor)}>{it.character}</span>}
+                                                {groupBy === "character" ? (it.boss || "—") : <span {...classColorProps(it.classColor)} data-tip={nameTip(it.character)}>{shownName(it.character)}</span>}
                                             </span>
                                             <span><ReasonBadge it={it} /></span>
                                             <span className="rd-mono" data-tip={fmtMs(it.awardedAt)}>{it.awardedAt ? formatTime(it.awardedAt) : "—"}</span>
