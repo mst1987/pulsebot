@@ -4,7 +4,7 @@ import { useT } from "../../../i18n";
 import { useApi } from "../../../hooks/useApi";
 import {
     addTwitchStreamer, canAccess, checkTwitchStreamers, getTwitchSettings, removeTwitchStreamer, updateTwitchStreamer,
-    type ApiError, type Role, type TextChannel, type TwitchLimits, type TwitchStreamer, type TwitchView,
+    type ApiError, type Role, type TextChannel, type TwitchLimits, type TwitchMention, type TwitchStreamer, type TwitchView,
 } from "../../../api";
 import type { ShellContext } from "../../../components/shell/Shell";
 import { useToast } from "../../../components/shell/Jobs";
@@ -20,7 +20,7 @@ import { ChannelPicker, RolePicker } from "../../../components/settings/settings
 import { useTableSort, type Dir } from "../../../lib/ui/tableSort";
 import {
     addTwitchGame, TWITCH_PLACEHOLDERS, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText,
-    twitchStatusRank, twitchStatusWords, twitchUrl,
+    twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
 } from "../../../lib/settings/twitch";
 
 type SortKey = "login" | "channel" | "role" | "filter" | "status";
@@ -89,6 +89,9 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
     if (!guildId) return null;
     if (page.error) return <div className="set-card set-form"><p className="field-error" role="alert">{twitchErrorText(page.error)}</p></div>;
     if (!view) return <RaidLoader text={t("settings.twitch.loading")} />;
+    // The list belongs to the session's active server: after a switch in another tab it is
+    // the other server's, its channel ids would not resolve against this tab's names.
+    if (view.guildId !== guildId) return <div className="set-card set-form"><p className="field-error" role="alert">{t("settings.serverSwitched")}</p></div>;
 
     const writable = canWrite && !switched;
     const full = view.streamers.length >= view.limits.streamers;
@@ -109,7 +112,18 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
         },
         {
             id: "role", label: t("settings.twitch.col.role"), sortKey: "role",
-            cell: (s) => <span className={`tws-cut${s.roleId ? "" : " tws-none"}`} data-tip={roleText(s.roleId)}>{roleText(s.roleId)}</span>,
+            cell: (s) => {
+                const wontPing = twitchRoleWontPing(view.mention, s.roleId);
+                return (
+                    <span
+                        className={`tws-cut${s.roleId ? "" : " tws-none"}${wontPing ? " tipped tws-noping" : ""}`}
+                        data-tip={roleText(s.roleId)}
+                        data-tip-sub={wontPing ? t("settings.twitch.roleNoPingTip") : undefined}
+                    >
+                        {roleText(s.roleId)}
+                    </span>
+                );
+            },
         },
         {
             id: "filter", label: t("settings.twitch.col.filter"), sortKey: "filter",
@@ -172,6 +186,12 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
                     <AllSettingsLink section="verbindungen" inline>{t("settings.twitch.noCredentialsLink")}</AllSettingsLink>
                 </p>
             )}
+            {view.hasCredentials && view.lastRun.error === "bad_credentials" && (
+                <p className="tws-missing" role="status">
+                    {t("settings.twitch.badCredentials")}{" "}
+                    <AllSettingsLink section="verbindungen" inline>{t("settings.twitch.badCredentialsLink")}</AllSettingsLink>
+                </p>
+            )}
             <div className="tws-head">
                 {writable && (
                     <Button variant="go" icon={<PlusIcon />} disabled={full} onClick={() => setEditing("new")}>{t("settings.twitch.add")}</Button>
@@ -199,6 +219,7 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
                     guildId={guildId}
                     streamer={editing === "new" ? null : editing}
                     limits={view.limits}
+                    mention={view.mention}
                     channels={channels}
                     roles={roles}
                     onClose={() => setEditing(null)}
@@ -220,10 +241,11 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
 }
 
 /** Adding or editing one streamer: the name stays fixed once saved, it identifies the entry. */
-function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, onSaved, onSwitched }: {
+function StreamerDialog({ guildId, streamer, limits, mention, channels, roles, onClose, onSaved, onSwitched }: {
     guildId: string;
     streamer: TwitchStreamer | null;
     limits: TwitchLimits;
+    mention: TwitchMention;
     channels: TextChannel[];
     roles: Role[];
     onClose: () => void;
@@ -274,7 +296,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
         <Modal
             open
             onClose={onClose}
-            icon="notify"
+            icon="twitch"
             tone="settings"
             title={streamer ? t("settings.twitch.modal.editTitle") : t("settings.twitch.modal.addTitle")}
             width={480}
@@ -302,6 +324,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
             </Field>
             <Field label={t("settings.twitch.modal.role")} htmlFor="tws-role" className="dlg-field tws-field">
                 <RolePicker id="tws-role" value={roleId} roles={roles} onChange={setRoleId} placeholder={t("settings.twitch.modal.rolePlaceholder")} />
+                {twitchRoleWontPing(mention, roleId) && <p className="tws-noping-hint" role="status">{t("settings.twitch.modal.roleNoPing")}</p>}
             </Field>
             <Field
                 label={t("settings.twitch.modal.text")}

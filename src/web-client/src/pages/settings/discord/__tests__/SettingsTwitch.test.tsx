@@ -35,9 +35,11 @@ const streamer = (over: Partial<TwitchStreamer> = {}): TwitchStreamer => ({
 const view = (over: Partial<TwitchView> = {}): TwitchView => ({
     guildId: GUILD, hasCredentials: true, lastRun: { at: 0, error: "" },
     limits: { streamers: 25, textLength: 500, games: 5, gameNameLength: 60 },
+    mention: { botCanMentionAll: true, unmentionableRoleIds: [] },
     streamers: [streamer()],
     ...over,
 });
+const NO_PING = { botCanMentionAll: false, unmentionableRoleIds: ["r1"] };
 const apiError = (code: string) => Object.assign(new Error(code), { code });
 
 function show() {
@@ -57,6 +59,87 @@ beforeEach(() => {
     toast.mockReset();
     confirm.mockReset();
     api.getTwitchSettings.mockResolvedValue(view());
+});
+
+describe("the server of the list", () => {
+    it("stops with the switch message when the list belongs to another server than the tab", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ guildId: "222222222222222222" }));
+        show();
+        const alert = await screen.findByRole("alert");
+        expect(alert.textContent).toMatch(/Server/);
+        expect(screen.queryByRole("link", { name: "somebody" })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Hinzufügen/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Jetzt prüfen/ })).toBeNull();
+    });
+});
+
+describe("rejected credentials", () => {
+    it("names the rejection and links to the connections", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ lastRun: { at: Date.now(), error: "bad_credentials" } }));
+        show();
+        const hint = await screen.findByRole("status");
+        expect(hint.textContent).toContain("Twitch lehnt die Zugangsdaten ab");
+        expect(screen.getByText("Zugangsdaten prüfen")).toBeTruthy();
+    });
+
+    it("says nothing about them after a good run", async () => {
+        show();
+        await screen.findByRole("link", { name: "somebody" });
+        expect(screen.queryByText(/lehnt die Zugangsdaten ab/)).toBeNull();
+    });
+
+    it("words the refused check and the refused channel", async () => {
+        api.checkTwitchStreamers.mockResolvedValue({ ...view(), result: { skipped: "bad_credentials" } });
+        show();
+        fireEvent.click(await screen.findByRole("button", { name: /Jetzt prüfen/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining("lehnt die Zugangsdaten ab"), "warn"));
+
+        api.addTwitchStreamer.mockRejectedValue(apiError("invalid_channel"));
+        await openAdd();
+        type("tws-login", "neu");
+        const box = document.getElementById("tws-channel") as HTMLSelectElement;
+        fireEvent.change(box, { target: { value: "c1" } });
+        fireEvent.click((await dialog()).getByRole("button", { name: /Speichern/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining("kann der Bot nichts posten"), "err"));
+    });
+});
+
+describe("a role that will not ping", () => {
+    const pinged = () => streamer({ roleId: "r1" });
+
+    it("warns in the table as a tooltip", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ mention: NO_PING, streamers: [pinged()] }));
+        show();
+        const role = await screen.findByText("@Stream-Ping");
+        expect(role.className).toContain("tws-noping");
+        expect(role.getAttribute("data-tip-sub")).toContain("Wird nicht gepingt");
+    });
+
+    it.each([
+        ["the bot has the right", { botCanMentionAll: true, unmentionableRoleIds: ["r1"] }],
+        ["it is not known", { botCanMentionAll: null, unmentionableRoleIds: ["r1"] }],
+        ["another role is affected", { botCanMentionAll: false, unmentionableRoleIds: ["r2"] }],
+    ])("does not warn when %s", async (_name, mention) => {
+        api.getTwitchSettings.mockResolvedValue(view({ mention, streamers: [pinged()] }));
+        show();
+        const role = await screen.findByText("@Stream-Ping");
+        expect(role.getAttribute("data-tip-sub")).toBeNull();
+        fireEvent.click(screen.getByRole("button", { name: /bearbeiten/i }));
+        await dialog();
+        expect(screen.queryByText(/wird nicht gepingt/)).toBeNull();
+    });
+
+    it("warns in the dialog below the role and still lets it save", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ mention: NO_PING, streamers: [pinged()] }));
+        api.updateTwitchStreamer.mockResolvedValue(view({ mention: NO_PING, streamers: [pinged()] }));
+        show();
+        await screen.findByText("@Stream-Ping");
+        fireEvent.click(screen.getByRole("button", { name: /bearbeiten/i }));
+        const box = await dialog();
+        expect(box.getByRole("status").textContent).toContain("@everyone, @here und alle Rollen erwähnen");
+        fireEvent.click(box.getByRole("button", { name: /Speichern/ }));
+        await waitFor(() => expect(api.updateTwitchStreamer).toHaveBeenCalled());
+    });
 });
 
 describe("the table", () => {

@@ -1735,12 +1735,16 @@
         "empty": "Noch kein Streamer eingetragen.",
         "noCredentials": "Die Twitch-App fehlt, ohne sie prüft der Bot keine Streams.",
         "noCredentialsLink": "Zugangsdaten eintragen",
+        "badCredentials": "Twitch lehnt die Zugangsdaten ab, der Bot prüft deshalb keine Streams.",
+        "badCredentialsLink": "Zugangsdaten prüfen",
+        "roleNoPingTip": "Wird nicht gepingt: Die Rolle ist nicht erwähnbar, dem Bot fehlt „@everyone, @here und alle Rollen erwähnen“.",
         "limitReached": "Mehr als {max} Streamer gehen nicht.",
         "lastRun": "Zuletzt geprüft: {time}",
         "lastRunFailed": "Letzte Prüfung {time}: {reason}",
         "lastRunError": {
             "rate_limited": "Twitch bremst gerade",
             "twitch_unavailable": "Twitch antwortet nicht",
+            "bad_credentials": "Zugangsdaten abgelehnt",
             "other": "fehlgeschlagen"
         },
         "col": {
@@ -1799,6 +1803,7 @@
             "bot_offline": "Nicht geprüft: Der Bot ist gerade nicht verbunden.",
             "rate_limited": "Nicht geprüft: Twitch bremst gerade, der nächste Lauf versucht es wieder.",
             "twitch_unavailable": "Nicht geprüft: Twitch antwortet gerade nicht.",
+            "bad_credentials": "Nicht geprüft: Twitch lehnt die Zugangsdaten ab. Bitte unter Einstellungen › Verbindungen prüfen.",
             "failed": "Prüfung fehlgeschlagen."
         },
         "modal": {
@@ -1810,6 +1815,7 @@
             "channelPlaceholder": "Kanal wählen",
             "role": "Rolle für den Ping",
             "rolePlaceholder": "Kein Ping",
+            "roleNoPing": "Diese Rolle wird nicht gepingt: Sie ist in Discord nicht erwähnbar, und dem Bot fehlt das Recht „@everyone, @here und alle Rollen erwähnen“. Stelle die Rolle in Discord erwähnbar oder gib dem Bot dieses Recht.",
             "text": "Eigener Text",
             "textHint": "Platzhalter: {placeholders}",
             "textCount": "{count} von {max} Zeichen",
@@ -1827,6 +1833,7 @@
             "invalid_login": "Das ist kein gültiger Twitch-Name oder -Link.",
             "duplicate_streamer": "Dieser Streamer steht schon in der Liste.",
             "missing_channel": "Bitte einen Kanal wählen.",
+            "invalid_channel": "In diesen Kanal kann der Bot nichts posten. Bitte einen Textkanal wählen.",
             "invalid_role": "Diese Rolle gibt es auf dem Server nicht.",
             "text_too_long": "Der eigene Text ist zu lang.",
             "too_many": "Die Liste ist voll, mehr Streamer gehen nicht.",

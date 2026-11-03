@@ -4,7 +4,7 @@
 // silently, so the form refuses it first.
 import { t, tOr } from "../../i18n";
 import { formatDateTime, formatTime } from "../format";
-import type { ApiError, TwitchCheckResult, TwitchLimits, TwitchStreamerStatus } from "../../api";
+import type { ApiError, TwitchCheckResult, TwitchLimits, TwitchMention, TwitchStreamerStatus } from "../../api";
 
 export const TWITCH_PLACEHOLDERS = "{streamer} {title} {game} {url}";
 
@@ -49,6 +49,14 @@ export function twitchStatusRank(status: TwitchStreamerStatus): number {
     if (status.state === "live") return 1;
     if (status.state === "filtered") return 2;
     return 3;
+}
+
+/**
+ * Whether a ping of this role would silently reach nobody: Discord shows the name but
+ * notifies no one and reports no error. Unknown (null) warns about nothing.
+ */
+export function twitchRoleWontPing(mention: TwitchMention, roleId: string): boolean {
+    return !!roleId && mention.botCanMentionAll === false && mention.unmentionableRoleIds.includes(roleId);
 }
 
 /** The filter in short form; the full list goes into the tooltip. */

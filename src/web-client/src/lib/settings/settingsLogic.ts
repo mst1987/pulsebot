@@ -501,7 +501,8 @@ export type ConnectionInputs = {
     blizzard?: { clientId?: string; hasClientSecret?: boolean };
     anthropic?: { hasApiKey?: boolean };
     warcraftlogsV2?: { clientId?: string; hasClientSecret?: boolean };
-    twitch?: { clientId?: string; hasClientSecret?: boolean };
+    /** inUse: a server has at least one streamer entered (whether the connection is needed at all). */
+    twitch?: { clientId?: string; hasClientSecret?: boolean; inUse?: boolean };
     github?: { hasToken?: boolean };
     botOnline?: boolean;
     /** null = not known (not loaded, or not a full admin). */
@@ -587,10 +588,15 @@ export function visibleConnections(canManageAccess: boolean): ConnectionId[] {
     return canManageAccess ? ["discord", "battlenet", "wcl", "twitch", "anthropic", "github", "lootsync"] : ["battlenet"];
 }
 
-/** The sidebar badge of "Verbindungen": how many visible connections are not set up. */
+/**
+ * The sidebar badge of "Verbindungen": how many visible connections are not set up. Twitch
+ * only counts once a streamer is entered: without one nothing is missing, the card still says so.
+ */
 export function missingConnections(data: SettingsLike, tokens: unknown[] | null, canManageAccess: boolean): number {
     const inputs = connectionInputs(data, tokens);
-    return visibleConnections(canManageAccess).filter((id) => connectionState(id, inputs).missing).length;
+    return visibleConnections(canManageAccess)
+        .filter((id) => id !== "twitch" || inputs.twitch?.inUse)
+        .filter((id) => connectionState(id, inputs).missing).length;
 }
 
 // ---- Discord-Server: equal servers plus links that post a source's raid list to a target channel (#890, #891) ----

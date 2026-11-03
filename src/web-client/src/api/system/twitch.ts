@@ -35,17 +35,24 @@ export type TwitchStreamer = {
 
 export type TwitchLimits = { streamers: number; textLength: number; games: number; gameNameLength: number };
 
+export type TwitchMention = {
+    /** Whether the bot may mention every role; null while unknown (bot offline, server not loaded). */
+    botCanMentionAll: boolean | null;
+    unmentionableRoleIds: string[];
+};
+
 export type TwitchView = {
     guildId: string;
     hasCredentials: boolean;
     lastRun: { at: number; error: string };
     limits: TwitchLimits;
+    mention: TwitchMention;
     streamers: TwitchStreamer[];
 };
 
 export type TwitchCheckResult =
     | { checked: number; live: number; skipped?: undefined }
-    | { skipped: "no_credentials" | "bot_offline" | "rate_limited" | "twitch_unavailable" | "failed"; checked?: undefined; live?: undefined };
+    | { skipped: "no_credentials" | "bad_credentials" | "bot_offline" | "rate_limited" | "twitch_unavailable" | "failed"; checked?: undefined; live?: undefined };
 
 export type TwitchStreamerInput = { login: string; channelId?: string; roleId?: string; text?: string; games?: string[] };
 
