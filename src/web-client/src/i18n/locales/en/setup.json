@@ -47,7 +47,8 @@
         "attendance": { "label": "Attendance", "tip": "Attendance in this category." },
         "roster": { "label": "Roster status", "tip": "Core before trial before bench, whoever is not in the roster after them. Only when the category has a roster." },
         "gear": { "label": "Gear", "tip": "\"Ready\" before \"usable\" according to the profile." },
-        "loot": { "label": "Spread loot", "tip": "Only with several raids at once: raiders who want the same items go into different raids. Softres counts in full, BiS half, the spec a quarter. Needs \"Load loot data\"." }
+        "loot": { "label": "Spread loot", "tip": "Only with several raids at once: raiders who want the same items go into different raids. Softres counts in full, BiS half, the spec a quarter. Needs \"Load loot data\"." },
+        "balance": { "label": "Even raids", "tip": "Only with several raids at once: swaps raiders so that all raids are about equally strong, from gear (item level from \"Load loot data\") and attendance. Tanks and healers count more. Never decides who gets a place." }
     },
     "status": {
         "approvedSubSince": "Raiders see this setup · since {time}. Every change goes into the message right away.",
@@ -545,6 +546,12 @@
         "removeFailed": "Raid not dissolved.",
         "moveFailed": "Not moved.",
         "elsewhere": { "one": "{count} stands in another raid of the group", "other": "{count} stand in other raids of the group" },
+        "strength": "Strength {value}",
+        "balanced": "Raids even",
+        "weaker": "{name} clearly weaker",
+        "underfilled": "{name}: {placed}/{size} filled",
+        "strengthTip": "Strength 0–100 from the gear and attendance of the placed raiders",
+        "balanceTip": "Strength per raid 0–100 from gear and attendance, {spread} points apart",
         "places": "{count} raids · {places} places",
         "head": "Raid {index} of {count}",
         "headTip": "The raids of this evening share one signup; each has its own setup.",

@@ -47,6 +47,7 @@ function lootSnapshot(characters, userOf) {
     const { lootWants } = require("../src/utils/setup/lootWants");
     const { characterKeyOf } = require("../src/utils/loot/lootImport");
     const wants = {};
+    const gear = {};
     const counts = { signups: characters.length, gear: 0, softres: 0, bis: 0, spec: 0 };
     characters.forEach(([character, spec], i) => {
         const bis = bisInInstances(spec, "tbc", ["kara"]);
@@ -56,10 +57,12 @@ function lootSnapshot(characters, userOf) {
         const entry = lootWants(userOf(i), character, { ...data, spec });
         if (!entry) return;
         (wants[userOf(i)] = wants[userOf(i)] || {})[characterKeyOf(character)] = entry;
+        // "Raids gleich stark" (#1038): a staggered mean item level, earlier signups better geared
+        (gear[userOf(i)] = gear[userOf(i)] || {})[characterKeyOf(character)] = 100 + Math.round((characters.length - i) / 2);
         counts[entry.source]++;
         if (data.worn) counts.gear++;
     });
-    return { versionId: "tbc", instanceIds: ["kara"], wants, items: itemTable(wants, "tbc"), counts };
+    return { versionId: "tbc", instanceIds: ["kara"], wants, items: itemTable(wants, "tbc"), gear, counts };
 }
 
 function main() {

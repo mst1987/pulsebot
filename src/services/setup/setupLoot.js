@@ -5,10 +5,13 @@
 //   loadLootData(eventIds)  the background job behind "Loot-Daten laden": reads
 //                           softres.it (fetchRaidCached, one read per list), the
 //                           BiS lists of the specs (WoWSims data, TBC only) and the
-//                           gear the characters wear (armory one after another,
-//                           with its own cache, then the logs) and stores one
-//                           snapshot per raid group (setupLootStore). The only
-//                           place that calls an API.
+//                           gear the characters wear (armory one after another for
+//                           every signed-up character, at most MAX_ARMORY, with its
+//                           own cache, then the logs) and stores one snapshot per
+//                           raid group (setupLootStore). The only place that calls
+//                           an API. It also keeps the mean item level per character
+//                           for "Raids gleich stark" (#1038), an old level kept per
+//                           character when no fresh one came (30-day rule).
 //   lootInputFor(events)    cheap, on every editor move: the stored snapshot when it
 //                           still fits the raids (same version, same instances),
 //                           else null - the proposal itself never calls an API.
@@ -40,6 +43,8 @@ const logger = require("../../logger").child("setupLoot");
 
 // One run asks the armory for at most this many characters; the rest keep what the logs say.
 const MAX_ARMORY = 80;
+// A mean item level counts only from this many worn items with a level (#1038): two logged rings say nothing.
+const MIN_ITEMS = 5;
 const TBC = "tbc";
 
 const str = (v) => (v === undefined || v === null ? "" : String(v).trim());
@@ -69,7 +74,7 @@ function lootInputFor(events, { config } = {}) {
     if (snapshot.versionId !== versionOfEvent(list[0], { config })) return null;
     const instances = instancesOf(list);
     if (instances.join("|") !== (snapshot.instanceIds || []).join("|")) return null;
-    return { versionId: snapshot.versionId, wants: snapshot.wants || {}, items: snapshot.items || {} };
+    return { versionId: snapshot.versionId, wants: snapshot.wants || {}, items: snapshot.items || {}, gear: snapshot.gear || {} };
 }
 
 // The job's progress per raid group (signup event id): { done, total } of the armory pass.
@@ -164,31 +169,45 @@ function raidersOf(groupId) {
 }
 
 /**
- * The armory pass: one character after another, with progress. Marks "armory" in
- * `failed` when it threw or when it was asked and not one character answered - the
- * API was not reachable, not every raider unknown.
+ * The armory pass: one character after another, with progress. The first `bisCount`
+ * names are the BiS characters (their wants depend on the read): a throw there, or not
+ * one of them answering, marks "armory" in `failed` - the API was not reachable, not
+ * every raider unknown. The rest is asked for the raids' strength only (#1038): a failed
+ * read there neither stops the pass nor marks a loot source - it only lowers the silent
+ * count it returns ("gear for `read` of `of`").
+ * @returns {{ read: number, of: number }} the gear-only characters read / asked
  */
-async function askArmory(groupId, names, { versionId, guildId, failed }) {
+async function askArmory(groupId, names, { versionId, guildId, failed, bisCount = names.length }) {
     progress.set(groupId, { done: 0, total: names.length });
     let asked = 0;
     let answered = 0;
-    for (const name of names) {
+    const gearOnly = { read: 0, of: Math.max(0, names.length - bisCount) };
+    for (let i = 0; i < names.length; i++) {
+        const forBis = i < bisCount;
         let res;
+        let threw = false;
         try {
-            res = await armoryGear.primeArmoryGear([name], { full: true, versionId, guildId });
+            res = await armoryGear.primeArmoryGear([names[i]], { full: true, versionId, guildId });
         } catch (e) {
-            logger.warn(`armory ${name}: ${e.message}`);
-            failed.add("armory");
-            break;
+            logger.warn(`armory ${names[i]}: ${e.message}`);
+            if (forBis) {
+                failed.add("armory");
+                break;
+            }
+            threw = true;
         }
         const p = progress.get(groupId);
         progress.set(groupId, { ...p, done: p.done + 1 });
+        if (threw) continue;
         // no armory for this version (no realm, no key): the logs still know some gear
         if (!res || !res.configured) break;
-        asked += Number(res.asked) || 0;
-        answered += Number(res.answered) || 0;
+        if (forBis) {
+            asked += Number(res.asked) || 0;
+            answered += Number(res.answered) || 0;
+        } else if (Number(res.answered) > 0) gearOnly.read++;
     }
     if (asked > 0 && answered === 0) failed.add("armory");
+    return gearOnly;
 }
 
 /** The gear the logs (and the armory cache) know; "logs" in `failed` when reading them threw. */
@@ -200,6 +219,54 @@ function gearOf({ versionId, guildId, failed }) {
         failed.add("logs");
         return new Map();
     }
+}
+
+/**
+ * The mean item level per raider and character (#1038) - `{ [userId]: { [charKey]: level } }`,
+ * only for characters with at least MIN_ITEMS worn items that carry a level.
+ */
+function meanItemLevels(raiders, gear) {
+    const out = {};
+    for (const r of raiders) for (const c of r.chars) {
+        const key = characterKeyOf(c.character);
+        const snap = gear.get(key);
+        const levels = (snap && Array.isArray(snap.items) ? snap.items : []).map((it) => Number(it && it.itemLevel)).filter((n) => Number.isFinite(n) && n > 0);
+        if (levels.length < MIN_ITEMS) continue;
+        (out[r.userId] = out[r.userId] || {})[key] = levels.reduce((a, b) => a + b, 0) / levels.length;
+    }
+    return out;
+}
+
+/**
+ * The item levels of this run, per character over the last run's (#1038): a character
+ * this run read no level for keeps its last one - as long as the raider is still signed
+ * up. Returns the levels and how many were kept (they count for `keptAt`, the 30-day rule).
+ */
+function mergeLevels(raiders, fresh, previous) {
+    const levels = {};
+    let kept = 0;
+    for (const r of raiders) for (const c of r.chars) {
+        const key = characterKeyOf(c.character);
+        const now = (fresh[r.userId] || {})[key];
+        const old = ((previous || {})[r.userId] || {})[key];
+        const level = now || old;
+        if (!level) continue;
+        if (!now) kept++;
+        (levels[r.userId] = levels[r.userId] || {})[key] = level;
+    }
+    return { levels, kept };
+}
+
+/**
+ * The armory names of a run, BiS characters first (their wants depend on it), then every
+ * other character of the group for the strength (#1038); at most MAX_ARMORY.
+ */
+function armoryNames(raiders, bis) {
+    const first = [...bis.values()].map((b) => b.name);
+    const rest = raiders.flatMap((r) => r.chars.map((c) => c.character));
+    const byKey = new Map();
+    for (const name of [...first, ...rest]) if (!byKey.has(characterKeyOf(name))) byKey.set(characterKeyOf(name), name);
+    return [...byKey.values()].slice(0, MAX_ARMORY);
 }
 
 /**
@@ -268,7 +335,7 @@ const FAILED_ALL = "failed_all";
  * When every source the run asked failed, nothing is replaced at all - the job ends as
  * an error (`error: "failed_all"`, `hadPrevious` = old data stayed) and the old snapshot
  * only learns `failed`.
- * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], hadPrevious?: boolean, partial?: boolean }>}
+ * @returns {Promise<{ ok: boolean, error?: string, counts?: object, failed?: string[], hadPrevious?: boolean, partial?: boolean, gearRead?: { read: number, of: number } }>}
  */
 async function loadLootData(eventIds) {
     const events = [...new Set((eventIds || []).map(str).filter(Boolean))].map((id) => eventStore.getEvent(id)).filter(Boolean);
@@ -287,15 +354,21 @@ async function loadLootData(eventIds) {
         const raiders = raidersOf(groupId);
         const reserves = await softresByCharacter(events, raiders, failed);
 
-        // BiS first, so the armory is asked only for characters a BiS list could matter for.
+        // BiS first, so the armory asks the characters a BiS list matters for before the others.
         const bis = new Map();
         for (const r of raiders) for (const c of r.chars) {
             const list = bisInInstances(c.spec, versionId, instances);
             if (list.length && !reserves.has(`${r.userId}|${characterKeyOf(c.character)}`)) bis.set(`${r.userId}|${characterKeyOf(c.character)}`, { name: c.character, list });
         }
-        const names = [...new Set([...bis.values()].map((b) => b.name))].slice(0, MAX_ARMORY);
-        await askArmory(groupId, names, { versionId, guildId, failed });
-        const gear = bis.size ? gearOf({ versionId, guildId, failed }) : new Map();
+        // the armory and the gear serve the raids' strength too (#1038), so every character is asked -
+        // but a failed read of a character without a BiS list only costs the strength, it is no
+        // failed loot source (askArmory: only the first, BiS names can mark "armory")
+        const gearFailed = bis.size ? failed : new Set();
+        const names = armoryNames(raiders, bis);
+        const bisCount = Math.min(names.length, new Set([...bis.values()].map((b) => characterKeyOf(b.name))).size);
+        const gearRead = await askArmory(groupId, names, { versionId, guildId, failed: gearFailed, bisCount });
+        const gear = gearOf({ versionId, guildId, failed: gearFailed });
+        const { levels, kept: keptLevels } = mergeLevels(raiders, meanItemLevels(raiders, gear), previous && previous.gear);
 
         const asked = askedSources(events, bis);
         const failedList = ["softres", "armory", "logs"].filter((x) => failed.has(x));
@@ -305,11 +378,13 @@ async function loadLootData(eventIds) {
         }
         const { wants, counts, kept } = collectWants(raiders, { reserves, bis, gear, previous: previous && previous.wants, failed });
         saveSetupLoot(groupId, {
-            versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts,
+            versionId, instanceIds: instances, wants, items: itemTable(wants, versionId), counts, gear: levels,
             // the oldest kept data: entries kept load after load keep the time they were fetched
-            failed: failedList, keptAt: kept && previous ? (previous.keptAt || previous.at) : 0,
+            // (kept item levels count the same: they expire with the snapshot, 30 days after their load)
+            failed: failedList, keptAt: (kept || keptLevels) && previous ? (previous.keptAt || previous.at) : 0,
         });
-        return { ok: true, counts, failed: failedList, partial: failedList.length > 0 };
+        // gearRead: the silent count of the strength-only armory reads, never part of `partial`
+        return { ok: true, counts, failed: failedList, partial: failedList.length > 0, gearRead };
     } catch (e) {
         logger.error(`loot data ${groupId}: ${e.message}`);
         if (previous) markSetupLootFailed(groupId, ["all"]);
@@ -319,4 +394,4 @@ async function loadLootData(eventIds) {
     }
 }
 
-module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry } };
+module.exports = { lootInputFor, loadLootData, progressOf, MAX_ARMORY, _internal: { bisInInstances, reserveItems, signupCharacters, itemTable, keptEntry, meanItemLevels, mergeLevels, armoryNames, MIN_ITEMS } };

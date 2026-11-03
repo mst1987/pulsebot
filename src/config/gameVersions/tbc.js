@@ -74,6 +74,9 @@ module.exports = {
     // the tier/raid filter and the simulation (WoWSims tbc-new). A version without this block has none of it;
     // whether it is used is decided in services/versions/versionCapabilities.js (#761).
     councilContent: { bis: true, sim: true, tiers: true, itemTable: true },
+    // "Raids gleich stark" (#1038): this many item levels from the raid's centre are the weakest/strongest
+    // gear (utils/setup/raidStrength.js) - about one raid tier in TBC; a proposal, the orga decides.
+    balanceItemLevelSpan: 25,
     classes,
     instances,
     // Everything raidBuffs.js/totems.js know is TBC 2.4.3, so nothing is dropped.

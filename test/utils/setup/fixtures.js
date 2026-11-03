@@ -137,7 +137,27 @@ function randomInput(random, { events = 1 } = {}) {
             loot.wants[s.userId] = { [s.character.toLowerCase()]: { items, source } };
         }
     }
+    // strength gear (#1038): from the ids, without a draw - every input and every later draw stays as it was
+    if (count % 2) {
+        loot.gear = {};
+        for (const s of signups) {
+            const n = Number(s.userId.slice(1));
+            if ((n * 7 + count) % 10 < 7) loot.gear[s.userId] = { [s.character.toLowerCase()]: 100 + ((n * 37 + count * 11) % 50) };
+        }
+    }
     return { versionId: "tbc", events: evs, signups, profiles, attendance, history, fixed, loot };
 }
 
-module.exports = { su, rng, roster, randomInput, TANKS, HEALERS, MELEE, RANGED };
+/**
+ * The invariant of loot and balance (#1037/#1038): they only swap who goes where - the same
+ * people placed, in the pool and on the bench as in `other`, and every placed raider on the same
+ * character with the same spec and role - only the raid may differ.
+ */
+function samePlaces(out, other) {
+    const ids = (list) => (list || []).map((p) => String(p.userId)).sort().join(",");
+    const place = (p) => `${p.userId}/${String(p.character || "").toLowerCase()}/${p.spec}/${p.role}`;
+    const placed = (o) => o.events.flatMap((e) => e.groups.flatMap((g) => g.slots)).map(place).sort().join(",");
+    return placed(out) === placed(other) && ids(out.pool) === ids(other.pool) && ids(out.bench) === ids(other.bench);
+}
+
+module.exports = { su, rng, roster, randomInput, samePlaces, TANKS, HEALERS, MELEE, RANGED };

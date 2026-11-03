@@ -30,6 +30,13 @@ describe("stores/loot/setupLootStore (#1037)", () => {
         expect(got.at).toEqual(expect.any(Number));
     });
 
+    it("keeps only positive mean item levels per raider and character (#1038)", () => {
+        saveSetupLoot("ev1", { versionId: "tbc", gear: { u1: { a: 115.27, b: 0, c: "x" }, u2: null, u3: { d: "120" } } });
+        expect(getSetupLoot("ev1").gear).toEqual({ u1: { a: 115.3 }, u3: { d: 120 } });
+        saveSetupLoot("ev2", { versionId: "tbc" });
+        expect(getSetupLoot("ev2").gear).toEqual({});
+    });
+
     it("replaces the snapshot of the same group and drops ones older than 30 days", () => {
         jest.useFakeTimers().setSystemTime(new Date("2026-10-01T00:00:00Z"));
         saveSetupLoot("old", { versionId: "tbc" });
