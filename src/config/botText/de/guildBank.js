@@ -7,11 +7,11 @@ module.exports = {
     // the modal (utils/signup/guildBankPost.js)
     "Guild bank request": "Gildenbank-Anfrage",
     "What do you need?": "Was brauchst du?",
-    "e.g. Super Mana Potion": "z. B. Super-Manatrank",
+    "e.g. {item}": "z. B. {item}",
     "How many?": "Wie viel?",
     "e.g. 10": "z. B. 10",
     "What for? (optional)": "Wofür? (optional)",
-    "e.g. Black Temple on Thursday": "z. B. Black Temple am Donnerstag",
+    "e.g. {raid} on Thursday": "z. B. {raid} am Donnerstag",
     // the request form from the stock (utils/signup/guildBankPick.js)
     "Bank as of: {when}.": "Stand der Bank: {when}.",
     "You only see what the orga has released.": "Du siehst nur, was die Orga freigegeben hat.",

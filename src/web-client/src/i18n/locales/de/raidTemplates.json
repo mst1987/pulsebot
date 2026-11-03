@@ -14,7 +14,7 @@
     },
     "editor": {
         "newTitle": "Neue Vorlage",
-        "namePlaceholder": "z. B. SSC + TK 25er",
+        "namePlaceholder": "z. B. {example}",
         "more": "Mehr: Aussehen, Nahkampf/Fernkampf, Pflicht-Buffs, Anmeldeschluss, Dauer, Warteliste, Raid-Helper-Vorlage",
         "deadline": "Anmeldeschluss (Stunden vor Start)",
         "deadlinePlaceholder": "keiner",

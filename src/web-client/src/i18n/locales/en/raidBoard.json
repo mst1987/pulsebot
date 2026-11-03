@@ -1015,7 +1015,7 @@
             "actions": "Actions"
         },
         "emptyTitle": "No step for {boss} yet.",
-        "emptyText": "A step is a sentence with an icon, e.g. \"Mage tank tanks Zerevor · Pull\". Add the first one or start from a template; the people involved resolve against the raid.",
+        "emptyText": "A step is a sentence with an icon, e.g. \"Tank pulls the boss · Pull\". Add the first one or start from a template; the people involved resolve against the raid.",
         "takeStarter": "Use template",
         "starterName": {
             "kite": "Kiting",

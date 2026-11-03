@@ -97,6 +97,13 @@ describe("the Raid-Vorlagen list", () => {
     });
 });
 
+describe("the example in the name field", () => {
+    it.each([["t1", "z. B. SSC + TK"], ["t2", "z. B. MC + Ony"]])("follows the version of template %s", async (id, hint) => {
+        await show(`/raids/raid-templates?edit=${id}`);
+        expect(await within(await screen.findByRole("dialog")).findByPlaceholderText(hint)).toBeInTheDocument();
+    });
+});
+
 describe("the Raid-Vorlagen page in English", () => {
     afterEach(() => switchLang("de"));
 

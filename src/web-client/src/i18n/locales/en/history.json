@@ -187,7 +187,7 @@
         "chooseOption": "— Pick event —",
         "auto": "Match automatically by date again",
         "manual": "Without a Raid-Helper event, own title",
-        "titlePlaceholder": "Title, e.g. SSC/TK — 12.07.",
+        "titlePlaceholder": "Title, e.g. {example} — 12.07.",
         "categorySub": "Only applies without an assigned event — otherwise the event's category counts.",
         "loot": "Loot",
         "dismissTip": "Discard upload",
@@ -347,7 +347,7 @@
         "otherAria": "Pick another event",
         "otherOption": "Pick another event …",
         "withoutEvent": "Without event",
-        "titlePlaceholder": "Title, e.g. SSC/TK — 12.07.2026",
+        "titlePlaceholder": "Title, e.g. {example} — 12.07.2026",
         "categorySub": "Without an event the loot has no category (Pug, Monday raid, …) and does not show up in the overviews grouped by category."
     },
     "awards": {

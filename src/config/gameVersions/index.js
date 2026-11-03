@@ -188,12 +188,22 @@ function iconOf(id) {
 }
 
 /** Every version in the shape GET /api/game-versions serves. */
+/**
+ * The examples of a version for input hints, in a language; an unknown version answers with the default one's.
+ * @returns {{ short: string, tag: string, raid: string, raids: string, item: string }}
+ */
+function examplesOf(versionId, lang = "de") {
+    const { examples } = rulesFor(versionId) || rulesFor(DEFAULT_VERSION);
+    return { short: examples.short, tag: examples.tag, ...(examples[lang] || examples.de) };
+}
+
 function publicVersions() {
     return VERSIONS.map((v) => ({
         id: v.id,
         label: v.label,
         short: v.short,
         icon: v.icon || "",
+        examples: v.examples,
         roles: ROLES.map((id) => ({ id, label: ROLE_LABELS[id] })),
         classes: v.classes,
         instances: v.instances.map((i) => ({
@@ -220,5 +230,5 @@ module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
     rulesFor, professionsOf, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
-    instanceForBoss, instanceForZone, iconOf, publicVersions,
+    instanceForBoss, instanceForZone, iconOf, examplesOf, publicVersions,
 };

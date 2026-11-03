@@ -35,6 +35,7 @@ const {
     ActionRowBuilder, ButtonBuilder, ButtonStyle, ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
 const { tr } = require("../i18n/botText");
+const { examplesOf } = require("../../config/gameVersions");
 const { card } = require("../discord/card");
 const { nameAndMention } = require("../discord/mentionName");
 const { plainCategoryName } = require("./availabilityDialog");
@@ -92,8 +93,9 @@ function recipientName(request) {
     return realm ? `${name}-${realm.replace(/\s+/g, "")}` : name;
 }
 
-/** The free-text modal a raider fills in from the organizer (no stock data), in their language. */
-function requestModal(categoryId = "", lang = "de") {
+/** The free-text modal a raider fills in from the organizer (no stock data), in their language, with examples of the category's game version. */
+function requestModal(categoryId = "", lang = "de", versionId = "") {
+    const examples = examplesOf(versionId, lang);
     const input = (id, label, placeholder, max, required, style = TextInputStyle.Short) => new ActionRowBuilder().addComponents(
         new TextInputBuilder().setCustomId(id).setLabel(label).setPlaceholder(placeholder)
             .setStyle(style).setMaxLength(max).setRequired(required),
@@ -102,9 +104,9 @@ function requestModal(categoryId = "", lang = "de") {
         .setCustomId(`availability:mb:${categoryId}`)
         .setTitle(tr(lang, "Guild bank request"))
         .addComponents(
-            input("item", tr(lang, "What do you need?"), tr(lang, "e.g. Super Mana Potion"), ITEM_MAX, true),
+            input("item", tr(lang, "What do you need?"), tr(lang, "e.g. {item}", { item: examples.item }), ITEM_MAX, true),
             input("amount", tr(lang, "How many?"), tr(lang, "e.g. 10"), AMOUNT_MAX_LENGTH, true),
-            input("purpose", tr(lang, "What for? (optional)"), tr(lang, "e.g. Black Temple on Thursday"), PURPOSE_MAX, false),
+            input("purpose", tr(lang, "What for? (optional)"), tr(lang, "e.g. {raid} on Thursday", { raid: examples.raid }), PURPOSE_MAX, false),
         );
 }
 

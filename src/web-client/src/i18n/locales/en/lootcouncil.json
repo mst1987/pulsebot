@@ -408,7 +408,7 @@
         "tenureNone": "Belonging · not known yet"
     },
     "filter": {
-        "contentTipSub": "Which raids count for loot. Without a choice all loot counts; tiers and single raids can be combined (“T5 plus Hyjal”) while the guild is switching.",
+        "contentTipSub": "Which raids count for loot. Without a choice all loot counts; tiers and single raids can be combined while the guild is switching.",
         "content": "Content",
         "all": "all",
         "chooseContent": "Choose content",
@@ -744,7 +744,7 @@
         "unused": "not used",
         "usedByNames": "Used by: {names}",
         "name": "Name",
-        "nameHint": "At most 40 characters, e.g. “Main raid T6” or “PuG night”.",
+        "nameHint": "At most 40 characters, e.g. “Main raid” or “PuG night”.",
         "rename": "Rename",
         "renameTitle": "Rename “{name}”",
         "renamed": "Renamed to “{name}”.",

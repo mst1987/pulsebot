@@ -13,6 +13,7 @@ import {
     TYPE_ANNOUNCEMENT, TYPE_FORUM, TYPE_STAGE, TYPE_TEXT, TYPE_VOICE,
 } from "../../lib/discord/channels";
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 // The four dialogs of the Kanäle page (design issue #216): purpose → channels,
 // channel → purposes, create a channel, duplicate a channel. Each reports back
@@ -280,6 +281,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     const t = useT();
+    const examples = useVersionExamples();
     const textLike = type === "text" || type === "announcement";
     const purposes = data.purposes.filter((p) => p.kind === "channel");
 
@@ -327,7 +329,7 @@ export function CreateChannelDialog({ data, canAssign, onClose, onDone }: {
             <form id="kn-create" className="kn-dlg-stack" onSubmit={submit}>
                 <div className="kn-field">
                     <label htmlFor="kn-create-name">{t("common.name")}</label>
-                    <div className="kn-input"><span>#</span><input id="kn-create-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("channels.createDialog.namePlaceholder")} required /></div>
+                    <div className="kn-input"><span>#</span><input id="kn-create-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("channels.createDialog.namePlaceholder", { example: examples.tag })} required /></div>
                 </div>
                 <div className="kn-field">
                     <label>{t("channels.createDialog.type")}</label>
