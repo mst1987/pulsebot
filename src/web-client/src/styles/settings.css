@@ -39,19 +39,6 @@
 .set-field select, .dlg-field select { width: 100%; max-width: 440px; }
 .set-field input:not([type=checkbox]) { max-width: 440px; }
 
-/* ---- Spielversion (#541): one compact row per category that may differ ---- */
-.gv-cats { display: grid; gap: 8px; max-width: 520px; }
-.gv-cat { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 240px); gap: 12px; align-items: center; }
-.gv-cat-name { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.gv-cat label { font-size: 14px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-/* the version's icon in front of its select (#951) */
-.gv-cat-pick { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.gv-cat-pick select { flex: 1 1 auto; min-width: 0; }
-.gv-cat-since { flex: 0 0 auto; font-size: 12px; color: var(--muted); }
-.gv-empty { margin: 0; color: var(--muted); font-size: 13px; }
-@media (max-width: 560px) {
-    .gv-cat { grid-template-columns: minmax(0, 1fr); gap: 4px; }
-}
 
 /* ---- Spielversion einer Kategorie umstellen (#738): the confirmation dialog ---- */
 .csw { display: grid; gap: 14px; font-size: 14px; }
@@ -140,7 +127,7 @@
 .vl-link svg { width: 14px; height: 14px; }
 .vl-jump { background: none; border: 0; padding: 0; cursor: pointer; font-family: inherit; }
 .vl-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-#gv-main, #gv-cats, #gv-links { scroll-margin-top: 80px; }
+#gv-main, #gv-links { scroll-margin-top: 80px; }
 /* a phone: badge and label in the first row, value and action below */
 @media (max-width: 640px) {
     .vl-item { grid-template-columns: 96px minmax(0, 1fr); gap: 4px 10px; }
@@ -574,9 +561,9 @@ tr.perm-foreign .perm-who-label { color: var(--muted); }
 
 /* ---- Kategorien ---- */
 .cat-list { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; }
-.cat-inner { min-width: 700px; }
+.cat-inner { min-width: 850px; }
 .cat-row {
-    display: grid; grid-template-columns: 40px minmax(120px, 1fr) 92px 124px 100px 72px 92px; align-items: center; gap: 8px;
+    display: grid; grid-template-columns: 40px minmax(120px, 1fr) 128px 92px 124px 100px 72px 92px; align-items: center; gap: 8px;
     padding: 10px 14px; border-bottom: 1px solid var(--line-soft); border-left: 3px solid transparent; padding-left: 11px;
 }
 .cat-row.cat-head { background: var(--panel2); border-bottom: 1px solid var(--line); padding-top: 8px; padding-bottom: 8px; font-size: 12px; color: var(--muted); font-weight: 600; }
@@ -585,6 +572,10 @@ tr.perm-foreign .perm-who-label { color: var(--muted); }
 .cat-row > .exp-lbl { justify-self: end; margin-left: 0; }
 .cat-name { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; font-weight: 700; font-size: 14.5px; line-height: 1.3; }
 .cat-name > span:first-child { overflow-wrap: anywhere; }
+/* the version's icon in front of its select (#951) */
+.cat-version { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cat-version select { flex: 1 1 auto; min-width: 0; }
+.cat-version-since { font-size: 12px; font-weight: 400; color: var(--muted); }
 .cat-off { grid-column: 3 / -1; font-family: var(--font-mono); font-size: 12px; }
 .cat-row .badge { max-width: 100%; overflow: hidden; text-overflow: ellipsis; }
 /* The open card (design "A · Sechs Tabs, jede Einstellung eine Karte"): a tab bar under the row, a line on what the tab covers, then one card per setting. */

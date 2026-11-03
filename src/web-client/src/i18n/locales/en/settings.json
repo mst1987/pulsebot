@@ -35,10 +35,6 @@
             "label": "Categories",
             "crumb": "Raid categories · everything that applies per raid day"
         },
-        "kategorieversion": {
-            "label": "Game version per category",
-            "crumb": "Raid categories · which WoW version each category plays"
-        },
         "spielversion": {
             "label": "Game version",
             "crumb": "Game versions · main version and what each version offers"
@@ -137,7 +133,6 @@
         "categories": "Version per category",
         "categoriesSub": "Every active category plays one fixed version. Switching starts a new section: earlier raids, roster and quota stay readable in their version.",
         "categoryAria": "Game version of {name}",
-        "noCategories": "No active category yet – switch one on under Categories.",
         "hideOthers": "Hide other versions",
         "hideOthersText": "Everybody only sees {version}. {others} disappears from lists, loot, history, roster, catalogue, templates and pickers. Nothing is deleted, switching it off brings everything back.",
         "hideOthersNone": "Other versions",
@@ -1091,6 +1086,7 @@
         },
         "tabsAria": "Settings of {name}",
         "colPlanning": "Planning",
+        "colVersion": "Version",
         "planning": "Planning",
         "planningSub": "How the raids of this category are assigned: raid plan (one board per boss, \"Assignments\" in the channel) or Google Sheet (the fixed sheet, or a copy of a template per raid). Never both. Without a pick: a fixed sheet means sheet, otherwise raid plan.",
         "planningAria": "Planning {name}",
@@ -1579,7 +1575,7 @@
         "links": {
             "backup": "System status",
             "export": "Download CSV",
-            "categories": "Game version per category",
+            "categories": "Categories",
             "templates": "Raid templates",
             "series": "Series",
             "rosters": "Rosters",

@@ -40,7 +40,7 @@ describe("the sections", () => {
 
     it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
         const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
-        expect(of("server")).toEqual(["berechtigungen", "kategorien", "kategorieversion", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems", "twitch"]);
+        expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems", "twitch"]);
         expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
     });
 
@@ -84,11 +84,12 @@ describe("merged-away section ids", () => {
     it("redirects every old id to a section that exists", () => {
         // Links such as ?section=raidchars and ids remembered from older builds
         // have to land where the setting lives now.
-        expect(Object.keys(LEGACY_SECTIONS).sort()).toEqual(["anthropic", "battlenet", "discord", "loot", "lootsync", "raidchars", "warcraftlogs", "zugang"]);
+        expect(Object.keys(LEGACY_SECTIONS).sort()).toEqual(["anthropic", "battlenet", "discord", "kategorieversion", "loot", "lootsync", "raidchars", "warcraftlogs", "zugang"]);
         for (const [from, to] of Object.entries(LEGACY_SECTIONS)) {
             expect({ from, exists: ids().includes(to), resolved: resolveSection(from, SETTINGS_SECTIONS) }).toEqual({ from, exists: true, resolved: to });
         }
         expect(resolveSection("raidchars", SETTINGS_SECTIONS)).toBe("kategorien");
+        expect(resolveSection("kategorieversion", SETTINGS_SECTIONS)).toBe("kategorien");
         expect(resolveSection("loot", SETTINGS_SECTIONS)).toBe("topitems");
     });
 
@@ -102,11 +103,11 @@ describe("two pages: System › Einstellungen and Alle Server › Einstellungen 
 
     it("shows only the active server's sections under System and the shared ones under Alle Server", () => {
         expect(SCOPE_PATH).toEqual({ server: "/settings", all: "/settings/all" });
-        expect(idsOf(sectionsFor("server", true))).toEqual(["berechtigungen", "kategorien", "kategorieversion", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems", "twitch"]);
+        expect(idsOf(sectionsFor("server", true))).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems", "twitch"]);
         expect(idsOf(sectionsFor("all", true))).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
         // a settings writer without full admin: no admin-only section on either page,
         // but the categories' versions are the server's (#957 review)
-        expect(idsOf(sectionsFor("server", false))).toEqual(["kategorien", "kategorieversion", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "topitems", "twitch"]);
+        expect(idsOf(sectionsFor("server", false))).toEqual(["kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "topitems", "twitch"]);
         expect(idsOf(sectionsFor("all", false))).not.toContain("discordserver");
     });
 
