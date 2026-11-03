@@ -864,20 +864,46 @@ describe("web/apiRoutes/settings", () => {
                 it("refuses raider roles that give a category's roster the role of another roster, a role without roster takes its roster", async () => {
                     const rosterStore = require("../../../../src/stores/roster/rosterStore");
                     const HELD = "500000000000000007";
+                    const FOREIGN = "500000000000000008";
                     rosterStore.useFile(tempStoreFile("role-taken-rosters.json"));
                     settingsStore.getConfig.mockReturnValue({ ...BEFORE, categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "tbc" } });
+                    discord.getClient.mockReturnValue({ channels: { cache: new Map([["cat2", { guildId: "g1" }]]) } });
                     try {
                         rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: [] });
                         const free = rosterStore.createRoster({ guildId: "g1", name: "Kader", versionId: "tbc", roleIds: [HELD] });
+                        const foreign = rosterStore.createRoster({ guildId: "g2", name: "Fremd", versionId: "tbc", roleIds: [FOREIGN] });
                         const res = await patch("/api/settings", { categoryRoles: { cat1: [HELD] } });
                         expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
                         expect(json(res).error).toMatchObject({ code: "role_taken", message: expect.stringContaining("„Kader“") });
                         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
-                        // the same role on the category without roster: the roster takes the category
+                        // a roster of another server stays unnamed and is not taken
+                        const hidden = await patch("/api/settings", { categoryRoles: { cat1: [FOREIGN] } });
+                        expect(json(hidden).error.message).toContain("anderen Roster");
+                        expect(json(hidden).error.message).not.toContain("Fremd");
                         settingsStore.saveConfig.mockImplementation((partial) => ({ ...settingsStore.getConfig(), ...partial }));
-                        const ok = await patch("/api/settings", { categoryRoles: { cat2: [HELD] } });
+                        await patch("/api/settings", { categoryRoles: { cat2: [FOREIGN] } });
+                        expect(rosterStore.getRoster(foreign.id).categoryId).toBeNull();
+                        // the same role on the category without roster: the roster takes the category
+                        const ok = await patch("/api/settings", { categoryRoles: { cat2: [` ${HELD} `] } });
                         expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
                         expect(rosterStore.getRoster(free.id).categoryId).toBe("cat2");
+                    } finally {
+                        discord.getClient.mockReset().mockReturnValue(null);
+                        rosterStore.useFile(null);
+                    }
+                });
+
+                it("checks the normalised raider roles, a role with spaces around it is no way past the refusal", async () => {
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
+                    const HELD = "500000000000000007";
+                    rosterStore.useFile(tempStoreFile("role-taken-spaces-rosters.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "tbc" } });
+                    try {
+                        rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: [] });
+                        rosterStore.createRoster({ guildId: "g1", name: "Mittwoch", categoryId: "cat2", versionId: "tbc", roleIds: [HELD] });
+                        const res = await patch("/api/settings", { categoryRoles: { cat1: [` ${HELD} `], cat2: [HELD] } });
+                        expect(json(res).error).toMatchObject({ code: "role_taken" });
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                     } finally {
                         rosterStore.useFile(null);
                     }

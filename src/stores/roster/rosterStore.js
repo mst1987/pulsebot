@@ -832,9 +832,9 @@ function renameMemberChar(userId, fromKey, toKey, toName, { actor = "", now = ne
  *
  * A role belongs to one open roster: a category whose roles another open roster
  * holds gets no second one - the reconcile would fill it with the same people.
- * A roster of that version without category (one a Kader's takeover created) takes
- * the category, the assigned raiders it lacks join it; otherwise the category stays
- * without roster and keeps its settings roles.
+ * A roster of that version and server without category (one a Kader's takeover
+ * created) takes an active category (`active` not false), the assigned raiders it
+ * lacks join it; otherwise the category stays without roster and keeps its settings roles.
  * @returns {{ id, categoryId, name, members, roleIds }[]} the rosters created
  */
 function migrateCategories(categories = [], { now = new Date().toISOString() } = {}) {
@@ -855,7 +855,7 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
         const versionId = knownVersion(c.versionId) || mainVersionFor({ categoryId });
         const holders = holdersOfRoles(all, c.roleIds);
         if (holders.length) {
-            const home = holders.find((r) => !r.categoryId && r.versionId === versionId);
+            const home = c.active === false ? null : holders.find((r) => !r.categoryId && r.versionId === versionId && r.guildId === str(c.guildId));
             if (home) {
                 all.rosters[home.id] = normalizeRoster({
                     ...home,

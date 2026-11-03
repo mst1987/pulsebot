@@ -10,7 +10,7 @@ const {
 } = require("../../../stores/settings/settingsStore");
 const {
     normalizeCategoryLanguagePatch, attendanceSettings, tempVoiceSettings, normalizeCategoryVersion, MAX_SERVERS,
-    normalizeCategoryAttendance, normalizeCategoryTempVoice, normalizeCategoryAnnounce: storedCategoryAnnounce,
+    normalizeCategoryRoles, normalizeCategoryAttendance, normalizeCategoryTempVoice, normalizeCategoryAnnounce: storedCategoryAnnounce,
     EVENT_GUILD_LABEL_MAX, mergeServerSettings, serverSettingGuildIds,
 } = require("../../../stores/settings/configSchema");
 const { accessSettings, ACCESS_KEYS: SERVER_ACCESS_KEYS } = require("../../../services/discord/servers/serverAccess");
@@ -1203,9 +1203,14 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
     if (pugGrants.found.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants.found, { reopened: pugGrants.reopened }));
     // A role belongs to one open roster: the raider roles of a category are its roster's roles.
-    const takenRole = partial.categoryRoles === undefined ? null
-        : rolesOfOtherRosters(partial.categoryRoles, { config: { ...before, ...partial }, skip: new Set(versions.switches.map((sw) => sw.categoryId)) })[0];
-    if (takenRole) return error(res, 409, "role_taken", `Roster „${takenRole.rosterName}“: Diese Rolle gehört schon zum Roster „${takenRole.otherName}“ – eine Rolle kann nur zu einem offenen Roster gehören.`);
+    const switchedIds = new Set(versions.switches.map((sw) => sw.categoryId));
+    const takenRole = partial.categoryRoles === undefined ? null : rolesOfOtherRosters(normalizeCategoryRoles(partial.categoryRoles), {
+        before: before.categoryRoles || {}, config: { ...before, ...partial }, skip: switchedIds, guildOf: categoryGuildOf,
+    })[0];
+    if (takenRole) {
+        const holder = takenRole.otherName ? `zum Roster „${takenRole.otherName}“` : "zu einem anderen Roster";
+        return error(res, 409, "role_taken", `Roster „${takenRole.rosterName}“: Diese Rolle gehört schon ${holder} – eine Rolle kann nur zu einem offenen Roster gehören.`);
+    }
     // #962: a block for a server that is not entered would be dropped silently - refused instead
     if (unknownServerBlocks(partial, before).length) return error(res, 400, "unknown_server", UNKNOWN_SERVER);
     const langBefore = serverLangsOf(before);
@@ -1214,8 +1219,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     const saved = saveConfig(partial);
     // The settings still edit a category's raider roles; the roster of the version a category plays
     // follows them (#653) - not for a category switched just now: its roster changes below (#739).
-    const switchedIds = new Set(versions.switches.map((sw) => sw.categoryId));
-    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds });
+    if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds, guildOf: categoryGuildOf });
     // #739: the listeners (the roster: close the old one, maybe a new one) get the dialog's choices
     const switchedCategories = await notifyCategoryVersionSwitch(
         afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),

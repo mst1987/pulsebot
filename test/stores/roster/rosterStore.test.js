@@ -465,7 +465,7 @@ describe("stores/roster/rosterStore migrateCategories", () => {
         const CAT = { categoryId: "c1", guildId: "g1", name: "Forever Do", versionId: "forever", roleIds: ["10"], members: { u1: { key: "kes", name: "Kes" }, u2: { key: "neu", name: "Neu" } } };
 
         it("hands the category to the roster without category instead of making a second one", () => {
-            const kader = createRoster({ name: "Pulse Do", versionId: "forever", roleIds: ["10"], kaderId: "k1" });
+            const kader = createRoster({ guildId: "g1", name: "Pulse Do", versionId: "forever", roleIds: ["10"], kaderId: "k1" });
             upsertMember(kader.id, "u1", { status: "bench", chars: ["anders"] });
             expect(migrateCategories([CAT], { now: NOW })).toEqual([]);
             expect(rosterStore.listRosters("").map((r) => r.id)).toEqual([kader.id]);
@@ -479,11 +479,13 @@ describe("stores/roster/rosterStore migrateCategories", () => {
         });
 
         it.each([
-            ["has its own category", { categoryId: "c9", versionId: "forever" }],
-            ["plays another version", { versionId: "tbc" }],
-        ])("makes no roster when the holder %s, and moves nobody", (_case, fields) => {
+            ["has its own category", { guildId: "g1", categoryId: "c9", versionId: "forever" }, CAT],
+            ["plays another version", { guildId: "g1", versionId: "tbc" }, CAT],
+            ["is on another server", { guildId: "g2", versionId: "forever" }, CAT],
+            ["fits, but the category is not active", { guildId: "g1", versionId: "forever" }, { ...CAT, active: false }],
+        ])("makes no roster when the holder %s, and moves nobody", (_case, fields, category) => {
             const holder = createRoster({ name: "Halter", roleIds: ["10"], ...fields });
-            expect(migrateCategories([CAT], { now: NOW })).toEqual([]);
+            expect(migrateCategories([category], { now: NOW })).toEqual([]);
             expect(rosterStore.listRosters("").map((r) => r.id)).toEqual([holder.id]);
             expect(getRoster(holder.id).categoryId).toBe(fields.categoryId || null);
             expect(stored().migratedCategories).toContain("c1");

@@ -18,7 +18,7 @@
 //
 // A role belongs to one open roster (docs/roster-profile.md "Eine Rolle, ein
 // Roster"): a category that gets the role of a roster without category takes that
-// roster (adoptRosters), and a save that would give a category's roster the role of
+// roster (rosterToAdopt), and a save that would give a category's roster the role of
 // another roster is refused before it is written (rolesOfOtherRosters).
 const rosterStore = require("../../stores/roster/rosterStore");
 const { rosterOfCategory, isCurrentRoster, currentVersionOf } = require("./categoryRoster");
@@ -50,18 +50,28 @@ function expectedRoleIds(categoryId, config, { versionId = "" } = {}) {
 const rolesIn = (map, categoryId) => (Array.isArray(map[categoryId]) ? map[categoryId] : []).map(String);
 
 /**
- * A category without roster that got the role of an open roster without category and of its
- * version takes that roster: a Kader's takeover makes the roster before anybody can mark the
- * new Discord category as a raid category. Returns the ids of the rosters that moved.
+ * The roster a category without one takes on a save of the raider roles: open, without category,
+ * of the category's version and server, holding one of the roles (a Kader's takeover makes the
+ * roster before anybody can mark the new Discord category as a raid category). The role ids in
+ * the map are unchecked input, so the server is compared here: a category whose server is unknown
+ * takes nothing, and a roster of another server stays where it is. null for none.
  */
-function adoptRosters(map, { actor, config, skip }) {
+function rosterToAdopt(map, categoryId, { config, skip, guildOf }) {
     const active = config && Array.isArray(config.categoryIds) ? config.categoryIds.map(String) : null;
+    if (skip.has(categoryId) || (active && !active.includes(categoryId))) return null;
+    const guildId = guildOf(categoryId);
+    if (!guildId) return null;
+    const versionId = currentVersionOf(categoryId, { config });
+    if (rosterStore.rosterForCategory(categoryId, versionId)) return null;
+    return rosterStore.openRostersWithRole(rolesIn(map, categoryId))
+        .find((r) => !r.categoryId && r.versionId === versionId && r.guildId === guildId) || null;
+}
+
+/** Every category without roster takes its roster (rosterToAdopt). Returns the ids of the rosters that moved. */
+function adoptRosters(map, { actor, ...opts }) {
     const moved = [];
     for (const categoryId of Object.keys(map)) {
-        if (skip.has(categoryId) || (active && !active.includes(categoryId))) continue;
-        const versionId = currentVersionOf(categoryId, { config });
-        if (rosterStore.rosterForCategory(categoryId, versionId)) continue;
-        const home = rosterStore.openRostersWithRole(rolesIn(map, categoryId)).find((r) => !r.categoryId && r.versionId === versionId);
+        const home = rosterToAdopt(map, categoryId, opts);
         if (!home) continue;
         rosterStore.updateRoster(home.id, { categoryId }, { actor });
         moved.push(home.id);
@@ -70,23 +80,34 @@ function adoptRosters(map, { actor, config, skip }) {
 }
 
 /**
- * What a save of config.categoryRoles would give a roster although another open roster holds it:
- * `[{ roleId, rosterName, otherName }]`, as the rosters would stand after the save - moving a
- * role from one category to another in one save is fine. A role the roster already holds is no
- * new conflict, so an old double never blocks a save. Empty for no map at all.
+ * What a save of config.categoryRoles would newly give a roster although another open roster
+ * holds it: `[{ roleId, rosterName, otherName }]`, as the rosters would stand after the save, with
+ * the rosters a category takes in it (rosterToAdopt) and without the old roster of a category
+ * switched in it (it closes right after). Moving a role between categories in one save is fine.
+ * Only what this save adds counts - a role the roster holds or the map already names - because the
+ * client sends the whole map of every server: an old double blocks nobody's save. `otherName` is
+ * empty for a roster of another server. Empty for no map at all.
  * @param {Record<string, string[]>} categoryRoles
- * @param {{ config?: object, skip?: Set<string> }} [opts]  as syncRosterRoleIds
+ * @param {{ before?: Record<string, string[]>, config?: object, skip?: Set<string>, guildOf?: (categoryId: string) => string }} [opts]
+ *   `before`: the map stored until now; the others as syncRosterRoleIds
  */
-function rolesOfOtherRosters(categoryRoles, { config, skip = new Set() } = {}) {
+function rolesOfOtherRosters(categoryRoles, { before = {}, config, skip = new Set(), guildOf = () => "" } = {}) {
     if (!categoryRoles || typeof categoryRoles !== "object" || Array.isArray(categoryRoles)) return [];
-    const open = rosterStore.listRosters("").filter((r) => !rosterStore.isClosed(r));
-    const follows = (r) => isCurrentRoster(r, { config }) && !skip.has(r.categoryId);
-    const rolesAfter = (r) => (follows(r) ? rolesIn(categoryRoles, r.categoryId) : r.roleIds);
+    const adopted = new Map();
+    for (const categoryId of Object.keys(categoryRoles)) {
+        const home = rosterToAdopt(categoryRoles, categoryId, { config, skip, guildOf });
+        if (home && !adopted.has(home.id)) adopted.set(home.id, categoryId);
+    }
+    const current = (r) => isCurrentRoster(r, { config });
+    const open = rosterStore.listRosters("").filter((r) => !rosterStore.isClosed(r) && (current(r) || !skip.has(r.categoryId)));
+    const categoryOf = (r) => adopted.get(r.id) || (current(r) && !skip.has(r.categoryId) ? r.categoryId : "");
+    const rolesAfter = (r) => (categoryOf(r) ? rolesIn(categoryRoles, categoryOf(r)) : r.roleIds);
     const found = [];
-    for (const roster of open.filter(follows)) {
-        for (const roleId of rolesAfter(roster).filter((id) => !roster.roleIds.includes(id))) {
+    for (const roster of open.filter(categoryOf)) {
+        const had = [...roster.roleIds, ...rolesIn(before, categoryOf(roster))];
+        for (const roleId of rolesAfter(roster).filter((id) => !had.includes(id))) {
             const other = open.find((r) => r.id !== roster.id && rolesAfter(r).includes(roleId));
-            if (other) found.push({ roleId, rosterName: roster.name, otherName: other.name });
+            if (other) found.push({ roleId, rosterName: roster.name, otherName: other.guildId === roster.guildId ? other.name : "" });
         }
     }
     return found;
@@ -94,20 +115,21 @@ function rolesOfOtherRosters(categoryRoles, { config, skip = new Set() } = {}) {
 
 /**
  * After the settings saved config.categoryRoles: a category without roster may
- * take its role's roster (adoptRosters), then the open roster of the
+ * take its role's roster (rosterToAdopt), then the open roster of the
  * version each category plays now gets that category's roles (none = no
  * roles); a roster of another version or a closed one keeps its own (#739).
  * Returns the ids of the rosters that changed.
  * @param {Record<string, string[]>} categoryRoles  the saved, normalised map
- * @param {{ actor?: string, config?: object, skip?: Set<string> }} [opts]  `config`: the saved config (which
- *   version a category plays); `skip`: categories left alone (switched to another version in this save, #739)
+ * @param {{ actor?: string, config?: object, skip?: Set<string>, guildOf?: (categoryId: string) => string }} [opts]
+ *   `config`: the saved config (which version a category plays); `skip`: categories left alone (switched to
+ *   another version in this save, #739); `guildOf`: the server of a category ("" = unknown), without it no roster moves
  * @returns {string[]}
  */
-function syncRosterRoleIds(categoryRoles, { actor = "", config, skip = new Set() } = {}) {
+function syncRosterRoleIds(categoryRoles, { actor = "", config, skip = new Set(), guildOf = () => "" } = {}) {
     // no map at all is no save of the roles - nothing to carry over
     if (!categoryRoles || typeof categoryRoles !== "object" || Array.isArray(categoryRoles)) return [];
     const map = categoryRoles;
-    const changed = adoptRosters(map, { actor, config, skip });
+    const changed = adoptRosters(map, { actor, config, skip, guildOf });
     for (const roster of rosterStore.listRosters("")) {
         if (!isCurrentRoster(roster, { config }) || skip.has(roster.categoryId)) continue;
         const next = rolesIn(map, roster.categoryId);

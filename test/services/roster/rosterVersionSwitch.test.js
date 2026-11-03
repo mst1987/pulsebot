@@ -76,6 +76,32 @@ describe("services/roster/rosterVersionSwitch applyRosterSwitch", () => {
         expect(rosterStore.rosterForCategory("c1", "forever").roleIds).toEqual(["500000000000000001"]);
     });
 
+    it("a reopened roster does not get back a role another open roster took meanwhile", () => {
+        const HELD = "500000000000000007";
+        const KEPT = "500000000000000001";
+        const back = rosterStore.createRoster({ guildId: "g1", name: "Alt", categoryId: "c1", versionId: "forever", roleIds: [HELD, KEPT] });
+        rosterStore.closeRoster(back.id, { reason: "version_switch" });
+        tbcRoster();
+        rosterStore.createRoster({ guildId: "g1", name: "Mi", categoryId: "c2", versionId: "forever", roleIds: [HELD] });
+        const out = applyRosterSwitch(SW, { now: NOW });
+        expect(out.reopened.id).toBe(back.id);
+        expect(rosterStore.getRoster(back.id)).toMatchObject({ closedAt: null, roleIds: [KEPT] });
+        expect(rosterStore.openRostersWithRole([HELD]).map((r) => r.name)).toEqual(["Mi"]);
+        expect(configStore.getConfig().categoryRoles.c1).toEqual([KEPT]);
+    });
+
+    it("a reopened roster keeps its roles when nobody else holds them", () => {
+        const KEPT = "500000000000000001";
+        const back = rosterStore.createRoster({ guildId: "g1", name: "Alt", categoryId: "c1", versionId: "forever", roleIds: [KEPT] });
+        rosterStore.closeRoster(back.id, { reason: "version_switch" });
+        tbcRoster();
+        const before = rosterStore.getRoster(back.id).history.length;
+        applyRosterSwitch(SW, { now: NOW });
+        const after = rosterStore.getRoster(back.id);
+        expect(after.roleIds).toEqual([KEPT]);
+        expect(after.history.length).toBe(before + 1);
+    });
+
     it("without 'Personen übernehmen' the new roster starts empty; without 'anlegen' there is none", () => {
         tbcRoster();
         applyRosterSwitch(SW, { choice: { create: true, copyMembers: false }, now: NOW });
