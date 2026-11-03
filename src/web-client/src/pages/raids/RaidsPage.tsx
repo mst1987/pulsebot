@@ -76,7 +76,7 @@ export default function RaidsPage() {
     return <MenuRailPage user={user} parent="raids"><RaidsList user={user} /></MenuRailPage>;
 }
 
-function RaidsList({ user }: ShellContext) {
+function RaidsList({ user }: Pick<ShellContext, "user">) {
     const t = useT();
     const location = useLocation();
     const navigate = useNavigate();

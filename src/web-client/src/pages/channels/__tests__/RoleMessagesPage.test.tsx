@@ -3,7 +3,7 @@
 // their reason, saving (create / update with the trimmed input, warnings as a
 // toast), deleting through the confirm dialog, the server's errors in words, and
 // the note when the bot is offline; with several servers in the server list (#895)
-// the server column, the editor's server choice and the start server from ?guild=.
+// the server column, the editor's server choice and the active server as the start.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -255,11 +255,11 @@ describe("Rollen-Nachrichten: several servers", () => {
         expect(api.getRoleMessageOptions).toHaveBeenCalledWith("g2");
     });
 
-    it("starts a new message on the server picked on the other tabs and posts it there", async () => {
+    it("starts a new message on the server active in the sidebar and posts it there", async () => {
         const user = userEvent.setup();
         setup({ servers: [ONE, TWO] });
         vi.mocked(api.createRoleMessage).mockResolvedValue({ entry: { ...MUSIK, id: "m6" }, url: "", warnings: [] });
-        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=new&guild=g2" });
+        renderPage(<RoleMessagesPage />, { route: "/channels/roles?edit=new", activeGuildId: "g2" });
         const dialog = await screen.findByRole("dialog");
         const radio = await within(dialog).findByRole("radio", { name: "Talkgilde" });
         expect(radio).toBeChecked();

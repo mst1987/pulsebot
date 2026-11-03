@@ -7,8 +7,7 @@ import { Badge, Button, PageHead, buttonClass } from "../../components/ui";
 import { SortTh } from "../../components/ui/table/SortTh";
 import { CheckIcon, ChevronRightIcon, ExternalIcon, RefreshIcon } from "../../components/ui/icons/icons";
 import DiscordTabs from "../../components/channels/DiscordTabs";
-import ServerPicker from "../../components/channels/ServerPicker";
-import { pickSearch, useServerPick } from "../../hooks/useServerPick";
+import { useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { useTableSort } from "../../lib/ui/tableSort";
 import { formatDateTime } from "../../lib/format";
@@ -20,12 +19,11 @@ import "../../styles/discord-overview.css";
 import { useT } from "../../i18n";
 
 // System › Discord › Übersicht (docs/channels.md): the start page of the Discord
-// area. One main element — what needs attention on the chosen server, each point
-// with its status word, why, and a button to where it is fixed; "Alles in
-// Ordnung" when nothing is open. Below it who joined or left in the last seven
-// days, the bot's fixed messages, and the bot check: every function against the
-// rights it needs on that server (only what is set up there). A picker in the
-// controls switches between the servers of the server list (#895). "Neu prüfen"
+// area. One main element — what needs attention on the active server (the one in
+// the sidebar), each point with its status word, why, and a button to where it is
+// fixed; "Alles in Ordnung" when nothing is open. Below it who joined or left in
+// the last seven days, the bot's fixed messages, and the bot check: every function
+// against the rights it needs on that server (only what is set up there). "Neu prüfen"
 // asks Discord again for the fixed messages, at most every 30 seconds. Display only.
 
 const REFRESH_GAP_MS = 30000;
@@ -42,15 +40,15 @@ export default function DiscordOverviewPage() {
     const t = useT();
     const pick = useServerPick();
     const guildId = pick.guildId;
-    // "Neu prüfen" asks Discord afresh once; the 30-second gap is kept per server
+    // "Neu prüfen" asks Discord afresh once
     const fresh = useRef(false);
-    const [lastFresh, setLastFresh] = useState<Record<string, number>>({});
+    const [lastFresh, setLastFresh] = useState(0);
     const [now, setNow] = useState(() => Date.now());
     const state = useApi(() => getDiscordOverview(guildId, fresh.current), [guildId], { enabled: pick.ready });
     // an answer for the server picked before stays hidden until the new one is in
     const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
 
-    const wait = refreshWait(lastFresh[guildId] || 0, now, REFRESH_GAP_MS);
+    const wait = refreshWait(lastFresh, now, REFRESH_GAP_MS);
     // tick while the button waits, so its countdown moves
     useEffect(() => {
         if (!wait) return undefined;
@@ -60,8 +58,8 @@ export default function DiscordOverviewPage() {
 
     const refresh = () => {
         const at = Date.now();
-        if (refreshWait(lastFresh[guildId] || 0, at, REFRESH_GAP_MS)) return;
-        setLastFresh((l) => ({ ...l, [guildId]: at }));
+        if (refreshWait(lastFresh, at, REFRESH_GAP_MS)) return;
+        setLastFresh(at);
         setNow(at);
         fresh.current = true;
         state.reload().finally(() => { fresh.current = false; });
@@ -69,7 +67,6 @@ export default function DiscordOverviewPage() {
 
     const controls = (
         <div className="dov-controls">
-            <ServerPicker pick={pick} />
             <Button
                 variant="ghost" size="sm" icon={<RefreshIcon />} onClick={refresh}
                 disabled={wait > 0 || state.loading || !data || !data.guildId || !data.online}
@@ -90,7 +87,7 @@ export default function DiscordOverviewPage() {
                     ? <Badge tone="bad" tip={t("discord.overview.offline")} tipSub={t("discord.overview.offlineSub")}>{t("discord.overview.offline")}</Badge>
                     : undefined}
             />
-            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
+            <DiscordTabs user={user} guildId={guildId} />
             {controls}
 
             {state.error && !data && <p className="empty">{t("discord.overview.loadError", { message: state.error.message })}</p>}
@@ -101,7 +98,7 @@ export default function DiscordOverviewPage() {
                 <>
                     <Attention data={data} user={user} />
                     <div className="dov-cols">
-                        <Members members={data.members} user={user} guildParams={pick.param(data.guildId)} />
+                        <Members members={data.members} user={user} />
                         <Messages messages={data.messages} />
                     </div>
                     <BotCheck rows={botCheckRows(data)} />
@@ -174,7 +171,7 @@ function relationText(m: MemberActivity, t: ReturnType<typeof useT>): string {
     return t("discord.overview.members.noRelation");
 }
 
-function Members({ members, user, guildParams }: { members: MemberActivity[]; user: SessionUser | null; guildParams: Record<string, string> }) {
+function Members({ members, user }: { members: MemberActivity[]; user: SessionUser | null }) {
     const t = useT();
     const [all, setAll] = useState(false);
     const joins = members.filter((m) => m.kind === "join").length;
@@ -194,7 +191,7 @@ function Members({ members, user, guildParams }: { members: MemberActivity[]; us
                             <span className={`dov-mem-kind dov-mem-${m.kind}`}>{t(`discord.overview.members.${m.kind}`)}</span>
                             <span className="dov-mem-main">
                                 {linked
-                                    ? <Link className="dov-mem-name" to={`/channels/members?${new URLSearchParams({ user: m.userId, ...guildParams }).toString()}`}>{m.name || m.userId}</Link>
+                                    ? <Link className="dov-mem-name" to={`/channels/members?${new URLSearchParams({ user: m.userId }).toString()}`}>{m.name || m.userId}</Link>
                                     : <span className="dov-mem-name">{m.name || m.userId}</span>}
                                 <span className={`dov-mem-rel${m.relation.rosters.length ? "" : " dov-muted"}`}>{relationText(m, t)}</span>
                             </span>

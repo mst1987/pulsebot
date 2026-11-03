@@ -1,12 +1,11 @@
 // System › Discord › Übersicht: the overview as the first tab, "Alles in Ordnung"
 // or the points that need attention with their buttons, joins and leaves, the
-// fixed messages, the bot check of the picked server, the bot offline, no server
-// set, the server picker (#895) and the throttled "Neu prüfen" per server.
+// fixed messages, the bot check of the server in the sidebar, the bot offline, no
+// server set and the throttled "Neu prüfen".
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useLocation } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
 import type { DiscordOverview } from "../../../api";
@@ -85,11 +84,6 @@ beforeEach(() => {
 
 const open = () => renderPage(<DiscordOverviewPage />, { route: "/channels/overview" });
 
-function SearchProbe() {
-    const location = useLocation();
-    return <span data-testid="search">{location.search}</span>;
-}
-
 describe("Discord-Übersicht", () => {
     it("is the first tab and says all is well when nothing is open", async () => {
         open();
@@ -125,7 +119,7 @@ describe("Discord-Übersicht", () => {
         expect(screen.getByRole("link", { name: "In Discord öffnen" })).toHaveAttribute("href", "https://discord.com/channels/g1/c2/m2");
     });
 
-    it("shows the bot check of the picked server in one column", async () => {
+    it("shows the bot check of the server in one column", async () => {
         open();
         const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
         expect(within(check).getAllByRole("columnheader").map((h) => h.textContent)).toEqual(
@@ -135,15 +129,13 @@ describe("Discord-Übersicht", () => {
         expect(within(check).getAllByText("ok")).toHaveLength(2);
     });
 
-    it("shows the other server's bot check after picking it, sorted by state", async () => {
-        const user = userEvent.setup();
-        renderPage(<><DiscordOverviewPage /><SearchProbe /></>, { route: "/channels/overview" });
-        await screen.findByText("Alles in Ordnung");
-        expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", false);
-        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
-        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenLastCalledWith("g2", false));
-        expect(screen.getByTestId("search")).toHaveTextContent(/^\?guild=g2$/);
+    it("shows the server active in the sidebar and offers no switch of its own", async () => {
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview", activeGuildId: "g2" });
         const check = (await screen.findByRole("heading", { name: "Bot-Check" })).closest("section")!;
+        expect(api.getDiscordOverview).toHaveBeenCalledWith("g2", false);
+        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g1", false);
+        expect(screen.queryByRole("radio", { name: "Testgilde" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("radio", { name: "Talkgilde" })).not.toBeInTheDocument();
         const posts = within(check).getByText("Event-Posts, Anmelder-Nachricht, Setup, Pings").closest("tr")!;
         expect(within(posts).getByText("fehlt")).toBeInTheDocument();
         expect(posts.querySelector(".dov-fn-missing")!.textContent).toBe("Nachrichten senden");
@@ -152,35 +144,26 @@ describe("Discord-Übersicht", () => {
         expect(within(check).getAllByRole("row")[1]).toBe(posts);
     });
 
-    it("opens the server from the link", async () => {
-        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?guild=g2" });
-        expect(await screen.findByText("Recht fehlt: Nachrichten senden")).toBeInTheDocument();
-        expect(screen.getByRole("radio", { name: "Talkgilde" })).toBeChecked();
-        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g1", false);
-    });
-
-    // #897: an old ?side=talk link opens the first server
-    it("opens the first server from an old ?side=talk link", async () => {
-        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?side=talk" });
-        expect(await screen.findByRole("radio", { name: "Testgilde" })).toBeChecked();
+    it("stays on the active server for an old link with ?guild=", async () => {
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?guild=g2", activeGuildId: "g1" });
+        await screen.findByText("Alles in Ordnung");
         expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g2", false);
     });
 
-    it("says when no server is set and hides the picker", async () => {
+    it("says why when the active server is not in the server list, instead of showing another one", async () => {
+        vi.mocked(api.getDiscordOverview).mockRejectedValue({ code: "unknown_guild", message: "Diesen Server gibt es in der Serverliste nicht." });
+        renderPage(<DiscordOverviewPage />, { route: "/channels/overview", activeGuildId: "g9" });
+        expect(await screen.findByText(/Diesen Server gibt es in der Serverliste nicht/)).toBeInTheDocument();
+        expect(api.getDiscordOverview).toHaveBeenCalledWith("g9", false);
+    });
+
+    it("says when no server is set", async () => {
         vi.mocked(api.getServerChoices).mockResolvedValue([]);
         event = NONE;
         open();
         expect(await screen.findByText(/Kein Server eingestellt/)).toBeInTheDocument();
         expect(api.getDiscordOverview).toHaveBeenCalledWith("", false);
-        expect(screen.queryByRole("radiogroup", { name: "Server" })).not.toBeInTheDocument();
         expect(screen.getByRole("button", { name: /Neu prüfen/ })).toBeDisabled();
-    });
-
-    it("keeps the member links on the picked server", async () => {
-        event = BUSY;
-        talk = { ...BUSY, guildId: "g2" };
-        renderPage(<DiscordOverviewPage />, { route: "/channels/overview?guild=g2" });
-        expect(await screen.findByRole("link", { name: "Thrall" })).toHaveAttribute("href", "/channels/members?user=u7&guild=g2");
     });
 
     it("says when the bot is offline instead of listing points", async () => {
@@ -200,24 +183,6 @@ describe("Discord-Übersicht", () => {
         await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", true));
         const button = await screen.findByRole("button", { name: /Neu prüfen in \d+ s/ });
         expect(button).toBeDisabled();
-    });
-
-    it("asks afresh only for the server it was clicked on and keeps the wait per server", async () => {
-        const user = userEvent.setup();
-        open();
-        await screen.findByText("Alles in Ordnung");
-        await user.click(screen.getByRole("button", { name: "Neu prüfen" }));
-        await waitFor(() => expect(api.getDiscordOverview).toHaveBeenCalledWith("g1", true));
-        expect(await screen.findByRole("button", { name: /Neu prüfen in \d+ s/ })).toBeDisabled();
-        // the other server has its own gap: it may be checked right away
-        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
-        expect(await screen.findByText("Recht fehlt: Nachrichten senden")).toBeInTheDocument();
-        expect(api.getDiscordOverview).not.toHaveBeenCalledWith("g2", true);
-        expect(screen.getByRole("button", { name: "Neu prüfen" })).toBeEnabled();
-        // back to the first server: its wait is still running
-        await user.click(screen.getByRole("radio", { name: "Testgilde" }));
-        await screen.findByText("Alles in Ordnung");
-        expect(screen.getByRole("button", { name: /Neu prüfen in \d+ s/ })).toBeDisabled();
     });
 
     it("says the bot cannot check instead of all being well when it is not on the server", async () => {

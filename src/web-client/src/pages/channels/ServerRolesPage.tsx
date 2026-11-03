@@ -1,4 +1,4 @@
-import { Fragment, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { Fragment, useMemo, useState, type CSSProperties } from "react";
 import { useOutletContext, useSearchParams } from "react-router-dom";
 import { getServerRoles, type ServerRole, type ServerRoles } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -6,8 +6,7 @@ import type { ShellContext } from "../../components/shell/Shell";
 import { Badge, PageHead, Switch } from "../../components/ui";
 import { SortTh } from "../../components/ui/table/SortTh";
 import DiscordTabs from "../../components/channels/DiscordTabs";
-import ServerPicker from "../../components/channels/ServerPicker";
-import { pickSearch, useServerPick } from "../../hooks/useServerPick";
+import { useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { useTableSort, type TableSort } from "../../lib/ui/tableSort";
 import { permissionLabel } from "../../lib/discord/permissions";
@@ -17,8 +16,8 @@ import ServerRoleDrawer from "./ServerRoleDrawer";
 import "../../styles/server-roles.css";
 import { useT } from "../../i18n";
 
-// System › Discord › Rollen (docs/channels.md): every role of one server of the
-// server list (picker in the controls, #895) as Discord orders it — the colour and name, how many have it, what
+// System › Discord › Rollen (docs/channels.md): every role of the active server (the
+// one in the sidebar) as Discord orders it — the colour and name, how many have it, what
 // it means for the bot, its sensitive permissions and whether the bot can hand it
 // out. A line marks the bot's own role: everything below it the bot can give.
 // Sensitive permissions that are normal on the server (@everyone or most roles
@@ -35,17 +34,15 @@ const SENSITIVE_SHOWN = 2;
 export default function ServerRolesPage() {
     const { user } = useOutletContext<ShellContext>();
     const t = useT();
-    // the open role lives in the URL (`?role=<id>`, `&guild=<id>` beyond the first server): opening
-    // adds a history step the browser's back button undoes (push), closing and switching the server
-    // replace it — as on the members page
+    // the open role lives in the URL (`?role=<id>`): opening adds a history step the browser's
+    // back button undoes (push), closing replaces it — as on the members page
     const [params, setParams] = useSearchParams();
     const pick = useServerPick();
     const guildId = pick.guildId;
     const [onlyHints, setOnlyHints] = useState(false);
     const openId = params.get("role");
-    const query = (id: string | null) => ({ ...(id ? { role: id } : {}), ...pick.param(guildId) });
-    const open = (id: string) => setParams(query(id));
-    const close = () => setParams(query(null), { replace: true });
+    const open = (id: string) => setParams({ role: id });
+    const close = () => setParams({}, { replace: true });
     const state = useApi(() => getServerRoles(guildId), [guildId], { enabled: pick.ready });
     const sort = useTableSort<SortKey>("server-roles-sort", SORT_DEFAULTS, "pos");
     const data = state.data && (!guildId || state.data.guildId === guildId) ? state.data : null;
@@ -53,7 +50,6 @@ export default function ServerRolesPage() {
     const rankOf = useMemo(() => ranks(data ? data.roles : []), [data]);
     const counted = data ? data.roles.filter((r) => !r.everyone).length : 0;
 
-    const sideSegment = <ServerPicker pick={pick} drop={["role"]} />;
 
     return (
         <div className="drl-page">
@@ -63,19 +59,19 @@ export default function ServerRolesPage() {
                 title={t("discord.roles.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}
             />
-            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
+            <DiscordTabs user={user} guildId={guildId} />
 
             {state.error && !data && <p className="empty">{t("discord.roles.page.loadError", { message: state.error.message })}</p>}
-            {!data && !state.error && <><div className="drl-controls">{sideSegment}</div><RaidLoader text={t("discord.roles.page.loading")} /></>}
+            {!data && !state.error && <RaidLoader text={t("discord.roles.page.loading")} />}
             {data && (
                 <RolesView
-                    data={data} rankOf={rankOf} counted={counted} sideSegment={sideSegment} onlyHints={onlyHints} setOnlyHints={setOnlyHints}
+                    data={data} rankOf={rankOf} counted={counted} onlyHints={onlyHints} setOnlyHints={setOnlyHints}
                     sort={sort} openId={openId} onOpen={open}
                 />
             )}
             {data && data.guildId && openId && (
                 <ServerRoleDrawer
-                    guildId={data.guildId} guildParams={pick.param(data.guildId)} roleId={openId} guildName={data.guildName}
+                    guildId={data.guildId} roleId={openId} guildName={data.guildName}
                     rank={rankOf.get(openId) ?? null} counted={counted} onClose={close}
                 />
             )}
@@ -98,12 +94,11 @@ function HeadBadges({ data }: { data: ServerRoles }) {
     );
 }
 
-function RolesView({ data, rankOf, counted, sideSegment, onlyHints, setOnlyHints, sort, openId, onOpen }: {
+function RolesView({ data, rankOf, counted, onlyHints, setOnlyHints, sort, openId, onOpen }: {
     data: ServerRoles;
     rankOf: Map<string, number | null>;
     /** the roles without @everyone */
     counted: number;
-    sideSegment: ReactNode;
     onlyHints: boolean;
     setOnlyHints: (on: boolean) => void;
     sort: TableSort<SortKey>;
@@ -116,7 +111,6 @@ function RolesView({ data, rankOf, counted, sideSegment, onlyHints, setOnlyHints
 
     const controls = (
         <div className="drl-controls">
-            {sideSegment}
             {data.guildId && data.online && (
                 <Switch
                     checked={onlyHints} onChange={setOnlyHints}
