@@ -23,6 +23,7 @@ jest.mock("../../../src/services/signups/availabilityPanel", () => mockJob("star
 jest.mock("../../../src/services/orgaHub/orgaHub", () => mockJob("startOrgaHubs", "stopOrgaHubs"));
 jest.mock("../../../src/services/vermerke/orgaSignupNotice", () => mockJob("startOrgaSignupNotice", "stopOrgaSignupNotice"));
 jest.mock("../../../src/services/events/overview/raidOverview", () => mockJob("startRaidOverviews", "stopRaidOverviews"));
+jest.mock("../../../src/web/roster/rosterImageLive", () => mockJob("startRosterImageLive", "stopRosterImageLive"));
 jest.mock("../../../src/services/addons/addonCenter", () => mockJob("startAddonCenter", "stopAddonCenter"));
 jest.mock("../../../src/services/guildbank/itemMeta", () => mockJob("startMetaRefresh", "stopMetaRefresh"));
 jest.mock("../../../src/services/loot/softresDetect", () => mockJob("startSoftresDetect", "stopSoftresDetect"));
@@ -38,7 +39,7 @@ const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
     "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startWclGuildSync", "startEventMessageSync",
-    "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startOrgaHubs", "startOrgaSignupNotice", "startRaidOverviews", "startAddonCenter", "startMetaRefresh", "startSoftresDetect", "startSoftresStatus", "startBackupJob", "startRestoreTestJob", "startBackupAlerts", "startTempVoice",
+    "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startOrgaHubs", "startOrgaSignupNotice", "startRaidOverviews", "startRosterImageLive", "startAddonCenter", "startMetaRefresh", "startSoftresDetect", "startSoftresStatus", "startBackupJob", "startRestoreTestJob", "startBackupAlerts", "startTempVoice",
 ];
 
 beforeEach(() => {
@@ -54,7 +55,7 @@ describe("web/http/jobs", () => {
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
             "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "wclGuildSync", "eventMessageSync",
-            "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "orgaHubs", "orgaSignupNotice", "raidOverviews", "addonCenter", "guildBankItemMeta", "softresDetect", "softresStatus", "backupSnapshots", "backupRestoreTest", "backupAlerts", "tempVoice",
+            "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "orgaHubs", "orgaSignupNotice", "raidOverviews", "rosterImageLive", "addonCenter", "guildBankItemMeta", "softresDetect", "softresStatus", "backupSnapshots", "backupRestoreTest", "backupAlerts", "tempVoice",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
     });
@@ -63,7 +64,7 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, wclGuildSync, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, orgaSignupNotice, raidOverviews, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts, tempVoice"]);
+        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, wclGuildSync, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, orgaSignupNotice, raidOverviews, rosterImageLive, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts, tempVoice"]);
     });
 
     // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
@@ -108,7 +109,7 @@ describe("web/http/jobs", () => {
         mockCalls.length = 0;
         stopJobs();
         expect(mockCalls).toEqual([
-            "stop:stopTempVoice", "stop:stopBackupAlerts", "stop:stopRestoreTestJob", "stop:stopBackupJob", "stop:stopSoftresStatus", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopAddonCenter", "stop:stopRaidOverviews", "stop:stopOrgaSignupNotice", "stop:stopOrgaHubs", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
+            "stop:stopTempVoice", "stop:stopBackupAlerts", "stop:stopRestoreTestJob", "stop:stopBackupJob", "stop:stopSoftresStatus", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopAddonCenter", "stop:stopRosterImageLive", "stop:stopRaidOverviews", "stop:stopOrgaSignupNotice", "stop:stopOrgaHubs", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
             "stop:stopEventMessageSync", "stop:stopWclGuildSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
         ]);
         mockCalls.length = 0;

@@ -16,7 +16,7 @@ const rosterStore = require("../../../src/stores/roster/rosterStore");
 const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const characterStore = require("../../../src/stores/roster/characterStore");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { modelFromDetail, rosterImageModel, rosterPicture } = require("../../../src/web/roster/rosterImageView");
+const { modelFromDetail, rosterImageModel, rosterPicture, pictureHash, drawPicture, pictureLine } = require("../../../src/web/roster/rosterImageView");
 
 const G = "g1";
 const ANNA = "200000000000000001";
@@ -78,6 +78,49 @@ describe("web/roster/rosterImageView modelFromDetail", () => {
     });
 });
 
+describe("web/roster/rosterImageView pictureHash / pictureLine", () => {
+    const SECOND_CHAR = { classId: "Mage", color: "#69CCF0", spec: "" };
+    const thorgrim = { name: "Thorgrim", status: "core", role: "tank", extraChars: [SECOND_CHAR] };
+    const lunaria = { name: "Lunaria", status: "bench", extraChars: [] };
+    const model = { name: "Kern", versionLabel: "TBC", stand: NOW, slots: { total: 10 }, members: [thorgrim, lunaria] };
+
+    it("ignores the date alone", () => {
+        expect(pictureHash({ ...model, stand: NOW + 86400000 })).toBe(pictureHash(model));
+    });
+
+    it("ignores what the picture does not show: bench and pause or further chars with the switch off", () => {
+        const paused = { ...model, members: [thorgrim, { ...lunaria, status: "pause" }] };
+        expect(pictureHash(paused)).toBe(pictureHash(model));
+        expect(pictureHash(paused, { reserve: true })).not.toBe(pictureHash(model, { reserve: true }));
+        const noSecond = { ...model, members: [{ ...thorgrim, extraChars: [] }, lunaria] };
+        expect(pictureHash(noSecond)).toBe(pictureHash(model));
+        expect(pictureHash(noSecond, { chars: true })).not.toBe(pictureHash(model, { chars: true }));
+    });
+
+    it("changes with what the picture shows, its switches and its language", () => {
+        const base = pictureHash(model, { lang: "de" });
+        expect(base).toMatch(/^[0-9a-f]{64}$/);
+        expect(pictureHash(model, { reserve: true, lang: "de" })).not.toBe(base);
+        expect(pictureHash(model, { chars: true, lang: "de" })).not.toBe(base);
+        expect(pictureHash(model, { lang: "en" })).not.toBe(base);
+        expect(pictureHash({ ...model, members: [{ ...thorgrim, status: "bench" }, lunaria] }, { lang: "de" })).not.toBe(base);
+        expect(pictureHash({ ...model, name: "Kern 2" }, { lang: "de" })).not.toBe(base);
+    });
+
+    it("changes with the planned class of somebody without a character", () => {
+        const view = (className) => ({
+            roster: { versionId: "tbc" },
+            members: [{ userId: "u4", displayName: "Mira", status: "core", chars: [], planned: { className, classColor: "#69CCF0", spec: "" } }],
+        });
+        expect(pictureHash(modelFromDetail(view("Mage"), { now: NOW }))).not.toBe(pictureHash(modelFromDetail(view("Druid"), { now: NOW })));
+    });
+
+    it("words the short line in the roster's language", () => {
+        expect(pictureLine("de", "Kern", NOW)).toBe("Roster Kern, Stand 30.10.2026");
+        expect(pictureLine("en", "Kern", NOW)).toMatch(/^Roster Kern as of /);
+    });
+});
+
 describe("web/roster/rosterImageView rosterImageModel / rosterPicture", () => {
     let count = 0;
     let rosterId;
@@ -118,6 +161,21 @@ describe("web/roster/rosterImageView rosterImageModel / rosterPicture", () => {
             expect(svg).not.toContain("14.11.");
             expect(svg).not.toContain(">bis ");
         }
+    });
+
+    it("gives the picture's hash, the same one the job gets for the same switches", async () => {
+        rosterStore.upsertMember(rosterId, BERT, { status: "bench" });
+        const picture = await rosterPicture({ guildId: G, id: rosterId, config: CONFIG, now: NOW, showReserve: true });
+        const built = await rosterImageModel({ guildId: G, id: rosterId, config: CONFIG, now: NOW + 86400000 });
+        expect(picture.hash).toBe(pictureHash(built.model, { reserve: true, chars: false, lang: built.lang }));
+        expect(picture.hash).not.toBe(pictureHash(built.model, { reserve: false, chars: false, lang: built.lang }));
+    });
+
+    it("draws a built model on request, as SVG and PNG", async () => {
+        const built = await rosterImageModel({ guildId: G, id: rosterId, config: CONFIG, now: NOW });
+        const { svg, png } = drawPicture(built, { showReserve: true });
+        expect(svg).toContain(">Thorgrim<");
+        expect(png.subarray(1, 4).toString()).toBe("PNG");
     });
 
     it("is null for an unknown roster or one of another server", async () => {

@@ -65,7 +65,9 @@ answer, a note, a vote, a comment, the Verlauf or the activity log; `kaderSummar
 and the roster link id, name, two counts and the Kader's `attendanceCategories` (category ids, no person in them);
 `plannedPicks(guildId, kaderId)` answers `{ [userId]: { className, spec } }` for a linked roster's members without a
 character (the decision, else the first wish, else the active character's main spec; states of `TAKEOVER_STATES`; never the
-Planspiel, read live, not stored in the roster, every reader of the roster sees it — docs/roster-profile.md "Spec eines Mitglieds").
+Planspiel, read live, not stored in the roster, every reader of the roster sees it — docs/roster-profile.md "Spec eines Mitglieds";
+a roster picture posted in Discord shows class and spec too and follows a change by itself within about a minute, so a changed
+first wish reaches that channel without a click).
 Outside the Kaderplaner `rosterCreate.js`, `rosterTakeover.js` and `memberSpec.js` require it, and they require
 nothing else of the planner (`test/stores/roster/kaderStore.test.js`); `test/services/kader/kaderRoster.test.js` and the
 roster suites fill every private field with a marker and assert it never reaches the answer or `rosters.json`. The

@@ -191,7 +191,7 @@ describe("RosterDetailPage - who sees which tab (epic #723)", () => {
 
     it("gives a raider 'Als Bild' too: the dialog with preview and download, without posting", async () => {
         vi.mocked(api.getRosterComposition).mockResolvedValue(composition());
-        vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: false, channelId: null, channels: [] });
+        vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: false, channelId: null, channels: [], live: null });
         await openPage(detail(MEMBERS, { isOrga: false, canManage: false }));
         expect(screen.queryByRole("button", { name: "Einstellungen" })).not.toBeInTheDocument();
         await userEvent.click(screen.getByRole("button", { name: "Als Bild" }));

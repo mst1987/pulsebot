@@ -62,6 +62,17 @@ describe("fetchGuildMembersCached: stale-while-revalidate", () => {
         expect(guild.members.fetch).toHaveBeenCalledTimes(1);
     });
 
+    it("a background caller reads a stale list without fetching, up to the hard limit", async () => {
+        const guild = guildAnswering(["1"], ["2"]);
+        await discord.fetchGuildMembersCached("g1", guild);
+        jest.advanceTimersByTime(STALE_MAX - 1);
+        expect(idsOf(await discord.fetchGuildMembersCached("g1", guild, { background: true }))).toEqual(["1"]);
+        expect(guild.members.fetch).toHaveBeenCalledTimes(1);
+        jest.advanceTimersByTime(1);
+        expect(idsOf(await discord.fetchGuildMembersCached("g1", guild, { background: true }))).toEqual(["2"]);
+        expect(guild.members.fetch).toHaveBeenCalledTimes(2);
+    });
+
     it("serves a stale list at once and refreshes it once in the background", async () => {
         const { guild, answers } = guildWithAnswers();
         const first = discord.fetchGuildMembersCached("g1", guild);

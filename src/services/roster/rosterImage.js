@@ -1,7 +1,8 @@
 // The roster as a drawn picture ("Roster als Bild", design canvas variant A, Oct 2026: the
 // composition of a Raid-Helper roster post). Pure: the roster in, an SVG string out; the web
 // route renders it to a PNG through services/discord/discordImage.js and offers it as a
-// download or posts it into a channel - a fixed snapshot, it does not update itself.
+// download or posts it into a channel. A download stays a snapshot; a posted picture is kept
+// current by the job in web/roster/rosterImageLive.js.
 //
 //   Kern-Roster                                                          23/25
 //   TBC · Stand 30.10.2026                                              Plätze

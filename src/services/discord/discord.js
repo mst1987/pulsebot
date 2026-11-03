@@ -271,12 +271,17 @@ function refreshGuildMembers(guildId, guild) {
  * @param {{ fresh?: boolean }} [opts] `fresh` waits for a list fetched now (or
  *   joins the fetch already running): for the background jobs that write roles
  *   from the list, never for a page.
+ * @param {{ background?: boolean }} [opts] `background` takes the list as it is up to
+ *   MEMBERS_STALE_MAX_MS, without a refresh: for a job asking every minute, which would
+ *   otherwise keep a full fetch going around the clock. Names and roles in the list stay
+ *   current anyway (see above), so it only learns later who joined or left.
  */
-async function fetchGuildMembersCached(guildId, guild, { fresh = false } = {}) {
+async function fetchGuildMembersCached(guildId, guild, { fresh = false, background = false } = {}) {
     const key = String(guildId);
     const cached = membersCache.get(key);
     const age = cached ? Date.now() - cached.at : Infinity;
     if (!fresh && age < MEMBERS_CACHE_TTL_MS) return cached.members;
+    if (!fresh && background && age < MEMBERS_STALE_MAX_MS) return cached.members;
     if (!fresh && age < MEMBERS_STALE_MAX_MS) {
         refreshGuildMembers(key, guild).catch((e) => {
             logger.warn(`member list refresh of ${key} failed, keeping the list from ${Math.round(age / 1000)} s ago:`, (e && e.message) || e);
@@ -378,13 +383,15 @@ function avatarUrlOf(member) {
  * Same cached full fetch as listMembersWithRoles(), so it needs the
  * GuildMembers intent too; a failure comes back as `error` with an empty list,
  * never thrown.
+ * @param {string} guildId
+ * @param {{ background?: boolean }} [opts] see fetchGuildMembersCached
  * @returns {Promise<{ members: {id:string, displayName:string, avatarUrl:string|null, roleIds:string[]}[], error: string|null }>}
  */
-async function listHumanMembers(guildId) {
+async function listHumanMembers(guildId, opts = {}) {
     const guild = getGuild(guildId);
     if (!guild) return { members: [], error: "Server nicht gefunden oder Bot nicht verbunden." };
     try {
-        const all = await fetchGuildMembersCached(guildId, guild);
+        const all = await fetchGuildMembersCached(guildId, guild, opts);
         const members = all
             .filter((m) => m && m.user && !m.user.bot)
             .map((m) => ({

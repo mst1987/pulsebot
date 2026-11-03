@@ -30,6 +30,7 @@ const availabilityPanel = require("../../services/signups/availabilityPanel");
 const orgaHub = require("../../services/orgaHub/orgaHub");
 const orgaSignupNotice = require("../../services/vermerke/orgaSignupNotice");
 const raidOverview = require("../../services/events/overview/raidOverview");
+const rosterImageLive = require("../roster/rosterImageLive");
 const addonCenter = require("../../services/addons/addonCenter");
 const softresDetect = require("../../services/loot/softresDetect");
 const softresStatus = require("../../services/loot/softresStatus");
@@ -81,6 +82,8 @@ const JOBS = [
     { name: "orgaSignupNotice", start: () => orgaSignupNotice.startOrgaSignupNotice(), stop: () => orgaSignupNotice.stopOrgaSignupNotice() },
     // The raid overviews /createoverview posted per category: redrawn on every change and swept every 5 minutes; old ones are adopted once.
     { name: "raidOverviews", start: () => raidOverview.startRaidOverviews(), stop: () => raidOverview.stopRaidOverviews() },
+    // The posted roster pictures (docs/roster-profile.md): checked every minute, the same message edited on a change; nothing until one is posted.
+    { name: "rosterImageLive", start: () => rosterImageLive.startRosterImageLive(), stop: () => rosterImageLive.stopRosterImageLive() },
     // The addon download centre in Discord (docs/addons.md): new versions checked every 15 minutes, announced and
     // marked "NEU", the centre redrawn or posted anew; nothing until a centre is posted.
     { name: "addonCenter", start: () => addonCenter.startAddonCenter(), stop: () => addonCenter.stopAddonCenter() },
