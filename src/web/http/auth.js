@@ -13,7 +13,7 @@ const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissio
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const {
-    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild,
+    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank,
 } = require("../../services/discord/members/userAccess");
 const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
@@ -22,7 +22,7 @@ const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, adminCheckedAt, activeGuildId? }
 // `guildAccess` is userAccess.computeGuildAccess(): `{ isAdmin, guilds: { [guildId]:
-// { access, isOrga? } } }` — the rights per Discord server (#925). The session
+// { access, isOrga?, isMember?, isServerAdmin? } } }` — the rights per Discord server (#925). The session
 // never carries one "global" access map: getUser() hands out the rights of the
 // request's active server (activeGuildOf) only.
 const SESSIONS_FILE = dataPath("sessions.json");
@@ -115,6 +115,7 @@ function applyGuildAccess(s, guildAccess) {
     s.isAdmin = !!guildAccess.isAdmin;
     delete s.access;
     delete s.isOrga;
+    delete s.isServerAdmin;
 }
 
 /**
@@ -140,8 +141,8 @@ function allServersAccessOf(guildAccess) {
 
 /**
  * The user object a reader sees: a copy of the session carrying the rights of
- * the active server — `access`, `isOrga` — plus `allAccess` (the union over
- * every server) and `guildId`. A session without per-server rights yet (one
+ * the active server — `access`, `isOrga`, `isServerAdmin` — plus `allAccess` (the
+ * union over every server) and `guildId`. A session without per-server rights yet (one
  * from before #925, until ensureAccess or the next re-check filled it) gets only
  * the base access of the server: fail closed, never the old global map.
  */
@@ -150,13 +151,15 @@ function userView(s, guildId) {
     delete copy.guildAccess;
     delete copy.access;
     delete copy.isOrga;
+    delete copy.isServerAdmin;
     const ga = s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
-    const { isAdmin, access, isOrga } = accessForGuild(ga, s.id, guildId);
+    const { isAdmin, access, isOrga, isServerAdmin } = accessForGuild(ga, s.id, guildId);
     return {
         ...copy,
         isAdmin,
         access,
         ...(isOrga ? { isOrga: true } : {}),
+        ...(isServerAdmin ? { isServerAdmin: true } : {}),
         allAccess: isAdmin ? fullAccess() : mergeAccess(allServersAccessOf(ga), access),
         guildId: guildId || "",
     };
@@ -183,7 +186,8 @@ async function ensureAccess(req) {
  * config once its cached value is older than ADMIN_REFRESH_MS. Runs in the
  * background — the current request keeps the cached status, the next one sees
  * the result. A failed lookup (bot offline, Discord unreachable) keeps the last
- * known status instead of demoting a working session.
+ * known status instead of demoting a working session — except a server-admin
+ * rank (#1072), which never outlives an unanswered lookup.
  */
 function maybeRefreshAdmin(sid, s) {
     if (sid === DEV_SID) return; // dev auto-login session is always admin
@@ -192,7 +196,10 @@ function maybeRefreshAdmin(sid, s) {
     refreshingSids.add(sid);
     computeGuildAccess(s.id)
         .then((guildAccess) => applyGuildAccess(s, guildAccess))
-        .catch((e) => console.warn(`Admin re-check failed for ${s.id}:`, e.message))
+        .catch((e) => {
+            console.warn(`Admin re-check failed for ${s.id}:`, e.message);
+            if (s.guildAccess) applyGuildAccess(s, withoutServerAdminRank(s.guildAccess, s.id));
+        })
         .finally(() => {
             s.adminCheckedAt = Date.now();
             refreshingSids.delete(sid);

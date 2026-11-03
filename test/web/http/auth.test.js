@@ -449,14 +449,15 @@ describe("web/http/auth", () => {
             expect(user.access.raids).toEqual({ read: false, write: false });
         });
 
-        it("skips the Discord lookup entirely when nothing is configured", async () => {
+        // #1072: the server-admin rank comes from Discord, not from the settings
+        it("asks Discord even when nothing is configured", async () => {
             getConfig.mockImplementation(() => onServer({ adminRoleIds: [], rolePermissions: {} }));
             const fetch = jest.fn();
             discord.setClient(fakeClient(fetch).client);
 
             const { req } = await loginAs("604");
 
-            expect(fetch).not.toHaveBeenCalled();
+            expect(fetch).toHaveBeenCalledWith("604");
             expect(auth.getUser(req).isAdmin).toBe(false);
         });
 
@@ -481,16 +482,14 @@ describe("web/http/auth", () => {
                 expect(user.access.settings).toEqual({ read: false, write: false });
             });
 
-            it("still applies when nothing else is configured — without a Discord lookup", async () => {
+            it("still applies when nothing else is configured — whatever Discord answers", async () => {
                 getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [], rolePermissions: {}, baseAccess: { loot: { read: true, write: false } },
                 }));
-                const fetch = jest.fn();
-                discord.setClient(fakeClient(fetch).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
 
                 const { req } = await loginAs("607");
 
-                expect(fetch).not.toHaveBeenCalled();
                 expect(auth.getUser(req).access.loot).toEqual({ read: true, write: false });
             });
 
@@ -557,14 +556,12 @@ describe("web/http/auth", () => {
                 expect(user.access.history).toEqual({ read: false, write: false });
             });
 
-            it("needs no Discord lookup when nothing role-based is configured", async () => {
+            it("needs no answer from Discord when nothing role-based is configured", async () => {
                 getConfig.mockImplementation(() => councilFor("614"));
-                const fetch = jest.fn();
-                discord.setClient(fakeClient(fetch).client);
+                discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
 
                 const { req } = await loginAs("614");
 
-                expect(fetch).not.toHaveBeenCalled();
                 expect(auth.getUser(req).access.lootcouncil.write).toBe(true);
             });
 
@@ -733,6 +730,141 @@ describe("web/http/auth", () => {
             // resolveAccess() swallows the "no guild reachable" throw at login time,
             // same as an outage on the single-server setup — never a crash.
             expect(auth.getUser(req).isAdmin).toBe(false);
+        });
+    });
+
+    describe("server-admin rank (#1072)", () => {
+        const FIVE_MIN = 5 * 60 * 1000;
+        const RIGHTS = { "role-b": { raids: { read: true, write: true } } };
+        let now;
+        let nowSpy;
+
+        const asAdministrator = (member = memberWithRoles()) => ({ ...member, permissions: { has: () => true } });
+        const asPlainMember = (member = memberWithRoles()) => ({ ...member, permissions: { has: () => false } });
+
+        beforeEach(() => {
+            axios.post.mockResolvedValue({ data: { access_token: "tok" } });
+            now = Date.now();
+            nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
+            guildRoles.eventGuildIds.mockReturnValue(["guild-1", "guild-2"]);
+        });
+
+        afterEach(() => {
+            nowSpy.mockRestore();
+            discord.setClient(null);
+            getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
+            guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
+        });
+
+        async function loginAs(id) {
+            axios.get.mockResolvedValue({ data: { id, username: `user-${id}` } });
+            const sid = await auth.completeLogin(`code-${id}`);
+            return { sid, req: { headers: { cookie: `sid=${sid}` } } };
+        }
+
+        const userOn = (req, guildId) => {
+            auth.setActiveGuild(req, guildId);
+            return auth.getUser(req);
+        };
+
+        it("shows the rank on its server only, without isAdmin, and keeps it inside guildAccess", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            discord.setClient(fakeMultiGuildClient({
+                "guild-1": jest.fn().mockResolvedValue(asAdministrator()),
+                "guild-2": jest.fn().mockResolvedValue(asPlainMember()),
+            }));
+            const { sid, req } = await loginAs("801");
+            const onOne = userOn(req, "guild-1");
+            expect(onOne).toMatchObject({ isAdmin: false, isOrga: true, isServerAdmin: true });
+            expect(onOne.access.settings).toEqual({ read: true, write: true });
+            const onTwo = userOn(req, "guild-2");
+            expect(onTwo.isAdmin).toBe(false);
+            expect(onTwo.isServerAdmin).toBeUndefined();
+            expect(onTwo.isOrga).toBeUndefined();
+            expect(onTwo.access.settings).toEqual({ read: false, write: false });
+            // no second field on the stored session that could go stale
+            expect(storedSessions()[sid]).not.toHaveProperty("isServerAdmin");
+            expect(storedSessions()[sid].guildAccess.guilds["guild-1"].isServerAdmin).toBe(true);
+        });
+
+        it("a failed re-check removes the rank, the other servers stay as last known", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [], serverSettings: { "guild-2": { rolePermissions: RIGHTS, orgaRoleIds: ["role-b"] } } }));
+            const fetchOne = jest.fn().mockResolvedValue(asAdministrator());
+            const fetchTwo = jest.fn().mockResolvedValue(asPlainMember(memberWithRoles("role-b")));
+            discord.setClient(fakeMultiGuildClient({ "guild-1": fetchOne, "guild-2": fetchTwo }));
+            const { req } = await loginAs("802");
+            expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+
+            fetchOne.mockRejectedValue(new Error("network down"));
+            now += FIVE_MIN + 1000;
+            auth.getUser(req);
+            await flush();
+
+            const onOne = userOn(req, "guild-1");
+            expect(onOne.isServerAdmin).toBeUndefined();
+            expect(onOne.isOrga).toBeUndefined();
+            expect(onOne.access.settings).toEqual({ read: false, write: false });
+            expect(userOn(req, "guild-2")).toMatchObject({ isOrga: true, access: { raids: { read: true, write: true } } });
+        });
+
+        it("a re-check without an answer removes the rank with nothing role-based configured too", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            const fetch = jest.fn().mockResolvedValue(asAdministrator());
+            discord.setClient(fakeMultiGuildClient({ "guild-1": fetch, "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER) }));
+            const { req } = await loginAs("803");
+            expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+
+            fetch.mockRejectedValue(new Error("network down"));
+            now += FIVE_MIN + 1000;
+            auth.getUser(req);
+            await flush();
+            expect(userOn(req, "guild-1").isServerAdmin).toBeUndefined();
+        });
+
+        it("a re-check that finds the right taken away removes the rank", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            const fetch = jest.fn().mockResolvedValue(asAdministrator());
+            discord.setClient(fakeMultiGuildClient({ "guild-1": fetch, "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER) }));
+            const { req } = await loginAs("804");
+            expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+
+            fetch.mockResolvedValue(asPlainMember());
+            now += FIVE_MIN + 1000;
+            auth.getUser(req);
+            await flush();
+            const after = userOn(req, "guild-1");
+            expect(after.isServerAdmin).toBeUndefined();
+            expect(after.access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("may not start a view as a role: the rank is no full admin", async () => {
+            getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+            discord.setClient(fakeMultiGuildClient({ "guild-1": jest.fn().mockResolvedValue(asAdministrator()), "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER) }));
+            const { req } = await loginAs("805");
+            userOn(req, "guild-1");
+            auth.setViewAs(req, ["111111111111111111"]);
+            const user = auth.getUser(req);
+            expect(user.isAdmin).toBe(false);
+            expect(user.isServerAdmin).toBe(true);
+            expect(user.access.settings).toEqual({ read: true, write: true });
+        });
+
+        it("ignores a stray isServerAdmin on a stored session: only guildAccess carries the rank", () => {
+            const stored = {
+                id: "806",
+                createdAt: Date.now(),
+                adminCheckedAt: Date.now(),
+                isServerAdmin: true,
+                guildAccess: { isAdmin: false, guilds: { "guild-1": { access: {} } } },
+            };
+            fs.mkdirSync(DATA_DIR, { recursive: true });
+            fs.writeFileSync(dataPath("sessions.json"), JSON.stringify({ "stray-sid": stored }));
+            jest.isolateModules(() => {
+                const fresh = require("../../../src/web/http/auth.js");
+                const req = { headers: { cookie: "sid=stray-sid" } };
+                fresh.setActiveGuild(req, "guild-1");
+                expect(fresh.getUser(req).isServerAdmin).toBeUndefined();
+            });
         });
     });
 

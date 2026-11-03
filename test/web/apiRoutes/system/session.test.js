@@ -283,7 +283,7 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isServerAdmin: false, isOrga: true, orgaCategories: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
@@ -356,9 +356,19 @@ describe("web/apiRoutes/session", () => {
             const res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             const data = json(res).data;
-            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isOrga: false, orgaCategories: [], access: emptyAccess(), allAccess: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
+            expect(data.user).toEqual({ id: "7", name: "Bob", isAdmin: false, isServerAdmin: false, isOrga: false, orgaCategories: [], access: emptyAccess(), allAccess: emptyAccess(), canViewAs: false, audience: {}, orgaRoles: [] });
             expect(data.guilds).toEqual([]);
             expect(data.activeGuildId).toBe("");
+        });
+
+        // #1072: the client's only sign of the rank; it stays no full admin
+        it("delivers isServerAdmin for the rank on the active server, without the rights of a full admin", async () => {
+            const rank = { id: "7", name: "Bob", isAdmin: false, isServerAdmin: true, isOrga: true, access: fullAccess() };
+            auth.getUser.mockReturnValue(rank);
+            auth.getRealUser.mockReturnValue(rank);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(json(res).data.user).toMatchObject({ isAdmin: false, isServerAdmin: true, isOrga: true, canViewAs: false, access: fullAccess() });
         });
 
         // #729: the orga of a category - the client shows them the orga's parts of their raids
