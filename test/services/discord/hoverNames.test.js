@@ -5,13 +5,15 @@ jest.mock("../../../src/config/variables", () => ({ publicBaseUrl: "https://eh.e
 const discord = require("../../../src/services/discord/discord");
 const variables = require("../../../src/config/variables");
 const {
-    LINK_CAPS, NAME_WAIT_MS, eventHasLastNames, discordNameText, hoverTitle, hoverNames, fitLinks, resolveHoverNames, _resetForTests,
+    LINK_CAPS, NAME_WAIT_MS, eventHasLastNames, discordNameText, discordLinkText, hoverTitle, hoverNames, fitLinks, resolveHoverNames, _resetForTests,
 } = require("../../../src/services/discord/hoverNames");
 
 const URL = "https://eh.example/e/eh-1";
 const ZWSP = String.fromCharCode(0x200b);
 const ZWJ = String.fromCharCode(0x200d);
 const RLO = String.fromCharCode(0x202e);
+// What Discord draws as nothing: Hangul filler, Braille blank, variation selector.
+const BLANKS = [0x3164, 0x2800, 0xfe0f].map((c) => String.fromCharCode(c));
 const forever = { id: "eh-1", guildId: "g1", versionId: "forever" };
 const tbc = { id: "eh-2", guildId: "g1", versionId: "tbc" };
 
@@ -40,7 +42,6 @@ describe("discordNameText", () => {
         ["back\\slash", "back\\\\slash"],
         ["(Tank)", "\\(Tank\\)"],
         ["[Offi] Lu", "\\(Offi\\) Lu"],
-        ["<:x:123>", "\\<:x:123\\>"],
         ["say \"hi\"", "say \"hi\""],
     ])("keeps %j readable and harmless", (name, expected) => {
         expect(discordNameText(name)).toBe(expected);
@@ -48,7 +49,17 @@ describe("discordNameText", () => {
 
     it("never mentions", () => {
         expect(discordNameText("@everyone")).toBe(`@${ZWSP}everyone`);
-        expect(discordNameText("<@123>")).toBe(`\\<@${ZWSP}123\\>`);
+    });
+
+    it.each(["<:x:123>", "<a:x:123>", "<@123>", "<@!123>", "<@&123>", "<#123>", "<t:123:R>"])("removes Discord's syntax %j whole", (name) => {
+        expect(discordNameText(name)).toBe("");
+        expect(discordNameText(`Kira ${name}`)).toBe("Kira");
+    });
+
+    it.each(BLANKS)("takes a name of nothing but the filler %j for empty, and keeps it inside a name", (blank) => {
+        expect(discordNameText(blank)).toBe("");
+        expect(discordNameText(`${blank} ${blank}`)).toBe("");
+        expect(discordNameText(`Ma${blank}rc`)).toBe(`Ma${blank}rc`);
     });
 
     it("cannot end a link's text: no bare square bracket stays", () => {
@@ -86,6 +97,55 @@ describe("discordNameText", () => {
     });
 });
 
+describe("discordLinkText", () => {
+    // measured on Discord: inside a masked link a backslash shows, these read as they are
+    it.each([
+        "(Tank)", "a) b", "a( b", "xX_Shadow_Xx", "Lena | Heal", "Konstantin (Tank)", "# titel", "- liste", "a\"b", "pfad/name",
+    ])("leaves %j as it is", (name) => {
+        expect(discordLinkText(name)).toBe(name);
+    });
+
+    it.each([
+        ["> zitat", "zitat"],
+        ["back\\slash", "backslash"],
+        ["_kursiv_", "kursiv"],
+        ["*stern*", "stern"],
+        ["~~strike~~", "strike"],
+        ["||spoiler||", "|spoiler|"],
+        ["`code`", "code"],
+        ["**fett**", "fett"],
+        ["@everyone", "everyone"],
+        ["Kira <:eh:123>", "Kira"],
+        ["x]y", "x)y"],
+        ["x\\]y", "x)y"],
+        ["Ludmilla [Offi]", "Ludmilla (Offi)"],
+        ["a__b__c", "a_b_c"],
+        ["_a_b_", "a_b"],
+    ])("cleans %j to %j", (name, expected) => {
+        expect(discordLinkText(name)).toBe(expected);
+    });
+
+    it.each(["<@123>", "<@!123>", "<#123>", "<@&123>", "<t:123:R>", "<t:123>", "<:eh:123>", "<a:eh:123>", "</cmd:123>"])("removes Discord's syntax %j without a bare id", (name) => {
+        expect(discordLinkText(name)).toBe("");
+    });
+
+    it.each([
+        "ok](https://evil.example) [z", "evil*.com", "https://evil.example", "www.foo",
+    ])("treats %j as an address: empty, so the character is shown", (name) => {
+        expect(discordLinkText(name)).toBe("");
+    });
+
+    it.each(["***", "___", "`~`", "@", ...BLANKS, ZWSP, "", null, undefined])("is empty when nothing visible is left of %j", (name) => {
+        expect(discordLinkText(name)).toBe("");
+    });
+
+    it("never carries a backslash or a square bracket", () => {
+        for (const name of ["a\\b", "*_~`|\"\\", "[x](y)", "a\\_b", "<@1>\\[x]"]) {
+            expect(discordLinkText(name)).not.toMatch(/[\\[\]]/);
+        }
+    });
+});
+
 describe("hoverTitle", () => {
     it("keeps letters of every alphabet, apostrophe and hyphen", () => {
         expect(hoverTitle("Aldric Sturmwind")).toBe("Aldric Sturmwind");
@@ -118,6 +178,24 @@ describe("hoverNames", () => {
             expect(show({ userId: "9", character: "Aldric Sturmwind" })).toBe("Aldric Sturmwind");
             expect(show({ userId: "2", character: "Aldric Sturmwind" })).toBe("Aldric Sturmwind");
         }
+    });
+
+    it("does not escape in the link, does in the plain text: both read the same", () => {
+        const names = hoverNames({ discordNames: { 1: "Konstantin (Tank)", 2: "xX_Shadow_Xx", 3: "Lena | Heal", 4: "Ludmilla [Offi]" }, url: URL, fallback });
+        const person = (userId) => ({ userId, character: "Aldric Sturmwind" });
+        expect(names.linked(person("1"))).toBe(`[Konstantin (Tank)](<${URL}> "Aldric Sturmwind")`);
+        expect(names.linked(person("2"))).toBe(`[xX_Shadow_Xx](<${URL}> "Aldric Sturmwind")`);
+        expect(names.linked(person("3"))).toBe(`[Lena | Heal](<${URL}> "Aldric Sturmwind")`);
+        expect(names.linked(person("4"))).toBe(`[Ludmilla (Offi)](<${URL}> "Aldric Sturmwind")`);
+        expect(names.plain(person("1"))).toBe("Konstantin \\(Tank\\)");
+        expect(names.plain(person("2"))).toBe("xX\\_Shadow\\_Xx");
+        expect(names.plain(person("3"))).toBe("Lena \\| Heal");
+        expect(names.plain(person("4"))).toBe("Ludmilla \\(Offi\\)");
+    });
+
+    it.each(["***", "<@123>", "<:eh:123>", ...BLANKS])("shows the character for a name with nothing to show: %j", (name) => {
+        const names = hoverNames({ discordNames: { 1: name }, url: URL, fallback });
+        for (const show of [names.linked, names.plain]) expect(show({ userId: "1", character: "Aldric Sturmwind" })).toBe("Aldric Sturmwind");
     });
 
     it("leaves a row without a character to the fallback, even with a known Discord name", () => {
@@ -166,6 +244,22 @@ describe("fitLinks", () => {
         expect(fitLinks(["a", "b"], render, { max: 3 + 6, sep: "\n" })).toEqual(["a", "b"]);
     });
 
+    it("counts a link shorter than its plain text as room, and stays within the budget", () => {
+        // the plain text escapes, the link does not: here a link saves characters
+        const shorter = (item, linked) => (linked ? item : `${item}\\\\\\`);
+        const out = fitLinks(["a", "b"], shorter, { max: 9, sep: "\n" });
+        expect(out).toEqual(["a", "b"]);
+        expect(out.join("\n").length).toBeLessThanOrEqual(9);
+        // the room the first link frees pays for the second's cost
+        const mixed = (item, linked) => {
+            if (item === "a") return linked ? "a" : "a\\\\\\";
+            return linked ? "b-link" : "b";
+        };
+        const fit = fitLinks(["a", "b"], mixed, { max: 11, sep: "\n" });
+        expect(fit).toEqual(["a", "b-link"]);
+        expect(fit.join("\n").length).toBeLessThanOrEqual(11);
+    });
+
     it("handles an empty list", () => {
         expect(fitLinks([], render, { max: 0 })).toEqual([]);
     });
@@ -182,6 +276,30 @@ describe("resolveHoverNames", () => {
         await expect(resolveHoverNames(forever, ["1", "1", 2, "", null])).resolves.toEqual({ 1: "Marc" });
         expect(discord.resolveUserNames).toHaveBeenCalledWith("g1", ["1", "2"], { waitMs: NAME_WAIT_MS });
         expect(NAME_WAIT_MS).toBeLessThan(3000);
+    });
+
+    it("saves the wait when every name is known, still asking for a changed one", async () => {
+        discord.resolveUserNames.mockResolvedValueOnce({ 1: "Marc", 2: "Lena" });
+        await resolveHoverNames(forever, ["1", "2"]);
+        discord.resolveUserNames.mockResolvedValueOnce({ 1: "Marcus" });
+        await expect(resolveHoverNames(forever, ["1", "2"])).resolves.toEqual({ 1: "Marcus", 2: "Lena" });
+        expect(discord.resolveUserNames).toHaveBeenLastCalledWith("g1", ["1", "2"], { waitMs: 0 });
+    });
+
+    it("waits as soon as one name is new, also when a raider joins", async () => {
+        discord.resolveUserNames.mockResolvedValueOnce({ 1: "Marc" });
+        await resolveHoverNames(forever, ["1"]);
+        discord.resolveUserNames.mockResolvedValueOnce({ 2: "Lena" });
+        await expect(resolveHoverNames(forever, ["1", "2"])).resolves.toEqual({ 1: "Marc", 2: "Lena" });
+        expect(discord.resolveUserNames).toHaveBeenLastCalledWith("g1", ["1", "2"], { waitMs: NAME_WAIT_MS });
+    });
+
+    it("waits again for a name that did not arrive, the known ones keep theirs", async () => {
+        discord.resolveUserNames.mockResolvedValueOnce({ 1: "Marc" });
+        await resolveHoverNames(forever, ["1", "2"]);
+        discord.resolveUserNames.mockResolvedValueOnce({});
+        await expect(resolveHoverNames(forever, ["1", "2"])).resolves.toEqual({ 1: "Marc" });
+        expect(discord.resolveUserNames).toHaveBeenLastCalledWith("g1", ["1", "2"], { waitMs: NAME_WAIT_MS });
     });
 
     it("asks Discord for nothing when no name would be used", async () => {

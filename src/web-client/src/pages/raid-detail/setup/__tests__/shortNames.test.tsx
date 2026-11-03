@@ -56,13 +56,24 @@ describe("\"Angemeldet\"", () => {
     it("Forever: the line and the note of a further character are shortened", () => {
         renderPage(<PoolPanel pool={[owner]} ui={readOnly({ shortNames: true })} />);
         expect(screen.getByText(SHORT)).toBeInTheDocument();
-        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: SHORT }))).toBeInTheDocument();
+        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: SHORT }))).toHaveAttribute("data-tip", t("setup.poolPanel.altOf", { n: 2, character: LONG }));
     });
 
-    it("another version: both whole", () => {
+    it("Forever, in the editor: the note keeps its tooltip, the peek shows the further character, not the owner", () => {
+        renderPage(<PoolPanel pool={[owner]} ui={readOnly({ shortNames: true, onLeave: vi.fn() })} />);
+        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: SHORT }))).toHaveAttribute("data-tip", t("setup.poolPanel.altOf", { n: 2, character: LONG }));
+    });
+
+    it("Forever: a note with a short name needs no tooltip", () => {
+        const short: SetupPerson = { ...owner, character: "Aldric Sturmwind", characters: [{ ...owner.characters![0], character: "Aldric Sturmwind" }, owner.characters![1]] };
+        renderPage(<PoolPanel pool={[short]} ui={readOnly({ shortNames: true })} />);
+        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: "Aldric Sturmwind" }))).not.toHaveAttribute("data-tip");
+    });
+
+    it("another version: both whole, no tooltip", () => {
         renderPage(<PoolPanel pool={[owner]} ui={readOnly()} />);
         expect(screen.getByText(LONG)).toBeInTheDocument();
-        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: LONG }))).toBeInTheDocument();
+        expect(screen.getByText(t("setup.poolPanel.altOf", { n: 2, character: LONG }))).not.toHaveAttribute("data-tip");
     });
 });
 

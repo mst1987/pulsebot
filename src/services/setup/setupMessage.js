@@ -516,15 +516,19 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 /**
  * The message for discord.js: with the drawn setup rendered into its file while the switch
  * is on - or, when the picture cannot be rendered, the fields as before.
+ * `nameMemo`: an object shared by the payloads of one post, so that they ask for the Discord names once.
  */
-async function payloadFor(event, approved, { contentPing = null } = {}) {
+async function payloadFor(event, approved, { contentPing = null, nameMemo = {} } = {}) {
     await loadAppEmojis(discord.getClient());
     const build = (image, discordNames = null) => buildSetupMessage(event, approved, {
         emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event), image,
         raidOf: raidOfEvent(event), ping: contentPing || shownPing(event), pingInContent: !!contentPing, discordNames,
     });
     // Only the fields name a raider by the Discord name: a message with the picture asks Discord for nothing.
-    const names = () => resolveHoverNames(event, [...(approved.groups || []).flatMap((g) => g.slots || []), ...(approved.bench || [])].map((p) => p.userId));
+    const names = () => {
+        nameMemo.names = nameMemo.names || resolveHoverNames(event, [...(approved.groups || []).flatMap((g) => g.slots || []), ...(approved.bench || [])].map((p) => p.userId));
+        return nameMemo.names;
+    };
     const key = `setup:${event.id}`;
     try {
         const image = visualOn(getConfig(), "setupImage", event.guildId);
@@ -581,10 +585,11 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
     if (cancelled && !post.messageId) return { code: "cancelled", error: "Das Event ist abgesagt." };
     if (!event.channelId && !post.channelId) return { code: "no_channel", error: "Das Event hat keinen Kanal." };
 
+    const nameMemo = {};
     try {
         if (post.messageId && !(repost && !cancelled)) {
             try {
-                const payload = await payloadFor(event, approved);
+                const payload = await payloadFor(event, approved, { nameMemo });
                 const channel = await discord.fetchTextChannel(post.channelId);
                 const message = await channel.messages.fetch(post.messageId);
                 await message.edit(payload);
@@ -597,7 +602,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
         }
         const pinging = ping && !cancelled && (ping.userIds || []).length ? ping : null;
         const channel = await discord.fetchTextChannel(event.channelId);
-        const sent = await channel.send(await payloadFor(event, approved, { contentPing: pinging }));
+        const sent = await channel.send(await payloadFor(event, approved, { contentPing: pinging, nameMemo }));
         eventStore.setEventSetupPost(event.id, {
             channelId: String(channel.id), messageId: String(sent.id), version: approved.version,
             postedAt: now, postedBy: str(userId), editedAt: 0, editedBy: "", error: "", errorAt: 0,
@@ -617,7 +622,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
         // the mentions notified them on the way in; now they move into the embed and the content goes
         if (pinging) {
             try {
-                await sent.edit(await payloadFor(eventStore.getEvent(event.id), approved));
+                await sent.edit(await payloadFor(eventStore.getEvent(event.id), approved, { nameMemo }));
             } catch (e) {
                 logger.warn(`setup:${event.id}: ping not moved into the embed: ${(e && e.message) || e}`);
             }

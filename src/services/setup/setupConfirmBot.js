@@ -10,6 +10,7 @@
 // Access is raider-facing (accessOf "event-signup" in the command file):
 // anyone may click, but only the raider's own placement is ever touched —
 // someone not in the lineup is told so, privately.
+const { MessageFlags } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { tr } = require("../../utils/i18n/botText");
 const { langOfInteraction } = require("../discord/botLanguage");
@@ -49,19 +50,19 @@ async function handleConfirmComponent(interaction) {
     if (!eventId || !STATUS_OF_FIELD[field]) {
         return interaction.reply(card({ kind: "error", title: tr(lang, "Unknown action."), ephemeral: true }));
     }
+    // Before the work: the answer waits for the edit of the message, which on WoW Forever can wait for Discord names.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const result = await setConfirmation(eventId, userId, field);
     if (result.code) {
         const title = result.code === "not_placed" ? tr(lang, "You are not in a group in this setup.") : result.error;
-        return interaction.reply(card({ kind: "warn", title, ephemeral: true }));
+        return interaction.editReply(card({ kind: "warn", title }));
     }
     // the raid can be days away: name its start instead of "see you soon"
     const event = eventStore.getEvent(eventId);
     const when = shortWhen(event && event.startTime, { relative: true });
-    return interaction.reply(field === "y"
-        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you at the raid!"), text: when ? tr(lang, "Start: {when}", { when }) : "", ephemeral: true })
-        : card({
-            kind: "warn", title: tr(lang, "Marked as cancelled."), text: tr(lang, "The raid lead will rebench you."), ephemeral: true,
-        }));
+    return interaction.editReply(field === "y"
+        ? card({ kind: "ok", title: tr(lang, "Confirmed — see you at the raid!"), text: when ? tr(lang, "Start: {when}", { when }) : "" })
+        : card({ kind: "warn", title: tr(lang, "Marked as cancelled."), text: tr(lang, "The raid lead will rebench you.") }));
 }
 
 module.exports = { CONFIRM_PREFIX, parseConfirmId, setConfirmation, handleConfirmComponent };

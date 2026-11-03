@@ -116,28 +116,50 @@ describe("setupConfirmBot", () => {
         expect(setupCore.confirmationsFor(eventStore.getEvent("eh-1"), without)).toEqual({ 2: "confirmed" });
     });
 
-    it("handleConfirmComponent replies ephemeral, success or refusal", async () => {
+    const click = (customId, userId) => ({
+        customId, user: { id: userId }, reply: jest.fn(async () => {}), deferReply: jest.fn(async () => {}), editReply: jest.fn(async () => {}),
+    });
+
+    it("handleConfirmComponent defers ephemeral before the work, then answers through editReply", async () => {
         seed();
-        const reply = jest.fn();
-        await confirmBot.handleConfirmComponent({ customId: "setup-confirm:y:eh-1", user: { id: "1" }, reply });
-        const ok = reply.mock.calls[0][0];
-        expect(ok.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        const interaction = click("setup-confirm:y:eh-1", "1");
+        await confirmBot.handleConfirmComponent(interaction);
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1);
+        expect(interaction.deferReply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        const firstWrite = eventStore.setEventSetupPost.mock.invocationCallOrder[0];
+        expect(interaction.deferReply.mock.invocationCallOrder[0]).toBeLessThan(firstWrite);
+        expect(firstWrite).toBeLessThan(interaction.editReply.mock.invocationCallOrder[0]);
+        expect(interaction.reply).not.toHaveBeenCalled();
+        const ok = interaction.editReply.mock.calls[0][0];
+        // the defer made it private; an edit cannot and must not set that again
+        expect(ok.flags & MessageFlags.Ephemeral).toBeFalsy();
         expect(ok.content).toBe("");
         expect(cardText(ok)).toContain("Bestätigt — wir sehen uns beim Raid!");
         // the raid can be days away: its start, never "bis gleich"
         expect(cardText(ok)).toContain("Start: <t:2000000000:d> <t:2000000000:t> · <t:2000000000:R>");
         expect(cardText(ok)).not.toMatch(/bis gleich/i);
 
-        const cancel = jest.fn();
-        await confirmBot.handleConfirmComponent({ customId: "setup-confirm:n:eh-1", user: { id: "2" }, reply: cancel });
-        expect(cardText(cancel.mock.calls[0][0])).toContain("abgesagt");
+        const cancel = click("setup-confirm:n:eh-1", "2");
+        await confirmBot.handleConfirmComponent(cancel);
+        expect(cardText(cancel.editReply.mock.calls[0][0])).toContain("abgesagt");
+        expect(cancel.reply).not.toHaveBeenCalled();
+    });
 
-        const refused = jest.fn();
-        await confirmBot.handleConfirmComponent({ customId: "setup-confirm:y:eh-1", user: { id: "999" }, reply: refused });
-        expect(cardText(refused.mock.calls[0][0])).toContain("nicht in einer Gruppe");
+    it("handleConfirmComponent answers a refusal through editReply too", async () => {
+        seed();
+        const refused = click("setup-confirm:y:eh-1", "999");
+        await confirmBot.handleConfirmComponent(refused);
+        expect(refused.deferReply).toHaveBeenCalledTimes(1);
+        expect(cardText(refused.editReply.mock.calls[0][0])).toContain("nicht in einer Gruppe");
+        expect(refused.reply).not.toHaveBeenCalled();
+    });
 
-        const garbage = jest.fn();
-        await confirmBot.handleConfirmComponent({ customId: "nonsense", user: { id: "1" }, reply: garbage });
-        expect(cardText(garbage.mock.calls[0][0])).toContain("Unbekannte Aktion");
+    it("handleConfirmComponent refuses an unknown action at once, ephemeral, without a defer", async () => {
+        const garbage = click("nonsense", "1");
+        await confirmBot.handleConfirmComponent(garbage);
+        expect(garbage.deferReply).not.toHaveBeenCalled();
+        const answer = garbage.reply.mock.calls[0][0];
+        expect(answer.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        expect(cardText(answer)).toContain("Unbekannte Aktion");
     });
 });

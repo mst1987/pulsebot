@@ -47,7 +47,10 @@ const linkCount = (embed) => (allText(embed).match(/\]\(</g) || []).length;
 const shownBy = (embed, list, discordNames) => list.filter((s) => {
     const text = allText(embed);
     const name = discordNames && discordNames[s.userId];
-    return text.includes(s.character) || (name && text.includes(name.replace(/[|_[\]()]/g, (c) => (c === "[" ? "\\(" : c === "]" ? "\\)" : `\\${c}`))));
+    if (text.includes(s.character) || !name) return text.includes(s.character);
+    // as link text it reads as it is, as plain text it is escaped
+    const linkText = name.replace(/\[/g, "(").replace(/\]/g, ")");
+    return text.includes(linkText) || text.includes(linkText.replace(/[|_()]/g, (c) => `\\${c}`));
 });
 const withinLimits = (embed) => {
     expect(embedLength(embed)).toBeLessThanOrEqual(LIMITS.total);
@@ -116,12 +119,25 @@ describe("the lines of a Forever post", () => {
         expect(text).not.toContain("evil.example");
     });
 
-    it("escapes a Discord name so that it cannot break the link or ping", () => {
+    it("cleans a Discord name so that it cannot break the link or ping, without a backslash", () => {
         const list = [su("1", "Aldric Sturmwind", "Warrior-Protection", "tank")];
         const text = allText(buildEventMessage(event(), list, { emojis, discordNames: { 1: "@everyone [x](y) *_~`|\"\\" } }).embeds[0]);
-        const zwsp = String.fromCharCode(0x200b);
-        expect(text).toContain(`**[@${zwsp}everyone \\(x\\)\\(y\\) \\*\\_\\~\\\`\\|"\\\\](<${PAGE}> "Aldric Sturmwind")**`);
+        expect(text).toContain(`**[everyone (x)(y) |"](<${PAGE}> "Aldric Sturmwind")**`);
         expect(text).not.toContain("@everyone");
+    });
+
+    it("keeps the fixture's names as they read, a square bracket as a round one", () => {
+        const list = [
+            su("1", "Aldric Sturmwind", "Warrior-Protection", "tank"), su("2", "Mira Tal", "Priest-Holy", "healer"),
+            su("3", "Devi Res", "Mage-Arcane", "ranged"), su("4", "Kira Stein", "Rogue-Combat", "melee"),
+        ];
+        const discordNames = { 1: "Konstantin (Tank)", 2: "Lena | Heal", 3: "xX_Shadow_Xx", 4: "Ludmilla [Offi]" };
+        const text = allText(buildEventMessage(event(), list, { emojis, discordNames }).embeds[0]);
+        expect(text).toContain(`[Konstantin (Tank)](<${PAGE}> "Aldric Sturmwind")`);
+        expect(text).toContain(`[Lena | Heal](<${PAGE}> "Mira Tal")`);
+        expect(text).toContain(`[xX_Shadow_Xx](<${PAGE}> "Devi Res")`);
+        expect(text).toContain(`[Ludmilla (Offi)](<${PAGE}> "Kira Stein")`);
+        expect(text).not.toContain("\\");
     });
 
     it("stays with the characters without names or without an address", () => {
@@ -166,7 +182,7 @@ describe("the length budget of a full raid", () => {
         expect(shownBy(after, list, discordNames)).toHaveLength(size);
     });
 
-    // The measured budget: 25 raiders all keep their link (5343 of 6000 characters), 40 share 20 links (5823 of 6000),
+    // The measured budget: 25 raiders all keep their link (5318 of 6000 characters), 40 share 20 links (5799 of 6000),
     // the others show the plain Discord name.
     it("25 raiders keep every hover link, 40 raiders half of them", () => {
         const raid25 = foreverRaid(25);

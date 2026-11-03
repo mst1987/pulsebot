@@ -112,11 +112,12 @@ describe("the fields of a Forever setup", () => {
         expect(value).toBe(`[Tommy](<${COMP}> "Tom Berg") · Shadow`);
     });
 
-    it("escape a Discord name and never ping", () => {
+    it("keep a Discord name readable in the link and never ping", () => {
         const message = build(seed(), approved(), { discordNames: names });
-        expect(fieldOf(message, "Group 1").value).toContain(`[xX\\_Lena\\_Xx](<${COMP}> "${DEVI}")`);
+        // no backslash: Discord would show it in a link's text
+        expect(fieldOf(message, "Group 1").value).toContain(`[xX_Lena_Xx](<${COMP}> "${DEVI}")`);
         const second = fieldOf(message, "Group 2").value;
-        expect(second).toContain(`@${String.fromCharCode(0x200b)}everyone`);
+        expect(second).toContain(`[everyone](<${COMP}> "Mira Tal")`);
         expect(second).not.toContain("@everyone");
         expect(message.allowedMentions && message.allowedMentions.parse).toBeFalsy();
     });
@@ -238,6 +239,19 @@ describe("the message in Discord", () => {
         await raw.postOrEditSetupMessage("eh-1", { userId: "orga", now: 1 });
         const sent = channel.send.mock.calls[0][0];
         expect(JSON.stringify(sent.embeds[0].fields ?? sent.embeds[0].data.fields)).toContain("[Marc](<");
+    });
+
+    it("a ping's repost asks for the names once, for the message and its edit", async () => {
+        const { channel } = fakeChannel();
+        const sent = { id: "m-new", url: "", edit: jest.fn(async () => {}) };
+        channel.send.mockResolvedValueOnce(sent);
+        seed();
+        discord.resolveUserNames.mockResolvedValue({ 1: "Marc" });
+        const result = await raw.postOrEditSetupMessage("eh-1", { userId: "orga", now: 1, ping: { userIds: ["1"], text: "x" } });
+        expect(result.action).toBe("posted");
+        expect(sent.edit).toHaveBeenCalledTimes(1);
+        expect(JSON.stringify(sent.edit.mock.calls[0][0].embeds)).toContain("[Marc](<");
+        expect(discord.resolveUserNames).toHaveBeenCalledTimes(1);
     });
 
     it("asks for nothing while the picture is on", async () => {
