@@ -564,6 +564,26 @@ async function editPayload(channelId, messageId, payload, { silentMentions = fal
 }
 
 /**
+ * What a route needs to know about a message before it may touch it, without a Discord object:
+ * whose it is and what hangs on it. `guildId`: only on that server (assertChannelGuild). Discord's
+ * own errors (unknown message, missing access) pass through.
+ * @returns {Promise<{ guildId, channelId, messageId, url, own: boolean, attachments: string[] }>}
+ */
+async function readMessage(channelId, messageId, { guildId = "" } = {}) {
+    const channel = await fetchTextChannel(channelId);
+    assertChannelGuild(channel, guildId);
+    const message = await channel.messages.fetch(String(messageId));
+    return {
+        guildId: channel.guildId,
+        channelId: channel.id,
+        messageId: message.id,
+        url: message.url,
+        own: !!client.user && message.author.id === client.user.id,
+        attachments: [...message.attachments.values()].map((a) => a.name),
+    };
+}
+
+/**
  * Whether the bot sees a text channel it may post in (from the cache, no
  * request): false for a deleted channel, one of a server the bot left, one it
  * lost the rights for — and while the bot is offline.
@@ -1672,6 +1692,6 @@ module.exports = {
     listApplications, parseApplicationEmbed,
     postLogButton, finishLogButton, findLogButtonMessage, logButtonExists, LOG_EVAL_PREFIX,
     LOG_SECTIONS, logButtonRow, logButtonEmbed, logButtonPayload, logDayText,
-    postLink, editLink, postPayload, postRolePing, editPayload,
+    postLink, editLink, postPayload, postRolePing, editPayload, readMessage,
     failFastOnRateLimit, setChannelNameFast, isRateLimitError,
 };

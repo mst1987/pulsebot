@@ -42,6 +42,53 @@ describe("services/discord/discord postPayload / editPayload", () => {
         discord.setClient(null);
         await expect(discord.editPayload("c1", "m1", {})).rejects.toThrow("Bot nicht verbunden.");
     });
+
+    it("pings nobody for an @everyone somebody typed into the text, posted or edited", async () => {
+        const own = { id: "m1", author: { id: BOT }, url: "u1", edit: jest.fn(async () => {}) };
+        const channel = dc.makeChannel({ id: "c1", guildId: "g1", messages: [own] });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: BOT } }));
+        await discord.postPayload("c1", { content: "@everyone heute Abend" });
+        await discord.editPayload("c1", "m1", { content: "@everyone heute Abend" });
+        expect(channel.send.mock.calls[0][0].allowedMentions).toEqual({ parse: [] });
+        expect(own.edit.mock.calls[0][0].allowedMentions).toEqual({ parse: [] });
+    });
+});
+
+describe("services/discord/discord readMessage", () => {
+    const picture = (over = {}) => ({
+        id: "m1",
+        author: { id: BOT },
+        url: "u1",
+        attachments: new Map([["a1", { name: "roster.png" }]]),
+        edit: jest.fn(),
+        ...over,
+    });
+    const connect = (messages) => {
+        const channel = dc.makeChannel({ id: "c1", guildId: "g1", messages });
+        discord.setClient(dc.makeClient({ channels: [channel], user: { id: BOT } }));
+    };
+
+    it("tells whose message it is and what hangs on it, and changes nothing", async () => {
+        const own = picture();
+        connect([own, picture({ id: "m2", author: { id: "someone" }, attachments: new Map() })]);
+        await expect(discord.readMessage("c1", "m1", { guildId: "g1" })).resolves.toEqual({
+            guildId: "g1", channelId: "c1", messageId: "m1", url: "u1", own: true, attachments: ["roster.png"],
+        });
+        await expect(discord.readMessage("c1", "m2")).resolves.toMatchObject({ own: false, attachments: [] });
+        expect(own.edit).not.toHaveBeenCalled();
+    });
+
+    it("reads only on the given server", async () => {
+        connect([picture()]);
+        await expect(discord.readMessage("c1", "m1", { guildId: "g2" })).rejects.toMatchObject({ code: "wrong_guild" });
+    });
+
+    it("hands Discord's unknown message on with its code and needs a connected bot", async () => {
+        connect([picture()]);
+        await expect(discord.readMessage("c1", "m9")).rejects.toMatchObject({ code: 10008 });
+        discord.setClient(null);
+        await expect(discord.readMessage("c1", "m1")).rejects.toThrow("Bot nicht verbunden.");
+    });
 });
 
 describe("services/discord/discord postRolePing", () => {

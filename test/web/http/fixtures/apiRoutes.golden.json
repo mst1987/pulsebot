@@ -305,6 +305,7 @@
   "POST /api/rosters/create",
   "POST /api/rosters/delete",
   "POST /api/rosters/image",
+  "POST /api/rosters/image/attach",
   "POST /api/rosters/members",
   "POST /api/rosters/members/remove",
   "POST /api/rosters/roles",

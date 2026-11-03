@@ -44,9 +44,9 @@ const NEXT_DAY = NOW + 86400000;
 let roster;
 
 /** The hash of the roster as it is now, as the route would have stored it. */
-async function currentHash(id, { reserve = false, chars = false, now = NOW } = {}) {
+async function currentHash(id, { reserve = false, chars = false, text = "", now = NOW } = {}) {
     const built = await rosterImageModel({ guildId: G, id, config: CONFIG, now });
-    return pictureHash(built.model, { reserve, chars, lang: built.lang });
+    return pictureHash(built.model, { reserve, chars, lang: built.lang, text });
 }
 
 async function postPicture(over = {}) {
@@ -131,6 +131,25 @@ describe("web/roster/rosterImageLive refreshRosterImages", () => {
         // the next run finds nothing new
         await refreshRosterImages({ now: NOW });
         expect(discord.editPayload).toHaveBeenCalledTimes(1);
+    });
+
+    it("keeps the orga's text above the picture at every update", async () => {
+        await postPicture({ text: "Heute 20 Uhr" });
+        expect(await refreshRosterImages({ now: NOW })).toMatchObject({ edited: 0 });
+        rosterStore.upsertMember(roster.id, BEN, { chars: ["Devi"] });
+        expect(await refreshRosterImages({ now: NOW })).toMatchObject({ edited: 1 });
+        expect(discord.editPayload.mock.calls[0][2].content).toBe("Heute 20 Uhr");
+        expect(rosterStore.getRoster(roster.id).imagePost).toMatchObject({
+            text: "Heute 20 Uhr",
+            hash: await currentHash(roster.id, { text: "Heute 20 Uhr" }),
+        });
+    });
+
+    it("corrects a text the hash does not know yet: a run drawing during an attachment stored the old one", async () => {
+        const stale = await currentHash(roster.id);
+        await postPicture({ text: "Neu", hash: stale });
+        expect(await refreshRosterImages({ now: NOW })).toMatchObject({ edited: 1 });
+        expect(discord.editPayload.mock.calls[0][2].content).toBe("Neu");
     });
 
     it("notices a change of the class the linked Kader plans for somebody without a character", async () => {
