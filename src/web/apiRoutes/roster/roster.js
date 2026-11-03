@@ -162,7 +162,7 @@ const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
     { method: "GET", path: "/api/roster", handler: getRoster, area: "roster" },
-    { method: "POST", path: "/api/roster/hide", handler: postRosterHide, area: "roster" },
+    { method: "POST", path: "/api/roster/hide", handler: postRosterHide, area: "roster", sharedData: true },
     { method: "GET", path: "/api/roster/char", handler: getRosterChar, area: ["roster", "history"] },
 ];
 

@@ -4,6 +4,8 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { mayUseServer, OTHER_SERVER } = require("../../http/serverQuery");
+const { guildOfCategory } = require("../../../services/events/eventServer");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { getCategoryAssignments, setCategoryAssignments } = require("../../../stores/roster/raiderCharactersStore");
 const { listCharacters } = require("../../../stores/roster/characterStore");
@@ -20,10 +22,11 @@ const { buildVersionContext, versionsOfCharacter } = require("../../../services/
  * plays (#741: Forever = Forever characters; characterVersions.versionsOfCharacter:
  * the profiles first, a name no profile knows counts as the category's).
  */
-const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
+const getRaiderCharacters = withUser({}, async ({ req, res, url, user }) => {
     const guildId = activeGuildFor(req);
     const categoryId = (url.searchParams.get("category") || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
+    if (!mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
     const roleIds = expectedRoleIds(categoryId, getConfig());
     let members = [];
     let membersError = null;
@@ -56,9 +59,10 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url }) => {
  * above offers only that version's characters, a name is never refused for
  * being known in another version too (one name may live in both).
  */
-const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, res, user }) => {
+const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
+    if (!mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
     if (!body.assignments || typeof body.assignments !== "object") {
         return error(res, 400, "invalid", "Zuordnungen fehlen.");
     }

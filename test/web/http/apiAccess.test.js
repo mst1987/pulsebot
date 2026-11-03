@@ -308,6 +308,21 @@ describe("web/http/apiAccess", () => {
             for (const r of marked) expect(r.method).toBe("GET");
         });
 
+        // `sharedData` (#1072) keeps the server-admin rank off a global store or foreign data:
+        // removing a mark opens that route to every Discord admin, so each one is a deliberate change here.
+        it("marks exactly the routes of the golden master as sharedData", () => {
+            expect(ROUTES.filter((r) => r.sharedData).map((r) => `${r.method} ${r.path}`).sort()).toEqual([...golden.sharedData].sort());
+        });
+
+        it("never lets a user carrying the rank through a sharedData route", () => {
+            const everything = limited(Object.fromEntries(AREA_IDS.map((a) => [a, { read: true, write: true }])));
+            for (const route of ROUTES.filter((r) => r.sharedData)) {
+                expect(checkAccess(route.path, route.method, { ...everything, isServerAdmin: true })).toMatchObject({ status: 403, code: "forbidden" });
+                expect(checkAccess(route.path, route.method, everything)).toBeNull();
+                expect(checkAccess(route.path, route.method, admin)).toBeNull();
+            }
+        });
+
         // The system status (docs/system-status.md) shows host details: no area grant may open it.
         it("keeps the adminOnly routes to full admins, even for a role holding every area", () => {
             const everything = limited(Object.fromEntries(AREA_IDS.map((a) => [a, { read: true, write: true }])));

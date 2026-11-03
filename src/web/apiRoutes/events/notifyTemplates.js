@@ -25,9 +25,9 @@ const deleteNotifyTemplate = withUser({ csrf: true, body: true }, async ({ body,
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/notify-templates", handler: getNotifyTemplates, area: "raids" },
-    { method: "POST", path: "/api/notify-templates", handler: saveNotifyTemplate, area: "raids" },
-    { method: "POST", path: "/api/notify-templates/delete", handler: deleteNotifyTemplate, area: "raids" },
+    { method: "GET", path: "/api/notify-templates", handler: getNotifyTemplates, area: "raids", sharedData: true },
+    { method: "POST", path: "/api/notify-templates", handler: saveNotifyTemplate, area: "raids", sharedData: true },
+    { method: "POST", path: "/api/notify-templates/delete", handler: deleteNotifyTemplate, area: "raids", sharedData: true },
 ];
 
 module.exports = { getNotifyTemplates, saveNotifyTemplate, deleteNotifyTemplate, routes };

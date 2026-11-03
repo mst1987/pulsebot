@@ -16,6 +16,11 @@
 // An entry with none of these is admin-only too (fail-closed), and a test keeps
 // that state explicit (test/web/http/apiAccess.test.js).
 //
+// `sharedData: true` (#1072) marks a route on data no single server owns (a global
+// store, another account's data by id). The server-admin rank does not count there:
+// the gate and the handler read the user with their role rights only (apiRouter.js,
+// auth.getUser). The rank comes from Discord, and anyone can create a Discord server.
+//
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [

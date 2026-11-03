@@ -14,9 +14,11 @@
 // The server admin (#1072) holds Discord's "Administrator" right or owns one of
 // the servers in `discordServers.servers`: every area and the orga rank on exactly
 // that server, nothing on any other, and never `isAdmin`. Anyone can create a
-// Discord server, so this rank is not trusted the way a full admin is.
+// Discord server, so this rank is not trusted the way a full admin is. A rank entry
+// keeps what the roles alone give (`roleAccess`, `roleIsOrga`): that is what counts
+// where the rank does not (a route on data of every server, an unanswered re-check).
 //
-//   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin? } } }`
+//   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`
 //                                for every server; throws when a configured role
 //                                lookup could not reach a single server
 //   resolveGuildAccess(userId)   the same, the base access of each server when it fails
@@ -102,7 +104,7 @@ function baseGuilds(userId, config) {
 
 /**
  * What the given Discord user id may do on each server:
- * `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin? } } }`.
+ * `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`.
  *
  * Full admin (on every server) if the id is a .env admin, or a member of ANY
  * known server holding one of the full-admin roles. Otherwise, per server, that
@@ -110,7 +112,8 @@ function baseGuilds(userId, config) {
  * server; `isOrga` when one of that server's orga roles is held there. `isMember`
  * when Discord answered with a member. `isServerAdmin` (every area, `isOrga`) for
  * a Discord administrator or the owner of a server of `discordServers.servers`;
- * a pure overview target or the home guild outside that list never gives it.
+ * a pure overview target or the home guild outside that list never gives it. Such
+ * an entry also carries what the roles alone give: `roleAccess`, `roleIsOrga`.
  * Not being a member of a server is not fatal — it keeps its base access.
  *
  * Throws only when something configured depends on the answer and not a single
@@ -129,7 +132,7 @@ async function computeGuildAccess(userId) {
     const settingsOf = Object.fromEntries(guildIds.map((gid) => [gid, accessSettings(gid, config)]));
     const roleBased = guildIds.some((gid) => Object.keys(settingsOf[gid].rolePermissions).length || settingsOf[gid].orgaRoleIds.length);
     const answerRequired = adminRoleIds.length > 0 || roleBased;
-    const rankGuildIds = new Set(guildRoles.eventGuildIds(config).map(gidOf));
+    const rankGuildIds = new Set(guildRoles.listedServerIds(config).map(gidOf));
     const botClient = discord.getClient();
     if (!botClient || !guildIds.length) {
         if (answerRequired) throw new Error("bot client or guild id not available");
@@ -157,34 +160,45 @@ async function computeGuildAccess(userId) {
         }
         const roleIds = memberRoleIds(member).map(String);
         if (adminRoleIds.some((rid) => roleIds.includes(rid))) return { isAdmin: true, guilds: {} };
-        if (rankGuildIds.has(guildId) && memberIsDiscordAdmin(member)) {
-            guilds[guildId] = { access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true };
-            continue;
-        }
         const settings = settingsOf[guildId];
         const access = mergeAccess(guilds[guildId].access, accessForRoles(settings.rolePermissions, roleIds));
         const isOrga = roleIds.some((rid) => settings.orgaRoleIds.includes(rid));
-        guilds[guildId] = { access, ...(isOrga ? { isOrga: true } : {}), isMember: true };
+        guilds[guildId] = rankGuildIds.has(guildId) && memberIsDiscordAdmin(member)
+            ? { access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true, roleAccess: access, ...(isOrga ? { roleIsOrga: true } : {}) }
+            : { access, ...(isOrga ? { isOrga: true } : {}), isMember: true };
     }
     if (answerRequired && !reachedAnyGuild) throw lastGuildError || new Error("no configured server reachable");
     return { isAdmin: false, guilds };
 }
 
 /**
- * A stored computeGuildAccess() result without its server-admin ranks, for a
- * re-check Discord did not answer: such a server falls back to its base access,
- * every other server stays as last known. Without a rank the result is returned as is.
+ * A stored computeGuildAccess() result without its server-admin ranks: such a server
+ * falls back to what the roles alone gave there (the base access for an entry without
+ * them), every other server stays as is. `keep(guildId)` spares a server's rank. Without
+ * a rank to take the result is returned as is.
  */
-function withoutServerAdminRank(guildAccess, userId) {
+function withoutServerAdminRank(guildAccess, userId, { keep = () => false } = {}) {
     const entries = Object.entries((guildAccess && guildAccess.guilds) || {});
-    if (!entries.some(([, entry]) => entry.isServerAdmin)) return guildAccess;
+    if (!entries.some(([gid, entry]) => entry.isServerAdmin && !keep(gid))) return guildAccess;
     const guilds = {};
     for (const [gid, entry] of entries) {
-        guilds[gid] = entry.isServerAdmin
-            ? { access: BASE_ACCESS(userId, gid).access, ...(entry.isMember ? { isMember: true } : {}) }
+        guilds[gid] = entry.isServerAdmin && !keep(gid)
+            ? {
+                access: entry.roleAccess || BASE_ACCESS(userId, gid).access,
+                ...(entry.roleIsOrga ? { isOrga: true } : {}),
+                ...(entry.isMember ? { isMember: true } : {}),
+            }
             : entry;
     }
     return { ...guildAccess, guilds };
+}
+
+/** withoutServerAdminRank() for the servers no longer in `discordServers.servers`: a stored rank ends with the entry. */
+function withoutDelistedRank(guildAccess, userId, config = getConfig()) {
+    const entries = Object.values((guildAccess && guildAccess.guilds) || {});
+    if (!entries.some((entry) => entry.isServerAdmin)) return guildAccess;
+    const listed = new Set(guildRoles.listedServerIds(config).map(gidOf));
+    return withoutServerAdminRank(guildAccess, userId, { keep: (gid) => listed.has(gid) });
 }
 
 /** computeGuildAccess(), falling back to the base access of every server when the lookup fails. */
@@ -237,6 +251,6 @@ async function userMayAny(userId, areas, level = "read", { guildId } = {}) {
 
 module.exports = {
     BASE_ACCESS, NO_ACCESS, ALL_ACCESS, UNKNOWN_MEMBER, UNKNOWN_USER,
-    computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank,
+    computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank,
     computeAccess, resolveAccess, memberRoleIds, userMayAny,
 };

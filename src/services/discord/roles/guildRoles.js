@@ -22,11 +22,19 @@ function blockOf(config) {
     return normalizeDiscordServers(block, { fallbackGuildId: (config && config.guildId) || "" });
 }
 
-/** Every configured server's id, in the order they were added (fallback: the old single guildId). */
-function serverIds(config = getConfig()) {
+/**
+ * The servers explicitly entered in `discordServers.servers`, without the bootstrap fallback of
+ * serverIds(): what someone decided to add, which is what the server-admin rank asks for (#1072).
+ */
+function listedServerIds(config = getConfig()) {
     const list = blockOf(config).servers;
     const ids = Array.isArray(list) ? list.map((s) => String((s && s.guildId) || "").trim()) : [];
-    const deduped = [...new Set(ids.filter(Boolean))];
+    return [...new Set(ids.filter(Boolean))];
+}
+
+/** Every configured server's id, in the order they were added (fallback: the old single guildId). */
+function serverIds(config = getConfig()) {
+    const deduped = listedServerIds(config);
     // Bootstrap path for an install that only ever set the env GUILD_ID.
     return deduped.length ? deduped : [String((config && config.guildId) || "").trim()].filter(Boolean);
 }
@@ -194,7 +202,7 @@ function roleMessageGuild(entry, config = getConfig()) {
 }
 
 module.exports = {
-    serverIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
+    serverIds, listedServerIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
     eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
     eventGuildCards, describeGuild, guildOverlap,
 };

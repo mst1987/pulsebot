@@ -234,6 +234,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Abschnitt Teile je Server enthält (z. B. Spielversion je Kategorie, Server-Schlüssel aus
     `SERVER_SCOPED_KEYS`): die bleiben auf der Server-Seite, sonst kann sie der Einstellungs-Schreiber
     nicht mehr ändern. Das Speichern schickt je Seite nur ihre Schlüssel (`save()` in `SettingsPage`).
+28. Bereichsrechte und `userIsOrga` sagen nichts über den Server der Daten (#1072): Sie gelten für den
+    aktiven Server. Eine Route, die `categoryId`, `userId` oder eine Listen-`id` aus der Anfrage nimmt,
+    braucht eine eigene Serverprüfung (`mayUseServer`, 403 `other_server`). Eine Route auf einem globalen
+    Store braucht die Marke `sharedData: true`, sonst öffnet sie der Rang Server-Admin jedem
+    Discord-Administrator (docs/permissions.md).
 
 ## Fach-Agenten
 

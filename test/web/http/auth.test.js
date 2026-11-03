@@ -16,7 +16,10 @@ jest.mock("../../../src/stores/settings/settingsStore", () => ({
 // settingsStore.getConfig()) — the mocked getConfig() above does not
 // replicate that, so this file mocks guildRoles directly instead, matching
 // every other test's single configured event server ("guild-1").
-jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({
+    eventGuildIds: jest.fn(() => ["guild-1"]),
+    listedServerIds: jest.fn(() => ["guild-1"]),
+}));
 
 const axios = require("axios");
 const { getConfig } = require("../../../src/stores/settings/settingsStore");
@@ -747,6 +750,7 @@ describe("web/http/auth", () => {
             now = Date.now();
             nowSpy = jest.spyOn(Date, "now").mockImplementation(() => now);
             guildRoles.eventGuildIds.mockReturnValue(["guild-1", "guild-2"]);
+            guildRoles.listedServerIds.mockReturnValue(["guild-1", "guild-2"]);
         });
 
         afterEach(() => {
@@ -754,6 +758,7 @@ describe("web/http/auth", () => {
             discord.setClient(null);
             getConfig.mockImplementation(() => onServer({ adminRoleIds: [] }));
             guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
+            guildRoles.listedServerIds.mockReturnValue(["guild-1"]);
         });
 
         async function loginAs(id) {
@@ -864,6 +869,101 @@ describe("web/http/auth", () => {
                 const req = { headers: { cookie: "sid=stray-sid" } };
                 fresh.setActiveGuild(req, "guild-1");
                 expect(fresh.getUser(req).isServerAdmin).toBeUndefined();
+            });
+        });
+
+        describe("what is left without the rank", () => {
+            const withLeadRole = () => getConfig.mockImplementation(() => ({
+                adminRoleIds: [],
+                serverSettings: { "guild-1": { rolePermissions: RIGHTS, orgaRoleIds: ["role-b"] } },
+            }));
+
+            /** Logs in a Discord admin who also holds the orga role role-b on guild-1. */
+            async function adminWithRole(id, fetch = jest.fn().mockResolvedValue(asAdministrator(memberWithRoles("role-b")))) {
+                withLeadRole();
+                discord.setClient(fakeMultiGuildClient({ "guild-1": fetch, "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER) }));
+                return { ...(await loginAs(id)), fetch };
+            }
+
+            const expectRoleRightsOnly = (user) => {
+                expect(user.isServerAdmin).toBeUndefined();
+                expect(user.isAdmin).toBe(false);
+                expect(user.isOrga).toBe(true);
+                expect(user.access.raids).toEqual({ read: true, write: true });
+                expect(user.access.settings).toEqual({ read: false, write: false });
+            };
+
+            it("a failed re-check leaves the role rights standing", async () => {
+                const { req, fetch } = await adminWithRole("810");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                fetch.mockRejectedValue(new Error("network down"));
+                now += FIVE_MIN + 1000;
+                auth.getUser(req);
+                await flush();
+                expectRoleRightsOnly(userOn(req, "guild-1"));
+            });
+
+            it("a session idle past two re-check rounds answers its first request without the rank", async () => {
+                const { req } = await adminWithRole("811");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                now += 2 * FIVE_MIN + 1000;
+                // the very answer that starts the re-check
+                expectRoleRightsOnly(auth.getUser(req));
+                await flush();
+                // Discord confirmed it: the rank is back, on the next request
+                expect(auth.getUser(req).isServerAdmin).toBe(true);
+            });
+
+            it("a session within the two rounds keeps the rank while the re-check runs", async () => {
+                const { req } = await adminWithRole("812");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                now += FIVE_MIN + 1000;
+                expect(auth.getUser(req).isServerAdmin).toBe(true);
+                await flush();
+                expect(auth.getUser(req).isServerAdmin).toBe(true);
+            });
+
+            it("a hanging Discord call cannot hold the rank open", async () => {
+                const { req, fetch } = await adminWithRole("813");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                fetch.mockImplementation(() => new Promise(() => {}));
+                now += FIVE_MIN + 1000;
+                expect(auth.getUser(req).isServerAdmin).toBe(true); // the re-check starts and hangs
+                await flush();
+                now += FIVE_MIN;
+                expectRoleRightsOnly(auth.getUser(req));
+            });
+
+            it("a server taken off the list gives no rank at once, from the stored session too", async () => {
+                const { sid, req } = await adminWithRole("814");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                guildRoles.listedServerIds.mockReturnValue(["guild-2"]);
+                expectRoleRightsOnly(auth.getUser(req));
+                // no re-check ran: the session on disk still holds it, the answer does not
+                expect(storedSessions()[sid].guildAccess.guilds["guild-1"].isServerAdmin).toBe(true);
+            });
+
+            it("a request on a marked route gets the user without the rank, everything else keeps it", async () => {
+                const { req } = await adminWithRole("815");
+                expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                const marked = { ...req, sharedDataRoute: true };
+                expectRoleRightsOnly(auth.getUser(marked));
+                expect(auth.getRealUser(marked).isServerAdmin).toBeUndefined();
+                expect(auth.getUser(req).isServerAdmin).toBe(true);
+            });
+
+            it("a Discord admin without any role has only the base access on a marked route", async () => {
+                getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+                discord.setClient(fakeMultiGuildClient({
+                    "guild-1": jest.fn().mockResolvedValue(asAdministrator()),
+                    "guild-2": jest.fn().mockRejectedValue(NOT_A_MEMBER),
+                }));
+                const { req } = await loginAs("816");
+                userOn(req, "guild-1");
+                const user = auth.getUser({ ...req, sharedDataRoute: true });
+                expect(user.isServerAdmin).toBeUndefined();
+                expect(user.isOrga).toBeUndefined();
+                expect(user.access.settings).toEqual({ read: false, write: false });
             });
         });
     });

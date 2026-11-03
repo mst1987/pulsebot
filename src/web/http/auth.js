@@ -13,7 +13,7 @@ const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissio
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const {
-    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank,
+    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank,
 } = require("../../services/discord/members/userAccess");
 const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
@@ -22,7 +22,7 @@ const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
 // sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, adminCheckedAt, activeGuildId? }
 // `guildAccess` is userAccess.computeGuildAccess(): `{ isAdmin, guilds: { [guildId]:
-// { access, isOrga?, isMember?, isServerAdmin? } } }` — the rights per Discord server (#925). The session
+// { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }` — the rights per Discord server (#925). The session
 // never carries one "global" access map: getUser() hands out the rights of the
 // request's active server (activeGuildOf) only.
 const SESSIONS_FILE = dataPath("sessions.json");
@@ -32,6 +32,10 @@ const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 // permissions changed in the settings take effect for already-logged-in users
 // without a re-login.
 const ADMIN_REFRESH_MS = 300000; // 5 minutes
+// A stored server-admin rank (#1072) is not answered from an older re-check. The
+// re-check runs in the background, so a session waking up (or one whose lookup hangs)
+// would otherwise get a rank Discord may have taken back long ago.
+const RANK_MAX_AGE_MS = 2 * ADMIN_REFRESH_MS;
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
 
@@ -140,19 +144,34 @@ function allServersAccessOf(guildAccess) {
 }
 
 /**
+ * The rights of a session that count right now. The server-admin rank goes where it does not
+ * hold: on a route over data of every server (`rankFree`, the route mark `sharedData`), after
+ * too long without a re-check, on a server no longer entered. The roles keep their rights.
+ */
+function currentGuildAccess(s, { rankFree = false } = {}) {
+    const ga = s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
+    const checkedAt = s.adminCheckedAt || s.createdAt || 0;
+    if (rankFree || Date.now() - checkedAt > RANK_MAX_AGE_MS) return withoutServerAdminRank(ga, s.id);
+    return withoutDelistedRank(ga, s.id);
+}
+
+/** Whether the request is on a route marked `sharedData`; apiRouter.js sets this before anyone reads the user. */
+const rankFreeRequest = (req) => req.sharedDataRoute === true;
+
+/**
  * The user object a reader sees: a copy of the session carrying the rights of
  * the active server — `access`, `isOrga`, `isServerAdmin` — plus `allAccess` (the
  * union over every server) and `guildId`. A session without per-server rights yet (one
  * from before #925, until ensureAccess or the next re-check filled it) gets only
  * the base access of the server: fail closed, never the old global map.
  */
-function userView(s, guildId) {
+function userView(s, guildId, { rankFree = false } = {}) {
     const copy = { ...s };
     delete copy.guildAccess;
     delete copy.access;
     delete copy.isOrga;
     delete copy.isServerAdmin;
-    const ga = s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
+    const ga = currentGuildAccess(s, { rankFree });
     const { isAdmin, access, isOrga, isServerAdmin } = accessForGuild(ga, s.id, guildId);
     return {
         ...copy,
@@ -216,13 +235,14 @@ function getUser(req) {
     const s = sessionFor(req);
     if (!s) return null;
     const guildId = activeGuildOf(req);
-    const own = userView(s, guildId);
+    const rankFree = rankFreeRequest(req);
+    const own = userView(s, guildId, { rankFree });
     if (!s.viewAs) return own;
     if (!viewAsActive(s.viewAs)) {
         // A view that ran out ends by itself.
         delete s.viewAs;
         saveSessions();
-        return userView(s, guildId);
+        return userView(s, guildId, { rankFree });
     }
     // the roles are looked at with the rights settings of the active server
     return effectiveUser(own, configForGuild(getConfig(), guildId), envAdminRoleIds || []);
@@ -237,7 +257,7 @@ function getUser(req) {
 function sessionGuildAccess(req) {
     const s = sessionFor(req);
     if (!s) return null;
-    return s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
+    return currentGuildAccess(s, { rankFree: rankFreeRequest(req) });
 }
 
 /**
@@ -246,7 +266,7 @@ function sessionGuildAccess(req) {
  */
 function getRealUser(req) {
     const s = sessionFor(req);
-    return s ? userView(s, activeGuildOf(req)) : null;
+    return s ? userView(s, activeGuildOf(req), { rankFree: rankFreeRequest(req) }) : null;
 }
 
 /**

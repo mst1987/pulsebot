@@ -93,6 +93,11 @@ function checkAccess(pathname, method, user) {
     }
     if (ANY_AREA.has(pathname)) return null;
     const route = find(method, pathname);
+    // The router takes the server-admin rank off the user on such a route. A user still
+    // holding it got past that: closed rather than opening data of every server.
+    if (route && route.sharedData && user.isServerAdmin) {
+        return { status: 403, code: "forbidden", message: "Kein Zugang zu diesem Bereich." };
+    }
     // The path's areas, so a wrong method on a known path is refused for the
     // same reason as the right one and answered 405 only to those who may.
     const areas = route ? areasOf(route) : areasFor(pathname);
