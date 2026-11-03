@@ -150,6 +150,8 @@ When the record cannot be saved, no role goes out (`{ takeover: null, assigning:
   version 400 `invalid_roster_category` (a category not offered). The role is made first; should the roster then
   fail, the role is deleted again (no half-made roster). After that everything runs as with a linked roster
   (`takeover.rosterId` = the new one). With a linked roster nothing changes (no name, no category choice).
+  A roster made without category takes one later: when a category of its version gets its role in the settings, the
+  category goes to this roster, no second one is made (docs/roster-profile.md "Eine Rolle, ein Roster").
 - **The path the route checked:** the route checks the rights for the roster it sees and hands `createsRoster` to
   `rosterTakeover.start`; `start` reads the link again and refuses when it changed meanwhile — a link gone without
   `createsRoster` 409 `no_roster`, a roster linked meanwhile while `createsRoster` or `roster` in the body is set 409

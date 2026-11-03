@@ -49,10 +49,10 @@ describe("services/roster/rosterMigration categoriesToMigrate", () => {
             snapshot: { [G2]: { c4: "Freitag" } },
         });
         expect(out).toEqual([
-            { categoryId: "c3", guildId: G1, name: "c3", versionId: "forever", roleIds: [], members: { u1: { key: "forever~devi res", name: "Devi Res" } } },
-            { categoryId: "c1", guildId: G1, name: "c1", versionId: "tbc", roleIds: ["10"], members: {} },
-            { categoryId: "c2", guildId: G1, name: "c2", versionId: "tbc", roleIds: ["20"], members: {} },
-            { categoryId: "c4", guildId: G2, name: "Freitag", versionId: "tbc", roleIds: [], members: { u3: { key: "kes", name: "Kes-Realm" } } },
+            { categoryId: "c3", guildId: G1, name: "c3", versionId: "forever", roleIds: [], members: { u1: { key: "forever~devi res", name: "Devi Res" } }, active: true },
+            { categoryId: "c1", guildId: G1, name: "c1", versionId: "tbc", roleIds: ["10"], members: {}, active: true },
+            { categoryId: "c2", guildId: G1, name: "c2", versionId: "tbc", roleIds: ["20"], members: {}, active: false },
+            { categoryId: "c4", guildId: G2, name: "Freitag", versionId: "tbc", roleIds: [], members: { u3: { key: "kes", name: "Kes-Realm" } }, active: false },
         ]);
     });
 

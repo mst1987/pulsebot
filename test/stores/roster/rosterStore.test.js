@@ -460,6 +460,58 @@ describe("stores/roster/rosterStore migrateCategories", () => {
         expect(migrateCategories([{ categoryId: "" }, null])).toEqual([]);
         expect(fs.__store.has(ROSTERS_FILE)).toBe(false);
     });
+
+    describe("a role another open roster holds", () => {
+        const CAT = { categoryId: "c1", guildId: "g1", name: "Forever Do", versionId: "forever", roleIds: ["10"], members: { u1: { key: "kes", name: "Kes" }, u2: { key: "neu", name: "Neu" } } };
+
+        it("hands the category to the roster without category instead of making a second one", () => {
+            const kader = createRoster({ guildId: "g1", name: "Pulse Do", versionId: "forever", roleIds: ["10"], kaderId: "k1" });
+            upsertMember(kader.id, "u1", { status: "bench", chars: ["anders"] });
+            expect(migrateCategories([CAT], { now: NOW })).toEqual([]);
+            expect(rosterStore.listRosters("").map((r) => r.id)).toEqual([kader.id]);
+            const r = getRoster(kader.id);
+            expect(r).toMatchObject({ categoryId: "c1", name: "Pulse Do", kaderId: "k1", roleIds: ["10"] });
+            // a member of the roster stays untouched, an assigned raider it lacks joins
+            expect(r.members.u1).toMatchObject({ status: "bench", chars: ["forever~anders"] });
+            expect(r.members.u2).toMatchObject({ status: "core", chars: ["neu"] });
+            expect(r.history[r.history.length - 1]).toMatchObject({ what: "settings", detail: "categoryId" });
+            expect(stored().migratedCategories).toEqual(["c1"]);
+        });
+
+        it.each([
+            ["has its own category", { guildId: "g1", categoryId: "c9", versionId: "forever" }, CAT],
+            ["plays another version", { guildId: "g1", versionId: "tbc" }, CAT],
+            ["is on another server", { guildId: "g2", versionId: "forever" }, CAT],
+            ["fits, but the category is not active", { guildId: "g1", versionId: "forever" }, { ...CAT, active: false }],
+        ])("makes no roster when the holder %s, and moves nobody", (_case, fields, category) => {
+            const holder = createRoster({ name: "Halter", roleIds: ["10"], ...fields });
+            expect(migrateCategories([category], { now: NOW })).toEqual([]);
+            expect(rosterStore.listRosters("").map((r) => r.id)).toEqual([holder.id]);
+            expect(getRoster(holder.id).categoryId).toBe(fields.categoryId || null);
+            expect(stored().migratedCategories).toContain("c1");
+        });
+
+        it("a closed roster does not count", () => {
+            const closed = createRoster({ name: "Alt", versionId: "forever", roleIds: ["10"] });
+            rosterStore.closeRoster(closed.id, { reason: "version_switch" });
+            expect(migrateCategories([CAT], { now: NOW }).map((c) => c.categoryId)).toEqual(["c1"]);
+            expect(getRoster(closed.id).categoryId).toBeNull();
+        });
+    });
+});
+
+describe("stores/roster/rosterStore openRostersWithRole", () => {
+    it("names the open holders of a role, without the one left out and without closed ones", () => {
+        const a = createRoster({ name: "A", roleIds: ["10", "11"] });
+        const b = createRoster({ name: "B", roleIds: ["11"], trialRoleId: "12" });
+        const closed = createRoster({ name: "Zu", roleIds: ["11"] });
+        rosterStore.closeRoster(closed.id, { reason: "version_switch" });
+        expect(rosterStore.openRostersWithRole(["11"]).map((r) => r.id)).toEqual([a.id, b.id]);
+        expect(rosterStore.openRostersWithRole(["11"], { exceptId: a.id }).map((r) => r.id)).toEqual([b.id]);
+        expect(rosterStore.openRostersWithRole(["12"])).toEqual([]);
+        expect(rosterStore.openRostersWithRole([])).toEqual([]);
+        expect(rosterStore.openRostersWithRole(undefined)).toEqual([]);
+    });
 });
 
 describe("stores/roster/rosterStore migratedCategories (#657)", () => {

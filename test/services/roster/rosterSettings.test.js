@@ -167,6 +167,31 @@ describe("services/roster/rosterSettings updateRosterSettings (admin)", () => {
     });
 });
 
+describe("services/roster/rosterSettings a role belongs to one open roster", () => {
+    let other;
+    beforeEach(() => {
+        other = rosterStore.createRoster({ name: "Andere", guildId: "g1", categoryId: "700000000000000002", roleIds: [R2] });
+    });
+
+    it("refuses a member role another open roster holds", () => {
+        expect(updateRosterSettings(roster.id, { roleIds: [R1, R2] }, { isAdmin: true, config: {} }).code).toBe("role_taken");
+        expect(rosterStore.getRoster(roster.id).roleIds).toEqual([R1]);
+    });
+
+    it("an old double blocks nothing else, and a closed roster does not count", () => {
+        rosterStore.updateRoster(roster.id, { roleIds: [R1, R2] });
+        expect(updateRosterSettings(roster.id, { name: "Neu", roleIds: [R1, R2] }, { isAdmin: true, config: {} }).ok).toBe(true);
+        rosterStore.updateRoster(roster.id, { roleIds: [R1] });
+        rosterStore.closeRoster(other.id, { reason: "version_switch" });
+        expect(updateRosterSettings(roster.id, { roleIds: [R2] }, { isAdmin: true, config: {} }).ok).toBe(true);
+    });
+
+    it("a roster's own role and the trial role are no conflict", () => {
+        expect(updateRosterSettings(roster.id, { roleIds: [R1, R3] }, { isAdmin: true, config: {} }).ok).toBe(true);
+        expect(updateRosterSettings(other.id, { trialRoleId: R1 }, { isAdmin: true, config: {} }).ok).toBe(true);
+    });
+});
+
 describe("services/roster/rosterSettings PuG onboarding roles (#930)", () => {
     const { grantsPugRole } = require("../../../src/services/roster/rosterSettings");
     const PUG_VERSION = "900000000000000011";
