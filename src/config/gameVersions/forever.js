@@ -101,6 +101,13 @@ module.exports = {
     id: "forever",
     label: "WoW Forever",
     short: "Forever",
+    // Examples for input hints; see tbc.js. The item stays generic: no Forever potion is confirmed yet.
+    examples: {
+        short: "Barrow",
+        tag: "barrow",
+        de: { raid: "Barrow Deeps", raids: "Barrow Deeps", item: "Manatrank" },
+        en: { raid: "Barrow Deeps", raids: "Barrow Deeps", item: "Mana Potion" },
+    },
     // The version's launcher icon (WoW Forever); see tbc.js.
     icon: "/versions/forever.png",
     // The version's colour in the web admin (#742, dark theme); see tbc.js.

@@ -9,8 +9,9 @@ import userEvent from "@testing-library/user-event";
 import { useLocation } from "react-router-dom";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import * as api from "../../../api";
-import type { RaidCreateContext, RaidTemplate } from "../../../api";
+import type { GameVersion, RaidCreateContext, RaidTemplate } from "../../../api";
 import { t } from "../../../i18n";
+import { requireBackend } from "../../../test/backend";
 import { renderPage } from "../../../test/render";
 import RaidCreateDialog from "../RaidCreateDialog";
 
@@ -180,6 +181,20 @@ describe("Neues Event dialog", () => {
         expect(await screen.findByText(t("raidCreate.toast.createdWithError", { error: "Kanal voll" }))).toBeInTheDocument();
         expect(onCreated).toHaveBeenCalledTimes(1);
         expect(screen.getByTestId("where")).toHaveTextContent("/raids/new");
+    });
+
+    it.each([
+        ["tbc", "Hyjal + Black Temple"],
+        ["classic", "Geschmolzener Kern + Onyxias Hort"],
+        ["forever", "Barrow Deeps"],
+    ])("offers a raid title of the game version as example: %s", async (versionId, example) => {
+        const user = userEvent.setup();
+        const { publicVersions } = requireBackend("config/gameVersions");
+        vi.mocked(api.getRaidCreateContext).mockResolvedValue({ ...CONTEXT, versions: publicVersions().filter((v: GameVersion) => v.id === versionId) });
+        show();
+        await user.click(await screen.findByRole("radio", { name: new RegExp(escape(t("raidCreate.start.empty"))) }));
+        await next(user);
+        expect(field(t("raidCreate.termin.title"))).toHaveAttribute("placeholder", example);
     });
 
     it("keeps the waiting list behind \"Mehr\" and the announcement in the channel step (#306)", async () => {

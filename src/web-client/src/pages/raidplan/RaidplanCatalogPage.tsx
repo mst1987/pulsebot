@@ -41,7 +41,7 @@ export default function RaidplanCatalogPage() {
     return <MenuRailPage user={user} parent="raids"><Catalog user={user} /></MenuRailPage>;
 }
 
-function Catalog({ user }: ShellContext) {
+function Catalog({ user }: Pick<ShellContext, "user">) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();

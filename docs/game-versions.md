@@ -6,7 +6,7 @@ Eine Gilde spielt mehr als eine WoW-Version nebeneinander (TBC Anniversary, Clas
 
 ## Das Modell in fünf Schritten
 
-1. **Regelsatz** (`src/config/gameVersions/<id>.js`): Klassen, Specs, Instanzen, Buffs, Standardwerte. Eine neue Version bringt Daten, keinen Feature-Code (siehe „Funktionen je Version“).
+1. **Regelsatz** (`src/config/gameVersions/<id>.js`): Klassen, Specs, Instanzen, Buffs, Standardwerte, Beispiele für Eingabefelder (`examples`: Raids und Trank der Version, `examplesOf()`). Eine neue Version bringt Daten, keinen Feature-Code (siehe „Funktionen je Version“).
 2. **Einstellungen je Version** (`config.versionSettings[<id>]`): Realm, Armory, Warcraft Logs, Wowhead, Softres, Raidsheet, Farbe und die ausgeschalteten Funktionen. Leer heißt „gibt es für diese Version nicht“, nie ein TBC-Ersatz.
 3. **Kategorie mit Abschnitten** (`config.categoryVersion`, `config.categoryEras`): Jede aktive Kategorie spielt genau eine Version. Umstellen startet einen neuen Abschnitt; der alte behält seinen Namen und seine Raids.
 4. **Version fest am Raid** (#737): Jeder Raid speichert seine Version beim Anlegen (eigenes Event: `versionId`, Raid-Helper-Schnappschuss: `versionId` des ersten Scans). Ein späteres Umstellen ändert nie, zu welcher Version ein Raid samt Loot, Anwesenheit, Log und Roster gehört.

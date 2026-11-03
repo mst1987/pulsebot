@@ -1,39 +1,9 @@
-// The server pick of System › Discord (#895): the server from ?guild=, the first
-// server as the default without a URL parameter, and how a server is named in the picker.
+// How a server of the server list is named where a page offers it (#895).
 import { describe, expect, it } from "vitest";
 import type { DiscordServerChoice } from "../../../api";
-import { guildParam, pickedGuild, serverExtra, serverName, shortName } from "../serverPick";
+import { serverExtra, serverName, shortName } from "../serverPick";
 
 const S = (guildId: string, name = "", label = ""): DiscordServerChoice => ({ guildId, name, label, online: true, iconUrl: "" });
-const LIST = [S("g1", "Testgilde"), S("g2", "Talkgilde", "Talk"), S("g3", "Dritte")];
-
-describe("pickedGuild", () => {
-    it("takes a known server from the URL", () => {
-        expect(pickedGuild(LIST, "g3")).toBe("g3");
-    });
-
-    it("falls back to the first server for an unknown or missing one", () => {
-        expect(pickedGuild(LIST, "nope")).toBe("g1");
-        expect(pickedGuild(LIST, null)).toBe("g1");
-    });
-
-    it("is empty without a server list", () => {
-        expect(pickedGuild([], "g1")).toBe("");
-    });
-});
-
-describe("guildParam", () => {
-    it("needs no parameter for the first server", () => {
-        expect(guildParam(LIST, "g1")).toEqual({});
-        expect(guildParam(LIST, "")).toEqual({});
-        expect(guildParam(null, "g2")).toEqual({});
-        expect(guildParam([], "g2")).toEqual({});
-    });
-
-    it("names any other server", () => {
-        expect(guildParam(LIST, "g2")).toEqual({ guild: "g2" });
-    });
-});
 
 describe("naming", () => {
     it("names a server by Discord name, else label, else id", () => {

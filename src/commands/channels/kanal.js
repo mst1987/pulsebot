@@ -166,7 +166,7 @@ module.exports = {
             .addChannelOption((o) => o.setName("kategorie").setDescription("Kategorie").setRequired(true).addChannelTypes(ChannelType.GuildCategory))
             .addStringOption((o) => o.setName("name").setDescription("Name oder Schema wie {tag}-{dd}-{mm}-{raid}; leer = Schema der Kategorie").setRequired(false).setMaxLength(100))
             .addStringOption((o) => o.setName("datum").setDescription("Datum für das Schema, z. B. 24.09.").setRequired(false))
-            .addStringOption((o) => o.setName("raid").setDescription("Raid-Kürzel für {raid}, z. B. ssc-tk").setRequired(false))),
+            .addStringOption((o) => o.setName("raid").setDescription("Raid-Kürzel für {raid}").setRequired(false))),
     parseDate,
     async execute(interaction) {
         const handler = HANDLERS[interaction.options.getSubcommand()];

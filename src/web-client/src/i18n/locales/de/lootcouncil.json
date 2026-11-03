@@ -408,7 +408,7 @@
         "tenureNone": "Zugehörigkeit · noch unbekannt"
     },
     "filter": {
-        "contentTipSub": "Welche Raids beim Loot zählen. Ohne Auswahl zählt aller Loot; Tiers und einzelne Raids lassen sich kombinieren („T5 plus Hyjal“), wenn die Gilde gerade wechselt.",
+        "contentTipSub": "Welche Raids beim Loot zählen. Ohne Auswahl zählt aller Loot; Tiers und einzelne Raids lassen sich kombinieren, wenn die Gilde gerade wechselt.",
         "content": "Content",
         "all": "alle",
         "chooseContent": "Content wählen",
@@ -744,7 +744,7 @@
         "unused": "nicht genutzt",
         "usedByNames": "Genutzt von: {names}",
         "name": "Name",
-        "nameHint": "Höchstens 40 Zeichen, z. B. „Main-Raid T6“ oder „PuG-Nacht“.",
+        "nameHint": "Höchstens 40 Zeichen, z. B. „Main-Raid“ oder „PuG-Nacht“.",
         "rename": "Umbenennen",
         "renameTitle": "„{name}“ umbenennen",
         "renamed": "Umbenannt in „{name}“.",

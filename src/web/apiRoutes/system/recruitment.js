@@ -108,7 +108,7 @@ const getRecruitmentData = withUser({}, async ({ user, req, res, url }) => {
         activeGuildId: guildId,
         // The version filter and the template's version switch (#553): every
         // template, post and application carries a versionId; the page filters.
-        gameVersions: VERSIONS.filter((v) => visibleVersions().includes(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short })),
+        gameVersions: VERSIONS.filter((v) => visibleVersions().includes(v.id)).map((v) => ({ id: v.id, label: v.label, short: v.short, examples: v.examples })),
         mainVersion: mainVersionFor(),
     });
 });

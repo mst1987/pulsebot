@@ -129,6 +129,13 @@ module.exports = {
     id: "classic",
     label: "Classic Era",
     short: "Classic",
+    // Examples for input hints; see tbc.js.
+    examples: {
+        short: "MC + Ony",
+        tag: "mc-ony",
+        de: { raid: "Geschmolzener Kern", raids: "Geschmolzener Kern + Onyxias Hort", item: "Erheblicher Manatrank" },
+        en: { raid: "Molten Core", raids: "Molten Core + Onyxia's Lair", item: "Major Mana Potion" },
+    },
     // The version's launcher icon, shared with TBC Anniversary; see tbc.js.
     icon: "/versions/classic.png",
     // The version's colour in the web admin (#742, dark theme); see tbc.js. A neutral grey-blue.

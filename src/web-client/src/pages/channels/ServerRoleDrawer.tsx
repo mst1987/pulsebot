@@ -19,11 +19,9 @@ import { useT } from "../../i18n";
 /** Members shown before the search has to narrow it down. */
 const MEMBERS_SHOWN = 60;
 
-export default function ServerRoleDrawer({ guildId, guildParams, roleId, guildName, rank, counted, onClose }: {
+export default function ServerRoleDrawer({ guildId, roleId, guildName, rank, counted, onClose }: {
     /** the server of the server list the role belongs to */
     guildId: string;
-    /** the URL parameters that keep this server on a link (see useServerPick().param) */
-    guildParams: Record<string, string>;
     roleId: string;
     guildName: string;
     /** the rank the table shows for the role (1 = highest; null for @everyone) */
@@ -69,7 +67,7 @@ export default function ServerRoleDrawer({ guildId, guildParams, roleId, guildNa
                     )}
                     {!data && !state.error && <RaidLoader compact text={t("discord.roles.drawer.loading")} />}
                     {data && !role && <p className="drl-empty">{t("discord.roles.drawer.gone")}</p>}
-                    {data && role && <Detail guildParams={guildParams} data={data} rank={rank} counted={counted} />}
+                    {data && role && <Detail data={data} rank={rank} counted={counted} />}
                 </div>
             </aside>
         </>
@@ -78,7 +76,7 @@ export default function ServerRoleDrawer({ guildId, guildParams, roleId, guildNa
 
 const WHERE_KEY = { below: "belowBot", above: "aboveBot", own: "ownRole" } as const;
 
-function Detail({ guildParams, data, rank, counted }: { guildParams: Record<string, string>; data: ServerRoleDetail; rank: number | null; counted: number }) {
+function Detail({ data, rank, counted }: { data: ServerRoleDetail; rank: number | null; counted: number }) {
     const t = useT();
     const role = data.role!;
     const botName = data.botRole ? data.botRole.name : "";
@@ -102,7 +100,7 @@ function Detail({ guildParams, data, rank, counted }: { guildParams: Record<stri
             </dl>
             <Permissions set={role.permissions} />
             <Channels channels={data.channels} />
-            <Members guildParams={guildParams} members={data.members} total={data.membersTotal ?? data.members.length} count={role.memberCount} />
+            <Members members={data.members} total={data.membersTotal ?? data.members.length} count={role.memberCount} />
         </>
     );
 }
@@ -170,8 +168,7 @@ function Channels({ channels }: { channels: ServerRoleChannel[] }) {
     );
 }
 
-function Members({ guildParams, members, total, count }: {
-    guildParams: Record<string, string>;
+function Members({ members, total, count }: {
     /** for @everyone only the first EVERYONE_MEMBERS_MAX (src/services/discord/servers/serverRoles.js) */
     members: ServerRoleMember[];
     /** everyone with the role, also those not sent */
@@ -201,7 +198,7 @@ function Members({ guildParams, members, total, count }: {
                             {shown.map((m) => (
                                 <li key={m.id}>
                                     <span className="drl-av" aria-hidden="true">{m.avatarUrl ? <img src={m.avatarUrl} alt="" loading="lazy" /> : initialsOf(m.name)}</span>
-                                    <Link className="drl-person" to={`/channels/members?${new URLSearchParams({ user: m.id, ...guildParams }).toString()}`} data-tip={t("discord.members.drawer.showMember")}>{m.name}</Link>
+                                    <Link className="drl-person" to={`/channels/members?${new URLSearchParams({ user: m.id }).toString()}`} data-tip={t("discord.members.drawer.showMember")}>{m.name}</Link>
                                     {m.bot && <span className="drl-tag">{t("discord.roles.members.bot")}</span>}
                                 </li>
                             ))}

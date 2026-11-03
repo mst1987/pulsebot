@@ -1,8 +1,8 @@
 // System › Discord › Rollen: the tabs with their counts, the table in Discord's
 // order with the bot divider, sorting, the "Nur Rollen mit Hinweis" switch, the
-// server picker (#895), offline and no server set, and the drawer with facts,
-// permissions, channels and the member search — by click and by link (?role=,
-// &guild=); opening pushes a history entry, closing replaces it.
+// server from the sidebar, offline and no server set, and the drawer with facts,
+// permissions, channels and the member search — by click and by link (?role=);
+// opening pushes a history entry, closing replaces it.
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom";
@@ -149,20 +149,12 @@ describe("Rollen: table", () => {
         expect(document.querySelector(".drl-common")).toBeNull();
     });
 
-    it("says when no server is set and hides the picker", async () => {
+    it("says when no server is set", async () => {
         vi.mocked(api.getServerChoices).mockResolvedValue([]);
         vi.mocked(api.getServerRoles).mockResolvedValue(NONE);
         renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
         expect(await screen.findByText(/Kein Server eingestellt/)).toBeInTheDocument();
         expect(api.getServerRoles).toHaveBeenCalledWith("");
-        expect(screen.queryByRole("radiogroup", { name: "Server" })).not.toBeInTheDocument();
-    });
-
-    it("shows no picker with a single server", async () => {
-        vi.mocked(api.getServerChoices).mockResolvedValue([SERVERS[0]]);
-        renderPage(<ServerRolesPage />, { route: "/channels/server-roles" });
-        await screen.findByText("Admin");
-        expect(screen.queryByRole("radio", { name: "Testgilde" })).not.toBeInTheDocument();
     });
 
     it("filters to the roles with a hint", async () => {
@@ -173,21 +165,18 @@ describe("Rollen: table", () => {
         expect(names()).toEqual(["Admin", "Naxx-Raider", "Bot-Rolle PulseBot · alles darunter kann der Bot vergeben", "PulseBot"]);
     });
 
-    it("switches to another server of the list and keeps it in the URL", async () => {
-        const user = userEvent.setup();
-        renderPage(<><ServerRolesPage /><HistoryProbe /></>, { route: "/channels/server-roles" });
-        await screen.findByText("Admin");
-        expect(api.getServerRoles).toHaveBeenCalledWith("g1");
-        expect(screen.getByRole("radio", { name: "Testgilde" })).toBeChecked();
-        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
-        await waitFor(() => expect(screen.queryByText("Admin")).not.toBeInTheDocument());
-        expect(screen.getByText("Angeln")).toBeInTheDocument();
-        expect(api.getServerRoles).toHaveBeenLastCalledWith("g2");
-        expect(screen.getByTestId("search")).toHaveTextContent("?guild=g2");
+    it("shows the server active in the sidebar and offers no switch of its own", async () => {
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles", activeGuildId: "g2" });
+        expect(await screen.findByText("Angeln")).toBeInTheDocument();
+        expect(screen.queryByText("Admin")).not.toBeInTheDocument();
+        expect(api.getServerRoles).toHaveBeenCalledWith("g2");
+        expect(api.getServerRoles).not.toHaveBeenCalledWith("g1");
         await waitFor(() => expect(api.getDiscordTabCounts).toHaveBeenLastCalledWith("g2"));
-        // the tabs carry the server to the other Discord pages
+        expect(screen.queryByRole("radio", { name: "Testgilde" })).not.toBeInTheDocument();
+        expect(screen.queryByRole("radio", { name: "Talkgilde" })).not.toBeInTheDocument();
+        // the tabs stay plain links: the server is in the session, not in the URL
         const tabs = screen.getByRole("navigation", { name: "Bereiche von Discord" });
-        expect(within(tabs).getByRole("link", { name: /^Kanäle/ })).toHaveAttribute("href", "/channels?guild=g2");
+        expect(within(tabs).getByRole("link", { name: /^Kanäle/ })).toHaveAttribute("href", "/channels");
     });
 
     it("says when the bot is offline or cannot hand out roles", async () => {
@@ -309,28 +298,26 @@ describe("Rollen: drawer", () => {
         expect(angeln).not.toHaveClass("drl-coloured");
     });
 
-    it.each([
-        ["?role=kochen&guild=g2", "a link to the second server"],
-    ])("opens from %s (%s)", async (search) => {
+    it("opens a role from a link on the active server", async () => {
         const talk: ServerRoles = { ...EVENT, guildId: "g2", guildName: "Talkgilde" };
         vi.mocked(api.getServerRoles).mockImplementation(async (guildId) => (guildId === "g2" ? talk : EVENT));
         vi.mocked(api.getServerRoleDetail).mockResolvedValue({ ...DETAIL, guildId: "g2", guildName: "Talkgilde" });
-        renderPage(<ServerRolesPage />, { route: `/channels/server-roles${search}` });
+        renderPage(<ServerRolesPage />, { route: "/channels/server-roles?role=kochen", activeGuildId: "g2" });
         const drawer = await screen.findByRole("complementary", { name: "Kochen" });
         expect(api.getServerRoles).toHaveBeenCalledWith("g2");
         expect(api.getServerRoleDetail).toHaveBeenCalledWith("g2", "kochen");
-        expect(screen.getByRole("radio", { name: "Talkgilde" })).toBeChecked();
-        // the member link keeps the server
-        expect(await within(drawer).findByRole("link", { name: "Thrall" })).toHaveAttribute("href", "/channels/members?user=u0&guild=g2");
+        expect(await within(drawer).findByRole("link", { name: "Thrall" })).toHaveAttribute("href", "/channels/members?user=u0");
     });
 
-    it("drops the open role when switching the server", async () => {
+    it("stays on the active server for an old link with ?guild= and drops it on closing", async () => {
         const user = userEvent.setup();
-        renderPage(<><ServerRolesPage /><HistoryProbe /></>, { route: "/channels/server-roles?role=kochen" });
+        renderPage(<><ServerRolesPage /><HistoryProbe /></>, { route: "/channels/server-roles?role=kochen&guild=g2", activeGuildId: "g1" });
         await screen.findByRole("complementary", { name: "Kochen" });
-        await user.click(screen.getByRole("radio", { name: "Talkgilde" }));
+        expect(api.getServerRoles).toHaveBeenCalledWith("g1");
+        expect(api.getServerRoles).not.toHaveBeenCalledWith("g2");
+        await user.keyboard("{Escape}");
         await waitFor(() => expect(screen.queryByRole("complementary")).not.toBeInTheDocument());
-        expect(screen.getByTestId("search")).toHaveTextContent(/^\?guild=g2$/);
+        expect(screen.getByTestId("search")).toHaveTextContent(/^$/);
     });
 
     it("opens as a history step: back closes it, Esc replaces it", async () => {

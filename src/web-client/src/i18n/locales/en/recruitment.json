@@ -130,7 +130,7 @@
         },
         "createTemplate": "Create template",
         "nameTipSub": "Only for picking it in the list — not part of the posted message.",
-        "namePlaceholder": "e.g. Healers for Hyjal & BT",
+        "namePlaceholder": "e.g. Healers for {example}",
         "postUpdated": "Message updated in Discord.",
         "titleRateLimited": "The title could not be changed right now (Discord allows 2 renames per 10 minutes), please save again later.",
         "titleFailed": "The title could not be changed; the text is saved.",

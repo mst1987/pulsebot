@@ -9,7 +9,7 @@
     },
     "form": {
         "nameSub": "Only for picking it when posting – not part of the message.",
-        "namePlaceholder": "e.g. Kara reminder",
+        "namePlaceholder": "e.g. Raid reminder",
         "title": "Message title",
         "titlePlaceholder": "Signups open!",
         "text": "Text",

@@ -25,6 +25,17 @@ describe("utils/signup/guildBankPost", () => {
         expect(inputs(post.requestModal("", "en"))[0].label).toBe("What do you need?");
     });
 
+    it.each([
+        ["classic", "de", "z. B. Erheblicher Manatrank", "z. B. Geschmolzener Kern am Donnerstag"],
+        ["classic", "en", "e.g. Major Mana Potion", "e.g. Molten Core on Thursday"],
+        ["forever", "de", "z. B. Manatrank", "z. B. Barrow Deeps am Donnerstag"],
+        ["tbc", "de", "z. B. Erstklassiger Manatrank", "z. B. Black Temple am Donnerstag"],
+    ])("gives examples of the game version in the modal: %s, %s", (versionId, lang, item, purpose) => {
+        const fields = inputs(post.requestModal("cat1", lang, versionId));
+        expect(fields[0].placeholder).toBe(item);
+        expect(fields[2].placeholder).toBe(purpose);
+    });
+
     it("sums a request up for the raider, with what it is for when given", () => {
         expect(post.requestSummary(REQUEST, "de")).toBe("**12× Super Mana Potion**\nWofür: BT Donnerstag");
         expect(post.requestSummary({ ...REQUEST, purpose: "" }, "en")).toBe("**12× Super Mana Potion**");

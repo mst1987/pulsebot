@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useNavigate, useOutletContext, useSearchParams } from "react-router-dom";
 import { getServerMembers, type MemberRole, type ServerMember, type ServerMembers } from "../../api";
 import { getVermerke, type VermerkPerson } from "../../api/roster/vermerke";
@@ -12,8 +12,7 @@ import VermerkDialog, { type VermerkDialogPreset } from "../../components/vermer
 import { canAccess } from "../../lib/app/access";
 import { classColorProps } from "../../components/character/ClassSpec";
 import DiscordTabs from "../../components/channels/DiscordTabs";
-import ServerPicker from "../../components/channels/ServerPicker";
-import { pickSearch, useServerPick } from "../../hooks/useServerPick";
+import { useServerPick } from "../../hooks/useServerPick";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { useTableSort, type TableSort } from "../../lib/ui/tableSort";
 import { initialsOf } from "../../lib/discord/serverRoles";
@@ -26,14 +25,13 @@ import MemberDrawer from "./MemberDrawer";
 import "../../styles/discord-members.css";
 import { useT } from "../../i18n";
 
-// System › Discord › Mitglieder (docs/channels.md): everyone on one server of the
-// server list (picker in the controls, #895) with their roles in the role colour, since when they are there and
+// System › Discord › Mitglieder (docs/channels.md): everyone on the active server (the
+// one in the sidebar) with their roles in the role colour, since when they are there and
 // how they are tied to the raids — the character in its class colour and the
 // roster, or "nicht im Roster". A search (name, Discord name, character), a role
 // filter and three switches narrow it down; bots are hidden unless asked for. A
 // role of a roster without being in it is marked orange. A click on a row opens
-// the member in a drawer (`?user=<id>` opens it from a link, `&guild=<id>` beyond
-// the first server). Display only —
+// the member in a drawer (`?user=<id>` opens it from a link). Display only —
 // roles are given in Discord and in the roster.
 
 /** Rows before "alle zeigen". */
@@ -52,7 +50,7 @@ export default function MembersPage() {
     const openId = params.get("user");
     const navigate = useNavigate();
     // Vermerke (#980): the notes of the active server, for the "Mit Vermerk" filter
-    // and the mark next to the name — only when the picked server is that one
+    // and the mark next to the name
     const canReadNotes = canAccess(user, "vermerke", "read");
     const canWriteNotes = canAccess(user, "vermerke", "write");
     const notesState = useApi(() => getVermerke(), [], { enabled: canReadNotes });
@@ -63,14 +61,10 @@ export default function MembersPage() {
         if (!list || !data || list.guildId !== data.guildId) return null;
         return new Map(list.people.filter((p) => p.activeCount > 0).map((p) => [p.userId, p]));
     }, [notesState.data, data]);
-    // a role filter belongs to its server
-    useEffect(() => setFilter((f) => (f.roleId ? { ...f, roleId: "" } : f)), [guildId]);
 
-    const query = (id: string | null) => ({ ...(id ? { user: id } : {}), ...pick.param(guildId) });
-    // opening a member is a step back can undo (push); closing and switching the server replace it
-    const open = (id: string) => setParams(query(id));
-    const close = () => setParams(query(null), { replace: true });
-    const sideSegment = <ServerPicker pick={pick} drop={["user"]} />;
+    // opening a member is a step back can undo (push); closing replaces it
+    const open = (id: string) => setParams({ user: id });
+    const close = () => setParams({}, { replace: true });
     const listed = data ? memberFromQuery(data.members, openId) : null;
 
     return (
@@ -81,13 +75,13 @@ export default function MembersPage() {
                 title={t("discord.members.page.title")}
                 meta={data ? <HeadBadges data={data} /> : undefined}
             />
-            <DiscordTabs user={user} guildId={guildId} search={pickSearch(pick)} />
+            <DiscordTabs user={user} guildId={guildId} />
 
             {state.error && !data && <p className="empty">{t("discord.members.page.loadError", { message: state.error.message })}</p>}
-            {!data && !state.error && <><div className="dmb-controls">{sideSegment}</div><RaidLoader text={t("discord.members.page.loading")} /></>}
+            {!data && !state.error && <RaidLoader text={t("discord.members.page.loading")} />}
             {data && (
                 <MembersView
-                    data={data} sideSegment={sideSegment} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open}
+                    data={data} filter={filter} setFilter={setFilter} sort={sort} openId={openId} onOpen={open}
                     notesById={notesById} withNote={withNote} setWithNote={setWithNote}
                 />
             )}
@@ -136,9 +130,8 @@ function membersErrorText(data: ServerMembers, t: ReturnType<typeof useT>): stri
     return t(data.membersError === "timeout" ? "discord.members.page.membersErrorSub" : "discord.members.page.membersErrorIntent");
 }
 
-function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpen, notesById, withNote, setWithNote }: {
+function MembersView({ data, filter, setFilter, sort, openId, onOpen, notesById, withNote, setWithNote }: {
     data: ServerMembers;
-    sideSegment: ReactNode;
     filter: MemberFilter;
     setFilter: (f: MemberFilter) => void;
     sort: TableSort<MemberSortKey>;
@@ -160,7 +153,6 @@ function MembersView({ data, sideSegment, filter, setFilter, sort, openId, onOpe
 
     const controls = (
         <div className="dmb-controls">
-            {sideSegment}
             {ready && (
                 <>
                     <label className="dmb-search">

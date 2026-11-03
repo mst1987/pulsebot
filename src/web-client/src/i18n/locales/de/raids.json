@@ -45,7 +45,7 @@
         "upcomingAria": "Kommende Raids",
         "pastAria": "Vergangene Raids",
         "signups": "Anmeldungen",
-        "signupsSub": "Zusagen ohne Abmeldungen, gemessen an der Raidgröße des Inhalts: Karazhan und Zul'Aman 10 Plätze, alle anderen Raids 25.",
+        "signupsSub": "Zusagen ohne Abmeldungen, gemessen an der Raidgröße des Inhalts.",
         "seatsOf": "{count} von {size} Plätzen",
         "sizeKnown": "Raidgröße aus dem erkannten Inhalt.",
         "sizeDefault": "Inhalt nicht erkannt – gemessen an der Standardgröße 25.",

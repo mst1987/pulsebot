@@ -85,6 +85,13 @@ describe("utils/signup/guildBankPick", () => {
         expect(pick.availabilityText(item({ free: 4 }), "en")).toBe("Available: 4 · max. 5 per request");
     });
 
+    it("gives the purpose field a raid of the game version as example", () => {
+        const purpose = (o) => pick.itemModal({ item: item(), ...o }).components[2].component.placeholder;
+        expect(purpose({ lang: "de", versionId: "forever" })).toBe("z. B. Barrow Deeps am Donnerstag");
+        expect(purpose({ lang: "en", versionId: "classic" })).toBe("e.g. Molten Core on Thursday");
+        expect(purpose({ lang: "de", versionId: "tbc" })).toBe("z. B. Black Temple am Donnerstag");
+    });
+
     it("asks 'To which character?' with two or more, the first preselected", () => {
         const characters = [{ key: "zibbo", name: "Zibbo", realm: "Spine Shatter" }, { key: "zibbowar", name: "Zibbowar" }];
         const modal = pick.itemModal({ categoryId: "cat1", item: item(), characters, lang: "en" });

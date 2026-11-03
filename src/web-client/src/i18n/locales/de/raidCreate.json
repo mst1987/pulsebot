@@ -80,7 +80,7 @@
         "tplUpdate": "„{name}“ aktualisieren",
         "tplNew": "Neue Vorlage",
         "tplName": "Name der Vorlage",
-        "tplNamePlaceholder": "Name, z. B. SSC + TK 25er",
+        "tplNamePlaceholder": "Name, z. B. {example}",
         "fitTip": "Summe passt zur Größe",
         "fitTipSub": "Tanks, Heiler und die Nah-/Fernkampf-Minima passen in den Raid.",
         "planned": "{planned} / {size} verplant",

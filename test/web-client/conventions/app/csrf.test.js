@@ -45,7 +45,9 @@ describe("no csrfToken is handed around any more", () => {
         }
     });
 
-    it("the shell's outlet context carries the user only", () => {
-        expect(read("components/shell/Shell.tsx")).toContain("export type ShellContext = { user: SessionUser };");
+    it("the shell's outlet context carries the user and the active server, no token", () => {
+        const block = read("components/shell/Shell.tsx").match(/export type ShellContext = \{([^}]*)\};/)[1];
+        const fields = block.split("\n").map((l) => l.trim()).filter((l) => l && !l.startsWith("/")).map((l) => l.split(":")[0]);
+        expect(fields).toEqual(["user", "activeGuildId"]);
     });
 });

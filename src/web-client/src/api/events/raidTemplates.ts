@@ -1,4 +1,5 @@
 import { get, send } from "../client";
+import type { VersionExamples } from "../../lib/app/versionExamples";
 
 // Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.
 export type RoleRange = { min: number; max: number | null };
@@ -113,6 +114,8 @@ export type GameVersion = {
     short: string;
     /** The version's WoW icon (zamimg name), "" when it has none. */
     icon?: string;
+    /** Input hints in the terms of this version (rule set). */
+    examples?: VersionExamples;
     roles: { id: GameRole; label: string }[];
     classes: GameClass[];
     instances: GameInstance[];

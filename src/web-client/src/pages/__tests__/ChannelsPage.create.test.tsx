@@ -342,6 +342,6 @@ describe("ChannelsPage — creating in English", () => {
         dialog = screen.getByRole("dialog");
         expect(within(dialog).getByText("Create channel", { selector: ".dlg-title" })).toBeInTheDocument();
         expect(within(dialog).getByRole("radio", { name: "Announcement" })).toBeInTheDocument();
-        expect(within(dialog).getByRole("textbox", { name: "Name" })).toHaveAttribute("placeholder", "e.g. kara-signup");
+        expect(within(dialog).getByRole("textbox", { name: "Name" })).toHaveAttribute("placeholder", "e.g. raid-signup");
     });
 });

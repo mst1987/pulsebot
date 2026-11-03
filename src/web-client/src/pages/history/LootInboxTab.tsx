@@ -31,6 +31,7 @@ import { InfoIcon, TrashIcon } from "../../components/ui/icons/icons";
 import { ItemIcon, contentIcon } from "../../components/loot/LootBadges";
 import { shortDay } from "./ItemAwardsDialog";
 import { tParts, useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 
 /** "Do 11.09. · 20:02–23:18"; just the start when the session has no end. */
@@ -77,6 +78,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
     onDone: (msg: string) => void;
 }) {
     const t = useT();
+    const examples = useVersionExamples();
     const ask = useConfirm();
     const toast = useToast();
     const match = session.match;
@@ -197,7 +199,7 @@ export function InboxSessionCard({ session, events, categories, onDone }: {
                                             type="text" value={manualLabel} aria-label={t("history.shared.titleAria")}
                                             // The recognised raid as placeholder: it is
                                             // almost always the title one would type.
-                                            placeholder={session.contentLabel ? `${session.contentLabel} — ${shortDay(session.startedAt)}` : t("history.inboxCard.titlePlaceholder")}
+                                            placeholder={session.contentLabel ? `${session.contentLabel} — ${shortDay(session.startedAt)}` : t("history.inboxCard.titlePlaceholder", { example: examples.short })}
                                             onChange={(e) => setManualLabel(e.target.value)}
                                         />
                                         <select
