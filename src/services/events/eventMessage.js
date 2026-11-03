@@ -96,6 +96,7 @@ const { eventVersionTag } = require("../versions/versionTag");
 const { isRaidSibling, signupEventIdOf } = require("../../utils/raidGroup");
 const { groupSummary } = require("./raidGroup");
 const { nameOrMention, nameFromSignups } = require("../../utils/discord/mentionName");
+const { LINK_CAPS, eventHasLastNames, hoverNames, fitLinks, resolveHoverNames } = require("../discord/hoverNames");
 
 /**
  * The head's "Signed up" line (#520): the single Discord accounts, number in
@@ -276,12 +277,13 @@ function rosterEntries(signups) {
 /**
  * One roster line: "<spec icon> `12` **Name**" — without the icon, the spec in
  * words. A raider's further character (`index` > 0, "kann auch mit") is not
- * bold: it is an offer, not a seat.
+ * bold: it is an offer, not a seat. `show` names the raider (the character, in
+ * Forever the Discord name: hoverNames).
  */
-function rosterLine(entry, number, emojis, lang = "de") {
+function rosterLine(entry, number, emojis, lang = "de", show = nameOf) {
     const icon = emojiText(emojis, specEmojiName(entry.spec));
     const num = `\`${number}\``;
-    const name = entry.index > 0 ? nameOf(entry) : `**${nameOf(entry)}**`;
+    const name = entry.index > 0 ? show(entry) : `**${show(entry)}**`;
     if (icon) return `${icon} ${num} ${name}`;
     const spec = SPEC_BY_KEY.get(entry.spec);
     return `${num} ${name}${spec ? ` · ${specLabel(lang, spec)}` : ""}`;
@@ -351,8 +353,11 @@ const labelled = (emojis, name, label) => [emojiText(emojis, name), label].filte
 /** An empty field: inline it fills a column, full-width it is an empty line. */
 const spacer = (inline) => ({ name: ZWS, value: ZWS, inline, spacer: true });
 
-/** The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block. */
-function rosterFields(entries, numbers, emojis, maxLines, style, lang = "de") {
+/**
+ * The roster fields — Tank block, class blocks, the other statuses — with at most `maxLines` per block.
+ * `hover` (hoverNames, Forever only): the raiders by Discord name, at most `cap` of them per block as a link.
+ */
+function rosterFields(entries, numbers, emojis, maxLines, style, lang = "de", hover = null, cap = 0) {
     const numberOf = (e) => numbers.get(String(e.userId));
     const byNumber = (a, b) => numberOf(a) - numberOf(b) || a.index - b.index;
     const signed = entries.filter((e) => e.status === "signed");
@@ -363,10 +368,14 @@ function rosterFields(entries, numbers, emojis, maxLines, style, lang = "de") {
         const first = list.filter((e) => !(e.index > 0)).sort(byNumber);
         const further = list.filter((e) => e.index > 0).sort(byNumber);
         const sorted = [...first, ...further];
+        const max = LIMITS.fieldValue - 2;
+        const lines = hover
+            ? fitLinks(sorted, (e, linked) => rosterLine(e, numberOf(e), emojis, lang, linked ? hover.linked : hover.plain), { max, cap })
+            : sorted.map((e) => rosterLine(e, numberOf(e), emojis, lang));
         // "<icon> __Priest__ (3)"; the empty last line keeps the rows of blocks apart.
         fields.push({
             name: clip(`${icon ? `${icon} ` : ""}__${label}__ (${first.length})`, LIMITS.fieldName),
-            value: `${blockValue(sorted.map((e) => rosterLine(e, numberOf(e), emojis, lang)), maxLines, LIMITS.fieldValue - 2, lang)}\n${ZWS}`,
+            value: `${blockValue(lines, maxLines, max, lang)}\n${ZWS}`,
             inline: true,
         });
     };
@@ -388,26 +397,55 @@ function rosterFields(entries, numbers, emojis, maxLines, style, lang = "de") {
     // empty inline field fills an odd one out.
     for (let i = fields.length % 2; i && i < 2; i++) fields.push(spacer(true));
 
-    const other = [];
+    const groups = [];
     for (const status of OTHER_LINES) {
-        const label = word(lang, status);
         // One entry per raider: several characters on the same status share one
         // number and count once ("`3` <spec icon> Darkdisi / <spec icon> Lakunoc").
         const people = new Map();
         for (const e of entries.filter((x) => x.status === status).sort(byNumber)) {
             const key = String(e.userId);
-            if (!people.has(key)) people.set(key, { entry: e, names: [] });
-            const icon = emojiText(emojis, specEmojiName(e.spec));
-            people.get(key).names.push(icon ? `${icon} ${nameOf(e)}` : nameOf(e));
+            if (!people.has(key)) people.set(key, { entry: e, characters: [] });
+            people.get(key).characters.push(e);
         }
         const list = [...people.values()];
-        if (!list.length) continue;
-        const shown = list.slice(0, maxLines * 2).map((p) => `\`${numberOf(p.entry)}\` ${p.names.join(" / ")}`);
-        const more = list.length - shown.length;
-        other.push(`${labelled(emojis, statusEmojiName(status), label)} (${list.length}): ${shown.join(", ")}${more ? ` ${moreText(more, lang)}` : ""}`);
+        if (list.length) groups.push({ status, list, limit: maxLines * 2 });
     }
-    if (other.length) fields.push({ name: ZWS, value: clip(other.join("\n"), LIMITS.fieldValue), inline: false });
+    const otherText = (show) => groups.map(({ status, list, limit }) => {
+        const shown = list.slice(0, limit).map((p) => {
+            const names = p.characters.map((e) => {
+                const icon = emojiText(emojis, specEmojiName(e.spec));
+                return icon ? `${icon} ${show(e)}` : show(e);
+            });
+            return `\`${numberOf(p.entry)}\` ${names.join(" / ")}`;
+        });
+        const more = list.length - shown.length;
+        return `${labelled(emojis, statusEmojiName(status), word(lang, status))} (${list.length}): ${shown.join(", ")}${more ? ` ${moreText(more, lang)}` : ""}`;
+    }).join("\n");
+    if (groups.length) {
+        const show = hover ? fitOtherLinks(groups, otherText, hover, cap) : nameOf;
+        fields.push({ name: ZWS, value: clip(otherText(show), LIMITS.fieldValue), inline: false });
+    }
     return fields;
+}
+
+/**
+ * The names of the late/tentative/bench/absence field when a message links them: first the longest list gives way
+ * until the plain text fits (a clip would cut a link in two and drop raiders without saying so; `limit` shows them as
+ * "+N more"), then the links get what room is left.
+ */
+function fitOtherLinks(groups, otherText, hover, cap) {
+    const visible = (g) => Math.min(g.list.length, g.limit);
+    while (otherText(hover.plain).length > LIMITS.fieldValue) {
+        const longest = groups.reduce((a, b) => (visible(b) > visible(a) ? b : a));
+        if (visible(longest) <= 1) break;
+        longest.limit = visible(longest) - 1;
+    }
+    const shown = groups.flatMap((g) => g.list.slice(0, g.limit)).flatMap((p) => p.characters);
+    const names = shown.reduce((n, e) => n + hover.plain(e).length, 0);
+    const room = LIMITS.fieldValue - otherText(hover.plain).length;
+    const texts = fitLinks(shown, (e, linked) => (linked ? hover.linked(e) : hover.plain(e)), { max: names + room, sep: "", cap });
+    const byEntry = new Map(shown.map((e, i) => [e, texts[i]]));
+    return (e) => byEntry.get(e);
 }
 
 /**
@@ -553,10 +591,12 @@ function phaseLine(event, phase, head, lang) {
  *   `compUrl`/`srUrl`: the comp sheet and softres.it links (#357); empty = no such link on record, left out
  *   `lang`: the server language ("de" | "en", German by default)
  *   `pingMissing`: the category has raider roles → the orga's "Ping missing" button (hasRaiderRoles)
+ *   `discordNames`: userId → Discord name (hoverNames.resolveHoverNames); a version with last names then shows these
+ *     with the character as hover text. Every other version ignores it.
  */
 function buildEventMessage(event, signups, {
     emojis = {}, now = Date.now(), icsUrl = "", raidArt = false, titleSize = "normal", compUrl = "", srUrl = "", lang = "de",
-    pingMissing = false, raidGroup = null,
+    pingMissing = false, raidGroup = null, discordNames = null,
 } = {}) {
     const list = (signups || []).filter((s) => s && s.userId).map(migrateSignup);
     const c = rosterCounts(list);
@@ -587,11 +627,24 @@ function buildEventMessage(event, signups, {
         return label ? `${label}: ${value}` : value;
     };
     const column = (lines) => ({ name: ZWS, value: lines.join("\n"), inline: true });
-    const headFields = [
+    // Every link goes through linkCheck (#537): a web link only with a real
+    // PUBLIC_BASE_URL (not the localhost fallback), sheet and softres only
+    // when well formed — a link that would not open is left out.
+    const base = linkCheck.webBase();
+    const id = encodeURIComponent(event.id);
+    const hover = discordNames && base && eventHasLastNames(event)
+        ? hoverNames({ discordNames, url: `${base}/e/${id}`, fallback: nameOf })
+        : null;
+    const leaderName = (cap) => {
+        const character = nameFromSignups(list, event.leaderId);
+        if (!hover) return nameOrMention(character, event.leaderId);
+        return (cap > 0 ? hover.linked : hover.plain)({ userId: event.leaderId, character });
+    };
+    const headFields = (cap) => [
         column([
             // the lead's character like every name of the list (nameOf), the mention only without one: a mention that
             // pings nobody can read "@unknown-user", and "Name · @Name" is too wide for the narrow column
-            headLine("leader", word(lang, "leader"), (event.leaderId && nameOrMention(nameFromSignups(list, event.leaderId), event.leaderId)) || "–"),
+            headLine("leader", word(lang, "leader"), (event.leaderId && leaderName(cap)) || "–"),
             headLine("date", word(lang, "date"), start ? `<t:${start}:D>` : "–"),
             // where the raid meets (#305), only when there is a channel
             ...(event.voiceChannelId ? [headLine("voice", word(lang, "voice"), `<#${event.voiceChannelId}>`)] : []),
@@ -625,11 +678,6 @@ function buildEventMessage(event, signups, {
     // The approved setup already has its own message in the channel
     // (setupMessage.js) — repeating every group's names here just duplicated
     // it and added height on top of an already tall embed (#352).
-    // Every link goes through linkCheck (#537): a web link only with a real
-    // PUBLIC_BASE_URL (not the localhost fallback), sheet and softres only
-    // when well formed — a link that would not open is left out.
-    const base = linkCheck.webBase();
-    const id = encodeURIComponent(event.id);
     const links = [];
     // One link per target, nothing twice: signing up has the buttons of the
     // message and the event page's own signup link, the setup editor is behind
@@ -673,10 +721,16 @@ function buildEventMessage(event, signups, {
     // TBC and Forever share the Discord server: the post names its version, small (#743)
     const versionTag = eventVersionTag(event);
     if (versionTag) embed.footer = { text: versionTag };
-    // Shorten the blocks until the whole embed fits Discord's 6000 characters.
-    for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
-        embed.fields = fitFields([...headFields, ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang), ...tail]);
-        if (embedLength(embed) <= LIMITS.total) break;
+    const fits = (maxLines, cap) => {
+        embed.fields = fitFields([...headFields(cap), ...totals, ...rosterFields(entries, numbers, emojis, maxLines, style, lang, hover, cap), ...tail]);
+        return embedLength(embed) <= LIMITS.total;
+    };
+    // The hover links go first, so that every raider stays listed; only then do
+    // the blocks shorten until the whole embed fits Discord's 6000 characters.
+    if (!hover || !LINK_CAPS.some((cap) => fits(40, cap))) {
+        for (let maxLines = 40; maxLines >= 1; maxLines -= maxLines > 10 ? 5 : 1) {
+            if (fits(maxLines, 0)) break;
+        }
     }
     return { content: "", embeds: [embed], components: messageComponents(event, { emojis, now, phase, lang, pingMissing }) };
 }
@@ -702,7 +756,9 @@ async function buildPayload(event, lang) {
     const look = messageLookOf(getConfig(), event.categoryId);
     const sheetLink = resolveEventSheetLink(getEventSheet(event.id), event.categoryId);
     const softres = getEventSoftres(event.id);
-    return buildEventMessage(event, listSignups(event.id), {
+    const signups = listSignups(event.id);
+    return buildEventMessage(event, signups, {
+        discordNames: await resolveHoverNames(event, [...rosterEntries(signups).map((e) => e.userId), event.leaderId]),
         emojis: appEmojiMap(),
         raidArt: look.raidArt,
         titleSize: look.titleSize,

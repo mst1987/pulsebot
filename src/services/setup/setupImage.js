@@ -95,7 +95,7 @@ function leaderCrown(cx, cy) {
  * right (the row tinted green when confirmed, greyed out when declined), on the bench a little faded
  * and nothing else. `clipId` names the icon's clip path.
  */
-function personRow(p, x, y, width, { status = "", inGroup = true, clipId = "" }) {
+function personRow(p, x, y, width, { status = "", inGroup = true, clipId = "", twoLineNames }) {
     const out = [];
     const color = classColor(p);
     const mid = y + ROW_H / 2;
@@ -110,7 +110,13 @@ function personRow(p, x, y, width, { status = "", inGroup = true, clipId = "" })
     if (inGroup && p && p.leader) out.push(leaderCrown(ix + 2, iy + 2));
     const name = String((p && p.character) || "").trim() || "Raider";
     const room = width - NAME_X - (inGroup ? CIRCLE_ROOM : 16);
-    out.push(text(x + NAME_X, mid + NAME_SIZE * 0.36, name, { size: NAME_SIZE, bold: true, fill: color, maxWidth: room, opacity }));
+    const [firstName, ...lastName] = twoLineNames ? name.split(/\s+/) : [name];
+    if (lastName.length) {
+        out.push(text(x + NAME_X, mid - 3, firstName, { size: 21, bold: true, fill: color, maxWidth: room, opacity }));
+        out.push(text(x + NAME_X, mid + 17, lastName.join(" "), { size: 16, fill: color, maxWidth: room, opacity: opacity * 0.8 }));
+    } else {
+        out.push(text(x + NAME_X, mid + NAME_SIZE * 0.36, name, { size: NAME_SIZE, bold: true, fill: color, maxWidth: room, opacity }));
+    }
     if (inGroup) out.push(answerCircle(status, x + width - 28, mid));
     return out.join("");
 }
@@ -129,10 +135,11 @@ function panel(x, y, height, head, rows, { bench = false } = {}) {
  * The picture of an approved setup; null without a group that has anybody in it.
  * @param {object} approved the approved snapshot (setupCore.approvedSetupOf): groups with slots, bench
  * @param {{ confirmations?: object, bench?: boolean, lang?: string }} [o] confirmations: userId -> "confirmed" |
- *   "declined"; bench: whether the bench is posted (#517)
+ *   "declined"; bench: whether the bench is posted (#517); twoLineNames: the version's characters carry a last name
+ *   (WoW Forever): first name above, last name smaller below, in the same row height
  * @returns {{ svg: string, width: number, height: number } | null}
  */
-function setupImageSvg(approved, { confirmations = {}, bench = false, lang = "de" } = {}) {
+function setupImageSvg(approved, { confirmations = {}, bench = false, lang = "de", twoLineNames = false } = {}) {
     const groups = ((approved && approved.groups) || []).filter((g) => (g.slots || []).length).sort((a, b) => a.index - b.index);
     if (!groups.length) return null;
     const benchList = bench ? ((approved && approved.bench) || []) : [];
@@ -168,7 +175,7 @@ function setupImageSvg(approved, { confirmations = {}, bench = false, lang = "de
                 // the bench's rows stand without lines, like its panel without fill
                 const divider = k && p.inGroup ? rect(x + 16, top, PANEL_W - 32, 1, { fill: PALETTE.line }) : "";
                 const status = confirmations[String(person.userId)] || "";
-                return divider + personRow(person, x, top, PANEL_W, { status, inGroup: p.inGroup, clipId: `icon${clips++}` });
+                return divider + personRow(person, x, top, PANEL_W, { status, inGroup: p.inGroup, clipId: `icon${clips++}`, twoLineNames });
             });
             if (p.more) {
                 const top = y + HEAD_H + p.people.length * ROW_H;

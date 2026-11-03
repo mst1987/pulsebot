@@ -185,6 +185,8 @@ export type RaidDetailData = {
      * switches the menu's content version to it (#741, hooks/useFollowVersion).
      */
     versionId?: string;
+    /** Characters of this version have a last name (WoW Forever): a long one is shortened on a line. Missing = no. */
+    lastNames?: boolean;
     /** An event of a hidden game version (#563): the page opens as a read-only archive; null/missing = a normal event. */
     archived?: { versionId: string; label: string; short: string } | null;
     categoryName: string;

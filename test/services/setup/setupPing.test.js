@@ -4,6 +4,7 @@
 // (setupMessage.callSetupPing, tested there); here the plan, the text, the
 // button and a ping card of the time before. Stores and Discord are mocks; the
 // approved setup is read by the real setupCore.
+const { MessageFlags } = require("discord.js");
 const { cardText } = require("../../helpers/cardText");
 const mockEvents = new Map();
 jest.mock("../../../src/stores/events/eventStore", () => ({
@@ -147,6 +148,8 @@ describe("the Discord button + modal (setupPingBot)", () => {
         member: { displayName: "Nerathil" },
         fields: { getTextInputValue: () => text },
         reply: jest.fn(async () => {}),
+        deferReply: jest.fn(async () => {}),
+        editReply: jest.fn(async () => {}),
     });
 
     it("hangs under /event's access, like Event verwalten", () => {
@@ -179,8 +182,30 @@ describe("the Discord button + modal (setupPingBot)", () => {
         await command.execute(interaction);
         expect(eventStore.setEventSetupPingText).toHaveBeenCalledWith("eh-abc123", "Kommt alle!");
         expect(callSetupPing).toHaveBeenCalledWith({ guildId: "g1", eventId: "eh-abc123", userId: "u-lead", text: "Kommt alle!", byName: "Nerathil" });
-        expect(cardText(interaction.reply.mock.calls[0][0])).toContain("3 Raider aus dem Setup gepingt.");
-        expect(interaction.reply.mock.calls[0][0].flags).toBeTruthy();
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("3 Raider aus dem Setup gepingt.");
+        expect(interaction.reply).not.toHaveBeenCalled();
+    });
+
+    it("defers the submit ephemeral before the work: the repost can wait for Discord names", async () => {
+        raid();
+        const interaction = submit("setup-ping:eh-abc123", "Kommt alle!");
+        await command.execute(interaction);
+        expect(interaction.deferReply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        const work = callSetupPing.mock.invocationCallOrder[0];
+        expect(interaction.deferReply.mock.invocationCallOrder[0]).toBeLessThan(eventStore.setEventSetupPingText.mock.invocationCallOrder[0]);
+        expect(interaction.deferReply.mock.invocationCallOrder[0]).toBeLessThan(work);
+        expect(work).toBeLessThan(interaction.editReply.mock.invocationCallOrder[0]);
+        expect(interaction.editReply.mock.calls[0][0].flags & MessageFlags.Ephemeral).toBeFalsy();
+    });
+
+    it("answers a refused ping through editReply too", async () => {
+        raid();
+        callSetupPing.mockResolvedValueOnce({ error: { message: "Geht gerade nicht." } });
+        const interaction = submit("setup-ping:eh-abc123", "Kommt alle!");
+        await command.execute(interaction);
+        expect(interaction.deferReply).toHaveBeenCalledTimes(1);
+        expect(cardText(interaction.editReply.mock.calls[0][0])).toContain("Geht gerade nicht.");
+        expect(interaction.reply).not.toHaveBeenCalled();
     });
 
     it("ignores ids that are no own event", () => {

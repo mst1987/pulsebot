@@ -149,7 +149,7 @@ export function Summary({ data, setup, busy, onFairness, onWishes, onAvoid, onLo
             {!!setup.warnings.length && (
                 <Badge tone="mid" tip={t("setup.summary.hintsTip")} tipSub={setup.warnings.join("\n")}>{t("setup.summary.hints", { count: setup.warnings.length })}</Badge>
             )}
-            {data.loot && onLoadLoot && <LootPanel status={data.loot} check={checks.loot} busy={busy} onLoad={onLoadLoot} ready={lootReady} onPropose={onLootPropose} />}
+            {data.loot && onLoadLoot && <LootPanel status={data.loot} check={checks.loot} busy={busy} onLoad={onLoadLoot} ready={lootReady} onPropose={onLootPropose} shortNames={data.lastNames} />}
         </aside>
     );
 }
