@@ -17,7 +17,7 @@
 //
 // `buildChecklist(inputs)` is pure (the tests drive it item by item);
 // `loadChecklist(versionId)` gathers the inputs, each best-effort.
-const { getConfig, saveConfig, listRaidTemplates } = require("../../stores/settings/settingsStore");
+const { getConfig, saveConfig, allRaidTemplates } = require("../../stores/settings/settingsStore");
 const { VERSION_LAUNCH_MANUAL } = require("../../stores/settings/configSchema");
 const { VERSIONS, rulesFor, instance } = require("../../config/gameVersions");
 const { knownVersion } = require("./mainVersion");
@@ -286,9 +286,17 @@ function loadChecklist(versionId, { config = getConfig(), withBackup = false } =
         .map((id) => ({ id, name: names.get(id) || "", versionId: knownVersion(catVersions[id]) }));
     const targetCategories = categories.filter((c) => c.versionId === target).map(({ id, name }) => ({ id, name }));
 
-    const allTemplates = safely(() => listRaidTemplates(), []);
+    // The whole bot's checklist: the templates of every server (#1076), a template and its copies counted once.
+    const allTemplates = safely(() => allRaidTemplates(), []);
     const templateById = new Map(allTemplates.map((t) => [t.id, t]));
-    const templates = allTemplates.filter((t) => knownVersion(t.versionId) === target).map((t) => ({
+    const seenTemplates = new Set();
+    const onceAcrossServers = (t) => {
+        const key = t.originId || t.id;
+        if (seenTemplates.has(key)) return false;
+        seenTemplates.add(key);
+        return true;
+    };
+    const templates = allTemplates.filter((t) => knownVersion(t.versionId) === target).filter(onceAcrossServers).map((t) => ({
         id: t.id,
         name: t.name || t.id,
         incomplete: (t.instanceIds || []).map((id) => instance(target, id)).filter((inst) => inst && inst.status === "incomplete").map((inst) => inst.name),

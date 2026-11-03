@@ -5,7 +5,7 @@ const fs = require("fs");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
-    listRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
+    listRaidTemplates, allRaidTemplates, getRaidTemplate, saveRaidTemplate, saveRaidTemplates, deleteRaidTemplate,
     listNotify, getNotify, saveNotify, deleteNotify,
     listRaidsheets, getRaidsheet, saveRaidsheet, deleteRaidsheet,
     getConfig, saveConfig, resolveEventSheetLink, normalizeDiscordServers,
@@ -516,13 +516,14 @@ describe("stores/settings/settingsStore", () => {
     describe("raid templates (#266)", () => {
         const TEMPLATES_FILE = require("../../../src/config/paths").settingsPath("raid-templates.json");
         const CONFIG_FILE = require("../../../src/config/paths").settingsPath("config.json");
+        const GUILD = "1100000000000000001";
         const kara = () => ({
             name: "Karazhan PuG", versionId: "tbc", instanceIds: ["kara"], size: 10,
             composition: { tank: 2, healer: 3 },
         });
 
         it("creates a template with a fresh id and the full shape", () => {
-            const { template, error } = saveRaidTemplate(kara());
+            const { template, error } = saveRaidTemplate(GUILD, kara());
             expect(error).toBeUndefined();
             expect(template.id).toMatch(/^[0-9a-f]{12}$/);
             expect(template).toMatchObject({
@@ -530,48 +531,48 @@ describe("stores/settings/settingsStore", () => {
                 composition: { tank: 2, healer: 3, melee: null, ranged: null },
                 requiredBuffs: [], signupDeadline: null, fairness: false, wishes: false, raidhelperTemplateId: "",
             });
-            expect(listRaidTemplates()).toHaveLength(1);
-            expect(getRaidTemplate(template.id).name).toBe("Karazhan PuG");
+            expect(listRaidTemplates(GUILD)).toHaveLength(1);
+            expect(getRaidTemplate(GUILD, template.id).name).toBe("Karazhan PuG");
         });
 
         it("refuses what the validation refuses and stores nothing", () => {
-            expect(saveRaidTemplate({ ...kara(), composition: { tank: 6, healer: 5 } }).error).toMatch(/passen nicht/);
-            expect(saveRaidTemplate({ ...kara(), instanceIds: ["mc"] }).error).toMatch(/Instanz/);
-            expect(listRaidTemplates()).toHaveLength(0);
+            expect(saveRaidTemplate(GUILD, { ...kara(), composition: { tank: 6, healer: 5 } }).error).toMatch(/passen nicht/);
+            expect(saveRaidTemplate(GUILD, { ...kara(), instanceIds: ["mc"] }).error).toMatch(/Instanz/);
+            expect(listRaidTemplates(GUILD)).toHaveLength(0);
         });
 
         it("updates by id and reports an unknown id as not found", () => {
-            const { template } = saveRaidTemplate(kara());
-            const again = saveRaidTemplate({ ...kara(), id: template.id, name: "Kara Donnerstag" });
+            const { template } = saveRaidTemplate(GUILD, kara());
+            const again = saveRaidTemplate(GUILD, { ...kara(), id: template.id, name: "Kara Donnerstag" });
             expect(again.template.id).toBe(template.id);
-            expect(listRaidTemplates()).toHaveLength(1);
-            expect(listRaidTemplates()[0].name).toBe("Kara Donnerstag");
-            expect(saveRaidTemplate({ ...kara(), id: "gone" })).toMatchObject({ notFound: true });
+            expect(listRaidTemplates(GUILD)).toHaveLength(1);
+            expect(listRaidTemplates(GUILD)[0].name).toBe("Kara Donnerstag");
+            expect(saveRaidTemplate(GUILD, { ...kara(), id: "gone" })).toMatchObject({ notFound: true });
         });
 
         it("deleteRaidTemplate removes by id and reports success", () => {
-            const { template } = saveRaidTemplate(kara());
-            expect(deleteRaidTemplate(template.id)).toBe(true);
-            expect(deleteRaidTemplate(template.id)).toBe(false);
-            expect(listRaidTemplates()).toHaveLength(0);
+            const { template } = saveRaidTemplate(GUILD, kara());
+            expect(deleteRaidTemplate(GUILD, template.id)).toBe(true);
+            expect(deleteRaidTemplate(GUILD, template.id)).toBe(false);
+            expect(listRaidTemplates(GUILD)).toHaveLength(0);
         });
 
         it("listRaidTemplates tolerates a missing file", () => {
-            expect(listRaidTemplates()).toEqual([]);
+            expect(listRaidTemplates(GUILD)).toEqual([]);
         });
 
         // Since #420 the upgrade runs once at start (settingsMigration.js), not on a read.
         it("migrates the old Raid-Helper list into templates without size, and writes it back once", () => {
             fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [{ id: "3", name: "GDKP Kara", createdAt: 5, updatedAt: 6 }] }));
             migrateSettings({ log: () => {} });
-            const [t] = listRaidTemplates();
+            const [t] = allRaidTemplates();
             expect(t).toMatchObject({
                 id: "rh-3", name: "GDKP Kara", versionId: "tbc", instanceIds: [], size: null,
                 raidhelperTemplateId: "3", createdAt: 5, updatedAt: 6,
             });
             // written back in the new shape: a second read migrates nothing
             fs.writeFileSync.mockClear();
-            expect(listRaidTemplates()[0].id).toBe("rh-3");
+            expect(allRaidTemplates()[0].id).toBe("rh-3");
             expect(fs.writeFileSync).not.toHaveBeenCalled();
         });
 
@@ -595,27 +596,27 @@ describe("stores/settings/settingsStore", () => {
 
         describe("saveRaidTemplates (import from Raid-Helper)", () => {
             it("adds unknown Raid-Helper templates as templates without size, skipping blank ids", () => {
-                const res = saveRaidTemplates([
+                const res = saveRaidTemplates(GUILD, [
                     { id: "3", name: "Kara" },
                     { id: "7", name: "MC" },
                     { id: "", name: "ignored" },
                 ]);
                 expect(res).toEqual({ added: 2, updated: 0 });
-                expect(listRaidTemplates().map((t) => t.raidhelperTemplateId).sort()).toEqual(["3", "7"]);
-                expect(listRaidTemplates().every((t) => t.size === null)).toBe(true);
+                expect(listRaidTemplates(GUILD).map((t) => t.raidhelperTemplateId).sort()).toEqual(["3", "7"]);
+                expect(listRaidTemplates(GUILD).every((t) => t.size === null)).toBe(true);
             });
 
             it("leaves a template that already links the Raid-Helper template alone", () => {
-                saveRaidTemplate({ ...kara(), raidhelperTemplateId: "3" });
-                const res = saveRaidTemplates([{ id: "3", name: "Anders" }, { id: "9", name: "Neu" }]);
+                saveRaidTemplate(GUILD, { ...kara(), raidhelperTemplateId: "3" });
+                const res = saveRaidTemplates(GUILD, [{ id: "3", name: "Anders" }, { id: "9", name: "Neu" }]);
                 expect(res).toEqual({ added: 1, updated: 1 });
-                const byRh = Object.fromEntries(listRaidTemplates().map((t) => [t.raidhelperTemplateId, t]));
+                const byRh = Object.fromEntries(listRaidTemplates(GUILD).map((t) => [t.raidhelperTemplateId, t]));
                 expect(byRh["3"]).toMatchObject({ name: "Karazhan PuG", size: 10 });
                 expect(byRh["9"]).toMatchObject({ name: "Neu", size: null });
             });
 
             it("writes nothing and returns zero counts for an empty list", () => {
-                const res = saveRaidTemplates([]);
+                const res = saveRaidTemplates(GUILD, []);
                 expect(res).toEqual({ added: 0, updated: 0 });
                 expect(fs.writeFileSync).not.toHaveBeenCalled();
             });

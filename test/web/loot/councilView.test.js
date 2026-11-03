@@ -88,17 +88,17 @@ describe("councilCategoryIds", () => {
 describe("categoryInstances", () => {
     it("names the raids of the category's template", () => {
         getRaidTemplate.mockReturnValue({ id: "tpl", instanceIds: ["bt", "forever-barrow", "nope"] });
-        const out = categoryInstances({ categoryRaidTemplate: { c1: "tpl" } }, "c1");
-        expect(getRaidTemplate).toHaveBeenCalledWith("tpl");
+        const out = categoryInstances({ categoryRaidTemplate: { c1: "tpl" } }, "c1", "g1");
+        expect(getRaidTemplate).toHaveBeenCalledWith("g1", "tpl");
         expect(out.map((i) => i.id)).toEqual(["bt", "forever-barrow"]);
         expect(out[1]).toEqual({ id: "forever-barrow", name: "Barrow Deeps", short: "Barrow", zoneNames: ["barrow deeps"] });
         expect(out[0].zoneNames).toEqual([]);
     });
 
     it("is empty without a template", () => {
-        expect(categoryInstances({}, "c1")).toEqual([]);
-        expect(categoryInstances({ categoryRaidTemplate: { c1: "gone" } }, "c1")).toEqual([]);
-        expect(getRaidTemplate).toHaveBeenCalledWith("gone");
+        expect(categoryInstances({}, "c1", "g1")).toEqual([]);
+        expect(categoryInstances({ categoryRaidTemplate: { c1: "gone" } }, "c1", "g1")).toEqual([]);
+        expect(getRaidTemplate).toHaveBeenCalledWith("g1", "gone");
     });
 });
 

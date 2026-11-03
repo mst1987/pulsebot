@@ -6,7 +6,7 @@ const {
     migrateSettings, migrateCategoryRaidTemplate, raidplanDefaultsLine,
 } = require("../../../src/stores/settings/settingsMigration");
 const { getConfig } = require("../../../src/stores/settings/configStore");
-const { listRaidTemplates } = require("../../../src/stores/events/raidTemplateStore");
+const { allRaidTemplates, getRaidTemplate, listRaidTemplates } = require("../../../src/stores/events/raidTemplateStore");
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -35,11 +35,14 @@ describe("stores/settings/settingsMigration migrateSettings (#420)", () => {
         // the four upgrades of the old install, the old raid defaults dropped (#924: "ch" is no channel id),
         // plus the planning of its two raid categories (nothing used yet: raid plan)
         // and their version pinned to the one they play (#738)
-        expect(changes).toHaveLength(7);
+        // and the template per server with the note on its two categories nothing places yet (#1076)
+        expect(changes).toHaveLength(9);
         expect(changes[3]).toBe("config.json: Bewerbungen, Raid-Standardwerte und Kan\u00e4le je Server gespeichert (#924) - globale Altfelder entfernt");
-        expect(changes[5]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
-        expect(changes[6]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
-        expect(log).toHaveBeenCalledTimes(7);
+        expect(changes[5]).toContain("raid-templates.json: 1 Vorlage(n) je Server");
+        expect(changes[6]).toContain("2 Kategorie(n) ohne belegten Server behalten ihre Vorlagen-ID (#1076) - c1, c2");
+        expect(changes[7]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
+        expect(changes[8]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
+        expect(log).toHaveBeenCalledTimes(9);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
@@ -56,7 +59,7 @@ describe("stores/settings/settingsMigration migrateSettings (#420)", () => {
         expect(config.serverSettings).toEqual({});
         expect(getConfig().categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
         expect(getConfig().discordServers).toEqual(config.discordServers);
-        expect(listRaidTemplates()[0].id).toBe("rh-3");
+        expect(allRaidTemplates()[0].id).toBe("rh-3");
     });
 
     it("the second start finds nothing: no change, no write, no log", () => {
@@ -134,8 +137,9 @@ describe("stores/settings/settingsMigration overflow -> none (#516)", () => {
         expect(changes).toEqual([
             expect.stringContaining("raid-templates.json: 1 Vorlage(n)"),
             expect.stringContaining("events.json: 2 Event(s)"),
+            expect.stringContaining("Vorlage(n) je Server"),
         ]);
-        expect(log).toHaveBeenCalledTimes(2);
+        expect(log).toHaveBeenCalledTimes(3);
         const events = stored(EVENTS_FILE).events;
         expect(events[0]).toEqual({ ...OLD_EVENTS.events[0], overflow: "none", lockAtLimit: false });
         expect(events[1]).toEqual({ ...OLD_EVENTS.events[1], overflow: "none", lockAtLimit: false });
@@ -143,8 +147,8 @@ describe("stores/settings/settingsMigration overflow -> none (#516)", () => {
         // a raid the old rule already closed stays closed - that is the orga's call
         expect(getEvent("eh-a")).toMatchObject({ overflow: "none", lockAtLimit: false, signupsClosed: true });
         const templates = stored(TEMPLATES_FILE).templates;
-        expect(templates[0]).toEqual({ ...OLD_TPL.templates[0], overflow: "none", lockAtLimit: false });
-        expect(templates[1]).toEqual(OLD_TPL.templates[1]);
+        expect(templates[0]).toMatchObject({ ...OLD_TPL.templates[0], overflow: "none", lockAtLimit: false });
+        expect(templates[1]).toMatchObject(OLD_TPL.templates[1]);
     });
 
     it("is idempotent: the second start writes and logs nothing", () => {
@@ -262,6 +266,115 @@ describe("stores/settings/settingsMigration standard values and recruitment vers
         expect(stored(RECRUIT_FILE).templates.map((t) => t.versionId)).toEqual(["tbc", "classic"]);
         expect(stored(POSTS_FILE).posts[0].versionId).toBe("tbc");
         expect(migrateSettings(quiet)).toEqual({ changes: [] });
+    });
+});
+
+// #1076: the raid templates go per server; a category default and a series must neither use another
+// server's template nor run into nothing afterwards.
+describe("stores/settings/settingsMigration raid templates per server (#1076)", () => {
+    const SERIES_FILE = settingsPath("event-series.json");
+    const NAMES_FILE = settingsPath("category-names.json");
+    const A = "1100000000000000001";
+    const B = "1100000000000000002";
+    // real shape of a stored template, from before the servers
+    const TEMPLATE = {
+        id: "k1", name: "Karazhan", versionId: "tbc", raidhelperTemplateId: "", instanceIds: ["kara"], size: 10,
+        composition: { tank: 2, healer: 3, melee: null, ranged: null }, overflow: "none", lockAtLimit: false,
+        requiredBuffs: [], signupDeadline: null, fairness: false, wishes: false, createdAt: 5, updatedAt: 6,
+    };
+    const load = (servers, over = {}) => {
+        fs.__store.set(CONFIG_FILE, JSON.stringify({
+            categoryRaidTemplate: { catA: "k1", catB: "k1", catLost: "k1" },
+            discordServers: { servers: servers.map((guildId) => ({ guildId, label: "" })), links: [] },
+            ...over,
+        }));
+        fs.__store.set(TEMPLATES_FILE, JSON.stringify({ templates: [TEMPLATE] }));
+        fs.__store.set(NAMES_FILE, JSON.stringify({ guilds: { [A]: { catA: "A-Raids" }, [B]: { catB: "B-Raids", catOld: "Alt" } } }));
+        fs.__store.set(SERIES_FILE, JSON.stringify({ series: {
+            catA: { categoryId: "catA", guildId: A, raidTemplateId: "k1" },
+            catB: { categoryId: "catB", guildId: B, raidTemplateId: "k1" },
+            // a series from before its guildId: the category's snapshot places it
+            catOld: { categoryId: "catOld", guildId: "", raidTemplateId: "k1" },
+        } }));
+    };
+    const defaults = () => stored(CONFIG_FILE).categoryRaidTemplate;
+    const seriesOf = () => stored(SERIES_FILE).series;
+
+    it("two servers: each category and series points at the template of its own server", () => {
+        load([A, B]);
+        const { changes } = migrateSettings(quiet);
+        const copy = getRaidTemplate(B, "k1");
+        expect(copy.originId).toBe("k1");
+        expect(copy.id).not.toBe("k1");
+        expect(getRaidTemplate(A, "k1")).toMatchObject({ id: "k1", originId: "" });
+
+        expect(defaults().catA).toBe("k1");
+        expect(defaults().catB).toBe(copy.id);
+        expect(seriesOf().catA.raidTemplateId).toBe("k1");
+        expect(seriesOf().catB.raidTemplateId).toBe(copy.id);
+        expect(seriesOf().catOld.raidTemplateId).toBe(copy.id);
+
+        expect(changes).toEqual(expect.arrayContaining([
+            expect.stringContaining("raid-templates.json: 1 Vorlage(n) je Server"),
+            expect.stringContaining("config.json: 1 Standard-Vorlage(n)"),
+            expect.stringContaining("event-series.json:"),
+        ]));
+    });
+
+    it("a category nothing places keeps its id, says so once, and still finds a template on its server", () => {
+        load([A, B]);
+        const { changes } = migrateSettings(quiet);
+        expect(defaults().catLost).toBe("k1");
+        expect(changes).toContainEqual(expect.stringContaining("catLost"));
+        // whichever server it turns out to be on: its own template, never a foreign one, never none
+        expect(getRaidTemplate(A, defaults().catLost).guildId).toBe(A);
+        expect(getRaidTemplate(B, defaults().catLost).guildId).toBe(B);
+        expect(migrateSettings(quiet).changes).toEqual([]);
+    });
+
+    it("a second start changes nothing", () => {
+        load([A, B]);
+        migrateSettings(quiet);
+        const before = [TEMPLATES_FILE, CONFIG_FILE, SERIES_FILE].map((f) => fs.__store.get(f));
+        fs.writeFileSync.mockClear();
+        const log = jest.fn();
+        expect(migrateSettings({ log })).toEqual({ changes: [] });
+        expect(fs.writeFileSync).not.toHaveBeenCalled();
+        expect(log).not.toHaveBeenCalled();
+        expect([TEMPLATES_FILE, CONFIG_FILE, SERIES_FILE].map((f) => fs.__store.get(f))).toEqual(before);
+    });
+
+    it("a run that broke off between the two files moves the references on the next start", () => {
+        load([A, B]);
+        migrateSettings(quiet);
+        const copy = getRaidTemplate(B, "k1");
+        const config = stored(CONFIG_FILE);
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ ...config, categoryRaidTemplate: { ...config.categoryRaidTemplate, catB: "k1" } }));
+        migrateSettings(quiet);
+        expect(defaults().catB).toBe(copy.id);
+    });
+
+    it("a single server: same ids, nothing to repoint", () => {
+        load([A]);
+        const { changes } = migrateSettings(quiet);
+        expect(listRaidTemplates(A).map((t) => t.id)).toEqual(["k1"]);
+        expect(defaults()).toEqual({ catA: "k1", catB: "k1", catLost: "k1" });
+        expect(seriesOf().catB.raidTemplateId).toBe("k1");
+        expect(changes.filter((line) => line.includes("#1076"))).toHaveLength(1);
+    });
+
+    it("no server listed: the templates stay stored, nothing moves, and a later start takes them over", () => {
+        load([], { guildId: "g" });
+        const warn = jest.fn();
+        const { changes } = migrateSettings({ log: () => {}, warn });
+        expect(changes).toContainEqual(expect.stringContaining(": WARNUNG "));
+        expect(stored(TEMPLATES_FILE).templates).toEqual([TEMPLATE]);
+        expect(defaults()).toEqual({ catA: "k1", catB: "k1", catLost: "k1" });
+
+        const config = stored(CONFIG_FILE);
+        fs.__store.set(CONFIG_FILE, JSON.stringify({ ...config, discordServers: { servers: [{ guildId: A, label: "" }], links: [] } }));
+        migrateSettings(quiet);
+        expect(listRaidTemplates(A).map((t) => t.id)).toEqual(["k1"]);
     });
 });
 

@@ -375,7 +375,7 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         setTplSaving(true);
         try {
             const base = tplMode === "update" ? baseTemplate : null;
-            const saved = await saveRaidTemplate(templateFromPlan(plan, base, tplName));
+            const saved = await saveRaidTemplate(templateFromPlan(plan, base, tplName), ctx?.guildId);
             setCtx((c) => (c ? { ...c, raidTemplates: [saved, ...(c.raidTemplates || []).filter((tp) => tp.id !== saved.id)] } : c));
             patch((f) => ({ plan: { ...f.plan, raidTemplateId: saved.id } }));
             setTplOpen(false);

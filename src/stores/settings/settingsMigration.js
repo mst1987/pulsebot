@@ -35,6 +35,10 @@
 //     server. Every global template / profile is copied onto every listed server
 //     (backup <file>.pre-945 first); the globals go after the copies are read back.
 //
+//   - raid-templates.json, config.json, event-series.json (#1076): the raid templates
+//     are per server, the same way (backup raid-templates.json.pre-1076 first). A
+//     category default or a series on a further server then names that server's copy.
+//
 //   - config.json, versionSettings (#542): the single values of before (the
 //     Battle.net realm block in `blizzard`, the armory/WCL templates of the env,
 //     Wowhead "tbc", softres "tbc") become `versionSettings.tbc`; Forever and
@@ -161,6 +165,7 @@ const { LEGACY_VERSION } = require("../../config/gameVersions");
 const { mainVersionFor } = require("../../services/versions/mainVersion");
 const configStore = require("./configStore");
 const raidTemplateStore = require("../events/raidTemplateStore");
+const eventSeriesStore = require("../events/eventSeriesStore");
 const eventStore = require("../events/eventStore");
 const raidplanStore = require("../raidplan/raidplanStore");
 const eventSheetStore = require("../events/eventSheetStore");
@@ -411,7 +416,7 @@ function migrateConfig() {
     const stored = configStore.readStored();
     const next = { ...stored };
     const changes = [];
-    const categoryRaidTemplate = migrateCategoryRaidTemplate(stored, raidTemplateStore.listRaidTemplates());
+    const categoryRaidTemplate = migrateCategoryRaidTemplate(stored, raidTemplateStore.allRaidTemplates());
     if (categoryRaidTemplate) {
         next.categoryRaidTemplate = categoryRaidTemplate;
         changes.push("config.json: raidDefaults.templateId -> categoryRaidTemplate");
@@ -457,12 +462,112 @@ function migrateRaidplanVersions() {
  * migrateRaidplanVersions (the copies carry the game version) and after the federation step (settles the server list).
  */
 function migrateRaidplanServers() {
+    const servers = listedServers();
+    return [...raidplanTemplateStore.migrateToServers(servers), ...raidplanProfileStore.migrateToServers(servers)];
+}
+
+/** The servers a per-server copy goes onto: discordServers.servers, the home guild without a list. */
+function listedServers() {
     const cfg = normalizeConfig(configStore.readStored());
     const listed = (cfg.discordServers && Array.isArray(cfg.discordServers.servers) ? cfg.discordServers.servers : [])
         .map((s) => String((s && s.guildId) || "")).filter(isSnowflake);
     const home = String(cfg.guildId || "").trim();
-    const servers = listed.length ? listed : (isSnowflake(home) ? [home] : []);
-    return [...raidplanTemplateStore.migrateToServers(servers), ...raidplanProfileStore.migrateToServers(servers)];
+    return listed.length ? listed : (isSnowflake(home) ? [home] : []);
+}
+
+/**
+ * The proven server of each category: the stored name snapshot, then a stored event, raid event
+ * or roster of the category. A category nothing proves is missing from the answer. The records
+ * are only read when the snapshot left one open.
+ * @param {string[]} categoryIds
+ * @returns {Map<string, string>} categoryId -> guildId
+ */
+function provenCategoryServers(categoryIds) {
+    const open = new Set(categoryIds.map(String));
+    const proven = new Map();
+    const note = (categoryId, guildId) => {
+        const id = String(categoryId || "");
+        const guild = String(guildId || "");
+        if (open.has(id) && isSnowflake(guild)) {
+            proven.set(id, guild);
+            open.delete(id);
+        }
+    };
+    for (const [id, guild] of categoryGuildIndex(categoryNameSnapshot())) note(id, guild);
+    if (!open.size) return proven;
+    for (const e of eventStore.listEvents("", { siblings: true })) note(e.categoryId, e.guildId);
+    for (const e of raidEventStore.listRaidEvents("")) note(e.categoryId, e.guildId);
+    for (const r of rosterStore.listRosters("")) note(r.categoryId, r.guildId);
+    return proven;
+}
+
+/**
+ * After the templates went per server: a category default and a series on a further server still
+ * name the first server's original, so they move to that server's copy (the settings dropdown and
+ * the delete protection compare exact ids). The first server keeps its ids. Without a proven server
+ * an entry stays as it is and still finds the right copy when read (getRaidTemplate via originId).
+ * @returns {{ changes: string[], unproven: string[] }}
+ */
+function repointTemplateReferences() {
+    const stored = configStore.readStored();
+    const defaults = stored.categoryRaidTemplate && typeof stored.categoryRaidTemplate === "object" && !Array.isArray(stored.categoryRaidTemplate)
+        ? stored.categoryRaidTemplate : {};
+    const series = Object.values(eventSeriesStore.listSeries()).filter((s) => s && s.raidTemplateId);
+    const unknown = [...Object.keys(defaults), ...series.filter((s) => !isSnowflake(String(s.guildId || ""))).map((s) => s.categoryId)];
+    const proven = provenCategoryServers(unknown);
+    const copyOn = (server, id) => {
+        const own = server ? raidTemplateStore.getRaidTemplate(server, id) : null;
+        return own && own.id !== String(id) ? own.id : "";
+    };
+    const unproven = new Set();
+    const nextDefaults = { ...defaults };
+    let movedDefaults = 0;
+    for (const [categoryId, id] of Object.entries(defaults)) {
+        if (!proven.has(categoryId)) {
+            if (id) unproven.add(categoryId);
+            continue;
+        }
+        const copy = copyOn(proven.get(categoryId), id);
+        if (copy) {
+            nextDefaults[categoryId] = copy;
+            movedDefaults += 1;
+        }
+    }
+    if (movedDefaults) configStore.writeStored({ ...stored, categoryRaidTemplate: nextDefaults });
+    let movedSeries = 0;
+    for (const s of series) {
+        const server = isSnowflake(String(s.guildId || "")) ? String(s.guildId) : proven.get(String(s.categoryId));
+        if (!server) {
+            unproven.add(String(s.categoryId));
+            continue;
+        }
+        const copy = copyOn(server, s.raidTemplateId);
+        if (copy) {
+            eventSeriesStore.saveSeries({ ...s, raidTemplateId: copy });
+            movedSeries += 1;
+        }
+    }
+    const changes = [];
+    if (movedDefaults) changes.push(`config.json: ${movedDefaults} Standard-Vorlage(n) je Kategorie auf die Kopie ihres Servers gesetzt (#1076)`);
+    if (movedSeries) changes.push(`event-series.json: ${movedSeries} Serie(n) auf die Vorlagen-Kopie ihres Servers gesetzt (#1076)`);
+    return { changes, unproven: [...unproven] };
+}
+
+/**
+ * The raid templates per server (#1076): after migrateRaidplanServers (same server list). A single
+ * server gets no copy, so no reference needs to move and nothing else is read. A start finding
+ * copies checks the references again: a run that broke off between the two files goes on, and a
+ * second run moves nothing.
+ */
+function migrateRaidTemplateServers() {
+    const lines = raidTemplateStore.migrateToServers(listedServers());
+    if (!raidTemplateStore.allRaidTemplates().some((t) => t.originId)) return lines;
+    const { changes, unproven } = repointTemplateReferences();
+    // Only in the run that made the copies: the entry works when read, so no line on every start.
+    const note = lines.length && unproven.length
+        ? [`config.json: ${unproven.length} Kategorie(n) ohne belegten Server behalten ihre Vorlagen-ID (#1076) - ${unproven.join(", ")}`]
+        : [];
+    return [...lines, ...changes, ...note];
 }
 
 /** Characters per game version (#543): profile characters and imported specs without one become TBC ones. */
@@ -984,6 +1089,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         if (plans) changes.push(raidplanDefaultsLine(plans));
         changes.push(...migrateRaidplanVersions());
         changes.push(...migrateRaidplanServers());
+        changes.push(...migrateRaidTemplateServers());
         changes.push(...migrateCharacterVersions());
         changes.push(...migrateRecruitmentVersions());
         changes.push(...migrateKaderPlanner());
@@ -1010,6 +1116,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
+    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateRaidTemplateServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

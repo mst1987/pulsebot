@@ -6,7 +6,7 @@ const mockConfig = { categoryVoiceChannel: { cat1: "v-shared" } };
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settings/settingsStore"),
     getConfig: () => mockConfig,
-    getRaidTemplate: (id) => ({ "tpl-tbc": { id, versionId: "tbc" }, "tpl-forever": { id, name: "BD", versionId: "forever" } })[id] || null,
+    getRaidTemplate: (_guildId, id) => ({ "tpl-tbc": { id, versionId: "tbc" }, "tpl-forever": { id, name: "BD", versionId: "forever" } })[id] || null,
 }));
 jest.mock("../../../src/stores/discord/channelArchiveStore", () => ({
     ...jest.requireActual("../../../src/stores/discord/channelArchiveStore"),

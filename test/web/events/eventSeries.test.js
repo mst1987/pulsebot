@@ -18,7 +18,7 @@ jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: 
 jest.mock("../../../src/stores/events/eventStore", () => ({ appendEventLog: jest.fn() }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ categoryIds: ["cat1"], categoryRaidTemplate: {} })),
-    getRaidTemplate: jest.fn((id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", instanceIds: ["ssc", "tk"], size: 25 } : null)),
+    getRaidTemplate: jest.fn((_guildId, id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", instanceIds: ["ssc", "tk"], size: 25 } : null)),
 }));
 jest.mock("../../../src/services/discord/channelNaming", () => ({
     loadNamingInputs: jest.fn(async () => ({ events: [], channels: [], schemas: {} })),

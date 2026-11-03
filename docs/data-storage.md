@@ -183,7 +183,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
 | `settings/recruitment.json` | `settingsStore.js` | Recruitment-Vorlagen: `{ templates: [...] }`, je Vorlage `versionId` (#553) | nein |
 | `settings/recruitment-posts.json` | `settingsStore.js` | Gepostete Recruitment-Nachrichten (zum späteren Bearbeiten), je Nachricht `versionId` des Bewerben-Knopfs (#553) | nein |
-| `settings/raid-templates.json` | `settingsStore.js` | Raid-Vorlagen (Instanz, Größe, Rollen, Zeiten) | nein |
+| `settings/raid-templates.json` | `raidTemplateStore.js` | Raid-Vorlagen (Instanz, Größe, Rollen, Zeiten), seit #1076 je Discord-Server (`guildId`, Kopien mit `originId`); die alte, globale Datei liegt einmalig als `raid-templates.json.pre-1076` daneben, siehe [raid-templates.md](raid-templates.md) „Je Server“ | nein |
 | `settings/notify.json` | `settingsStore.js` | Vorlagen für den Anmelde-Aufruf (Text mit Rollenping): `{ templates: [...] }` | nein |
 | `settings/events.json` | `eventStore.js` | Eigene Events: `{ events: [...] }` | nein |
 | `settings/signups.json` | `signupStore.js` | Anmeldungen: `{ signups: { [eventId]: { [userId]: signup } } }` | nein |

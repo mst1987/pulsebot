@@ -247,11 +247,12 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
             contentIds: raidContentIds({ title: ev.title, categoryName: g.categoryName, channelName: ev.channelName, instanceIds: ev.instanceIds, versionId }).contentIds,
         };
     })).filter((ev) => ev.versionId === shownVersion && inScope(ev.categoryId));
-    const templates = listRaidTemplates().filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === shownVersion);
+    const templates = listRaidTemplates(guildId).filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === shownVersion);
     const categoryDefaults = config.categoryRaidTemplate || {};
     // The default template per category, as the Raid-Helper template id the
     // create form sends — a category whose default links none has no entry.
-    const rhById = new Map(templates.map((t) => [t.id, t.raidhelperTemplateId]));
+    // A default the migration could not place still names the id this server's copy came from (#1076).
+    const rhById = new Map(templates.flatMap((t) => [[t.originId, t.raidhelperTemplateId], [t.id, t.raidhelperTemplateId]]).filter(([id]) => id));
     const categoryTemplates = Object.fromEntries(Object.entries(categoryDefaults)
         .map(([catId, tplId]) => [catId, rhById.get(tplId) || ""])
         .filter(([, rhId]) => rhId));
@@ -281,8 +282,9 @@ const getRaidCreateContext = withUser({}, async ({ user, req, res, url }) => {
         categoryTempVoice: Object.fromEntries(safeList(() => discord.listCategories(guildId))
             .filter((c) => inScope(c.id))
             .map((c) => [c.id, { ...categoryTempVoiceFor(config, c.id), lang: categoryLang(c.id, config, guildId) }])),
-        // "Als Vorlage speichern" writes a raid template - global, area `raids` write (#728: not the category's)
+        // "Als Vorlage speichern" writes a raid template of this server (#1076), area `raids` write (#728: not the category's)
         canSaveTemplate: userCan(user, "raids", "write"),
+        guildId,
         templates,
         reusableEvents,
         // Where each category creates its new events, resolved on the server

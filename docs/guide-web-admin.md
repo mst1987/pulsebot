@@ -159,7 +159,7 @@ Technik: [raid-templates.md](raid-templates.md)
 
 *Bereich "Raids"*
 
-Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
+Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Jeder Discord-Server hat seine eigenen Vorlagen; ein neuer Server startet ohne Vorlagen. Details: [docs/raid-templates.md](raid-templates.md).
 
 Die Liste zeigt die Vorlagen der Spielversion des Content-Umschalters in der Kopfleiste (Start: die Hauptversion); eine neue Vorlage beginnt in dieser Version.
 

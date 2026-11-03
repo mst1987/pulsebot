@@ -136,7 +136,7 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
 function requiredBuffsFor(event, config) {
     if (event.raidTemplateId || (Array.isArray(event.requiredBuffs) && event.requiredBuffs.length)) return event.requiredBuffs || [];
     const templateId = (config.categoryRaidTemplate || {})[event.categoryId];
-    const template = templateId ? settingsStore.getRaidTemplate(templateId) : null;
+    const template = templateId ? settingsStore.getRaidTemplate(event.guildId, templateId) : null;
     return template && Array.isArray(template.requiredBuffs) ? template.requiredBuffs : [];
 }
 

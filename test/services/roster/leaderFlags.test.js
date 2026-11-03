@@ -1,6 +1,6 @@
 // Wer darf welchen Raid leiten? (#1034) - und wo darf die Orga Flags anderer schalten (ihr Kontext)?
 jest.mock("../../../src/stores/events/raidTemplateStore", () => ({
-    getRaidTemplate: jest.fn((id) => (id === "tpl-t5" ? { id, instanceIds: ["ssc", "tk"] } : null)),
+    getRaidTemplate: jest.fn((_guildId, id) => (id === "tpl-t5" ? { id, instanceIds: ["ssc", "tk"] } : null)),
 }));
 jest.mock("../../../src/services/roster/categoryOrga", () => ({
     canOrgaEvent: jest.fn(async (user, event) => user.id === "mgr" && event.categoryId === "cat1"),

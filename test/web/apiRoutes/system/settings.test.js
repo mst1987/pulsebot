@@ -1603,9 +1603,19 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("stores the map, dropping an id no template has", async () => {
+                settingsStore.getRaidTemplate.mockImplementation((_guildId, id) => (id === "k1" ? { id: "k1" } : null));
                 readJsonBody.mockResolvedValue({ categoryRaidTemplate: { c1: "k1", c2: "gone" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryRaidTemplate: { c1: "k1" } });
+                settingsStore.getRaidTemplate.mockReset();
+            });
+
+            it("looks the template up on the server, a copy's old id becoming the copy's own (#1076)", async () => {
+                settingsStore.getRaidTemplate.mockImplementation((guildId, id) => (guildId === "g1" && id === "origin" ? { id: "copy-on-g1" } : null));
+                readJsonBody.mockResolvedValue({ categoryRaidTemplate: { c1: "origin", c2: "of-another-server" } });
+                await updateSettings({ headers: {} }, mockRes());
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryRaidTemplate: { c1: "copy-on-g1" } });
+                settingsStore.getRaidTemplate.mockReset();
             });
         });
 

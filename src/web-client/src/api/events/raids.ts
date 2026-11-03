@@ -174,8 +174,10 @@ export type RaidCreateContext = {
     defaultSchema?: string;
     /** the own event ?event= names, for the edit mode */
     editEvent?: OwnEvent | null;
-    /** "Als Vorlage speichern" writes a global raid template (`raids` write) - not the orga of a category's (#728) */
+    /** "Als Vorlage speichern" writes a raid template of this server (#1076), `raids` write - not the orga of a category's (#728) */
     canSaveTemplate?: boolean;
+    /** the server this material is of; "Als Vorlage speichern" names it (#1076) */
+    guildId?: string;
 };
 
 /**
