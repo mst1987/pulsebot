@@ -1,10 +1,19 @@
 // The plan table (Alle Server > Einstellungen): full admins only, others learn nothing.
 let mockUser = null;
+let mockCsrf = true;
+let mockOnline = true;
+let mockUnavailable = [];
 
-jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => true }));
-jest.mock("../../../../src/services/discord/discord", () => ({
-    listGuilds: jest.fn(() => [{ id: "g1", name: "Eins" }, { id: "g2", name: "Zwei" }]),
-}));
+jest.mock("../../../../src/web/http/auth", () => ({ getUser: () => mockUser, checkCsrf: () => mockCsrf }));
+jest.mock("../../../../src/services/discord/discord", () => {
+    const cached = (id) => id === "g1" || id === "g2";
+    return {
+        listGuilds: jest.fn(() => [{ id: "g1", name: "Eins" }, { id: "g2", name: "Zwei" }]),
+        isOnline: () => mockOnline,
+        getGuild: (id) => (cached(id) ? { id } : null),
+        isGuildAvailable: (id) => cached(id) && !mockUnavailable.includes(id),
+    };
+});
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ serverLabel: jest.fn((id) => (id === "g1" ? "Kurz" : "")) }));
 jest.mock("../../../../src/config/plans", () => {
     const actual = jest.requireActual("../../../../src/config/plans");
@@ -25,8 +34,13 @@ const PATH = "/api/settings/server-plans";
 beforeEach(() => {
     store.useFile(tempStoreFile("server-plans.json"));
     mockUser = ADMIN;
+    mockCsrf = true;
+    mockOnline = true;
+    mockUnavailable = [];
 });
 afterAll(() => store.useFile(null));
+
+const stateOf = (res, guildId) => body(res).servers.find((s) => s.guildId === guildId).state;
 
 describe("GET /api/settings/server-plans", () => {
     it("lists the plans and every server for a full admin", async () => {
@@ -36,6 +50,28 @@ describe("GET /api/settings/server-plans", () => {
         expect(plans).toEqual(["free", "none"]);
         expect(maxNote).toBeGreaterThan(0);
         expect(servers.map((s) => [s.guildId, s.name, s.plan])).toEqual([["g1", "Kurz", "free"], ["g2", "Zwei", "free"]]);
+    });
+
+    it("marks a server as gone only when the bot is online and no longer has it", async () => {
+        store.setEntry("g9", { plan: "none", until: "", note: "" });
+        const res = await get(PATH);
+        expect(stateOf(res, "g1")).toBe("known");
+        expect(stateOf(res, "g9")).toBe("gone");
+    });
+
+    it("says unknown, not gone, for every server while the bot is offline", async () => {
+        store.setEntry("g9", { plan: "none", until: "", note: "" });
+        mockOnline = false;
+        const res = await get(PATH);
+        expect(stateOf(res, "g9")).toBe("unknown");
+        expect(stateOf(res, "g1")).toBe("unknown");
+    });
+
+    it("says unknown for a server in an outage, which stays cached as unavailable", async () => {
+        mockUnavailable = ["g2"];
+        const res = await get(PATH);
+        expect(stateOf(res, "g2")).toBe("unknown");
+        expect(stateOf(res, "g1")).toBe("known");
     });
 
     it("is closed to everyone else, even with the settings right", async () => {
@@ -56,6 +92,12 @@ describe("PUT /api/settings/server-plans", () => {
 
     it("is refused for someone who is not a full admin, and saves nothing", async () => {
         mockUser = SETTINGS_USER;
+        expect(status(await request("PUT", PATH, { guildId: "g1", plan: "none" }))).toBe(403);
+        expect(store.getEntry("g1")).toBeNull();
+    });
+
+    it("is refused without a valid CSRF token, and saves nothing", async () => {
+        mockCsrf = false;
         expect(status(await request("PUT", PATH, { guildId: "g1", plan: "none" }))).toBe(403);
         expect(store.getEntry("g1")).toBeNull();
     });

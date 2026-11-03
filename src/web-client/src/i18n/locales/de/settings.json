@@ -94,6 +94,7 @@
         },
         "expired": "abgelaufen",
         "gone": "Bot nicht mehr dabei ({id})",
+        "unknown": "Discord antwortet nicht ({id})",
         "empty": "Noch kein Server.",
         "loadError": "Die Tarife konnten nicht geladen werden.",
         "saved": "Tarif gespeichert."

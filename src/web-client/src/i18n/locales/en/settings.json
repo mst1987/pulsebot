@@ -94,6 +94,7 @@
         },
         "expired": "expired",
         "gone": "Bot no longer there ({id})",
+        "unknown": "Discord is not answering ({id})",
         "empty": "No server yet.",
         "loadError": "Could not load the plans.",
         "saved": "Plan saved."

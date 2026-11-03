@@ -6,8 +6,11 @@ import { get, send } from "../client";
 /** What a full admin can set on a server. `until` "YYYY-MM-DD" (holds through that day), "" = no end. */
 export type ServerPlanInput = { guildId: string; plan: string; until: string; note: string };
 
-/** One server; `name` is "" when the bot has left it. `expired`: past `until`, so the server is on the default plan. */
-export type ServerPlanRow = ServerPlanInput & { name: string; expired: boolean };
+/**
+ * One server; `name` is "" when no name is known. `expired`: past `until`, so the server is on the default plan.
+ * `state`: "gone" only when the bot has certainly left, "unknown" while Discord does not answer.
+ */
+export type ServerPlanRow = ServerPlanInput & { name: string; expired: boolean; state: "known" | "gone" | "unknown" };
 
 export type ServerPlansView = {
     /** The ids of the plans there are. */

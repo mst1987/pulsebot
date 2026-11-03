@@ -16,7 +16,23 @@ const REFUSALS = {
 
 const guilds = () => discord.listGuilds().map((g) => ({ id: g.id, name: serverLabel(g.id) || g.name }));
 
-const view = () => ({ plans: Object.keys(PLANS), maxNote: MAX_NOTE, servers: planRows(guilds()) });
+/**
+ * What is certain about the bot and a server. "Not in the cache" only proves that it left
+ * while the bot is online: before the login and in an outage Discord cannot answer, and a
+ * server with `available === false` stays cached without its data.
+ * @returns {"known"|"gone"|"unknown"}
+ */
+function guildState(guildId) {
+    if (!discord.isOnline()) return "unknown";
+    if (discord.isGuildAvailable(guildId)) return "known";
+    return discord.getGuild(guildId) ? "unknown" : "gone";
+}
+
+const view = () => ({
+    plans: Object.keys(PLANS),
+    maxNote: MAX_NOTE,
+    servers: planRows(guilds()).map((row) => ({ ...row, state: guildState(row.guildId) })),
+});
 
 /** GET /api/settings/server-plans - every server with its plan. */
 const getServerPlans = withUser({ full: true }, async ({ res }) => {

@@ -12,13 +12,18 @@ plan is `free` and it unlocks everything; no route, menu entry or command carrie
 - `src/services/plans/serverPlan.js` — `serverPlan(guildId)`, `hasFeature(guildId, feature)`,
   `serverFeatures(guildId)`, `setServerPlan`, `planRows`.
 
-No entry, an unknown plan or a passed `until` means `free`. That is fail-open on purpose: nothing a store mishap
-does can take a function away from a server. `until` (`YYYY-MM-DD`) holds through its whole day, server time.
+No entry, an unknown plan or a passed `until` means `free`. That is fail-open on purpose, but only as long as
+`free` holds everything: today no store mishap can take a function away from a server; once `free` lists its
+features, the same fallback starts to refuse. `until` (`YYYY-MM-DD`) holds through its whole day, server time.
 
 ## Who sees it
 
 Full admins only: `GET`/`PUT /api/settings/server-plans`, table under “Alle Server › Einstellungen › Tarife”. A
-server admin sees nothing of it.
+server admin sees nothing of it there. Each row's `state` is `known`, `gone` (bot online and the server not in its
+cache: it certainly left) or `unknown` (bot offline or the server unavailable: no statement possible).
+
+`planFeatures` in `GET /api/session` goes to every menu user, for their active server. It is empty today; once it
+has content, those users can read from it what the plan of that server unlocks.
 
 ## Putting a function behind a plan
 

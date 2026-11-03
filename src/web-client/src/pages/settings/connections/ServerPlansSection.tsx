@@ -53,7 +53,7 @@ export default function ServerPlansSection() {
             id: "server", label: t("settings.serverPlans.server"), sortKey: "server",
             cell: (row) => (row.name
                 ? <b data-tip={row.guildId}>{row.name}</b>
-                : <span className="srv-muted">{t("settings.serverPlans.gone", { id: row.guildId })}</span>),
+                : <span className="srv-muted">{row.state === "gone" ? t("settings.serverPlans.gone", { id: row.guildId }) : t("settings.serverPlans.unknown", { id: row.guildId })}</span>),
         },
         {
             id: "plan", label: t("settings.serverPlans.plan"), sortKey: "plan",
@@ -72,14 +72,18 @@ export default function ServerPlansSection() {
             id: "until", label: t("settings.serverPlans.until"), sortKey: "until",
             cell: (row) => (
                 <>
-                    {/* saved on leaving the field: a typed date passes through values nobody means */}
+                    {/* saved on leaving the field: a typed date passes through values nobody means.
+                        A half-typed date reads as "" with badInput: that must not clear the saved one. */}
                     <input
                         key={row.until}
                         className="inp-sm"
                         type="date"
                         aria-label={t("settings.serverPlans.untilOf", { name: nameOf(row) })}
                         defaultValue={row.until}
-                        onBlur={(e) => { if (e.target.value !== row.until) void save(row, { until: e.target.value }); }}
+                        onBlur={(e) => {
+                            if (e.target.validity.badInput || e.target.value === row.until) return;
+                            void save(row, { until: e.target.value });
+                        }}
                     />
                     {row.expired && <span className="plan-expired srv-muted">{t("settings.serverPlans.expired")}</span>}
                 </>

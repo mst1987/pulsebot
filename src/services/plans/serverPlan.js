@@ -75,9 +75,9 @@ function planRows(guilds, now = Date.now()) {
         };
     };
     const known = new Set(guilds.map((g) => g.id));
-    // the bot left a server: its entry stays visible, so it can be cleared
-    const gone = Object.keys(saved).filter((id) => !known.has(id));
-    return [...guilds.map((g) => rowOf(g.id, g.name)), ...gone.map((id) => rowOf(id, ""))];
+    // not listed (the bot left, or Discord does not answer): the entry stays visible, so it can be cleared
+    const unlisted = Object.keys(saved).filter((id) => !known.has(id));
+    return [...guilds.map((g) => rowOf(g.id, g.name)), ...unlisted.map((id) => rowOf(id, ""))];
 }
 
 module.exports = { MAX_NOTE, isExpired, serverPlan, hasFeature, serverFeatures, setServerPlan, planRows };

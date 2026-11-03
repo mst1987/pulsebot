@@ -15,7 +15,7 @@ vi.mock("../../../../api", async (orig) => ({
     saveServerPlan: vi.fn(),
 }));
 
-const ROW = { guildId: "g1", name: "Raidgilde", plan: "free", until: "", note: "", expired: false };
+const ROW = { guildId: "g1", name: "Raidgilde", plan: "free", until: "", note: "", expired: false, state: "known" as const };
 
 function view(over: Partial<ServerPlansView> = {}): ServerPlansView {
     return { plans: ["free", "plus"], maxNote: 200, servers: [ROW], ...over };
@@ -60,13 +60,43 @@ describe("ServerPlansSection", () => {
         await waitFor(() => expect(api.saveServerPlan).toHaveBeenCalledWith({ guildId: "g1", plan: "free", until: "2027-01-31", note: "" }));
     });
 
+    it("keeps a saved end date when the field holds a half-typed one", async () => {
+        vi.mocked(api.getServerPlans).mockResolvedValue(view({ servers: [{ ...ROW, until: "2027-01-31" }] }));
+        renderPage(<ServerPlansSection />);
+        const until = await screen.findByLabelText(t("settings.serverPlans.untilOf", { name: "Raidgilde" }));
+        fireEvent.change(until, { target: { value: "" } });
+        // jsdom has no partly filled date field, so its verdict is set by hand
+        Object.defineProperty(until, "validity", { configurable: true, value: { badInput: true } });
+        fireEvent.blur(until);
+        expect(api.saveServerPlan).not.toHaveBeenCalled();
+    });
+
+    it("clears the end date when the field was emptied on purpose", async () => {
+        vi.mocked(api.getServerPlans).mockResolvedValue(view({ servers: [{ ...ROW, until: "2027-01-31" }] }));
+        renderPage(<ServerPlansSection />);
+        const until = await screen.findByLabelText(t("settings.serverPlans.untilOf", { name: "Raidgilde" }));
+        fireEvent.change(until, { target: { value: "" } });
+        fireEvent.blur(until);
+        await waitFor(() => expect(api.saveServerPlan).toHaveBeenCalledWith({ guildId: "g1", plan: "free", until: "", note: "" }));
+    });
+
     it("says when a date has run out and when the bot has left a server", async () => {
         vi.mocked(api.getServerPlans).mockResolvedValue(view({
-            servers: [{ ...ROW, until: "2020-01-01", expired: true }, { ...ROW, guildId: "g2", name: "" }],
+            servers: [{ ...ROW, until: "2020-01-01", expired: true }, { ...ROW, guildId: "g2", name: "", state: "gone" }],
         }));
         renderPage(<ServerPlansSection />);
         expect(await screen.findByText(t("settings.serverPlans.expired"))).toBeInTheDocument();
         expect(screen.getByText(t("settings.serverPlans.gone", { id: "g2" }))).toBeInTheDocument();
+    });
+
+    it("does not call a server gone while Discord does not answer", async () => {
+        vi.mocked(api.getServerPlans).mockResolvedValue(view({
+            servers: [{ ...ROW, state: "unknown" }, { ...ROW, guildId: "g2", name: "", state: "unknown" }],
+        }));
+        renderPage(<ServerPlansSection />);
+        expect(await screen.findByText("Raidgilde")).toBeInTheDocument();
+        expect(screen.getByText(t("settings.serverPlans.unknown", { id: "g2" }))).toBeInTheDocument();
+        expect(screen.queryByText(t("settings.serverPlans.gone", { id: "g2" }))).not.toBeInTheDocument();
     });
 
     it("keeps the table when saving fails", async () => {
