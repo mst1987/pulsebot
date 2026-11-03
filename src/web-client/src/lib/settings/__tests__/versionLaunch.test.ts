@@ -70,7 +70,7 @@ describe("versionLaunch wording (#745)", () => {
         expect(itemLink({ ...base, id: "backup", kind: "manual", status: "open" })).toBeNull();
         expect(itemLink({ ...base, id: "talk", kind: "manual", status: "open" })).toMatchObject({ to: "/settings/all?section=discordserver&tab=links" });
         // #957 review: the categories' versions are the server's, the guild banks are shared
-        expect(itemLink({ ...base, id: "categories", kind: "auto", status: "open", total: 1, missing: [], target: [] })).toEqual({ kind: "route", to: "/settings?section=kategorieversion", label: "Spielversion je Kategorie" });
+        expect(itemLink({ ...base, id: "categories", kind: "auto", status: "open", total: 1, missing: [], target: [] })).toEqual({ kind: "route", to: "/settings?section=kategorien", label: "Kategorien" });
         expect(itemLink({ ...base, id: "guildBank", kind: "auto", status: "open", banks: [] })).toMatchObject({ kind: "route", to: "/settings/all?section=verbindungen" });
     });
 });

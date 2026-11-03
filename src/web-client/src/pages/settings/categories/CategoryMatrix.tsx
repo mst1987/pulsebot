@@ -14,10 +14,11 @@ import PartHead from "../../../components/ui/layout/PartHead";
 import Segment from "../../../components/ui/form/Segment";
 import RaiderCharactersModal from "./RaiderCharactersModal";
 import CategoryDetail, { type CategorySettings, type CategoryTab } from "./CategoryDetail";
+import CategoryVersionPick, { CategoryVersionNote, type CategoryVersions } from "./CategoryVersionPick";
 import { WarnIcon } from "../../../components/ui/icons/icons";
 
 // Everything that is configured *per raid category*, as one list instead of a
-// card per Discord category: active switch, raider roles, where new events are
+// card per Discord category: active switch, game version, raider roles, where new events are
 // created (Raid-Helper / EventHelper), loot addon, how the raids are planned
 // (raid plan or sheet) and the raider → character assignment, which used to be
 // a section of its own with a second category picker. One row opens at a time;
@@ -42,6 +43,8 @@ export default function CategoryMatrix(props: CategorySettings & {
     categories: Category[];
     roles: Role[];
     categoryIds: string[];
+    /** Which version each active category plays; missing = no such choice (an older caller). */
+    versions?: CategoryVersions;
     onToggleCategory: (id: string) => void;
     /** #744: configured categories Discord no longer has, and the close action (disabled while the page has unsaved changes). */
     missing?: MissingCategory[];
@@ -61,7 +64,7 @@ export default function CategoryMatrix(props: CategorySettings & {
         categoryDiscordEvent = {}, categoryVoiceChannel = {}, categoryTempVoice = {}, categoryLootSystem = {}, categorySignupNotes = {}, categorySignupNoteChannel = {},
         categorySignupCharacters = {}, categoryServerOverview = {}, missing = [], onCloseCategory, closeBlocked = false,
         unproven = [], otherServer = [], serverListed = true,
-        onToggleCategory, icon, crumb,
+        onToggleCategory, icon, crumb, versions,
     } = props;
     const missingById = new Map(missing.map((m) => [m.categoryId, m]));
     const unprovenIds = new Set(unproven);
@@ -207,6 +210,7 @@ export default function CategoryMatrix(props: CategorySettings & {
                     </label>
                     <div className="cat-name">
                         <span>{cat.name}</span>
+                        {active && versions && <CategoryVersionNote categoryId={cat.id} versions={versions} />}
                         {cat.unknown && gone && (
                             <Badge tone="bad" icon={<WarnIcon />} tip={t("settings.categoryClose.badgeTip")} tipSub={t("settings.categoryClose.badgeSub")}>
                                 {t("settings.categoryClose.badge")}
@@ -230,6 +234,7 @@ export default function CategoryMatrix(props: CategorySettings & {
                     </div>
                     {active ? (
                         <>
+                            {versions ? <CategoryVersionPick categoryId={cat.id} name={cat.name} versions={versions} /> : <div className="cat-cell" />}
                             <div className="cat-cell">{assigned.length
                                 ? <Badge tone="accent">{t("settings.categories.roleCount", { count: assigned.length })}</Badge>
                                 : <Badge tone="bad" icon={<WarnIcon />}>{t("settings.categories.noRoles")}</Badge>}
@@ -265,7 +270,7 @@ export default function CategoryMatrix(props: CategorySettings & {
             <div className="cat-list table-scroll">
                 <div className="cat-inner">
                     <div className="cat-row cat-head" aria-hidden="true">
-                        <span>{t("settings.categories.colActive")}</span><span>{t("settings.categories.colCategory")}</span><span>{t("settings.categories.raiderRoles")}</span><span>{t("settings.categories.lootAddon")}</span><span>{t("settings.categories.colPlanning")}</span><span>{t("settings.categories.colChars")}</span><span />
+                        <span>{t("settings.categories.colActive")}</span><span>{t("settings.categories.colCategory")}</span><span>{t("settings.categories.colVersion")}</span><span>{t("settings.categories.raiderRoles")}</span><span>{t("settings.categories.lootAddon")}</span><span>{t("settings.categories.colPlanning")}</span><span>{t("settings.categories.colChars")}</span><span />
                     </div>
                     {shown.map(row)}
                     {!shown.length && <div className="empty">{t("settings.categories.noneShown")}</div>}

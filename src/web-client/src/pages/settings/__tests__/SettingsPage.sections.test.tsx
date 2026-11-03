@@ -21,6 +21,7 @@ import type { AdminConfig, SettingsData } from "../../../api";
 import { SETTINGS_SECTIONS, sectionLabel, sectionsFor } from "../../../lib/settings/settingsSections";
 import { adminUser, renderPage } from "../../../test/render";
 import { switchLang } from "../../../test/i18n";
+import type { CategoryVersions } from "../categories/CategoryVersionPick";
 import SettingsPage from "../SettingsPage";
 
 vi.mock("../../../api", async (orig) => ({
@@ -39,9 +40,14 @@ vi.mock("../access/BotCommandAccess", () => ({ default: () => <div>Panel Bot-Bef
 vi.mock("../discord/SettingsDiscordServers", () => ({ default: () => <div>Panel Discord-Server</div> }));
 vi.mock("../connections/SettingsRaidhelperRetirement", () => ({ default: () => null }));
 // The category matrix edits the per-category maps through its callbacks; the
-// stand-in clears the first category's sheet url the way its field would.
-vi.mock("../categories/CategoryMatrix", () => ({
-    default: ({ onSheet, onPlanning, availabilityPanels, onToggleCategory, missing = [], onCloseCategory, closeBlocked }: {
+// stand-in clears the first category's sheet url the way its field would, and
+// holds the real version picker, whose switch dialog and save the page runs.
+vi.mock("../categories/CategoryMatrix", async () => {
+    const { default: CategoryVersionPick } = await import("../categories/CategoryVersionPick");
+    return { default: ({ onSheet, onPlanning, availabilityPanels, onToggleCategory, missing = [], onCloseCategory, closeBlocked, versions, categories, categoryIds }: {
+        versions: CategoryVersions;
+        categories: { id: string; name: string }[];
+        categoryIds: string[];
         onSheet: (id: string, sheet: { url: string; name: string }) => void;
         onPlanning?: (id: string, mode: "raidplan" | "sheet") => void;
         availabilityPanels?: { panels: { categoryId: string }[]; channels: { id: string }[]; onChange: (id: string, panel: unknown) => void };
@@ -52,6 +58,7 @@ vi.mock("../categories/CategoryMatrix", () => ({
     }) => (
         <div>
             Panel Kategorien
+            {categoryIds.map((id) => <CategoryVersionPick key={id} categoryId={id} name={categories.find((c) => c.id === id)?.name || id} versions={versions} />)}
             <button type="button" onClick={() => onToggleCategory("cat1")}>Montag umschalten</button>
             {missing.map((m) => (
                 <button key={m.categoryId} type="button" disabled={closeBlocked} onClick={() => onCloseCategory && onCloseCategory(m)}>{`${m.name} abschließen …`}</button>
@@ -65,8 +72,8 @@ vi.mock("../categories/CategoryMatrix", () => ({
                 </>
             )}
         </div>
-    ),
-}));
+    ) };
+});
 
 function config(over: Partial<AdminConfig> = {}): AdminConfig {
     return {
@@ -865,7 +872,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         // stored before the migration: the active category has no entry, it plays the saved main version
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
-        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
         // only the active category gets a row, with its own version and no "Hauptversion" choice
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         expect(montag).toHaveValue("tbc");
@@ -878,7 +885,7 @@ describe("Spielversion (#541)", () => {
         const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
         expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
         expect(screen.queryByRole("combobox", { name: "Spielversion von Montag" })).not.toBeInTheDocument();
-        expect(screen.getByRole("link", { name: "Spielversion je Kategorie" })).toHaveAttribute("href", "/settings?section=kategorieversion");
+        expect(screen.getByRole("link", { name: "Kategorien" })).toHaveAttribute("href", "/settings?section=kategorien");
         await user.click(within(main).getByRole("radio", { name: "Forever" }));
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
 
@@ -894,7 +901,7 @@ describe("Spielversion (#541)", () => {
         const icons: Record<string, string> = { tbc: "/versions/classic.png", classic: "/versions/classic.png", forever: "/versions/forever.png" };
         const withIcons = gameVersions.map((v) => ({ ...v, icon: icons[v.id] }));
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions: withIcons }));
-        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        const first = renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         // the category's version: its launcher icon as a plain image in front of the select
         const img = montag.parentElement!.querySelector("img.ver-img");
@@ -922,7 +929,7 @@ describe("Spielversion (#541)", () => {
             config: { ...config(), ...partial } as AdminConfig,
             switchedCategories: [{ categoryId: "cat1", fromVersion: "tbc", toVersion: "forever", at: 1, name: "Montag", series: "template" }],
         }));
-        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -954,7 +961,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryVersion: { cat1: "tbc" }, categoryRaidTemplate: { cat1: "t-tbc" } }) }));
         vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
-        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         await user.selectOptions(montag, "forever");
@@ -980,10 +987,12 @@ describe("Spielversion (#541)", () => {
         });
     });
 
-    it("says where to switch a category on when none is active", async () => {
-        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions, config: config({ categoryIds: [] }) }));
+    it("leads an old link to the version section to the Kategorien list, which has no menu entry for it any more", async () => {
+        vi.mocked(api.getSettings).mockResolvedValue(settings({ gameVersions }));
         renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
-        expect(await screen.findByText(/Noch keine aktive Kategorie/)).toBeInTheDocument();
+        expect(await screen.findByRole("combobox", { name: "Spielversion von Montag" })).toBeInTheDocument();
+        expect(entry("Kategorien")).toHaveAttribute("aria-current", "true");
+        expect(within(nav()).queryByRole("button", { name: /^Spielversion je Kategorie/ })).not.toBeInTheDocument();
     });
 
     it("names the section in English", async () => {
@@ -992,11 +1001,11 @@ describe("Spielversion (#541)", () => {
         const first = renderPage(<SettingsPage scope="all" />, { route: "/settings/all?section=spielversion" });
         expect(await screen.findByRole("radiogroup", { name: "Main version" })).toBeInTheDocument();
         first.unmount();
-        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion" });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
         expect(await screen.findByRole("combobox", { name: /Montag/ })).toBeInTheDocument();
-        expect(screen.getByRole("option", { name: "WoW Forever" })).toBeInTheDocument();
+        expect(screen.getByRole("option", { name: "Forever" })).toBeInTheDocument();
         const rail = screen.getByRole("navigation", { name: "Settings sections" });
-        expect(within(rail).getByRole("button", { name: /^Game version per category/ })).toHaveAttribute("aria-current", "true");
+        expect(within(rail).getByRole("button", { name: /^Categories/ })).toHaveAttribute("aria-current", "true");
     });
 
     // #957 review: the category versions are the server's - a settings writer who is no
@@ -1005,7 +1014,7 @@ describe("Spielversion (#541)", () => {
         const user = userEvent.setup();
         vi.mocked(api.getSettings).mockResolvedValue({ ...limited(), gameVersions } as Awaited<ReturnType<typeof api.getSettings>>);
         vi.mocked(api.getCategorySwitch).mockResolvedValue(preview({ upcoming: [] }));
-        renderPage(<SettingsPage />, { route: "/settings?section=kategorieversion", user: adminUser({ isAdmin: false, access: { settings: { read: true, write: true } } }) });
+        renderPage(<SettingsPage />, { route: "/settings?section=kategorien", user: adminUser({ isAdmin: false, access: { settings: { read: true, write: true } } }) });
 
         const montag = await screen.findByRole("combobox", { name: "Spielversion von Montag" });
         expect(screen.queryByRole("radiogroup", { name: "Hauptversion" })).not.toBeInTheDocument();

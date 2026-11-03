@@ -15,6 +15,7 @@ import { switchLang } from "../../../../test/i18n";
 import { renderPage } from "../../../../test/render";
 import type { CategoryAttendance } from "../../../../lib/settings/settingsLogic";
 import CategoryMatrix, { type CategorySheet } from "../CategoryMatrix";
+import type { CategoryVersions } from "../CategoryVersionPick";
 
 vi.mock("../../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../../api")>()),
@@ -23,7 +24,9 @@ vi.mock("../../../../api", async (orig) => ({
 
 const noop = () => undefined;
 
-function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer, serverListed, serverOverview, onServerOverview }: {
+function Harness({ versions, planning = {}, sheets = {}, onSheet = noop, onPlanning, languages, onLanguage, attendance, onAttendance, missing, onCloseCategory, closeBlocked, roles, categoryRoles, hubs, signupChars, onSignupCharacters, raidhelperActive, categoryIds, unproven, otherServer, serverListed, serverOverview, onServerOverview }: {
+    /** Which version each category plays; with it the list has the column. */
+    versions?: CategoryVersions;
     /** In the server overview per category; with onServerOverview the card is offered. */
     serverOverview?: Record<string, boolean>;
     onServerOverview?: (id: string, on: boolean) => void;
@@ -59,6 +62,7 @@ function Harness({ planning = {}, sheets = {}, onSheet = noop, onPlanning, langu
             categories={[{ id: "c1", name: "Raids Mittwoch" }]}
             roles={roles || [{ id: "r1", name: "Raider" }]}
             categoryIds={categoryIds || ["c1"]}
+            versions={versions}
             unproven={unproven}
             otherServer={otherServer}
             serverListed={serverListed}
@@ -447,5 +451,57 @@ describe("CategoryMatrix: a category's life (#744)", () => {
         await user.click(screen.getByRole("button", { name: "Details" }));
         expect(screen.getByRole("button", { name: "@Kern" })).toHaveAttribute("aria-pressed", "true");
         expect(screen.queryByRole("button", { name: "@Gamer" })).toBeNull();
+    });
+});
+
+describe("CategoryMatrix: the version column", () => {
+    const versions = (over: Partial<CategoryVersions> = {}): CategoryVersions => ({
+        options: [{ id: "tbc", label: "TBC Anniversary", short: "TBC", icon: "/versions/classic.png" }, { id: "forever", label: "WoW Forever", short: "Forever" }],
+        mainVersion: "tbc",
+        value: { c1: "forever" },
+        savedIds: ["c1"],
+        eras: {},
+        onChange: noop,
+        ...over,
+    });
+    const pick = () => screen.getByRole("combobox", { name: "Spielversion von Raids Mittwoch" });
+
+    it("picks the version of an active category right in its row, by the version's short name", async () => {
+        const user = userEvent.setup();
+        const onChange = vi.fn();
+        renderPage(<Harness versions={versions({ onChange })} />);
+        expect(pick()).toHaveValue("forever");
+        expect(within(pick()).getAllByRole("option").map((o) => o.textContent)).toEqual(["TBC", "Forever"]);
+        await user.selectOptions(pick(), "tbc");
+        expect(onChange).toHaveBeenCalledWith("c1", "tbc");
+    });
+
+    it("plays the main version while a category has none of its own, with the version's icon beside it", () => {
+        renderPage(<Harness versions={versions({ value: {} })} />);
+        expect(pick()).toHaveValue("tbc");
+        expect(pick().parentElement!.querySelector("img.ver-img")).toHaveAttribute("src", "/versions/classic.png");
+    });
+
+    it("offers no version for a category that is no raid category", () => {
+        renderPage(<Harness categoryIds={[]} versions={versions({ savedIds: [] })} />);
+        expect(screen.queryByRole("combobox", { name: /^Spielversion von/ })).toBeNull();
+        expect(screen.queryByText(/startet mit/)).toBeNull();
+    });
+
+    it("marks a category switched on just now, and one that has changed versions with the date", () => {
+        const fresh = renderPage(<Harness versions={versions({ savedIds: [] })} />);
+        expect(screen.getByText("neu · startet mit TBC")).toBeInTheDocument();
+        fresh.unmount();
+
+        const from = Date.UTC(2026, 9, 20, 12);
+        const eras = { c1: [{ versionId: "tbc", from: 0, name: "" }, { versionId: "forever", from, name: "" }] };
+        const switched = renderPage(<Harness versions={versions({ eras })} />);
+        expect(screen.getByText(/^seit /)).toBeInTheDocument();
+        expect(screen.queryByText(/startet mit/)).toBeNull();
+        switched.unmount();
+
+        // only one section so far: nothing to say
+        renderPage(<Harness versions={versions({ eras: { c1: [{ versionId: "forever", from: 0, name: "" }] } })} />);
+        expect(screen.queryByText(/^seit /)).toBeNull();
     });
 });
