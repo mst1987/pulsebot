@@ -43,15 +43,18 @@ jest.mock("../../../src/stores/settings/configStore", () => ({ readStored: jest.
 // Most tests configure exactly one link, from "111" to "222" (see `config` below).
 const stateOf = (key = "111:222") => mockStates[key] || {};
 
+const { MessageFlags } = require("discord.js");
 const discord = require("../../../src/services/discord/discord");
 const { eventLang } = require("../../../src/services/discord/botLanguage");
 const { getConfig } = require("../../../src/stores/settings/settingsStore");
 const { readStored } = require("../../../src/stores/settings/configStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { ruleSetLook } = require("../../../src/services/events/embedLook");
+const { raidPicture } = require("../../../src/services/events/overview/raidOverviewPanel");
 const {
     CHANNEL_MISSING, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
     _internal: {
-        buildOverviewMessage, formatStart, dayHeading, payloadHash, overviewLinks, roleCounts, instancePart,
+        buildOverviewMessage, formatStart, payloadHash, overviewLinks,
     },
 } = require("../../../src/services/talk/talkOverview");
 const { event: baseEvent } = require("../../factories/events");
@@ -64,6 +67,9 @@ beforeEach(() => knownChannels("c1", "c2", "c3", "ov", "ov2"));
 const NOW = Date.UTC(2026, 8, 16, 12, 0); // Wed 16.09.2026 14:00 Berlin
 const sec = (y, m, d, h, min) => Math.floor(Date.UTC(y, m - 1, d, h, min) / 1000);
 const SEP17 = sec(2026, 9, 17, 17, 30); // 1789666200, Thu 19:30 Berlin
+const SEP24 = sec(2026, 9, 24, 17, 30); // Thu of the next ID
+const OCT1 = sec(2026, 10, 1, 17, 30); // Thu of the ID after that
+const ZONES = "https://render.worldofwarcraft.com/eu/zones";
 
 const ev = (over = {}) => baseEvent({
     source: "raidhelper", title: "SSC + TK", startTime: SEP17,
@@ -71,328 +77,515 @@ const ev = (over = {}) => baseEvent({
 });
 const signed = (n, status = "signed") => Array.from({ length: n }, (_, i) => ({ userId: `${status}-${i}`, specName: "Arcane", status }));
 const own = (userId, role, status = "signed") => ({ userId, role, status, character: userId });
+// An own event of an instance: lands in that instance's block.
+const raidOf = (instance, over = {}) => ev({ id: `${instance}-1`, source: "eventhelper", title: instance, instanceIds: [instance], ...over });
+const inCategory = (...events) => [{ categoryId: "k1", categoryName: "Mi", events }];
 
 const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example/", now: NOW, lang: "en" };
-const lines = (field) => field.value.split("\n");
-const metaLines = (field) => lines(field).filter((l) => l.startsWith("-#"));
+
+// The Components V2 message: one container of texts, sections (text + thumbnail), lines and rows.
+const TEXT = 10;
+const SECTION = 9;
+const ROW = 1;
+const container = (payload) => payload.components[0];
+const textsOf = (payload) => container(payload).components.flatMap((c) => {
+    if (c.type === TEXT) return [c.content];
+    if (c.type === SECTION) return c.components.map((t) => t.content);
+    return [];
+});
+const allText = (payload) => textsOf(payload).join("\n");
+const sectionsOf = (payload) => container(payload).components.filter((c) => c.type === SECTION);
+const rowsOf = (payload) => container(payload).components.filter((c) => c.type === ROW);
+const headingsOf = (payload) => allText(payload).match(/^### .*$/gm) || [];
+const smallLinesOf = (payload) => allText(payload).split("\n").filter((l) => l.startsWith("-# "));
+// Discord counts every component, the nested ones too (select options are no components).
+const countComponents = (list) => list.reduce((n, c) => n + 1 + countComponents(c.components || []) + (c.accessory ? 1 : 0), 0);
+const textLength = (payload) => textsOf(payload).reduce((n, t) => n + t.length, 0);
 
 describe("services/talk/talkOverview — buildOverviewMessage", () => {
     beforeEach(() => eventLang.mockImplementation(() => "en"));
 
-    it("formats the start and the day heading in Berlin time", () => {
-        expect(formatStart(SEP17, "en")).toBe("Thu 17 Sep 19:30");
-        expect(formatStart(0)).toBe("");
-        expect(formatStart(SEP17)).toMatch(/^Do\.? 17 Sept?\.? 19:30$/);
-        expect(dayHeading(SEP17, "en")).toBe("Thursday 17 September");
-        expect(dayHeading(SEP17, "de")).toBe("Donnerstag, 17. September");
-        // 23:30 UTC is already the next day in Berlin
-        expect(dayHeading(sec(2026, 9, 17, 23, 30), "en")).toBe("Friday 18 September");
-    });
-
-    it("speaks German by default: title, description, day heading, raid lines, footer, buttons and select", () => {
-        const german = { ...opts };
-        delete german.lang;
-        const events = Array.from({ length: 30 }, (_, i) => ev({ id: `e${i}`, source: "eventhelper", startTime: sec(2026, 9, 17 + i, 17, 30), signUps: signed(2) }));
-        events.push(ev({ id: "x", status: "cancelled", startTime: SEP17 + 60 }));
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "", events }], german);
-        const embed = payload.embeds[0];
-        expect(embed.title).toBe("Kommende Raids");
-        expect(embed.description).toBe("Aktualisiert sich selbst · Links führen in den Event-Kanal");
-        expect(embed.fields[0].name).toBe("Donnerstag, 17. September");
-        expect(embed.fields[0].value).toContain("2 Anmeldungen");
-        expect(embed.fields[0].value).toContain("0 Tanks, 0 Heiler, 2 DD");
-        expect(embed.fields[0].value).toContain("Ohne Kategorie");
-        expect(embed.fields[0].value).toContain("~~SSC + TK~~ · abgesagt");
-        expect(embed.footer.text).toMatch(/^\+\d+ weitere Raids in der Web-Übersicht$/);
-        const labels = payload.components.flatMap((row) => row.components.map((c) => c.label || c.placeholder));
-        expect(labels).toEqual(["Mehrere Raids wählen …", "Einzelnen Raid wählen …", "Web-Übersicht", "Meine Anmeldungen", "Mein Profil"]);
-        expect(buildOverviewMessage([], german).embeds[0].description).toBe("Gerade sind keine Raids geplant. Neue Raids erscheinen hier von selbst.");
-    });
-
-    it("hashes the language with the payload, so a new language redraws the list", () => {
-        const a = buildOverviewMessage([{ categoryId: "k", categoryName: "R", events: [ev()] }], opts);
-        expect(payloadHash(a, "de")).not.toBe(payloadHash(a, "en"));
-    });
-
-    it("writes an own event as two lines: time, linked title, instance and size; category, lead, roles, signups, channel", () => {
-        const event = ev({
-            id: "eh-1", source: "eventhelper", title: "Hyjal + BT", instanceIds: ["hyjal", "bt"], size: 25,
-            channelId: "c2", channelName: "do-hyjal", leaderId: "u9",
-            signUps: [own("a", "tank"), own("b", "healer"), own("c", "healer"), own("d", "melee"), own("e", "ranged"), own("f", "ranged", "late"),
-                own("g", "ranged", "tentative"), own("h", "tank", "absence")],
+    describe("frame", () => {
+        it("formats the start of a select option in Berlin time", () => {
+            expect(formatStart(SEP17, "en")).toBe("Thu 17 Sep 19:30");
+            expect(formatStart(0)).toBe("");
+            expect(formatStart(SEP17)).toMatch(/^Do\.? 17 Sept?\.? 19:30$/);
         });
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Donnerstag-Raid", events: [event] }], {
-            ...opts, leaderName: (id) => (id === "u9" ? "Brokk" : ""),
+
+        it("speaks German by default: head, marks, cancelled, the last line, buttons and select", () => {
+            const german = { ...opts };
+            delete german.lang;
+            const events = Array.from({ length: 50 }, (_, i) => ev({ id: `e${i}`, source: "eventhelper", startTime: sec(2026, 9, 17 + i, 17, 30), signUps: signed(2) }));
+            events.push(ev({ id: "x", source: "eventhelper", status: "cancelled", startTime: SEP17 + 60 }));
+            const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "", events }], german);
+            const text = allText(payload);
+            expect(text).toMatch(/^## Kommende Raids\n-# Diese ID Mi\.? 16\.09\. – Di\.? 22\.09\./);
+            expect(text).toContain("**Diese ID** · ");
+            expect(text).toContain("**Nächste ID** · ");
+            expect(text).toContain("· abgesagt");
+            expect(text).toMatch(/-# \+\d+ weitere in der Web-Übersicht$/);
+            expect(text).not.toContain("Ohne Kategorie");
+            const labels = rowsOf(payload).flatMap((row) => row.components.map((c) => c.label || c.placeholder));
+            expect(labels).toEqual(["Mehrere Raids wählen …", "Einzelnen Raid wählen …", "Web-Übersicht", "Meine Anmeldungen", "Mein Profil"]);
+            expect(allText(buildOverviewMessage([], german))).toBe("## Kommende Raids\nGerade sind keine Raids geplant. Neue Raids erscheinen hier von selbst.");
         });
-        const field = payload.embeds[0].fields[0];
-        expect(field.name).toBe("Thursday 17 September");
-        expect(field.value).toBe([
-            "<t:1789666200:t> · **[Hyjal + BT](https://eh.example/e/eh-1)** · Hyjal + BT 25",
-            "-# Donnerstag-Raid · Lead Brokk · 1 tank, 2 healers, 3 DPS · 6 signups · [#do-hyjal](https://discord.com/channels/111/c2)",
-        ].join("\n"));
-        // no emoji anywhere in the agenda
-        expect(JSON.stringify(payload.embeds)).not.toMatch(/\p{Extended_Pictographic}/u);
+
+        it("is a Components V2 message that also clears what an old embed list left behind", () => {
+            const payload = buildOverviewMessage(inCategory(ev()), opts);
+            expect(payload.flags).toBe(MessageFlags.IsComponentsV2);
+            expect(payload.content).toBe("");
+            expect(payload.embeds).toEqual([]);
+            expect(payload.allowedMentions).toEqual({ parse: [] });
+            expect(payload.components).toHaveLength(1);
+            expect(container(payload).type).toBe(17);
+            // no emoji anywhere in the list
+            expect(JSON.stringify(payload)).not.toMatch(/\p{Extended_Pictographic}/u);
+        });
+
+        it("drops the technical line: nothing says how the list updates or where its links lead", () => {
+            const text = allText(buildOverviewMessage(inCategory(ev()), { ...opts, serverName: "PuG-Server", crossServer: true }));
+            expect(text).not.toContain("Updates itself");
+            expect(text).not.toContain("channel links lead");
+        });
+
+        it("says there is nothing planned and keeps only the link buttons when no raid is upcoming", () => {
+            const payload = buildOverviewMessage([], opts);
+            expect(allText(payload)).toContain("No raids are planned");
+            expect(sectionsOf(payload)).toHaveLength(0);
+            expect(rowsOf(payload)).toHaveLength(1);
+            expect(rowsOf(payload)[0].components).toHaveLength(3);
+        });
     });
 
-    it("writes a Raid-Helper event without a title link, roles from the specs, marked as Raid-Helper", () => {
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [
-            ev({ signUps: [...signed(8), { userId: "p", specName: "Protection", status: "signed" }] }),
-        ] }], opts);
-        expect(lines(payload.embeds[0].fields[0])).toEqual([
-            "<t:1789666200:t> · **SSC + TK**",
-            "-# Mi · 1 tank, 0 healers, 8 DPS · 9 signups · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) · Raid-Helper",
-        ]);
+    describe("hash", () => {
+        it("hashes the language with the payload, so a new language redraws the list", () => {
+            const a = buildOverviewMessage(inCategory(ev()), opts);
+            expect(payloadHash(a, "de")).not.toBe(payloadHash(a, "en"));
+        });
+
+        it("hashes the same content the same way, a new signup differently", () => {
+            const a = buildOverviewMessage(inCategory(ev()), opts);
+            const b = buildOverviewMessage(inCategory(ev()), opts);
+            const c = buildOverviewMessage(inCategory(ev({ signUps: signed(1) })), opts);
+            expect(payloadHash(a)).toBe(payloadHash(b));
+            expect(payloadHash(a)).not.toBe(payloadHash(c));
+        });
+
+        it("does not change with the clock within an ID, but when the ID turns over the marks move", () => {
+            const raids = inCategory(ev({ startTime: SEP24 }));
+            const before = buildOverviewMessage(raids, opts);
+            const hourLater = buildOverviewMessage(raids, { ...opts, now: NOW + 3600 * 1000 });
+            const nextId = buildOverviewMessage(raids, { ...opts, now: NOW + 7 * 86400 * 1000 });
+            expect(payloadHash(hourLater, "en")).toBe(payloadHash(before, "en"));
+            expect(payloadHash(nextId, "en")).not.toBe(payloadHash(before, "en"));
+            expect(allText(before)).toContain("**Next ID** · ");
+            expect(allText(nextId)).toContain("**This ID** · ");
+        });
     });
 
-    it("leaves the lead out when it is unknown — no id, or the member not cached", () => {
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [
-            ev({ id: "a", source: "eventhelper", leaderId: "u404" }),
-            ev({ id: "b", source: "eventhelper", startTime: SEP17 + 60 }),
-        ] }], { ...opts, leaderName: () => "" });
-        expect(payload.embeds[0].fields[0].value).not.toContain("Lead");
-        // without signups: no role counts, "0 signups"
-        expect(metaLines(payload.embeds[0].fields[0])[0]).toBe("-# Mi · 0 signups · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)");
+    describe("the mark at a date", () => {
+        const three = inCategory(
+            raidOf("kara", { id: "a", startTime: SEP17 }),
+            raidOf("kara", { id: "b", startTime: SEP24 }),
+            raidOf("kara", { id: "c", startTime: OCT1 }),
+        );
+
+        it("writes This ID and Next ID as two lines, a later ID as one small line without a mark", () => {
+            const lines = allText(buildOverviewMessage(three, opts)).split("\n");
+            expect(lines).toContain("**This ID** · **[Thu 17.09.](https://eh.example/e/a)** · <t:1789666200:t>");
+            expect(lines).toContain(`**Next ID** · [Thu 24.09.](https://eh.example/e/b) · <t:${SEP24}:t>`);
+            expect(lines.some((l) => l.startsWith(`-# [Thu 01.10.](https://eh.example/e/c) · <t:${OCT1}:t> · `))).toBe(true);
+            expect(lines.filter((l) => l.includes("Thu 01.10.") && l.includes("ID"))).toEqual([]);
+        });
+
+        it("gives the days of the IDs in the head, not in the blocks", () => {
+            const [head, block] = textsOf(buildOverviewMessage(three, opts));
+            expect(head).toBe("## Upcoming raids\n-# This ID Wed 16.09. – Tue 22.09. · Next ID Wed 23.09. – Tue 29.09.");
+            expect(block).not.toContain("–");
+        });
+
+        it("names in the head only the IDs that have a date", () => {
+            const [nextOnly] = textsOf(buildOverviewMessage(inCategory(raidOf("kara", { startTime: SEP24 })), opts));
+            expect(nextOnly).toBe("## Upcoming raids\n-# Next ID Wed 23.09. – Tue 29.09.");
+            const [laterOnly] = textsOf(buildOverviewMessage(inCategory(raidOf("kara", { startTime: OCT1 })), opts));
+            expect(laterOnly).toBe("## Upcoming raids");
+        });
     });
 
-    it("shows instance and size only for an event that names its instances", () => {
-        expect(instancePart({ instanceIds: ["ssc"] })).toBe("SSC 25");
-        expect(instancePart({ instanceIds: ["ssc"], size: 10 })).toBe("SSC 10");
-        expect(instancePart({ instanceIds: ["nope"] })).toBe("");
-        expect(instancePart({})).toBe("");
+    describe("blocks", () => {
+        it("puts the raids of one kind into one block, by instance or by title, soonest block first and across categories", () => {
+            const groups = [
+                { categoryId: "k2", categoryName: "PuG", events: [
+                    ev({ id: "p1", title: "Karazhan", startTime: sec(2026, 9, 18, 17, 0), channelId: "c3", channelName: "fr-kara" }),
+                ] },
+                { categoryId: "k1", categoryName: "Donnerstag-Raid", events: [
+                    ev({ id: "a", source: "eventhelper", title: "Erster Schlangenraid", instanceIds: ["ssc"], startTime: SEP17 }),
+                    ev({ id: "b", title: "SSC", startTime: SEP24 }),
+                    ev({ id: "c", title: "Gildentreffen", startTime: sec(2026, 9, 19, 17, 0) }),
+                ] },
+            ];
+            const payload = buildOverviewMessage(groups, opts);
+            expect(headingsOf(payload)).toEqual(["### Höhle des Schlangenschreins", "### Karazhan", "### Gildentreffen"]);
+            const firstBlock = textsOf(payload)[1];
+            expect(firstBlock).toContain("[Thu 17.09.](https://eh.example/e/a)");
+            expect(firstBlock).toContain("Thu 24.09.");
+            expect(firstBlock).toContain("-# Donnerstag-Raid · ");
+        });
+
+        it("counts a raid of two instances as the larger one", () => {
+            const payload = buildOverviewMessage(inCategory(
+                ev({ id: "a", title: "SSC + TK" }),
+                raidOf("kara", { id: "b", title: "Kara + Gruul", instanceIds: ["kara", "gruul"], startTime: SEP17 + 60 }),
+            ), opts);
+            expect(headingsOf(payload)).toEqual(["### Höhle des Schlangenschreins", "### Gruuls Unterschlupf"]);
+        });
+
+        it("lists only the first raid of a raid group", () => {
+            const payload = buildOverviewMessage(inCategory(
+                raidOf("kara", { id: "g1", raidGroupId: "g1" }),
+                raidOf("kara", { id: "g2", raidGroupId: "g1", startTime: SEP17 + 60 }),
+            ), opts);
+            expect(allText(payload)).toContain("/e/g1");
+            expect(allText(payload)).not.toContain("/e/g2");
+            expect(rowsOf(payload)[1].components[0].options.map((o) => o.value)).toEqual(["g1"]);
+        });
+
+        it("leaves past raids out", () => {
+            const json = JSON.stringify(buildOverviewMessage(inCategory(ev(), ev({ id: "old", title: "Vorbei", startTime: sec(2026, 9, 1, 17, 0) })), opts));
+            expect(json).not.toContain("Vorbei");
+        });
+
+        it("keeps the raid's category when it means something, not a mere size or none", () => {
+            const say = (categoryName) => smallLinesOf(buildOverviewMessage([{ categoryId: "k1", categoryName, events: [raidOf("kara", { signUps: signed(2) })] }], opts))[1];
+            expect(say("Donnerstag-Raid")).toMatch(/^-# Donnerstag-Raid · 2 signed up · /);
+            expect(say("10er")).toMatch(/^-# 2 signed up · /);
+            expect(say("")).toMatch(/^-# 2 signed up · /);
+        });
+
+        it("strips the decoration of a category and a channel name (the raw name showed \"◜ ·\")", () => {
+            const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "◜ · Raid", events: [
+                ev({ id: "a", title: "Mittwochs-PuG", channelName: "◜ · mi-kara" }),
+            ] }], opts);
+            expect(allText(payload)).toContain("-# Raid · 0 signed up · [#mi-kara](https://discord.com/channels/111/c1)");
+            expect(rowsOf(payload)[0].components[0].options[0].description).toBe("Thu 17 Sep 19:30 · Raid");
+            expect(JSON.stringify(payload)).not.toContain("◜");
+        });
     });
 
-    it("counts each attending account once per role", () => {
-        expect(roleCounts({ signUps: [own("a", "tank"), own("a", "healer"), own("b", "healer", "late"), own("c", "tank", "tentative")] }))
-            .toEqual({ tank: 1, healer: 1, dps: 0 });
+    describe("pictures", () => {
+        const accessoryUrl = (payload, i = 0) => sectionsOf(payload)[i].accessory.media.url;
+
+        it("gives a block its zone picture as a thumbnail, from the instance or the title", () => {
+            expect(accessoryUrl(buildOverviewMessage(inCategory(raidOf("kara")), opts))).toBe(`${ZONES}/karazhan-small.jpg`);
+            expect(accessoryUrl(buildOverviewMessage(inCategory(ev()), opts))).toBe(`${ZONES}/serpentshrine-cavern-small.jpg`);
+            expect(sectionsOf(buildOverviewMessage(inCategory(ev()), opts))[0].accessory.type).toBe(11);
+        });
+
+        it("draws a block without an instance as plain text", () => {
+            const payload = buildOverviewMessage(inCategory(ev({ title: "Gildentreffen" })), opts);
+            expect(sectionsOf(payload)).toHaveLength(0);
+            expect(allText(payload)).toContain("### Gildentreffen");
+        });
+
+        it("prefers the picture the raid has itself", () => {
+            const payload = buildOverviewMessage(inCategory(raidOf("kara", { image: { url: "https://example.com/own.png" } })), opts);
+            expect(accessoryUrl(payload)).toBe("https://example.com/own.png");
+        });
+
+        it("has a placeholder picture for Barrow Deeps, the same for the list, the category overview and the event post", () => {
+            const barrow = { versionId: "forever", instanceIds: ["forever-barrow"] };
+            const url = `${ZONES}/auchenai-crypts-small.jpg`;
+            expect(accessoryUrl(buildOverviewMessage(inCategory(ev({ source: "eventhelper", title: "Barrow", ...barrow })), { ...opts, config: {} }))).toBe(url);
+            expect(ruleSetLook(barrow.instanceIds).art).toBe(url);
+            expect(raidPicture(ev({ source: "eventhelper", title: "Barrow", ...barrow }))).toBe(url);
+        });
     });
 
-    it("counts a Raid-Helper signup without a role (Late, unknown spec) in no role — only in the signups", () => {
-        const signUps = [
-            { userId: "a", specName: "Late", status: "late" },
-            { userId: "b", specName: "Whatever", status: "signed" },
-            { userId: "c", specName: "Whatever", roleName: "Tanks", status: "signed" },
-            { userId: "d", specName: "Arcane", status: "signed" },
-        ];
-        expect(roleCounts({ signUps })).toEqual({ tank: 1, healer: 0, dps: 1 });
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ signUps })] }], opts);
-        expect(metaLines(payload.embeds[0].fields[0])[0]).toContain("4 signups");
+    describe("lead", () => {
+        const names = { u9: "Brokk", u7: "Devi" };
+        const leaderName = (id) => names[id] || "";
+
+        it("stands once at the block when every date shares it", () => {
+            const text = allText(buildOverviewMessage(inCategory(
+                raidOf("kara", { id: "a", leaderId: "u9" }),
+                raidOf("kara", { id: "b", leaderId: "u9", startTime: SEP24 }),
+            ), { ...opts, leaderName }));
+            expect(text.match(/Lead /g)).toHaveLength(1);
+            expect(text).toContain("### Karazhan\n-# Lead Brokk\n**This ID**");
+        });
+
+        it("stands at each date when they differ", () => {
+            const text = allText(buildOverviewMessage(inCategory(
+                raidOf("kara", { id: "a", leaderId: "u9" }),
+                raidOf("kara", { id: "b", leaderId: "u7", startTime: SEP24 }),
+            ), { ...opts, leaderName }));
+            expect(text).toContain("### Karazhan\n**This ID**");
+            expect(text).toContain("· Lead Brokk ·");
+            expect(text).toContain("· Lead Devi ·");
+        });
+
+        it("falls away without a placeholder when the member is not cached", () => {
+            const text = allText(buildOverviewMessage(inCategory(
+                raidOf("kara", { id: "a", leaderId: "u404" }),
+                raidOf("kara", { id: "b", startTime: SEP24 }),
+            ), { ...opts, leaderName }));
+            expect(text).not.toContain("Lead");
+            expect(text).not.toContain("u404");
+            expect(text).not.toContain("· ·");
+        });
+
+        it("ignores a cancelled date when it compares", () => {
+            const text = allText(buildOverviewMessage(inCategory(
+                raidOf("kara", { id: "a", leaderId: "u9" }),
+                raidOf("kara", { id: "x", leaderId: "u7", status: "cancelled", startTime: SEP17 + 60 }),
+                raidOf("kara", { id: "b", leaderId: "u9", startTime: SEP24 }),
+            ), { ...opts, leaderName }));
+            expect(text).toContain("### Karazhan\n-# Lead Brokk\n");
+            expect(text).not.toContain("Devi");
+        });
     });
 
-    it("links into the event channel only while it exists — a deleted one reads \"channel missing\" (#537)", () => {
-        deletedChannels("c1");
-        linkCheck.channelCreated("c2");
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [
-            ev({ id: "e1", channelId: "c1" }),
-            ev({ id: "e2", channelId: "c2", channelName: "do-bt", startTime: sec(2026, 9, 18, 17, 30) }),
-            ev({ id: "e3", channelId: "c9", channelName: "fr-kara", startTime: sec(2026, 9, 19, 17, 30) }),
-        ] }], opts);
-        const meta = payload.embeds[0].fields.map((f) => metaLines(f)[0]);
-        expect(meta[0]).toContain(`· ${CHANNEL_MISSING} ·`);
-        expect(meta[0]).not.toContain("discord.com");
-        expect(meta[1]).toContain("[#do-bt](https://discord.com/channels/111/c2)");
-        // nothing known about c9 (bot offline since the start): the name, no link
-        expect(meta[2]).toContain("· #fr-kara");
-        expect(meta[2]).not.toContain("discord.com");
+    describe("a date's small line", () => {
+        it("writes a Raid-Helper event without a date link, only its count, marked where nothing else tells", () => {
+            const text = textsOf(buildOverviewMessage(inCategory(
+                ev({ title: "Mittwochs-PuG", signUps: [...signed(8), { userId: "p", specName: "Protection", status: "signed" }] }),
+            ), opts))[1];
+            expect(text).toBe([
+                "### Mittwochs-PuG",
+                "-# Raid-Helper",
+                "**This ID** · **Thu 17.09.** · <t:1789666200:t>",
+                "-# Mi · 9 signed up · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)",
+            ].join("\n"));
+        });
+
+        it("does not mark a Raid-Helper raid of an instance, and gives it no web page", () => {
+            const text = allText(buildOverviewMessage(inCategory(ev()), opts));
+            expect(text).not.toContain("Raid-Helper");
+            expect(text).not.toContain("/e/");
+        });
+
+        it("relates the signups to the size: accounts once, tentative and absent not at all (#516, #520)", () => {
+            const say = (over) => allText(buildOverviewMessage(inCategory(raidOf("bt", over)), opts));
+            expect(say({ size: 10, signUps: signed(3) })).toContain("3 / 10 signed up");
+            // 28 entries: 26 signed, 2 late — one of the late ones is a second character of a signed account
+            const twice = { userId: "signed-3", specName: "Holy", status: "late" };
+            expect(say({ size: 25, signUps: [...signed(26), ...signed(1, "late"), twice, ...signed(2, "tentative"), ...signed(1, "absence")] })).toContain("27 / 25 full");
+            expect(say({ size: 10, overflow: "waitlist", signUps: signed(10) })).toContain("10 / 10 full · waiting list open");
+            expect(say({ size: 10, signupsClosed: true, signUps: signed(3) })).toContain("signups closed");
+        });
+
+        it("links into the event channel only while it exists — a deleted one reads \"channel missing\" (#537)", () => {
+            deletedChannels("c1");
+            linkCheck.channelCreated("c2");
+            const lines = smallLinesOf(buildOverviewMessage(inCategory(
+                ev({ id: "e1", channelId: "c1" }),
+                ev({ id: "e2", channelId: "c2", channelName: "do-bt", startTime: SEP17 + 60 }),
+                ev({ id: "e3", channelId: "c9", channelName: "fr-kara", startTime: SEP17 + 120 }),
+            ), opts)).slice(1);
+            expect(lines[0]).toContain(`· ${CHANNEL_MISSING}`);
+            expect(lines[0]).not.toContain("discord.com");
+            expect(lines[1]).toContain("[#do-bt](https://discord.com/channels/111/c2)");
+            // nothing known about c9 (bot offline since the start): the name, no link
+            expect(lines[2]).toContain("· #fr-kara");
+            expect(lines[2]).not.toContain("discord.com");
+        });
+
+        it("names the source server once in the head when the list sits on another server (#892)", () => {
+            linkCheck.channelDeleted("c3");
+            const payload = buildOverviewMessage(inCategory(
+                ev(), ev({ id: "e2", channelId: "c3", startTime: SEP17 + 60 }),
+            ), { ...opts, serverName: "PuG-Server", crossServer: true });
+            const text = allText(payload);
+            expect(text).toMatch(/^## Raids from PuG-Server\n/);
+            expect(text.match(/PuG-Server/g)).toHaveLength(1);
+            expect(text).toContain("[#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)");
+            // a missing channel stays plain text
+            expect(smallLinesOf(payload)[2]).toContain(`· ${CHANNEL_MISSING}`);
+        });
+
+        it("leaves the web buttons and date links out without a usable PUBLIC_BASE_URL (#537)", () => {
+            const payload = buildOverviewMessage(inCategory(ev({ id: "eh-1", source: "eventhelper" })), { ...opts, baseUrl: "" });
+            expect(JSON.stringify(payload)).not.toContain("/raids");
+            expect(allText(payload)).toContain("**Thu 17.09.**");
+            expect(allText(payload)).not.toContain("/e/");
+            expect(rowsOf(payload).some((r) => r.components.some((c) => c.style === 5))).toBe(false);
+            expect(overviewLinks("http://")).toBeNull();
+        });
+
+        it("writes each raid in its category's language, the frame in the list's (#892)", () => {
+            eventLang.mockImplementation((raid) => (raid.categoryId === "k2" ? "de" : "en"));
+            const groups = [
+                { categoryId: "k1", categoryName: "PuG", events: [ev({ id: "a", signUps: signed(2) })] },
+                { categoryId: "k2", categoryName: "Gilde", events: [ev({ id: "b", signUps: signed(3), startTime: SEP17 + 60 })] },
+            ];
+            const payload = buildOverviewMessage(groups, { ...opts, config: { categoryLang: {} } });
+            const text = allText(payload);
+            expect(text).toMatch(/^## Upcoming raids\n-# This ID /);
+            expect(text).toContain("**This ID** · **Thu 17.09.**");
+            expect(text).toContain("**Diese ID** · **Do");
+            expect(text).toContain("2 signed up");
+            expect(text).toContain("3 angemeldet");
+        });
     });
 
-    it("names the source server in title, description and channel links when the list sits on another server (#892)", () => {
-        linkCheck.channelDeleted("c3");
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "PuG", events: [
-            ev(), ev({ id: "e2", channelId: "c3", startTime: SEP17 + 60 }),
-        ] }], { ...opts, serverName: "PuG-Server", crossServer: true });
-        const embed = payload.embeds[0];
-        expect(embed.title).toBe("Raids from PuG-Server");
-        expect(embed.description).toBe("Updates itself · channel links lead to **PuG-Server**");
-        const meta = metaLines(embed.fields[0]);
-        expect(meta[0]).toContain("· [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1) on PuG-Server ·");
-        // a missing channel stays plain text, without the server
-        expect(meta[1]).toContain(`· ${CHANNEL_MISSING} ·`);
-        expect(meta[1]).not.toContain("on PuG-Server");
+    describe("cancelled raids", () => {
+        const cancelled = (over) => raidOf("hyjal", { id: "eh-x", status: "cancelled", title: "Hyjal", leaderId: "u9", signUps: [own("a", "tank")], ...over });
+
+        it("strikes the date through, without time, fill, lead or link, and does not offer it (#288)", () => {
+            const payload = buildOverviewMessage(inCategory(cancelled({ startTime: sec(2026, 9, 18, 17, 30) }), ev()), { ...opts, leaderName: () => "Brokk" });
+            const block = textsOf(payload).find((t) => t.startsWith("### Hyjalgipfel"));
+            expect(block).toBe([
+                "### Hyjalgipfel",
+                "**This ID** · ~~**Fri 18.09.**~~ · cancelled",
+                "-# [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)",
+            ].join("\n"));
+            expect(JSON.stringify(payload)).not.toContain("/e/eh-x");
+            expect(rowsOf(payload)[0].components[0].options.map((o) => o.value)).toEqual(["e1"]);
+        });
+
+        it("stays a single small line in a later ID", () => {
+            const text = allText(buildOverviewMessage(inCategory(cancelled({ startTime: OCT1 })), opts));
+            expect(text).toContain("-# ~~Thu 01.10.~~ · cancelled · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)");
+        });
+
+        it("offers no signup at all when only cancelled raids are listed", () => {
+            const payload = buildOverviewMessage(inCategory(cancelled({})), opts);
+            expect(JSON.stringify(payload)).not.toContain("talk-signup");
+            expect(allText(payload)).toContain("cancelled");
+        });
     });
 
-    it("leaves the web buttons and title links out without a usable PUBLIC_BASE_URL (#537)", () => {
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ id: "eh-1", source: "eventhelper" })] }], { ...opts, baseUrl: "" });
-        expect(JSON.stringify(payload)).not.toContain("/raids");
-        expect(payload.embeds[0].fields[0].value).toContain("**SSC + TK**");
-        expect(payload.embeds[0].fields[0].value).not.toContain("/e/");
-        expect(payload.components.some((r) => r.components.some((c) => c.style === 5))).toBe(false);
-        expect(overviewLinks("http://")).toBeNull();
+    describe("controls", () => {
+        it("offers the next raids in the select and three link buttons", () => {
+            const [selectRow, buttonRow] = rowsOf(buildOverviewMessage(inCategory(ev()), opts));
+            const select = selectRow.components[0];
+            expect(select.custom_id).toBe("talk-signup");
+            expect(select.placeholder).toBe("Pick a single raid …");
+            expect(select.options).toEqual([{ label: "SSC + TK", description: "Thu 17 Sep 19:30 · Mi", value: "e1" }]);
+            expect(buttonRow.components.map((b) => [b.label, b.url, b.style])).toEqual([
+                ["Web overview", "https://eh.example/raids", 5],
+                ["My signups", "https://eh.example/signups", 5],
+                ["My profile", "https://eh.example/profile", 5],
+            ]);
+            expect(overviewLinks("https://x.y").profile).toBe("https://x.y/profile");
+        });
+
+        it("makes „Mehrere Raids wählen …“ the green button above the select once an own event is listed — no „Für alle“ (#293, #904)", () => {
+            const payload = buildOverviewMessage(inCategory(ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })), opts);
+            const [signupRow, selectRow, linkRow] = rowsOf(payload);
+            expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
+                ["talk-signup-multi:111", "Pick several raids …", 3],
+            ]);
+            // without a source server the button stays as before
+            const noSource = buildOverviewMessage(inCategory(ev({ id: "eh-1", source: "eventhelper", title: "Kara" })), { ...opts, eventGuildId: "" });
+            expect(rowsOf(noSource)[0].components[0].custom_id).toBe("talk-signup-multi");
+            expect(JSON.stringify(payload)).not.toContain("talk-signup-all");
+            expect(selectRow.components[0].custom_id).toBe("talk-signup");
+            expect(linkRow.components).toHaveLength(3);
+            // only Raid-Helper events: nothing to sign up for here, so no button
+            expect(JSON.stringify(buildOverviewMessage(inCategory(ev()), opts))).not.toContain("talk-signup-multi");
+        });
+
+        it("offers at most the next 25 raids, soonest first", () => {
+            const events = Array.from({ length: 30 }, (_, i) => raidOf("kara", { id: `e${i}`, startTime: SEP17 + (29 - i) * 3600 }));
+            const options = rowsOf(buildOverviewMessage(inCategory(...events), opts))[1].components[0].options;
+            expect(options).toHaveLength(25);
+            expect(options[0].value).toBe("e29");
+        });
     });
 
-    it("lists the raids as an agenda: one field per day, raids in time order across categories, past raids left out", () => {
-        const groups = [
-            { categoryId: "k2", categoryName: "PuG", events: [ev({ id: "p1", title: "Karazhan", startTime: sec(2026, 9, 17, 18, 0), channelId: "c3", channelName: "do-kara" })] },
-            {
-                categoryId: "k1", categoryName: "Donnerstag-Raid", events: [
-                    ev({ id: "e2", source: "eventhelper", title: "Hyjal + BT", startTime: sec(2026, 9, 24, 17, 30), channelId: "c2", channelName: "do-hyjal" }),
-                    ev({ id: "e1", signUps: signed(9) }),
-                    ev({ id: "old", title: "Vorbei", startTime: sec(2026, 9, 1, 17, 0) }),
-                ],
-            },
-        ];
-        const embed = buildOverviewMessage(groups, opts).embeds[0];
-        expect(embed.title).toBe("Upcoming raids");
-        expect(embed.fields.map((f) => f.name)).toEqual(["Thursday 17 September", "Thursday 24 September"]);
-        const [first, second] = embed.fields[0].value.split("\n\n");
-        expect(first).toContain("**SSC + TK**");
-        expect(first).toContain("-# Donnerstag-Raid ·");
-        expect(second).toContain("**Karazhan**");
-        expect(second).toContain("-# PuG ·");
-        expect(embed.fields[1].value).toContain("[Hyjal + BT](https://eh.example/e/e2)");
-        expect(JSON.stringify(embed)).not.toContain("Vorbei");
+    describe("filters", () => {
+        it("keeps only the configured event categories when there are any", () => {
+            const groups = [
+                { categoryId: "k1", categoryName: "Raid", events: [ev()] },
+                { categoryId: "k9", categoryName: "Sonstiges", events: [ev({ id: "x", title: "Gildentreffen" })] },
+            ];
+            const payload = buildOverviewMessage(groups, { ...opts, categoryIds: ["k1"] });
+            expect(headingsOf(payload)).toHaveLength(1);
+            expect(JSON.stringify(payload)).not.toContain("Gildentreffen");
+        });
+
+        it("drops the raids of a version the link does not list (#892)", () => {
+            const groups = inCategory(ev({ id: "t1", versionId: "tbc", title: "SSC" }), ev({ id: "f1", versionId: "forever", title: "Barrow" }));
+            const json = JSON.stringify(buildOverviewMessage(groups, { ...opts, config: {}, versions: ["forever"] }));
+            expect(json).toContain("Barrow");
+            expect(json).not.toContain("SSC");
+            const all = JSON.stringify(buildOverviewMessage(groups, { ...opts, config: {}, versions: [] }));
+            expect(all).toContain("Barrow");
+            expect(all).toContain("SSC");
+        });
     });
 
-    it("names the version in the raid line only while several versions are listed (#743)", () => {
-        const groups = [
-            { categoryId: "k1", categoryName: "Donnerstag", events: [ev({ id: "t1", source: "eventhelper", versionId: "tbc" })] },
-            { categoryId: "k2", categoryName: "Montag", events: [ev({ id: "f1", source: "eventhelper", versionId: "forever", startTime: SEP17 + 60 })] },
-        ];
-        const both = metaLines(buildOverviewMessage(groups, { ...opts, config: {} }).embeds[0].fields[0]);
-        expect(both[0]).toMatch(/^-# TBC · Donnerstag ·/);
-        expect(both[1]).toMatch(/^-# Forever · Montag ·/);
-        const one = metaLines(buildOverviewMessage([groups[0]], { ...opts, config: {} }).embeds[0].fields[0]);
-        expect(one[0]).toMatch(/^-# Donnerstag ·/);
-    });
+    describe("Discord's limits", () => {
+        const KINDS = ["kara", "gruul", "mag", "ssc", "tk", "za", "hyjal", "bt", "swp"];
+        const longChannel = "ein-langer-kanalname-fuer-den-raid";
+        // `perKind` weekly dates of each kind, one hour apart between the kinds
+        const kinds = (count, perKind = 1) => inCategory(...KINDS.slice(0, count).flatMap((kind, k) => Array.from({ length: perKind }, (_, i) => raidOf(kind, {
+            id: `${kind}-${i}`, channelName: longChannel, size: 25, signUps: signed(3),
+            startTime: SEP17 + k * 3600 + i * 7 * 86400,
+        }))));
 
-    it("writes each raid in its category's language, the frame in the list's (#892)", () => {
-        eventLang.mockImplementation((raid) => (raid.categoryId === "k2" ? "de" : "en"));
-        const groups = [
-            { categoryId: "k1", categoryName: "PuG", events: [ev({ id: "a", signUps: signed(2) })] },
-            { categoryId: "k2", categoryName: "Gilde", events: [ev({ id: "b", signUps: signed(3), startTime: SEP17 + 60 })] },
-        ];
-        const embed = buildOverviewMessage(groups, { ...opts, config: { categoryLang: {} } }).embeds[0];
-        expect(embed.title).toBe("Upcoming raids");
-        expect(embed.fields[0].name).toBe("Thursday 17 September");
-        const meta = metaLines(embed.fields[0]);
-        expect(meta[0]).toContain("2 signups");
-        expect(meta[1]).toContain("3 Anmeldungen");
-    });
+        it("gives up to 7 kinds a block with a picture", () => {
+            const payload = buildOverviewMessage(kinds(7), opts);
+            expect(sectionsOf(payload)).toHaveLength(7);
+            expect(allText(payload)).not.toContain("more in the web overview");
+            expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+        });
 
-    it("writes the single Discord accounts alone, no /size, an overbooked raid included (#516, #520)", () => {
-        // 28 entries: 26 signed, 2 late — one of the late ones is a second character of a signed account
-        const twice = { userId: "signed-3", specName: "Holy", status: "late" };
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Do", events: [
-            ev({ id: "e9", source: "eventhelper", title: "BT", channelId: "c2", channelName: "do-bt", size: 25, signUps: [...signed(26), ...signed(1, "late"), twice, ...signed(2, "tentative"), ...signed(1, "absence")] }),
-        ] }], opts);
-        const meta = metaLines(payload.embeds[0].fields[0])[0];
-        expect(meta).toContain(" 27 signups ");
-        expect(meta).not.toMatch(/\d+ ?\/ ?\d+|\(\+/);
-    });
+        it("reaches exactly 40 components with 7 pictures and the last line", () => {
+            const payload = buildOverviewMessage(kinds(7, 12), opts);
+            expect(sectionsOf(payload)).toHaveLength(7);
+            expect(allText(payload)).toContain("more in the web overview");
+            expect(countComponents(payload.components)).toBe(40);
+            expect(textLength(payload)).toBeLessThanOrEqual(4000);
+        });
 
-    it("strikes a cancelled event through, marks it cancelled and does not offer it for signing up (#288)", () => {
-        const payload = buildOverviewMessage([{
-            categoryId: "k1", categoryName: "Mi", events: [
-                ev({ id: "eh-x", source: "eventhelper", status: "cancelled", title: "Hyjal", startTime: sec(2026, 9, 18, 17, 30), leaderId: "u9", signUps: [own("a", "tank")] }),
-                ev(),
-            ],
-        }], { ...opts, leaderName: () => "Brokk" });
-        expect(lines(payload.embeds[0].fields[1])).toEqual([
-            "<t:1789752600:t> · ~~Hyjal~~ · cancelled",
-            "-# Mi · [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)",
-        ]);
-        expect(payload.components[0].components[0].options.map((o) => o.value)).toEqual(["e1"]);
+        it("keeps pictures for the first 6 from the 8th kind on, the others share a text under their names", () => {
+            const payload = buildOverviewMessage(kinds(8), opts);
+            expect(sectionsOf(payload)).toHaveLength(6);
+            const shared = textsOf(payload).at(-1);
+            expect(shared.match(/^### /gm)).toHaveLength(2);
+            expect(container(payload).components.filter((c) => c.type === TEXT)).toHaveLength(2);
+            expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+        });
 
-        const onlyCancelled = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ status: "cancelled" })] }], opts);
-        expect(onlyCancelled.components.some((r) => r.components.some((c) => c.custom_id === "talk-signup"))).toBe(false);
-    });
+        it("keeps every kind's first date, cuts the latest dates and counts them in the last line", () => {
+            const payload = buildOverviewMessage(kinds(9, 12), opts);
+            const text = allText(payload);
+            expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+            expect(textLength(payload)).toBeLessThanOrEqual(4000);
+            const shownDates = (text.match(/<t:/g) || []).length;
+            expect(text.endsWith(`-# +${108 - shownDates} more in the web overview`)).toBe(true);
+            expect(shownDates).toBeGreaterThan(9);
+            for (const kind of KINDS) expect(text).toContain(`/e/${kind}-0)`);
+            expect(text).not.toContain("/e/swp-11)");
+        });
 
-    it("offers the next raids in the select and three link buttons", () => {
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev()] }], opts);
-        const [selectRow, buttonRow] = payload.components;
-        const select = selectRow.components[0];
-        expect(select.custom_id).toBe("talk-signup");
-        expect(select.placeholder).toBe("Pick a single raid …");
-        expect(select.options).toEqual([{ label: "SSC + TK", description: "Thu 17 Sep 19:30 · Mi", value: "e1" }]);
-        expect(buttonRow.components.map((b) => [b.label, b.url, b.style])).toEqual([
-            ["Web overview", "https://eh.example/raids", 5],
-            ["My signups", "https://eh.example/signups", 5],
-            ["My profile", "https://eh.example/profile", 5],
-        ]);
-        expect(overviewLinks("https://x.y").profile).toBe("https://x.y/profile");
-    });
+        it("cuts second dates before the first date of any later kind, by start time", () => {
+            const text = allText(buildOverviewMessage(kinds(9, 12), opts));
+            expect(text).toContain("/e/kara-1)");
+            expect(text).not.toContain("/e/kara-11)");
+        });
 
-    it("puts only „Mehrere Raids wählen …“ above the select once an own event is listed - no „Für alle“ (#293, #904)", () => {
-        const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev(), ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], opts);
-        const [signupRow, selectRow, linkRow] = payload.components;
-        expect(signupRow.components.map((b) => [b.custom_id, b.label, b.style])).toEqual([
-            ["talk-signup-multi:111", "Pick several raids …", 2],
-        ]);
-        // without a source server the button stays as before
-        const noSource = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev({ id: "eh-1", source: "eventhelper", title: "Kara" })] }], { ...opts, eventGuildId: "" });
-        expect(noSource.components[0].components[0].custom_id).toBe("talk-signup-multi");
-        expect(JSON.stringify(payload)).not.toContain("talk-signup-all");
-        expect(selectRow.components[0].custom_id).toBe("talk-signup");
-        expect(linkRow.components).toHaveLength(3);
-        // only Raid-Helper events: nothing to sign up for here, so no buttons
-        const rhOnly = buildOverviewMessage([{ categoryId: "k1", categoryName: "Mi", events: [ev()] }], opts);
-        expect(JSON.stringify(rhOnly)).not.toContain("talk-signup-multi");
-    });
+        it("stays inside even when the kinds alone do not fit", () => {
+            const events = Array.from({ length: 60 }, (_, i) => ev({
+                id: `e${i}`, source: "eventhelper", title: `Ein ziemlich langer Raidtitel Nummer ${i}`, channelName: longChannel, startTime: SEP17 + i * 60,
+            }));
+            const payload = buildOverviewMessage(inCategory(...events), opts);
+            const text = allText(payload);
+            expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+            expect(textLength(payload)).toBeLessThanOrEqual(4000);
+            expect(text).toContain("Nummer 0\n");
+            expect(text).not.toContain("Nummer 59");
+            expect(text).toMatch(/\+\d+ more in the web overview$/);
+        });
 
-    it("keeps only the configured event categories when there are any", () => {
-        const groups = [
-            { categoryId: "k1", categoryName: "Raid", events: [ev()] },
-            { categoryId: "k9", categoryName: "Sonstiges", events: [ev({ id: "x", title: "Gildentreffen" })] },
-        ];
-        const payload = buildOverviewMessage(groups, { ...opts, categoryIds: ["k1"] });
-        expect(payload.embeds[0].fields).toHaveLength(1);
-        expect(JSON.stringify(payload)).not.toContain("Gildentreffen");
-    });
-
-    it("drops the raids of a version the link does not list (#892)", () => {
-        const groups = [{ categoryId: "k1", categoryName: "Raids", events: [
-            ev({ id: "t1", versionId: "tbc", title: "SSC" }), ev({ id: "f1", versionId: "forever", title: "Barrow" }),
-        ] }];
-        const json = JSON.stringify(buildOverviewMessage(groups, { ...opts, config: {}, versions: ["forever"] }));
-        expect(json).toContain("Barrow");
-        expect(json).not.toContain("SSC");
-        const all = JSON.stringify(buildOverviewMessage(groups, { ...opts, config: {}, versions: [] }));
-        expect(all).toContain("Barrow");
-        expect(all).toContain("SSC");
-    });
-
-    it("says there is nothing planned and drops the select when no raid is upcoming", () => {
-        const payload = buildOverviewMessage([], opts);
-        expect(payload.embeds[0].description).toContain("No raids are planned");
-        expect(payload.embeds[0].fields).toBeUndefined();
-        expect(payload.components).toHaveLength(1);
-        expect(payload.components[0].components).toHaveLength(3);
-    });
-
-    it("stays within Discord's limits — the latest raids fall away and the footer counts them", () => {
-        const groups = Array.from({ length: 40 }, (_, g) => ({
-            categoryId: `k${g}`,
-            categoryName: `Kategorie ${g}`,
-            events: Array.from({ length: 12 }, (_, i) => ev({
-                id: `e${g}-${i}`, title: `Ein ziemlich langer Raidtitel Nummer ${g}-${i}`,
-                startTime: sec(2026, 10, 1, 17, 0) + g * 3600 + i * 60, channelName: "ein-langer-kanalname-fuer-den-raid",
-            })),
-        }));
-        const payload = buildOverviewMessage(groups, opts);
-        const embed = payload.embeds[0];
-        expect(embed.fields.length).toBeLessThanOrEqual(25);
-        for (const f of embed.fields) expect(f.value.length).toBeLessThanOrEqual(1024);
-        const total = embed.title.length + embed.description.length + (embed.footer ? embed.footer.text.length : 0)
-            + embed.fields.reduce((n, f) => n + f.name.length + f.value.length, 0);
-        expect(total).toBeLessThanOrEqual(6000);
-        // a day that overflows one field goes on in a field without a name
-        expect(embed.fields[1].name).toBe("​");
-        const shown = (JSON.stringify(embed.fields).match(/Raidtitel Nummer/g) || []).length;
-        expect(embed.footer.text).toBe(`+${480 - shown} more raids in the web overview`);
-        expect(JSON.stringify(embed.fields)).toContain("Nummer 0-0");
-        expect(JSON.stringify(embed.fields)).not.toContain("Nummer 39-11");
-        expect(JSON.stringify(embed.fields)).not.toMatch(/\+\d+ more"/);
-        const options = payload.components[0].components[0].options;
-        expect(options).toHaveLength(25);
-        // the next 25 raids, soonest first
-        expect(options[0].value).toBe("e0-0");
-    });
-
-    it("hashes the same content the same way", () => {
-        const a = buildOverviewMessage([{ categoryId: "k", categoryName: "R", events: [ev()] }], opts);
-        const b = buildOverviewMessage([{ categoryId: "k", categoryName: "R", events: [ev()] }], opts);
-        const c = buildOverviewMessage([{ categoryId: "k", categoryName: "R", events: [ev({ signUps: signed(1) })] }], opts);
-        expect(payloadHash(a)).toBe(payloadHash(b));
-        expect(payloadHash(a)).not.toBe(payloadHash(c));
+        it("stays inside without web links too", () => {
+            const payload = buildOverviewMessage(kinds(9, 12), { ...opts, baseUrl: "" });
+            expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+            expect(textLength(payload)).toBeLessThanOrEqual(4000);
+            expect(rowsOf(payload)).toHaveLength(2);
+        });
     });
 });
 
@@ -442,7 +635,9 @@ describe("services/talk/talkOverview — syncOverview", () => {
         expect(stateOf()).toMatchObject({ channelId: "ov", messageId: "m-new", postedAt: 5, error: "" });
         expect(stateOf().hash).toHaveLength(40);
         // on another server than its raids: the title names the source
-        expect(channel.send.mock.calls[0][0].embeds[0].title).toBe("Raids from Pulse Events");
+        const sent = channel.send.mock.calls[0][0];
+        expect(textsOf(sent)[0]).toMatch(/^## Raids from Pulse Events/);
+        expect(sent.flags).toBe(MessageFlags.IsComponentsV2);
     });
 
     it("edits when the content changed and skips when it did not", async () => {
@@ -457,6 +652,16 @@ describe("services/talk/talkOverview — syncOverview", () => {
         expect(message.edit).toHaveBeenCalledTimes(1);
         expect(channel.send).toHaveBeenCalledTimes(1);
         expect(stateOf().editedAt).toBe(9);
+    });
+
+    it("turns a list that is still an embed into the new message by an edit, without a new post", async () => {
+        mockStates["111:222"] = { channelId: "ov", messageId: "m1", hash: "hash-of-the-old-embed" };
+        const { channel, message } = fakeDiscord();
+        expect(await syncOverview({ key: "111:222" })).toEqual(posted("111:222", { status: "edited", messageId: "m1" }));
+        expect(channel.send).not.toHaveBeenCalled();
+        expect(message.edit).toHaveBeenCalledWith(expect.objectContaining({
+            flags: MessageFlags.IsComponentsV2, content: "", embeds: [],
+        }));
     });
 
     it("keeps editing the message of a pre-#892 record (keyed by the source) instead of posting anew", async () => {
@@ -494,8 +699,8 @@ describe("services/talk/talkOverview — syncOverview", () => {
         expect(stateOf("111:111")).toMatchObject({ channelId: "ov2", messageId: "m-own" });
 
         // each in its own frame: across servers in English with the source named, at home in the link's German
-        expect(message.edit.mock.calls[0][0].embeds[0].title).toBe("Raids from PvE");
-        expect(second.send.mock.calls[0][0].embeds[0].title).toBe("Kommende Raids");
+        expect(textsOf(message.edit.mock.calls[0][0])[0]).toMatch(/^## Raids from PvE/);
+        expect(textsOf(second.send.mock.calls[0][0])[0]).toMatch(/^## Kommende Raids/);
 
         // one link alone by its key
         expect(await syncOverview({ key: "111:111" })).toMatchObject({ key: "111:111", status: "unchanged" });
@@ -523,9 +728,9 @@ describe("services/talk/talkOverview — syncOverview", () => {
             ev({ id: "b", source: "eventhelper", leaderId: "u404", startTime: Math.floor(Date.now() / 1000) + 90000 }),
         ] }], error: null });
         const { payload } = await currentPayload({ config, key: "111:222" });
-        const json = JSON.stringify(payload.embeds);
-        expect(json).toContain("Lead Brokk");
-        expect(json.match(/Lead /g)).toHaveLength(1);
+        const text = allText(payload);
+        expect(text).toContain("Lead Brokk");
+        expect(text.match(/Lead /g)).toHaveLength(1);
         expect(fetch).not.toHaveBeenCalled();
         discord.getGuild.mockReturnValue({ name: "Pulse Events" });
     });
@@ -590,7 +795,7 @@ describe("services/talk/talkOverview — syncOverview", () => {
         linkCheck._reset();
         await syncOverview({ key: "111:222" });
         const sent = channel.send.mock.calls[0][0];
-        expect(sent.embeds[0].fields[0].value).toContain(CHANNEL_MISSING);
+        expect(allText(sent)).toContain(CHANNEL_MISSING);
         expect(JSON.stringify(sent)).not.toContain("discord.com/channels/111/c1");
     });
 
@@ -614,7 +819,7 @@ describe("services/talk/talkOverview — syncOverview", () => {
     it("builds the dry-run payload of a link, by key or by its source server", async () => {
         const byKey = await currentPayload({ config, key: "111:222" });
         expect(byKey.error).toBeNull();
-        expect(byKey.payload.embeds[0].description).toContain("Pulse Events");
+        expect(allText(byKey.payload)).toContain("Pulse Events");
         const bySource = await currentPayload({ config, guildId: "111" });
         expect(bySource.payload).toEqual(byKey.payload);
         expect(bySource.lang).toBe("en");
@@ -634,7 +839,7 @@ describe("services/talk/talkOverview — syncOverview", () => {
         const home = await currentPayload({ config, key: "111:111" });
         const known = await currentPayload({ config, key: "111:222" });
         // no link: the at-home frame of the source, not the cross-server frame of 111:222
-        expect(home.payload.embeds[0].title).not.toBe(known.payload.embeds[0].title);
+        expect(textsOf(home.payload)[0]).not.toBe(textsOf(known.payload)[0]);
     });
 });
 

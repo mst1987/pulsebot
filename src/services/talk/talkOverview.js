@@ -1,11 +1,16 @@
 // The raid list per link (#257, #361, #890, #892): one bot message per link
 // (`discordServers.links[]` `{ from, to, channelId, lang, versions }`) in its
-// channel on `to`, listing the upcoming raids of `from` as an agenda by day
-// (design D3, #892): one field per day, one stanza per raid with time, title
-// (linked to its public web page), instance and size, lead, role counts,
-// signups, the event channel (with the server's name when the list sits on
-// another server) and the category — plus the sign-up buttons, a select and
-// three link buttons into the web.
+// channel on `to`, listing the upcoming raids of `from` by raid (design "B, by
+// raid, with raid pictures", replaces the agenda by day D3 of #892). One
+// Components V2 container, modelled on Blizzard's group finder:
+//   head       "Raids from <server>" and the days of the IDs that occur
+//   per kind   one block per kind of raid, soonest first: its zone picture as a
+//              thumbnail, its name, the lead when every date shares it, then
+//              its dates. A date of this or the next ID is two lines and says
+//              "This ID" / "Next ID"; a later one is a single small line. The
+//              date links to the public web page, the small line holds fill,
+//              channel link and whatever else differs.
+//   foot       a green "Pick several raids …", the select, three link buttons
 //
 // It keeps itself current: a roster change of an own event
 // (signupStore.onSignupsChanged), a newly created event (eventCreate.js) and a
@@ -18,69 +23,72 @@
 // deletes the message of a link that is gone (removed, or its source or
 // target changed) and drops its record (pruneOrphans).
 //
-// Discord shapes the message: at most 25 embed fields, 1024 characters per
-// field, 6000 per embed, 25 select options (the next 25 raids). When the raids
-// do not fit, the latest ones are left out and the footer says how many. A
-// channel link crosses servers as a plain URL — `<#id>` only resolves on the
-// server it is posted on.
+// Discord shapes the message: 40 components including the nested ones, 4000
+// characters of text, 25 select options (the next 25 raids). Without blocks the
+// frame costs 11 components (container, head, the line above the controls, the
+// three rows with their five controls), a block with a picture 4 (line, section,
+// text, thumbnail), one without 2, the "+N more" line 1: so at most 7 blocks of
+// their own (11 + 28 + 1 = 40). From the 8th kind on the first 6 keep theirs and
+// the others share one text with their names as small headings (11 + 24 + 2 + 1).
+// When the text does not fit, every kind keeps its first date before any kind
+// gets a second, by start time; what is left out is counted in the last line. A
+// channel link is always a plain URL — `<#id>` and `<@id>` only resolve on the
+// server they are posted on, so a lead is a name from the member cache.
 //
-// Languages (#892): the frame (title, description, day headings, buttons)
-// speaks the link's language (`link.lang`, empty = the server language,
-// services/discord/botLanguage.js `serverLang`); every raid stanza speaks its
-// category's language (`eventLang`), so a PuG raid reads English beside German
-// guild raids. The frame language is hashed with the payload, so a change of
-// it redraws the message on the next sync (languageChange.js schedules one).
+// Languages (#892): the frame (head, "+N more", buttons) speaks the link's
+// language (`link.lang`, empty = the server language, services/discord/botLanguage.js
+// `serverLang`); every raid speaks its category's language (`eventLang`), so a
+// PuG raid reads English beside German guild raids. The frame language is hashed
+// with the payload, so a change of it redraws the message on the next sync
+// (languageChange.js schedules one). Nothing but `<t:…>` may depend on the clock
+// within an ID: "This ID" turns into the next one on the first sweep after the
+// reset, and that one edit is meant to happen.
 const crypto = require("crypto");
 const { isRaidSibling } = require("../../utils/raidGroup");
 const { serverDateTime, discordTimestamp } = require("../../utils/time");
+const { raidIdOf, idDistance } = require("../../utils/time/raidId");
 const { tr, dateLocale } = require("../../utils/i18n/botText");
 const { serverLang, eventLang } = require("../discord/botLanguage");
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, ContainerBuilder, MessageFlags, SectionBuilder, SeparatorBuilder,
+    SeparatorSpacingSize, StringSelectMenuBuilder, TextDisplayBuilder, ThumbnailBuilder,
 } = require("discord.js");
 const { embedAccentColor } = require("../../config/variables");
 const discord = require("../discord/discord");
 const linkCheck = require("../discord/linkCheck");
 const guildRoles = require("../discord/roles/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
+const { leadInstance } = require("../events/embedLook");
+const { raidContentIds } = require("../events/overview/raidListing");
+const {
+    dayLabel, fillLine, idTitle, raidPicture, rangeLabel, TEXT_BUDGET,
+} = require("../events/overview/raidOverviewPanel");
 const { getConfig } = require("../../stores/settings/settingsStore");
 const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
 const { versionShort } = require("../versions/versionTag");
-const { VERSIONS, instanceById } = require("../../config/gameVersions");
-const { entryForSpec } = require("../../config/data/classlist");
+const { VERSIONS } = require("../../config/gameVersions");
+const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 const { onSignupsChanged } = require("../../stores/events/signupStore");
 const {
     getOverviewState, setOverviewState, overviewKeys, listOverviewKeys, removeOverviewState,
 } = require("../../stores/discord/talkOverviewStore");
 const { readStored } = require("../../stores/settings/configStore");
 const { signupStatus } = require("../../utils/attendance");
-const { accountCount, ATTENDING_STATUSES } = require("../../utils/signup/capacity");
+const { accountCount } = require("../../utils/signup/capacity");
 
-// Between two raid stanzas of one day — a blank line for breathing room.
-const RAID_SEP = "\n\n";
-// The name of a field that continues a day whose raids overflow 1024
-// characters: a zero-width space, Discord refuses an empty name.
-const SPACER = "​";
 // What a raid line shows instead of a link to a channel that is gone (#537), in English (tr() translates it).
 const CHANNEL_MISSING = "channel missing";
 const NO_CATEGORY = "No category";
-// Plural pairs of the meta line (singular, plural) — English, tr() translates both.
-const COUNT_TEXT = {
-    tank: ["1 tank", "{count} tanks"],
-    healer: ["1 healer", "{count} healers"],
-    dps: ["{count} DPS", "{count} DPS"],
-    signup: ["1 signup", "{count} signups"],
-};
 
 const SELECT_ID = "talk-signup";
 // "Mehrere Raids wählen …" (#293, commands/signup/talkSignupMulti.js); "Für alle Raids" is gone (#904)
 const MULTI_BUTTON_ID = "talk-signup-multi";
-const MAX_FIELDS = 25;
-const MAX_FIELD_VALUE = 1024;
-const MAX_EMBED_CHARS = 6000;
-// Kept free of the 6000 for the footer "+N more raids in the web overview".
-const FOOTER_RESERVE = 80;
 const MAX_OPTIONS = 25;
+// The blocks of their own a message can hold, and how many stay when the kinds do not fit (head comment).
+const MAX_BLOCKS = 7;
+const BLOCKS_WITH_SHARED_TEXT = 6;
+// A category named only by its size ("10er") says nothing the fill does not say.
+const SIZE_ONLY_CATEGORY = /^\d+er$/i;
 const SWEEP_MS = 5 * 60 * 1000;
 const DEBOUNCE_MS = 3000;
 // Raid-Helper's event list is cached for 30 s (raidEventGroups.js): a sync
@@ -119,25 +127,23 @@ function plain(text) {
 }
 
 /**
- * The channel part of a raid's meta line (#537): a link only when the channel
+ * The channel part of a raid's small line (#537): a link only when the channel
  * exists (linkCheck), "channel missing" as plain text when it is gone, the bare
- * name while nothing is known (bot offline since the start). On another
- * server than the list (#892) a known channel names its server: "#do-ssc on
- * <server>".
+ * name while nothing is known (bot offline since the start). The name without
+ * its decoration ("◜ · raid" reads "raid").
  */
-function channelPart(event, eventGuildId, { channelInfo, lang, serverName, crossServer }) {
+function channelPart(event, eventGuildId, { channelInfo, lang }) {
     if (!event.channelId) return "";
-    const name = `#${plain(event.channelName) || "event"}`;
+    const name = `#${plainCategoryName(plain(event.channelName)) || "event"}`;
     const info = channelInfo(eventGuildId, event.channelId);
     if (info.state === "missing" && !info.url) return tr(lang, CHANNEL_MISSING);
-    const channel = info.url ? `[${name}](${info.url})` : name;
-    return crossServer && serverName ? tr(lang, "{channel} on {server}", { channel, server: plain(serverName) }) : channel;
+    return info.url ? `[${name}](${info.url})` : name;
 }
 
 /**
  * "Do. 17 Sep. 19:30" / "Thu 17 Sep 19:30" in server time (Berlin); start is
  * unix seconds (or ms). For the select options, which cannot render a Discord
- * timestamp — the embed lines use Discord timestamps instead, so every reader
+ * timestamp — the text lines use Discord timestamps instead, so every reader
  * sees their own time zone.
  */
 function formatStart(startTime, lang = "de") {
@@ -145,107 +151,9 @@ function formatStart(startTime, lang = "de") {
     return dt ? dt.setLocale(dateLocale(lang)).toFormat("ccc d LLL HH:mm") : "";
 }
 
-/** "Donnerstag, 17. September" / "Thursday 17 September" — a day heading in server time. */
-function dayHeading(startTime, lang = "de") {
-    const dt = serverDateTime(startTime);
-    if (!dt) return "";
-    return dt.setLocale(dateLocale(lang)).toFormat(lang === "en" ? "cccc d LLLL" : "cccc, d. LLLL");
-}
-
-/** The server-time day of a start ("2026-09-17"), the key raids are grouped by. */
-function dayKey(startTime) {
-    const dt = serverDateTime(startTime);
-    return dt ? dt.toFormat("yyyy-LL-dd") : "";
-}
-
 /** How many single Discord accounts are coming (#520): signed and late, the same count as the event message. */
 function attendingCount(event) {
     return accountCount(event.signUps || [], signupStatus);
-}
-
-const ROLE_ALIASES = {
-    tank: "tank", tanks: "tank",
-    healer: "healer", healers: "healer", heal: "healer", healing: "healer",
-    melee: "dps", ranged: "dps", caster: "dps", dps: "dps", damage: "dps",
-};
-
-/**
- * "tank" | "healer" | "dps" of one signup — its stored role (own events), else
- * its spec's, else Raid-Helper's role name; "" when none says (a "Late" or
- * unknown spec without a role): such a signup counts as a signup, not as DPS.
- */
-function roleOf(signUp) {
-    for (const raw of [signUp.role, (entryForSpec(signUp.specName) || {}).role, signUp.roleName]) {
-        const role = ROLE_ALIASES[String(raw || "").trim().toLowerCase()];
-        if (role) return role;
-    }
-    return "";
-}
-
-/** The attending accounts per role — each account once, by its first attending signup. */
-function roleCounts(event) {
-    const counts = { tank: 0, healer: 0, dps: 0 };
-    const seen = new Set();
-    for (const s of event.signUps || []) {
-        if (!s || !ATTENDING_STATUSES.includes(signupStatus(s))) continue;
-        const uid = String(s.userId || "");
-        if (uid) {
-            if (seen.has(uid)) continue;
-            seen.add(uid);
-        }
-        const role = roleOf(s);
-        if (role) counts[role] += 1;
-    }
-    return counts;
-}
-
-function countText(kind, count, lang) {
-    const [one, many] = COUNT_TEXT[kind];
-    return tr(lang, count === 1 ? one : many, { count });
-}
-
-/** "SSC + TK 25" — the instances by their short name and the size; "" when the event names no instance. */
-function instancePart(event) {
-    const ids = Array.isArray(event.instanceIds) ? event.instanceIds : [];
-    const found = ids.map((id) => instanceById(id)).filter(Boolean);
-    if (!found.length) return "";
-    const names = found.map((i) => plain(i.short || i.name)).filter(Boolean).join(" + ");
-    const size = Number(event.size) || Number(found[0].defaultSize) || 0;
-    return [names, size ? String(size) : ""].filter(Boolean).join(" ");
-}
-
-/**
- * One raid as two lines (#892, design D3): the time as a Discord timestamp,
- * the title (linked to its public page for an own event), instance and size;
- * below, small ("-#"), version, category, lead, role counts, signups, channel
- * and the source. A cancelled raid (#288) stays listed until its day, struck
- * through and marked "cancelled".
- */
-function raidStanza(event, eventGuildId, opts) {
-    const { baseUrl, channelInfo, lang, serverName, crossServer, leaderName, versionTitled } = opts;
-    const title = plain(event.title) || "Raid";
-    const time = discordTimestamp(event.startTime, "t");
-    const category = plain(event.categoryName) || tr(lang, NO_CATEGORY);
-    const channel = channelPart(event, eventGuildId, { channelInfo, lang, serverName, crossServer });
-    const version = versionTitled ? versionShort(event.versionId) : "";
-    if (event.status === "cancelled") {
-        const head = [time, `~~${title}~~`, tr(lang, "cancelled")].filter(Boolean).join(" · ");
-        return [head, `-# ${[version, category, channel].filter(Boolean).join(" · ")}`].join("\n");
-    }
-    const link = event.source === "eventhelper" ? eventUrl(event.id, baseUrl) : "";
-    const head = [time, `**${link ? `[${title}](${link})` : title}**`, instancePart(event)].filter(Boolean).join(" · ");
-    const meta = [version, category];
-    const leader = plain(event.leaderId ? leaderName(String(event.leaderId)) : "");
-    if (leader) meta.push(tr(lang, "Lead {leader}", { leader }));
-    const signups = attendingCount(event);
-    if (signups) {
-        const roles = roleCounts(event);
-        meta.push(["tank", "healer", "dps"].map((r) => countText(r, roles[r], lang)).join(", "));
-    }
-    meta.push(countText("signup", signups, lang));
-    if (channel) meta.push(channel);
-    if (event.source !== "eventhelper") meta.push("Raid-Helper");
-    return [head, `-# ${meta.filter(Boolean).join(" · ")}`].join("\n");
 }
 
 /**
@@ -295,100 +203,164 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [], versions =
 }
 
 /**
- * The day fields of the agenda: raids in time order, one field per day, a day
- * that overflows 1024 characters continued in a field without a name. Stops
- * before 25 fields or 6000 characters — the latest raids fall away.
- * @returns {{ fields: object[], shown: number }}
+ * The block a raid belongs to: its instance (own events by `instanceIds`, Raid-Helper
+ * rows by their title; "SSC + TK" counts as the larger one, leadInstance), else its
+ * own title. The version is part of the key: TBC's and Forever's raids never share one.
  */
-function dayFields(raids, { lang, used, stanza }) {
-    const fields = [];
-    let total = used;
-    let shown = 0;
-    let lastDay = "";
+function blockOf(raid) {
+    const { contentIds } = raidContentIds({ title: raid.title, instanceIds: raid.instanceIds, versionId: raid.versionId });
+    const instance = leadInstance(contentIds);
+    if (instance) return { key: `${raid.versionId}|${instance.id}`, name: plain(instance.name).replace(/\s*\(.*\)$/, ""), instance: true };
+    const title = plain(raid.title) || "Raid";
+    return { key: `${raid.versionId}|${title.toLowerCase()}`, name: title, instance: false };
+}
+
+/** The raids (in time order) as blocks, soonest first — a block sits where its first raid does. */
+function raidBlocks(raids) {
+    const blocks = new Map();
     for (const raid of raids) {
-        const text = stanza(raid);
-        const day = dayKey(raid.startTime);
-        const current = fields[fields.length - 1];
-        if (current && day === lastDay && current.value.length + RAID_SEP.length + text.length <= MAX_FIELD_VALUE) {
-            if (total + RAID_SEP.length + text.length > MAX_EMBED_CHARS - FOOTER_RESERVE) break;
-            current.value += RAID_SEP + text;
-            total += RAID_SEP.length + text.length;
-        } else {
-            const name = (day === lastDay ? SPACER : dayHeading(raid.startTime, lang) || SPACER).slice(0, 256);
-            const value = text.slice(0, MAX_FIELD_VALUE);
-            if (fields.length >= MAX_FIELDS || total + name.length + value.length > MAX_EMBED_CHARS - FOOTER_RESERVE) break;
-            fields.push({ name, value, inline: false });
-            total += name.length + value.length;
-        }
-        lastDay = day;
-        shown += 1;
+        const { key, name, instance } = blockOf(raid);
+        if (!blocks.has(key)) blocks.set(key, { name, instance, raids: [] });
+        blocks.get(key).raids.push(raid);
     }
-    return { fields, shown };
+    return [...blocks.values()];
+}
+
+/** The display name of a raid's lead from the member cache, "" when it has none or is not cached. */
+function leadOf(raid, leaderName) {
+    return raid.leaderId ? plain(leaderName(String(raid.leaderId))) : "";
+}
+
+/** The lead every date of a block shares ("" = they differ, or one has none): it then stands once, at the block. */
+function sharedLead(raids, leaderName) {
+    const going = raids.filter((r) => r.status !== "cancelled");
+    if (!going.length) return "";
+    const first = leadOf(going[0], leaderName);
+    return going.every((r) => leadOf(r, leaderName) === first) ? first : "";
+}
+
+/** The small line of a date: what it means beyond its size, how full it is, its own lead, its channel. */
+function raidFacts(raid, ctx, shared) {
+    const { lang: frame, now, leaderName } = ctx;
+    const lang = raid.lang;
+    const category = plainCategoryName(plain(raid.categoryName));
+    const named = category && category !== plain(tr(frame, NO_CATEGORY)) && !SIZE_ONLY_CATEGORY.test(category);
+    const leader = shared ? "" : leadOf(raid, leaderName);
+    return [
+        named ? category : "",
+        fillLine(raid, attendingCount(raid), lang, now),
+        leader ? tr(lang, "Lead {leader}", { leader }) : "",
+        channelPart(raid, ctx.eventGuildId, { channelInfo: ctx.channelInfo, lang }),
+    ].filter(Boolean);
 }
 
 /**
- * The message payload (pure — no Discord call).
- * @param {object[]} groups loadEventGroups()'s groups
- * @param {object} opts
- *   `eventGuildId` the source server (`from`), `serverName` its name,
- *   `crossServer` the list sits on another server (channel links name it),
- *   `lang` the frame language ("de" | "en", German by default), `config` for
- *   the category languages of the raid stanzas (without it they speak `lang`),
- *   `versions` the link's version filter, `leaderName(id)` a lead's display
- *   name ("" = leave the lead out)
- * @returns {{ content: string, embeds: object[], components: object[] }} plain API JSON
+ * One date of a block. This ID and the next: "**This ID** · **[Sat 12.12.](page)** · 20:00" over the
+ * small line; a later ID one small line without a mark. A cancelled raid (#288) stays until its
+ * day, struck through and marked — without a time, a fill or a link: nobody can sign up anymore.
  */
-function buildOverviewMessage(groups, opts = {}) {
-    const {
-        eventGuildId = "", baseUrl = linkCheck.webBase(), channelInfo = linkCheck.channelInfo,
-        lang = "de", config, crossServer = false, leaderName = () => "",
-    } = opts;
-    const serverName = opts.serverName || opts.eventGuildName || "";
-    const list = upcomingGroups(groups, { ...opts, lang });
-    const all = list
-        .flatMap((g) => g.events.map((e) => ({
-            ...e,
-            categoryId: e.categoryId || g.categoryId,
-            categoryName: g.categoryName,
-            versionId: g.versionId,
-            versionTitled: g.versionTitled,
-        })))
-        .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
-    // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
-    const signable = all.filter((e) => e.status !== "cancelled");
-
-    const title = crossServer && serverName
-        ? tr(lang, "Raids from {server}", { server: plain(serverName) })
-        : tr(lang, "Upcoming raids");
-    let description = tr(lang, "No raids are planned right now. New raids show up here by themselves.");
-    if (all.length) {
-        description = crossServer && serverName
-            ? tr(lang, "Updates itself · channel links lead to **{server}**", { server: plain(serverName) })
-            : tr(lang, "Updates itself · links lead to the event channel");
+function dateLines(raid, ctx, shared) {
+    const { now, baseUrl, eventGuildId, channelInfo } = ctx;
+    const lang = raid.lang;
+    const start = Math.floor(Number(raid.startTime) || 0);
+    const day = dayLabel(start, lang);
+    const id = raidIdOf(start * 1000);
+    const distance = idDistance(id, now);
+    const mark = distance === 0 || distance === 1 ? `**${idTitle(id, now, lang)}**` : "";
+    if (raid.status === "cancelled") {
+        const channel = channelPart(raid, eventGuildId, { channelInfo, lang });
+        const cancelled = tr(lang, "cancelled");
+        if (!mark) return `-# ${[`~~${day}~~`, cancelled, channel].filter(Boolean).join(" · ")}`;
+        return [`${mark} · ~~**${day}**~~ · ${cancelled}`, channel ? `-# ${channel}` : ""].filter(Boolean).join("\n");
     }
+    const page = raid.source === "eventhelper" ? eventUrl(raid.id, baseUrl) : "";
+    const date = page ? `[${day}](${page})` : day;
+    const time = discordTimestamp(start, "t");
+    const facts = raidFacts(raid, ctx, shared);
+    if (!mark) return `-# ${[date, time, ...facts].join(" · ")}`;
+    return `${mark} · ${distance === 0 ? `**${date}**` : date} · ${time}\n-# ${facts.join(" · ")}`;
+}
 
-    const stanza = (raid) => raidStanza(raid, eventGuildId, {
-        baseUrl, channelInfo, serverName, crossServer, leaderName,
-        versionTitled: raid.versionTitled,
-        lang: config ? eventLang(raid, config) : lang,
-    });
-    const { fields, shown } = dayFields(all, { lang, used: title.length + description.length, stanza });
+/** The text of a block: its name (with the version once several are listed), then its dates. */
+function blockText(block, raids, ctx) {
+    const [first] = raids;
+    const shared = sharedLead(raids, ctx.leaderName);
+    const version = first.versionTitled ? versionShort(first.versionId) : "";
+    return [
+        `### ${[block.name, version].filter(Boolean).join(" · ")}`,
+        // A title without an instance says nothing about where the raid came from.
+        !block.instance && raids.every((r) => r.source !== "eventhelper") ? "-# Raid-Helper" : "",
+        shared ? `-# ${tr(first.lang, "Lead {leader}", { leader: shared })}` : "",
+        ...raids.map((raid) => dateLines(raid, ctx, !!shared)),
+    ].filter(Boolean).join("\n");
+}
 
-    const embed = new EmbedBuilder()
-        .setColor(embedAccentColor)
-        .setTitle(title)
-        .setDescription(description);
-    if (fields.length) embed.addFields(fields);
-    const missing = all.length - shown;
-    if (missing > 0) embed.setFooter({ text: tr(lang, "+{count} more raids in the web overview", { count: missing }) });
+/** The head: the list's name and the days of "This ID" / "Next ID" when dates of them are listed. */
+function headText(shown, { title, lang, now }) {
+    const ids = [...new Set(shown.map((r) => raidIdOf((Number(r.startTime) || 0) * 1000)))]
+        .filter((id) => idDistance(id, now) <= 1)
+        .sort((a, b) => a - b);
+    const days = ids.map((id) => `${idTitle(id, now, lang)} ${rangeLabel(id, lang)}`).join(" · ");
+    return [`## ${title}`, days ? `-# ${days}` : ""].filter(Boolean).join("\n");
+}
 
-    const components = [];
+/**
+ * The message's text for the raids `shown` (a Set): its head, the blocks that have a date listed
+ * (each with its picture, the one of its first date) and the text the blocks beyond the limit share.
+ */
+function drawList(blocks, shown, ctx) {
+    const listed = blocks
+        .map((block) => ({ block, raids: block.raids.filter((r) => shown.has(r)) }))
+        .filter((b) => b.raids.length)
+        .map(({ block, raids }) => ({ text: blockText(block, raids, ctx), raids }));
+    const own = listed.length > MAX_BLOCKS ? listed.slice(0, BLOCKS_WITH_SHARED_TEXT) : listed;
+    const shared = listed.slice(own.length).map((b) => b.text).join("\n");
+    const head = headText(listed.flatMap((b) => b.raids), ctx);
+    return {
+        head,
+        own: own.map((b) => ({ text: b.text, picture: raidPicture(b.raids[0]) })),
+        shared,
+        length: head.length + shared.length + own.reduce((n, b) => n + b.text.length, 0),
+    };
+}
+
+/**
+ * What fits into the 4000 characters: every kind's first date by start time, then the other dates
+ * by start time, until the next one does not fit. Drawn anew per raid, as blocks and lead change
+ * with what is listed; it stops at the first raid too many, so this stays around twenty rounds.
+ */
+function fitList(raids, ctx) {
+    const blocks = raidBlocks(raids);
+    const byStart = (a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0);
+    const order = [...blocks.map((b) => b.raids[0]).sort(byStart), ...blocks.flatMap((b) => b.raids.slice(1)).sort(byStart)];
+    const shown = new Set();
+    let drawn = drawList(blocks, shown, ctx);
+    for (const raid of order) {
+        shown.add(raid);
+        const next = drawList(blocks, shown, ctx);
+        if (next.length > TEXT_BUDGET) {
+            shown.delete(raid);
+            break;
+        }
+        drawn = next;
+    }
+    return { ...drawn, more: raids.length - shown.size };
+}
+
+const textPart = (content) => new TextDisplayBuilder().setContent(content);
+const dividerPart = () => new SeparatorBuilder().setDivider(true).setSpacing(SeparatorSpacingSize.Small);
+
+/** The controls below the list: the green "several raids" button, the select, the three link buttons into the web. */
+function controlRows(raids, { lang, eventGuildId, baseUrl }) {
+    const rows = [];
+    // Nobody signs up for a cancelled raid (#288): it is shown, not offered.
+    const signable = raids.filter((e) => e.status !== "cancelled");
     // Several raids at once (#293) — only EventHelper events take a signup here.
     // The button names the list's server (#904), so it offers this list's raids.
     if (signable.some((e) => e.source === "eventhelper")) {
         const multiId = eventGuildId ? `${MULTI_BUTTON_ID}:${eventGuildId}` : MULTI_BUTTON_ID;
-        components.push(new ActionRowBuilder().addComponents(
-            new ButtonBuilder().setCustomId(multiId).setStyle(ButtonStyle.Secondary).setLabel(tr(lang, "Pick several raids …")),
+        rows.push(new ActionRowBuilder().addComponents(
+            new ButtonBuilder().setCustomId(multiId).setStyle(ButtonStyle.Success).setLabel(tr(lang, "Pick several raids …")),
         ));
     }
     if (signable.length) {
@@ -397,25 +369,97 @@ function buildOverviewMessage(groups, opts = {}) {
             .setPlaceholder(tr(lang, "Pick a single raid …"))
             .addOptions(signable.slice(0, MAX_OPTIONS).map((e) => ({
                 label: (plain(e.title) || "Raid").slice(0, 100),
-                description: [formatStart(e.startTime, lang), plain(e.categoryName)].filter(Boolean).join(" · ").slice(0, 100),
+                description: [formatStart(e.startTime, lang), plainCategoryName(plain(e.categoryName))].filter(Boolean).join(" · ").slice(0, 100),
                 value: String(e.id).slice(0, 100),
             })));
-        components.push(new ActionRowBuilder().addComponents(select));
+        rows.push(new ActionRowBuilder().addComponents(select));
     }
     // Without PUBLIC_BASE_URL the web buttons would lead nowhere (#537): left out.
     const links = overviewLinks(baseUrl);
     if (links) {
-        components.push(new ActionRowBuilder().addComponents(
+        rows.push(new ActionRowBuilder().addComponents(
             new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "Web overview")).setURL(links.web),
             new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My signups")).setURL(links.signups),
             new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(tr(lang, "My profile")).setURL(links.profile),
         ));
     }
+    return rows;
+}
+
+/**
+ * The message payload (pure — no Discord call). The `content` and `embeds` turn a list that
+ * is still an embed into this container on the next edit, without a new post.
+ * @param {object[]} groups loadEventGroups()'s groups
+ * @param {object} opts
+ *   `eventGuildId` the source server (`from`), `serverName` its name,
+ *   `crossServer` the list sits on another server (the head names it),
+ *   `lang` the frame language ("de" | "en", German by default), `config` for
+ *   the category languages of the raids (without it they speak `lang`),
+ *   `versions` the link's version filter, `leaderName(id)` a lead's display
+ *   name ("" = leave the lead out)
+ * @returns {{ flags: number, content: "", embeds: [], components: object[], allowedMentions: object }} plain API JSON
+ */
+function buildOverviewMessage(groups, opts = {}) {
+    const {
+        eventGuildId = "", baseUrl = linkCheck.webBase(), channelInfo = linkCheck.channelInfo,
+        lang = "de", config, crossServer = false, leaderName = () => "", now = Date.now(),
+    } = opts;
+    const serverName = opts.serverName || opts.eventGuildName || "";
+    const list = upcomingGroups(groups, { ...opts, lang, now });
+    const all = list
+        .flatMap((g) => g.events.map((e) => {
+            const raid = {
+                ...e,
+                categoryId: e.categoryId || g.categoryId,
+                categoryName: g.categoryName,
+                versionId: g.versionId,
+                versionTitled: g.versionTitled,
+            };
+            return { ...raid, lang: config ? eventLang(raid, config) : lang };
+        }))
+        .sort((a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0));
+
+    const title = crossServer && serverName
+        ? tr(lang, "Raids from {server}", { server: plain(serverName) })
+        : tr(lang, "Upcoming raids");
+
+    const c = new ContainerBuilder().setAccentColor(embedAccentColor);
+    if (all.length) {
+        const { head, own, shared, more } = fitList(all, {
+            eventGuildId, baseUrl, channelInfo, lang, now, leaderName, title,
+        });
+        c.addTextDisplayComponents(textPart(head));
+        for (const block of own) {
+            c.addSeparatorComponents(dividerPart());
+            if (block.picture) {
+                c.addSectionComponents(new SectionBuilder()
+                    .addTextDisplayComponents(textPart(block.text))
+                    .setThumbnailAccessory(new ThumbnailBuilder().setURL(block.picture)));
+            } else {
+                c.addTextDisplayComponents(textPart(block.text));
+            }
+        }
+        if (shared) {
+            c.addSeparatorComponents(dividerPart());
+            c.addTextDisplayComponents(textPart(shared));
+        }
+        if (more > 0) c.addTextDisplayComponents(textPart(`-# ${tr(lang, "+{count} more in the web overview", { count: more })}`));
+    } else {
+        c.addTextDisplayComponents(textPart(`## ${title}\n${tr(lang, "No raids are planned right now. New raids show up here by themselves.")}`));
+    }
+
+    const rows = controlRows(all, { lang, eventGuildId, baseUrl });
+    if (rows.length) {
+        c.addSeparatorComponents(dividerPart());
+        c.addActionRowComponents(rows);
+    }
 
     return {
+        flags: MessageFlags.IsComponentsV2,
+        components: [c.toJSON()],
         content: "",
-        embeds: [embed.toJSON()],
-        components: components.map((row) => row.toJSON()),
+        embeds: [],
+        allowedMentions: { parse: [] },
     };
 }
 
@@ -720,6 +764,6 @@ module.exports = {
     attendingCount,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        overviewLinks, formatStart, dayHeading, buildOverviewMessage, payloadHash, overviewEntries, roleCounts, roleOf, instancePart,
+        overviewLinks, formatStart, buildOverviewMessage, payloadHash, overviewEntries,
     },
 };

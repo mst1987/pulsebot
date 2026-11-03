@@ -19,33 +19,37 @@ const NOW = Date.UTC(2026, 8, 16, 12, 0);
 const sec = (d, h = 17) => Math.floor(Date.UTC(2026, 8, d, h, 0) / 1000);
 const ev = (over = {}) => baseEvent({ source: "eventhelper", title: "Raid", startTime: sec(17), channelName: "c", signUps: [], ...over });
 const opts = { eventGuildId: "111", eventGuildName: "Pulse Events", baseUrl: "https://eh.example", now: NOW, lang: "en" };
-// the meta line of every raid, in agenda order
-const metas = (payload) => (payload.embeds[0].fields || []).flatMap((f) => f.value.split("\n").filter((l) => l.startsWith("-#")));
+// all the text of the container, sections included
+const text = (payload) => payload.components[0].components
+    .flatMap((c) => (c.type === 10 ? [c.content] : (c.components || []).filter((t) => t.type === 10).map((t) => t.content)))
+    .join("\n");
+const headings = (payload) => text(payload).match(/^### .*$/gm) || [];
+// the small line of every raid, in block order; the first small line is the head's
+const metas = (payload) => text(payload).split("\n").filter((l) => l.startsWith("-# ")).slice(1);
 
 describe("talkOverview per game version (#743)", () => {
     const groups = [
         { categoryId: "k1", categoryName: "Donnerstag", events: [ev({ id: "t1", versionId: "tbc", title: "SSC" })] },
-        { categoryId: "k2", categoryName: "Montag", events: [ev({ id: "f1", versionId: "forever", title: "Barrow", startTime: sec(16, 20) })] },
+        { categoryId: "k2", categoryName: "Montag", events: [ev({ id: "f1", versionId: "forever", title: "Barrow", instanceIds: ["forever-barrow"], startTime: sec(16, 20) })] },
     ];
 
-    it("names the version in each raid's line when raids of several versions are listed; fields stay days", () => {
+    it("names the version in each block's name when raids of several versions are listed", () => {
         const payload = buildOverviewMessage(groups, { ...opts, config: {} });
-        expect(payload.embeds[0].fields.map((f) => f.name)).toEqual(["Wednesday 16 September", "Thursday 17 September"]);
-        expect(metas(payload).map((m) => m.split(" · ").slice(0, 2).join(" · "))).toEqual(["-# Forever · Montag", "-# TBC · Donnerstag"]);
+        expect(headings(payload)).toEqual(["### Barrow Deeps · Forever", "### Höhle des Schlangenschreins · TBC"]);
+        expect(metas(payload).map((m) => m.split(" · ")[0])).toEqual(["-# Montag", "-# Donnerstag"]);
     });
 
-    it("names the version per raid inside one category that holds both", () => {
+    it("keeps the versions apart inside one category, even for one title", () => {
         const mixed = [{ categoryId: "k1", categoryName: "Raids", events: [
-            ev({ id: "t1", versionId: "tbc", title: "SSC" }), ev({ id: "f1", versionId: "forever", title: "Barrow", startTime: sec(17, 18) }),
+            ev({ id: "t1", versionId: "tbc", title: "Donnerstagsraid" }),
+            ev({ id: "f1", versionId: "forever", title: "Donnerstagsraid", startTime: sec(17, 18) }),
         ] }];
-        const [ssc, barrow] = buildOverviewMessage(mixed, { ...opts, config: {} }).embeds[0].fields[0].value.split("\n\n");
-        expect(ssc).toContain("-# TBC · Raids");
-        expect(barrow).toContain("Barrow");
-        expect(barrow).toContain("-# Forever · Raids");
+        expect(headings(buildOverviewMessage(mixed, { ...opts, config: {} }))).toEqual(["### Donnerstagsraid · TBC", "### Donnerstagsraid · Forever"]);
     });
 
     it("leaves the version out while only one version is listed", () => {
         const payload = buildOverviewMessage([groups[0]], { ...opts, config: {} });
+        expect(headings(payload)).toEqual(["### Höhle des Schlangenschreins"]);
         expect(metas(payload)[0]).toMatch(/^-# Donnerstag ·/);
     });
 
@@ -61,7 +65,8 @@ describe("talkOverview per game version (#743)", () => {
         const only = buildOverviewMessage(groups, { ...opts, config: {}, versions: ["forever"] });
         expect(JSON.stringify(only)).toContain("Barrow");
         expect(JSON.stringify(only)).not.toContain("SSC");
-        // one version left: no version in the line
+        // one version left: no version in the block's name
+        expect(headings(only)).toEqual(["### Barrow Deeps"]);
         expect(metas(only)[0]).toMatch(/^-# Montag ·/);
         expect(metas(buildOverviewMessage(groups, { ...opts, config: {}, versions: [] }))).toHaveLength(2);
     });
