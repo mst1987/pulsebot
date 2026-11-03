@@ -49,7 +49,7 @@ const { entryCategoryIds, eventCategoryNames } = require("../../availability/ent
 const { entryServers, serverNames } = require("../../availability/entryServers");
 const { scopeOf, entryOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
-const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
 const { activeGuildFor } = require("../../http/activeGuild");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -319,6 +319,7 @@ const putFeatures = withUser({ csrf: true, body: true }, async ({ user, req, bod
 const postPanel = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     if (!categoryOnActiveServer(user, req, body.categoryId)) return otherServer(res);
     if (str(body.channelId) && !mayUseChannel(user, req, str(body.channelId))) return otherServer(res);
+    if (!channelOnCategoryServer(str(body.categoryId), str(body.channelId))) return apiError(res, 400, "channel_other_server", CHANNEL_OTHER_SERVER);
     const result = await availabilityPanel.postPanel({ categoryId: body.categoryId, channelId: body.channelId, by: user.id });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     ok(res, { panel: { ...panelView(result.panel), url: result.url || panelView(result.panel).url } });

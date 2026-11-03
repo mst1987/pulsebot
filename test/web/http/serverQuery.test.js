@@ -11,7 +11,7 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 let mockClient = null;
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
-const { serverFromQuery, mayUseServer, mayUseChannel, guildOfChannel } = require("../../../src/web/http/serverQuery");
+const { serverFromQuery, mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
 const admin = { id: "1", isAdmin: true };
@@ -114,5 +114,15 @@ describe("mayUseChannel / guildOfChannel (#925)", () => {
         mockClient = null; // bot offline: the server of no channel is known
         expect(mayUseChannel(orga, req, "c2")).toBe(false);
         expect(mayUseChannel(admin, req, "c9")).toBe(true);
+    });
+
+    it("keeps a category's message on its server, and does not guess while the bot cannot tell", () => {
+        mockClient = { channels: { cache: new Map([...cache, ["cat1", { id: "cat1", guildId: "900000000000000001" }]]) } };
+        expect(channelOnCategoryServer("cat1", "c1")).toBe(true);
+        expect(channelOnCategoryServer("cat1", "c2")).toBe(false);
+        expect(channelOnCategoryServer("cat1", "c9")).toBe(true);
+        expect(channelOnCategoryServer("cat9", "c2")).toBe(true);
+        mockClient = null;
+        expect(channelOnCategoryServer("cat1", "c2")).toBe(true);
     });
 });

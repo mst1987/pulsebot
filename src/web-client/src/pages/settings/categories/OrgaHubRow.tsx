@@ -20,7 +20,7 @@ import { useT } from "../../../i18n";
 
 export type OrgaHubs = {
     hubs: OrgaHub[];
-    /** The text channels to post into (Einstellungen' noteChannels list). */
+    /** The text channels to post into: the active server's (Einstellungen' channels list). */
     channels: { id: string; name: string; category?: string }[];
     /** A hub was posted (or moved) or removed (null). */
     onChange: (categoryId: string, hub: OrgaHub | null) => void;

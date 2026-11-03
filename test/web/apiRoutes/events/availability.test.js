@@ -584,6 +584,12 @@ describe("rights per server (#925)", () => {
         expect(status(await call("DELETE", "/api/availability/panel", ADMIN, { json: { categoryId: "catA" } }))).toBe(200);
     });
 
+    it("keeps a panel on its category's server, for a full admin too", async () => {
+        const res = await call("POST", "/api/availability/panel", ADMIN, { json: { categoryId: "catA", channelId: "c1" } });
+        expect(status(res)).toBe(400);
+        expect(panel.postPanel).not.toHaveBeenCalled();
+    });
+
     it("hides somebody else's entry of another server from the orga, its owner still deletes it", async () => {
         const other = store.addEntry({ userId: ANNA.id, kind: "absence", from: "2030-03-20", to: "2030-03-25", categoryId: "catA", createdBy: ANNA.id });
         const id = (other.entry || other).id;

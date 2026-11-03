@@ -15,6 +15,7 @@ const { getConfig } = require("../../stores/settings/configStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const OTHER_SERVER = "Für diesen Server hast du hier keine Rechte.";
+const CHANNEL_OTHER_SERVER = "Der Kanal liegt auf einem anderen Server als die Kategorie.";
 
 /**
  * Whether `user` may act on `guildId` from this request: a full admin on every
@@ -52,6 +53,17 @@ function mayUseChannel(user, req, channelId) {
 }
 
 /**
+ * Whether a category's fixed message may go into this channel: a category's messages stay on
+ * its own server, for a full admin too. True while the bot cannot name both servers - posting
+ * then fails on its own if the channel is out of reach.
+ */
+function channelOnCategoryServer(categoryId, channelId) {
+    const category = guildOfChannel(categoryId);
+    const channel = guildOfChannel(channelId);
+    return !category || !channel || category === channel;
+}
+
+/**
  * The guildId the request means, "" when no server is configured, or null after
  * the 400 unknown_guild or the 403 other_server has been sent (the handler then returns).
  * @param {URLSearchParams} query
@@ -76,4 +88,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
