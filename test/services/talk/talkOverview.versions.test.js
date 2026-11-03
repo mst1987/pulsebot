@@ -2,6 +2,7 @@
 jest.mock("../../../src/services/discord/discord", () => require("../../helpers/discordMock").withClientHelpers({ getClient: jest.fn(), getGuild: jest.fn(() => ({ name: "Pulse Events" })) }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
+jest.mock("../../../src/services/discord/pug/pugInvites", () => ({ inviteUrlForLink: jest.fn(() => ""), generalInviteUrl: jest.fn(() => "") }));
 jest.mock("../../../src/stores/events/signupStore", () => ({ onSignupsChanged: jest.fn(() => () => {}) }));
 jest.mock("../../../src/stores/discord/talkOverviewStore", () => ({
     overviewKeys: jest.requireActual("../../../src/stores/discord/talkOverviewStore").overviewKeys,

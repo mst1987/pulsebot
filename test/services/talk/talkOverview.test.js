@@ -8,6 +8,8 @@ jest.mock("../../../src/services/discord/botLanguage", () => {
     return mocked;
 });
 jest.mock("../../../src/services/events/raidEventGroups", () => ({ loadEventGroups: jest.fn() }));
+// No invite unless a test sets one.
+jest.mock("../../../src/services/discord/pug/pugInvites", () => ({ inviteUrlForLink: jest.fn(() => ""), generalInviteUrl: jest.fn(() => "") }));
 const mockListeners = [];
 jest.mock("../../../src/stores/events/signupStore", () => ({
     onSignupsChanged: jest.fn((fn) => {
@@ -49,6 +51,7 @@ const { eventLang } = require("../../../src/services/discord/botLanguage");
 const { getConfig } = require("../../../src/stores/settings/settingsStore");
 const { readStored } = require("../../../src/stores/settings/configStore");
 const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { inviteUrlForLink, generalInviteUrl } = require("../../../src/services/discord/pug/pugInvites");
 const { ruleSetLook } = require("../../../src/services/events/embedLook");
 const { raidPicture } = require("../../../src/services/events/overview/raidOverviewPanel");
 const {
@@ -618,6 +621,46 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
             expect(JSON.stringify(buildOverviewMessage(inCategory(ev()), opts))).not.toContain("talk-signup-multi");
         });
 
+        describe("join button", () => {
+            const INVITE = "https://discord.gg/abc";
+            const joined = { ...opts, crossServer: true, serverName: "Pulse PuGs", inviteUrl: INVITE };
+            const linkButtons = (payload) => rowsOf(payload).at(-1).components;
+
+            it("comes as the fourth link button, named after the raids' server", () => {
+                const buttons = linkButtons(buildOverviewMessage(inCategory(ev()), joined));
+                expect(buttons.map((b) => b.label)).toEqual(["Web overview", "My signups", "My profile", "Join Pulse PuGs"]);
+                expect(buttons[3]).toMatchObject({ url: INVITE, style: 5 });
+            });
+
+            it("speaks the frame's language", () => {
+                const buttons = linkButtons(buildOverviewMessage(inCategory(ev()), { ...joined, lang: "de" }));
+                expect(buttons[3].label).toBe("Pulse PuGs beitreten");
+            });
+
+            it("stands alone in its row without web buttons, and on an empty list too", () => {
+                const noWeb = buildOverviewMessage(inCategory(ev()), { ...joined, baseUrl: "" });
+                expect(linkButtons(noWeb).map((b) => b.label)).toEqual(["Join Pulse PuGs"]);
+                const empty = buildOverviewMessage([], joined);
+                expect(linkButtons(empty).map((b) => b.label)).toContain("Join Pulse PuGs");
+            });
+
+            it("keeps a long server name within Discord's 80 characters", () => {
+                const payload = buildOverviewMessage(inCategory(ev()), { ...joined, lang: "de", serverName: "N".repeat(100) });
+                const { label } = linkButtons(payload)[3];
+                expect(label.length).toBeLessThanOrEqual(80);
+                expect(label).toMatch(/… beitreten$/);
+            });
+
+            it.each([
+                ["no invite", { inviteUrl: "" }],
+                ["an address that is no https link", { inviteUrl: "discord.gg/abc" }],
+                ["no name for the server", { serverName: "", eventGuildName: "" }],
+            ])("is left out with %s", (_, over) => {
+                const buttons = linkButtons(buildOverviewMessage(inCategory(ev()), { ...joined, ...over }));
+                expect(buttons.map((b) => b.label)).toEqual(["Web overview", "My signups", "My profile"]);
+            });
+        });
+
         it("offers at most the next 25 raids, soonest first", () => {
             const events = Array.from({ length: 30 }, (_, i) => raidOf("kara", { id: `e${i}`, startTime: SEP17 + (29 - i) * 3600 }));
             const options = rowsOf(buildOverviewMessage(inCategory(...events), opts))[1].components[0].options;
@@ -716,6 +759,31 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
             expect(textLength(payload)).toBeLessThanOrEqual(4000);
         });
 
+        describe("with the join button", () => {
+            const joined = { ...opts, crossServer: true, serverName: "Pulse PuGs", inviteUrl: "https://discord.gg/abc" };
+
+            it("keeps 6 pictures from the 7th kind on, as a seventh block would be the 41st component", () => {
+                const payload = buildOverviewMessage(kinds(7, 12), joined);
+                expect(sectionsOf(payload)).toHaveLength(6);
+                expect(textsOf(payload).some((t) => t.startsWith("### "))).toBe(true);
+                expect(allText(payload)).toContain("more in the web overview");
+                expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+                expect(textLength(payload)).toBeLessThanOrEqual(4000);
+            });
+
+            it("still gives 6 kinds a picture each, without a shared text", () => {
+                const payload = buildOverviewMessage(kinds(6), joined);
+                expect(sectionsOf(payload)).toHaveLength(6);
+                expect(container(payload).components.filter((c) => c.type === TEXT)).toHaveLength(1);
+            });
+
+            it.each([8, 9])("stays within 40 components with %i kinds", (count) => {
+                const payload = buildOverviewMessage(kinds(count, 12), joined);
+                expect(countComponents(payload.components)).toBeLessThanOrEqual(40);
+                expect(textLength(payload)).toBeLessThanOrEqual(4000);
+            });
+        });
+
         it("keeps pictures for the first 6 from the 8th kind on, the others share a text under their names", () => {
             const payload = buildOverviewMessage(kinds(8), opts);
             expect(sectionsOf(payload)).toHaveLength(6);
@@ -793,6 +861,55 @@ describe("services/talk/talkOverview — syncOverview", () => {
         mockStates = {};
         getConfig.mockReturnValue(config);
         loadEventGroups.mockResolvedValue({ groups: [{ categoryId: "k", categoryName: "R", events: [ev({ startTime: Math.floor(Date.now() / 1000) + 86400 })] }], error: null });
+    });
+
+    describe("the invite of the join button", () => {
+        const joinUrlOf = async (cfg, key) => {
+            getConfig.mockReturnValue(cfg);
+            const { payload } = await currentPayload({ config: cfg, key });
+            const buttons = rowsOf(payload).flatMap((r) => r.components);
+            return (buttons.find((b) => /^Join /.test(b.label)) || {}).url || "";
+        };
+        const itself = { guildId: "111", discordServers: federation([{ guildId: "111", label: "" }], [{ from: "111", to: "111", channelId: "ov" }], "111") };
+
+        afterEach(() => {
+            inviteUrlForLink.mockReturnValue("");
+            generalInviteUrl.mockReturnValue("");
+        });
+
+        it("takes the link's own invite first, as that counts where a member came from", async () => {
+            inviteUrlForLink.mockReturnValue("https://discord.gg/link");
+            generalInviteUrl.mockReturnValue("https://discord.gg/general");
+            expect(await joinUrlOf(config, "111:222")).toBe("https://discord.gg/link");
+            expect(inviteUrlForLink).toHaveBeenCalledWith("111:222");
+        });
+
+        it("falls back to the source server's general invite", async () => {
+            generalInviteUrl.mockReturnValue("https://discord.gg/general");
+            expect(await joinUrlOf(config, "111:222")).toBe("https://discord.gg/general");
+            expect(generalInviteUrl).toHaveBeenCalledWith("111");
+        });
+
+        it("offers nothing without an invite", async () => {
+            expect(await joinUrlOf(config, "111:222")).toBe("");
+        });
+
+        it("offers nothing on the raids' own server, whatever invites exist", async () => {
+            inviteUrlForLink.mockReturnValue("https://discord.gg/link");
+            generalInviteUrl.mockReturnValue("https://discord.gg/general");
+            expect(await joinUrlOf(itself, "111:111")).toBe("");
+            expect(inviteUrlForLink).not.toHaveBeenCalled();
+        });
+
+        it("edits the list on the next sync once an invite exists", async () => {
+            const { message } = fakeDiscord();
+            await syncOverview({ key: "111:222", now: 5 });
+            await syncOverview({ key: "111:222", now: 6 });
+            expect(message.edit).not.toHaveBeenCalled();
+            inviteUrlForLink.mockReturnValue("https://discord.gg/link");
+            await syncOverview({ key: "111:222", now: 7 });
+            expect(message.edit).toHaveBeenCalledTimes(1);
+        });
     });
 
     it("does nothing for a server without a link", async () => {
