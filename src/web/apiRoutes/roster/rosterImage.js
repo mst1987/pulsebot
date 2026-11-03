@@ -56,9 +56,9 @@ function parseMessageRef(raw) {
     return SNOWFLAKE.test(value) ? { guildId: "", channelId: "", messageId: value } : null;
 }
 
-/** Whether another roster keeps this message current: the two would overwrite each other. Closed ones keep theirs. */
-const usedByOtherRoster = (rosterId, messageId) => rosterStore.listRosters()
-    .some((r) => r.id !== rosterId && r.imagePost && r.imagePost.messageId === messageId);
+/** The other roster keeping this message current, if any: the two would overwrite each other. Closed ones keep theirs. */
+const otherRosterOf = (rosterId, messageId) => rosterStore.listRosters()
+    .find((r) => r.id !== rosterId && r.imagePost && r.imagePost.messageId === messageId);
 
 /** A failed post as a code the client translates, with its HTTP status and a German line. */
 function postFailure(err) {
@@ -241,7 +241,7 @@ const attachRosterImage = withUser({ write: "roster", csrf: true, body: true }, 
     }
     if (!message.own) return apiError(res, 403, "not_own_message", "Diese Nachricht stammt nicht vom Bot.");
     if (!message.attachments.includes(PICTURE_FILE)) return apiError(res, 400, "not_roster_picture", "Diese Nachricht ist kein Roster-Bild.");
-    if (usedByOtherRoster(roster.id, message.messageId)) return apiError(res, 409, "in_use", IN_USE);
+    if (otherRosterOf(roster.id, message.messageId)) return apiError(res, 409, "in_use", IN_USE);
 
     const reserve = flag(body.reserve);
     const chars = flag(body.chars);
@@ -262,7 +262,12 @@ const attachRosterImage = withUser({ write: "roster", csrf: true, body: true }, 
     const current = rosterStore.getRoster(roster.id);
     if (!current) return apiError(res, 404, "not_found", NOT_FOUND);
     if (rosterStore.isClosed(current)) return apiError(res, 409, "roster_closed", CLOSED);
-    if (usedByOtherRoster(roster.id, message.messageId)) return apiError(res, 409, "in_use", IN_USE);
+    const owner = otherRosterOf(roster.id, message.messageId);
+    if (owner) {
+        // the message now shows this roster's picture: an emptied hash makes the job redraw the owner's
+        rosterStore.markImagePostDrawn(owner.id, message.messageId, "");
+        return apiError(res, 409, "in_use", IN_USE);
+    }
     const previous = current.imagePost;
     rosterStore.setImageChannel(roster.id, message.channelId);
     rosterStore.setImagePost(roster.id, {

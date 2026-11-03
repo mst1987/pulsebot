@@ -561,6 +561,8 @@ describe("POST /api/rosters/image/attach", () => {
         });
         expect(code(await attach({ id: open.id }))).toBe("in_use");
         expect(rosterStore.getRoster(open.id).imagePost).toBeNull();
+        // the message shows the wrong roster now: the owner's emptied hash makes the job redraw it
+        expect(rosterStore.getRoster(other.id).imagePost).toMatchObject({ messageId: MESSAGE, hash: "" });
     });
 });
 
