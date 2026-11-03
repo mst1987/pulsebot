@@ -34,7 +34,7 @@ import { useT } from "../../i18n";
 // segment option is marked and one small line says so, instead of pretending
 // one status held for everybody.
 
-export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "", accountName = "" }: {
+export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "", accountName = "", lastName = false }: {
     row: OwnSignupRow | null;
     /** Only the characters of the event's game version (#543, lib/signups/status profileForRows). */
     profile: SignupProfile;
@@ -46,6 +46,8 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     onSaved: (eventId: string, signup: OwnSignup, counts: SignupCounts, created?: boolean) => void;
     /** The member's Discord name: the new character's name to start from (#907). */
     accountName?: string;
+    /** The event's version wants "Vorname Nachname" (WoW Forever): a Discord name is no start for that. */
+    lastName?: boolean;
 }) {
     const t = useT();
     const toast = useToast();
@@ -77,7 +79,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
         setStatus(open);
         setCanAlso(mine ? mine.canAlso : (first ? defaultCanAlso(profile, first.key, role) : []));
         setComment(mine?.comment || "");
-        setNewChar({ classId: "", spec: "", name: nameFromAccount(accountName) });
+        setNewChar({ classId: "", spec: "", name: lastName ? "" : nameFromAccount(accountName) });
         setRefused(null);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [row?.id]);
@@ -94,7 +96,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     // Classes with their specs (classesByVersion): then a new character can be made here.
     const canCreate = noCharacter && classes.some((c) => c.specs?.length);
     const creating = canCreate && !absent;
-    const newReady = newCharacterReady(newChar);
+    const newReady = newCharacterReady(newChar, lastName);
     const closed = !row.allowedStatuses.length;
     // "Vielleicht" / "Absagen" turn the comment into a message to the raid lead,
     // which the bot posts in the orga's channel — required, optional or not asked
@@ -201,7 +203,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
                 ) : (<>
                 {row.membershipUnknown && <p className="hint" data-pug-unknown>{t("signups.dialog.pugUnknown")}</p>}
                 {canCreate ? (
-                    <NewCharacterPick classes={classes} value={newChar} onChange={setNewChar} version={missingVersion} disabled={absent} />
+                    <NewCharacterPick classes={classes} value={newChar} onChange={setNewChar} version={missingVersion} lastName={lastName} disabled={absent} />
                 ) : noCharacter && missingVersion ? (
                     <p className="an-note" data-version-missing>
                         {t("signups.dialog.noVersionChar", { version: missingVersion })}{" "}

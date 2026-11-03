@@ -282,6 +282,8 @@
         "class": "Klasse",
         "spec": "Spec",
         "name": "Name im Spiel",
-        "nameHint": "Vorbelegt mit deinem Discord-Namen – ändere ihn, wenn dein Charakter anders heißt."
+        "nameHint": "Vorbelegt mit deinem Discord-Namen – ändere ihn, wenn dein Charakter anders heißt.",
+        "fullName": "Vor- und Nachname im Spiel",
+        "fullNameHint": "Genau wie im Spiel, je höchstens 12 Buchstaben, z. B. Aldric Sturmwind."
     }
 }

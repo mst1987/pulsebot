@@ -137,6 +137,16 @@ describe("AddCharacterDialog je Spielversion (#543)", () => {
         expect(api.addProfileCharacter).toHaveBeenLastCalledWith({ source: "manual", name: "Devi Res", className: "Mage", specs: [], versionId: "forever" });
     });
 
+    it("legt einen Forever-Charakter ohne Nachnamen nicht an", async () => {
+        const { user } = renderVersioned("forever");
+        await user.type(screen.getByLabelText(t("profile.add.firstName")), "Devi");
+        await user.click(screen.getByRole("button", { name: /Magier/ }));
+        const create = screen.getByRole("button", { name: t("profile.add.create") });
+        expect(create).toBeDisabled();
+        await user.type(screen.getByLabelText(t("profile.add.lastName")), "Res");
+        expect(create).toBeEnabled();
+    });
+
     it("TBC hat ein Namensfeld mit höchstens 12 Buchstaben", async () => {
         const { user } = renderVersioned("tbc");
         expect(screen.queryByLabelText(t("profile.add.lastName"))).not.toBeInTheDocument();

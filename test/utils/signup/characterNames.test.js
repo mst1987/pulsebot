@@ -1,5 +1,5 @@
 const {
-    NAME_PART_MAX, NAME_MAX, allowsLastName, normalizeForCheck, isProfane, validateCharacterName,
+    NAME_PART_MAX, NAME_MAX, allowsLastName, requiresLastName, normalizeForCheck, isProfane, validateCharacterName,
 } = require("../../../src/utils/signup/characterNames");
 
 describe("allowsLastName", () => {
@@ -16,6 +16,20 @@ describe("allowsLastName", () => {
     });
 });
 
+describe("requiresLastName", () => {
+    it("is on for WoW Forever only", () => {
+        expect(requiresLastName("forever")).toBe(true);
+        expect(requiresLastName("tbc")).toBe(false);
+        expect(requiresLastName("classic")).toBe(false);
+    });
+
+    it("demands nothing when no version is known", () => {
+        expect(requiresLastName("")).toBe(false);
+        expect(requiresLastName(undefined)).toBe(false);
+        expect(requiresLastName("unknown")).toBe(false);
+    });
+});
+
 describe("validateCharacterName", () => {
     it("takes first and last name in Forever, twelve letters each", () => {
         expect(NAME_PART_MAX).toBe(12);
@@ -24,8 +38,20 @@ describe("validateCharacterName", () => {
         expect(validateCharacterName("Abcdefghijkl Abcdefghijkl", { versionId: "forever" })).toEqual({ name: "Abcdefghijkl Abcdefghijkl" });
     });
 
-    it("keeps a first name alone valid in Forever", () => {
-        expect(validateCharacterName("Aldric", { versionId: "forever" })).toEqual({ name: "Aldric" });
+    it("refuses a first name alone in Forever", () => {
+        expect(validateCharacterName("Aldric", { versionId: "forever" }).error).toMatch(/braucht der Charakter Vor- und Nachname/);
+        expect(validateCharacterName("  Aldric  ", { versionId: "forever" }).error).toMatch(/braucht der Charakter Vor- und Nachname/);
+    });
+
+    it("keeps one name valid without a version and in the other versions", () => {
+        expect(validateCharacterName("Aldric")).toEqual({ name: "Aldric" });
+        expect(validateCharacterName("Aldric", { versionId: "unknown" })).toEqual({ name: "Aldric" });
+        expect(validateCharacterName("Aldric", { versionId: "tbc" })).toEqual({ name: "Aldric" });
+    });
+
+    it("demands a last name with `lastName: true`, whatever the version", () => {
+        expect(validateCharacterName("Aldric", { versionId: "tbc", lastName: true }).error).toMatch(/braucht der Charakter/);
+        expect(validateCharacterName("Aldric", { versionId: "forever", lastName: false })).toEqual({ name: "Aldric" });
     });
 
     it("refuses a part over twelve letters and names which one", () => {

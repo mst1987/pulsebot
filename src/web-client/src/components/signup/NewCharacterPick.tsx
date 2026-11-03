@@ -11,13 +11,15 @@ import type { NewCharacter } from "../../lib/signups/newCharacter";
 // profile of the raid's version (source "manual") and signs it up in one go.
 // Each step shows once the one before it is picked, so the dialog stays short.
 
-export default function NewCharacterPick({ classes, value, onChange, version = "", disabled = false }: {
+export default function NewCharacterPick({ classes, value, onChange, version = "", lastName = false, disabled = false }: {
     /** The raid version's classes, each with its `specs` (classesByVersion). */
     classes: SignupClass[];
     value: NewCharacter;
     onChange: (next: NewCharacter) => void;
     /** The raid's version label, when the profile has characters of another one. */
     version?: string;
+    /** The raid's version wants "Vorname Nachname" (WoW Forever). */
+    lastName?: boolean;
     disabled?: boolean;
 }) {
     const t = useT();
@@ -97,13 +99,13 @@ export default function NewCharacterPick({ classes, value, onChange, version = "
             )}
             {cls && value.spec && (
                 <div className="field">
-                    <label htmlFor="an-new-name">{t("signups.newChar.name")}</label>
+                    <label htmlFor="an-new-name">{t(lastName ? "signups.newChar.fullName" : "signups.newChar.name")}</label>
                     <input
-                        id="an-new-name" type="text" maxLength={12} value={value.name} disabled={disabled}
+                        id="an-new-name" type="text" maxLength={lastName ? 25 : 12} value={value.name} disabled={disabled}
                         autoComplete="off" spellCheck={false}
                         onChange={(e) => onChange({ ...value, name: e.target.value })}
                     />
-                    <div className="hint">{t("signups.newChar.nameHint")}</div>
+                    <div className="hint">{t(lastName ? "signups.newChar.fullNameHint" : "signups.newChar.nameHint")}</div>
                 </div>
             )}
         </div>
