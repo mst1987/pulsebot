@@ -423,6 +423,13 @@ function settleTombstone(guildId, login, state, stream, now) {
     else setTwitchState(guildId, login, { offlineCount, lastOfflineAt: now });
 }
 
+/** The code a failed question to Twitch leaves in the run's result and in `lastRun`. */
+function askErrorOf(e) {
+    if (e && e.status === 429) return "rate_limited";
+    if (e && e.authFailed) return "bad_credentials";
+    return "twitch_unavailable";
+}
+
 async function run({ guildId = "", now = Date.now() } = {}) {
     const cfg = settingsStore().getConfig();
     const twitch = clientFor(cfg);
@@ -458,11 +465,8 @@ async function run({ guildId = "", now = Date.now() } = {}) {
             ...tombstones.map((r) => r.login.toLowerCase()),
         ])]);
     } catch (e) {
-        const limited = e && e.status === 429;
-        if (limited) pausedUntil = now + RATE_LIMIT_PAUSE_MS;
-        let error = "twitch_unavailable";
-        if (limited) error = "rate_limited";
-        else if (e && e.authFailed) error = "bad_credentials";
+        const error = askErrorOf(e);
+        if (error === "rate_limited") pausedUntil = now + RATE_LIMIT_PAUSE_MS;
         lastRun = { at: now, error };
         logger.warn(`Twitch did not answer (${(e && (e.status || e.kind)) || "error"}): nothing changes this run`);
         return { skipped: error };

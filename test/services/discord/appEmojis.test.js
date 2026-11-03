@@ -93,7 +93,7 @@ describe("services/discord/appEmojis", () => {
         expect(appEmojis.UI_ICONS).toContain("twitch");
         expect(appEmojis.uiEmojiName("twitch")).toBe("eh_ui_twitch");
         expect(appEmojis.emojiCatalog().some((e) => e.name === "eh_ui_twitch" && e.file)).toBe(true);
-        expect(svgFor("twitch")).toContain('<path fill="#9146FF" stroke="none"');
+        expect(svgFor("twitch")).toContain("<path fill=\"#9146FF\" stroke=\"none\"");
     });
 
     it("renders an emoji from a map, or the fallback", () => {
