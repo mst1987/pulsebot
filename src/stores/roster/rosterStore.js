@@ -413,6 +413,23 @@ function rosterForKader(kaderId, guildId = "") {
     return Object.values(readAll().rosters).find((r) => r.kaderId === id && (!gid || r.guildId === gid)) || null;
 }
 
+/** The open rosters in `all` holding one of `roleIds` as a member role, without `exceptId`. */
+function holdersOfRoles(all, roleIds, exceptId = "") {
+    const wanted = new Set((Array.isArray(roleIds) ? roleIds : []).map(str).filter(Boolean));
+    if (!wanted.size) return [];
+    return Object.values(all.rosters).filter((r) => r.id !== exceptId && !isClosed(r) && r.roleIds.some((id) => wanted.has(id)));
+}
+
+/**
+ * The open rosters holding one of `roleIds` as a member role (docs/roster-profile.md "Eine Rolle,
+ * ein Roster"). A role id names its server, so no server filter; a closed roster syncs no role and
+ * does not count.
+ * @returns {object[]}
+ */
+function openRostersWithRole(roleIds, { exceptId = "" } = {}) {
+    return holdersOfRoles(readAll(), roleIds, str(exceptId)).map((r) => getRoster(r.id));
+}
+
 /** A short, readable id unique in `taken`: the name as a slug plus a random part. */
 function makeId(name, taken) {
     const slug = str(name).toLowerCase().normalize("NFKD").replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 20);
@@ -812,6 +829,12 @@ function renameMemberChar(userId, fromKey, toKey, toName, { actor = "", now = ne
  * { [userId]: { key, name } } }]) whose category has no roster and was never
  * migrated. An existing roster is never touched. Every handled category is
  * remembered, so the next start finds nothing to do.
+ *
+ * A role belongs to one open roster: a category whose roles another open roster
+ * holds gets no second one - the reconcile would fill it with the same people.
+ * A roster of that version without category (one a Kader's takeover created) takes
+ * the category, the assigned raiders it lacks join it; otherwise the category stays
+ * without roster and keeps its settings roles.
  * @returns {{ id, categoryId, name, members, roleIds }[]} the rosters created
  */
 function migrateCategories(categories = [], { now = new Date().toISOString() } = {}) {
@@ -829,13 +852,28 @@ function migrateCategories(categories = [], { now = new Date().toISOString() } =
         for (const [userId, first] of Object.entries(c.members || {})) {
             members[userId] = { status: "core", since: now, by: "", chars: [first.key], charNames: { [first.key]: first.name }, note: "", trialUntil: null };
         }
+        const versionId = knownVersion(c.versionId) || mainVersionFor({ categoryId });
+        const holders = holdersOfRoles(all, c.roleIds);
+        if (holders.length) {
+            const home = holders.find((r) => !r.categoryId && r.versionId === versionId);
+            if (home) {
+                all.rosters[home.id] = normalizeRoster({
+                    ...home,
+                    categoryId,
+                    members: { ...members, ...home.members },
+                    history: [...home.history, { at: now, by: "", what: "settings", detail: "categoryId" }],
+                }, home.id);
+            }
+            logger.info(`Kategorie ${categoryId}: ${home ? `an Roster ${home.name} gehängt` : `kein Roster, die Rolle gehört schon zu ${holders[0].name}`}`);
+            continue;
+        }
         const id = makeId(c.name || categoryId, all.rosters);
         all.rosters[id] = normalizeRoster({
             id,
             guildId: c.guildId,
             name: c.name,
             categoryId,
-            versionId: knownVersion(c.versionId) || mainVersionFor({ categoryId }),
+            versionId,
             roleIds: c.roleIds,
             source: { kind: "migration" },
             members,
@@ -877,7 +915,7 @@ function migrateVersions() {
 }
 
 module.exports = {
-    listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
+    listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, openRostersWithRole, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
     upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile, setImageChannel,
     setImagePost, imagePostText, markImagePostDrawn, forgetImagePostByMessage, forgetImagePostsInChannel,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,

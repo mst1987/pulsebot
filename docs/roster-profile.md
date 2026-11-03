@@ -48,6 +48,15 @@ Two fields came later (October 2026): **`kaderId`** on the roster — the explic
 - **Expected roles:** `services/roster/categoryRoles.js expectedRoleIds(categoryId, config, { versionId })` = the `roleIds` of the category's roster of that version (the raid's; none = the version the category plays now) when there is one, else `config.categoryRoles`. Readers that mean "which roles" ask it (announcement ping, sign-up gate, raider-characters route, the event panel's role list). Since #658 "who is expected in this raid" (missing lists, missing ping, reminders) asks the roster itself — its core and trial members (`services/roster/expectedRaiders.js`, "Roster und der Rest des Tools" below) — and falls back to these roles only without a roster. The settings page still edits `categoryRoles`; `syncRosterRoleIds` carries a save over to the rosters, and `mirrorCategoryRoles` carries a roster's roles set in the roster API (#657) back into `categoryRoles`, so both always stay equal.
 - **Rights:** `services/roster/rosterAccess.js canManageRoster(user, roster, memberRoleIds)` — full admin, or the account in `managers.userIds`, or a role in `managers.roleIds` (`canManageRosterLive` fetches the roles via `discord.memberRoleIds` on the roster's server, unknown = none). Managing = members, status, characters and Discord roles of that roster; reading needs the area `roster` (read); creating rosters and setting managers is for full admins.
 
+### Eine Rolle, ein Roster
+
+A member role (`roleIds`) belongs to **one open roster**; a closed roster does not count (`rosterStore.openRostersWithRole`). Two rosters with the same role would both be filled with the same people by the reconcile (November 2026: a Kader's roster without category, then the start-up migration made a second one when its new Discord category was marked as a raid category with that role).
+
+- **Category without roster** that gets the role of an open roster without category and of its version: the roster takes the category — at once on the settings save (`categoryRoles.adoptRosters`), else at the next start (`migrateCategories`). The roster keeps its name, Kader link and members.
+- **Migration:** a role another roster holds in any other way makes no roster; the category keeps its settings roles.
+- **Refused** with `role_taken` (409): `POST /api/rosters/create`, `POST /api/rosters/update`, and `PATCH /api/settings` when the save gives a category's roster such a role (`categoryRoles.rolesOfOtherRosters`, compared as the rosters stand after the save, so moving a role between two categories in one save passes). Only a role the roster does not hold yet counts, so an old double blocks nothing else.
+- **Version switch:** a role picked in the dialog that another open roster holds is left out of the new roster and logged (`rosterVersionSwitch.createFrom`).
+
 ## Roster und Discord-Rollen (#656)
 
 Roster and Discord role are one thing, in both directions. The client (the Abgleich tab, the drawer's role switches, "Rolle geben") is in "Roster bearbeiten im Client" below.

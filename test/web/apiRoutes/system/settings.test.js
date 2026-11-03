@@ -861,6 +861,28 @@ describe("web/apiRoutes/settings", () => {
                     }
                 });
 
+                it("refuses raider roles that give a category's roster the role of another roster, a role without roster takes its roster", async () => {
+                    const rosterStore = require("../../../../src/stores/roster/rosterStore");
+                    const HELD = "500000000000000007";
+                    rosterStore.useFile(tempStoreFile("role-taken-rosters.json"));
+                    settingsStore.getConfig.mockReturnValue({ ...BEFORE, categoryIds: ["cat1", "cat2"], categoryVersion: { cat1: "tbc", cat2: "tbc" } });
+                    try {
+                        rosterStore.createRoster({ guildId: "g1", name: "Montag", categoryId: "cat1", versionId: "tbc", roleIds: [] });
+                        const free = rosterStore.createRoster({ guildId: "g1", name: "Kader", versionId: "tbc", roleIds: [HELD] });
+                        const res = await patch("/api/settings", { categoryRoles: { cat1: [HELD] } });
+                        expect(res.writeHead).toHaveBeenCalledWith(409, expect.any(Object));
+                        expect(json(res).error).toMatchObject({ code: "role_taken", message: expect.stringContaining("„Kader“") });
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                        // the same role on the category without roster: the roster takes the category
+                        settingsStore.saveConfig.mockImplementation((partial) => ({ ...settingsStore.getConfig(), ...partial }));
+                        const ok = await patch("/api/settings", { categoryRoles: { cat2: [HELD] } });
+                        expect(ok.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(rosterStore.getRoster(free.id).categoryId).toBe("cat2");
+                    } finally {
+                        rosterStore.useFile(null);
+                    }
+                });
+
                 it("counts the managers the new roster takes over only from a closed old roster (#930)", async () => {
                     const rosterStore = require("../../../../src/stores/roster/rosterStore");
                     const PUG = "500000000000000009";

@@ -4,7 +4,7 @@ const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
 const rosterStore = require("../../../src/stores/roster/rosterStore");
 const configStore = require("../../../src/stores/settings/configStore");
-const { expectedRoleIds, syncRosterRoleIds, mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
+const { expectedRoleIds, syncRosterRoleIds, rolesOfOtherRosters, mirrorCategoryRoles } = require("../../../src/services/roster/categoryRoles");
 
 const config = { categoryRoles: { c1: ["10", "11"], c2: ["20"] } };
 
@@ -53,6 +53,84 @@ describe("services/roster/categoryRoles syncRosterRoleIds", () => {
         expect(hist[hist.length - 1]).toMatchObject({ by: "u1", what: "settings", detail: "roleIds" });
         expect(syncRosterRoleIds(null)).toEqual([]);
         expect(rosterStore.getRoster(a.id).roleIds).toEqual(["10", "11"]);
+    });
+
+    describe("a category without roster that gets the role of a roster without category", () => {
+        const FOREVER = { categoryVersion: { c5: "forever" }, categoryIds: ["c5"] };
+        const kaderRoster = () => rosterStore.createRoster({ name: "Pulse Do", versionId: "forever", roleIds: ["50"], kaderId: "k1" });
+
+        it("takes that roster instead of a second one coming at the next start", () => {
+            const roster = kaderRoster();
+            expect(syncRosterRoleIds({ c5: ["50"] }, { actor: "u1", config: FOREVER })).toEqual([roster.id]);
+            expect(rosterStore.getRoster(roster.id)).toMatchObject({ categoryId: "c5", name: "Pulse Do", kaderId: "k1", roleIds: ["50"] });
+            expect(rosterStore.rosterForCategory("c5", "forever").id).toBe(roster.id);
+            expect(syncRosterRoleIds({ c5: ["50"] }, { actor: "u1", config: FOREVER })).toEqual([]);
+        });
+
+        it("names a roster once when it also takes more roles", () => {
+            const roster = kaderRoster();
+            expect(syncRosterRoleIds({ c5: ["50", "51"] }, { config: FOREVER })).toEqual([roster.id]);
+            expect(rosterStore.getRoster(roster.id).roleIds).toEqual(["50", "51"]);
+        });
+
+        it.each([
+            ["an inactive category", { ...FOREVER, categoryIds: [] }, {}, new Set()],
+            ["a category switched in this save", FOREVER, {}, new Set(["c5"])],
+            ["a roster of another version", FOREVER, { versionId: "tbc" }, new Set()],
+        ])("leaves it alone for %s", (_case, cfg, fields, skip) => {
+            const roster = rosterStore.createRoster({ name: "Pulse Do", versionId: "forever", roleIds: ["50"], ...fields });
+            expect(syncRosterRoleIds({ c5: ["50"] }, { config: cfg, skip })).toEqual([]);
+            expect(rosterStore.getRoster(roster.id).categoryId).toBeNull();
+        });
+
+        it("a category that has its roster keeps it", () => {
+            const own = rosterStore.createRoster({ name: "Eigen", categoryId: "c5", versionId: "forever", roleIds: ["60"] });
+            const free = kaderRoster();
+            syncRosterRoleIds({ c5: ["60"] }, { config: FOREVER });
+            expect(rosterStore.getRoster(free.id).categoryId).toBeNull();
+            expect(rosterStore.getRoster(own.id).categoryId).toBe("c5");
+        });
+    });
+});
+
+describe("services/roster/categoryRoles rolesOfOtherRosters", () => {
+    const CFG = { categoryVersion: { c1: "tbc", c2: "tbc" } };
+    const both = () => [
+        rosterStore.createRoster({ name: "Mo", categoryId: "c1", versionId: "tbc", roleIds: ["10"] }),
+        rosterStore.createRoster({ name: "Mi", categoryId: "c2", versionId: "tbc", roleIds: ["20"] }),
+    ];
+
+    it("names a role a category's roster would take from another open roster", () => {
+        both();
+        expect(rolesOfOtherRosters({ c1: ["10", "20"], c2: ["20"] }, { config: CFG })).toEqual([{ roleId: "20", rosterName: "Mo", otherName: "Mi" }]);
+    });
+
+    it("sees a roster without category as a holder", () => {
+        both();
+        rosterStore.createRoster({ name: "Kader", versionId: "tbc", roleIds: ["30"] });
+        expect(rolesOfOtherRosters({ c1: ["30"], c2: ["20"] }, { config: CFG })).toEqual([{ roleId: "30", rosterName: "Mo", otherName: "Kader" }]);
+    });
+
+    it("lets a role move or swap between categories in one save", () => {
+        both();
+        expect(rolesOfOtherRosters({ c1: ["10", "20"], c2: [] }, { config: CFG })).toEqual([]);
+        expect(rolesOfOtherRosters({ c1: ["20"], c2: ["10"] }, { config: CFG })).toEqual([]);
+    });
+
+    it("an old double blocks nothing, a closed roster and a switched category do not count", () => {
+        const [mo, mi] = both();
+        rosterStore.updateRoster(mi.id, { roleIds: ["10"] });
+        expect(rolesOfOtherRosters({ c1: ["10"], c2: ["10"] }, { config: CFG })).toEqual([]);
+        rosterStore.updateRoster(mi.id, { roleIds: ["20"] });
+        expect(rolesOfOtherRosters({ c1: ["10", "20"], c2: ["20"] }, { config: CFG, skip: new Set(["c1"]) })).toEqual([]);
+        rosterStore.closeRoster(mi.id, { reason: "version_switch" });
+        expect(rolesOfOtherRosters({ c1: ["10", "20"] }, { config: CFG })).toEqual([]);
+        expect(rosterStore.getRoster(mo.id).roleIds).toEqual(["10"]);
+    });
+
+    it("answers nothing for no map at all", () => {
+        expect(rolesOfOtherRosters(null)).toEqual([]);
+        expect(rolesOfOtherRosters([])).toEqual([]);
     });
 });
 

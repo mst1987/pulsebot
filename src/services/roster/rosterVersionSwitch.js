@@ -69,13 +69,16 @@ function copiedMembers(old, { actor, now }) {
 /** A new roster for `toVersion` from the old one's settings; null when the store refuses. */
 function createFrom(old, toVersion, choice, { actor, now, kaderId = "" }) {
     const members = choice.copyMembers ? copiedMembers(old, { actor, now }) : {};
+    // a role another open roster holds stays there; the old roster is closed by now and does not count
+    const roleIds = choice.roleIds.filter((id) => !rosterStore.openRostersWithRole([id]).length);
+    if (roleIds.length < choice.roleIds.length) logger.warn(`roster for ${old.categoryId} (${toVersion}): ${choice.roleIds.length - roleIds.length} role(s) left out, another roster holds them`);
     try {
         const created = rosterStore.createRoster({
             guildId: old.guildId,
             name: old.name,
             categoryId: old.categoryId,
             versionId: toVersion,
-            roleIds: choice.roleIds,
+            roleIds,
             trialRoleId: null,
             managers: old.managers,
             slots: old.slots,

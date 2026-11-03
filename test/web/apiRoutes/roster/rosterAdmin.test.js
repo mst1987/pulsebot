@@ -254,6 +254,16 @@ describe("POST /api/rosters/update", () => {
         }
     });
 
+    it("answers 409 role_taken for a role another open roster holds", async () => {
+        const held = rosterStore.createRoster({ guildId: "g1", name: "Halter", roleIds: [ROLE2] });
+        const res = await post("/api/rosters/update", { rosterId: roster.id, roleIds: [ROLE2] });
+        expect([status(res), code(res)]).toEqual([409, "role_taken"]);
+        expect(json(res).error.message).toContain("anderen Roster");
+        const created = await post("/api/rosters/create", { name: "Neu", roleIds: [ROLE2] });
+        expect([status(created), code(created)]).toEqual([409, "role_taken"]);
+        rosterStore.deleteRoster(held.id);
+    });
+
     it("answers 409 category_taken when moving onto a category with a roster", async () => {
         rosterStore.createRoster({ name: "Other", categoryId: CAT });
         const res = await post("/api/rosters/update", { rosterId: roster.id, categoryId: CAT });

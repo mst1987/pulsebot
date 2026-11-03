@@ -56,7 +56,7 @@ const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = requi
 // Makes Excel read the umlauts of an archive CSV as UTF-8.
 const BOM = String.fromCharCode(0xfeff);
 const { defaultVersionSettings, defaultColorOf, normalizeVersionOverrides, overrideProblems } = require("../../../stores/settings/versionSettingsSchema");
-const { expectedRoleIds, syncRosterRoleIds } = require("../../../services/roster/categoryRoles");
+const { expectedRoleIds, syncRosterRoleIds, rolesOfOtherRosters } = require("../../../services/roster/categoryRoles");
 const { switchRosterPreview, rostersAfterSwitches } = require("../../../services/roster/rosterVersionSwitch");
 
 const asStringArray = (v) => (Array.isArray(v) ? v.map((s) => String(s).trim()).filter(Boolean) : []);
@@ -1202,6 +1202,10 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // #930: a role of the PuG onboarding (everyone takes it) must not gain a right here.
     const pugGrants = pugGrantsOf(before, partial, versions.switches, body.categorySwitchFixes);
     if (pugGrants.found.length) return error(res, 409, "pug_onboarding_role", pugRoleGuard.refusalMessage(pugGrants.found, { reopened: pugGrants.reopened }));
+    // A role belongs to one open roster: the raider roles of a category are its roster's roles.
+    const takenRole = partial.categoryRoles === undefined ? null
+        : rolesOfOtherRosters(partial.categoryRoles, { config: { ...before, ...partial }, skip: new Set(versions.switches.map((sw) => sw.categoryId)) })[0];
+    if (takenRole) return error(res, 409, "role_taken", `Roster „${takenRole.rosterName}“: Diese Rolle gehört schon zum Roster „${takenRole.otherName}“ – eine Rolle kann nur zu einem offenen Roster gehören.`);
     // #962: a block for a server that is not entered would be dropped silently - refused instead
     if (unknownServerBlocks(partial, before).length) return error(res, 400, "unknown_server", UNKNOWN_SERVER);
     const langBefore = serverLangsOf(before);

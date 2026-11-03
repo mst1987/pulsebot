@@ -68,6 +68,14 @@ describe("services/roster/rosterVersionSwitch applyRosterSwitch", () => {
         expect(configStore.getConfig().categoryRoles.c1).toEqual(["500000000000000002"]);
     });
 
+    it("leaves out a picked role another open roster holds, the old roster's own role may stay", () => {
+        const HELD = "500000000000000007";
+        tbcRoster();
+        rosterStore.createRoster({ guildId: "g1", name: "Kader", versionId: "forever", roleIds: [HELD] });
+        applyRosterSwitch(SW, { choice: { roleIds: [HELD, "500000000000000001"] }, now: NOW });
+        expect(rosterStore.rosterForCategory("c1", "forever").roleIds).toEqual(["500000000000000001"]);
+    });
+
     it("without 'Personen übernehmen' the new roster starts empty; without 'anlegen' there is none", () => {
         tbcRoster();
         applyRosterSwitch(SW, { choice: { create: true, copyMembers: false }, now: NOW });
