@@ -148,6 +148,7 @@ module.exports = {
     "Go to the event channel": "Zum Event-Kanal",
     // the access refusal
     "This is reserved for admins.": "Das ist den Admins vorbehalten.",
+    "This feature is not part of this server's plan.": "Diese Funktion ist im Tarif dieses Servers nicht enthalten.",
     "unknown role": "unbekannte Rolle",
     "{first} or {last}": "{first} oder {last}",
     "You need {roles} for this.": "Dafür brauchst du {roles}.",

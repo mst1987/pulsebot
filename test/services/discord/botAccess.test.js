@@ -4,6 +4,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => null),
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
+jest.mock("../../../src/services/plans/serverPlan", () => ({ hasFeature: jest.fn(() => true) }));
 
 const { MessageFlags } = require("discord.js");
 const { cardText } = require("../../helpers/cardText");
@@ -178,6 +179,48 @@ describe("guardInteraction", () => {
         const sent = interaction.reply.mock.calls[0][0];
         expect(cardText(sent)).toContain("This is reserved for admins.");
         expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+    });
+
+    describe("a command behind a plan feature (#1080)", () => {
+        const { hasFeature } = require("../../../src/services/plans/serverPlan");
+        const PLANNED = new Map([
+            ["planned", { name: "planned", group: "signup", defaultAccess: "everyone", feature: "test" }],
+            ["planned-button", { name: "planned-button", accessOf: "planned" }],
+        ]);
+
+        it("refuses it when the server's plan lacks the feature, with a message only the user sees", async () => {
+            hasFeature.mockReturnValueOnce(false);
+            const interaction = mockInteraction({ userId: "555" });
+            expect(await guardInteraction(interaction, PLANNED.get("planned"), PLANNED)).toBe(false);
+            expect(hasFeature).toHaveBeenCalledWith(expect.anything(), "test");
+            const sent = interaction.reply.mock.calls[0][0];
+            expect(cardText(sent)).toContain("This feature is not part of this server's plan.");
+            expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+        });
+
+        it("refuses a full admin too", async () => {
+            hasFeature.mockReturnValueOnce(false);
+            const interaction = mockInteraction({ userId: logcheckAdminIds[0] });
+            expect(await guardInteraction(interaction, PLANNED.get("planned"), PLANNED)).toBe(false);
+        });
+
+        it("judges a button by the command it belongs to", async () => {
+            hasFeature.mockReturnValueOnce(false);
+            const interaction = mockInteraction({ userId: "555" });
+            expect(await guardInteraction(interaction, PLANNED.get("planned-button"), PLANNED)).toBe(false);
+            expect(hasFeature).toHaveBeenCalledWith(expect.anything(), "test");
+        });
+
+        it("lets it through when the plan has the feature", async () => {
+            const interaction = mockInteraction({ userId: "555" });
+            expect(await guardInteraction(interaction, PLANNED.get("planned"), PLANNED)).toBe(true);
+            expect(interaction.reply).not.toHaveBeenCalled();
+        });
+
+        it("does not ask for a command without a feature", async () => {
+            await guardInteraction(mockInteraction(), COMMANDS.get("signup"), COMMANDS);
+            expect(hasFeature).not.toHaveBeenCalled();
+        });
     });
 
     it("refuses in the server language German when the user chose none", async () => {
