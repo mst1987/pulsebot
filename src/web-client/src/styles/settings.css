@@ -235,7 +235,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .tws-game-add { display: flex; gap: 8px; }
 .tws-game-add input { flex: 1 1 auto; min-width: 0; }
 .tws-games { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.badge.chip.tws-game { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.tws-games .tws-game { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .tws-game .badge-x { flex: none; }
 .tws-name:hover { text-decoration: underline; }
 @media (max-width: 720px) {
