@@ -58,6 +58,14 @@ module.exports = {
     id: "tbc",
     label: "TBC Anniversary",
     short: "TBC",
+    // Examples for input hints ("e.g. Black Temple on Thursday"), in the terms of this version: `short` and
+    // `tag` are read by people of every language, the rest per language. Test: test/config/gameVersions/examples.test.js.
+    examples: {
+        short: "SSC + TK",
+        tag: "ssc-tk",
+        de: { raid: "Black Temple", raids: "Hyjal + Black Temple", item: "Erstklassiger Manatrank" },
+        en: { raid: "Black Temple", raids: "Hyjal + Black Temple", item: "Super Mana Potion" },
+    },
     // The version's icon in the web admin (#951): the icon the Battle.net launcher shows for it, taken from the
     // game executable, as a file in src/web-client/public/versions/. Classic Era and TBC Anniversary share the
     // WoW Classic launcher icon (the launcher does the same), so the label always stands beside it.

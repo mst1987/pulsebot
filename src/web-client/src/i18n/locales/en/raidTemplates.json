@@ -14,7 +14,7 @@
     },
     "editor": {
         "newTitle": "New template",
-        "namePlaceholder": "e.g. SSC + TK 25-man",
+        "namePlaceholder": "e.g. {example}",
         "more": "More: appearance, melee/ranged, required buffs, signup deadline, duration, waiting list, Raid-Helper template",
         "deadline": "Signup deadline (hours before start)",
         "deadlinePlaceholder": "none",

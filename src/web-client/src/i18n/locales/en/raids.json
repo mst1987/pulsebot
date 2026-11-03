@@ -45,7 +45,7 @@
         "upcomingAria": "Upcoming raids",
         "pastAria": "Past raids",
         "signups": "Signups",
-        "signupsSub": "Accepted signups without absences, measured against the raid size of the content: Karazhan and Zul'Aman 10 spots, all other raids 25.",
+        "signupsSub": "Accepted signups without absences, measured against the raid size of the content.",
         "seatsOf": "{count} of {size} spots",
         "sizeKnown": "Raid size from the recognised content.",
         "sizeDefault": "Content not recognised – measured against the default size of 25.",

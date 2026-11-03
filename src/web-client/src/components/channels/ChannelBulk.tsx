@@ -8,6 +8,7 @@ import MoreMenu from "./MoreMenu";
 import NamingBadge from "./NamingBadge";
 import { bulkChanges, KEEP, placeholderHint, SLOWMODE_OPTIONS, slowmodeLabel } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 import { CheckIcon } from "../ui/icons/icons";
 
 // Several channels at once (issue #259): the bar that appears at the bottom as
@@ -142,6 +143,7 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
     // without one the field stays empty, which names every channel like the
     // latest other event channel of its category (#285).
     const t = useT();
+    const examples = useVersionExamples();
     const categoryIds = [...new Set(channels.map((c) => c.parentId))];
     const stored = categoryIds.length === 1 ? data.schemas?.[categoryIds[0]] : undefined;
     const ownSchema = stored?.schema && stored.schema !== data.defaultSchema ? stored.schema : "";
@@ -192,7 +194,7 @@ export function RenameSchemaDialog({ channels, data, onClose, onApply }: {
                     </div>
                     <div className="kn-field">
                         <label htmlFor="kn-rename-raid">{t("channels.raid")}</label>
-                        <div className="kn-input"><input id="kn-rename-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
+                        <div className="kn-input"><input id="kn-rename-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder", { example: examples.tag })} /></div>
                     </div>
                 </div>
                 <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />

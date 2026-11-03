@@ -39,7 +39,7 @@
     "defaultFor": "Default for {names}",
     "fields": {
         "instances": "Instances",
-        "instancesTip": "Several possible, e.g. SSC + TK in one evening. The sizes and the suggested tanks and healers come from the rule set.",
+        "instancesTip": "Several possible, e.g. two raids in one evening. The sizes and the suggested tanks and healers come from the rule set.",
         "incompleteTip": "Info missing: bosses and final boss are not known yet.",
         "players": "{sizes} players",
         "incomplete": "Info missing",
@@ -50,7 +50,7 @@
         "min": "min",
         "max": "max",
         "look": "Appearance",
-        "lookTip": "Colour bar and image of the signup message. The colour comes from the evening's biggest instance without a choice of your own — so SSC, BT and Hyjal already look different on their own. An image only shows up when one is entered: a thumbnail would otherwise narrow the message for no reason.",
+        "lookTip": "Colour bar and image of the signup message. The colour comes from the evening's biggest instance without a choice of your own — so different raids already look different on their own. An image only shows up when one is entered: a thumbnail would otherwise narrow the message for no reason.",
         "ownColor": "own colour",
         "colorOf": "colour of {name}",
         "defaultColor": "default colour",

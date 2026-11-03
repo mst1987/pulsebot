@@ -12,6 +12,7 @@ import Switch from "../ui/form/Switch";
 import { PlaceholderChips } from "./ChannelBulk";
 import { isTextLike } from "../../lib/discord/channels";
 import { tParts, useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 const SOURCE_LABELS = { raidhelper: "Raid-Helper", eventhelper: "EventHelper" } as const;
 const DEFAULT_EVENT_TIME = "19:30";
@@ -44,6 +45,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
     onCreate: (input: QuickCreateInput, count: number) => void;
 }) {
     const t = useT();
+    const examples = useVersionExamples();
     const archiveId = data.archive?.categoryId || "";
     const categories = data.categories.filter((c) => c.id !== archiveId);
     const [categoryId, setCategoryId] = useState(initialCategoryId || categories[0]?.id || "");
@@ -202,7 +204,7 @@ export function QuickCreateDialog({ data, initialCategoryId, onClose, onCreate }
                             </div>
                             <div className="kn-field">
                                 <label htmlFor="kn-qc-raid">{t("channels.raid")}</label>
-                                <div className="kn-input"><input id="kn-qc-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder")} /></div>
+                                <div className="kn-input"><input id="kn-qc-raid" type="text" value={raid} onChange={(e) => setRaid(e.target.value)} placeholder={t("channels.raidPlaceholder", { example: examples.tag })} /></div>
                             </div>
                         </div>
                         <PlaceholderChips data={data} onPick={(key) => setSchema((s) => `${s}{${key}}`)} />

@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import type { RaidCreateContext } from "../../api";
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 import { PLAN_MAX_DURATION, PLAN_MIN_DURATION } from "../../lib/raids/eventPlan";
 import { XIcon } from "../ui/icons/icons";
 import { Button } from "../ui/Button";
@@ -17,6 +18,7 @@ import type { RaidCreateForm } from "./useRaidCreateForm";
  */
 export function TerminStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm; ctx: RaidCreateContext; userId: string; summaryIcon: ReactNode }) {
     const t = useT();
+    const examples = useVersionExamples(f.version);
     const { form, patch, editing, choice, sourceEvent, baseTemplate, categories, eh, endPreview, moreOpen, setMoreOpen, setStep, changePlan, applyCategory } = f;
     const { title, date, time, leaderId, leaderOther, description, categoryId, plan, channelMode } = form;
     const candidates = ctx ? ctx.leaderCandidates || [] : [];
@@ -42,7 +44,7 @@ export function TerminStep({ f, ctx, userId, summaryIcon }: { f: RaidCreateForm;
             )}
             <div className="field">
                 <Label text={t("raidCreate.termin.title")} htmlFor="re-title" />
-                <input id="re-title" type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder="Hyjal + Black Temple" required />
+                <input id="re-title" type="text" value={title} onChange={(e) => patch({ title: e.target.value })} placeholder={examples.raids} required />
             </div>
             <div className={eh ? "re-grid3" : "re-grid2"}>
                 <div className="field re-f-date">

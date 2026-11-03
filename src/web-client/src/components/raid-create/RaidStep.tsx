@@ -1,4 +1,5 @@
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 import { plannedSeats, withInstance, withSize, withVersion } from "../../lib/raids/eventPlan";
 import { Button } from "../ui/Button";
 import Badge from "../ui/Badge";
@@ -16,6 +17,7 @@ import type { RaidCreateForm } from "./useRaidCreateForm";
  */
 export function RaidStep({ f }: { f: RaidCreateForm }) {
     const t = useT();
+    const examples = useVersionExamples(f.version);
     const { form, patch, changePlan, versions, version, baseTemplate, problem, template, ctx } = f;
     const { plan, freeSize } = form;
     // a raid template is global (`raids` write): not the orga of a category's (#728)
@@ -45,7 +47,7 @@ export function RaidStep({ f }: { f: RaidCreateForm }) {
                             options={[{ value: "update", label: t("raidCreate.raid.tplUpdate", { name: baseTemplate.name }) }, { value: "new", label: t("raidCreate.raid.tplNew") }]} />
                     )}
                     {template.mode === "new" && (
-                        <input type="text" aria-label={t("raidCreate.raid.tplName")} value={template.name} onChange={(e) => template.setName(e.target.value)} placeholder={t("raidCreate.raid.tplNamePlaceholder")} />
+                        <input type="text" aria-label={t("raidCreate.raid.tplName")} value={template.name} onChange={(e) => template.setName(e.target.value)} placeholder={t("raidCreate.raid.tplNamePlaceholder", { example: examples.short })} />
                     )}
                     <span className="re-tpl-acts">
                         <Button variant="ghost" size="sm" onClick={() => template.setOpen(false)}>{t("common.cancel")}</Button>

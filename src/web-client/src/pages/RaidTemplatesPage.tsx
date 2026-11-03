@@ -22,6 +22,7 @@ import CompositionEditor from "../components/raid/CompositionEditor";
 import { RefreshIcon, SaveIcon, TrashIcon, WarnIcon } from "../components/ui/icons/icons";
 import "../styles/raid-templates.css";
 import { tParts, useT } from "../i18n";
+import { useVersionExamples } from "../hooks/useVersionExamples";
 
 // Raid-Vorlagen (#266): what an evening looks like. One compact row per
 // template — instance icons, the name large, version and "Standard für …"
@@ -69,6 +70,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
     const [freeSize, setFreeSize] = useState(false);
     const [saving, setSaving] = useState(false);
     const version = versions.find((v) => v.id === draft.versionId) || null;
+    const examples = useVersionExamples(version);
     const chosen = instancesOf(version, draft.instanceIds);
     const problem = validateDraft(draft);
     const patch = (fields: Partial<RaidTemplateInput>) => setDraft((d) => ({ ...d, ...fields }));
@@ -152,7 +154,7 @@ function RaidTemplateModal({ template, versions, canWrite, onSaved, onClose }: {
         >
             <div className="field">
                 <label htmlFor="rt-name">{t("common.name")}</label>
-                <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("raidTemplates.editor.namePlaceholder")} />
+                <input id="rt-name" type="text" value={draft.name} onChange={(e) => patch({ name: e.target.value })} placeholder={t("raidTemplates.editor.namePlaceholder", { example: examples.short })} />
             </div>
             <div className="rt-field">
                 <TipLabel text={t("raidTemplates.version")} />

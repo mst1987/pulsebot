@@ -11,6 +11,7 @@ import { useConfirm } from "../../components/ui/overlay/Modal";
 import { Button, IconButton } from "../../components/ui/Button";
 import { splitList } from "./settingsDraft";
 import { useT } from "../../i18n";
+import { useVersionExamples } from "../../hooks/useVersionExamples";
 
 type SheetSortKey = "name" | "sheetName" | "keywords";
 
@@ -29,6 +30,7 @@ function RaidsheetForm({ sheet, onSaved, onCancel }: {
     const [busy, setBusy] = useState(false);
     const toast = useToast();
     const t = useT();
+    const examples = useVersionExamples();
 
     const submit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -45,7 +47,7 @@ function RaidsheetForm({ sheet, onSaved, onCancel }: {
 
     return (
         <form className="sheetcard set-form" onSubmit={submit}>
-            <Field className="set-field" htmlFor="rs-name" label={t("settings.raidsheets.name")}><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.raidsheets.namePlaceholder")} required /></Field>
+            <Field className="set-field" htmlFor="rs-name" label={t("settings.raidsheets.name")}><input id="rs-name" type="text" value={name} onChange={(e) => setName(e.target.value)} placeholder={t("settings.raidsheets.namePlaceholder", { example: examples.raids })} required /></Field>
             <Field className="set-field" htmlFor="rs-id" label={t("settings.raidsheets.sheetId")} tip={t("settings.raidsheets.sheetId")} tipSub={t("settings.raidsheets.sheetIdSub")}><input id="rs-id" type="text" className="mono" value={spreadsheetId} onChange={(e) => setSpreadsheetId(e.target.value)} placeholder={t("settings.raidsheets.sheetIdPlaceholder")} /></Field>
             <div className="set-grid">
                 <Field className="set-field" htmlFor="rs-tab" label={t("settings.raidsheets.tab")}><input id="rs-tab" type="text" value={sheetName} onChange={(e) => setSheetName(e.target.value)} placeholder="Setup" /></Field>

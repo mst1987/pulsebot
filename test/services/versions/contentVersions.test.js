@@ -53,7 +53,10 @@ describe("contentVersions", () => {
     it("offers only the main version without any other data", () => {
         expect(contentVersions()).toEqual({
             mainVersion: "forever", hideOtherVersions: false,
-            versions: [{ id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false }],
+            versions: [{
+                id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false,
+                examples: expect.objectContaining({ short: "Barrow" }),
+            }],
         });
     });
 
@@ -86,7 +89,10 @@ describe("contentVersions", () => {
         mockConfig = { mainVersion: "forever", hideOtherVersions: true };
         expect(contentVersions()).toEqual({
             mainVersion: "forever", hideOtherVersions: true,
-            versions: [{ id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false }],
+            versions: [{
+                id: "forever", label: "WoW Forever", short: "Forever", icon: "/versions/forever.png", color: "#4da3ff", custom: false,
+                examples: expect.objectContaining({ short: "Barrow" }),
+            }],
         });
     });
 });

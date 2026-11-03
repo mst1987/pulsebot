@@ -1015,7 +1015,7 @@
             "actions": "Aktionen"
         },
         "emptyTitle": "Noch kein Schritt für {boss}.",
-        "emptyText": "Ein Schritt ist ein Satz mit Icon, z. B. „Magier-Tank tankt Zerevor · Pull“. Leg den ersten an oder starte mit einer Vorlage; Beteiligte werden gegen den Raid aufgelöst.",
+        "emptyText": "Ein Schritt ist ein Satz mit Icon, z. B. „Tank zieht den Boss · Pull“. Leg den ersten an oder starte mit einer Vorlage; Beteiligte werden gegen den Raid aufgelöst.",
         "takeStarter": "Vorlage übernehmen",
         "starterName": {
             "kite": "Kiten",

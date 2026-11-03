@@ -39,7 +39,7 @@
     "defaultFor": "Standard für {names}",
     "fields": {
         "instances": "Instanzen",
-        "instancesTip": "Mehrere möglich, z. B. SSC + TK an einem Abend. Die Größen und der Vorschlag für Tanks und Heiler kommen aus dem Regelsatz.",
+        "instancesTip": "Mehrere möglich, etwa zwei Raids an einem Abend. Die Größen und der Vorschlag für Tanks und Heiler kommen aus dem Regelsatz.",
         "incompleteTip": "Infos fehlen: Bosse und Endboss sind noch nicht bekannt.",
         "players": "{sizes} Spieler",
         "incomplete": "Infos fehlen",
@@ -50,7 +50,7 @@
         "min": "min",
         "max": "max",
         "look": "Aussehen",
-        "lookTip": "Farbbalken und Bild der Anmelde-Nachricht. Die Farbe kommt ohne eigene Wahl von der größten Instanz des Abends — dann sehen SSC, BT und Hyjal schon von selbst verschieden aus. Ein Bild gibt es nur, wenn eins eingetragen wird: ein Thumbnail macht die Nachricht sonst unnötig schmaler.",
+        "lookTip": "Farbbalken und Bild der Anmelde-Nachricht. Die Farbe kommt ohne eigene Wahl von der größten Instanz des Abends — dann sehen verschiedene Raids schon von selbst verschieden aus. Ein Bild gibt es nur, wenn eins eingetragen wird: ein Thumbnail macht die Nachricht sonst unnötig schmaler.",
         "ownColor": "eigene Farbe",
         "colorOf": "Farbe von {name}",
         "defaultColor": "Standardfarbe",

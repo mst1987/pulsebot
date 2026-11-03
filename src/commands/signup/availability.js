@@ -217,7 +217,7 @@ function onGuildBankButton(interaction, categoryId, config, lang) {
     if (!guildBank.guildBankChannelId(config, guildId)) return ephemeral(interaction, answerPayload(tr(lang, "The guild bank is not set up right now."), { lang }));
     const offer = offerOf(interaction, categoryId, config);
     if (offer.bank && offer.groups.length) return interaction.reply(pickPayload({ categoryId, bank: offer.bank, groups: offer.groups, lang }));
-    return interaction.showModal(requestModal(categoryId, lang));
+    return interaction.showModal(requestModal(categoryId, lang, mainVersionFor({ categoryId, config })));
 }
 
 /** An item picked in the pick card: its modal — or a word that it is gone meanwhile. */
@@ -226,7 +226,7 @@ function onGuildBankPick(interaction, categoryId, config, lang) {
     const offer = offerOf(interaction, categoryId, config);
     const item = offer.bank ? offer.groups.flatMap((g) => g.items).find((it) => it.itemId === itemId) : null;
     if (!item) return ephemeral(interaction, answerPayload(`⚠️ ${serviceText(lang, guildBank.NOT_OFFERED)}`, { lang }));
-    return interaction.showModal(itemModal({ categoryId, item, characters: guildBank.charactersFor(interaction.user.id, offer.bank), lang }));
+    return interaction.showModal(itemModal({ categoryId, item, characters: guildBank.charactersFor(interaction.user.id, offer.bank), lang, versionId: mainVersionFor({ categoryId, config }) }));
 }
 
 /** The values of a select in a submitted modal, [] when it is missing (the character select shows only with two or more). */
