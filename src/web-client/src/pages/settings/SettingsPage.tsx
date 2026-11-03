@@ -493,7 +493,8 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         panels: panelsData.data.panels,
                         links: panelsData.data.links,
                         maxLinks: panelsData.data.maxLinks,
-                        channels: data.noteChannels ? data.noteChannels.channels : [],
+                        // this server's channels only: a category's fixed messages stay on its server
+                        channels: data.channels || [],
                         onChange: setPanel,
                         onLinks: setLinks,
                         features: panelsData.data.features,
@@ -504,7 +505,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         hubs: hubsData.data.hubs,
                         links: hubsData.data.links,
                         maxLinks: hubsData.data.maxLinks,
-                        channels: data.noteChannels ? data.noteChannels.channels : [],
+                        channels: data.channels || [],
                         onChange: setHub,
                         onLinks: setOrgaLinks,
                         features: hubsData.data.features,

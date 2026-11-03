@@ -13,7 +13,7 @@ const store = require("../../../../src/stores/discord/orgaHubStore");
 const route = require("../../../../src/web/apiRoutes/discord/orgaHub");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const { tempStoreFile } = require("../../../helpers/tempStore");
-const { routerClient, status, body } = require("../../../helpers/http");
+const { routerClient, status, body, json } = require("../../../helpers/http");
 
 const { get, post, request } = routerClient(route);
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
@@ -154,6 +154,15 @@ describe("apiRoutes/orgaHub - rights per server (#925)", () => {
     it("lets a full admin act on every server", async () => {
         orgaHub.saveLinks.mockResolvedValue({ links: [] });
         expect(status(await request("PUT", "/api/orga-hub/links", { categoryId: "catA", links: [] }))).toBe(200);
+    });
+
+    it("keeps a hub on its category's server, for a full admin too", async () => {
+        const res = await post("/api/orga-hub", { categoryId: "catA", channelId: "chB" });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("channel_other_server");
+        expect(orgaHub.postHub).not.toHaveBeenCalled();
+        orgaHub.postHub.mockResolvedValue({ hub: { categoryId: "catA", guildId: "A", channelId: "chA", messageId: "m3", postedAt: 7 } });
+        expect(status(await post("/api/orga-hub", { categoryId: "catA", channelId: "chA" }))).toBe(200);
     });
 });
 

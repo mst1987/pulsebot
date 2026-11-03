@@ -20,7 +20,7 @@ import { useT } from "../../../i18n";
 
 export type AvailabilityPanels = {
     panels: AvailabilityPanel[];
-    /** The text channels to post into (Einstellungen' noteChannels list). */
+    /** The text channels to post into: the active server's (Einstellungen' channels list). */
     channels: { id: string; name: string; category?: string }[];
     /** The organizer's link buttons per category id. */
     links: Record<string, AvailabilityLink[]>;
