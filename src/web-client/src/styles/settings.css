@@ -224,11 +224,20 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .tws-status.is-muted { color: var(--muted); }
 .tws-note { display: block; max-width: 340px; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: normal; }
 .tws-actions { display: inline-flex; gap: 4px; }
-.tws-counter { font-size: 12px; color: var(--muted); }
+.tws-field + .tws-field { margin-top: 14px; }
+.tws-field textarea {
+    display: block; width: 100%; min-height: 72px; padding: 8px 12px; background-color: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); font: inherit; font-size: 14px; line-height: 1.35; resize: vertical;
+}
+.tws-field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.tws-counter { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
 .tws-counter-over { color: var(--high); font-weight: 600; }
 .tws-game-add { display: flex; gap: 8px; }
 .tws-game-add input { flex: 1 1 auto; min-width: 0; }
 .tws-games { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.badge.chip.tws-game { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.tws-game .badge-x { flex: none; }
+.tws-name:hover { text-decoration: underline; }
 @media (max-width: 720px) {
     .tws-last { margin-left: 0; flex-basis: 100%; }
     .tws-table thead { display: none; }

@@ -252,6 +252,20 @@ describe("the dialog", () => {
         expect(document.querySelector(".tws-games")).toBeNull();
     });
 
+    it("names the saved streamer, not the pasted link", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ streamers: [] }));
+        api.addTwitchStreamer.mockResolvedValue(view({ streamers: [streamer({ login: "somebody" })] }));
+        show();
+        await openAdd();
+        const d = await dialog();
+        type("tws-login", "https://twitch.tv/SomeBody");
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        fireEvent.click(d.getByRole("button", { name: /Speichern/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalled());
+        expect(toast.mock.calls[0][0]).toContain("somebody");
+        expect(toast.mock.calls[0][0]).not.toContain("https");
+    });
+
     it("words a refusal of the server as a toast and keeps the dialog open", async () => {
         api.addTwitchStreamer.mockRejectedValue(apiError("duplicate_streamer"));
         show();

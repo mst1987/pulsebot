@@ -98,23 +98,23 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
         {
             id: "login", label: t("settings.twitch.col.streamer"), sortKey: "login",
             cell: (s) => (
-                <a className="tws-name tipped" href={twitchUrl(s.login)} target="_blank" rel="noopener noreferrer" data-tip={t("settings.twitch.openOnTwitch")} data-tip-sub={s.login}>
+                <a className="tws-name" href={twitchUrl(s.login)} target="_blank" rel="noopener noreferrer" data-tip={t("settings.twitch.openOnTwitch")} data-tip-sub={s.login}>
                     {s.login}
                 </a>
             ),
         },
         {
             id: "channel", label: t("settings.twitch.col.channel"), sortKey: "channel",
-            cell: (s) => <span className="tws-cut tipped" data-tip={channelText(s.channelId)}>{channelText(s.channelId)}</span>,
+            cell: (s) => <span className="tws-cut" data-tip={channelText(s.channelId)}>{channelText(s.channelId)}</span>,
         },
         {
             id: "role", label: t("settings.twitch.col.role"), sortKey: "role",
-            cell: (s) => <span className={`tws-cut tipped${s.roleId ? "" : " tws-none"}`} data-tip={roleText(s.roleId)}>{roleText(s.roleId)}</span>,
+            cell: (s) => <span className={`tws-cut${s.roleId ? "" : " tws-none"}`} data-tip={roleText(s.roleId)}>{roleText(s.roleId)}</span>,
         },
         {
             id: "filter", label: t("settings.twitch.col.filter"), sortKey: "filter",
             cell: (s) => (
-                <span className={`tws-cut${s.games.length ? " tipped" : " tws-none"}`} data-tip={s.games.length ? s.games.join(", ") : undefined}>
+                <span className={`tws-cut${s.games.length > 1 ? " tipped" : ""}${s.games.length ? "" : " tws-none"}`} data-tip={s.games.length ? s.games.join(", ") : undefined}>
                     {twitchFilterText(s.games)}
                 </span>
             ),
@@ -203,9 +203,11 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
                     roles={roles}
                     onClose={() => setEditing(null)}
                     onSaved={(next, login) => {
+                        // a pasted link is the input, the server's list knows the actual name
+                        const added = next.streamers.find((s) => !view.streamers.some((known) => known.login === s.login));
                         page.setData(next);
                         setEditing(null);
-                        toast(t("settings.twitch.saved", { login }));
+                        toast(t("settings.twitch.saved", { login: added?.login || login }));
                     }}
                     onSwitched={() => {
                         setSwitched(true);
@@ -286,7 +288,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
                 </>
             )}
         >
-            <Field label={t("settings.twitch.modal.login")} htmlFor="tws-login" className="dlg-field">
+            <Field label={t("settings.twitch.modal.login")} htmlFor="tws-login" className="dlg-field tws-field">
                 <input
                     id="tws-login"
                     value={login}
@@ -295,16 +297,16 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
                     onChange={(e) => setLogin(e.target.value)}
                 />
             </Field>
-            <Field label={t("settings.twitch.modal.channel")} htmlFor="tws-channel" className="dlg-field">
+            <Field label={t("settings.twitch.modal.channel")} htmlFor="tws-channel" className="dlg-field tws-field">
                 <ChannelPicker id="tws-channel" value={channelId} channels={channels} onChange={setChannelId} placeholder={t("settings.twitch.modal.channelPlaceholder")} />
             </Field>
-            <Field label={t("settings.twitch.modal.role")} htmlFor="tws-role" className="dlg-field">
+            <Field label={t("settings.twitch.modal.role")} htmlFor="tws-role" className="dlg-field tws-field">
                 <RolePicker id="tws-role" value={roleId} roles={roles} onChange={setRoleId} placeholder={t("settings.twitch.modal.rolePlaceholder")} />
             </Field>
             <Field
                 label={t("settings.twitch.modal.text")}
                 htmlFor="tws-text"
-                className="dlg-field"
+                className="dlg-field tws-field"
                 hint={t("settings.twitch.modal.textHint", { placeholders: TWITCH_PLACEHOLDERS })}
             >
                 <textarea id="tws-text" rows={3} value={text} onChange={(e) => setText(e.target.value)} />
@@ -315,7 +317,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
             <Field
                 label={t("settings.twitch.modal.games")}
                 htmlFor="tws-game"
-                className="dlg-field"
+                className="dlg-field tws-field"
                 hint={t("settings.twitch.modal.gamesHint")}
                 error={gameError || undefined}
             >
@@ -342,6 +344,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
                         {games.map((game) => (
                             <Chip
                                 key={game}
+                                className="tws-game"
                                 removeLabel={t("settings.twitch.modal.gamesRemove", { game })}
                                 onRemove={() => setGames(games.filter((g) => g !== game))}
                             >
