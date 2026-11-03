@@ -1,4 +1,4 @@
-const { createClient } = require("./httpClient");
+const { createClient, ApiError } = require("./httpClient");
 
 // Twitch Helix client for the stream announcements (docs/twitch.md).
 //
@@ -7,8 +7,10 @@ const { createClient } = require("./httpClient");
 // only), TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET in the env are the fallback.
 //
 // Failure contract: getStreams() THROWS an ApiError on anything but a clean answer
-// (timeout, network, 429, 5xx, a second 401). The caller must read that as
-// "unknown", never as "everybody is offline" - only a clean answer says who is live.
+// (timeout, network, 429, 5xx, a second 401, a 200 without a stream list). The caller
+// must read that as "unknown", never as "everybody is offline" - only a clean answer
+// says who is live. An error with `authFailed` means Twitch refused the credentials:
+// 400/401/403 from the token request, or a 401 that a new token did not cure.
 // The secret and the token never reach a log line: errors carry the status only.
 
 const TOKEN_URL = "https://id.twitch.tv/oauth2/token";
@@ -16,6 +18,8 @@ const STREAMS_URL = "https://api.twitch.tv/helix/streams";
 const HTTP_TIMEOUT_MS = 10000;
 /** Twitch's limit per request (user_login and first). */
 const LOGINS_PER_REQUEST = 100;
+/** What the token request answers to credentials it does not accept. */
+const REFUSED_TOKEN_STATUS = [400, 401, 403];
 
 class Twitch {
     /**
@@ -52,9 +56,15 @@ class Twitch {
             client_secret: this.clientSecret,
             grant_type: "client_credentials",
         });
-        const res = await this.http.post(TOKEN_URL, form.toString(), {
-            headers: { "Content-Type": "application/x-www-form-urlencoded" },
-        });
+        let res;
+        try {
+            res = await this.http.post(TOKEN_URL, form.toString(), {
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+            });
+        } catch (e) {
+            if (e && REFUSED_TOKEN_STATUS.includes(e.status)) e.authFailed = true;
+            throw e;
+        }
         this._token = res.data.access_token;
         const ttl = Number(res.data.expires_in) || 0;
         this._tokenExpiry = Date.now() + Math.max(0, (ttl - 60) * 1000);
@@ -72,12 +82,16 @@ class Twitch {
         const res = await this.http.get(`${STREAMS_URL}?${query}`, {
             headers: { Authorization: `Bearer ${token}`, "Client-Id": this.clientId },
         });
-        return Array.isArray(res.data && res.data.data) ? res.data.data : [];
+        if (!Array.isArray(res.data && res.data.data)) {
+            throw new ApiError({ service: "Twitch", kind: "bad_answer", message: "Twitch answered without a stream list" });
+        }
+        return res.data.data;
     }
 
     /**
      * The live streams of `logins`, in chunks of 100; a login without a stream is
-     * simply not in the answer. A 401 fetches a new token once and asks again.
+     * simply not in the answer. A 401 fetches a new token once and asks again;
+     * a refused token request is not asked for a second time.
      * @param {string[]} logins lowercase Twitch logins
      * @returns {Promise<object[]>} Twitch's stream objects
      * @throws {import("./httpClient").ApiError} on anything but a clean answer
@@ -90,9 +104,14 @@ class Twitch {
             try {
                 out.push(...await this._getStreamsOnce(chunk));
             } catch (e) {
-                if (!e || e.status !== 401) throw e;
+                if (!e || e.status !== 401 || e.authFailed) throw e;
                 this._forgetToken();
-                out.push(...await this._getStreamsOnce(chunk));
+                try {
+                    out.push(...await this._getStreamsOnce(chunk));
+                } catch (again) {
+                    if (again && again.status === 401) again.authFailed = true;
+                    throw again;
+                }
             }
         }
         return out;

@@ -64,6 +64,9 @@ const UI_ICONS = [
     // the fill bar of the raid overview (events/overview/raidOverviewPanel.js): a segment green (places free),
     // orange (full), grey (few signups) or empty
     "barg", "baro", "barn", "bare",
+    // the kicker of the stream card (services/twitch/twitchCard.js). The one exception to the line
+    // icons: Twitch's own filled glitch symbol in its own violet, not a drawing of ours
+    "twitch",
 ];
 
 // The letter tiles of the message's title line, like Raid-Helper's: one emoji

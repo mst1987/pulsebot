@@ -10,6 +10,12 @@
 //
 // A record with no `streamId` but an `error` is a stream that ended without ever getting
 // its message: only the error is left to show, nothing was pinged yet.
+//
+// `pendingEnds` are older messages of this streamer whose "ended" edit still fails, each
+// { messageId, channelId, display, startedAt, lastSeenAt, endFailingSince }: a new stream
+// must not lose them, and a record may hold nothing else. `removedAt` marks a record whose
+// entry was removed while its stream ran: it stays as a tombstone with the stream id until
+// the stream is over, so putting the streamer back in the same stream does not ping again.
 
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
@@ -25,6 +31,8 @@ const EMPTY = Object.freeze({
     endedAt: 0,
     endPending: false, // the "ended" edit failed, the next run tries again
     endFailingSince: 0, // the first failed try of that edit: 24 hours later the job gives up
+    pendingEnds: [], // shared by every record of the default: replace it, never change it
+    removedAt: 0, // the entry was removed at this time, the stream may still run
     lastEditAt: 0,
     hash: "",
     error: "",

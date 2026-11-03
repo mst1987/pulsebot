@@ -15,8 +15,8 @@ message), `src/classes/twitch.js` (API client), `src/stores/discord/twitchStateS
   server, 500 characters of own text, 5 game names of 60 characters each. `login` matches `^[a-z0-9_]{2,25}$`; the API
   also takes `@name` and a `twitch.tv/name` link and refuses other links.
 - **State** in `settings/twitch-state.json`, one record per `"<guildId>:<login>"` (message and channel id, stream id,
-  start, last sighting, end, end retries, last edit, hash, error). It is not part of the config: it changes every run
-  and a settings PATCH must not race it. It survives a restart.
+  start, last sighting, end, end retries, last edit, hash, error, `pendingEnds`, `removedAt`). It is not part of the
+  config: it changes every run and a settings PATCH must not race it. It survives a restart.
 - **Credentials** in `settings/config.json` at `twitch: { clientId, clientSecret }`, one app for all servers.
   `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are only the bootstrap.
 - **Game filter:** empty means every game. Otherwise a name matches when the stream's category contains it,
@@ -28,20 +28,33 @@ message), `src/classes/twitch.js` (API client), `src/stores/discord/twitchStateS
 Only the live bot polls (`isLiveInstance()`); a test instance does not, but "Jetzt prüfen" works everywhere. One
 central poll asks for each login once, whichever servers list it.
 
-- **Every 2 minutes.** A failed answer, a timeout or a 429 means "unknown": never offline, nothing is counted.
+- **Every 2 minutes.** A failed answer, a timeout, a 429 or a 200 without a `data` list means "unknown": never offline,
+  nothing is counted.
 - **Pause after a 429:** the next run is skipped (poll interval plus 30 seconds).
 - **Ending:** after 2 offline answers at least 1 minute apart.
 - **Resume:** a new stream id within 10 minutes of the end or last sighting is the same session. The old message goes
   live again, without a ping and regardless of the filter.
 - **Updates:** at most every 5 minutes and only when name, title, game, viewers, text or role changed. A new preview
   picture alone never causes an edit.
-- **State is written right after every post,** so a restart cannot ping twice.
+- **State is written right after every post,** so a restart cannot ping twice. A failed write does not count as a
+  failed post: it is logged, kept in the memory of the process and written again, so a second ping is also ruled out
+  within the process. A restart in exactly that gap is the one case that can still ping twice.
 - **Message deleted in Discord:** it stays deleted for that session. No repost, no second ping, `messageGone` is set.
+- **A failed resume edit** clears the hash, so the next run tries again.
+- **A new stream with an old message still open:** the old message gets one more "ended" edit first. If that fails it
+  moves to `pendingEnds`, each with its own `endFailingSince`, and is retried; the new stream posts and pings as usual.
 - **Giving up:** when the "ended" edit keeps failing, the job stops after 24 hours from the first failure and shows
-  `end_gave_up` until the next stream starts.
+  `end_gave_up` until the next stream starts. This holds for `pendingEnds` and removed entries too.
+- **Channel or message gone:** 10003/10008, or `channel_not_found` from the edit, end the retries at once (`channel_gone`,
+  `messageGone`); that is no temporary failure.
 - **Errors stay visible:** an error lands on its entry and stays after the stream until a post or edit works. Codes:
   `channel_gone`, `no_permission`, `wrong_guild`, `post_failed`, `end_gave_up`. An offline bot is no error of the entry.
-- **Removed entry:** its running message is ended, then the state is dropped.
+- **Removed entry:** its running message is ended (with the 24-hour rule above); a temporary failure keeps the state.
+  The state stays as a **tombstone** (`removedAt` with the stream id) until the stream is over: Twitch says offline, or
+  shows another stream id. Then it is dropped, so the file does not grow.
+- **Listed again during the same stream:** no second ping. The old message goes live again, and the tombstone clears. In
+  another channel it counts as a changed channel. With another stream id it is a normal new post with a ping. Logins
+  are compared in lower case.
 - **Changed channel:** a running message stays where it is (`postedChannelId` in the status); the next stream appears
   in the new channel.
 
@@ -58,13 +71,25 @@ central poll asks for each login once, whichever servers list it.
   Roles" in that channel. Without it the name appears in the card and nobody gets a notification, and **no error
   comes back**, so the status cannot show it. Discord's developer docs do not spell this out; the interaction is
   described by third-party guides and bot docs.
+- **What the page can warn about instead:** `view.mention` (`discord.mentionInfoIn`) is `{ botCanMentionAll,
+  unmentionableRoleIds }` for the active server, read from the cache only, no member list. `botCanMentionAll` is `null`
+  when unknown (bot offline, server not loaded), which never throws. The list leaves out @everyone and managed roles.
+
+## The icon
+
+`eh_ui_twitch` (`UI_ICONS`, `scripts/render-ui-emojis.js`, `assets/emojis/eh_ui_twitch.png`) stands in front of the
+card's kicker through `emojiText`; without the emoji loaded the kicker is just the words, no unicode stand-in. It is
+the one exception to the grey line icons: Twitch's filled glitch in `#9146FF`, path from `simple-icons` (CC0-1.0; the
+trademark stays Twitch's), which is no dependency. `ensureAppEmojis` uploads it at startup.
 
 ## Rights
 
 Area `settings`: GET needs read, the write routes write plus CSRF. Always the session's active server;
 `serverSettingsGuildId` guards against a server switched in another tab (409 `server_switched`), as with the other
 per-server settings. A channel or role of another server is refused with 403 `other_server`. The credentials go
-through `PATCH /api/settings` and are full-admin only.
+through `PATCH /api/settings` and are full-admin only; `hasCredentials` in the view tells everybody with the settings
+area only yes or no, because the page's status needs it. Full admins also get `config.twitch.inUse` in the settings
+config: whether any server lists a streamer, so missing credentials count only then.
 
 ## API
 
@@ -76,16 +101,22 @@ through `PATCH /api/settings` and are full-admin only.
 | `DELETE /api/settings/twitch` | `serverSettingsGuildId, login` | view; 404 `not_found` |
 | `POST /api/settings/twitch/check` | `serverSettingsGuildId` | `{ result, ...view }` |
 
-`result` is `{ checked, live }` or `{ skipped }` with `no_credentials`, `bot_offline`, `rate_limited`,
-`twitch_unavailable` or `failed`.
+`result` is `{ checked, live }` or `{ skipped }` with `no_credentials`, `bad_credentials`, `bot_offline`,
+`rate_limited`, `twitch_unavailable` or `failed`. `bad_credentials` means Twitch refused the app: 400, 401 or 403 from
+the token call, or a 401 that stays after a new token. The secret appears in no answer and no log.
 
-The view holds `guildId, hasCredentials, lastRun: { at, error }, limits, streamers`, and each streamer a `status`:
+`lastRun` is global, since a Twitch failure is too. "Jetzt prüfen" only writes it when it really asked Twitch: a server
+without entries does not wipe the error of the last run.
+
+The view holds `guildId, hasCredentials, mention, lastRun: { at, error }, limits, streamers`, and each streamer a `status`:
 `state` (`live`, `filtered`, `offline`), `since, endedAt, title, game, viewers, messageGone, error, postedChannelId`.
 The status can be up to 5 minutes old. `filtered` means "running, no announcement": the filter, or a failed post, in
 which case `error` is set. `lastRun.at` is 0 until the first run of this process.
 
-Other errors: 400 `unknown_server`, `invalid_login`, `duplicate_streamer`, `missing_channel`, `invalid_role`,
-`text_too_long`, `too_many`, `too_many_games`, `invalid_list`. The server's messages are German only, so the client
+Other errors: 400 `unknown_server`, `invalid_login`, `duplicate_streamer`, `missing_channel`, `invalid_channel`,
+`invalid_role`, `text_too_long`, `too_many`, `too_many_games`, `invalid_list`. `invalid_channel` refuses what the bot
+knows not to be a text channel, announcement channel or thread (voice, stage, forum, category), only when the channel
+changes; an unknown channel or an offline bot does not block. The server's messages are German only, so the client
 words every code itself (`twitchErrorText`). The form enforces the limits itself, because the server cuts a too long
 game name silently.
 

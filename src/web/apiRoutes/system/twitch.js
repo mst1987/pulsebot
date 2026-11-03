@@ -3,8 +3,9 @@
 // the session, never one named by the request: a tab that loaded another server gets
 // 409, a login this server does not list 404, a channel or role of another server 403.
 //
-// The credentials are not this file's: PATCH /api/settings writes them, full admins only
-// (apiRoutes/system/settings.js). Only whether they are set is answered here.
+// The credentials are not this file's: PATCH /api/settings shows and writes them, full
+// admins only (CREDENTIAL_KEYS in apiRoutes/system/settings.js). This answer says only yes
+// or no about them, to everybody with the settings area: the page's status needs it.
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -37,6 +38,7 @@ function view(guildId, config = getConfig()) {
     return {
         guildId,
         hasCredentials: !!(clientId && clientSecret),
+        mention: discord.mentionInfoIn(guildId),
         lastRun: lastTwitchRun(),
         limits: LIMITS,
         streamers: streamers.map((entry) => {
@@ -90,9 +92,15 @@ function roleAllowed(user, guildId, roleId) {
  * channel or role is not checked again: a role deleted long ago must not block a new text.
  */
 function targetsAllowed({ user, req, res, guildId }, next, before) {
-    if (next.channelId !== (before && before.channelId) && !channelAllowed(user, req, guildId, next.channelId)) {
-        error(res, 403, "other_server", OTHER_SERVER);
-        return false;
+    if (next.channelId !== (before && before.channelId)) {
+        if (!channelAllowed(user, req, guildId, next.channelId)) {
+            error(res, 403, "other_server", OTHER_SERVER);
+            return false;
+        }
+        if (discord.isNonTextChannel(next.channelId)) {
+            error(res, 400, "invalid_channel", "In diesen Kanal kann der Bot nichts posten. Bitte einen Textkanal wählen.");
+            return false;
+        }
     }
     if (!next.roleId || next.roleId === (before && before.roleId)) return true;
     // the id of the server is its @everyone role: never a ping target, not even for a full admin
@@ -167,7 +175,8 @@ const putStreamer = withUser({ csrf: true, body: true }, async ({ user, body, re
 
 /**
  * DELETE /api/settings/twitch - remove one streamer of this server. A running message
- * is ended by the next check, which finds its state without an entry.
+ * is ended by the next check, which finds its state without an entry and keeps it as a
+ * tombstone until the stream is over: put back in the same stream, nobody is pinged twice.
  */
 const deleteStreamer = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const target = writeTarget(body, req, res);

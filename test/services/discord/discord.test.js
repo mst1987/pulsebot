@@ -1003,6 +1003,93 @@ describe("services/discord/discord botPermissionsIn", () => {
     });
 });
 
+describe("services/discord/discord mentionInfoIn", () => {
+    const { PermissionsBitField } = require("discord.js");
+
+    function withBot({ perms = [], roles = [] } = {}) {
+        discord.setClient(dc.makeClient({
+            guilds: [dc.makeGuild({
+                id: "g1",
+                roles,
+                me: { permissions: new PermissionsBitField(perms.map((p) => PermissionsBitField.Flags[p])) },
+            })],
+        }));
+    }
+
+    afterEach(() => discord.setClient(null));
+
+    it("names the roles only the right can ping, without @everyone and without a managed role", () => {
+        withBot({
+            roles: [
+                { id: "g1", mentionable: false },
+                { id: "offen", mentionable: true },
+                { id: "gesperrt", mentionable: false },
+                { id: "bot-rolle", mentionable: false, managed: true },
+            ],
+        });
+        expect(discord.mentionInfoIn("g1")).toEqual({ botCanMentionAll: false, unmentionableRoleIds: ["gesperrt"] });
+    });
+
+    it("says whether the bot may ping every role", () => {
+        withBot({ perms: ["MentionEveryone"] });
+        expect(discord.mentionInfoIn("g1").botCanMentionAll).toBe(true);
+    });
+
+    it("counts Administrator as that right", () => {
+        withBot({ perms: ["Administrator"] });
+        expect(discord.mentionInfoIn("g1").botCanMentionAll).toBe(true);
+    });
+
+    it("knows nothing when the bot is not on the server or not connected", () => {
+        const unknown = { botCanMentionAll: null, unmentionableRoleIds: [] };
+        withBot();
+        expect(discord.mentionInfoIn("other")).toEqual(unknown);
+        discord.setClient(null);
+        expect(discord.mentionInfoIn("g1")).toEqual(unknown);
+    });
+
+    it("does not throw on a half-loaded server", () => {
+        const guild = dc.makeGuild({ id: "g1", me: { permissions: new PermissionsBitField() }, roles: undefined });
+        delete guild.roles;
+        discord.setClient(dc.makeClient({ guilds: [guild] }));
+        expect(discord.mentionInfoIn("g1")).toEqual({ botCanMentionAll: null, unmentionableRoleIds: [] });
+    });
+
+    it("loads no member list", () => {
+        const guild = dc.makeGuild({ id: "g1", me: { permissions: new PermissionsBitField() } });
+        discord.setClient(dc.makeClient({ guilds: [guild] }));
+        discord.mentionInfoIn("g1");
+        expect(guild.members.fetch).not.toHaveBeenCalled();
+    });
+});
+
+describe("services/discord/discord isNonTextChannel", () => {
+    const { ChannelType } = require("discord.js");
+
+    afterEach(() => discord.setClient(null));
+
+    it.each([
+        ["a voice channel", ChannelType.GuildVoice, true],
+        ["a stage", ChannelType.GuildStageVoice, true],
+        ["a forum", ChannelType.GuildForum, true],
+        ["a category", ChannelType.GuildCategory, true],
+        ["a text channel", ChannelType.GuildText, false],
+        ["an announcement channel", ChannelType.GuildAnnouncement, false],
+        ["a thread", ChannelType.PublicThread, false],
+    ])("calls %s: %s", (_name, type, expected) => {
+        discord.setClient(dc.makeClient({ channels: [dc.makeChannel({ id: "c1", type })] }));
+        expect(discord.isNonTextChannel("c1")).toBe(expected);
+    });
+
+    it("blocks nothing it does not know: an unknown channel, no channel, the bot offline", () => {
+        discord.setClient(dc.makeClient({ channels: [] }));
+        expect(discord.isNonTextChannel("c1")).toBe(false);
+        expect(discord.isNonTextChannel(undefined)).toBe(false);
+        discord.setClient(null);
+        expect(discord.isNonTextChannel("c1")).toBe(false);
+    });
+});
+
 // Long pings and single-member mentions (#264).
 describe("services/discord/discord ping helpers", () => {
     const discordMod = require("../../../src/services/discord/discord");

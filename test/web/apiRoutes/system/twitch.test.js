@@ -21,6 +21,8 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({
 jest.mock("../../../../src/services/discord/discord", () => ({
     listRoles: jest.fn(),
     findRolesAnywhere: jest.fn(),
+    isNonTextChannel: jest.fn(),
+    mentionInfoIn: jest.fn(),
 }));
 jest.mock("../../../../src/services/twitch/twitchJob", () => ({
     runTwitchCheck: jest.fn(),
@@ -81,6 +83,8 @@ beforeEach(() => {
     mayUseChannel.mockImplementation((user, _req, id) => user.isAdmin || owners[id] === GUILD_A);
     discord.listRoles.mockImplementation((guildId) => (guildId === GUILD_A ? [{ id: ROLE_A, name: "Stream" }] : [{ id: ROLE_B, name: "Andere" }]));
     discord.findRolesAnywhere.mockImplementation(([id]) => (id === ROLE_B ? { [id]: { guildId: GUILD_B } } : {}));
+    discord.isNonTextChannel.mockReturnValue(false);
+    discord.mentionInfoIn.mockReturnValue({ botCanMentionAll: false, unmentionableRoleIds: [ROLE_A] });
     twitchJob.lastTwitchRun.mockReturnValue({ at: 123, error: "" });
     twitchJob.twitchStatusOf.mockImplementation((entries) => entries.map((e) => ({
         login: e.login, state: "offline", since: "", endedAt: 0, title: "", game: "", viewers: 0, messageGone: false, error: "",
@@ -114,6 +118,7 @@ describe("GET /api/settings/twitch", () => {
         expect(body(res)).toEqual({
             guildId: GUILD_A,
             hasCredentials: true,
+            mention: { botCanMentionAll: false, unmentionableRoleIds: [ROLE_A] },
             lastRun: { at: 123, error: "" },
             limits: { streamers: 25, textLength: 500, games: 5, gameNameLength: 60 },
             streamers: [{
@@ -121,6 +126,19 @@ describe("GET /api/settings/twitch", () => {
                 status: { state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, postedChannelId: "", error: "" },
             }],
         });
+    });
+
+    it("asks about the mention rights of the active server and passes on that nothing is known", async () => {
+        discord.mentionInfoIn.mockReturnValue({ botCanMentionAll: null, unmentionableRoleIds: [] });
+        const res = await call(getStreamers);
+        expect(discord.mentionInfoIn).toHaveBeenCalledWith(GUILD_A);
+        expect(body(res).mention).toEqual({ botCanMentionAll: null, unmentionableRoleIds: [] });
+    });
+
+    it("gives a limited settings user only yes or no about the credentials", async () => {
+        const res = await call(getStreamers);
+        expect(body(res).hasCredentials).toBe(true);
+        expect(JSON.stringify(json(res))).not.toContain("clientId");
     });
 
     it("never carries the secret, only whether the credentials are set", async () => {
@@ -279,6 +297,52 @@ describe("POST /api/settings/twitch/check", () => {
         expect(status(res)).toBe(200);
         expect(body(res).result).toEqual({ skipped: "no_credentials" });
         expect(JSON.stringify(json(res))).not.toContain(SECRET);
+    });
+});
+
+describe("a channel that is no text channel", () => {
+    beforeEach(() => {
+        discord.isNonTextChannel.mockImplementation((id) => id === CHANNEL_A);
+    });
+
+    it("is refused on add", async () => {
+        mockConfig.serverSettings[GUILD_A].twitchStreamers = [];
+        const res = await write(postStreamer, { login: "bar", channelId: CHANNEL_A });
+        expect(status(res)).toBe(400);
+        expect(code(res)).toBe("invalid_channel");
+        expect(saveConfig).not.toHaveBeenCalled();
+    });
+
+    it("is refused on a change to it", async () => {
+        mockConfig.serverSettings[GUILD_A].twitchStreamers = [stored({ channelId: "333333" })];
+        guildOfChannel.mockReturnValue(GUILD_A);
+        mayUseChannel.mockReturnValue(true);
+        const res = await write(putStreamer, { login: "foo", channelId: CHANNEL_A });
+        expect(status(res)).toBe(400);
+        expect(code(res)).toBe("invalid_channel");
+        expect(saveConfig).not.toHaveBeenCalled();
+    });
+
+    it("does not block a new text on a channel that stays", async () => {
+        const res = await write(putStreamer, { login: "foo", text: "Neu" });
+        expect(status(res)).toBe(200);
+        expect(listOf()[0].text).toBe("Neu");
+        expect(discord.isNonTextChannel).not.toHaveBeenCalled();
+    });
+
+    it("answers other_server first for a channel of another server", async () => {
+        discord.isNonTextChannel.mockReturnValue(true);
+        const res = await write(postStreamer, { login: "bar", channelId: CHANNEL_B });
+        expect(status(res)).toBe(403);
+        expect(code(res)).toBe("other_server");
+    });
+
+    it("lets a channel pass that the bot does not know (offline)", async () => {
+        discord.isNonTextChannel.mockReturnValue(false);
+        mockUser = { id: "1", name: "Admin", isAdmin: true };
+        const res = await write(postStreamer, { login: "bar", channelId: "444444" });
+        expect(status(res)).toBe(200);
+        expect(listOf().map((e) => e.login)).toEqual(["foo", "bar"]);
     });
 });
 

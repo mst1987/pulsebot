@@ -26,6 +26,8 @@ const COLOR_OVERRIDES = {
     orgaopen: "#E0A33A", orgadraft: "#4F9CF9", orgaapproved: "#3BA55D", orgaposted: "#3BA55D", orgachanged: "#E0A33A",
     // the fill bar of the raid overview: green, orange, grey (own colour so it differs from the empty outline)
     barg: "#3BA55D", baro: "#E0A33A", barn: "#8E9297", bare: "#5A5E66",
+    // Twitch's brand colour: its symbol, so not in our grey
+    twitch: "#9146FF",
 };
 
 // 24 × 24 line drawings (stroke only, unless an element says otherwise).
@@ -101,6 +103,9 @@ const ICONS = {
     baro: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
     barn: '<rect x="1.5" y="6" width="21" height="12" rx="3" fill="COLOR"/>',
     bare: '<rect x="2.5" y="7" width="19" height="10" rx="2.5"/>',
+    // The Twitch glitch, the only filled brand mark here and not our drawing: the path of
+    // simple-icons 16.36.0, icons/twitch.svg (CC0-1.0; the trademark stays Twitch's).
+    twitch: '<path fill="COLOR" stroke="none" d="M11.571 4.714h1.715v5.143H11.57zm4.715 0H18v5.143h-1.714zM6 0L1.714 4.286v15.428h5.143V24l4.286-4.286h3.428L22.286 12V0zm14.571 11.143l-3.428 3.428h-3.429l-3 3v-3H6.857V1.714h13.714Z"/>',
 };
 
 /** The SVG source of one icon. */

@@ -19,7 +19,14 @@ describe("twitchStateStore", () => {
     it("gives an empty record with every field for an unknown streamer", () => {
         expect(getTwitchState("100000", "foo")).toMatchObject({
             announced: false, messageGone: false, messageId: "", streamId: "", endedAt: 0, offlineCount: 0, display: null,
+            pendingEnds: [], removedAt: 0,
         });
+    });
+
+    it("gives the new fields to a record written before they existed", () => {
+        fs.writeFileSync(file, JSON.stringify({ "100000:foo": { streamId: "a" } }));
+        useFile(file);
+        expect(getTwitchState("100000", "foo")).toMatchObject({ streamId: "a", pendingEnds: [], removedAt: 0 });
     });
 
     it("merges a patch and answers the whole record", () => {

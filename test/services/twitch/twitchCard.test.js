@@ -16,6 +16,26 @@ function markdownOf(payload) {
     return payload.components[0].components.filter((c) => c.type === 10).map((c) => c.content).join("\n");
 }
 
+describe("the Twitch emoji in the kicker", () => {
+    const { setAppEmojis, resetAppEmojis } = require("../../../src/services/discord/appEmojis");
+    const CARD = () => liveCard({ lang: "de", entry: entry(), display: display(), now: NOW });
+    const OVER = () => endedCard({ lang: "de", login: "foo", display: display(), durationMs: WINDOW });
+
+    afterEach(() => resetAppEmojis());
+
+    it("stands in front of the words on both cards once it is loaded", () => {
+        setAppEmojis([{ id: "77", name: "eh_ui_twitch" }]);
+        expect(markdownOf(CARD())).toMatch(/^-# <:eh_ui_twitch:77> \S/m);
+        expect(markdownOf(OVER())).toMatch(/^-# <:eh_ui_twitch:77> \S/m);
+    });
+
+    it("leaves just the words without it, and no unicode stand-in", () => {
+        resetAppEmojis();
+        const line = markdownOf(CARD()).split("\n").find((l) => l.startsWith("-# "));
+        expect(line).toMatch(/^-# [\w ]+$/);
+    });
+});
+
 describe("escapeText", () => {
     it("escapes markdown so a title stays plain text", () => {
         expect(escapeText("**fett** _kursiv_ ~~weg~~ `code` ||spoiler||")).toBe(

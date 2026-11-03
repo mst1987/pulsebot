@@ -12,6 +12,7 @@
 const { ButtonBuilder, ButtonStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const { tr } = require("../../utils/i18n/botText");
+const { appEmojiMap, emojiText, uiEmojiName } = require("../discord/appEmojis");
 
 /** Twitch's own violet: carries a meaning here (design rules allow it for this card). */
 const TWITCH_COLOR = 0x9146ff;
@@ -65,6 +66,9 @@ function fillText(text, { login, display }) {
 
 const numberOf = (lang, n) => Number(n || 0).toLocaleString(lang === "en" ? "en-US" : "de-DE");
 
+/** The kicker with the Twitch emoji in front; without the emoji loaded just the words, no unicode stand-in. */
+const kickerOf = (label) => [emojiText(appEmojiMap(), uiEmojiName("twitch")), label].filter(Boolean).join(" ");
+
 /** The card of a running stream. `entry`: { login, roleId, text }. */
 function liveCard({ lang, entry, display, now = Date.now() }) {
     const button = new ButtonBuilder()
@@ -75,7 +79,7 @@ function liveCard({ lang, entry, display, now = Date.now() }) {
         color: TWITCH_COLOR,
         mentions: entry.roleId ? `<@&${entry.roleId}>` : "",
         allowedMentions: { parse: [] },
-        kicker: tr(lang, "Live on Twitch"),
+        kicker: kickerOf(tr(lang, "Live on Twitch")),
         title: escapeText(display.name || entry.login),
         text: [fillText(entry.text, { login: entry.login, display }), escapeText(display.title)].filter(Boolean),
         facts: [
@@ -102,7 +106,7 @@ function endedCard({ lang, login, display, durationMs }) {
     return card({
         color: ENDED_COLOR,
         allowedMentions: { parse: [] },
-        kicker: tr(lang, "Stream ended"),
+        kicker: kickerOf(tr(lang, "Stream ended")),
         title: escapeText((display && display.name) || login),
         text: escapeText(display && display.title),
         facts: [

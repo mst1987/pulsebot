@@ -100,8 +100,17 @@ describe("Twitch client", () => {
             expect(client.http.get).not.toHaveBeenCalled();
         });
 
-        it("reads an answer without a list as no streams", async () => {
-            const client = clientWith({ get: jest.fn().mockResolvedValue({ data: {} }) });
+        it.each([
+            ["no list at all", { data: {} }],
+            ["no body", {}],
+            ["a list that is none", { data: { data: "kaputt" } }],
+        ])("throws on a 200 with %s: it says nothing about who is live", async (_name, res) => {
+            const client = clientWith({ get: jest.fn().mockResolvedValue(res) });
+            await expect(client.getStreams(["foo"])).rejects.toMatchObject({ kind: "bad_answer" });
+        });
+
+        it("still reads an empty list as nobody live", async () => {
+            const client = clientWith({ get: jest.fn().mockResolvedValue(answer([])) });
             await expect(client.getStreams(["foo"])).resolves.toEqual([]);
         });
 
@@ -113,10 +122,36 @@ describe("Twitch client", () => {
             expect(get).toHaveBeenCalledTimes(2);
         });
 
-        it("throws on a second 401", async () => {
+        it("throws on a second 401 and calls it refused credentials", async () => {
             const client = clientWith({ get: jest.fn().mockRejectedValue({ status: 401 }) });
-            await expect(client.getStreams(["foo"])).rejects.toEqual({ status: 401 });
+            await expect(client.getStreams(["foo"])).rejects.toEqual({ status: 401, authFailed: true });
             expect(client.http.get).toHaveBeenCalledTimes(2);
+        });
+
+        it.each([400, 401, 403])("calls a %i of the token request refused credentials and does not ask again", async (statusCode) => {
+            const client = clientWith();
+            client.http.post.mockReset();
+            client.http.post.mockRejectedValue({ status: statusCode });
+            await expect(client.getStreams(["foo"])).rejects.toEqual({ status: statusCode, authFailed: true });
+            expect(client.http.post).toHaveBeenCalledTimes(1);
+            expect(client.http.get).not.toHaveBeenCalled();
+        });
+
+        it.each([
+            ["a 429", { status: 429 }],
+            ["a 500", { status: 500 }],
+            ["a timeout", { kind: "timeout" }],
+        ])("does not blame the credentials for %s of the token request", async (_name, failure) => {
+            const client = clientWith();
+            client.http.post.mockReset();
+            client.http.post.mockRejectedValue(failure);
+            await expect(client.getStreams(["foo"])).rejects.toEqual(failure);
+        });
+
+        it("does not blame the credentials for another failure after the new token", async () => {
+            const get = jest.fn().mockRejectedValueOnce({ status: 401 }).mockRejectedValueOnce({ status: 500 });
+            const client = clientWith({ get });
+            await expect(client.getStreams(["foo"])).rejects.toEqual({ status: 500 });
         });
 
         it.each([

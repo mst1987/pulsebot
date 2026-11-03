@@ -343,6 +343,32 @@ function botPermissionsIn(guildId) {
 }
 
 /**
+ * What a role ping of the bot can reach on one server, from the caches alone (no
+ * member list is loaded): `botCanMentionAll` = it holds "Mention @everyone, @here and
+ * All Roles", `unmentionableRoleIds` = the roles only that right can ping (without
+ * @everyone and without a role a bot or an integration owns, nobody picks those).
+ * Never throws; `botCanMentionAll: null` when nothing can be known (offline, not on it).
+ * Not part of botPermissionsIn: that list is what the rights page demands of every
+ * server, and this right is optional.
+ */
+function mentionInfoIn(guildId) {
+    const unknown = { botCanMentionAll: null, unmentionableRoleIds: [] };
+    try {
+        const guild = getGuild(guildId);
+        const me = guild && guild.members ? guild.members.me : null;
+        if (!guild || !me || !me.permissions) return unknown;
+        return {
+            botCanMentionAll: !!me.permissions.has(PermissionsBitField.Flags.MentionEveryone),
+            unmentionableRoleIds: [...guild.roles.cache.values()]
+                .filter((r) => r.mentionable === false && r.id !== guild.id && r.managed !== true)
+                .map((r) => r.id),
+        };
+    } catch {
+        return unknown;
+    }
+}
+
+/**
  * Guild members that hold at least one of the given roles, for the event
  * attendance check. Fetching the full member list needs the privileged
  * GuildMembers intent ("Server Members Intent" in the Developer Portal); when it
@@ -598,6 +624,19 @@ function channelVisible(channelId) {
     if (!me || typeof channel.permissionsFor !== "function") return true;
     const perms = channel.permissionsFor(me);
     return !!perms && perms.has(PermissionsBitField.Flags.ViewChannel) && perms.has(PermissionsBitField.Flags.SendMessages);
+}
+
+/**
+ * Whether the bot knows this channel as one that is no place for a post: a voice or a
+ * stage channel (both are text-based to discord.js, so channelVisible lets them pass),
+ * a forum, a category. False for a text channel or a thread, and false when the channel
+ * is unknown or the bot offline: nothing is known then, and that must not block a save.
+ */
+function isNonTextChannel(channelId) {
+    if (!client || !client.channels || !client.channels.cache) return false;
+    const channel = client.channels.cache.get(String(channelId || ""));
+    if (!channel) return false;
+    return !TEXT_CHANNEL_TYPES.includes(channel.type) && !THREAD_TYPES.includes(channel.type);
 }
 
 /** Join mentions with spaces into strings of at most `max` characters (at least one mention each). */
@@ -1687,7 +1726,7 @@ module.exports = {
     listCategories, listAllChannels, listVoiceChannels, botCanManageEvents, createChannel, duplicateChannel,
     listRoles, findRolesAnywhere, getChannelCategoryMap, postAnnouncement,
     listMembersWithRoles, listHumanMembers, postMissingPing, editPingMessages, postNotice, channelVisible, mentionChunks, _resetMembersCacheForTests,
-    fetchGuildMembersCached, warmGuildMembers, MEMBERS_CACHE_TTL_MS, MEMBERS_STALE_MAX_MS, botPermissionsIn, REQUIRED_BOT_PERMISSIONS,
+    fetchGuildMembersCached, warmGuildMembers, MEMBERS_CACHE_TTL_MS, MEMBERS_STALE_MAX_MS, botPermissionsIn, REQUIRED_BOT_PERMISSIONS, mentionInfoIn, isNonTextChannel,
     postRecruitment, editRecruitment, deleteMessage, scanRecruitment,
     listRecruitmentTargets, listInviteChannels, createRecruitmentInvite, buildRecruitmentMessage,
     isRecruitmentMessage, extractTemplate,

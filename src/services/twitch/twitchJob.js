@@ -14,7 +14,14 @@
 // - An error of one entry lands on that entry; the others go on. It stays after the stream,
 //   until a post or an edit works, even for a stream that never got its message.
 // - The "ended" edit gives up 24 hours after its first failed try: `end_gave_up` stays on
-//   the entry until the next stream starts, which posts as usual.
+//   the entry until the next stream starts, which posts as usual. That holds for old
+//   messages too: one whose edit still fails when a new stream starts moves to `pendingEnds`.
+// - A post that went out counts, even when writing its state fails: the process remembers
+//   it and does not ping that stream again, and the next run writes it.
+// - An entry removed while live leaves a tombstone with the stream id until Twitch says that
+//   stream is over. Put back in the same stream it pings nothing: the old message goes live again.
+// - Running without entries says nothing about Twitch: only a run over all servers notes it,
+//   so "Jetzt prüfen" on an empty server does not wipe the error another server caused.
 const crypto = require("crypto");
 const Twitch = require("../../classes/twitch");
 const discord = require("../discord/discord");
@@ -49,6 +56,8 @@ let pausedUntil = 0;
 let client = null;
 let clientKey = "";
 let lastRun = { at: 0, error: "" };
+/** Posts that went out but whose state could not be written: "<guild>:<login>" -> { guildId, login, patch }. */
+const unwrittenPosts = new Map();
 
 function settingsStore() {
     return require("../../stores/settings/settingsStore");
@@ -97,6 +106,9 @@ function errorCodeOf(e) {
     return "post_failed";
 }
 
+/** Discord says the message or its channel no longer exists: no further try can work. */
+const isGone = (e) => !!e && (e.code === 10008 || e.code === 10003 || e.code === "channel_not_found");
+
 const logFailure = (what, e) => logger.warn(`${what}: ${(e && e.code) || (e && e.status) || "error"}`);
 
 const durationOf = (state, now) => {
@@ -112,17 +124,19 @@ const durationOf = (state, now) => {
  */
 async function finishMessage(cfg, guildId, login, state, now) {
     const patch = { endPending: false, endFailingSince: 0 };
+    // "gave up" is about an older message that stays on "live": this edit does not cure it
+    const keptGaveUp = state.error === END_GAVE_UP ? END_GAVE_UP : "";
     if (state.messageId && !state.messageGone) {
         const payload = endedCard({ lang: serverLang(cfg, guildId), login, display: state.display, durationMs: durationOf(state, now) });
         try {
             await discord.editPayload(state.channelId, state.messageId, payload);
             patch.lastEditAt = now;
-            patch.error = "";
+            patch.error = keptGaveUp;
         } catch (e) {
-            if (e && (e.code === 10008 || e.code === 10003)) {
+            if (isGone(e)) {
                 patch.messageId = "";
                 patch.messageGone = true;
-                patch.error = e.code === 10003 ? errorCodeOf(e) : "";
+                patch.error = e.code === 10008 ? keptGaveUp : errorCodeOf(e);
             } else {
                 const since = state.endFailingSince || now;
                 if (now - since >= END_GIVE_UP_MS) {
@@ -139,12 +153,66 @@ async function finishMessage(cfg, guildId, login, state, now) {
     return setTwitchState(guildId, login, patch);
 }
 
+/** An old message whose "ended" edit still fails, as `pendingEnds` keeps it. */
+const pendingOf = (state, now) => ({
+    messageId: state.messageId,
+    channelId: state.channelId,
+    display: state.display,
+    startedAt: state.startedAt,
+    lastSeenAt: state.lastSeenAt,
+    endFailingSince: state.endFailingSince || now,
+});
+
+/**
+ * A new stream takes over the record, so its old message gets one more try at its "ended"
+ * card; if that fails, it moves to `pendingEnds` and the new stream posts all the same.
+ */
+async function closeOldMessage(cfg, guildId, login, state, now) {
+    const tried = !state.endedAt || state.endPending ? await finishMessage(cfg, guildId, login, state, now) : state;
+    if (!tried.endPending || !tried.messageId) return;
+    setTwitchState(guildId, login, {
+        pendingEnds: [...tried.pendingEnds, pendingOf(tried, now)],
+        endPending: false,
+        endFailingSince: 0,
+        messageId: "",
+    });
+}
+
+/** Try the "ended" edit of the old messages once more; gone or 24 hours old drops them. */
+async function retryPendingEnds(cfg, guildId, login, state, now) {
+    const open = [];
+    let gaveUp = false;
+    let cured = false;
+    for (const end of state.pendingEnds) {
+        try {
+            await discord.editPayload(end.channelId, end.messageId, endedCard({
+                lang: serverLang(cfg, guildId), login, display: end.display, durationMs: durationOf(end, now),
+            }));
+            cured = true;
+        } catch (e) {
+            if (isGone(e)) continue;
+            logFailure(`old ended card of ${login}`, e);
+            if (now - end.endFailingSince >= END_GIVE_UP_MS) gaveUp = true;
+            else open.push(end);
+        }
+    }
+    if (open.length === state.pendingEnds.length) return;
+    const patch = { pendingEnds: open };
+    if (gaveUp) patch.error = END_GAVE_UP;
+    // with no stream running, the only thing that error can still be about is the edit that just worked
+    else if (cured && !open.length && !state.streamId && state.error !== END_GAVE_UP) patch.error = "";
+    const next = setTwitchState(guildId, login, patch);
+    if (!open.length && !next.streamId && !next.error) removeTwitchState(guildId, login);
+}
+
 /** Post the announcement (with the one ping) unless the game filter says no; on record at once. */
 async function announce(cfg, entry, stream, display, now) {
     const { guildId, login } = entry;
-    // an old error stays until a post works; "gave up" belongs to the stream before this one
-    const before = getTwitchState(guildId, login).error;
-    const keptError = before === END_GAVE_UP ? "" : before;
+    const before = getTwitchState(guildId, login);
+    // "gave up" belongs to the streams before this one: the same stream keeps it, a new one drops it
+    const cleanError = before.streamId === String(stream.id) && before.error === END_GAVE_UP ? END_GAVE_UP : "";
+    // any other old error stays until a post works
+    const keptError = before.error === END_GAVE_UP ? cleanError : before.error;
     const base = {
         announced: false,
         messageGone: false,
@@ -156,6 +224,7 @@ async function announce(cfg, entry, stream, display, now) {
         endedAt: 0,
         endPending: false,
         endFailingSince: 0,
+        removedAt: 0,
         offlineCount: 0,
         lastOfflineAt: 0,
         display,
@@ -165,23 +234,43 @@ async function announce(cfg, entry, stream, display, now) {
         return "filtered";
     }
     const payload = liveCard({ lang: serverLang(cfg, guildId), entry, display, now });
+    let posted;
     try {
-        const posted = await discord.postPayload(entry.channelId, payload, { guildId, pingRoleId: entry.roleId });
-        setTwitchState(guildId, login, {
-            ...base,
-            announced: true,
-            messageId: String(posted.messageId),
-            channelId: String(posted.channelId || entry.channelId),
-            lastEditAt: now,
-            hash: hashOf(entry, display),
-            error: "",
-        });
-        return "announced";
+        posted = await discord.postPayload(entry.channelId, payload, { guildId, pingRoleId: entry.roleId });
     } catch (e) {
         // not announced: the next run tries again, and only the post that works pings
         setTwitchState(guildId, login, { ...base, hash: "", error: errorCodeOf(e) || keptError });
         logFailure(`post of ${login}`, e);
         return "failed";
+    }
+    const patch = {
+        ...base,
+        announced: true,
+        messageId: String(posted.messageId),
+        channelId: String(posted.channelId || entry.channelId),
+        lastEditAt: now,
+        hash: hashOf(entry, display),
+        error: cleanError,
+    };
+    try {
+        setTwitchState(guildId, login, patch);
+    } catch (e) {
+        // the ping is out: this process must not send it again, whatever the file says
+        unwrittenPosts.set(`${guildId}:${login}`, { guildId, login, patch });
+        logger.error(`post of ${login} on ${guildId} went out, but its state was not written (${(e && e.code) || "error"}): remembered until the next run`);
+    }
+    return "announced";
+}
+
+/** Write what a failed write left behind; what fails again stays remembered. */
+function flushUnwrittenPosts() {
+    for (const [key, { guildId, login, patch }] of unwrittenPosts) {
+        try {
+            setTwitchState(guildId, login, patch);
+            unwrittenPosts.delete(key);
+        } catch (e) {
+            logger.error(`state of ${login} on ${guildId} still not written (${(e && e.code) || "error"})`);
+        }
     }
 }
 
@@ -191,12 +280,15 @@ async function refreshMessage(cfg, entry, state, display, now, extra = {}) {
     const payload = liveCard({ lang: serverLang(cfg, guildId), entry, display, now });
     try {
         await discord.editPayload(state.channelId, state.messageId, payload);
-        setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, hash: hashOf(entry, display), error: "" });
+        // a running follow-up stream keeps "gave up"; a message back from its end has just been cured
+        const error = state.error === END_GAVE_UP && !state.endedAt ? END_GAVE_UP : "";
+        setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, hash: hashOf(entry, display), error });
     } catch (e) {
         if (e && e.code === 10008) {
             setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, messageId: "", messageGone: true, error: "" });
         } else {
-            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, error: errorCodeOf(e) || state.error });
+            // no hash: the message still shows the old card, so the next due edit tries again
+            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, hash: "", error: errorCodeOf(e) || state.error });
             logFailure(`edit of ${login}`, e);
         }
     }
@@ -210,20 +302,24 @@ async function handleLive(cfg, entry, stream, now) {
     const streamId = String(stream.id);
     const sameStream = state.streamId === streamId;
 
+    const unwritten = unwrittenPosts.get(`${guildId}:${login}`);
+    if (unwritten && unwritten.patch.streamId === streamId) return "announced";
+
     if (sameStream && !state.announced) {
         // still waiting: the filter may pass now (the streamer changed the game), or the last post failed
         return announce(cfg, entry, stream, display, now);
     }
     const lastAlive = state.endedAt || state.lastSeenAt;
-    const resuming = !sameStream && state.announced && now - lastAlive <= RESUME_WINDOW_MS;
+    // a tombstone only keeps its own stream: another id is a new stream, even within the window
+    const resuming = !sameStream && state.announced && !state.removedAt && now - lastAlive <= RESUME_WINDOW_MS;
     if (!sameStream && !resuming) {
-        // a stream of its own: the old message (if it was never ended) ends first, then a new announcement
-        if (state.announced && !state.endedAt) await finishMessage(cfg, guildId, login, state, now);
+        // a stream of its own: the old message ends first (or waits in pendingEnds), then a new announcement
+        if (state.announced) await closeOldMessage(cfg, guildId, login, state, now);
         return announce(cfg, entry, stream, display, now);
     }
 
     const alive = {
-        streamId, endedAt: 0, endPending: false, endFailingSince: 0, offlineCount: 0, lastOfflineAt: 0,
+        streamId, endedAt: 0, endPending: false, endFailingSince: 0, removedAt: 0, offlineCount: 0, lastOfflineAt: 0,
     };
     if (state.messageGone || !state.messageId) {
         setTwitchState(guildId, login, { ...alive, display, lastSeenAt: now });
@@ -245,12 +341,13 @@ async function handleLive(cfg, entry, stream, now) {
 /** A clean answer says this entry's stream is not running. */
 async function handleOffline(cfg, entry, now) {
     const { guildId, login } = entry;
-    const state = getTwitchState(guildId, login);
+    let state = getTwitchState(guildId, login);
     if (!state.streamId) return "offline";
+    if (state.removedAt) state = setTwitchState(guildId, login, { removedAt: 0 }); // the entry is back
     if (!state.announced) {
-        // nothing out there to end: filtered out or never posted. Only an error is left to
-        // show; the next stream finds no stream id and no announcement, so it posts (and pings) once.
-        if (state.error) {
+        // nothing out there to end: filtered out or never posted. Only an error or an old message is
+        // left; the next stream finds no stream id and no announcement, so it posts (and pings) once.
+        if (state.error || state.pendingEnds.length) {
             setTwitchState(guildId, login, {
                 streamId: "", startedAt: "", lastSeenAt: 0, offlineCount: 0, lastOfflineAt: 0, display: null,
             });
@@ -274,23 +371,56 @@ async function handleOffline(cfg, entry, now) {
     return "ended";
 }
 
-/** State without an entry (it was removed, perhaps while live): end the message if that works, then forget it. */
-async function clearOrphans(cfg, entries, guildId) {
-    const listed = new Set(entries.map((e) => `${e.guildId}:${e.login}`));
-    for (const { guildId: owner, login, state } of listTwitchStates()) {
-        if (guildId && owner !== guildId) continue;
-        if (listed.has(`${owner}:${login}`) || !reachable(owner)) continue;
-        if (state.announced && !state.endedAt && !state.messageGone && state.messageId) {
-            try {
-                await discord.editPayload(state.channelId, state.messageId, endedCard({
-                    lang: serverLang(cfg, owner), login, display: state.display, durationMs: durationOf(state, Date.now()),
-                }));
-            } catch (e) {
-                logFailure(`ended card of removed ${login}`, e);
-            }
+/** Forget a record without an entry, but not the old messages whose "ended" edit still fails. */
+function buryRecord(guildId, login, state, now) {
+    const open = [...state.pendingEnds];
+    if (state.endPending && state.messageId) open.push(pendingOf(state, now));
+    removeTwitchState(guildId, login);
+    if (open.length) setTwitchState(guildId, login, { pendingEnds: open });
+}
+
+/**
+ * A record without an entry. A stream still running leaves a tombstone: its message gets the
+ * "ended" card (retried like any other for 24 hours), the stream id stays until the stream is over.
+ */
+async function handleRemoved(cfg, guildId, login, state, now) {
+    if (!state.announced || !state.streamId) {
+        if (!state.pendingEnds.length) {
+            removeTwitchState(guildId, login);
+        } else if (state.streamId || state.error) {
+            setTwitchState(guildId, login, {
+                streamId: "", startedAt: "", lastSeenAt: 0, offlineCount: 0, lastOfflineAt: 0, display: null, error: "",
+            });
         }
-        removeTwitchState(owner, login);
+        return;
     }
+    if (state.endedAt && !state.removedAt) {
+        buryRecord(guildId, login, state, now);
+        return;
+    }
+    if (!state.removedAt) {
+        const marked = setTwitchState(guildId, login, { removedAt: now, endedAt: now });
+        await finishMessage(cfg, guildId, login, marked, now);
+        return;
+    }
+    if (state.endPending) await finishMessage(cfg, guildId, login, state, now);
+}
+
+/** A clean answer about a tombstone's login: the same rules as for an entry say when its stream is over. */
+function settleTombstone(guildId, login, state, stream, now) {
+    if (stream && stream.type !== "live") return;
+    if (stream && String(stream.id) === state.streamId) {
+        if (state.offlineCount || state.lastOfflineAt) setTwitchState(guildId, login, { offlineCount: 0, lastOfflineAt: 0 });
+        return;
+    }
+    if (stream) {
+        buryRecord(guildId, login, state, now);
+        return;
+    }
+    if (now - state.lastOfflineAt < OFFLINE_MIN_GAP_MS) return;
+    const offlineCount = state.offlineCount + 1;
+    if (offlineCount >= OFFLINE_RUNS_TO_END) buryRecord(guildId, login, state, now);
+    else setTwitchState(guildId, login, { offlineCount, lastOfflineAt: now });
 }
 
 async function run({ guildId = "", now = Date.now() } = {}) {
@@ -301,20 +431,38 @@ async function run({ guildId = "", now = Date.now() } = {}) {
     if (now < pausedUntil) return { skipped: "rate_limited" };
 
     const all = allTwitchStreamers({ config: cfg });
-    await clearOrphans(cfg, all, guildId);
+    const listed = new Set(all.map((e) => `${e.guildId}:${e.login}`));
+    const recordsInScope = () => listTwitchStates()
+        .filter((r) => (!guildId || r.guildId === guildId) && reachable(r.guildId));
+
+    flushUnwrittenPosts();
+    for (const r of recordsInScope()) {
+        if (r.state.pendingEnds.length) await retryPendingEnds(cfg, r.guildId, r.login, r.state, now);
+    }
+    for (const r of recordsInScope()) {
+        if (!listed.has(`${r.guildId}:${r.login}`)) await handleRemoved(cfg, r.guildId, r.login, r.state, now);
+    }
     const entries = guildId ? all.filter((e) => e.guildId === guildId) : all;
-    if (!entries.length) {
-        lastRun = { at: now, error: "" };
+    const tombstones = recordsInScope()
+        .filter((r) => !listed.has(`${r.guildId}:${r.login}`) && r.state.removedAt && r.state.streamId);
+    if (!entries.length && !tombstones.length) {
+        // nothing was asked: a server's own check must not wipe the error of a run that did ask
+        if (!guildId) lastRun = { at: now, error: "" };
         return { checked: 0, live: 0 };
     }
 
     let streams;
     try {
-        streams = await twitch.getStreams([...new Set(entries.map((e) => e.login))]);
+        streams = await twitch.getStreams([...new Set([
+            ...entries.map((e) => e.login),
+            ...tombstones.map((r) => r.login.toLowerCase()),
+        ])]);
     } catch (e) {
         const limited = e && e.status === 429;
         if (limited) pausedUntil = now + RATE_LIMIT_PAUSE_MS;
-        const error = limited ? "rate_limited" : "twitch_unavailable";
+        let error = "twitch_unavailable";
+        if (limited) error = "rate_limited";
+        else if (e && e.authFailed) error = "bad_credentials";
         lastRun = { at: now, error };
         logger.warn(`Twitch did not answer (${(e && (e.status || e.kind)) || "error"}): nothing changes this run`);
         return { skipped: error };
@@ -339,6 +487,9 @@ async function run({ guildId = "", now = Date.now() } = {}) {
             const error = errorCodeOf(e);
             if (error) setTwitchState(entry.guildId, entry.login, { error });
         }
+    }
+    for (const r of tombstones) {
+        settleTombstone(r.guildId, r.login, r.state, byLogin.get(r.login.toLowerCase()), now);
     }
     lastRun = { at: now, error: "" };
     return { checked: entries.length, live };
@@ -413,6 +564,7 @@ function _resetForTests() {
     client = null;
     clientKey = "";
     lastRun = { at: 0, error: "" };
+    unwrittenPosts.clear();
 }
 
 module.exports = { runTwitchCheck, twitchStatusOf, lastTwitchRun, startTwitchJob, stopTwitchJob, _resetForTests };
