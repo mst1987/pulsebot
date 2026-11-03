@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import Segment from "../../../components/ui/form/Segment";
 import Field, { FieldLabel } from "../../../components/ui/form/Field";
 import Badge from "../../../components/ui/Badge";
@@ -210,6 +211,9 @@ export default function GameVersionSection({ versions, mainVersion, onMainVersio
                     onChange={onMainVersion}
                     options={versions.map((v) => ({ value: v.id, label: v.short || v.label, tip: v.label, icon: <VersionDot id={v.id} icon={v.icon} label={v.label} size={20} /> }))}
                 />
+                <p className="gv-hint">
+                    {t("settings.gameVersion.categoriesElsewhere")} <Link to="/settings?section=kategorieversion">{t("settings.sections.kategorieversion.label")}</Link>
+                </p>
             </div>
         </div>
     );

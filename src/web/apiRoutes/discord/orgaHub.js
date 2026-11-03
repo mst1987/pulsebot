@@ -14,7 +14,7 @@ const { withUser } = require("../../http/apiHandler");
 const orgaHubStore = require("../../../stores/discord/orgaHubStore");
 const orgaHub = require("../../../services/orgaHub/orgaHub");
 const linkCheck = require("../../../services/discord/linkCheck");
-const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
 const settingsStore = require("../../../stores/settings/settingsStore");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
@@ -46,6 +46,7 @@ const getHubs = withUser({}, async ({ user, req, res }) => {
 const postHub = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     if (!onActiveServer(user, req, body.categoryId)) return otherServer(res);
     if (str(body.channelId) && !mayUseChannel(user, req, str(body.channelId))) return otherServer(res);
+    if (!channelOnCategoryServer(str(body.categoryId), str(body.channelId))) return apiError(res, 400, "channel_other_server", CHANNEL_OTHER_SERVER);
     const result = await orgaHub.postHub({ categoryId: body.categoryId, channelId: body.channelId, by: user.id });
     if (result.error) return apiError(res, 400, "bad_request", result.error);
     const view = hubView(result.hub);

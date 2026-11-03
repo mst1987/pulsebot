@@ -748,12 +748,12 @@ describe("the save bar", () => {
     it("hands the posted absence/attendance panels to the categories and keeps a new one out of the draft", async () => {
         const user = userEvent.setup();
         renderPage(<SettingsPage />, { route: "/settings?section=kategorien" });
-        // the text channels come from noteChannels — none here
-        expect(await screen.findByTestId("panels")).toHaveTextContent("cat1|");
+        // the active server's channels, never the note list spanning every server
+        expect(await screen.findByTestId("panels")).toHaveTextContent("cat1|ch1");
         expect(api.getAvailabilityPanels).toHaveBeenCalledTimes(1);
 
         await user.click(screen.getByRole("button", { name: "Panel posten" }));
-        expect(screen.getByTestId("panels")).toHaveTextContent("cat1,cat2|");
+        expect(screen.getByTestId("panels")).toHaveTextContent("cat1,cat2|ch1");
         // posted at once: nothing waits in the save bar
         expect(screen.queryByRole("button", { name: "Speichern" })).not.toBeInTheDocument();
     });
@@ -878,6 +878,7 @@ describe("Spielversion (#541)", () => {
         const main = await screen.findByRole("radiogroup", { name: "Hauptversion" });
         expect(within(main).getByRole("radio", { name: "TBC" })).toHaveAttribute("aria-checked", "true");
         expect(screen.queryByRole("combobox", { name: "Spielversion von Montag" })).not.toBeInTheDocument();
+        expect(screen.getByRole("link", { name: "Spielversion je Kategorie" })).toHaveAttribute("href", "/settings?section=kategorieversion");
         await user.click(within(main).getByRole("radio", { name: "Forever" }));
         expect(screen.getByText("1 ungespeicherte Änderung")).toBeInTheDocument();
 
