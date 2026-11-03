@@ -42,7 +42,7 @@ const { mainVersionFor, knownVersion, isVersionVisible } = require("../versions/
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
 const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");
-const { cleanSettings, grantsPugRole } = require("./rosterSettings");
+const { cleanSettings, grantsPugRole, takesRosterRole } = require("./rosterSettings");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const rosterMembers = require("./rosterMembers");
 
@@ -192,6 +192,8 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     if (categoryId && rosterStore.rosterForCategory(categoryId, data.versionId)) return { code: "category_taken" };
     // #930: no role of the PuG onboarding (everyone takes it) as a role of the roster
     if (grantsPugRole(null, data, config)) return { code: "pug_onboarding_role" };
+    // a role belongs to one open roster: the reconcile would fill both with the same people
+    if (takesRosterRole(null, data)) return { code: "role_taken" };
     return { data, source, kader };
 }
 
