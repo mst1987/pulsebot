@@ -24,16 +24,14 @@ import "../../styles/discord-tabs.css";
 
 type Props = {
     user: SessionUser | null;
-    /** the server whose roles and members the tabs count ("" = the first of the server list) */
+    /** the server the tabs count, the one active in the sidebar ("" = the first of the server list) */
     guildId?: string;
-    /** changes when the active server of the channels page changes, so the channel count follows it */
-    guildKey?: string;
 };
 
-export default function DiscordTabs({ user, guildId = "", guildKey = "" }: Props) {
+export default function DiscordTabs({ user, guildId = "" }: Props) {
     const t = useT();
     const { pathname } = useLocation();
-    const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(guildId).catch(() => ({})), [guildId, guildKey]);
+    const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(guildId).catch(() => ({})), [guildId]);
     const barRef = useRef<HTMLElement>(null);
     const [more, setMore] = useState({ left: false, right: false });
     const items = discordTabOrder(menuFamily("channels").filter((e) => canAccessAny(user, e.areas)));
