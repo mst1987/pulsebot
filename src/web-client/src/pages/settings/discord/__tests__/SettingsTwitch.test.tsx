@@ -223,7 +223,7 @@ describe("the dialog", () => {
         type("tws-login", "somebody");
         fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
         type("tws-text", "x".repeat(501));
-        expect(document.querySelector(".tws-counter.is-over")?.textContent).toContain("501");
+        expect(document.querySelector(".tws-counter-over")?.textContent).toContain("501");
         expect((d.getByRole("button", { name: /Speichern/ }) as HTMLButtonElement).disabled).toBe(true);
     });
 
@@ -252,7 +252,7 @@ describe("the dialog", () => {
         expect(document.querySelector(".tws-games")).toBeNull();
     });
 
-    it("words a refusal of the server inside the dialog", async () => {
+    it("words a refusal of the server as a toast and keeps the dialog open", async () => {
         api.addTwitchStreamer.mockRejectedValue(apiError("duplicate_streamer"));
         show();
         await openAdd();
@@ -260,8 +260,9 @@ describe("the dialog", () => {
         type("tws-login", "somebody");
         fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
         fireEvent.click(d.getByRole("button", { name: /Speichern/ }));
-        const alert = await d.findByRole("alert");
-        expect(alert.textContent).not.toContain("duplicate_streamer");
+        await waitFor(() => expect(toast).toHaveBeenCalled());
+        expect(toast.mock.calls[0][1]).toBe("err");
+        expect(toast.mock.calls[0][0]).not.toContain("duplicate_streamer");
         expect(screen.getByRole("dialog")).toBeTruthy();
     });
 

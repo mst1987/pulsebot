@@ -229,6 +229,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
     onSwitched: () => void;
 }) {
     const t = useT();
+    const toast = useToast();
     const [login, setLogin] = useState(streamer?.login || "");
     const [channelId, setChannelId] = useState(streamer?.channelId || "");
     const [roleId, setRoleId] = useState(streamer?.roleId || "");
@@ -236,7 +237,6 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
     const [games, setGames] = useState<string[]>(streamer?.games || []);
     const [gameInput, setGameInput] = useState("");
     const [gameError, setGameError] = useState("");
-    const [error, setError] = useState("");
     const [busy, setBusy] = useState(false);
 
     const textOver = text.length > limits.textLength;
@@ -255,7 +255,6 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
         setGameError(pending.error);
         if (pending.error) return;
         setBusy(true);
-        setError("");
         try {
             const input = { login: login.trim(), channelId, roleId, text, games: pending.games };
             const view = streamer ? await updateTwitchStreamer(guildId, input) : await addTwitchStreamer(guildId, input);
@@ -263,7 +262,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
         } catch (e) {
             const err = e as ApiError;
             if (err.code === "server_switched") onSwitched();
-            else setError(twitchErrorText(err));
+            toast(twitchErrorText(err), "err");
         } finally {
             setBusy(false);
         }
@@ -309,7 +308,7 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
                 hint={t("settings.twitch.modal.textHint", { placeholders: TWITCH_PLACEHOLDERS })}
             >
                 <textarea id="tws-text" rows={3} value={text} onChange={(e) => setText(e.target.value)} />
-                <span className={`tws-counter${textOver ? " is-over" : ""}`}>
+                <span className={`tws-counter${textOver ? " tws-counter-over" : ""}`}>
                     {t("settings.twitch.modal.textCount", { count: text.length, max: limits.textLength })}
                 </span>
             </Field>
@@ -353,7 +352,6 @@ function StreamerDialog({ guildId, streamer, limits, channels, roles, onClose, o
                 )}
                 <span className="tws-counter">{t("settings.twitch.modal.gamesCount", { count: games.length, max: limits.games })}</span>
             </Field>
-            {error && <p className="field-error" role="alert">{error}</p>}
         </Modal>
     );
 }

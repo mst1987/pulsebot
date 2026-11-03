@@ -225,7 +225,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .tws-note { display: block; max-width: 340px; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: normal; }
 .tws-actions { display: inline-flex; gap: 4px; }
 .tws-counter { font-size: 12px; color: var(--muted); }
-.tws-counter.is-over { color: var(--high); font-weight: 600; }
+.tws-counter-over { color: var(--high); font-weight: 600; }
 .tws-game-add { display: flex; gap: 8px; }
 .tws-game-add input { flex: 1 1 auto; min-width: 0; }
 .tws-games { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
