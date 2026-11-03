@@ -1,16 +1,16 @@
-import { useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useOutletContext } from "react-router-dom";
 import { getServerChoices, type DiscordServerChoice } from "../api";
+import type { ShellContext } from "../components/shell/Shell";
 import { useApi } from "./useApi";
-import { guildParam, pickedGuild } from "../lib/discord/serverPick";
 
-// The server pick of System › Discord (#895): Übersicht, Rollen, Mitglieder and
-// Rollen-Nachrichten each show one server of the server list (Einstellungen ›
-// Discord). The pick lives in the URL (`?guild=<id>`, none for the first server)
-// so a link and the browser's back button keep it, and the Discord tabs carry it
-// from page to page. `components/channels/ServerPicker.tsx` draws the choice.
+// The server of System › Discord: Übersicht, Rollen, Mitglieder and
+// Rollen-Nachrichten show the server active in the session, the one the sidebar
+// names (components/shell/ServerHeader.tsx). That head is the only way to switch;
+// it reloads the app, so a page never sees the server change under it. A server
+// outside the server list (Einstellungen › Discord) is still asked for, so the
+// API's "unknown_guild" says why there is nothing, instead of showing another server.
 
-/** The server list, kept by the module so switching tabs draws the picker at once. */
+/** The server list, kept by the module so switching tabs needs no second request. */
 let cached: DiscordServerChoice[] | null = null;
 
 /** Only for tests: forget the kept server list. */
@@ -21,40 +21,20 @@ export function resetServerPickCache() {
 export type ServerPick = {
     /** the servers of the list, null while loading (or when the call failed) */
     servers: DiscordServerChoice[] | null;
-    /** the picked server; "" before the list is there or when none is set — the API then takes the first */
+    /** the active server, without one the first of the list; "" when none is set — the API then takes the first */
     guildId: string;
-    /** true once the pick is settled — load the page's data only then */
+    /** true once the list is settled — load the page's data only then */
     ready: boolean;
     /** why the server list failed to load ("" when it loaded) — a page says so instead of "offline" */
     error: string;
-    /** switches the server; `drop` names further URL parameters that belong to the old server (an open drawer) */
-    choose: (guildId: string, drop?: string[]) => void;
-    /** the URL parameters for a server, for links that should keep it ({} for the first server) */
-    param: (guildId: string) => Record<string, string>;
 };
 
 export function useServerPick(): ServerPick {
-    const [params, setParams] = useSearchParams();
+    const activeGuildId = useOutletContext<ShellContext | undefined>()?.activeGuildId || "";
     const list = useApi(() => getServerChoices().then((l) => (cached = l)), [], { initial: cached });
     const servers = list.data;
-    const guildId = servers ? pickedGuild(servers, params.get("guild")) : "";
+    const guildId = activeGuildId || servers?.[0]?.guildId || "";
     const ready = !!servers || !!list.error;
-    const choose = useCallback((next: string, drop: string[] = []) => {
-        setParams((prev) => {
-            const out = new URLSearchParams(prev);
-            // "side" is the parameter of an old link (before #895): gone on the first switch
-            for (const key of ["guild", "side", ...drop]) out.delete(key);
-            for (const [k, v] of Object.entries(guildParam(servers, next))) out.set(k, v);
-            return out;
-        }, { replace: true });
-    }, [servers, setParams]);
-    const param = useCallback((id: string) => guildParam(servers, id), [servers]);
     const error = list.error ? list.error.message || "?" : "";
-    return { servers, guildId, ready, error, choose, param };
-}
-
-/** The query string ("" or "?guild=…") that keeps the picked server on a link. */
-export function pickSearch(pick: Pick<ServerPick, "param" | "guildId">): string {
-    const q = new URLSearchParams(pick.param(pick.guildId)).toString();
-    return q ? `?${q}` : "";
+    return { servers, guildId, ready, error };
 }

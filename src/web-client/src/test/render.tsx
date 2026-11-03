@@ -28,6 +28,8 @@ export type RenderPageOptions = {
     path?: string;
     /** The signed-in account the shell would pass down. */
     user?: SessionUser;
+    /** The server the sidebar names, as the shell passes it down ("" = none chosen). */
+    activeGuildId?: string;
     /**
      * The menu's content switch (#563): with it the page sits inside the
      * ContentVersionProvider and the switch is rendered above it, like the
@@ -36,13 +38,13 @@ export type RenderPageOptions = {
     content?: ContentInfo;
 };
 
-export function renderPage(ui: ReactElement, { route = "/", path = "*", user = adminUser(), content }: RenderPageOptions = {}): RenderResult {
+export function renderPage(ui: ReactElement, { route = "/", path = "*", user = adminUser(), activeGuildId = "", content }: RenderPageOptions = {}): RenderResult {
     const page = (
         <JobsProvider>
             <ConfirmProvider>
                 <MemoryRouter initialEntries={[route]}>
                     <Routes>
-                        <Route element={<Outlet context={{ user }} />}>
+                        <Route element={<Outlet context={{ user, activeGuildId }} />}>
                             <Route path={path} element={ui} />
                         </Route>
                     </Routes>

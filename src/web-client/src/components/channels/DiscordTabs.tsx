@@ -26,13 +26,11 @@ type Props = {
     user: SessionUser | null;
     /** the server whose roles and members the tabs count ("" = the first of the server list) */
     guildId?: string;
-    /** the query string that keeps the picked server on every tab ("" or "?guild=…", see pickSearch) */
-    search?: string;
     /** changes when the active server of the channels page changes, so the channel count follows it */
     guildKey?: string;
 };
 
-export default function DiscordTabs({ user, guildId = "", search = "", guildKey = "" }: Props) {
+export default function DiscordTabs({ user, guildId = "", guildKey = "" }: Props) {
     const t = useT();
     const { pathname } = useLocation();
     const counts = useApi<DiscordTabCounts>(() => getDiscordTabCounts(guildId).catch(() => ({})), [guildId, guildKey]);
@@ -95,7 +93,7 @@ export default function DiscordTabs({ user, guildId = "", search = "", guildKey 
                     const on = e.id === active;
                     return (
                         <NavLink
-                            key={e.id} to={`${e.href}${search}`} end
+                            key={e.id} to={e.href} end
                             className={`dtab-tab${on ? " dtab-on" : ""}`}
                             aria-current={on ? "page" : undefined}
                             data-tip={typeof n === "number" ? `${label}: ${n}` : label}

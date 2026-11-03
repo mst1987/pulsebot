@@ -461,9 +461,6 @@
         }
     },
     "server": {
-        "label": "Server",
-        "none": "No server set (Settings › Discord).",
-        "offline": "bot missing",
-        "offlineSub": "The bot is not on this server – there is nothing to show here."
+        "none": "No server set (Settings › Discord)."
     }
 }

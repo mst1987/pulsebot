@@ -1,22 +1,6 @@
 import type { DiscordServerChoice } from "../../api";
 
-// Which server of the server list a page of System › Discord shows (#895).
-// The pick lives in the URL (`?guild=<id>`); the first server of the list is
-// the default and needs no parameter. An old link from before the server list
-// (`?side=talk`) opens the first server, as the backend does (#897).
-
-/** The server a page shows: a known `guild` from the URL, else the first. "" = no server set. */
-export function pickedGuild(servers: DiscordServerChoice[], guild: string | null): string {
-    if (!servers.length) return "";
-    if (guild && servers.some((s) => s.guildId === guild)) return guild;
-    return servers[0].guildId;
-}
-
-/** The URL parameter for a server: none for the first server of the list. */
-export function guildParam(servers: DiscordServerChoice[] | null, guildId: string): Record<string, string> {
-    if (!guildId || !servers || !servers.length || servers[0].guildId === guildId) return {};
-    return { guild: guildId };
-}
+// How a server of the server list is named where a page offers it (#895).
 
 /** What a server is called: its Discord name, else the orga's label, else its id. */
 export function serverName(s: Pick<DiscordServerChoice, "name" | "label" | "guildId">): string {

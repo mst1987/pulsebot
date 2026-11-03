@@ -10,7 +10,7 @@ import type { ShellContext } from "../../components/shell/Shell";
 import { useToast } from "../../components/shell/Jobs";
 import { Badge, Button, DataTable, Field, IconButton, Modal, PageHead, Segment, Switch, useConfirm, type Column } from "../../components/ui";
 import DiscordTabs from "../../components/channels/DiscordTabs";
-import { pickSearch, useServerPick } from "../../hooks/useServerPick";
+import { useServerPick } from "../../hooks/useServerPick";
 import EmojiPicker from "../../components/ui/overlay/EmojiPicker";
 import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { AlertIcon, ChevronUpIcon, ExternalIcon, PenIcon, PlusIcon, SaveIcon, TrashIcon, XIcon } from "../../components/ui/icons/icons";
@@ -34,7 +34,7 @@ import { tParts, useT } from "../../i18n";
 // fields. Roles that carry rights (or that the bot cannot reach) are shown, but
 // greyed out with the reason — the server refuses them anyway. The list holds the
 // messages of every server of the server list (#895); the editor picks the server,
-// a new message starts on the one picked on the other Discord tabs.
+// a new message starts on the active one (the one in the sidebar).
 
 type SortKey = "title" | "server" | "channel" | "roles";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { title: "asc", server: "asc", channel: "asc", roles: "desc" };
@@ -213,7 +213,7 @@ export default function RoleMessagesPage() {
                 )}
                 action={canWrite ? <Button variant="ghost" icon={<PlusIcon />} onClick={editor.startNew}>{t("roleMessages.page.new")}</Button> : undefined}
             />
-            <DiscordTabs user={user} guildId={pick.guildId} search={pickSearch(pick)} />
+            <DiscordTabs user={user} guildId={pick.guildId} />
 
             {notes.length > 0 && (
                 <ul className="rm-notes">
@@ -261,7 +261,7 @@ export default function RoleMessagesPage() {
                         key={entry?.id ?? "new"}
                         editing={entry}
                         options={options}
-                        startGuild={pick.guildId}
+                        startGuild={servers.some((s) => s.guildId === pick.guildId) ? pick.guildId : ""}
                         limits={limits}
                         onSaved={afterSave}
                         onState={(s, clear) => {
