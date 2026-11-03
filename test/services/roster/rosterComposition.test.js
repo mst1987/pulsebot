@@ -1,12 +1,13 @@
 // rosterComposition (#657): places per role against the slots, classes and the
 // buffs of the version's rule set - class and spec of each member through
-// memberSpec.js's chain (override > signup > logs > profile > class).
+// memberSpec.js's chain (override > signup > logs > profile > kader > class).
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const rosterStore = require("../../../src/stores/roster/rosterStore");
 const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
 const characterStore = require("../../../src/stores/roster/characterStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
 const { rosterComposition, memberCharacter } = require("../../../src/services/roster/rosterComposition");
 
 const add = (userId, name, className, spec) => raiderProfileStore.addCharacter(userId, { name, className, specs: [spec] });
@@ -68,7 +69,7 @@ describe("services/roster/rosterComposition", () => {
     it("says who counts without class or spec and why, and where the specs came from", () => {
         const c = comp();
         expect(c.unresolved).toEqual([{ userId: "100006", displayName: "Handname", character: "Handname", className: "", reason: "no_class" }]);
-        expect(c.sources).toEqual({ override: 0, signup: 0, logs: 0, profile: 4, class: 0 });
+        expect(c.sources).toEqual({ override: 0, signup: 0, logs: 0, profile: 4, kader: 0, class: 0 });
         expect(c.members.find((m) => m.userId === "100001")).toEqual({ userId: "100001", className: "Warrior", spec: "Warrior-Protection", role: "tank", source: "profile" });
     });
 
@@ -173,5 +174,22 @@ describe("services/roster/rosterComposition the resolution chain", () => {
         rosterStore.upsertMember(raid.id, "200005", { status: "trial" });
         const c = comp(rosterStore.getRoster(raid.id));
         expect(c.unresolved).toEqual([expect.objectContaining({ userId: "200005", reason: "no_char", character: "" })]);
+    });
+
+    it("counts a member without a character by the linked Kader's plan: class, role, buffs and source", () => {
+        kaderStore.writePlanner("", {
+            v: 2,
+            accounts: [],
+            assignments: { 200006: { characters: [{ id: "x1", name: "Ohnespec", className: "Rogue", specs: [] }], activeCharacterId: "x1" } },
+            kaders: [{ id: "k1", name: "Forever", leads: [], questions: [], players: { 200005: { state: "roster", decision: { className: "Mage", spec: "Mage-Frost" } }, 200006: { state: "roster" } } }],
+        });
+        rosterStore.upsertMember(raid.id, "200005", { status: "core" });
+        rosterStore.upsertMember(raid.id, "200006", { status: "core" });
+        const c = comp({ ...rosterStore.getRoster(raid.id), kaderId: "k1" });
+        expect(c.members.find((m) => m.userId === "200005")).toEqual({ userId: "200005", className: "Mage", spec: "Mage-Frost", role: "dps", source: "kader" });
+        expect(c.sources.kader).toBe(2);
+        expect(c.classes.map((k) => k.className)).toEqual(expect.arrayContaining(["Mage", "Rogue"]));
+        // the class is known, the spec is not: listed like any member with a class alone
+        expect(c.unresolved).toEqual([expect.objectContaining({ userId: "200006", className: "Rogue", reason: "no_spec", character: "" })]);
     });
 });

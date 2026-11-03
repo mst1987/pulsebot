@@ -32,4 +32,21 @@ function enrichForImport(items, target) {
     return enrichItemNames(items, { versionId: versionOfImport(target) });
 }
 
-module.exports = { versionOfImport, relinkItems, linkItemsForImport, enrichForImport };
+/**
+ * The version of an upload waiting in the inbox: no event yet, so the one the upload
+ * named (#1002), else the one of its suggested raid, else the main version. The main
+ * version's Wowhead section does not know another version's items (Forever answers
+ * 404 for a TBC raid's), so asking it first leaves them without an icon.
+ */
+function versionOfUpload({ gameVersion = "", match = null } = {}) {
+    return gameVersion || versionOfImport((match && match.suggested) || {});
+}
+
+/** Link and fill in the `items` of an upload waiting in the inbox. */
+function enrichForUpload(items, upload) {
+    const versionId = versionOfUpload(upload);
+    relinkItems(items, versionId);
+    return enrichItemNames(items, { versionId });
+}
+
+module.exports = { versionOfImport, versionOfUpload, relinkItems, linkItemsForImport, enrichForImport, enrichForUpload };

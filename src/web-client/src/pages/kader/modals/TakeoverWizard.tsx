@@ -1,31 +1,37 @@
-// The Kader's takeover into Discord (docs/kaderplaner.md "Übernahme"): on the
-// composition page the orga opens the assistant "In Discord übernehmen" and goes
-// through four steps — the role (name, colour, icon where the server can show
-// one; without a linked roster also the new roster's name and optional raid
+// The Kader's one way out (docs/kaderplaner.md "Übernahme"): the green button on
+// the decision and the composition page ("Roster anlegen" without a linked
+// roster, "In Discord übernehmen" with one, gone after a takeover) opens this
+// assistant with a precheck loaded at that moment.
+// With Discord: four steps — the role (name, colour, icon where the server can
+// show one; without a linked roster also the new roster's name and optional raid
 // category - only full admins get that far), the category and channels, who gets
 // the role (with the switch that unlocks the start), the result (each Discord
 // step, then the role hand-out as it runs).
+// Without a linked roster step one has a switch "Auch in Discord anlegen". Off:
+// only the roster's name and category, then who comes along (Roster → Stamm,
+// Bench → Ersatz, Tentative → Probe) and POST /api/rosters/create; a Discord
+// blocker (bot offline, missing rights) locks only this switch, never that way.
 // After the takeover the Kader's head shows one line instead: the role, how many
 // of the planned players have it, the category, and "Rolle nachziehen (n)" for
 // the players who reached provisional afterwards. The logic sits in
 // lib/kader/takeover.ts, the server checks everything again.
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import {
-    getKaderTakeover, pullKaderTakeoverRole, startKaderTakeover,
+    createKaderRoster, getKaderTakeover, pullKaderTakeoverRole, startKaderTakeover,
     type ApiError, type KaderServerEmoji, type KaderTakeoverCheck, type KaderTakeoverPlayer, type KaderTakeoverStart, type KaderTakeoverStep,
 } from "../../../api";
 import { Button, DataTable, Field, IconButton, Modal, Segment, Switch, type Column } from "../../../components/ui";
 import EmojiPicker from "../../../components/ui/overlay/EmojiPicker";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import { useConfirm } from "../../../components/ui/overlay/Modal";
-import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronRightIcon, DiscordIcon, PlusIcon, RefreshIcon, TrashIcon, XIcon } from "../../../components/ui/icons/icons";
+import { AlertIcon, ArrowLeftIcon, CheckIcon, ChevronRightIcon, DiscordIcon, PlusIcon, TrashIcon, XIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useApi } from "../../../hooks/useApi";
 import { useT } from "../../../i18n";
-import { playerName } from "../../../lib/kader/model";
+import { countStates, playerName } from "../../../lib/kader/model";
 import {
-    MAX_TAKEOVER_CHANNELS, ROSTER_NAME_MAX, TAKEOVER_NAME_MAX, TAKEOVER_STATES, TAKEOVER_STEPS, bodyOf, canStartDraft, categoryPreview, channelKey, channelPreview,
-    defaultDraft, isHexColor, pendingOf, progressOf, startBlocker, stepProblems, takeoverErrorKey, withCheckRoster,
+    MAX_TAKEOVER_CHANNELS, ROSTER_NAME_MAX, ROSTER_ONLY_STATES, TAKEOVER_NAME_MAX, TAKEOVER_STATES, bodyOf, canStartDraft, categoryPreview, channelKey, channelPreview,
+    defaultDraft, entryBlocker, isHexColor, pendingOf, progressOf, rosterBlocker, startBlocker, stepProblems, takeoverErrorKey, visibleSteps, withCheckRoster,
     type TakeoverDraft, type TakeoverStep,
 } from "../../../lib/kader/takeover";
 import { useTableSort } from "../../../lib/ui/tableSort";
@@ -49,16 +55,19 @@ function RoleSwatch({ color }: { color: string }) {
     return <span className="kp-tk-swatch" style={color ? { "--tk-role": color } as CSSProperties : undefined} aria-hidden="true" />;
 }
 
-/** The step bar: four words, the open one marked, the done ones with a check. */
-function StepBar({ step }: { step: TakeoverStep }) {
+/** The refusals of "Roster anlegen" in words (kader.roster.error.*). */
+const CREATE_CODES = ["category_taken", "kader_not_found", "invalid_name", "name_too_long", "admin_only", "kader_taken", "version_mismatch", "version_hidden"];
+
+/** The step bar: three or four words, the open one marked, the done ones with a check. */
+function StepBar({ step, steps, discord }: { step: TakeoverStep; steps: TakeoverStep[]; discord: boolean }) {
     const t = useT();
-    const at = TAKEOVER_STEPS.indexOf(step);
+    const at = steps.indexOf(step);
     return (
         <ol className="kp-tk-steps" aria-label={t("kader.takeover.stepsAria")}>
-            {TAKEOVER_STEPS.map((s, i) => (
+            {steps.map((s, i) => (
                 <li key={s} className={`kp-tk-step${i === at ? " kp-active" : ""}${i < at ? " kp-done" : ""}`} aria-current={i === at ? "step" : undefined}>
                     <span className="kp-tk-stepn" aria-hidden="true">{i < at ? <CheckIcon /> : i + 1}</span>
-                    {t(`kader.takeover.step.${s}`)}
+                    {t(!discord && s === "role" ? "kader.takeover.step.roster" : `kader.takeover.step.${s}`)}
                 </li>
             ))}
         </ol>
@@ -330,6 +339,74 @@ function WhoStep({ draft, set, check, blocker }: { draft: TakeoverDraft; set: (p
     );
 }
 
+/**
+ * The roster-only way's "who": exactly the players POST /api/rosters/create takes
+ * along and what they become. Provisional players stay out here (unlike a takeover,
+ * where everybody from provisional on comes as Stamm), so the table says so.
+ */
+type RosterWhoKey = "name" | "as";
+
+function RosterWhoStep({ draft, set, check, blocker }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck; blocker: string | null }) {
+    const t = useT();
+    const { view } = useKader();
+    const sort = useTableSort<RosterWhoKey>("kader-roster-create-sort", { name: "asc", as: "asc" }, "as");
+    const players = check.players.filter((p) => ROSTER_ONLY_STATES.includes(p.state));
+    const left = check.players.filter((p) => p.state === "provisional").length;
+    const nameOfP = (p: KaderTakeoverPlayer) => playerName(view, p.userId);
+    const columns: Column<KaderTakeoverPlayer, RosterWhoKey>[] = [
+        { id: "name", label: t("kader.takeover.who.player"), sortKey: "name", cell: (p) => (
+            <span className="kp-tk-who"><span>{nameOfP(p)}</span>{p.characterName && <span className="kp-sub">{p.characterName}</span>}</span>
+        ) },
+        { id: "as", label: t("kader.takeover.rosterOnly.asColumn"), sortKey: "as", cell: (p) => t(`kader.takeover.rosterOnly.as.${p.state}`) },
+    ];
+    return (
+        <div className="kp-stack">
+            <div className="kp-tk-sum">
+                <p className="kp-tk-big">{t("kader.takeover.rosterOnly.count", { count: players.length })}</p>
+                <ul className="kp-tk-facts">
+                    {draft.newRoster && <li>{newRosterFact(draft.newRoster, check, t)}</li>}
+                    {left > 0 && <li>{t("kader.takeover.rosterOnly.provisionalStayOut", { count: left })}</li>}
+                    <li>{t("kader.takeover.rosterOnly.noDiscord")}</li>
+                </ul>
+            </div>
+            <DataTable
+                rows={players}
+                columns={columns}
+                rowKey={(p) => p.userId}
+                sort={sort}
+                sortValue={(p, key) => (key === "name" ? nameOfP(p).toLowerCase() : ROSTER_ONLY_STATES.indexOf(p.state))}
+                className="idx kp-tk-table"
+                wrapClassName="kp-tk-tablewrap"
+                empty={<p className="hint">{t("kader.takeover.rosterOnly.noPlayers")}</p>}
+            />
+            <Switch checked={draft.confirmed} onChange={(v) => set({ confirmed: v })} label={t("kader.takeover.rosterOnly.confirm")} tip={t("kader.takeover.rosterOnly.confirmTip")} />
+            {blocker && <p className="kp-livehint" role="alert">{t(`kader.takeover.blocker.${blocker}`)}</p>}
+        </div>
+    );
+}
+
+/** What "Roster anlegen" did. */
+type RosterResult = { name: string; added: number; skipped: number; roleFailures: number };
+
+function RosterResultStep({ result }: { result: RosterResult }) {
+    const t = useT();
+    return (
+        <div className="kp-stack">
+            <ul className="kp-tk-reslist">
+                <li className="kp-tk-res">
+                    <span className="kp-tk-resicon" aria-hidden="true"><CheckIcon /></span>
+                    <span className="kp-grow">{t("kader.takeover.result.step.rosterCreated")}: {result.name}</span>
+                </li>
+            </ul>
+            <div className="kp-tk-sum">
+                <p className="kp-tk-big">{t("kader.roster.created", { count: result.added })}</p>
+                {result.skipped > 0 && <p className="kp-sub">{t("kader.takeover.rosterOnly.skipped", { count: result.skipped })}</p>}
+                {result.roleFailures > 0 && <p className="kp-tk-bad">{t("kader.roster.roleFailures", { count: result.roleFailures })}</p>}
+            </div>
+        </div>
+    );
+}
+
 function StepLine({ s }: { s: KaderTakeoverStep }) {
     const t = useT();
     const extra = s.step === "role" && s.icon === "not_possible" ? t("kader.takeover.result.iconNotPossible")
@@ -381,24 +458,77 @@ function ResultStep({ result, check }: { result: KaderTakeoverStart; check: Kade
 /** Refusals after which the assistant reloads: the Kader or its roster link changed meanwhile. */
 const RELOAD_ON = ["stale", "roster_linked", "kader_taken", "no_roster"];
 
-/** The four-step assistant; mounted while open. */
-export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeoverCheck; reload: () => Promise<unknown> | void; onClose: () => void }) {
+/**
+ * Step one's switch while no roster is linked: also in Discord or the roster alone.
+ * A Discord blocker turns it off and locks it, the reason in its tooltip.
+ */
+function DiscordSwitch({ draft, set, check, locked }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck; locked: string | null }) {
+    const t = useT();
+    if (!check.createsRoster) return null;
+    return (
+        <Switch
+            className="kp-tk-discord"
+            checked={draft.discord}
+            disabled={!!locked}
+            onChange={(v) => set({ discord: v, confirmed: false })}
+            label={t("kader.takeover.discordSwitch")}
+            tip={t("kader.takeover.discordSwitchTip")}
+            tipHead={locked ? t(`kader.takeover.blocker.${locked}`) : undefined}
+        />
+    );
+}
+
+/** The roster-only first step: name and category of the new roster. */
+function RosterStep({ draft, set, check }: { draft: TakeoverDraft; set: (p: Partial<TakeoverDraft>) => void; check: KaderTakeoverCheck }) {
+    return (
+        <div className="kp-stack">
+            <NewRosterBlock draft={draft} set={set} check={check} />
+            <Problems draft={draft} step="role" />
+        </div>
+    );
+}
+
+/** The assistant; mounted while open. */
+export function TakeoverWizard({ check, reload, onClose, canCreate = false, onDone }: {
+    check: KaderTakeoverCheck;
+    reload: () => Promise<unknown> | void;
+    onClose: () => void;
+    /** May this person create a roster (`canCreate` of GET /api/kader/roster)? */
+    canCreate?: boolean;
+    /** A roster came into being or changed: whoever shows it loads again. */
+    onDone?: () => Promise<unknown> | void;
+}) {
     const t = useT();
     const { kader, refresh } = useKader();
     const [step, setStep] = useState<TakeoverStep>("role");
-    const [draft, setDraft] = useState<TakeoverDraft>(() => defaultDraft(kader.name, { announce: t("kader.takeover.channels.announce"), chat: t("kader.takeover.channels.chat") }, check.newRoster));
+    const [draft, setDraft] = useState<TakeoverDraft>(() => ({
+        ...defaultDraft(kader.name, { announce: t("kader.takeover.channels.announce"), chat: t("kader.takeover.channels.chat") }, check.newRoster),
+        discord: !check.createsRoster || !startBlocker(check),
+    }));
     const [busy, setBusy] = useState(false);
     const [problem, setProblem] = useState("");
     const [result, setResult] = useState<KaderTakeoverStart | null>(null);
+    const [rosterResult, setRosterResult] = useState<RosterResult | null>(null);
     const set = (p: Partial<TakeoverDraft>) => setDraft((d) => ({ ...d, ...p }));
-    const at = TAKEOVER_STEPS.indexOf(step);
+    const steps = visibleSteps(draft);
+    // the switch may fall while the channels step is open (the bot went offline)
+    const current: TakeoverStep = steps.includes(step) ? step : "role";
+    const at = steps.indexOf(current);
     const blocker = startBlocker(check);
+    const rosterLock = rosterBlocker(check, canCreate);
     const running = !!result?.takeover && (check.running || check.takeover?.status === "running");
 
-    // a roster linked or unlinked since the assistant opened: the draft follows the check
+    // a roster linked or unlinked since the assistant opened: the draft follows the check.
+    // Not on the result step: there the check already shows what was just created.
     useEffect(() => {
-        setDraft((d) => withCheckRoster(d, check));
-    }, [check]);
+        if (step === "result") return;
+        setDraft((d) => {
+            let next = withCheckRoster(d, check);
+            if (check.createsRoster && startBlocker(check) && next.discord) next = { ...next, discord: false };
+            // another way than the one confirmed: the switch has to go on again
+            return next.discord !== d.discord ? { ...next, confirmed: false } : next;
+        });
+    }, [check, step]);
 
     // the role goes out in the background: look again while it runs
     useEffect(() => {
@@ -408,43 +538,59 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
     }, [step, running, reload]);
 
     const start = async () => {
-        if (!canStartDraft(draft, check) || busy) return;
+        if (!canStartDraft(draft, check, canCreate) || busy) return;
         setBusy(true);
         setProblem("");
         try {
-            const res = await startKaderTakeover(kader.id, bodyOf(draft, check.kader.rev, check.iconPossible));
-            setResult(res);
+            if (draft.discord) {
+                const res = await startKaderTakeover(kader.id, bodyOf(draft, check.kader.rev, check.iconPossible));
+                setResult(res);
+            } else {
+                const nr = draft.newRoster;
+                if (!nr) return;
+                const res = await createKaderRoster(kader.id, { name: nr.name.trim(), ...(nr.categoryId ? { categoryId: nr.categoryId } : {}) });
+                setRosterResult({ name: res.roster.name, added: res.initial.added, skipped: res.initial.skipped, roleFailures: res.initial.roleFailures.length });
+            }
             setStep("result");
             await refresh();
             await reload();
+            await onDone?.();
         } catch (e) {
             const err = e as ApiError;
-            setProblem(errorText(e, t));
+            setProblem(!draft.discord && err && CREATE_CODES.includes(err.code) ? t(`kader.roster.error.${err.code}`) : errorText(e, t));
             if (err && RELOAD_ON.includes(err.code)) {
                 // somebody planned or linked a roster meanwhile: show the new state, the switch has to go on again
                 set({ confirmed: false });
                 await refresh();
                 await reload();
+                await onDone?.();
             }
         } finally {
             setBusy(false);
         }
     };
 
-    const nextOk = stepProblems(draft, step).length === 0;
-    const footer = step === "result" ? (
+    const nextOk = stepProblems(draft, current).length === 0;
+    const footer = current === "result" ? (
         <Button variant="go" icon={<CheckIcon />} onClick={onClose}>{t("kader.takeover.close")}</Button>
     ) : (
         <>
             <Button variant="ghost" className="kp-foot-left" onClick={onClose}>{t("common.cancel")}</Button>
-            {at > 0 && <Button variant="ghost" icon={<ArrowLeftIcon />} disabled={busy} onClick={() => setStep(TAKEOVER_STEPS[at - 1])}>{t("kader.takeover.back")}</Button>}
-            {step === "who" ? (
-                <Button variant="go" icon={<DiscordIcon />} disabled={!canStartDraft(draft, check)} running={busy} onClick={() => void start()}>{t("kader.takeover.start")}</Button>
+            {at > 0 && <Button variant="ghost" icon={<ArrowLeftIcon />} disabled={busy} onClick={() => setStep(steps[at - 1])}>{t("kader.takeover.back")}</Button>}
+            {current === "who" ? (
+                <Button variant="go" icon={draft.discord ? <DiscordIcon /> : <PlusIcon />} disabled={!canStartDraft(draft, check, canCreate)} running={busy} onClick={() => void start()}>
+                    {t(draft.discord ? "kader.takeover.start" : "kader.takeover.rosterOnly.start")}
+                </Button>
             ) : (
-                <Button variant="go" icon={<ChevronRightIcon />} disabled={!nextOk} onClick={() => setStep(TAKEOVER_STEPS[at + 1])}>{t("kader.takeover.next")}</Button>
+                <Button variant="go" icon={<ChevronRightIcon />} disabled={!nextOk} onClick={() => setStep(steps[at + 1])}>{t("kader.takeover.next")}</Button>
             )}
         </>
     );
+    // the way actually taken decides the result's words, not the draft a reload may have changed
+    const title = rosterResult ? "kader.takeover.rosterOnly.resultTitle"
+        : !draft.discord && current === "role" ? "kader.takeover.title.roster"
+            : !draft.discord && current === "who" ? "kader.takeover.rosterOnly.whoTitle"
+                : `kader.takeover.title.${current}`;
     return (
         <Modal
             open
@@ -452,54 +598,92 @@ export function TakeoverWizard({ check, reload, onClose }: { check: KaderTakeove
             icon="kader"
             tone="kader"
             kicker={t("kader.takeover.kicker", { name: kader.name })}
-            title={t(`kader.takeover.title.${step}`)}
+            title={t(title)}
             width={640}
             className="kp-dialog kp-tk"
             footer={footer}
         >
-            <StepBar step={step} />
-            {step === "role" && <RoleStep draft={draft} set={set} check={check} />}
-            {step === "channels" && <ChannelsStep draft={draft} set={set} check={check} />}
-            {step === "who" && <WhoStep draft={draft} set={set} check={check} blocker={blocker} />}
-            {step === "result" && result && <ResultStep result={result} check={check} />}
+            <StepBar step={current} steps={steps} discord={draft.discord} />
+            {current === "role" && <DiscordSwitch draft={draft} set={set} check={check} locked={blocker || rosterLock} />}
+            {current === "role" && (draft.discord ? <RoleStep draft={draft} set={set} check={check} /> : <RosterStep draft={draft} set={set} check={check} />)}
+            {current === "channels" && <ChannelsStep draft={draft} set={set} check={check} />}
+            {current === "who" && (draft.discord
+                ? <WhoStep draft={draft} set={set} check={check} blocker={blocker} />
+                : <RosterWhoStep draft={draft} set={set} check={check} blocker={rosterLock} />)}
+            {current === "result" && result && <ResultStep result={result} check={check} />}
+            {current === "result" && rosterResult && <RosterResultStep result={rosterResult} />}
             {problem && <p className="kp-livehint" role="alert">{problem}</p>}
         </Modal>
     );
 }
 
-/**
- * The entry on the composition page: "In Discord übernehmen" while the Kader is
- * not taken over. Locked, with the reason as tooltip, when it cannot start; gone
- * for a reader.
- */
-export function TakeoverEntry() {
+/** The button proper; only mounted while there is something to start or the assistant is open. */
+function EntryButton({ canCreate, linked, onDone, shown, setShown }: {
+    canCreate: boolean; linked: boolean; onDone: () => Promise<unknown> | void; shown: boolean; setShown: (v: boolean) => void;
+}) {
     const t = useT();
-    const { kader, canWrite } = useKader();
-    const [shown, setShown] = useState(false);
+    const toast = useToast();
+    const { kader } = useKader();
+    const [opening, setOpening] = useState(false);
     const taken = !!kader.takeover;
-    const check = useApi(() => getKaderTakeover(kader.id), [kader.id, taken]);
-    if (!canWrite) return null;
+    const counts = countStates(kader);
+    // only the step to or from "nobody to take along" changes the button; moving players
+    // around needs no request (one vCPU): the precheck is loaded fresh on opening
+    const hasPlayers = TAKEOVER_STATES.some((s) => counts[s] > 0);
+    const check = useApi(() => getKaderTakeover(kader.id), [kader.id, taken, linked, hasPlayers]);
     const c = check.data;
-    const blocker = c ? startBlocker(c) : null;
+    const open = async () => {
+        setOpening(true);
+        try {
+            const fresh = await getKaderTakeover(kader.id);
+            check.setData(fresh);
+            const stop = entryBlocker(fresh, canCreate);
+            if (stop) toast(t(`kader.takeover.blocker.${stop}`), "err");
+            else setShown(true);
+        } catch (e) {
+            toast(errorText(e, t), "err");
+        } finally {
+            setOpening(false);
+        }
+    };
+    const stop = c ? entryBlocker(c, canCreate) : null;
+    // the roster alone is possible, Discord not: the button says why the switch will be off
+    const discordStop = c && !linked ? startBlocker(c) : null;
+    const tip = stop ? t(`kader.takeover.blocker.${stop}`) : t(linked ? "kader.takeover.entryTip" : "kader.takeover.createTip");
+    const sub = stop ? undefined
+        : linked ? t("kader.takeover.entryTipSub")
+            : discordStop ? t(`kader.takeover.blocker.${discordStop}`) : t("kader.takeover.createTipSub");
     return (
         <>
             {!taken && c && (
-                <span className="kp-tk-entry" data-tip={blocker ? t(`kader.takeover.blocker.${blocker}`) : t("kader.takeover.entryTip")}
-                    data-tip-sub={blocker ? undefined : t(c.createsRoster ? "kader.takeover.entryTipSubNew" : "kader.takeover.entryTipSub")}>
-                    <Button variant="go" icon={<DiscordIcon />} className="kp-stage-act" disabled={!!blocker} onClick={() => setShown(true)}>
-                        {t("kader.takeover.entry")}
+                <span className="kp-tk-entry" data-tip={tip} data-tip-sub={sub}>
+                    <Button variant="go" size="sm" disabled={!!stop} running={opening} onClick={() => void open()}>
+                        {t(linked ? "kader.takeover.entry" : "kader.roster.createButton")}
                     </Button>
                 </span>
             )}
-            {shown && c && <TakeoverWizard check={c} reload={check.reload} onClose={() => setShown(false)} />}
+            {shown && c && <TakeoverWizard check={c} reload={check.reload} canCreate={canCreate} onDone={onDone} onClose={() => setShown(false)} />}
         </>
     );
 }
 
 /**
- * The head's line of a taken-over Kader: the role as Discord has it, how many
- * planned players have it, the category, and "Rolle nachziehen (n)" when some
- * wait for it (also after an aborted hand-out).
+ * The one green button on the decision and the composition page: "Roster anlegen"
+ * without a linked roster, "In Discord übernehmen" with one, gone after a takeover
+ * and for a reader. Locked, with the reason as tooltip, only when no way is open.
+ * Without anything to start it asks the server for nothing.
+ */
+export function TakeoverEntry({ canCreate, linked, onDone }: { canCreate: boolean; linked: boolean; onDone: () => Promise<unknown> | void }) {
+    const { kader, canWrite } = useKader();
+    const [shown, setShown] = useState(false);
+    if (!canWrite || (kader.takeover && !shown)) return null;
+    return <EntryButton canCreate={canCreate} linked={linked} onDone={onDone} shown={shown} setShown={setShown} />;
+}
+
+/**
+ * The tools line of a taken-over Kader (KaderHeader.tsx): the role as Discord has
+ * it, how many planned players have it, the category, and "Rolle nachziehen (n)"
+ * when some wait for it (also after an aborted hand-out).
  */
 export function TakeoverLine() {
     const t = useT();
@@ -548,7 +732,7 @@ export function TakeoverLine() {
     };
     return (
         <div className="kp-tk-line">
-            <span className="kicker">{t("kader.takeover.lineKicker")}</span>
+            <strong className="kp-tk-linelab">{t("kader.takeover.lineKicker")}</strong>
             <span className={`kp-tk-rolechip${c?.role?.gone ? " kp-tk-gone" : ""}`} data-tip={c?.role?.gone ? t("kader.takeover.roleGone") : undefined}>
                 <RoleSwatch color={c?.role?.color || ""} />@{roleName}
             </span>
@@ -559,9 +743,8 @@ export function TakeoverLine() {
             {running && <span className="kp-sub">{t("kader.takeover.lineRunning")}</span>}
             {c?.aborted && <span className="kp-tk-bad">{t("kader.takeover.lineAborted")}</span>}
             {away > 0 && !running && <span className="kp-sub" data-tip={t("kader.takeover.lineAwayTip")}>{t("kader.takeover.lineAway", { count: away })}</span>}
-            <span className="kp-grow" />
             {pending > 0 && c?.canStart && !running && (
-                <Button variant="go" size="sm" icon={<RefreshIcon />} running={busy} disabled={!!c.role?.gone} onClick={() => void pull()}
+                <Button variant="ghost" size="sm" running={busy} disabled={!!c.role?.gone} onClick={() => void pull()}
                     data-tip={c.role?.gone ? t("kader.takeover.error.role_gone") : t("kader.takeover.pullTip")}>
                     {t("kader.takeover.pull", { count: pending })}
                 </Button>

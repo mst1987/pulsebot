@@ -25,7 +25,7 @@ describe("stores/roster/rosterStore normalizeRoster", () => {
             roleIds: [], trialRoleId: null, managers: { roleIds: [], userIds: [] },
             slots: { total: 0, tank: 0, healer: 0, bench: 0 },
             allowMultipleChars: false, signupOnly: false, publicRaids: false, source: { kind: "manual" }, kaderId: null,
-            lootSystem: "", lootProfileId: "", imageChannelId: null,
+            lootSystem: "", lootProfileId: "", imageChannelId: null, imagePost: null,
             members: {}, history: [], createdAt: "", createdBy: "", closedAt: null, closedReason: "",
         });
     });
@@ -549,5 +549,66 @@ describe("stores/rosterStore setImageChannel", () => {
         rosterStore.setImageChannel(r.id, "c42");
         updateRoster(r.id, { imageChannelId: "c99", name: "Neu" }, { now: NOW });
         expect(getRoster(r.id).imageChannelId).toBe("c42");
+    });
+});
+
+describe("stores/rosterStore imagePost", () => {
+    const POST = { guildId: "g1", channelId: "c1", messageId: "m1", reserve: true, chars: false, hash: "h1" };
+
+    it("normalises strictly: unknown fields go, without channel or message there is no post", () => {
+        expect(normalizeRoster({ id: "r1", imagePost: { ...POST, junk: 1, reserve: "yes" } }).imagePost)
+            .toEqual({ ...POST, reserve: false });
+        expect(normalizeRoster({ id: "r1", imagePost: { guildId: "g1", messageId: "m1" } }).imagePost).toBeNull();
+        expect(normalizeRoster({ id: "r1", imagePost: { guildId: "g1", channelId: "c1" } }).imagePost).toBeNull();
+        expect(normalizeRoster({ id: "r1", imagePost: "m1" }).imagePost).toBeNull();
+        expect(normalizeRoster({ id: "r1", imagePost: { ...POST, hash: "x".repeat(200) } }).imagePost.hash).toHaveLength(64);
+    });
+
+    it("keeps one post per roster without a history line, and clears it with null", () => {
+        const r = createRoster({ name: "Kern", guildId: "g1" }, { now: NOW });
+        const lines = getRoster(r.id).history.length;
+        expect(rosterStore.setImagePost(r.id, POST)).toBe(true);
+        expect(rosterStore.setImagePost(r.id, { ...POST, messageId: "m2" })).toBe(true);
+        expect(getRoster(r.id).imagePost.messageId).toBe("m2");
+        expect(getRoster(r.id).history.length).toBe(lines);
+        expect(rosterStore.setImagePost(r.id, null)).toBe(true);
+        expect(stored().rosters[r.id].imagePost).toBeNull();
+        expect(rosterStore.setImagePost("nope", POST)).toBe(false);
+    });
+
+    it("is no setting: updateRoster leaves it alone", () => {
+        const r = createRoster({ name: "Kern", guildId: "g1", imagePost: POST }, { now: NOW });
+        rosterStore.setImagePost(r.id, POST);
+        updateRoster(r.id, { imagePost: { ...POST, messageId: "m9" }, name: "Neu" }, { now: NOW });
+        expect(getRoster(r.id).imagePost.messageId).toBe("m1");
+    });
+
+    it("stores a drawn hash only while the message is still the roster's picture", () => {
+        const r = createRoster({ name: "Kern", guildId: "g1" }, { now: NOW });
+        expect(rosterStore.markImagePostDrawn(r.id, "m1", "h2")).toBe(false);
+        rosterStore.setImagePost(r.id, POST);
+        expect(rosterStore.markImagePostDrawn(r.id, "m1", "h2")).toBe(true);
+        expect(getRoster(r.id).imagePost.hash).toBe("h2");
+        // a post made during the run: the run's message is not this one any more
+        rosterStore.setImagePost(r.id, { ...POST, messageId: "m2", hash: "new" });
+        expect(rosterStore.markImagePostDrawn(r.id, "m1", "late")).toBe(false);
+        expect(getRoster(r.id).imagePost).toMatchObject({ messageId: "m2", hash: "new" });
+        expect(rosterStore.markImagePostDrawn("nope", "m1", "h")).toBe(false);
+    });
+
+    it("forgets by message and by channel, and says which rosters", () => {
+        const a = createRoster({ name: "A", guildId: "g1" }, { now: NOW });
+        const b = createRoster({ name: "B", guildId: "g1" }, { now: NOW });
+        rosterStore.setImagePost(a.id, POST);
+        rosterStore.setImagePost(b.id, { ...POST, messageId: "m2" });
+        expect(rosterStore.forgetImagePostByMessage("other")).toEqual([]);
+        expect(rosterStore.forgetImagePostByMessage("")).toEqual([]);
+        expect(rosterStore.forgetImagePostByMessage("m1")).toEqual([a.id]);
+        expect(getRoster(a.id).imagePost).toBeNull();
+        expect(getRoster(b.id).imagePost.messageId).toBe("m2");
+        expect(rosterStore.forgetImagePostsInChannel("other")).toEqual([]);
+        expect(rosterStore.forgetImagePostsInChannel("")).toEqual([]);
+        expect(rosterStore.forgetImagePostsInChannel("c1")).toEqual([b.id]);
+        expect(getRoster(b.id).imagePost).toBeNull();
     });
 });

@@ -286,8 +286,8 @@ export type RosterOverview = {
     isOrga?: boolean;
 };
 
-/** Where a member's spec comes from (services/roster/memberSpec.js): the orga, the last signup, the logs, the profile, the class alone. */
-export type RosterSpecSource = "override" | "signup" | "logs" | "profile" | "class" | "";
+/** Where a member's spec comes from (services/roster/memberSpec.js): the orga, the last signup, the logs, the profile, the linked Kader's plan, the class alone. */
+export type RosterSpecSource = "override" | "signup" | "logs" | "profile" | "kader" | "class" | "";
 
 /** A member's first character as the chain resolved it; `reason` says why spec or class is missing. */
 export type RosterResolvedSpec = {
@@ -323,6 +323,9 @@ export type RosterMemberChar = {
     role: RosterRole;
 };
 
+/** What the linked Kader plans for a member without a character: class and spec, no character. */
+export type RosterPlanned = Pick<RosterMemberChar, "className" | "classColor" | "spec" | "specId" | "specLabel" | "specIcon">;
+
 export type RosterMember = {
     userId: string;
     displayName: string;
@@ -334,6 +337,8 @@ export type RosterMember = {
     since: string;
     trialUntil: string | null;
     chars: RosterMemberChar[];
+    /** Only without a character, when the linked Kader names a class. */
+    planned?: RosterPlanned;
     role: RosterRole;
     /** Class, spec and role of the first character and where they come from (the Komposition counts the same). */
     resolved?: RosterResolvedSpec;

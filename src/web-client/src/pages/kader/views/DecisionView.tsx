@@ -7,24 +7,25 @@
 // decision (roster) or the wishes as numbered spec icons. The drawer of the
 // chosen player on the right: wishes, the attendance over the Kader's raid
 // categories, the interview, the leads' votes, comments, the decision (a spec
-// from the wishes, WishPicker) with Ins Roster /
-// Entscheidung ändern, Bench, Tentative and the step back; the history behind
-// the "Verlauf" button in its head. Somebody else on the same player shows as a
+// from the wishes or added right there, WishPicker) with Ins Roster /
+// Entscheidung ändern, Bench, Tentative and one button per state further back;
+// the pencil at the wishes opens "Specs bearbeiten", the history sits behind the
+// "Verlauf" button in the head. Somebody else on the same player shows as a
 // marker on the card and a calm line in the drawer; a refetch keeps a
 // half-typed comment and a picked spec.
-// Cards move by drag and drop or with the drawer's buttons; every move can go
-// back. ?spieler=<id> opens the drawer (on a phone it slides over the page).
+// Cards move by drag and drop or with the drawer's buttons (useMovePlayer); every
+// move can go back. ?spieler=<id> opens the drawer (on a phone it slides over the
+// page).
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { addKaderComment, deleteKaderComment, setKaderState, setKaderVote, type KaderEntry, type KaderState, type KaderVote, type KaderWish } from "../../../api";
+import { addKaderComment, deleteKaderComment, setKaderVote, type KaderEntry, type KaderState, type KaderVote, type KaderWish } from "../../../api";
 import { Button, IconButton, Segment } from "../../../components/ui";
 import { useConfirm } from "../../../components/ui/overlay/Modal";
 import { BenchIcon, CheckIcon, CommentIcon, EditIcon, SendIcon, TentativeIcon, XIcon, TrashIcon } from "../../../components/ui/icons/icons";
-import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { relativeDayLabel } from "../../../lib/format";
 import { rolePluralLabel } from "../../../lib/wow/wowNames";
-import { canMove, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishLabel, wishOptions } from "../../../lib/kader/model";
+import { backTargets, classColor, dayOf, entriesIn, mainPick, nameOf, playerName, ROLES, roleCounts, wishOptions } from "../../../lib/kader/model";
 import { classColorProps } from "../../../components/character/ClassSpec";
 import { leadHue } from "../../../lib/kader/leads";
 import { LeadBadge } from "../Leads";
@@ -34,6 +35,9 @@ import {
 } from "../parts";
 import { AttendanceLine } from "../Attendance";
 import WishPicker from "../modals/WishPicker";
+import { AddSpecButton } from "../modals/AddSpecDialog";
+import { EditWishesButton } from "../WishEditor";
+import { useMovePlayer } from "../useMovePlayer";
 import { useKader, useReportFocus } from "../kaderContext";
 import { HistoryButton } from "../live/ActivityLog";
 import { PresenceBanner, PresenceMark } from "../live/Presence";
@@ -108,8 +112,8 @@ function Section({ state, current, onPick, onDropUser }: { state: KaderState; cu
 
 function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry; onClose: () => void }) {
     const t = useT();
-    const toast = useToast();
     const ask = useConfirm();
+    const move = useMovePlayer();
     const { view, kader, canWrite, isLead, me, run } = useKader();
     useReportFocus("view", { playerId: userId, what: "drawer", edit: false });
     const options = wishOptions(entry);
@@ -125,10 +129,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
     const same = !!entry.decision && entry.decision.spec === choice;
 
     const moveTo = async (to: KaderState, decision?: KaderWish) => {
-        if (await run(setKaderState(kader.id, [userId], to, decision))) {
-            setPickedSpec(null);
-            toast(to === "roster" && decision ? t("kader.decide.toRosterDone", { name, pick: wishLabel(view.classes, decision) }) : t("kader.decide.moved", { name, state: t(`kader.state.${to}`) }));
-        }
+        if (await move(userId, to, decision)) setPickedSpec(null);
     };
     const vote = (v: KaderVote) => void run(setKaderVote(kader.id, userId, v === mine ? "" : v));
     const send = async () => {
@@ -140,7 +141,6 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
         if (!(await ask({ title: t("kader.decide.deleteCommentTitle"), action: t("common.delete"), tone: "danger" }))) return;
         await run(deleteKaderComment(kader.id, userId, commentId));
     };
-    const back: KaderState = entry.state === "provisional" ? "selected" : "provisional";
     const leadIndex = (id: string) => leadHue(kader.leads, id);
 
     return (
@@ -154,7 +154,10 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <IconButton icon={<XIcon />} size="sm" tip={t("common.close")} onClick={onClose} />
             </div>
             <PresenceBanner playerId={userId} what="drawer" />
-            <WishLines wishes={entry.wishes} />
+            <div className="kp-between">
+                <WishLines wishes={entry.wishes} />
+                <EditWishesButton userId={userId} name={name} />
+            </div>
             <AttendanceLine userId={userId} label={t("kader.pool.attendance")} />
             <details className="kp-details">
                 <summary className="kp-ivsummary">
@@ -205,8 +208,13 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                 <div className="kp-block kp-decision">
                     <span className="kicker">{t("kader.decide.decision")}</span>
                     {options.length
-                        ? <WishPicker entry={entry} value={choice} wide label={t("kader.decide.decisionAria")} onChange={(pick) => setPickedSpec(pick.spec)} />
-                        : <span className="kp-hint">{t("kader.interview.noWishes")}</span>}
+                        ? <WishPicker entry={entry} value={choice} wide addFor={userId} label={t("kader.decide.decisionAria")} onChange={(pick) => setPickedSpec(pick.spec)} />
+                        : (
+                            <>
+                                <span className="kp-hint">{t("kader.interview.noWishes")}</span>
+                                <AddSpecButton userId={userId} entry={entry} onAdded={(pick) => setPickedSpec(pick.spec)} />
+                            </>
+                        )}
                     {entry.state === "roster" ? (
                         <Button variant="go" className="kp-wide" icon={<EditIcon />} disabled={!picked || same} onClick={() => void moveTo("roster", picked ? picked.pick : undefined)}>
                             {t("kader.decide.changeDecision")}
@@ -227,7 +235,7 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
                             );
                         })}
                     </div>
-                    {canMove(entry.state, back) && <BackButton wide label={t(`kader.decide.back.${back}`)} onClick={() => void moveTo(back)} />}
+                    {backTargets(entry.state).map((to) => <BackButton key={to} wide label={t(`kader.decide.back.${to}`)} onClick={() => void moveTo(to)} />)}
                 </div>
             )}
         </aside>
@@ -236,23 +244,13 @@ function Drawer({ userId, entry, onClose }: { userId: string; entry: KaderEntry;
 
 export default function DecisionView() {
     const t = useT();
-    const toast = useToast();
-    const { view, kader, run } = useKader();
+    const move = useMovePlayer();
+    const { kader } = useKader();
     const [params, setParams] = useSearchParams();
     const wanted = params.get("spieler") || "";
     const entry = wanted ? kader.players[wanted] : undefined;
     const current = entry && COLUMNS.includes(entry.state) ? wanted : "";
     const pick = (userId: string) => setParams(userId && userId !== current ? { spieler: userId } : {}, { replace: true });
-
-    const dropOn = async (userId: string, to: KaderState) => {
-        const e = kader.players[userId];
-        if (!e || e.state === to) return;
-        if (!canMove(e.state, to)) {
-            toast(t("kader.decide.cantMove"), "err");
-            return;
-        }
-        if (await run(setKaderState(kader.id, [userId], to))) toast(t("kader.decide.moved", { name: playerName(view, userId, e), state: t(`kader.state.${to}`) }));
-    };
 
     return (
         <div className="kp-view">
@@ -260,7 +258,7 @@ export default function DecisionView() {
             <div className={`kp-decide${current ? " kp-open" : ""}`}>
                 <div className="kp-decide-main">
                     <div className="kp-sections">
-                        {SECTIONS.map((s) => <Section key={s} state={s} current={current} onPick={pick} onDropUser={(id, to) => void dropOn(id, to)} />)}
+                        {SECTIONS.map((s) => <Section key={s} state={s} current={current} onPick={pick} onDropUser={(id, to) => void move(id, to)} />)}
                     </div>
                 </div>
                 {current && entry && <Drawer key={current} userId={current} entry={entry} onClose={() => pick("")} />}

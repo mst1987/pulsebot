@@ -3,13 +3,22 @@
 // what keeps a step from going on, the body POST /api/kader/takeover takes, the
 // reason a takeover cannot start, and the players still waiting for the role
 // ("Rolle nachziehen"). The server checks everything again (rosterTakeover.planOf);
-// these checks only say it before the click.
+// these checks only say it before the click. Without a linked roster the same
+// assistant can also create just the roster, with nothing in Discord (the switch
+// `discord` of the draft): then the channels step drops out and only the roster's
+// name and category count (rosterBlocker, visibleSteps).
 import type { KaderData, KaderState, KaderTakeover, KaderTakeoverBody, KaderTakeoverCheck } from "../../api";
 import { normalizeChannelName } from "../discord/channelNames";
 import { DEFAULT_EMOJI_SEPARATOR } from "../discord/emoji";
 
 /** The states a takeover hands the role to: everybody from provisional upwards, bench and tentative too. */
 export const TAKEOVER_STATES: KaderState[] = ["provisional", "roster", "bench", "tentative"];
+/**
+ * What the roster-only way takes along and as what: the three decided states
+ * (rosterCreate.js), provisional players stay out - unlike a Discord takeover,
+ * where everybody from provisional upwards becomes core.
+ */
+export const ROSTER_ONLY_STATES: KaderState[] = ["roster", "bench", "tentative"];
 export const TAKEOVER_STEPS = ["role", "channels", "who", "result"] as const;
 export type TakeoverStep = (typeof TAKEOVER_STEPS)[number];
 /** The server's limits (rosterTakeover.js MAX_CHANNELS / NAME_MAX). */
@@ -40,6 +49,8 @@ export type TakeoverDraft = {
     newRoster: { name: string; categoryId: string } | null;
     /** The switch "Ich habe geprüft …": the start stays locked until it is on. */
     confirmed: boolean;
+    /** Also create role, category and channels; off = only the roster (never off with a linked roster). */
+    discord: boolean;
 };
 
 /** A problem of the draft, said in words by `kader.takeover.problem.<code>`. */
@@ -76,7 +87,13 @@ export function defaultDraft(kaderName: string, names: { announce: string; chat:
         ],
         newRoster: newRoster ? { name: newRoster.name.trim().slice(0, ROSTER_NAME_MAX), categoryId: "" } : null,
         confirmed: false,
+        discord: true,
     };
+}
+
+/** The steps of this draft, in order: without Discord there are no channels to name. */
+export function visibleSteps(d: Pick<TakeoverDraft, "discord">): TakeoverStep[] {
+    return d.discord ? [...TAKEOVER_STEPS] : TAKEOVER_STEPS.filter((s) => s !== "channels");
 }
 
 export function isHexColor(value: string): boolean {
@@ -92,10 +109,12 @@ export function emojiOk(value: string): boolean {
 /**
  * The draft after a reloaded check: a roster linked meanwhile drops the new
  * roster (the server refuses one with `roster_linked`), a link removed meanwhile
- * brings it in as the server proposes it. Unchanged drafts come back as they are.
+ * brings it in as the server proposes it. A linked roster also ends the
+ * roster-only way: there is nothing left to create but Discord. Unchanged drafts
+ * come back as they are.
  */
 export function withCheckRoster(d: TakeoverDraft, check: Pick<KaderTakeoverCheck, "createsRoster" | "newRoster">): TakeoverDraft {
-    if (!check.createsRoster) return d.newRoster ? { ...d, newRoster: null } : d;
+    if (!check.createsRoster) return d.newRoster || !d.discord ? { ...d, newRoster: null, discord: true } : d;
     if (d.newRoster || !check.newRoster) return d;
     return { ...d, newRoster: { name: check.newRoster.name.trim().slice(0, ROSTER_NAME_MAX), categoryId: "" } };
 }
@@ -116,12 +135,14 @@ export function categoryPreview(d: TakeoverDraft): string {
 export function stepProblems(d: TakeoverDraft, step: TakeoverStep): TakeoverProblem[] {
     const out: TakeoverProblem[] = [];
     if (step === "role") {
-        if (!d.roleName.trim()) out.push("role_name");
-        if (d.roleColor && !isHexColor(d.roleColor)) out.push("role_color");
-        if (!emojiOk(d.roleEmoji)) out.push("role_emoji");
+        if (d.discord) {
+            if (!d.roleName.trim()) out.push("role_name");
+            if (d.roleColor && !isHexColor(d.roleColor)) out.push("role_color");
+            if (!emojiOk(d.roleEmoji)) out.push("role_emoji");
+        }
         if (d.newRoster && !d.newRoster.name.trim()) out.push("roster_name");
     }
-    if (step === "channels") {
+    if (step === "channels" && d.discord) {
         if (d.categoryMode === "existing" ? !d.categoryId : !d.categoryName.trim()) out.push("category");
         if (d.categoryMode === "new" && !emojiOk(d.categoryEmoji)) out.push("category_emoji");
         if (d.channels.length > MAX_TAKEOVER_CHANNELS) out.push("too_many_channels");
@@ -151,9 +172,33 @@ export function startBlocker(check: Pick<KaderTakeoverCheck, "blockers" | "canSt
     return null;
 }
 
-/** May the start button be pressed: a startable check, no problem in the draft, the switch on. */
-export function canStartDraft(d: TakeoverDraft, check: Pick<KaderTakeoverCheck, "blockers" | "canStart" | "createsRoster">): boolean {
-    return startBlocker(check) === null && draftProblems(d).length === 0 && d.confirmed;
+/**
+ * Why only the roster cannot be created (null = it can). Discord plays no part:
+ * neither the bot's state nor nobody to take over stops it - an empty roster is
+ * allowed. `canCreate` comes from GET /api/kader/roster (full admins), not from
+ * the check's canStart, which also asks about the takeover's own conditions.
+ */
+export function rosterBlocker(check: Pick<KaderTakeoverCheck, "blockers" | "createsRoster">, canCreate: boolean): string | null {
+    if (check.blockers.includes("already_taken" as never)) return "already_taken";
+    if (!check.createsRoster) return "no_roster";
+    if (check.blockers.includes("version_hidden" as never)) return "version_hidden";
+    return canCreate ? null : "admin_only";
+}
+
+/**
+ * Why the entry button stays locked, null when at least one way is open: the
+ * Discord way, or - with no roster linked - the roster-only way.
+ */
+export function entryBlocker(check: Pick<KaderTakeoverCheck, "blockers" | "canStart" | "createsRoster">, canCreate: boolean): string | null {
+    const discord = startBlocker(check);
+    if (discord === null || !check.createsRoster) return discord;
+    return rosterBlocker(check, canCreate) === null ? null : discord;
+}
+
+/** May the start button be pressed: the chosen way open, no problem in the draft, the switch on. */
+export function canStartDraft(d: TakeoverDraft, check: Pick<KaderTakeoverCheck, "blockers" | "canStart" | "createsRoster">, canCreate = false): boolean {
+    const blocker = d.discord ? startBlocker(check) : rosterBlocker(check, canCreate);
+    return blocker === null && draftProblems(d).length === 0 && d.confirmed;
 }
 
 /**

@@ -8,7 +8,7 @@
 //     state, since, by,             pool | selected | provisional | roster | bench | tentative
 //     addedAt, addedBy,
 //     history:   [{ at, by, type, from?, to?, vote?, className?, spec? }]   the newest LIMITS.history:
-//                added, state, decision, interview_saved, lead, interview_completed,
+//                added, state, decision, interview_saved, wishes, lead, interview_completed,
 //                interview_reopened, vote, migrated (the page's "Verlauf")
 //     wishes:    [{ className, spec }]                                     in order, 1 = most wanted
 //     interview: { lead, answers: { [questionId]: optionId | optionId[] | text }, note,
@@ -27,6 +27,7 @@ const {
     STATES, VOTES, LIMITS, str, isObject, invalid, notFound, conflict, forbidden,
     withKader, checkUserId, normalizeAnswer, cleanClassSpec, assertFresh,
 } = require("./kaderModel");
+const { specsOf, defaultSpec } = require("./kaderSetups");
 
 /**
  * Saves of the same kind by the same person within this time are one line of
@@ -35,14 +36,18 @@ const {
  */
 const COALESCE_MS = 10 * 60 * 1000;
 
-/** The state changes the planner knows; everything else is refused. Each can be walked back. */
+/**
+ * The state changes the planner knows; everything else is refused. Forwards it
+ * goes step by step (pool → selected → provisional → roster, bench, tentative),
+ * backwards every earlier state can be reached directly.
+ */
 const MOVES = {
     pool: ["selected"],
     selected: ["pool", "provisional"],
-    provisional: ["selected", "roster", "bench", "tentative"],
-    roster: ["provisional", "bench", "tentative"],
-    bench: ["provisional", "roster", "tentative"],
-    tentative: ["provisional", "roster", "bench"],
+    provisional: ["pool", "selected", "roster", "bench", "tentative"],
+    roster: ["pool", "selected", "provisional", "bench", "tentative"],
+    bench: ["pool", "selected", "provisional", "roster", "tentative"],
+    tentative: ["pool", "selected", "provisional", "roster", "bench"],
 };
 
 const canMove = (from, to) => (MOVES[from] || []).includes(to);
@@ -186,7 +191,8 @@ function removePlayers(planner, input) {
  * not know (MOVES) is skipped; when nothing could move, the call is refused.
  * Into the roster a player goes with a decision: the one given, else the one
  * they had (only "Planspiel übernehmen" sets one outside the roster), else their
- * first wish. Leaving the roster clears the decision.
+ * first wish. Leaving the roster clears the decision, and so does going back to
+ * pool or selected from any state.
  */
 function setState(planner, input, ctx) {
     const to = str(input.to);
@@ -214,9 +220,10 @@ function setState(planner, input, ctx) {
                 entry.since = ctx.now;
                 entry.by = ctx.actor || "";
                 pushHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "state", from, to });
-                // The decision belongs to the roster: whoever leaves it loses it, so
-                // a later move back in starts from the current first wish again.
-                if (from === "roster") entry.decision = null;
+                // The decision belongs to the composition: whoever leaves the roster, or
+                // goes back before the composition (a jump from provisional, say), loses
+                // it, so a later move into the roster starts from the current first wish.
+                if (from === "roster" || to === "pool" || to === "selected") entry.decision = null;
             }
             if (to === "roster") {
                 const next = decision || entry.decision || entry.wishes[0] || null;
@@ -246,6 +253,23 @@ function cleanWishes(raw, ctx) {
 }
 
 /**
+ * Wishes changed: a setup slot standing for a spec the player no longer plays
+ * moves to their default spec now — not silently on the next save of that
+ * variant. (A planned spec of the composition draft drops out by itself,
+ * kaderModel.normalizePlan; a decision stays, it is plannable on its own.)
+ */
+function refitSlots(kader, userId, entry) {
+    const allowed = specsOf(entry);
+    for (const variant of kader.setups) {
+        for (const group of variant.groups) {
+            for (const slot of group) {
+                if (slot && slot.userId === userId && !allowed.includes(slot.spec)) slot.spec = defaultSpec(entry);
+            }
+        }
+    }
+}
+
+/**
  * Saves (part of) an interview: `wishes`, `answers` (only the questions given,
  * an empty value clears one), `note`, `lead` (one of the Kader's leads or "").
  * Works in every state; a completed interview stays completed. Only content
@@ -264,7 +288,10 @@ function saveInterview(planner, input, ctx) {
         assertFresh(input, iv.rev, "Inzwischen hat jemand anderes dieses Gespräch geändert.", { by: iv.updatedBy, at: iv.updatedAt });
         const contentBefore = JSON.stringify([entry.wishes, iv.answers, iv.note]);
         const leadBefore = iv.lead;
-        if (input.wishes !== undefined) entry.wishes = cleanWishes(input.wishes, ctx);
+        if (input.wishes !== undefined) {
+            entry.wishes = cleanWishes(input.wishes, ctx);
+            refitSlots(kader, str(input.userId), entry);
+        }
         if (input.answers !== undefined) {
             if (!isObject(input.answers)) throw invalid("Antworten fehlen.");
             for (const [qid, value] of Object.entries(input.answers)) {
@@ -299,6 +326,27 @@ function saveInterview(planner, input, ctx) {
             noteHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "interview_saved" });
         }
         if (iv.lead !== leadBefore) noteHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "lead", to: iv.lead });
+    });
+}
+
+/**
+ * Only the wishes, from outside the interview ("Specs bearbeiten"): an interview
+ * nobody began stays open (no `startedAt`), the history says "Specs geändert"
+ * and not "Gespräch gespeichert". Same revision check as saveInterview: an open
+ * interview takes the change over live or asks (useInterviewDraft.ts).
+ */
+function saveWishes(planner, input, ctx) {
+    return withKader(planner, input.kaderId, (kader) => {
+        const entry = entryOf(kader, input.userId);
+        const iv = entry.interview;
+        assertFresh(input, iv.rev, "Inzwischen hat jemand anderes dieses Gespräch geändert.", { by: iv.updatedBy, at: iv.updatedAt });
+        const before = JSON.stringify(entry.wishes);
+        entry.wishes = cleanWishes(input.wishes, ctx);
+        if (JSON.stringify(entry.wishes) === before) return;
+        refitSlots(kader, str(input.userId), entry);
+        iv.updatedAt = ctx.now;
+        iv.updatedBy = ctx.actor || "";
+        noteHistory(entry, { at: ctx.now, by: ctx.actor || "", type: "wishes" });
     });
 }
 
@@ -374,6 +422,6 @@ function deleteComment(planner, input, ctx) {
 module.exports = {
     MOVES, COALESCE_MS, canMove, isAnswered, interviewProgress,
     addPlayers, removePlayers, setState,
-    saveInterview, completeInterview, reopenInterview,
+    saveInterview, saveWishes, completeInterview, reopenInterview,
     setVote, addComment, deleteComment,
 };

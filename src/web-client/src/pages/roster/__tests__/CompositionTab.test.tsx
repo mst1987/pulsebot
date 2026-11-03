@@ -85,7 +85,7 @@ describe("CompositionTab", () => {
                 { userId: "u-t", displayName: "Thorgrim", character: "Thorgrim", className: "Warrior", reason: "no_spec" },
                 { userId: "u-x", displayName: "Fremd", character: "Handname", className: "", reason: "no_class" },
             ],
-            sources: { override: 1, signup: 3, logs: 2, profile: 5, class: 1 },
+            sources: { override: 1, signup: 3, logs: 2, profile: 5, kader: 0, class: 1 },
         }), LINKED, { onOpen });
         const card = screen.getByRole("region", { name: "2 Mitglieder ohne Spec oder Klasse" });
         expect(within(card).getByText("Krieger, Spec unbekannt")).toBeInTheDocument();

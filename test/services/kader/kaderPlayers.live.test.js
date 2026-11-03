@@ -21,6 +21,66 @@ const history = (p) => p.kaders[0].players[U.a].history;
 const save = (p, kaderId, input, c = ctx) => players.saveInterview(p, { kaderId, userId: U.a, ...input }, c);
 
 describe("services/kader/kaderPlayers · live", () => {
+    describe("only the wishes, from outside the interview", () => {
+        const WISHES = [{ className: "Mage", spec: "Mage-Frost" }, { className: "Mage", spec: "Mage-Fire" }];
+        const wishes = (p, kaderId, list, c = ctx, over = {}) => players.saveWishes(p, { kaderId, userId: U.a, wishes: list, ...over }, c);
+
+        it("leaves an interview nobody began open and says what happened", () => {
+            const { planner, kaderId } = setup();
+            const p = wishes(planner, kaderId, WISHES, at(1));
+            const e = p.kaders[0].players[U.a];
+            expect(e.wishes).toEqual(WISHES);
+            expect(e.interview.startedAt).toBe("");
+            expect(e.interview.updatedBy).toBe(U.lead);
+            expect(history(p)[history(p).length - 1]).toEqual({ at: at(1).now, by: U.lead, type: "wishes" });
+            expect(history(p).some((h) => h.type === "interview_saved")).toBe(false);
+        });
+
+        it("notes nothing when nothing changed", () => {
+            const { planner, kaderId } = setup();
+            const p = wishes(planner, kaderId, WISHES, at(1));
+            const again = wishes(p, kaderId, WISHES, at(30));
+            expect(history(again).filter((h) => h.type === "wishes")).toHaveLength(1);
+        });
+
+        it("checks like the interview: other classes, doubles and an older revision are refused", () => {
+            const { planner, kaderId } = setup();
+            expect(refusal(() => wishes(planner, kaderId, [{ className: "Mage", spec: "Priest-Holy" }])).status).toBe(400);
+            expect(refusal(() => wishes(planner, kaderId, [WISHES[0], WISHES[0]])).status).toBe(400);
+            expect(refusal(() => wishes(planner, kaderId, undefined)).status).toBe(400);
+            const stored = model.normalizePlanner(wishes(planner, kaderId, WISHES));
+            stored.kaders[0].players[U.a].interview.rev = 5;
+            expect(refusal(() => wishes(stored, kaderId, [WISHES[0]], ctx, { baseRev: 4 }))).toMatchObject({ status: 409, code: "stale" });
+            const forced = wishes(stored, kaderId, [WISHES[0]], ctx, { baseRev: 4, force: true });
+            expect(forced.kaders[0].players[U.a].wishes).toEqual([WISHES[0]]);
+        });
+
+        it("moves a setup slot off a removed spec at once and drops the planned spec, the decision stays", () => {
+            const { planner, kaderId } = setup();
+            let p = wishes(planner, kaderId, WISHES);
+            p = players.setState(p, { kaderId, userIds: [U.a], to: "selected" }, ctx).planner;
+            p = players.setState(p, { kaderId, userIds: [U.a], to: "provisional" }, ctx).planner;
+            p = model.normalizePlanner(p);
+            p.kaders[0].setups = [{ id: "v1", name: "A", size: 10, groups: model.emptyGroups() }];
+            p.kaders[0].setups[0].groups[0][0] = { userId: U.a, spec: "Mage-Fire" };
+            p.kaders[0].plan = { specs: { [U.a]: { className: "Mage", spec: "Mage-Fire" } }, excluded: [], by: U.lead, at: NOW };
+            const after = model.normalizePlanner(wishes(p, kaderId, [WISHES[0]]));
+            expect(after.kaders[0].setups[0].groups[0][0]).toEqual({ userId: U.a, spec: "Mage-Frost" });
+            expect(after.kaders[0].plan.specs[U.a]).toBeUndefined();
+        });
+
+        it("does the same for a slot when the interview itself drops the wish", () => {
+            const { planner, kaderId } = setup();
+            let p = wishes(planner, kaderId, WISHES);
+            p = players.setState(p, { kaderId, userIds: [U.a], to: "selected" }, ctx).planner;
+            p = model.normalizePlanner(players.setState(p, { kaderId, userIds: [U.a], to: "provisional" }, ctx).planner);
+            p.kaders[0].setups = [{ id: "v1", name: "A", size: 10, groups: model.emptyGroups() }];
+            p.kaders[0].setups[0].groups[0][0] = { userId: U.a, spec: "Mage-Fire" };
+            const after = save(p, kaderId, { wishes: [WISHES[0]] });
+            expect(after.kaders[0].setups[0].groups[0][0].spec).toBe("Mage-Frost");
+        });
+    });
+
     describe("the history of an interview", () => {
         it("notes a save that changed content, one line per person per ten minutes", () => {
             const { planner, kaderId } = setup();

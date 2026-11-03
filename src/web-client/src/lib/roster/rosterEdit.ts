@@ -190,14 +190,14 @@ export function dateInputValue(iso: string | null | undefined): string {
 export type AnyChar = Pick<RosterMemberChar, "name" | "className" | "classColor" | "specId" | "specLabel" | "specIcon"> & { iconUrl?: string };
 
 /** The icon of a character: its spec, else the cache's icon, else its class. */
-export function charIcon(char: AnyChar): string {
+export function charIcon(char: Omit<AnyChar, "name">): string {
     if (char.specIcon) return wowIconUrl(char.specIcon, 36);
     if (char.iconUrl) return char.iconUrl;
     return char.className ? wowIconUrl(classIconName(char.className), 36) : "";
 }
 
 /** "Krieger · Schutz" — the class, and the spec when known. */
-export function charLine(char: AnyChar): string {
+export function charLine(char: Omit<AnyChar, "name">): string {
     const cls = classLabel(char.className, char.className);
     const spec = char.specId ? specLabel(char.specId, char.specLabel) : "";
     return [cls, spec].filter(Boolean).join(" · ");

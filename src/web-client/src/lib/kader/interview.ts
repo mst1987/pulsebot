@@ -5,6 +5,9 @@ import type { KaderAnswer, KaderEntry, KaderInterviewPatch, KaderQuestion, Kader
 
 export type InterviewStatus = "open" | "started" | "done";
 
+/** How many specs one player may wish for (the server's LIMITS.wishes). */
+export const MAX_WISHES = 6;
+
 export function isAnswered(q: KaderQuestion, value: KaderAnswer | undefined): boolean {
     if (value === undefined || value === null) return false;
     if (q.type === "multi") return Array.isArray(value) && value.length > 0;

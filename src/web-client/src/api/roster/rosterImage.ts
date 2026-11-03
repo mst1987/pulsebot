@@ -10,8 +10,11 @@ import type { TextChannel } from "../system/recruitment";
 /** The two switches of the picture: bench and pause, the further characters. */
 export type RosterImageOptions = { reserve: boolean; chars: boolean };
 
-/** What the dialog may offer: posting, the channel of the last post, the roster server's text channels. */
-export type RosterImageInfo = { canPost: boolean; channelId: string | null; channels: TextChannel[] };
+/** The posted picture that keeps itself current: its channel, its link ("" while the bot cannot tell), its switches. */
+export type RosterImageLive = { channelId: string; url: string; reserve: boolean; chars: boolean };
+
+/** What the dialog may offer: posting, the channel of the last post, the roster server's text channels, the running post. */
+export type RosterImageInfo = { canPost: boolean; channelId: string | null; channels: TextChannel[]; live: RosterImageLive | null };
 
 /** A posted picture: the message's link and the channel. */
 export type RosterImagePosted = { url: string; channelId: string };

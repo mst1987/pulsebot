@@ -12,34 +12,33 @@
 // unsaved input the panel keeps it and asks (useInterviewDraft). Who else has
 // this interview open stands on top (PresenceBanner), a marker on the list row.
 // Who did what when is in the "Verlauf" (HistoryButton), not on the form.
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import {
     completeKaderInterview, reopenKaderInterview, setKaderState,
-    type KaderAnswer, type KaderEntry, type KaderQuestion, type KaderWish,
+    type KaderAnswer, type KaderEntry, type KaderQuestion,
 } from "../../../api";
-import { Button, IconButton, Segment, buttonClass } from "../../../components/ui";
-import { AlertIcon, BookIcon, CheckIcon, ChevronDownIcon, CircleIcon, EditIcon, ListChecksIcon, PlusIcon, RefreshIcon, SaveIcon, XIcon } from "../../../components/ui/icons/icons";
+import { Button, Segment, buttonClass } from "../../../components/ui";
+import { AlertIcon, BookIcon, CheckIcon, CircleIcon, EditIcon, ListChecksIcon, RefreshIcon, SaveIcon } from "../../../components/ui/icons/icons";
 import { useToast } from "../../../components/shell/Jobs";
 import { useT } from "../../../i18n";
 import { LEAD_ALL, LEAD_ME, LEAD_NONE, cleanLeadPick, interviewersOf, leadMatches } from "../../../lib/kader/leads";
 import { usePersistedState } from "../../../lib/ui/persistedState";
-import { roleLabel } from "../../../lib/wow/wowNames";
 import { toneAttrs, toneOf } from "../../../lib/kader/colors";
 import { personName } from "../../../lib/kader/live";
-import { classDef, className, dayOf, mainPick, nameOf, playerName, specName, specRole } from "../../../lib/kader/model";
-import { dayShort, isAnswered, isWeekdays, moveWish, placeWish, progress, statusOf, toggleAnswer } from "../../../lib/kader/interview";
+import { dayOf, mainPick, nameOf, playerName } from "../../../lib/kader/model";
+import { dayShort, isAnswered, isWeekdays, progress, statusOf, toggleAnswer } from "../../../lib/kader/interview";
 import {
-    BackButton, Count, DoneBadge, EmptyState, Grip, InterviewChip, PickIcon, PickLabel, PlayerName, ProgressRing, SelectionTabs, SpecIcon, SpecTag,
+    BackButton, Count, DoneBadge, EmptyState, InterviewChip, PickIcon, PlayerName, ProgressRing, SelectionTabs, SpecTag,
 } from "../parts";
 import { useKader, useReportFocus } from "../kaderContext";
 import { LeadBadge, LeadMenu, type LeadOption } from "../Leads";
 import { HistoryButton } from "../live/ActivityLog";
 import { ConflictBanner, PresenceBanner, PresenceMark } from "../live/Presence";
 import { useInterviewDraft, type InterviewConflict } from "../useInterviewDraft";
+import { WishEditor } from "../WishEditor";
 
 type Shown = "open" | "done" | "all";
-const MAX_WISHES = 6;
 const ORDER = { started: 0, open: 1, done: 2 } as const;
 
 function ListRow({ userId, entry, current, onPick }: { userId: string; entry: KaderEntry; current: boolean; onPick: () => void }) {
@@ -66,96 +65,6 @@ function ListRow({ userId, entry, current, onPick }: { userId: string; entry: Ka
             </span>
             <InterviewChip entry={entry} />
         </button>
-    );
-}
-
-/** The wishes in order: drag or the arrows move one; a class and one of its spec icons add one. */
-function WishEditor({ wishes, prefill, locked, onChange }: { wishes: KaderWish[]; prefill: KaderWish | null; locked: boolean; onChange: (wishes: KaderWish[]) => void }) {
-    const t = useT();
-    const { view } = useKader();
-    const [cls, setCls] = useState("");
-    const [spec, setSpec] = useState("");
-    const [from, setFrom] = useState<number | null>(null);
-    const def = classDef(view.classes, cls);
-    const pick = cls && spec ? { className: cls, spec } : null;
-    const known = !!pick && wishes.some((w) => w.spec === pick.spec);
-
-    const pickClass = (key: string) => {
-        setCls(key);
-        const d = classDef(view.classes, key);
-        setSpec(d && d.specs[0] ? d.specs[0].key : "");
-    };
-    const add = () => {
-        if (!pick || known || wishes.length >= MAX_WISHES) return;
-        onChange([...wishes, pick]);
-        setCls("");
-        setSpec("");
-    };
-
-    return (
-        <>
-            <ol className="kp-wishes" aria-label={t("kader.interview.wishes")}>
-                {wishes.length === 0 && <li className="kp-hint">{t("kader.interview.noWishesYet")}</li>}
-                {wishes.map((w, i) => {
-                    const role = specRole(view.classes, w.spec);
-                    const pre = !!prefill && prefill.spec === w.spec;
-                    return (
-                        <li
-                            key={w.spec}
-                            className={`kp-wish${i === 0 ? " kp-first" : ""}${from === i ? " kp-dragging" : ""}`}
-                            draggable={!locked}
-                            onDragStart={(e) => { e.dataTransfer.setData("text/plain", String(i)); e.dataTransfer.effectAllowed = "move"; setFrom(i); }}
-                            onDragOver={(e) => { if (from !== null) e.preventDefault(); }}
-                            onDrop={(e) => { e.preventDefault(); if (from !== null) onChange(placeWish(wishes, from, i)); setFrom(null); }}
-                            onDragEnd={() => setFrom(null)}
-                        >
-                            {!locked && <Grip />}
-                            <span className="kp-rank kp-mono">{i + 1}</span>
-                            <PickIcon pick={w} size={30} />
-                            <span className="kp-col kp-grow">
-                                <PickLabel pick={w} className="kp-strong" />
-                                <span className="kp-sub">{role ? roleLabel(role) : ""}{pre ? ` · ${t("kader.interview.prefilledShort")}` : ""}</span>
-                            </span>
-                            {!locked && (
-                                <span className="kp-wish-act">
-                                    <IconButton icon={<ChevronDownIcon />} className="kp-flip" size="sm" tip={t("kader.interview.up")} disabled={i === 0} onClick={() => onChange(moveWish(wishes, i, -1))} />
-                                    <IconButton icon={<ChevronDownIcon />} size="sm" tip={t("kader.interview.down")} disabled={i === wishes.length - 1} onClick={() => onChange(moveWish(wishes, i, 1))} />
-                                    <IconButton icon={<XIcon />} size="sm" tip={t("kader.interview.removeWish")} onClick={() => onChange(wishes.filter((_, j) => j !== i))} />
-                                </span>
-                            )}
-                        </li>
-                    );
-                })}
-            </ol>
-            {!locked && (
-                <div className="kp-wishadd">
-                    <label className="field">
-                        <span className="field-label">{t("kader.field.class")}</span>
-                        <select value={cls} onChange={(e) => pickClass(e.target.value)}>
-                            <option value="">{t("kader.interview.pickClass")}</option>
-                            {view.classes.map((c) => <option key={c.key} value={c.key}>{className(view.classes, c.key)}</option>)}
-                        </select>
-                    </label>
-                    {def && (
-                        <div className="kp-specpick" role="radiogroup" aria-label={t("kader.field.spec")}>
-                            {def.specs.map((s) => {
-                                const on = spec === s.key;
-                                const taken = wishes.some((w) => w.spec === s.key);
-                                return (
-                                    <button key={s.key} type="button" role="radio" aria-checked={on} disabled={taken}
-                                        aria-label={`${specName(view.classes, s.key)} · ${className(view.classes, def.key)}`}
-                                        data-tip={taken ? t("kader.interview.specTaken", { spec: specName(view.classes, s.key) }) : `${specName(view.classes, s.key)} · ${roleLabel(s.role)}`}
-                                        className={`kp-specbtn${on ? " kp-on" : ""}`} onClick={() => setSpec(s.key)}>
-                                        <SpecIcon specKey={s.key} size={26} />
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    )}
-                    <Button variant="ghost" icon={<PlusIcon />} disabled={!pick || known || wishes.length >= MAX_WISHES} onClick={add}>{t("kader.interview.addWish")}</Button>
-                </div>
-            )}
-        </>
     );
 }
 

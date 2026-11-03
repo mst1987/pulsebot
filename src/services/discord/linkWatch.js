@@ -6,12 +6,14 @@
 //                      Discord gelöscht"), the raid overviews redraw — their
 //                      line for that raid says "channel missing" — and the
 //                      dashboard shows the task "Kanal von <Event> fehlt"
-//                      (computed on read, dashboard.js).
+//                      (computed on read, dashboard.js). A roster picture in
+//                      it is forgotten.
 //   message deleted  → an own event's signup message is posted anew (the
 //                      sweep would not: its hash still matches), a posted
 //                      setup is marked as not posted, a raid overview message
 //                      is posted anew by its sync, an Orga-Zentrale and the addon
-//                      download centre by their redraw.
+//                      download centre by their redraw. A roster picture is
+//                      forgotten, not posted again: deleting it ends it.
 //
 // MESSAGE_DELETE comes in as a raw gateway packet: the client has no
 // Partials.Message (#430), so a message it did not cache (every message after
@@ -20,6 +22,7 @@ const linkCheck = require("./linkCheck");
 const eventStore = require("../../stores/events/eventStore");
 const { getOverviewState, overviewKeys } = require("../../stores/discord/talkOverviewStore");
 const { getConfig } = require("../../stores/settings/settingsStore");
+const rosterStore = require("../../stores/roster/rosterStore");
 const logger = require("../../logger").child("linkWatch");
 
 // discord.js' ChannelType.GuildCategory (the plain number: this module's tests mock little of discord.js).
@@ -56,6 +59,7 @@ function onChannelDelete(channel, { now = Date.now() } = {}) {
         }
     }
     linkCheck.channelDeleted(channelId, now);
+    rosterStore.forgetImagePostsInChannel(channelId);
     const hit = recentOwnEvents(now).filter((e) => String(e.channelId) === channelId);
     for (const event of hit) {
         eventStore.appendEventLog(event.id, { action: "channelGone", by: "", byName: "Discord", detail: `#${event.channelName || channelId}` });
@@ -102,7 +106,9 @@ function onMessageDelete({ channelId, messageId }, { now = Date.now() } = {}) {
     const raidOverview = require("../events/overview/raidOverview").onOverviewMessageDeleted(id);
     // the addon download centre: posted anew by its redraw
     const addonCenter = require("../addons/addonCenter").onCenterMessageDeleted(id, { delayMs: REDRAW_DELAY_MS });
-    return { redrawn, setupCleared, overview, orgaHub, raidOverview, addonCenter, channelId: String(channelId || "") };
+    // a roster's posted picture: deleting it ends it, so forgotten, not posted again
+    const rosterImage = rosterStore.forgetImagePostByMessage(id);
+    return { redrawn, setupCleared, overview, orgaHub, raidOverview, addonCenter, rosterImage, channelId: String(channelId || "") };
 }
 
 /** Hook both into the bot client (bot.js). */

@@ -4,17 +4,6 @@
     "system": "System",
     "roster": {
         "createButton": "Create roster",
-        "createTip": "Create a raid roster from this Kader",
-        "createTipSub": {
-            "one": "{count} player comes along: Roster → Core, Bench → Bench, Tentative → Trial. Interviews, answers, votes and comments stay in the planner.",
-            "other": "{count} players come along: Roster → Core, Bench → Bench, Tentative → Trial. Interviews, answers, votes and comments stay in the planner."
-        },
-        "createTitle": "Create a roster from the Kader",
-        "createHint": "Only the status and the decided character come along. Afterwards everything is editable in the roster – name, members, status, roles.",
-        "create": "Create",
-        "category": "Raid category",
-        "noCategory": "No category",
-        "categoryHint": "With a category, reminders, \"missing\" lists and the setup proposal use this roster. It can be changed in the roster later.",
         "created": {
             "one": "Roster created – {count} player taken over.",
             "other": "Roster created – {count} players taken over."
@@ -31,6 +20,7 @@
             "other": "{count} players join the roster and get the roster role. Whoever is in it already stays as they are."
         },
         "sync": "Take over",
+        "syncTakenOver": "This Kader was already taken over to Discord. New players join through \"Pull role\".",
         "synced": {
             "one": "{count} player taken into the roster.",
             "other": "{count} players taken into the roster."
@@ -95,9 +85,13 @@
         "selection": "Preselection",
         "vorauswahl": "Interviews",
         "uebersicht": "Overview",
-        "setups": "Build an example setup",
+        "setups": "Example setup",
+        "setupsTip": "Build an example setup",
         "composition": "Composition",
         "kicker": "Players per status",
+        "planGroup": "Planning",
+        "rosterGroup": "Roster",
+        "more": "More",
         "count": {
             "pool": {
                 "one": "{count} player in the pool",
@@ -151,7 +145,6 @@
         }
     },
     "header": {
-        "kicker": "Roster planner",
         "pick": "Choose a squad",
         "new": "New squad",
         "leads": "Leads",
@@ -483,6 +476,7 @@
             "tentative": "Tentative"
         },
         "back": {
+            "pool": "Back to the pool",
             "selected": "Back to preselection",
             "provisional": "Back to provisional"
         },
@@ -519,6 +513,11 @@
         "toRosterDone": "{name} is in the roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "This move is not possible directly.",
+        "roleLoss": {
+            "title": "{name}: {state}?",
+            "text": "{name} loses the role “{role}” and the roster spot goes away.",
+            "action": "Move back"
+        },
         "noVoteYet": "No vote yet.",
         "dropHere": "Drop here",
         "emptyRead": "Nobody",
@@ -534,6 +533,7 @@
     },
     "history": {
         "added": "added to the pool",
+        "wishes": "Specs changed",
         "state": "{from} → {to}",
         "decision": "Decision: {pick}",
         "completed": "Interview completed",
@@ -793,7 +793,18 @@
     "picker": {
         "rank": "Wish {n}",
         "decision": "Decision",
-        "before": "chosen before"
+        "before": "chosen before",
+        "addSpec": "Add spec …",
+        "addFull": "At most {n} specs"
+    },
+    "wishes": {
+        "title": "Specs of {name}",
+        "kicker": "Edit specs",
+        "edit": "Edit specs",
+        "editOf": "Edit the specs of {name}",
+        "add": "Add spec",
+        "addOf": "Add a spec for {name}",
+        "addStale": "The specs have changed in the meantime. The new version is loaded, please confirm again."
     },
     "lead": {
         "tip": "Interview by: {name}",
@@ -824,6 +835,7 @@
         "removed": "{by} removed {who} from the squad",
         "decision": "{by} changed the decision for {who}",
         "interview": "{by} edited the interview with {who}",
+        "wishes": "{by} changed the specs of {who}",
         "lead": "{by} handed the interview with {who} to {lead}",
         "leadSelf": "{by} now leads the interview with {who}",
         "leadNone": "{by} removed the interviewer of {who}",
@@ -880,6 +892,7 @@
         },
         "conflict": {
             "interview": "{name} has changed this interview in the meantime.",
+            "wishes": "{name} has changed the specs in the meantime.",
             "account": "{name} has changed the characters in the meantime.",
             "question": "{name} has changed this question in the meantime.",
             "hint": "Your input is still here. “Reload” takes the new version, “Save anyway” overwrites it with yours.",
@@ -1020,9 +1033,40 @@
         "entry": "Take over to Discord",
         "entryTip": "Take the Kader over to Discord",
         "entryTipSub": "Create role, category and channels, hand the role to everybody from provisional up",
-        "entryTipSubNew": "Create a new roster, role, category and channels, hand the role to everybody from provisional up",
+        "createTip": "Creates a roster from this Kader, in Discord too if you want.",
+        "createTipSub": "In the assistant you choose whether role, category and channels come along.",
+        "discordSwitch": "Also create in Discord (role, category, channels)",
+        "discordSwitchTip": "On: role, category and channels are created, everybody from provisional up comes as core. Off: only the roster.",
+        "rosterOnly": {
+            "whoTitle": "Who comes into the roster?",
+            "count": {
+                "one": "{count} player comes into the roster",
+                "other": "{count} players come into the roster"
+            },
+            "asColumn": "In the roster as",
+            "as": {
+                "roster": "Core",
+                "bench": "Bench",
+                "tentative": "Trial"
+            },
+            "provisionalStayOut": {
+                "one": "{count} provisional player stays out until you have decided.",
+                "other": "{count} provisional players stay out until you have decided."
+            },
+            "noDiscord": "Nothing is created in Discord.",
+            "noPlayers": "Nobody is decided yet: the roster starts empty.",
+            "confirm": "Create the roster now",
+            "confirmTip": "Creates the roster with the players in the list. Afterwards everything is editable there.",
+            "start": "Create roster",
+            "resultTitle": "Roster created",
+            "skipped": {
+                "one": "{count} player could not be taken in.",
+                "other": "{count} players could not be taken in."
+            }
+        },
         "kicker": "Takeover · {name}",
         "title": {
+            "roster": "What is the roster called?",
             "role": "Which role does the Kader get?",
             "channels": "Category and channels",
             "who": "Who gets the role?",
@@ -1030,6 +1074,7 @@
         },
         "stepsAria": "Steps of the takeover",
         "step": {
+            "roster": "Roster",
             "role": "Role",
             "channels": "Channels",
             "who": "Who",

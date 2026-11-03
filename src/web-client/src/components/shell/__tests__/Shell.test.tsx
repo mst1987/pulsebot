@@ -40,6 +40,33 @@ const entry = (name: string) => within(nav()).getByRole("link", { name });
 // "Einstellungen" stands twice (System and Alle Server, #957): those lines are found by their href
 const entryAt = (href: string) => within(nav()).getAllByRole("link").find((a) => a.getAttribute("href") === href)!;
 
+describe("the topbar", () => {
+    it("tells the page its real height, again after it wrapped, and takes the value back when it goes", () => {
+        let resized: () => void = () => undefined;
+        const disconnect = vi.fn();
+        vi.stubGlobal("ResizeObserver", class {
+            constructor(callback: () => void) { resized = callback; }
+            observe() { return undefined; }
+            disconnect = disconnect;
+        });
+        const height = vi.spyOn(HTMLElement.prototype, "offsetHeight", "get").mockReturnValue(64);
+        const root = document.documentElement;
+        try {
+            const view = showShell(adminUser());
+            expect(root.style.getPropertyValue("--topbar-h")).toBe("64px");
+            height.mockReturnValue(164);
+            resized();
+            expect(root.style.getPropertyValue("--topbar-h")).toBe("164px");
+            view.unmount();
+            expect(disconnect).toHaveBeenCalled();
+            expect(root.style.getPropertyValue("--topbar-h")).toBe("");
+        } finally {
+            height.mockRestore();
+            vi.unstubAllGlobals();
+        }
+    });
+});
+
 describe("the sidebar", () => {
     it("is rendered from the shared menu file, every top-level entry with its icon of the set", () => {
         showShell(adminUser());

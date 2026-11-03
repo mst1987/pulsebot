@@ -5,7 +5,7 @@ import type { KaderTakeover } from "../../../api";
 import { kader as kaderData, entry, U } from "../../../pages/kader/kader.fixture";
 import {
     bodyOf, canStartDraft, categoryPreview, channelPreview, defaultDraft, draftProblems, emojiOk, MAX_TAKEOVER_CHANNELS, pendingOf, progressOf, ROSTER_NAME_MAX,
-    startBlocker, stepProblems, takeoverErrorKey, withCheckRoster,
+    entryBlocker, rosterBlocker, startBlocker, stepProblems, takeoverErrorKey, visibleSteps, withCheckRoster,
 } from "../takeover";
 
 const NAMES = { announce: "ankündigungen", chat: "chat" };
@@ -141,6 +141,54 @@ describe("takeover without a linked roster", () => {
         const typed = { ...unlinked, newRoster: { name: "Mein Name", categoryId: "rc2" } };
         expect(withCheckRoster(typed, { createsRoster: true, newRoster: { name: "Forever 2027", versionId: "forever" } })).toBe(typed);
         expect(withCheckRoster(linked, { createsRoster: false })).toBe(linked);
+    });
+});
+
+describe("the roster alone, Discord optional", () => {
+    const ROSTER_WAY = { ...defaultDraft("K", NAMES, { name: "K" }), discord: false };
+    const NEW = { canStart: true, createsRoster: true };
+
+    it("has no channels step and asks only for the roster's name", () => {
+        expect(visibleSteps(defaultDraft("K", NAMES, { name: "K" }))).toContain("channels");
+        expect(visibleSteps(ROSTER_WAY)).not.toContain("channels");
+        // role fields out of the way: an emptied role name keeps nothing
+        expect(stepProblems({ ...ROSTER_WAY, roleName: "" }, "role")).toEqual([]);
+        expect(stepProblems({ ...ROSTER_WAY, newRoster: { name: " ", categoryId: "" } }, "role")).toEqual(["roster_name"]);
+    });
+
+    it("the bot's state and nobody to take along stop only the Discord way", () => {
+        for (const code of ["offline", "no_manage_roles", "no_manage_channels", "no_players"]) {
+            const check = { ...NEW, blockers: [code] } as Parameters<typeof rosterBlocker>[0] & Parameters<typeof startBlocker>[0];
+            expect(startBlocker(check)).toBe(code);
+            expect(rosterBlocker(check, true)).toBeNull();
+            expect(entryBlocker(check, true)).toBeNull();
+            expect(canStartDraft({ ...ROSTER_WAY, confirmed: true }, check, true)).toBe(true);
+            expect(canStartDraft({ ...ROSTER_WAY, discord: true, confirmed: true }, check, true)).toBe(false);
+        }
+    });
+
+    it("locks the button only when no way is open, and says the Discord way's reason", () => {
+        // a full admin: a hidden version stops both
+        expect(rosterBlocker({ blockers: ["version_hidden"], createsRoster: true }, true)).toBe("version_hidden");
+        expect(entryBlocker({ ...NEW, blockers: ["version_hidden"] }, true)).toBe("version_hidden");
+        // Kader-Leitung without full admin: no roster way and no Discord way
+        expect(rosterBlocker({ blockers: [], createsRoster: true }, false)).toBe("admin_only");
+        expect(entryBlocker({ blockers: [], canStart: false, createsRoster: true }, false)).toBe("admin_only");
+        // a linked roster leaves only the Discord way, whatever the rights on creating
+        expect(rosterBlocker({ blockers: [], createsRoster: false }, true)).toBe("no_roster");
+        expect(entryBlocker({ blockers: ["offline"], canStart: true, createsRoster: false }, true)).toBe("offline");
+        expect(entryBlocker({ blockers: [], canStart: true, createsRoster: false }, false)).toBeNull();
+        expect(rosterBlocker({ blockers: ["already_taken"], createsRoster: true }, true)).toBe("already_taken");
+    });
+
+    it("needs the confirmation and the rights on the roster way too", () => {
+        expect(canStartDraft(ROSTER_WAY, { ...NEW, blockers: [] }, true)).toBe(false);
+        expect(canStartDraft({ ...ROSTER_WAY, confirmed: true }, { ...NEW, blockers: [] }, false)).toBe(false);
+        expect(canStartDraft({ ...ROSTER_WAY, confirmed: true }, { ...NEW, blockers: [] }, true)).toBe(true);
+    });
+
+    it("a roster linked meanwhile brings the Discord way back", () => {
+        expect(withCheckRoster(ROSTER_WAY, { createsRoster: false })).toMatchObject({ discord: true, newRoster: null });
     });
 });
 

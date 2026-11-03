@@ -159,6 +159,18 @@ describe("services/kader/kaderActivity", () => {
             expect(interviewLines()).toHaveLength(4);
         });
 
+        it("calls wishes changed from outside the interview by their name, folded like an interview", () => {
+            const { planner, kaderId } = stored();
+            const wishes = (p, list, minutes) => write(p, players.saveWishes(p, { kaderId, userId: U.a, wishes: list }, ctx), { now: at(minutes) });
+            let p = wishes(planner, [{ className: "Mage", spec: "Mage-Fire" }], 1);
+            p = wishes(p, [{ className: "Mage", spec: "Mage-Frost" }], 2);
+            const lines = kaderOf(p).activity.filter((a) => a.playerId === U.a && a.type === "wishes");
+            expect(lines).toHaveLength(1);
+            expect(kaderOf(p).activity.some((a) => a.type === "interview")).toBe(false);
+            // and it bumps the interview's revision: an open interview sees it
+            expect(kaderOf(p).players[U.a].interview.rev).toBeGreaterThan(2);
+        });
+
         it("folds two people taking turns on one interview into one line each, the newest edit at the end", () => {
             const { planner, kaderId } = stored();
             let p = planner;

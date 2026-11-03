@@ -181,7 +181,7 @@ export type KaderPlan = { specs: Record<string, KaderWish>; excluded: string[]; 
 
 /** The kinds of change a Kader's activity log knows (src/services/kader/kaderActivity.js). */
 export type KaderActivityType =
-    | "created" | "added" | "removed" | "state" | "decision" | "interview" | "lead" | "interview_completed" | "interview_reopened"
+    | "created" | "added" | "removed" | "state" | "decision" | "interview" | "wishes" | "lead" | "interview_completed" | "interview_reopened"
     | "vote" | "comment" | "comment_deleted" | "questions" | "setups" | "settings" | "character"
     | "plan" | "plan_applied" | "plan_discarded"
     | "takeover" | "role_given" | "role_removed_kader" | "role_removed_discord" | "role_added_discord";
@@ -354,6 +354,11 @@ export function setKaderState(kaderId: string, userIds: string[], to: KaderState
 /** Saves what changed; `base` names the interview's revision the draft started from (409 `stale` when it moved on). */
 export function saveKaderInterview(kaderId: string, userId: string, patch: KaderInterviewPatch, base: KaderBase = {}): Promise<KaderChange> {
     return send("PUT", "/api/kader/interview", { kaderId, userId, ...patch, ...base });
+}
+
+/** Only the wishes, from outside the interview: a conversation nobody began stays open. Same revision check as the interview. */
+export function saveKaderWishes(kaderId: string, userId: string, wishes: KaderWish[], base: KaderBase = {}): Promise<KaderChange> {
+    return send("PUT", "/api/kader/wishes", { kaderId, userId, wishes, ...base });
 }
 
 export function completeKaderInterview(kaderId: string, userId: string): Promise<KaderChange> {

@@ -22,6 +22,7 @@
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 const { newId } = require("../../utils/ids");
+const { needsLookup, enrichItemNames } = require("../../utils/loot/lootImport");
 
 const INBOX_FILE = settingsPath("loot-inbox.json");
 
@@ -346,9 +347,72 @@ function listLinked(limit = 10) {
     return out;
 }
 
+// What repairItemNames() can change on a row, as one comparable string.
+const itemMetaKey = (it) => `${it.itemName}|${it.itemIconUrl}|${it.itemQuality}|${it.itemLink}`;
+
+// A card asked Wowhead for rests this long: an item it does not know stays unknown, a
+// timeout looks the same, and the page behind the repair is opened far more often.
+const REPAIR_RETRY_MS = 60 * 60 * 1000;
+const repairAsked = new Map(); // inbox id -> when it was last asked
+let repairRunning = null;
+
+/**
+ * Backfill name/icon/quality on open cards whose rows never got them — a re-upload
+ * keeps the first row seen, so a card uploaded while the lookup asked the wrong
+ * Wowhead section would otherwise stay without icons until it is accepted. One run
+ * at a time: a call during a run gets that run. Best-effort like
+ * lootStore.repairItemNames(). Resolves to how many rows changed.
+ */
+function repairItemNames(now = Date.now()) {
+    if (!repairRunning) repairRunning = runRepair(now).finally(() => { repairRunning = null; });
+    return repairRunning;
+}
+
+/**
+ * Looks up copies and reads the store again afterwards: the lookups await, and a card
+ * filed or a row uploaded meanwhile must not be overwritten. One lookup round per game
+ * version, whatever the number of cards.
+ */
+async function runRepair(now) {
+    const { versionOfUpload, relinkItems } = require("../../services/loot/lootVersion");
+    const before = readState();
+    const lacking = [...before.pending, ...keptDismissed(before.dismissed, now)].filter((s) => (s.items || []).some(needsLookup));
+    const lackingIds = new Set(lacking.map((s) => s.id));
+    for (const id of repairAsked.keys()) if (!lackingIds.has(id)) repairAsked.delete(id);
+    const open = lacking.filter((s) => now - (repairAsked.get(s.id) || 0) >= REPAIR_RETRY_MS);
+    if (!open.length) return 0;
+    const looked = new Map();
+    const byVersion = new Map();
+    for (const s of open) {
+        repairAsked.set(s.id, now);
+        const rows = s.items.filter(needsLookup).map((it) => ({ ...it }));
+        looked.set(s.id, new Map(rows.map((r) => [itemKey(r), r])));
+        const versionId = versionOfUpload(s);
+        byVersion.set(versionId, [...(byVersion.get(versionId) || []), ...rows]);
+    }
+    for (const [versionId, rows] of byVersion) {
+        relinkItems(rows, versionId);
+        await enrichItemNames(rows, { versionId });
+    }
+    const state = readState();
+    let repaired = 0;
+    for (const s of [...state.pending, ...state.dismissed]) {
+        const rows = looked.get(s.id);
+        if (!rows) continue;
+        for (const it of s.items) {
+            const found = rows.get(itemKey(it));
+            if (!found || itemMetaKey(found) === itemMetaKey(it)) continue;
+            Object.assign(it, { itemName: found.itemName, itemIconUrl: found.itemIconUrl, itemQuality: found.itemQuality, itemLink: found.itemLink });
+            repaired += 1;
+        }
+    }
+    if (repaired) writeState(state);
+    return repaired;
+}
+
 module.exports = {
     listPending, getPending, upsertPending, resolvePending, resolutionFor, noteAppended, listLinked, unlinkEvent,
-    resolvedById, listDismissed, getDismissed, restorePending, pruneDismissed, DISMISS_KEEP_MS,
+    resolvedById, listDismissed, getDismissed, restorePending, pruneDismissed, repairItemNames, DISMISS_KEEP_MS,
     // tests: another file (null = back to the default)
     useFile: store.useFile,
 };

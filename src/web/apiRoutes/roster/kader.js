@@ -260,6 +260,8 @@ const setState = kaderWrite((p, body, ctx) => players.setState(p, body, ctx));
 // -------------------------------------------------------- interview
 /** PUT /api/kader/interview — body: { kaderId, userId, wishes?, answers?, note?, lead? } */
 const saveInterview = kaderWrite((p, body, ctx) => players.saveInterview(p, body, ctx));
+/** PUT /api/kader/wishes — body: { kaderId, userId, wishes, baseRev?, force? }; "Specs bearbeiten" outside the interview: does not start it. */
+const saveWishes = kaderWrite((p, body, ctx) => players.saveWishes(p, body, ctx));
 /** POST /api/kader/interview/complete — body: { kaderId, userId } */
 const completeInterview = kaderWrite((p, body, ctx) => players.completeInterview(p, body, ctx));
 /** POST /api/kader/interview/reopen — body: { kaderId, userId } */
@@ -378,14 +380,16 @@ const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     return ok(res, { ...state, canCreate: !roster, canSync, canLink: true, rosters: kaderLinkChoices(guildId, kaderId) });
 });
 
-const SYNC_STATUS = { not_found: 404, kader_not_found: 404, not_manager: 403, not_from_kader: 409 };
+const SYNC_STATUS = { not_found: 404, kader_not_found: 404, not_manager: 403, not_from_kader: 409, kader_taken_over: 409 };
+const SYNC_MESSAGE = { kader_taken_over: "Dieser Kader wurde schon nach Discord übernommen: neue Spieler kommen über „Rolle nachziehen“ dazu." };
 
 /**
  * POST /api/kader/roster/sync — body: { kaderId }: "Ins Roster übernehmen".
  * Area `kader` write + CSRF, then manager of the roster linked to the Kader
  * (`canManageRosterLive`), else 403 `not_manager`. Players in roster / bench /
  * tentative who are no member yet join (core / bench / trial, the main role
- * given); members already there stay untouched.
+ * given); members already there stay untouched. After the takeover it is refused
+ * (409 `kader_taken_over`): the role follows the Kader from then on.
  * Answer: `{ rosterId, added, skipped, kept, roleFailures: [{ userId, roleId, code }] }`.
  */
 const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
@@ -395,7 +399,7 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
     if (!(await canManageRosterLive(user, roster).catch(() => false))) return apiError(res, SYNC_STATUS.not_manager, "not_manager", "Nur Manager dieses Rosters.");
     const result = await syncRosterFromKader(kaderId, { guildId, actor: String(user.id || ""), rosterId: roster.id });
-    if (!result.ok) return apiError(res, SYNC_STATUS[result.code] || 400, result.code, `Roster: ${result.code}`);
+    if (!result.ok) return apiError(res, SYNC_STATUS[result.code] || 400, result.code, SYNC_MESSAGE[result.code] || `Roster: ${result.code}`);
     return ok(res, { rosterId: roster.id, added: result.added, skipped: result.skipped, kept: result.kept, roleFailures: result.roleFailures });
 });
 
@@ -523,6 +527,7 @@ const routes = [
     { method: "POST", path: "/api/kader/players/remove", handler: removePlayers, area: "kader" },
     { method: "POST", path: "/api/kader/players/state", handler: setState, area: "kader" },
     { method: "PUT", path: "/api/kader/interview", handler: saveInterview, area: "kader" },
+    { method: "PUT", path: "/api/kader/wishes", handler: saveWishes, area: "kader" },
     { method: "POST", path: "/api/kader/interview/complete", handler: completeInterview, area: "kader" },
     { method: "POST", path: "/api/kader/interview/reopen", handler: reopenInterview, area: "kader" },
     { method: "POST", path: "/api/kader/votes", handler: setVote, area: "kader" },
@@ -548,7 +553,7 @@ const routes = [
 
 module.exports = {
     getKader, getKaderOnly, getLive, createKader, updateKader, deleteKader, addPlayers, removePlayers, setState,
-    saveInterview, completeInterview, reopenInterview, setVote, addComment, deleteComment,
+    saveInterview, saveWishes, completeInterview, reopenInterview, setVote, addComment, deleteComment,
     addQuestion, updateQuestion, deleteQuestion, orderQuestions, copyQuestions,
     addVariant, saveVariant, deleteVariant, autoVariant, savePlan, discardPlan, applyPlan,
     addAccount, removeAccount, saveAssignment, resetAssignment, getKaderRoster, syncKaderRoster, linkKaderRoster,

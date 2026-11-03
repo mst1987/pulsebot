@@ -318,6 +318,7 @@
         "roleUnknownSub": "The Discord member list cannot be reached right now",
         "noRoleSet": "This roster has no Discord role",
         "noChar": "No character assigned",
+        "plannedTip": "From the Kader planner",
         "charTip": "{class} · {spec}",
         "firstChar": "Plays this character in the roster",
         "otherChar": "Further character",
@@ -844,6 +845,7 @@
             "signup": "signup",
             "logs": "log",
             "profile": "profile",
+            "kader": "Kader planner",
             "class": "class"
         }
     },
@@ -858,11 +860,15 @@
         "showCharsTip": "As small icons after the name. Only the first char counts.",
         "channel": "Channel",
         "pickChannel": "— pick a channel —",
-        "channelHint": "The image with one short line, no ping.",
+        "channelHint": "The image with one short line, no ping. It then updates itself until you delete it in Discord.",
+        "closedHint": "The image with one short line, no ping. This roster is closed, so the image stays a snapshot.",
         "download": "Download image",
         "post": "Post to channel",
         "posted": "Posted in #{channel}.",
         "openMessage": "Open message",
+        "live": "Updates itself in #{channel}.",
+        "repost": "Post again",
+        "repostHint": "The current image gets deleted.",
         "err": {
             "no_channel": "Pick a channel first.",
             "other_server": "The channel does not belong to this roster's server.",

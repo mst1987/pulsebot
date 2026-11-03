@@ -4,7 +4,7 @@
 // by two or more, "knapp" with one, missing) and what is still open - with the
 // way to Rekrutierung and the LINKED Kader of the Kaderplaner for whoever may
 // open them. Class and spec of each member come from the server's chain
-// (services/roster/memberSpec.js: Orga, Anmeldung, Log, Profil, Klasse) - the
+// (services/roster/memberSpec.js: Orga, Anmeldung, Log, Profil, Kaderplaner, Klasse) - the
 // kicker says how many came from where, a calm card names who has no spec or
 // class and opens their drawer.
 import { Link } from "react-router-dom";
@@ -23,7 +23,7 @@ import { buffState, errorText, slotSquares } from "../../lib/roster/rosterEdit";
 type RoleRow = RosterComposition["roles"][number];
 type Unresolved = NonNullable<RosterComposition["unresolved"]>[number];
 
-const SOURCE_ORDER = ["signup", "logs", "profile", "override", "class"] as const;
+const SOURCE_ORDER = ["signup", "logs", "profile", "override", "kader", "class"] as const;
 
 /** "Spec aus: 3 Anmeldung · 2 Log · 5 Profil": how many specs came from which source. */
 function sourcesLine(sources: RosterComposition["sources"], t: ReturnType<typeof useT>): string {

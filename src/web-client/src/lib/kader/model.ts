@@ -22,12 +22,18 @@ export const SETUP_STATES: KaderState[] = ["roster", "provisional", "bench", "te
 export const MOVES: Record<KaderState, KaderState[]> = {
     pool: ["selected"],
     selected: ["pool", "provisional"],
-    provisional: ["selected", "roster", "bench", "tentative"],
-    roster: ["provisional", "bench", "tentative"],
-    bench: ["provisional", "roster", "tentative"],
-    tentative: ["provisional", "roster", "bench"],
+    provisional: ["pool", "selected", "roster", "bench", "tentative"],
+    roster: ["pool", "selected", "provisional", "bench", "tentative"],
+    bench: ["pool", "selected", "provisional", "roster", "tentative"],
+    tentative: ["pool", "selected", "provisional", "roster", "bench"],
 };
 export const canMove = (from: KaderState, to: KaderState): boolean => from !== to && MOVES[from].includes(to);
+
+/** Where a player can be sent back to, the nearest first: the drawer's back buttons. */
+export function backTargets(from: KaderState): KaderState[] {
+    const order: KaderState[] = from === "selected" ? ["pool"] : from === "provisional" ? ["selected", "pool"] : from === "pool" ? [] : ["provisional", "selected", "pool"];
+    return order.filter((to) => canMove(from, to));
+}
 
 export const byId = (players: KaderPlayer[]): Map<string, KaderPlayer> => new Map(players.map((p) => [p.userId, p]));
 
@@ -283,6 +289,7 @@ export function historyText(view: KaderView, item: KaderHistoryItem): string {
         case "state": return t("kader.history.state", { from: state(item.from), to: state(item.to) });
         case "decision": return t("kader.history.decision", { pick: wishLabel(view.classes, { className: item.className || "", spec: item.spec || "" }) });
         case "interview_saved": return t("kader.history.saved");
+        case "wishes": return t("kader.history.wishes");
         case "lead": return item.to ? t("kader.history.lead", { name: nameOf(view, item.to) }) : t("kader.history.leadNone");
         case "interview_completed": return t("kader.history.completed");
         case "interview_reopened": return t("kader.history.reopened");

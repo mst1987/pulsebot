@@ -4,17 +4,6 @@
     "system": "System",
     "roster": {
         "createButton": "Roster anlegen",
-        "createTip": "Ein Raid-Roster aus diesem Kader anlegen",
-        "createTipSub": {
-            "one": "{count} Spieler geht mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner.",
-            "other": "{count} Spieler gehen mit: Roster → Stamm, Bench → Ersatz, Tentative → Probe. Gespräche, Antworten, Stimmen und Kommentare bleiben im Kaderplaner."
-        },
-        "createTitle": "Roster aus dem Kader anlegen",
-        "createHint": "Es gehen nur der Status und der entschiedene Charakter mit. Danach ist im Roster alles bearbeitbar – Name, Mitglieder, Status, Rollen.",
-        "create": "Anlegen",
-        "category": "Raid-Kategorie",
-        "noCategory": "Ohne Kategorie",
-        "categoryHint": "Mit Kategorie gelten Erinnerungen, „fehlt“-Listen und der Setup-Vorschlag für dieses Roster. Sie lässt sich im Roster später ändern.",
         "created": {
             "one": "Roster angelegt – {count} Spieler übernommen.",
             "other": "Roster angelegt – {count} Spieler übernommen."
@@ -31,6 +20,7 @@
             "other": "{count} Spieler kommen neu ins Roster und bekommen die Roster-Rolle. Wer schon drin ist, bleibt unverändert."
         },
         "sync": "Übernehmen",
+        "syncTakenOver": "Dieser Kader wurde schon nach Discord übernommen. Neue Spieler kommen über „Rolle nachziehen“ dazu.",
         "synced": {
             "one": "{count} Spieler ins Roster übernommen.",
             "other": "{count} Spieler ins Roster übernommen."
@@ -95,9 +85,13 @@
         "selection": "Vorauswahl",
         "vorauswahl": "Gespräche",
         "uebersicht": "Übersicht",
-        "setups": "Beispiel-Setup bauen",
+        "setups": "Beispiel-Setup",
+        "setupsTip": "Beispiel-Setup bauen",
         "composition": "Zusammensetzung",
         "kicker": "Spieler je Status",
+        "planGroup": "Planung",
+        "rosterGroup": "Roster",
+        "more": "Mehr",
         "count": {
             "pool": {
                 "one": "{count} Spieler im Pool",
@@ -151,7 +145,6 @@
         }
     },
     "header": {
-        "kicker": "Kaderplaner",
         "pick": "Kader wählen",
         "new": "Neuer Kader",
         "leads": "Leitung",
@@ -483,6 +476,7 @@
             "tentative": "Tentative"
         },
         "back": {
+            "pool": "Zurück in den Pool",
             "selected": "Zurück in die Vorauswahl",
             "provisional": "Zurück ins vorläufige Roster"
         },
@@ -519,6 +513,11 @@
         "toRosterDone": "{name} ist im Roster: {pick}",
         "moved": "{name}: {state}",
         "cantMove": "Dieser Wechsel geht nicht direkt.",
+        "roleLoss": {
+            "title": "{name}: {state}?",
+            "text": "{name} verliert damit die Rolle „{role}“, und der Roster-Platz fällt weg.",
+            "action": "Zurückschieben"
+        },
         "noVoteYet": "Noch keine Stimme.",
         "dropHere": "Hierher ziehen",
         "emptyRead": "Niemand",
@@ -534,6 +533,7 @@
     },
     "history": {
         "added": "in den Pool übernommen",
+        "wishes": "Specs geändert",
         "state": "{from} → {to}",
         "decision": "Entscheidung: {pick}",
         "completed": "Gespräch abgeschlossen",
@@ -793,7 +793,18 @@
     "picker": {
         "rank": "{n}. Wunsch",
         "decision": "Entscheidung",
-        "before": "bisher gewählt"
+        "before": "bisher gewählt",
+        "addSpec": "Spec hinzufügen …",
+        "addFull": "Höchstens {n} Specs"
+    },
+    "wishes": {
+        "title": "Specs von {name}",
+        "kicker": "Specs bearbeiten",
+        "edit": "Specs bearbeiten",
+        "editOf": "Specs von {name} bearbeiten",
+        "add": "Spec hinzufügen",
+        "addOf": "Spec für {name} hinzufügen",
+        "addStale": "Die Specs wurden inzwischen geändert. Der neue Stand ist geladen, bitte noch einmal bestätigen."
     },
     "lead": {
         "tip": "Gespräch führt: {name}",
@@ -824,6 +835,7 @@
         "removed": "{by} hat {who} aus dem Kader entfernt",
         "decision": "{by} hat die Entscheidung für {who} geändert",
         "interview": "{by} hat das Gespräch mit {who} bearbeitet",
+        "wishes": "{by} hat die Specs von {who} geändert",
         "lead": "{by} hat das Gespräch mit {who} an {lead} gegeben",
         "leadSelf": "{by} führt jetzt das Gespräch mit {who}",
         "leadNone": "{by} hat die Gesprächsführung bei {who} entfernt",
@@ -880,6 +892,7 @@
         },
         "conflict": {
             "interview": "{name} hat dieses Gespräch inzwischen geändert.",
+            "wishes": "{name} hat die Specs inzwischen geändert.",
             "account": "{name} hat die Charaktere inzwischen geändert.",
             "question": "{name} hat diese Frage inzwischen geändert.",
             "hint": "Deine Eingaben sind noch da. „Neu laden“ übernimmt den neuen Stand, „Trotzdem speichern“ überschreibt ihn mit deinem.",
@@ -1020,9 +1033,40 @@
         "entry": "In Discord übernehmen",
         "entryTip": "Kader in Discord übernehmen",
         "entryTipSub": "Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
-        "entryTipSubNew": "Neues Roster, Rolle, Kategorie und Kanäle anlegen, Rolle an alle ab Vorläufig verteilen",
+        "createTip": "Legt ein Roster aus diesem Kader an, auf Wunsch auch in Discord.",
+        "createTipSub": "Im Assistenten wählst du, ob Rolle, Kategorie und Kanäle dazukommen.",
+        "discordSwitch": "Auch in Discord anlegen (Rolle, Kategorie, Kanäle)",
+        "discordSwitchTip": "An: Rolle, Kategorie und Kanäle entstehen, alle ab Vorläufig kommen als Stamm. Aus: nur das Roster.",
+        "rosterOnly": {
+            "whoTitle": "Wer kommt ins Roster?",
+            "count": {
+                "one": "{count} Spieler kommt ins Roster",
+                "other": "{count} Spieler kommen ins Roster"
+            },
+            "asColumn": "Im Roster als",
+            "as": {
+                "roster": "Stamm",
+                "bench": "Ersatz",
+                "tentative": "Probe"
+            },
+            "provisionalStayOut": {
+                "one": "{count} Vorläufiger bleibt draußen, bis du entschieden hast.",
+                "other": "{count} Vorläufige bleiben draußen, bis du entschieden hast."
+            },
+            "noDiscord": "In Discord entsteht nichts.",
+            "noPlayers": "Noch niemand ist entschieden: Das Roster startet leer.",
+            "confirm": "Roster jetzt anlegen",
+            "confirmTip": "Legt das Roster mit den Spielern aus der Liste an. Danach ist dort alles bearbeitbar.",
+            "start": "Roster anlegen",
+            "resultTitle": "Roster angelegt",
+            "skipped": {
+                "one": "{count} Spieler konnte nicht aufgenommen werden.",
+                "other": "{count} Spieler konnten nicht aufgenommen werden."
+            }
+        },
         "kicker": "Übernahme · {name}",
         "title": {
+            "roster": "Wie heißt das Roster?",
             "role": "Welche Rolle bekommt der Kader?",
             "channels": "Kategorie und Kanäle",
             "who": "Wer bekommt die Rolle?",
@@ -1030,6 +1074,7 @@
         },
         "stepsAria": "Schritte der Übernahme",
         "step": {
+            "roster": "Roster",
             "role": "Rolle",
             "channels": "Kanäle",
             "who": "Wer",

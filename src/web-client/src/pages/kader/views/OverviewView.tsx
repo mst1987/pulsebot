@@ -1,5 +1,6 @@
 // Step 2 · Vorauswahl · Übersicht (/kader/<id>/uebersicht): everybody in the
-// Vorauswahl side by side — the first two wishes, one column per question of
+// Vorauswahl side by side — the first two wishes (with a pencil for "Specs
+// bearbeiten"), one column per question of
 // this Kader, where the interview stands and how long they have been waiting.
 // Filter menus for the interview, the first wish and every question; grouped by
 // role, class or interview. Every column head sorts (inside each group), the
@@ -28,6 +29,7 @@ import {
     TableNote, WishLines,
 } from "../parts";
 import { useKader } from "../kaderContext";
+import { EditWishesButton } from "../WishEditor";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
 import { LeadAvatar, LeadBadge } from "../Leads";
 import { PresenceMark } from "../live/Presence";
@@ -92,7 +94,10 @@ function OverviewRow({ row, marked, onMark }: { row: Row; marked: boolean; onMar
                 <input type="checkbox" checked={marked} disabled={!canWrite} aria-label={t("kader.batch.mark", { name: playerName(view, userId, entry) })} onChange={(e) => onMark(e.target.checked)} />
             </span>
             <span role="cell" className="kp-cell-name kp-namerowcell"><PlayerAvatar userId={userId} entry={entry} /><Peek row={row} /><VermerkMark short={view.vermerke?.[userId]} userId={userId} className="kp-vmark" />{status === "done" && <DoneBadge />}<PresenceMark playerId={userId} /></span>
-            <span role="cell" className="kp-cell-char">{w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}</span>
+            <span role="cell" className="kp-cell-char">
+                {w1 ? <SpecTag pick={w1} size={22} /> : <span className="kp-muted">—</span>}
+                <EditWishesButton userId={userId} name={playerName(view, userId, entry)} />
+            </span>
             <span role="cell" className="kp-cell-char">{w2 ? <SpecTag pick={w2} size={20} className="kp-small" /> : <span className="kp-muted">—</span>}</span>
             {kader.questions.map((q) => <AnswerCell key={q.id} q={q} entry={entry} />)}
             <span role="cell" className="kp-col">

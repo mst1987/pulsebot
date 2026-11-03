@@ -1,6 +1,6 @@
 // Step 1 · Pool (/kader/<id>/pool): everybody taken into this Kader, with the
-// character they are prefilled with (spec icon plus class, where it comes from),
-// their Discord roles and their attendance over the raid categories the Kader
+// character they are prefilled with (spec icon plus class, where it comes from,
+// a pencil for "Specs bearbeiten"), their Discord roles and their attendance over the raid categories the Kader
 // counts (picked in the head of that column, Attendance.tsx). Every column
 // head sorts, the order is remembered. Per player the switch "Zur Auswahl"
 // moves them between pool and Vorauswahl; somebody further along shows their
@@ -24,6 +24,7 @@ import { BatchBar } from "../BatchBar";
 import { AttendanceSource, AttendanceValue } from "../Attendance";
 import { BackButton, EmptyState, PlayerAvatar, PlayerName, SortHead, SourceBadge, SpecTag, StateBadge, Switch, TableNote } from "../parts";
 import { useKader } from "../kaderContext";
+import { EditWishesButton } from "../WishEditor";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
 
 type Scope = "all" | "pool" | "selected";
@@ -86,6 +87,7 @@ function PoolRow({ row, marked, onMark }: { row: Row; marked: boolean; onMark: (
                 <span className="kp-cell-char">
                     {pick ? <SpecTag pick={pick} size={22} /> : <span className="kp-warntext">{t("kader.pool.noData")}</span>}
                     <SourceBadge prefill={p ? p.prefill : null} />
+                    <EditWishesButton userId={userId} name={name} />
                 </span>
                 {p && p.prefill && <span className="kp-sub">{p.prefill.name}</span>}
             </span>

@@ -11,6 +11,7 @@ const { ownUpcomingRaw } = require("../../../src/services/events/eventSources");
 const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStore");
 const characterStore = require("../../../src/stores/roster/characterStore");
 const specHistoryStore = require("../../../src/stores/roster/specHistoryStore");
+const kaderStore = require("../../../src/stores/roster/kaderStore");
 const {
     resolveMemberSpec, specContext, specChoices, knownClassOf, specRecord, roleOfSpecRole, SOURCES,
 } = require("../../../src/services/roster/memberSpec");
@@ -30,7 +31,61 @@ beforeEach(() => {
 
 describe("services/roster/memberSpec resolveMemberSpec", () => {
     it("names the sources in their order", () => {
-        expect(SOURCES).toEqual(["override", "signup", "logs", "profile", "class"]);
+        expect(SOURCES).toEqual(["override", "signup", "logs", "profile", "kader", "class"]);
+    });
+
+    describe("the linked Kader's plan", () => {
+        const LINKED = { ...ROSTER, kaderId: "k1" };
+        const planned = (member, roster = LINKED) => resolveMemberSpec(U, member, specContext(roster));
+        const planWith = (decision) => kaderStore.writePlanner("g1", {
+            v: 2,
+            accounts: [],
+            assignments: {},
+            kaders: [{ id: "k1", name: "Forever", leads: [], questions: [], players: { [U]: { state: "roster", decision } } }],
+        });
+
+        beforeEach(() => planWith({ className: "Mage", spec: "Mage-Frost" }));
+
+        it("answers for a member without a character: class, spec and role, and no reason left", () => {
+            expect(planned({ chars: [] })).toMatchObject({
+                character: "", className: "Mage", spec: "Mage-Frost", specRole: "ranged", role: "dps", source: "kader", reason: "",
+                auto: { className: "Mage", spec: "Mage-Frost", source: "kader" },
+            });
+        });
+
+        it("says no_spec for a planned class without a spec", () => {
+            // a decision always has a spec: only the planner's active character can name a class alone
+            kaderStore.writePlanner("g1", {
+                v: 2,
+                accounts: [],
+                assignments: { [U]: { characters: [{ id: "x1", name: "Ohnespec", className: "Mage", specs: [] }], activeCharacterId: "x1" } },
+                kaders: [{ id: "k1", name: "Forever", leads: [], questions: [], players: { [U]: { state: "roster" } } }],
+            });
+            expect(planned({ chars: [] })).toMatchObject({ className: "Mage", spec: "", role: "", source: "kader", reason: "no_spec" });
+        });
+
+        it("stays out of a roster without the link and of a member the Kader does not plan", () => {
+            expect(planned({ chars: [] }, ROSTER)).toMatchObject({ className: "", source: "", reason: "no_char" });
+            expect(resolveMemberSpec("200000000000000002", { chars: [] }, specContext(LINKED))).toMatchObject({ className: "", source: "", reason: "no_char" });
+        });
+
+        it("names the class of a character nothing else knows, and yields to every real source", () => {
+            expect(planned({ chars: ["brando"] })).toMatchObject({ character: "brando", className: "Mage", spec: "Mage-Frost", source: "kader" });
+            // the profile knows the character: a Druid stays a Druid with the profile's spec
+            expect(planned({ chars: ["gentletwowl"] })).toMatchObject({ className: "Druid", spec: "Druid-Restoration", source: "profile" });
+        });
+
+        it("gives a known class no spec of another class, and lets a fitting plan fill a class alone", () => {
+            raiderProfileStore.addCharacter(U, { name: "Nurdruide", className: "Druid", specs: [] });
+            expect(planned({ chars: ["nurdruide"] })).toMatchObject({ className: "Druid", spec: "", source: "class" });
+            raiderProfileStore.addCharacter(U, { name: "Nurmagier", className: "Mage", specs: [] });
+            expect(planned({ chars: ["nurmagier"] })).toMatchObject({ className: "Mage", spec: "Mage-Frost", source: "kader" });
+        });
+
+        it("lets the orga's spec win on a character only the plan names a class for", () => {
+            expect(planned({ chars: ["brando"], spec: "Warrior-Fury" })).toMatchObject({ className: "Warrior", spec: "Warrior-Fury", source: "override" });
+            expect(knownClassOf(LINKED, U, "brando")).toBe("");
+        });
     });
 
     it("answers no_char for a member without a character", () => {

@@ -5,7 +5,7 @@
 // writes that did not go through, and the marks of a closed roster (#739).
 // Styles in styles/rosters.css.
 import type { CSSProperties, ReactNode } from "react";
-import type { RosterHead, RosterMember, RosterRoleResult, RosterStatus } from "../../api";
+import type { RosterHead, RosterMember, RosterPlanned, RosterRoleResult, RosterStatus } from "../../api";
 import { useT } from "../../i18n";
 import { InfoIcon, MinusIcon, PlusIcon } from "../../components/ui/icons/icons";
 import Badge from "../../components/ui/Badge";
@@ -64,9 +64,9 @@ export function RoleChip({ role }: { role: RosterHead["mainRole"] }) {
     );
 }
 
-/** A person's round avatar: the Discord picture, else the initial on the first character's class colour. */
-export function MemberAvatar({ member, large = false }: { member: Pick<RosterMember, "avatarUrl" | "displayName" | "chars">; large?: boolean }) {
-    const color = member.chars[0]?.classColor || "";
+/** A person's round avatar: the Discord picture, else the initial on the first character's (or the planned) class colour. */
+export function MemberAvatar({ member, large = false }: { member: Pick<RosterMember, "avatarUrl" | "displayName" | "chars" | "planned">; large?: boolean }) {
+    const color = member.chars[0]?.classColor || member.planned?.classColor || "";
     const cls = large ? "rn-ava rn-ava-lg" : "rn-ava";
     if (member.avatarUrl) return <img className={cls} src={member.avatarUrl} alt="" loading="lazy" />;
     return <span className={cls} style={color ? { "--av": color } as CSSProperties : undefined} aria-hidden="true">{initialOf(member.displayName)}</span>;
@@ -86,6 +86,23 @@ export function CharChip({ char, first = true }: { char: AnyChar; first?: boolea
         >
             {icon ? <img src={icon} alt="" width={22} height={22} loading="lazy" /> : <span className="rn-char-ph" aria-hidden="true" />}
             <em className={char.classColor ? "class-colored" : undefined}>{char.name}</em>
+        </span>
+    );
+}
+
+/** The class the linked Kader plans for a member without a character: like a character chip, dashed, the class and spec for a name. */
+export function PlannedChip({ planned }: { planned: RosterPlanned }) {
+    const t = useT();
+    const icon = charIcon(planned);
+    return (
+        <span
+            className="rn-char is-first is-planned"
+            style={planned.classColor ? { "--cc": planned.classColor } as CSSProperties : undefined}
+            data-tip={t("roster.detail.plannedTip")}
+            data-tip-sub={t("roster.detail.noChar")}
+        >
+            {icon ? <img src={icon} alt="" width={22} height={22} loading="lazy" /> : <span className="rn-char-ph" aria-hidden="true" />}
+            <em className={planned.classColor ? "class-colored" : undefined}>{charLine(planned)}</em>
         </span>
     );
 }

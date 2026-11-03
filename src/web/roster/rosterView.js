@@ -15,9 +15,11 @@
 //     icon), else the character cache the loot and logs fill, else the name.
 //   * class, spec and role of the FIRST character: services/roster/memberSpec.js
 //     (the orga's spec, the last signup in the category, the logs, the profile,
-//     the class alone) - the same answer the Komposition tab counts with. Each
-//     row carries it as `resolved` (with where it came from); a manager also
-//     gets `specChoices`, the specs of the character's class for the drawer.
+//     the linked Kader's plan, the class alone) - the same answer the Komposition
+//     tab counts with. Each row carries it as `resolved` (with where it came
+//     from); a manager also gets `specChoices`, the specs of the character's
+//     class for the drawer. A member without a character the Kader plans a class
+//     for carries `planned`, for readers too: no character, only class and spec.
 //   * attendance per PERSON (rosterAttendance.attendanceForAccounts): a night
 //     counts when any character of the account stands in its log; the window is
 //     the category's own (Einstellungen > Kategorien, categoryAttendance), the
@@ -99,13 +101,14 @@ function versionLabel(versionId) {
 /**
  * The server's members and roles, best-effort. `members` is null when the list
  * is not available (bot offline, intent missing) - then nobody's roles are known.
+ * `background`: a job reading it, see discord.fetchGuildMembersCached; a page never passes it.
  */
-async function loadDiscord(guildId) {
+async function loadDiscord(guildId, { background = false } = {}) {
     let members = null;
     let roles = new Map();
     if (!guildId) return { members, roles };
     try {
-        const listed = await discord.listHumanMembers(guildId);
+        const listed = background ? await discord.listHumanMembers(guildId, { background: true }) : await discord.listHumanMembers(guildId);
         if (listed && !listed.error) members = new Map((listed.members || []).map((m) => [String(m.id), m]));
     } catch {
         members = null;
@@ -180,6 +183,13 @@ function resolvedView(resolved) {
         override: resolved.override,
         auto: { className: resolved.auto.className, ...specLook(resolved.auto.spec), source: resolved.auto.source },
     };
+}
+
+/** What a row without a character shows from the linked Kader: `{ planned: { className, classColor, spec, specId, specLabel, specIcon } }`, else nothing. */
+function plannedField(resolved) {
+    if (resolved.character || resolved.source !== "kader") return {};
+    const info = resolved.spec ? profiles.specInfo(resolved.spec) : null;
+    return { planned: { className: resolved.className, classColor: classColor(resolved.className), ...specLook(resolved.spec), specId: info ? info.id : "" } };
 }
 
 /** The profile characters of the version the member does not play in this roster yet, as character views. */
@@ -267,6 +277,7 @@ function memberRows(roster, { ctx, discordData, config, manage = false, orga = t
             since: member.since || "",
             trialUntil: member.trialUntil || null,
             chars,
+            ...plannedField(resolved),
             role: resolved.role,
             resolved: resolvedView(resolved),
             hasRole,
@@ -303,6 +314,7 @@ function slimMember(row) {
         since: "",
         trialUntil: null,
         chars: row.chars,
+        ...(row.planned ? { planned: row.planned } : {}),
         role: row.role,
         hasRole: null,
         heldRoles: null,
@@ -473,12 +485,12 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
 /**
  * GET /api/rosters/roster?id=: one roster with its members, or null when it
  * does not exist or belongs to another server.
- * @param {{ guildId: string, id: string, user: object, config: object }} opts
+ * @param {{ guildId: string, id: string, user: object, config: object, background?: boolean }} opts
  */
-async function buildRosterDetail({ guildId = "", id = "", user = null, config = {} } = {}) {
+async function buildRosterDetail({ guildId = "", id = "", user = null, config = {}, background = false } = {}) {
     const roster = rosterStore.getRoster(id);
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
-    const discordData = await loadDiscord(roster.guildId || guildId);
+    const discordData = await loadDiscord(roster.guildId || guildId, { background });
     const ctx = contextCache(roster.guildId || guildId)(roster.versionId);
     const manager = await canManageRosterLive(user, roster).catch(() => false);
     // a closed roster (#739) is read only: its managers still read everything, nobody edits

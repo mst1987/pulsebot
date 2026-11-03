@@ -19,7 +19,7 @@ import {
     filterMembers, groupByStatus, readMemberView, sortMembers, statusCounts,
     type MemberRoleFilter, type MemberSortKey, type MemberView,
 } from "../../lib/roster/rosters";
-import { CharChip, MemberAvatar } from "./RosterParts";
+import { CharChip, MemberAvatar, PlannedChip } from "./RosterParts";
 import VermerkMark from "../../components/vermerke/VermerkMark";
 import { LeadMark } from "../../components/roster/LeadChips";
 
@@ -77,7 +77,8 @@ function MemberRow({ member, data, actions }: { member: RosterMember; data: Rost
             <td>
                 <div className="rn-chars">
                     {member.chars.map((c, i) => <CharChip key={c.key} char={c} first={i === 0} />)}
-                    {!member.chars.length && <span className="rn-warn"><AlertIcon />{t("roster.detail.noChar")}</span>}
+                    {!member.chars.length && member.planned && <PlannedChip planned={member.planned} />}
+                    {!member.chars.length && !member.planned && <span className="rn-warn"><AlertIcon />{t("roster.detail.noChar")}</span>}
                 </div>
             </td>
             <td><RoleBadge role={member.role} /></td>

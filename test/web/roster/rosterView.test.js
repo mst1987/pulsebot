@@ -125,6 +125,14 @@ describe("buildRosterOverview", () => {
         expect(after.categoriesWithoutRoster.map((c) => c.id)).toEqual(["cat2"]);
     });
 
+    it("reads the member list like any page, only the picture's job passes background", async () => {
+        discord.listHumanMembers.mockClear();
+        await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(discord.listHumanMembers).toHaveBeenLastCalledWith(G);
+        await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG, background: true });
+        expect(discord.listHumanMembers).toHaveBeenLastCalledWith(G, { background: true });
+    });
+
     it("keeps working without Discord: role unknown, names from the profile", async () => {
         discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
         discord.listRoles.mockReturnValue([]);
@@ -278,6 +286,32 @@ describe("buildRosterDetail", () => {
 
         const dora = view.members.find((m) => m.userId === DORA);
         expect(dora).toMatchObject({ displayName: DORA, onServer: false, hasRole: false, chars: [], role: "", attendance: null });
+    });
+
+    it("gives a member without a character the linked Kader's class, for readers too, and keeps counting them as without character", async () => {
+        const kaderStore = require("../../../src/stores/roster/kaderStore");
+        const spy = jest.spyOn(kaderStore, "readPlanner").mockReturnValue({
+            assignments: {},
+            kaders: [{ id: "k1", players: { [DORA]: { state: "roster", decision: { className: "Mage", spec: "Mage-Frost" }, wishes: [{ className: "Warlock", spec: "Warlock-Destruction" }], interview: { note: "GEHEIM" } } } }],
+        });
+        const id = rosterStore.listRosters(G)[0].id;
+        rosterStore.updateRoster(id, { kaderId: "k1" });
+        rosterStore.upsertMember(id, DORA, { status: "core" });
+        const planned = { className: "Mage", spec: "Mage-Frost", specId: "Frost", classColor: expect.any(String), specLabel: expect.any(String), specIcon: expect.any(String) };
+
+        const admin = await buildRosterDetail({ guildId: G, id, user: ADMIN, config: CONFIG });
+        const row = admin.members.find((m) => m.userId === DORA);
+        expect(row).toMatchObject({ chars: [], role: "dps", planned, resolved: { source: "kader", className: "Mage", reason: "" } });
+        expect(admin.roster.todo.withoutChar).toBe(1);
+        expect(admin.roster.roleCounts.dps).toBeGreaterThan(0);
+        // who has a character carries no plan
+        expect(admin.members.find((m) => m.userId === ANNA)).not.toHaveProperty("planned");
+
+        const reader = await buildRosterDetail({ guildId: G, id, user: READER, config: CONFIG });
+        expect(reader.members.find((m) => m.userId === DORA)).toMatchObject({ chars: [], role: "dps", planned });
+        const text = JSON.stringify(reader);
+        for (const word of ["GEHEIM", "Warlock", "wishes", "decision"]) expect(text).not.toContain(word);
+        spy.mockRestore();
     });
 
     it("suggests 'left early' to the orga from the log's kills, with the server's number of kills (#990)", async () => {

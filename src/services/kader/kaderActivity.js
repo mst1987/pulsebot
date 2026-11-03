@@ -31,7 +31,7 @@
 const { LIMITS } = require("./kaderModel");
 
 /** The line types an edit can repeat quickly; the same one again within COALESCE_MS replaces the older line. */
-const COALESCE = new Set(["interview", "lead", "questions", "setups", "settings", "character", "plan"]);
+const COALESCE = new Set(["interview", "wishes", "lead", "questions", "setups", "settings", "character", "plan"]);
 const COALESCE_MS = 10 * 60 * 1000;
 /** At most this many lines answer one poll (the page shows one toast for them anyway). */
 const CHANGES_MAX = 20;
@@ -89,8 +89,11 @@ function playerLines(id, was, now, rev, questionsChanged) {
     if (was.state === now.state && now.state === "roster" && !same(was.decision, now.decision)) out.push({ type: "decision", playerId: id });
     if (completed) out.push({ type: "interview_completed", playerId: id });
     if (reopened) out.push({ type: "interview_reopened", playerId: id });
-    // a question edited or deleted refits the answers of many: that is one "questions" line, not one per player
-    if (ivContent && !questionsChanged) out.push({ type: "interview", playerId: id });
+    // A question edited or deleted refits the answers of many: that is one "questions" line, not one per player.
+    // A write that only changed the wishes held no interview: kaderPlayers.saveWishes ends the history with its own
+    // line (folding moves it to the end), a saved interview with "interview_saved". So the last line tells them apart.
+    const last = now.history[now.history.length - 1];
+    if (ivContent && !questionsChanged) out.push({ type: last && last.type === "wishes" ? "wishes" : "interview", playerId: id });
     if (lead) out.push({ type: "lead", playerId: id, to: now.interview.lead });
     if (!same(was.votes, now.votes)) out.push({ type: "vote", playerId: id });
     const wasComments = new Set(was.comments.map((c) => c.id));

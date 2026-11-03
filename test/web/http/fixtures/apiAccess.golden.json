@@ -266,6 +266,7 @@
     "/api/kader/variants": "kader",
     "/api/kader/variants/delete": "kader",
     "/api/kader/variants/auto": "kader",
+    "/api/kader/wishes": "kader",
     "/api/kader/accounts": "kader",
     "/api/kader/accounts/remove": "kader",
     "/api/kader/assignments": "kader",

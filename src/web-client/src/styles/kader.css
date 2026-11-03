@@ -98,16 +98,15 @@
 /* ---- header: Kader picker, leads, settings ---- */
 .kp-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; min-width: 0; }
 .kp-top-text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.kp-back-row { flex-basis: 100%; display: flex; }
 .kp-picker { position: relative; min-width: 0; }
 .kp-picker-btn {
-    display: inline-flex; align-items: center; gap: 8px; max-width: 100%; padding: 0; border: 0; background: none;
-    color: var(--text); font: inherit; font-size: 20px; font-weight: 800; cursor: pointer; text-align: left;
+    display: inline-flex; align-items: center; gap: 8px; min-width: 0; max-width: 100%; padding: 0; border: 0; background: none;
+    color: var(--text); font: inherit; font-size: 24px; font-weight: 600; line-height: 30px; letter-spacing: -.005em; cursor: pointer; text-align: left;
 }
 .kp-picker-btn svg { width: 14px; height: 14px; color: var(--muted); flex: none; }
 .kp-picker-btn:hover svg, .kp-picker-btn:focus-visible svg { color: var(--accent); }
 .kp-picker-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.kp-leads { display: flex; align-items: center; gap: 8px; }
+.kp-leads { display: flex; align-items: center; gap: 4px; margin-right: 8px; min-width: 0; }
 .kp-avatars { display: flex; gap: 4px; }
 .kp-avatar {
     display: inline-grid; place-items: center; width: 30px; height: 30px; border-radius: 50%; flex: none;
@@ -166,36 +165,125 @@
 .kp-check.kp-on { background: var(--accent-2); border-color: var(--accent-2); color: var(--accent-ink); }
 .kp-check svg { width: 11px; height: 11px; }
 
-/* ---- the status bar: players per state ---- */
-.kp-stages { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
-.kp-stages-kicker { margin-right: 4px; }
-.kp-stage {
-    display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 0 10px 0 12px;
-    border: 1px solid var(--line); border-radius: 6px; background: var(--panel);
-    color: var(--text); font-size: 15px; font-weight: 600; text-decoration: none; white-space: nowrap;
-    transition: border-color .12s ease, background-color .12s ease;
+/* ---- the head (KaderHeader.tsx): three lines with one job each, after the report head of Warcraft Logs ---- */
+/* Direct children of the page, so that only the tabs stick and the page decides what
+   stands above what. Each line is its own container: what folds depends on the room
+   the page leaves, not on the window (the sidebar takes 248px of it). A rule of a
+   container reaches only what lies inside it, hence the -in wrappers. */
+.kp-title { container: kp-title / inline-size; position: relative; z-index: 4; min-width: 0; }
+.kp-title-in {
+    display: grid; grid-template-columns: auto minmax(0, 1fr) auto; grid-template-areas: "back name meta";
+    column-gap: 16px; align-items: center;
 }
-.kp-stage:hover, .kp-stage:focus-visible { border-color: var(--accent); outline: none; }
-.kp-stage .kp-sico { color: var(--muted); }
-.kp-stage-n {
-    display: inline-grid; place-items: center; min-width: 26px; height: 24px; padding: 0 7px; border-radius: 5px;
-    background: var(--panel3); color: var(--text); font: 700 14px/1 var(--font-mono); font-variant-numeric: tabular-nums;
+.kp-title-in > .kp-backbtn { grid-area: back; justify-self: start; white-space: nowrap; }
+.kp-title-name { grid-area: name; display: flex; align-items: center; gap: 10px; min-width: 0; }
+.kp-title-name > img { flex: none; }
+.kp-title-meta { grid-area: meta; display: flex; align-items: center; gap: 4px; }
+.kp-lab { margin-right: 4px; color: var(--muted); font-size: 12px; white-space: nowrap; }
+.btn.kp-txtbtn { padding: 0 8px; border-color: transparent; background: none; color: var(--muted); }
+.btn.kp-txtbtn:hover { color: var(--text); }
+.kp-title .kp-menu, .kp-htabs .kp-menu, .kp-tools .kp-menu { border-radius: 4px; }
+
+/* the tabs: the only line that sticks, right under the topbar however high that is */
+.kp-htabs {
+    container: kp-htabs / inline-size; position: sticky; top: var(--topbar-h, 64px); z-index: 3;
+    min-width: 0; background: var(--bg); border-bottom: 1px solid var(--line);
 }
-.kp-stage.kp-active { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 -3px 0 var(--accent); }
-.kp-stage.kp-active .kp-sico { color: var(--accent); }
-.kp-stage.kp-active .kp-stage-n { background: var(--accent); color: var(--accent-ink); }
-.kp-stage-arrow { display: inline-flex; color: var(--muted); }
-.kp-stage-arrow svg { width: 16px; height: 16px; }
-.kp-stage-group { display: inline-flex; }
-.kp-stage-group .kp-stage { border-radius: 0; }
-.kp-stage-group .kp-stage + .kp-stage { margin-left: -1px; }
-.kp-stage-group .kp-stage:first-child { border-radius: 6px 0 0 6px; }
-.kp-stage-group .kp-stage:last-child { border-radius: 0 6px 6px 0; }
-.kp-stage-group .kp-stage:hover, .kp-stage-group .kp-stage:focus-visible, .kp-stage-group .kp-stage.kp-active { position: relative; z-index: 1; }
+/* from 600 px down the topbar scrolls away (shared.css), so nothing is left to stick under */
+@media (max-width: 600px) {
+    .kp-htabs { top: 0; }
+}
+.kp-htabs-in { display: flex; align-items: stretch; }
+.kp-status { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; }
+/* the steps are drop zones and stay in view; out of room, only the decided states scroll, inside the line */
+.kp-steps { display: flex; align-items: stretch; flex: none; }
+.kp-decided { display: flex; align-items: stretch; flex: 0 1 auto; min-width: 0; overflow-x: auto; scrollbar-width: none; }
+.kp-htab {
+    position: relative; display: inline-flex; align-items: center; gap: 7px; height: 44px; padding: 0 12px;
+    color: var(--muted); font-size: 14px; font-weight: 500; text-decoration: none; white-space: nowrap;
+}
+.kp-htab:hover { color: var(--text); }
+.kp-htab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.kp-htab-btn { border: 0; background: none; font-family: inherit; cursor: pointer; }
+.kp-htab-btn svg { width: 12px; height: 12px; }
+.kp-htab-n { font: 500 14px/1 var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kp-htab.kp-active { color: var(--text); font-weight: 600; box-shadow: inset 0 -2px 0 var(--accent); }
+.kp-htab.kp-active .kp-htab-n { font-weight: 600; }
+/* the flow: an arrow between the steps, a line before the decided states */
+.kp-htab-arrow { padding-left: 30px; }
+.kp-htab-arrow::before { content: "\2192"; position: absolute; left: 8px; color: var(--muted); font-weight: 400; }
+.kp-htab-line { padding-left: 29px; }
+.kp-htab-line::before { content: ""; position: absolute; left: 14px; top: 12px; bottom: 12px; width: 1px; background: var(--line); }
+/* a card on its way: where it can land stands out, the rest fades; held over a landing place, more so */
+.kp-htab.kp-htab-drop { outline: 1px dashed var(--back-ink); outline-offset: -1px; background: var(--back-bg); color: var(--back-ink); }
+.kp-htab.kp-htab-dim { opacity: .42; }
+.kp-htab.kp-over { outline: 2px solid var(--back-ink); outline-offset: -2px; background: var(--back-bg-hover); color: var(--back-ink); }
+.kp-plan { display: flex; margin-left: auto; }
+.kp-plan-menu { display: none; margin-left: auto; }
+.kp-barmenu .kp-menu { left: auto; right: 0; }
+.kp-barmenu-left .kp-menu { left: 0; right: auto; }
+
+/* the tools of the page, with the one green button far right */
+.kp-tools { container: kp-tools / inline-size; position: relative; z-index: 2; min-width: 0; min-height: 32px; margin-top: -4px; }
+.kp-tools-in { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.kp-toollab { margin-right: 4px; font-size: 14px; font-weight: 600; }
+
+@container kp-tools (max-width: 1179px) {
+    .kp-tools-in .kp-tk-line { flex: 1 1 100%; margin-left: 0; padding-top: 8px; border-top: 1px solid var(--line-soft); }
+}
+@container kp-tools (max-width: 720px) {
+    .kp-toollab { display: none; }
+}
+/* the planning pages fold first: the states always keep their counts in view */
+@container kp-htabs (max-width: 999px) {
+    .kp-plan { display: none; }
+    .kp-plan-menu { display: inline-flex; }
+}
+@container kp-title (max-width: 999px) {
+    .kp-picker-btn { font-size: 22px; }
+}
+/* less room: the same line, tighter. The limits leave space for counts with three digits. */
+@container kp-htabs (max-width: 830px) {
+    .kp-htab { padding: 0 6px; gap: 4px; font-size: 13px; }
+    .kp-htab-arrow { padding-left: 20px; }
+    .kp-htab-arrow::before { left: 4px; }
+    .kp-htab-line { padding-left: 15px; }
+    .kp-htab-line::before { left: 7px; }
+}
+/* phone width: name on its own row, tools with full-size buttons */
+@container kp-title (max-width: 560px) {
+    .kp-title-in { grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "back meta" "name name"; }
+    .kp-lab { display: none; }
+    .kp-leads { margin-right: 2px; }
+    .kp-title-name { margin-top: 2px; }
+    .kp-picker-btn { font-size: 20px; line-height: 26px; }
+    .kp-title-name > img { width: 26px; height: 26px; }
+}
+/* the tabs as a grid of cells, on a phone only (GRID_MAX in KaderHeader.tsx sets the class): too high to stick */
+.kp-htabs.kp-htabs-grid { position: static; border-bottom: 0; }
+.kp-htabs-grid .kp-htabs-in { display: block; }
+.kp-htabs-grid .kp-status { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--line); border-left: 1px solid var(--line); }
+.kp-htabs-grid .kp-steps, .kp-htabs-grid .kp-decided { display: contents; }
+.kp-htabs-grid .kp-htab { justify-content: space-between; padding: 0 8px; gap: 4px; font-size: 13px; border-right: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.kp-htabs-grid .kp-htab-arrow, .kp-htabs-grid .kp-htab-line { padding: 0 8px; }
+.kp-htabs-grid .kp-htab-arrow::before, .kp-htabs-grid .kp-htab-line::before { display: none; }
+.kp-htabs-grid .kp-plan { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0; border-left: 1px solid var(--line); }
+.kp-htabs-grid .kp-plan .kp-htab { justify-content: center; }
+.kp-htabs-grid .kp-plan-menu { display: none; }
+@container kp-tools (max-width: 560px) {
+    .kp-tools-in { position: relative; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .kp-tools-in .btn { width: 100%; height: 44px; justify-content: center; }
+    .kp-tools-in .kp-tk-entry { grid-column: 1 / -1; order: -1; margin: 0; }
+    .kp-tool-wide { grid-column: 1 / -1; }
+    .kp-tools-in .kp-menuwrap { position: static; }
+    .kp-tools-in .kp-menu { left: 0; right: 0; max-width: none; }
+    .kp-tools-in .kp-tk-line { grid-column: 1 / -1; order: -1; padding-top: 0; border-top: 0; }
+    .kp-tools-in .kp-tk-line .btn { flex: 1 1 100%; margin-left: 0; }
+}
 @media (max-width: 640px) {
-    .kp-stages-kicker { flex-basis: 100%; }
-    .kp-stage-arrow { display: none; }
-    .kp-stage { font-size: 14px; padding: 0 8px 0 10px; gap: 6px; }
+    .kp-tools { margin-top: -2px; }
+    .kp-title .btn, .kp-title .kp-picker-btn, .kp-tools .btn { min-height: 44px; }
+    .kp-title .ibtn { width: 44px; height: 44px; }
 }
 
 /* ---- the start page without a Kader ---- */
@@ -742,7 +830,8 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 }
 .kp-drawer {
     display: flex; flex-direction: column; gap: 14px; min-width: 0; padding: 18px 20px; background: var(--panel); border: 1px solid var(--line);
-    position: sticky; top: 12px; max-height: calc(100vh - 24px); overflow: auto;
+    /* below the topbar and the tabs that stick, or it slides under them */
+    position: sticky; top: calc(var(--topbar-h, 64px) + 45px + 8px); max-height: calc(100vh - var(--topbar-h, 64px) - 45px - 20px); overflow: auto;
 }
 .kp-drawer-head { display: flex; align-items: flex-start; gap: 8px; }
 .kp-drawer-head h2 { margin: 0; font-size: 22px; font-weight: 800; }
@@ -778,7 +867,8 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 @media (max-width: 1100px) {
     .kp-decide.kp-open { grid-template-columns: minmax(0, 1fr); }
     .kp-drawer {
-        position: fixed; z-index: 40; top: 12px; right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); max-height: none;
+        /* the topbar wraps at this width: start under it, whatever its height, and end above the window's edge */
+        position: fixed; z-index: 40; top: calc(var(--topbar-h, 64px) + 8px); right: 12px; bottom: 12px; width: min(420px, calc(100vw - 24px)); max-height: none;
         box-shadow: 0 18px 48px var(--shade-55);
     }
 }
@@ -946,7 +1036,6 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 :root[data-theme="light"] :is(.kp-pick, .kp-chartab, .kp-classtile).class-colored { color: color-mix(in srgb, var(--cc) 35%, var(--ink-shade)); }
 
 /* ---- Live (docs/kaderplaner.md): who is here, what changed, conflicts, the logs ---- */
-.kp-top-act { display: inline-flex; align-items: center; gap: 6px; flex: none; }
 .btn.kp-logbtn svg { width: 14px; height: 14px; }
 /* somebody here right now: a ring in their colour and a dot (the name is always in the tooltip) */
 .kp-avatar.kp-online { position: relative; box-shadow: 0 0 0 2px var(--panel), 0 0 0 3.5px var(--hue); }
@@ -1014,7 +1103,6 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
     .kp-loglist li { grid-template-columns: minmax(0, 1fr) auto; }
     .kp-loglist li .kp-logtime { grid-column: 1 / -1; }
     .kp-loglist-wide li { grid-template-columns: minmax(0, 1fr); }
-    .kp-top-act { margin-left: auto; }
     .kp-iv-foot-state { min-width: 0; }
 }
 /* ---- the overview of all Kader (/kader): one card per Kader ---- */
@@ -1124,7 +1212,7 @@ dialog.dlg.kp-dialog .dlg-foot .kp-foot-left { margin-right: auto; }
 }
 
 /* ---- takeover into Discord (TakeoverWizard.tsx): the assistant and the head's line ---- */
-.kp-tk-entry { display: inline-flex; }
+.kp-tk-entry { display: inline-flex; margin-left: auto; }
 dialog.dlg.kp-tk .dlg-body { display: flex; flex-direction: column; gap: 20px; }
 .kp-tk-steps { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0; padding: 0 0 12px; list-style: none; border-bottom: 1px solid var(--line); }
 .kp-tk-step { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
@@ -1194,10 +1282,10 @@ dialog.dlg.kp-tk .dlg-body { display: flex; flex-direction: column; gap: 20px; }
 .kp-tk-resicon { display: inline-grid; place-items: center; width: 18px; height: 18px; flex: none; color: var(--good); }
 .kp-tk-res.kp-tk-bad .kp-tk-resicon { color: var(--high); }
 .kp-tk-resicon svg { width: 14px; height: 14px; }
-.kp-tk-line {
-    flex-basis: 100%; display: flex; flex-wrap: wrap; align-items: center; gap: 6px 14px; min-width: 0;
-    padding: 8px 0 0; border-top: 1px solid var(--line-soft);
-}
+.kp-tk-line { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; min-width: 0; color: var(--muted); font-size: 13px; }
+.kp-tools-in .kp-tk-line { margin-left: auto; }
+.kp-tk-line .btn { margin-left: auto; }
+.kp-tk-linelab { color: var(--text); font-weight: 600; }
 .kp-tk-line > .kp-sub { font-size: 13px; }
-.kp-tk-linetext { font-size: 14px; font-weight: 700; color: var(--text); }
+.kp-tk-linetext { font-size: 13px; }
 .kp-tk-gone { text-decoration: line-through; color: var(--muted); }

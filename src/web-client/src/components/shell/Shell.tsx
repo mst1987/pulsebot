@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useState } from "react";
+import { Suspense, useCallback, useLayoutEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "./ThemeToggle";
 import LangToggle from "./LangToggle";
@@ -160,6 +160,22 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
     const crumb = subCrumb(location.pathname, new URLSearchParams(location.search))
         ?? (pageCrumb && pageCrumb.path === location.pathname ? pageCrumb.label : null);
 
+    // The topbar wraps on a narrow window, so what sticks under it reads its real height.
+    const topbar = useRef<HTMLElement>(null);
+    useLayoutEffect(() => {
+        const el = topbar.current;
+        if (!el) return undefined;
+        const root = document.documentElement;
+        const measure = () => root.style.setProperty("--topbar-h", `${el.offsetHeight}px`);
+        measure();
+        const seen = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure);
+        seen?.observe(el);
+        return () => {
+            seen?.disconnect();
+            root.style.removeProperty("--topbar-h");
+        };
+    }, []);
+
     return (
         <ContentVersionProvider content={content} neutral={neutral}>
             <div className="app">
@@ -200,7 +216,7 @@ export default function Shell({ user, guilds, activeGuildId, content }: ShellCon
                 {/* On a phone the open drawer covers the burger: a tap beside it closes it. */}
                 {menuOpen && <button type="button" className="side-scrim" aria-label={t("shell.menuClose")} onClick={() => setMenuOpen(false)} />}
                 <div className="main">
-                    <header className={orgaAudience ? "topbar is-orga" : "topbar"}>
+                    <header ref={topbar} className={orgaAudience ? "topbar is-orga" : "topbar"}>
                         <IconButton className="menu-toggle" icon={<BurgerIcon />} tip={t("shell.menuToggle")} onClick={() => setMenuOpen((o) => !o)} />
                         <div className="crumbs">
                             <Link to="/">{t("shell.crumb.menu")}</Link> <span className="crumb-sep">/</span>{" "}
