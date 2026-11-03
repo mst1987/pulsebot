@@ -34,7 +34,7 @@ import RaidLoader from "../../components/ui/layout/RaidLoader";
 import { type Draft, toDraft, serverDefaultsChanges } from "./settingsDraft";
 import { RaidsheetsSection } from "./RaidsheetsSection";
 import { LogChannelsField } from "./SettingsFields";
-import GameVersionSection, { CategoryVersionSection, VersionSettingsCard } from "./versions/SettingsGameVersion";
+import GameVersionSection, { VersionSettingsCard } from "./versions/SettingsGameVersion";
 import CategorySwitchDialog, { type CategorySwitchChoice } from "./categories/CategorySwitchDialog";
 import CategoryDeactivateDialog from "./categories/CategoryDeactivateDialog";
 import CategoryCloseDialog from "./categories/CategoryCloseDialog";
@@ -431,6 +431,14 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     categories={data.categories}
                     roles={data.roles}
                     categoryIds={draft.categoryIds}
+                    versions={{
+                        options: data.gameVersions || [],
+                        mainVersion: draft.mainVersion,
+                        value: draft.categoryVersion,
+                        savedIds: data.config.categoryIds || [],
+                        eras: data.config.categoryEras || {},
+                        onChange: setCategoryVersion,
+                    }}
                     missing={data.missingCategories || []}
                     unproven={data.unprovenCategoryIds || []}
                     otherServer={data.otherServerCategoryIds || []}
@@ -516,33 +524,16 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                     crumb={activeCrumb}
                 />
                 {closing && <CategoryCloseDialog category={closing} onCancel={() => setClosing(null)} onClosed={afterClose} />}
-                </>
-            );
-
-            // #957 review: the server's categories and their version - settings writers switch it here
-            case "kategorieversion": return (
-                <>
-                    {head(activeSection)}
-                    <CategoryVersionSection
-                        versions={data.gameVersions || []}
-                        categories={data.categories}
-                        activeIds={draft.categoryIds}
-                        mainVersion={draft.mainVersion}
-                        categoryVersion={draft.categoryVersion}
-                        savedIds={data.config.categoryIds || []}
-                        categoryEras={data.config.categoryEras}
-                        onCategoryVersion={setCategoryVersion}
+                {switching && (
+                    <CategorySwitchDialog
+                        categoryId={switching.id}
+                        categoryName={categoryNames.get(switching.id) || ""}
+                        versionId={switching.versionId}
+                        roles={data.roles}
+                        onCancel={() => setSwitching(null)}
+                        onConfirm={confirmSwitch}
                     />
-                    {switching && (
-                        <CategorySwitchDialog
-                            categoryId={switching.id}
-                            categoryName={categoryNames.get(switching.id) || ""}
-                            versionId={switching.versionId}
-                            roles={data.roles}
-                            onCancel={() => setSwitching(null)}
-                            onConfirm={confirmSwitch}
-                        />
-                    )}
+                )}
                 </>
             );
 

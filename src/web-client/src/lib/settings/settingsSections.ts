@@ -39,9 +39,6 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     // the active server's block
     { id: "berechtigungen", group: "server", icon: "permissions", adminOnly: true },
     { id: "kategorien", group: "server", icon: "categories" },
-    // #957 review: which version each of this server's categories plays (and the switch
-    // dialog, #738) - settings writers change it, so it never moved to "Alle Server"
-    { id: "kategorieversion", group: "server", icon: "catalog" },
     { id: "raids", group: "server", icon: "raids" },
     { id: "logs", group: "server", icon: "warcraftLogs" },
     { id: "recruitment", group: "server", icon: "recruitment" },
@@ -59,7 +56,7 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "vollAdmins", group: "global", icon: "fullAdmin", adminOnly: true },
     { id: "verbindungen", group: "global", icon: "apiToken", standalone: true },
     // #541: the main game version, hiding the others, version links, features and the launch -
-    // the categories that play another one are the server's (kategorieversion)
+    // which version each category plays is the server's (kategorien)
     { id: "spielversion", group: "global", icon: "catalog" },
     { id: "dungeons", group: "global", icon: "bestTimes" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
@@ -94,6 +91,7 @@ export const LEGACY_SECTIONS: Record<string, string> = {
     warcraftlogs: "verbindungen",
     lootsync: "verbindungen",
     raidchars: "kategorien",
+    kategorieversion: "kategorien",
     loot: "topitems",
 };
 
