@@ -15,13 +15,14 @@ vi.mock("../../../api", async (orig) => ({
     ...(await orig<typeof import("../../../api")>()),
     getRosterImageInfo: vi.fn(),
     postRosterImage: vi.fn(),
+    attachRosterImage: vi.fn(),
 }));
 
 const CHANNELS = [
     { id: "c-roster", name: "roster", category: "Raid", parentId: null },
     { id: "c-news", name: "news", category: "", parentId: null },
 ];
-const LIVE = { channelId: "c-news", url: "https://discord.com/channels/g1/c-news/m9", reserve: true, chars: false };
+const LIVE = { channelId: "c-news", url: "https://discord.com/channels/g1/c-news/m9", reserve: true, chars: false, text: "" };
 const data = () => detail([member("Thorgrim", { userId: "u-thorgrim" })]);
 
 function open() {
@@ -36,6 +37,8 @@ beforeEach(() => {
     vi.mocked(api.getRosterImageInfo).mockReset();
     vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: null });
     vi.mocked(api.postRosterImage).mockResolvedValue({ url: "https://discord.com/channels/g1/c-roster/m1", channelId: "c-roster" });
+    vi.mocked(api.attachRosterImage).mockReset();
+    vi.mocked(api.attachRosterImage).mockResolvedValue({ url: "https://discord.com/channels/g1/c-news/m7", channelId: "c-news" });
 });
 afterEach(() => switchLang("de"));
 
@@ -92,7 +95,7 @@ describe("RosterImageDialog", () => {
         expect(screen.getByText("Das Bild mit einer kurzen Zeile, ohne Ping. Es aktualisiert sich danach selbst, bis du es in Discord löschst.")).toBeInTheDocument();
         await userEvent.click(screen.getByRole("switch", { name: "Ersatz und Pause zeigen" }));
         await userEvent.click(screen.getByRole("button", { name: "In Kanal posten" }));
-        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-roster", { reserve: true, chars: false });
+        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-roster", { reserve: true, chars: false, text: "" });
         expect(await screen.findByRole("status")).toHaveTextContent("In #roster gepostet.");
         expect(screen.getByRole("link", { name: "Nachricht öffnen" })).toHaveAttribute("href", "https://discord.com/channels/g1/c-roster/m1");
     });
@@ -101,7 +104,7 @@ describe("RosterImageDialog", () => {
         open();
         await userEvent.selectOptions(await screen.findByLabelText("Kanal"), "c-news");
         await userEvent.click(screen.getByRole("button", { name: "In Kanal posten" }));
-        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: false, chars: false });
+        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: false, chars: false, text: "" });
     });
 
     it("promises no updates for a closed roster: its post stays a snapshot", async () => {
@@ -133,7 +136,7 @@ describe("RosterImageDialog", () => {
         await userEvent.click(await screen.findByRole("switch", { name: "Ersatz und Pause zeigen" }));
         expect(screen.getByRole("switch", { name: "Ersatz und Pause zeigen" })).not.toBeChecked();
         await userEvent.click(await screen.findByRole("button", { name: "Neu posten" }));
-        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: false, chars: false });
+        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: false, chars: false, text: "" });
     });
 
     it("leaves out the link while the bot cannot tell it", async () => {
@@ -146,7 +149,7 @@ describe("RosterImageDialog", () => {
     it("asks the server again after a post: the new post is the running one, with one link", async () => {
         vi.mocked(api.getRosterImageInfo)
             .mockResolvedValueOnce({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: null })
-            .mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: { channelId: "c-roster", url: "https://discord.com/channels/g1/c-roster/m1", reserve: false, chars: false } });
+            .mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: { channelId: "c-roster", url: "https://discord.com/channels/g1/c-roster/m1", reserve: false, chars: false, text: "" } });
         open();
         await screen.findByLabelText("Kanal");
         await userEvent.click(screen.getByRole("button", { name: "In Kanal posten" }));
@@ -197,6 +200,77 @@ describe("RosterImageDialog", () => {
         expect(screen.queryByRole("button", { name: "In Kanal posten" })).not.toBeInTheDocument();
     });
 
+    it("shows the field for an existing message only after the click", async () => {
+        open();
+        await screen.findByLabelText("Kanal");
+        expect(screen.queryByLabelText("Nachrichten-ID oder Link")).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Anhängen" })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "Vorhandene Nachricht anhängen" }));
+        expect(screen.getByLabelText("Nachrichten-ID oder Link")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Anhängen" })).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Vorhandene Nachricht anhängen" })).not.toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "Abbrechen" }));
+        expect(screen.queryByLabelText("Nachrichten-ID oder Link")).not.toBeInTheDocument();
+    });
+
+    it("offers no attaching for a closed roster", async () => {
+        const closed = data();
+        closed.roster.closed = true;
+        renderPage(<RosterImageDialog data={closed} onClose={vi.fn()} />);
+        await screen.findByLabelText("Kanal");
+        expect(screen.queryByRole("button", { name: "Vorhandene Nachricht anhängen" })).not.toBeInTheDocument();
+    });
+
+    it("offers a reader neither attaching nor a text", async () => {
+        vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: false, channelId: null, channels: [], live: null });
+        open();
+        await screen.findByRole("img", previewName);
+        expect(screen.queryByRole("button", { name: "Vorhandene Nachricht anhängen" })).not.toBeInTheDocument();
+        expect(screen.queryByLabelText("Text zum Bild")).not.toBeInTheDocument();
+    });
+
+    it("attaches with the channel, switches and text, then shows the message like a post", async () => {
+        vi.mocked(api.getRosterImageInfo)
+            .mockResolvedValueOnce({ canPost: true, channelId: "c-news", channels: CHANNELS, live: null })
+            .mockResolvedValue({ canPost: true, channelId: "c-news", channels: CHANNELS, live: { channelId: "c-news", url: "https://discord.com/channels/g1/c-news/m7", reserve: false, chars: false, text: "Heute" } });
+        open();
+        await screen.findByLabelText("Kanal");
+        await userEvent.type(screen.getByLabelText("Text zum Bild"), "Heute");
+        await userEvent.click(screen.getByRole("button", { name: "Vorhandene Nachricht anhängen" }));
+        await userEvent.type(screen.getByLabelText("Nachrichten-ID oder Link"), "400000000000000009");
+        await userEvent.click(screen.getByRole("button", { name: "Anhängen" }));
+        expect(api.attachRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", "400000000000000009", { reserve: false, chars: false, text: "Heute" });
+        expect(await screen.findByRole("status")).toHaveTextContent("In #news angehängt.");
+        expect(api.getRosterImageInfo).toHaveBeenCalledTimes(2);
+        expect(screen.queryByLabelText("Nachrichten-ID oder Link")).not.toBeInTheDocument();
+        expect(screen.getAllByRole("link", { name: "Nachricht öffnen" })).toHaveLength(1);
+    });
+
+    it("keeps a refused attachment in the dialog as a sentence and also toasts it", async () => {
+        vi.mocked(api.attachRosterImage).mockRejectedValue({ code: "not_roster_picture", message: "nope" });
+        open();
+        await screen.findByLabelText("Kanal");
+        await userEvent.click(screen.getByRole("button", { name: "Vorhandene Nachricht anhängen" }));
+        await userEvent.type(screen.getByLabelText("Nachrichten-ID oder Link"), "400000000000000009");
+        await userEvent.click(screen.getByRole("button", { name: "Anhängen" }));
+        const alert = await screen.findByRole("alert");
+        expect(alert.textContent).toBeTruthy();
+        expect(alert.textContent).not.toContain("not_roster_picture");
+        expect(screen.getAllByText(alert.textContent!)).toHaveLength(2);
+        expect(screen.getByLabelText("Nachrichten-ID oder Link")).toHaveValue("400000000000000009");
+        expect(api.getRosterImageInfo).toHaveBeenCalledTimes(1);
+    });
+
+    it("starts the text from the running post and sends it with the new post", async () => {
+        vi.mocked(api.getRosterImageInfo).mockResolvedValue({ canPost: true, channelId: "c-roster", channels: CHANNELS, live: { ...LIVE, text: "Heute 20 Uhr" } });
+        open();
+        const field = await screen.findByLabelText("Text zum Bild");
+        expect(field).toHaveValue("Heute 20 Uhr");
+        await userEvent.type(field, "!");
+        await userEvent.click(screen.getByRole("button", { name: "Neu posten" }));
+        expect(api.postRosterImage).toHaveBeenCalledWith("raid-mo-do-abc", "c-news", { reserve: true, chars: false, text: "Heute 20 Uhr!" });
+    });
+
     it("closes from the footer", async () => {
         const { onClose } = open();
         await userEvent.click(screen.getAllByRole("button", { name: "Schließen" }).at(-1)!);
@@ -220,5 +294,9 @@ describe("RosterImageDialog", () => {
         expect(await screen.findByRole("button", { name: "Post again" })).toBeInTheDocument();
         expect(screen.getByText(/Updates itself in #news\./)).toBeInTheDocument();
         expect(screen.getByText("The current image gets deleted.")).toBeInTheDocument();
+        expect(screen.getByLabelText("Text for the image")).toBeInTheDocument();
+        await userEvent.click(screen.getByRole("button", { name: "Attach existing message" }));
+        expect(screen.getByLabelText("Message ID or link")).toBeInTheDocument();
+        expect(screen.getByRole("button", { name: "Attach" })).toBeInTheDocument();
     });
 });

@@ -15,6 +15,8 @@ jest.mock("../../../src/stores/loot/reportStore", () => ({ listReports: jest.fn(
 const rosterStore = require("../../../src/stores/roster/rosterStore");
 const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const characterStore = require("../../../src/stores/roster/characterStore");
+const crypto = require("crypto");
+const { rosterImageSvg } = require("../../../src/services/roster/rosterImage");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { modelFromDetail, rosterImageModel, rosterPicture, pictureHash, drawPicture, pictureLine } = require("../../../src/web/roster/rosterImageView");
 
@@ -83,6 +85,21 @@ describe("web/roster/rosterImageView pictureHash / pictureLine", () => {
     const thorgrim = { name: "Thorgrim", status: "core", role: "tank", extraChars: [SECOND_CHAR] };
     const lunaria = { name: "Lunaria", status: "bench", extraChars: [] };
     const model = { name: "Kern", versionLabel: "TBC", stand: NOW, slots: { total: 10 }, members: [thorgrim, lunaria] };
+
+    it("stays what it has always been without a text, so no running picture is edited after the deploy", () => {
+        const { svg } = rosterImageSvg({ ...model, stand: 1 }, { showReserve: false, showMoreChars: false, lang: "de" });
+        const before = crypto.createHash("sha256").update(svg).digest("hex");
+        expect(pictureHash(model)).toBe(before);
+        expect(pictureHash(model, { text: "" })).toBe(before);
+        expect(pictureHash(model, { text: "   " })).toBe(before);
+        expect(pictureHash(model, { text: undefined })).toBe(before);
+    });
+
+    it("changes with the orga's text", () => {
+        expect(pictureHash(model, { text: "Heute Abend" })).not.toBe(pictureHash(model));
+        expect(pictureHash(model, { text: "Heute Abend" })).not.toBe(pictureHash(model, { text: "Morgen" }));
+        expect(pictureHash(model, { text: "Heute Abend" })).toBe(pictureHash(model, { text: "Heute Abend" }));
+    });
 
     it("ignores the date alone", () => {
         expect(pictureHash({ ...model, stand: NOW + 86400000 })).toBe(pictureHash(model));

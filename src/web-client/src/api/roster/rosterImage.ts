@@ -10,8 +10,11 @@ import type { TextChannel } from "../system/recruitment";
 /** The two switches of the picture: bench and pause, the further characters. */
 export type RosterImageOptions = { reserve: boolean; chars: boolean };
 
-/** The posted picture that keeps itself current: its channel, its link ("" while the bot cannot tell), its switches. */
-export type RosterImageLive = { channelId: string; url: string; reserve: boolean; chars: boolean };
+/** What goes to Discord with the picture: the switches and the line above it ("" = the usual short line). */
+export type RosterImagePostOptions = RosterImageOptions & { text: string };
+
+/** The posted picture that keeps itself current: its channel, its link ("" while the bot cannot tell), its switches, its text. */
+export type RosterImageLive = RosterImagePostOptions & { channelId: string; url: string };
 
 /** What the dialog may offer: posting, the channel of the last post, the roster server's text channels, the running post. */
 export type RosterImageInfo = { canPost: boolean; channelId: string | null; channels: TextChannel[]; live: RosterImageLive | null };
@@ -31,7 +34,15 @@ export function getRosterImageInfo(id: string): Promise<RosterImageInfo> {
     return get(`/api/rosters/image/info?id=${encodeURIComponent(id)}`);
 }
 
-/** Post the picture with the given switches into a channel of the roster's server (no ping). */
-export function postRosterImage(id: string, channelId: string, { reserve, chars }: RosterImageOptions): Promise<RosterImagePosted> {
-    return send("POST", "/api/rosters/image", { id, channelId, reserve, chars });
+/** Post the picture with the given switches and text into a channel of the roster's server (no ping). */
+export function postRosterImage(id: string, channelId: string, { reserve, chars, text }: RosterImagePostOptions): Promise<RosterImagePosted> {
+    return send("POST", "/api/rosters/image", { id, channelId, reserve, chars, text });
+}
+
+/**
+ * Make a picture already in Discord the running one; it is replaced at once. `message` is what somebody
+ * pasted (link, channel-message or the id, then `channelId` counts); the server reads it.
+ */
+export function attachRosterImage(id: string, channelId: string, message: string, { reserve, chars, text }: RosterImagePostOptions): Promise<RosterImagePosted> {
+    return send("POST", "/api/rosters/image/attach", { id, channelId, message, reserve, chars, text });
 }

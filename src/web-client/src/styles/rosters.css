@@ -323,6 +323,7 @@ dialog.rn-dlg-steps .dlg-body { min-height: 440px; }
 .rn-img-err { color: var(--high); font-weight: 600; }
 .rn-img-ok { color: var(--good); }
 .rn-img-ok a { color: var(--accent); }
+.rn-img-attach-row { display: flex; flex-wrap: wrap; gap: 8px; }
 
 @media (max-width: 1100px) {
     .rn-comp { grid-template-columns: repeat(2, minmax(0, 1fr)); }
