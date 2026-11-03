@@ -18,11 +18,22 @@ beforeEach(() => profiles.reset());
 
 describe("addSignupCharacter", () => {
     it("adds the character with its spec to the profile of the raid's version, by hand", () => {
-        expect(addSignupCharacter(foreverRaid, ANNA, { name: " Bertholt ", spec: "Warrior-Protection" }, { accountName: "Anna" }))
-            .toEqual({ character: "Bertholt", spec: "Warrior-Protection" });
+        expect(addSignupCharacter(foreverRaid, ANNA, { name: " Bertholt Sturm ", spec: "Warrior-Protection" }, { accountName: "Anna" }))
+            .toEqual({ character: "Bertholt Sturm", spec: "Warrior-Protection" });
         const [char] = profiles.getProfile(ANNA).characters;
-        expect(char).toMatchObject({ name: "Bertholt", className: "Warrior", versionId: "forever", source: "manual" });
+        expect(char).toMatchObject({ name: "Bertholt Sturm", className: "Warrior", versionId: "forever", source: "manual" });
         expect(char.specs.map((s) => s.key)).toEqual(["Warrior-Protection"]);
+    });
+
+    it("refuses a new Forever character without a last name, a stored one keeps working", () => {
+        const refused = addSignupCharacter(foreverRaid, ANNA, { name: "Bertholt", spec: "Warrior-Protection" });
+        expect(refused.code).toBe("character");
+        expect(refused.error).toMatch(/Vor- und Nachname/);
+        expect(profiles.getProfile(ANNA).characters).toEqual([]);
+
+        profiles.addCharacter(ANNA, { name: "Bertholt", className: "Warrior", versionId: "forever", source: "log" });
+        expect(addSignupCharacter(foreverRaid, ANNA, { name: "Bertholt", spec: "Warrior-Protection" }))
+            .toEqual({ character: "Bertholt", spec: "Warrior-Protection" });
     });
 
     it("refuses an unknown spec and an empty name", () => {

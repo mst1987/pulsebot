@@ -129,7 +129,7 @@ export type SignupsData = {
     /** The class list per game version (#541); a row picks its event's. */
     classesByVersion?: Record<string, SignupClass[]>;
     /** The names of the game versions (#543), for "Lege einen Forever-Charakter an". */
-    versions?: { id: string; label: string; short?: string }[];
+    versions?: { id: string; label: string; short?: string; lastName?: boolean }[];
     /** The version shown (#741). */
     version?: string;
     /** The version of the raid `event` named (#741): a link from Discord switches the menu to it; "" = none. */

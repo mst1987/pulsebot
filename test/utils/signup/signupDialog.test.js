@@ -168,6 +168,23 @@ describe("main version (#541)", () => {
         expect(modal({ versionId: "tbc" })).not.toBe(modal({ versionId: "forever" }));
     });
 
+    it("says first and last name in the label of a Forever modal", () => {
+        const field = (opts) => dialog.buildCharacterModal("x", opts).toJSON().components[0].components[0];
+        expect(field({ versionId: "forever", classText: "Magier · Frost" }).label).toBe("Vor- und Nachname (Magier · Frost)");
+        expect(field({ versionId: "forever" }).label).toBe("Vor- und Nachname");
+        expect(field({ versionId: "forever" }).min_length).toBe(5);
+        expect(field({ versionId: "tbc", classText: "Magier · Frost" }).label).toBe("Name deines Charakters (Magier · Frost)");
+        expect(field({ versionId: "tbc" }).min_length).toBe(2);
+    });
+
+    it("prefills a Forever modal only with a full name, so that a one-word Discord name is not just sent", () => {
+        const value = (defaultName, versionId) => dialog.buildCharacterModal("x", { defaultName, versionId }).toJSON().components[0].components[0].value;
+        expect(value("Devihra", "forever")).toBeUndefined();
+        expect(value("Marc | Heal", "forever")).toBeUndefined();
+        expect(value("Devi Res", "forever")).toBe("Devi Res");
+        expect(value("Devihra", "tbc")).toBe("Devihra");
+    });
+
     it("lists the classes of the event's version, the main version's for an event without one", () => {
         const { rulesFor } = require("../../../src/config/gameVersions");
         mockConfig = { mainVersion: "forever" };

@@ -113,7 +113,7 @@ export default function AddCharacterDialog({
     const cls = versionClasses.find((c) => c.id === className);
     // Forever: "Vorname Nachname" — one space between, as the name rule wants it.
     const fullName = withLastName && lastName.trim() ? `${name.trim()} ${lastName.trim()}` : name.trim();
-    const canSubmit = !!name.trim() && (addWay === "armory" ? (!needClass || !!className) : !!className);
+    const canSubmit = !!name.trim() && (!withLastName || !!lastName.trim()) && (addWay === "armory" ? (!needClass || !!className) : !!className);
     const pickVersion = (next: string) => {
         setVersion(next);
         setError("");
