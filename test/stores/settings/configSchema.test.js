@@ -8,7 +8,7 @@
 // before anything loads, exactly as when the fixture was frozen.
 const ENV_KEYS = ["GUILD_ID", "RAIDHELPER_SERVER_ID", "OFFICER_ROLE_ID", "APPLICATION_CHANNEL_ID", "GOOGLE_SPREADSHEET_ID",
     "GOOGLE_SHEET_NAME", "GOOGLE_SHEET_GID", "BLIZZARD_CLIENT_ID", "BLIZZARD_CLIENT_SECRET", "BLIZZARD_REGION", "BLIZZARD_REALM",
-    "BLIZZARD_NAMESPACE", "ADMIN_ROLE_IDS"];
+    "BLIZZARD_NAMESPACE", "ADMIN_ROLE_IDS", "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"];
 for (const key of ENV_KEYS) delete process.env[key];
 
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());

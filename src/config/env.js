@@ -33,6 +33,10 @@ const blizzardRealmSlug = process.env.BLIZZARD_REALM || defaults.blizzardRealmSl
 // Overridable if needed (e.g. profile-classic-eu / profile-classic1x-eu).
 const blizzardNamespace = process.env.BLIZZARD_NAMESPACE || "";
 
+// Twitch app (stream announcements, docs/twitch.md). Empty = no announcements.
+const twitchClientId = process.env.TWITCH_CLIENT_ID || "";
+const twitchClientSecret = process.env.TWITCH_CLIENT_SECRET || "";
+
 // Google Sheets (raid setup sheets): the default "Tier 4/5" raidsheet seeded
 // into the settings store.
 const googleSpreadsheetId = process.env.GOOGLE_SPREADSHEET_ID || "";
@@ -122,6 +126,8 @@ module.exports = {
     blizzardRegion,
     blizzardRealmSlug,
     blizzardNamespace,
+    twitchClientId,
+    twitchClientSecret,
     googleSpreadsheetId,
     googleSheetName,
     googleSheetGid,

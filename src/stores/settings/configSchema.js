@@ -6,6 +6,7 @@ const {
     categoryIds,
     guildId, raidhelperServerId,
     blizzardClientId, blizzardClientSecret,
+    twitchClientId, twitchClientSecret,
 } = require("../../config/variables");
 const { normalizeCategoryLootSystem } = require("../../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../../services/events/embedLook");
@@ -66,6 +67,12 @@ const CONFIG_DEFAULTS = {
     blizzard: {
         clientId: blizzardClientId || "",
         clientSecret: blizzardClientSecret || "",
+    },
+    // Twitch app credentials for the stream announcements (docs/twitch.md): full
+    // admins only, on Einstellungen → Verbindungen. Empty → the job does nothing.
+    twitch: {
+        clientId: twitchClientId || "",
+        clientSecret: twitchClientSecret || "",
     },
     // Per game version (#542, services/versions/versionSettings.js): Battle.net
     // realm, armory and Warcraft Logs templates, Wowhead path, softres edition
@@ -909,6 +916,13 @@ function blizzardCredentials(raw) {
     return { clientId: pick("clientId"), clientSecret: pick("clientSecret") };
 }
 
+/** The Twitch app credentials, the same way: nothing stored means the env values. */
+function twitchCredentials(raw) {
+    const src = raw && typeof raw === "object" && !Array.isArray(raw) ? raw : {};
+    const pick = (key) => String(src[key] === undefined || src[key] === null ? CONFIG_DEFAULTS.twitch[key] : src[key]);
+    return { clientId: pick("clientId"), clientSecret: pick("clientSecret") };
+}
+
 /**
  * #924: what used to be one global value and is per server now. The officer
  * role pinged on a new application and the channel it is posted to; the raid
@@ -996,6 +1010,10 @@ const SERVER_SETTING_DEFAULTS = Object.freeze({
     // [{ versionId, guildName, realm, region, interval, lastRunAt, lastSuccessAt, lastResult }];
     // the central job (wclGuildSync.js) fetches the guild's new reports as logs.
     wclGuilds: Object.freeze([]),
+    // Twitch-Ankündigungen (services/twitch/twitchSettings.js, docs/twitch.md):
+    // [{ login, channelId, roleId, text, games, source }]; what the central job
+    // knows about a running stream lives in stores/discord/twitchStateStore.js.
+    twitchStreamers: Object.freeze([]),
     // #952 Top-Items je Server und Version (services/loot/topItems.js):
     // { [versionId]: [{ id, name, iconUrl, quality }] }; the loot views count an
     // award as a top item by the server and version of its raid.
@@ -1107,6 +1125,7 @@ function normalizeConfig(raw) {
         ...legacyLogChannelIds(stored),
         // Only the credentials: the realm fields of before #542 live in versionSettings.
         blizzard: blizzardCredentials(stored.blizzard),
+        twitch: twitchCredentials(stored.twitch),
         versionSettings: versionSettingsOf(stored),
         anthropic: { ...CONFIG_DEFAULTS.anthropic, ...(stored.anthropic || {}) },
         warcraftlogsV2: { ...CONFIG_DEFAULTS.warcraftlogsV2, ...(stored.warcraftlogsV2 || {}) },

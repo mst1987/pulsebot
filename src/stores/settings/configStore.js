@@ -142,7 +142,7 @@ const MERGED_CATEGORY_MAPS = [
 
 // Blocks a PATCH sends only partly: the fields sent are merged over the stored
 // block (a secret left out stays — the credentials' "omit = keep").
-const MERGED_FIELDS = ["blizzard", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
+const MERGED_FIELDS = ["blizzard", "twitch", "anthropic", "warcraftlogsV2", "github", "categoryLootTool"];
 
 /**
  * Small blocks merged per field before they are normalised: the drawn pictures

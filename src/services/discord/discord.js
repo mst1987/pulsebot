@@ -521,13 +521,15 @@ async function postNotice(channelId, payload, { guildId = "" } = {}) {
  * lives on that server (assertChannelGuild). `silentMentions`: a card that shows raiders by `<@id>` — goes through
  * utils/discord/mentionName.silentMentionSteps: post without the mentions, then the edit with `allowedMentions.users`
  * that lets Discord resolve the names without pinging (checked on the dev server, 31.10.2026). A failed follow-up edit
- * only logs: the card is out.
+ * only logs: the card is out. `pingRoleId`: the one exception to "pings nobody", exactly this role and nothing else a text
+ * may carry (`@everyone` in a streamer's text stays plain text).
  * @returns {Promise<{ guildId, channelId, messageId, url }>}
  */
-async function postPayload(channelId, payload, { guildId = "", silentMentions = false } = {}) {
+async function postPayload(channelId, payload, { guildId = "", silentMentions = false, pingRoleId = "" } = {}) {
     const channel = await fetchTextChannel(channelId, "Channel nicht gefunden oder kein Textkanal.");
     assertChannelGuild(channel, guildId);
-    const steps = silentMentions ? silentMentionSteps(payload) : { first: { ...payload, allowedMentions: { parse: [] } }, then: null };
+    const allowedMentions = pingRoleId ? { parse: [], roles: [String(pingRoleId)] } : { parse: [] };
+    const steps = silentMentions ? silentMentionSteps(payload) : { first: { ...payload, allowedMentions }, then: null };
     const posted = await channel.send(steps.first);
     if (steps.then) {
         try {

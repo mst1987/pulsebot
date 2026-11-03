@@ -771,6 +771,13 @@ describe("services/discord/discord channel management", () => {
             expect(edit).not.toHaveBeenCalled();
         });
 
+        it("pingRoleId allows exactly that one role, nothing else in the text can ping", async () => {
+            const send = jest.fn(async () => ({ id: "m4", url: "u" }));
+            setClientWithChannels(dc.makeChannel({ id: "chan", send }));
+            await discord.postPayload("chan", { content: "<@&555> @everyone" }, { pingRoleId: "555" });
+            expect(send.mock.calls[0][0].allowedMentions).toEqual({ parse: [], roles: ["555"] });
+        });
+
         it("editPayload sends the users with silentMentions, parse [] without", async () => {
             const message = { id: "m9", url: "u", author: { id: "bot" }, edit: jest.fn(async () => {}) };
             setClientWithChannels(dc.makeChannel({ id: "chan", messages: [message] }));

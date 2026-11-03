@@ -149,6 +149,19 @@ describe("selfRole roleUses", () => {
         expect(roleUses({ pugRoles: { "g-1": { versions: {}, classes: { Mage: ROLE } } } }, ROLE)).toEqual([]);
     });
 
+    it("names the ping role of a Twitch announcement with its streamers", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const config = { serverSettings: {
+            "g-1": { twitchStreamers: [{ login: "foo", roleId: ROLE }, { login: "bar", roleId: OTHER }] },
+            "g-2": { twitchStreamers: [{ login: "baz", roleId: ROLE }, { login: "foo", roleId: ROLE }] },
+            "g-3": {},
+            broken: null,
+        } };
+        expect(roleUses(config, ROLE)).toEqual([{ code: "twitchPing", logins: ["foo", "baz"] }]);
+        expect(privilegedReason(config, ROLE)).toBe("the role is pinged on Twitch stream announcements");
+        expect(roleUses({ serverSettings: { "g-1": { twitchStreamers: [{ login: "bar", roleId: OTHER }] } } }, ROLE)).toEqual([]);
+    });
+
     it("is empty for a plain role, no id or no config", () => {
         jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
         expect(roleUses({ categoryRoles: { c: [OTHER] } }, ROLE)).toEqual([]);

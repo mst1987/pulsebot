@@ -63,6 +63,7 @@ function pugVersionIdsOf(c, id) {
  *   { code: "roleSync", guildIds: string[], pairs: { guildId, roleId, direction }[] }  the partner
  *       servers of its role-sync pairs; `pairs` names the other side of each pair
  *   { code: "pugVersion", versionIds: string[] }      the PuG version role of these versions (#906)
+ *   { code: "twitchPing", logins: string[] }          pinged when these Twitch streamers go live
  *   { code: "roster", rosterId, name, kinds: ("member"|"trial"|"manager")[] }  one per roster
  * Empty when the role carries none. The roles page (services/discord/servers/serverRoles.js) shows
  * them as "Bedeutung für den Bot".
@@ -98,6 +99,16 @@ function rightsAnywhere(c) {
     };
 }
 
+/** The Twitch streamers whose announcement pings the role, over every server (the stored lists as they are). */
+function twitchLoginsOf(c, id) {
+    const logins = [];
+    for (const [, block] of entries(c.serverSettings)) {
+        const list = block && Array.isArray(block.twitchStreamers) ? block.twitchStreamers : [];
+        for (const entry of list) if (entry && str(entry.roleId) === id) logins.push(str(entry.login));
+    }
+    return [...new Set(logins)];
+}
+
 function roleUses(cfg, roleId, { rosters } = {}) {
     const c = cfg || {};
     const id = str(roleId);
@@ -129,6 +140,8 @@ function roleUses(cfg, roleId, { rosters } = {}) {
     if (pairs.length) out.push({ code: "roleSync", guildIds: [...new Set(partners.filter(Boolean))], pairs });
     const versionIds = pugVersionIdsOf(c, id);
     if (versionIds.length) out.push({ code: "pugVersion", versionIds });
+    const logins = twitchLoginsOf(c, id);
+    if (logins.length) out.push({ code: "twitchPing", logins });
     for (const r of Array.isArray(rosters) ? rosters : rostersOrEmpty()) {
         if (!r) continue;
         const managers = r.managers && Array.isArray(r.managers.roleIds) ? r.managers.roleIds : [];
@@ -151,6 +164,7 @@ const USE_TEXT = {
     categoryRaider: () => "the role is a raider role of a category",
     roleSync: () => "the role is part of the role sync between the servers",
     pugVersion: () => "the role is a PuG version role (Rollen & Onboarding)",
+    twitchPing: () => "the role is pinged on Twitch stream announcements",
     roster: (u) => `the role belongs to the roster ${u.name || u.rosterId}`,
 };
 

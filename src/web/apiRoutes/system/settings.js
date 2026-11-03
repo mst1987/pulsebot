@@ -214,7 +214,7 @@ const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermi
 // can replace it with their own. The client mirrors this with `adminOnly` on
 // the section (src/web-client/src/lib/settings/settingsSections.ts).
 // The GitHub token (#818) reads the private addon repos.
-const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
+const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github", "twitch"];
 
 // The addon downloads (#818): which repos the server fetches files from with
 // the GitHub token and hands to every member — guarded like the token itself.
@@ -821,6 +821,10 @@ function publicConfig(config) {
     if (config.github !== undefined) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
+    if (config.twitch !== undefined) {
+        const twitch = config.twitch || {};
+        out.twitch = { clientId: twitch.clientId || "", hasClientSecret: !!twitch.clientSecret };
+    }
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
     // #952: the old global list is kept for the server only, the browser reads the lists per server
     delete out.topItemsLegacy;
@@ -1101,6 +1105,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.warcraftlogsV2 = {};
         if (body.warcraftlogsV2.clientId !== undefined) partial.warcraftlogsV2.clientId = String(body.warcraftlogsV2.clientId || "").trim();
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
+    }
+    // twitch.clientSecret: the same contract — omit = keep, "" = clear.
+    if (body.twitch !== undefined && body.twitch && typeof body.twitch === "object") {
+        partial.twitch = {};
+        if (body.twitch.clientId !== undefined) partial.twitch.clientId = String(body.twitch.clientId || "").trim();
+        if (body.twitch.clientSecret !== undefined) partial.twitch.clientSecret = String(body.twitch.clientSecret || "").trim();
     }
     // github.token (#818): the same contract — omit = keep, "" = clear.
     if (body.github !== undefined && body.github && typeof body.github === "object" && body.github.token !== undefined) {
