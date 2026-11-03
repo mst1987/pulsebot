@@ -66,16 +66,27 @@ function copiedMembers(old, { actor, now }) {
     return out;
 }
 
+/**
+ * `roleIds` without the ones another open roster holds: a role belongs to one open roster
+ * (docs/roster-profile.md). The old roster is closed by now and does not count. What falls out is logged.
+ */
+function freeRoles(roleIds, categoryId, toVersion, exceptId = "") {
+    const free = roleIds.filter((id) => !rosterStore.openRostersWithRole([id], { exceptId }).length);
+    if (free.length < roleIds.length) logger.warn(`roster for ${categoryId} (${toVersion}): ${roleIds.length - free.length} role(s) left out, another roster holds them`);
+    return free;
+}
+
 /** A new roster for `toVersion` from the old one's settings; null when the store refuses. */
 function createFrom(old, toVersion, choice, { actor, now, kaderId = "" }) {
     const members = choice.copyMembers ? copiedMembers(old, { actor, now }) : {};
+    const roleIds = freeRoles(choice.roleIds, old.categoryId, toVersion);
     try {
         const created = rosterStore.createRoster({
             guildId: old.guildId,
             name: old.name,
             categoryId: old.categoryId,
             versionId: toVersion,
-            roleIds: choice.roleIds,
+            roleIds,
             trialRoleId: null,
             managers: old.managers,
             slots: old.slots,
@@ -120,6 +131,9 @@ function applyRosterSwitch(sw, { choice, actor = "", now = new Date().toISOStrin
     let next = rosterStore.rosterForCategory(categoryId, sw.toVersion);
     if (next && next.closedAt && next.closedReason === REASON) {
         next = rosterStore.reopenRoster(next.id, { actor, now });
+        // a role another roster got while this one was closed stays there
+        const free = freeRoles(next.roleIds, categoryId, sw.toVersion, next.id);
+        if (free.length < next.roleIds.length) next = rosterStore.updateRoster(next.id, { roleIds: free }, { actor, now });
         out.reopened = { id: next.id, name: next.name };
     } else if (!next && old && wanted.create) {
         next = createFrom(old, sw.toVersion, wanted, { actor, now, kaderId });
