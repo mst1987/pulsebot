@@ -100,6 +100,14 @@ describe("services/roster/rosterCreate settings", () => {
         expect((await createRosterWithSource({ name: "X", roleIds: [ROLE] }, { guildId: "g2", config })).ok).toBe(true);
     });
 
+    it("refuses a member role another open roster holds", async () => {
+        const held = rosterStore.createRoster({ name: "Halter", guildId: "g1", roleIds: [ROLE] });
+        expect((await createRosterWithSource({ name: "X", roleIds: [ROLE] }, { guildId: "g1", config: {} })).code).toBe("role_taken");
+        expect(rosterStore.listRosters("").map((r) => r.id)).toEqual([held.id]);
+        rosterStore.closeRoster(held.id, { reason: "version_switch" });
+        expect((await createRosterWithSource({ name: "X", roleIds: [ROLE] }, { guildId: "g1", config: {} })).ok).toBe(true);
+    });
+
     it("answers the store's conflict as a code and passes other errors on", async () => {
         const spy = jest.spyOn(rosterStore, "createRoster").mockImplementationOnce(() => { throw new rosterStore.RosterError("category_taken"); });
         expect((await createRosterWithSource({ name: "X" }, { guildId: "g1" })).code).toBe("category_taken");
@@ -122,7 +130,9 @@ describe("services/roster/rosterCreate source role", () => {
 
     it("still creates the roster when the members cannot be read, and says why", async () => {
         discord.listMembersWithRoles.mockResolvedValueOnce({ members: [], error: "intent" });
-        expect((await createRosterWithSource({ name: "A", roleIds: [ROLE], source: "role" }, { guildId: "g1" })).initial.error).toBe("members_unavailable");
+        const first = await createRosterWithSource({ name: "A", roleIds: [ROLE], source: "role" }, { guildId: "g1" });
+        expect(first.initial.error).toBe("members_unavailable");
+        rosterStore.deleteRoster(first.roster.id);
         discord.isOnline.mockReturnValue(false);
         const res = await createRosterWithSource({ name: "B", roleIds: [ROLE], source: "role" }, { guildId: "g1" });
         expect(res.ok).toBe(true);
