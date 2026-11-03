@@ -553,7 +553,15 @@ describe("stores/rosterStore setImageChannel", () => {
 });
 
 describe("stores/rosterStore imagePost", () => {
-    const POST = { guildId: "g1", channelId: "c1", messageId: "m1", reserve: true, chars: false, hash: "h1" };
+    const POST = { guildId: "g1", channelId: "c1", messageId: "m1", reserve: true, chars: false, hash: "h1", text: "" };
+
+    it("keeps the orga's text trimmed and at most 500 characters, none for a post from before", () => {
+        expect(normalizeRoster({ id: "r1", imagePost: { ...POST, text: undefined } }).imagePost.text).toBe("");
+        expect(normalizeRoster({ id: "r1", imagePost: { ...POST, text: "  Heute 20 Uhr  " } }).imagePost.text).toBe("Heute 20 Uhr");
+        expect(normalizeRoster({ id: "r1", imagePost: { ...POST, text: "x".repeat(600) } }).imagePost.text).toHaveLength(500);
+        expect(rosterStore.imagePostText(null)).toBe("");
+        expect(rosterStore.imagePostText("y".repeat(600))).toHaveLength(500);
+    });
 
     it("normalises strictly: unknown fields go, without channel or message there is no post", () => {
         expect(normalizeRoster({ id: "r1", imagePost: { ...POST, junk: 1, reserve: "yes" } }).imagePost)

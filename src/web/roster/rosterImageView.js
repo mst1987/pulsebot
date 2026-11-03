@@ -19,6 +19,9 @@ const { tr } = require("../../utils/i18n/botText");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
+// The name of the picture in Discord. It also tells an attached old post from any other bot message.
+const PICTURE_FILE = "roster.png";
+
 /** The rule-set spec key of a character, "" when the version does not know it. */
 function knownSpec(char, versionId) {
     const spec = str(char && char.spec);
@@ -82,11 +85,14 @@ const HASH_STAND = 1;
 /**
  * What a picture shows, as a hash: the SVG drawn with a fixed date, so a change the picture does
  * not show (pause to bench with the reserve hidden) changes nothing, and a roster nobody touches
- * is not edited each midnight.
+ * is not edited each midnight. The orga's text belongs to it; without one the hash stays what it
+ * has always been, so a picture from before the text is not edited for nothing.
  */
-function pictureHash(model, { reserve = false, chars = false, lang = "de" } = {}) {
+function pictureHash(model, { reserve = false, chars = false, lang = "de", text = "" } = {}) {
     const { svg } = rosterImageSvg({ ...model, stand: HASH_STAND }, { showReserve: !!reserve, showMoreChars: !!chars, lang });
-    return crypto.createHash("sha256").update(svg).digest("hex");
+    const hash = crypto.createHash("sha256").update(svg);
+    if (str(text)) hash.update(`\n${str(text)}`);
+    return hash.digest("hex");
 }
 
 /** A built model drawn: the PNG is the expensive step, so the job takes it only on a change. */
@@ -103,19 +109,20 @@ function pictureLine(lang, name, now = Date.now()) {
 /**
  * The drawn roster: SVG and PNG with the language they speak and the hash of what they show,
  * or null (see rosterImageModel). Not cached - drawn from the roster as it is now.
- * @param {{ guildId: string, id: string, config: object, showReserve?: boolean, showMoreChars?: boolean, now?: number }} opts
+ * @param {{ guildId: string, id: string, config: object, showReserve?: boolean, showMoreChars?: boolean, text?: string, now?: number }} opts
+ *   `text` is not drawn, it only counts for the hash (the line above the picture)
  * @returns {Promise<{ svg: string, png: Buffer, hash: string, lang: string, roster: object }|null>}
  */
-async function rosterPicture({ showReserve = false, showMoreChars = false, ...opts } = {}) {
+async function rosterPicture({ showReserve = false, showMoreChars = false, text = "", ...opts } = {}) {
     const built = await rosterImageModel(opts);
     if (!built) return null;
     const { lang, roster } = built;
     return {
         ...drawPicture(built, { showReserve, showMoreChars }),
-        hash: pictureHash(built.model, { reserve: showReserve, chars: showMoreChars, lang }),
+        hash: pictureHash(built.model, { reserve: showReserve, chars: showMoreChars, lang, text }),
         lang,
         roster,
     };
 }
 
-module.exports = { rosterPicture, rosterImageModel, modelFromDetail, pictureHash, drawPicture, pictureLine };
+module.exports = { PICTURE_FILE, rosterPicture, rosterImageModel, modelFromDetail, pictureHash, drawPicture, pictureLine };

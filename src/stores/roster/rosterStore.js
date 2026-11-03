@@ -23,7 +23,8 @@
 //       imagePost: null | {                 // the posted picture that keeps itself current (web/roster/rosterImageLive.js)
 //         guildId, channelId, messageId,    //   where it is; without channel and message there is none
 //         reserve, chars,                   //   the switches it was posted with
-//         hash },                           //   what it shows now; only for the job, never handed to a reader
+//         hash,                             //   what it shows now; only for the job, never handed to a reader
+//         text },                           //   the orga's line above it, ≤ 500 ("" = the usual line with name and date)
 //       members: { [userId]: {              // ≤ 500
 //         status: "core" | "trial" | "bench" | "pause", since, by,
 //         chars: [charKey],                 // profile keys (characterKeyOf(name, versionId))
@@ -107,10 +108,13 @@ const STATUSES = ["core", "trial", "bench", "pause"];
 const SOURCE_KINDS = ["manual", "kader", "migration"];
 const ID_MAX = 32;
 const IMAGE_HASH_MAX = 64;
+const IMAGE_TEXT_MAX = 500;
 
 const isMap = (v) => !!v && typeof v === "object" && !Array.isArray(v);
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 const text = (v, max) => str(v).slice(0, max);
+/** The orga's line above the picture as it is stored: the route hashes this, so a reload must not change it. */
+const imagePostText = (v) => text(v, IMAGE_TEXT_MAX).trim();
 const idOf = (v) => {
     const s = str(v);
     return s && s.length <= ID_MAX ? s : "";
@@ -247,6 +251,7 @@ function normalizeImagePost(raw) {
         reserve: raw.reserve === true,
         chars: raw.chars === true,
         hash: text(raw.hash, IMAGE_HASH_MAX),
+        text: imagePostText(raw.text),
     };
 }
 
@@ -874,7 +879,7 @@ function migrateVersions() {
 module.exports = {
     listRosters, getRoster, rosterForCategory, rostersForCategory, rosterForKader, createRoster, updateRoster, deleteRoster, closeRoster, reopenRoster, isClosed,
     upsertMember, removeMember, appendHistory, setFirstChars, renameMemberChar, migrateCategories, migrateVersions, assignLootProfile, setImageChannel,
-    setImagePost, markImagePostDrawn, forgetImagePostByMessage, forgetImagePostsInChannel,
+    setImagePost, imagePostText, markImagePostDrawn, forgetImagePostByMessage, forgetImagePostsInChannel,
     normalizeRoster, normalizeFile, RosterError, LIMITS, STATUSES, SOURCE_KINDS, ROSTERS_FILE,
     useFile: store.useFile,
 };

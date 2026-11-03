@@ -11,7 +11,7 @@
 const rosterStore = require("../../stores/roster/rosterStore");
 const { getConfig } = require("../../stores/settings/settingsStore");
 const discord = require("../../services/discord/discord");
-const { rosterImageModel, pictureHash, drawPicture, pictureLine } = require("./rosterImageView");
+const { PICTURE_FILE, rosterImageModel, pictureHash, drawPicture, pictureLine } = require("./rosterImageView");
 const logger = require("../../logger").child("rosterImageLive");
 
 const FIRST_DELAY_MS = 60 * 1000;
@@ -60,12 +60,12 @@ async function refreshPost(roster, { config, now }) {
         if (!(await membersReadable(post.guildId))) return "held";
         const built = await rosterImageModel({ guildId: post.guildId, id: roster.id, config, now, background: true });
         if (!built) return "held";
-        const hash = pictureHash(built.model, { reserve: post.reserve, chars: post.chars, lang: built.lang });
+        const hash = pictureHash(built.model, { reserve: post.reserve, chars: post.chars, lang: built.lang, text: post.text });
         if (hash === post.hash) return "same";
         const { png } = drawPicture(built, { showReserve: post.reserve, showMoreChars: post.chars });
         await discord.editPayload(post.channelId, post.messageId, {
-            content: pictureLine(built.lang, built.roster.name, now),
-            files: [{ attachment: png, name: "roster.png" }],
+            content: post.text || pictureLine(built.lang, built.roster.name, now),
+            files: [{ attachment: png, name: PICTURE_FILE }],
             attachments: [],
         });
         rosterStore.markImagePostDrawn(roster.id, post.messageId, hash);

@@ -80,6 +80,7 @@
     "/api/rosters/composition": "roster",
     "/api/rosters/image": "roster",
     "/api/rosters/image/info": "roster",
+    "/api/rosters/image/attach": "roster",
     "/api/profile": "signup",
     "/api/profile/log-characters": "signup",
     "/api/profile/characters": "signup",
