@@ -54,9 +54,10 @@ const { raidPicture } = require("../../../src/services/events/overview/raidOverv
 const {
     CHANNEL_MISSING, syncOverview, overviewStatus, scheduleOverviewSync, startTalkOverview, currentPayload,
     _internal: {
-        buildOverviewMessage, formatStart, payloadHash, overviewLinks,
+        buildOverviewMessage, formatStart, payloadHash, overviewLinks, instanceTitle,
     },
 } = require("../../../src/services/talk/talkOverview");
+const { instanceById } = require("../../../src/config/gameVersions");
 const { event: baseEvent } = require("../../factories/events");
 const { makeClient, makeChannel, makeGuild } = require("../../helpers/discordClient");
 const { knownChannels, deletedChannels, linkCheck } = require("../../helpers/linkCheck");
@@ -225,11 +226,11 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
                 ] },
             ];
             const payload = buildOverviewMessage(groups, opts);
-            expect(headingsOf(payload)).toEqual(["### Höhle des Schlangenschreins", "### Karazhan", "### Gildentreffen"]);
+            expect(headingsOf(payload)).toEqual(["### Serpentshrine Cavern", "### Karazhan", "### Gildentreffen"]);
             const firstBlock = textsOf(payload)[1];
             expect(firstBlock).toContain("[Thu 17.09.](https://eh.example/e/a)");
             expect(firstBlock).toContain("Thu 24.09.");
-            expect(firstBlock).toContain("-# Donnerstag-Raid · ");
+            expect(firstBlock).toContain("-# Erster Schlangenraid · Donnerstag-Raid · ");
         });
 
         it("counts a raid of two instances as the larger one", () => {
@@ -237,7 +238,138 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
                 ev({ id: "a", title: "SSC + TK" }),
                 raidOf("kara", { id: "b", title: "Kara + Gruul", instanceIds: ["kara", "gruul"], startTime: SEP17 + 60 }),
             ), opts);
-            expect(headingsOf(payload)).toEqual(["### Höhle des Schlangenschreins", "### Gruuls Unterschlupf"]);
+            expect(headingsOf(payload)).toEqual(["### Serpentshrine Cavern", "### Gruul's Lair"]);
+        });
+
+        it("takes the block from the game data's order, not from how the title lists the instances", () => {
+            const payload = buildOverviewMessage(inCategory(
+                ev({ id: "a", title: "SSC + TK" }),
+                ev({ id: "b", title: "TK + SSC", startTime: SEP17 + 60 }),
+            ), opts);
+            expect(headingsOf(payload)).toEqual(["### Serpentshrine Cavern"]);
+            expect(smallLinesOf(payload).slice(1).map((l) => l.split(" · ")[0])).toEqual(["-# + Tempest Keep", "-# + Tempest Keep"]);
+        });
+
+        describe("the block's name follows the raid's language", () => {
+            it("writes the English name in an English raid and the German one in a German raid, whatever the frame speaks", () => {
+                eventLang.mockImplementation((raid) => (raid.categoryId === "k2" ? "de" : "en"));
+                const groups = [
+                    { categoryId: "k1", categoryName: "PuG", events: [raidOf("ssc", { id: "a" })] },
+                    { categoryId: "k2", categoryName: "Gilde", events: [raidOf("kara", { id: "b", startTime: SEP17 + 60 }), raidOf("hyjal", { id: "c", startTime: SEP17 + 120 })] },
+                ];
+                const payload = buildOverviewMessage(groups, { ...opts, config: {} });
+                expect(allText(payload)).toMatch(/^## Upcoming raids/);
+                expect(headingsOf(payload)).toEqual(["### Serpentshrine Cavern", "### Karazhan", "### Hyjalgipfel"]);
+            });
+
+            it("takes `short` when the catalogue has no English name, never the German one", () => {
+                const fresh = { id: "neu", name: "Neues Verlies (Forever)", short: "NV" };
+                expect(instanceTitle(fresh, "en")).toBe("NV");
+                expect(instanceTitle(fresh, "de")).toBe("Neues Verlies");
+            });
+
+            it("leaves the suffix „(Forever)“ out, in either language", () => {
+                const forever = (id) => inCategory(raidOf(id, { versionId: "forever" }));
+                const withConfig = { ...opts, config: {} };
+                expect(headingsOf(buildOverviewMessage(forever("forever-ony"), withConfig))).toEqual(["### Onyxia's Lair"]);
+                expect(headingsOf(buildOverviewMessage(forever("forever-hyjal"), withConfig))).toEqual(["### Hyjal Summit"]);
+                eventLang.mockImplementation(() => "de");
+                expect(headingsOf(buildOverviewMessage(forever("forever-ony"), withConfig))).toEqual(["### Onyxias Hort"]);
+                expect(headingsOf(buildOverviewMessage(forever("forever-hyjal"), withConfig))).toEqual(["### Hyjal Summit"]);
+            });
+        });
+
+        describe("what tells the dates of a block apart", () => {
+            const dateLineOf = (payload, raid) => {
+                const lines = allText(payload).split("\n");
+                return lines[lines.findIndex((l) => l.includes(`/e/${raid}`)) + 1];
+            };
+            // a single raid in the list: the first small line after the head's is its own
+            const noteOf = (raid, category = "Mi") => {
+                const payload = buildOverviewMessage([{ categoryId: "k1", categoryName: category, events: [raid] }], opts);
+                return smallLinesOf(payload)[1];
+            };
+
+            it("names the further instances of a raid at its date, in the raid's language", () => {
+                const combo = { id: "c", title: "Kara + Gruul", instanceIds: ["kara", "gruul"] };
+                const payload = buildOverviewMessage(inCategory(raidOf("gruul", { id: "g" }), raidOf("gruul", { ...combo, startTime: SEP17 + 60 })), opts);
+                expect(headingsOf(payload)).toEqual(["### Gruul's Lair"]);
+                expect(dateLineOf(payload, "c")).toMatch(/^-# \+ Karazhan · /);
+                expect(dateLineOf(payload, "g")).not.toContain("+ ");
+
+                eventLang.mockImplementation(() => "de");
+                const german = buildOverviewMessage(inCategory(ev({ id: "t", source: "eventhelper", title: "SSC + TK" })), { ...opts, config: {} });
+                expect(dateLineOf(german, "t")).toContain(`+ ${instanceById("tk").name} ·`);
+            });
+
+            it("tells two raids of one block apart by their own titles", () => {
+                const payload = buildOverviewMessage(inCategory(
+                    raidOf("kara", { id: "a", title: "Kara Anfänger" }),
+                    raidOf("kara", { id: "b", title: "Kara Gear-Check", startTime: SEP17 + 60 }),
+                ), opts);
+                expect(headingsOf(payload)).toEqual(["### Karazhan"]);
+                expect(dateLineOf(payload, "a")).toMatch(/^-# Kara Anfänger · /);
+                expect(dateLineOf(payload, "b")).toMatch(/^-# Kara Gear-Check · /);
+            });
+
+            it("keeps the further instance and the own title of one raid side by side", () => {
+                const line = noteOf(raidOf("gruul", { title: "Kara + Gruul Twink-Run", instanceIds: ["kara", "gruul"] }));
+                expect(line).toMatch(/^-# \+ Karazhan · Kara \+ Gruul Twink-Run · /);
+            });
+
+            it.each([
+                ["forever", "forever-barrow", "Barrow Deeps"],
+                ["forever", "forever-barrow", "Barrow"],
+                ["forever", "forever-barrow", "Barrow Deeps Forever"],
+                ["forever", "forever-hyjal", "Hyjal Summit"],
+                ["forever", "forever-hyjal", "Hyjal Summit (Forever)"],
+                ["forever", "forever-ony", "Onyxias Hort"],
+                ["tbc", "hyjal", "Hyjal"],
+                ["tbc", "hyjal", "Hyjalgipfel"],
+                ["tbc", "hyjal", "Hyjal Mittwoch"],
+                ["tbc", "kara", "KZ"],
+                ["tbc", "kara", "Kara Donnerstag 20 Uhr"],
+                ["tbc", "kara", "Karazhan Thursday 8 pm"],
+                ["tbc", "kara", "Karazhan Thursday 8pm"],
+                ["tbc", "kara", "Karazhan 17.09."],
+                ["tbc", "kara", "Donnerstagsraid Kara"],
+                ["tbc", "tk", "Das Auge"],
+                ["tbc", "ssc", "Höhle des Schlangenschreins"],
+                ["tbc", "gruul", "Gruul's Lair"],
+                ["tbc", "gruul", "Gruuls Unterschlupf"],
+            ])("does not repeat an automatic title: %s %s „%s“", (versionId, instance, title) => {
+                expect(noteOf(raidOf(instance, { versionId, title, signUps: signed(1) }))).toMatch(/^-# Mi · 1 signed up/);
+            });
+
+            it("shows a title that names something beyond the instance", () => {
+                expect(noteOf(raidOf("tk", { title: "Das Auge Gear-Check" }))).toMatch(/^-# Das Auge Gear-Check · /);
+            });
+
+            it("reads „Hyjal Mittwoch PuG“ by the category beside it (Raid-Helper title)", () => {
+                const raid = () => ev({ title: "Hyjal Mittwoch PuG", signUps: signed(1) });
+                expect(noteOf(raid(), "PuG")).toMatch(/^-# PuG · 1 signed up/);
+                expect(noteOf(raid(), "🔥 PuG")).toMatch(/^-# PuG · 1 signed up/);
+                expect(noteOf(raid(), "Gilde")).toMatch(/^-# Hyjal Mittwoch PuG · Gilde · /);
+            });
+
+            it("shortens a long title and stays within Discord's limits", () => {
+                const title = `Kara ${"Sehr lange Beschreibung ".repeat(4)}`;
+                expect(noteOf(raidOf("kara", { title }))).toMatch(/^-# Kara Sehr lange Beschreibung Sehr lange…/);
+                const events = Array.from({ length: 60 }, (_, i) => raidOf("gruul", {
+                    id: `r${i}`, title: `Kara + Gruul ${title}`, instanceIds: ["kara", "gruul"], channelName: "ein-langer-kanalname-fuer-den-raid", size: 25, signUps: signed(3), startTime: SEP17 + i * 86400,
+                }));
+                const payload = buildOverviewMessage(inCategory(...events), opts);
+                expect(textLength(payload)).toBeLessThanOrEqual(4000);
+                expect(allText(payload)).toMatch(/-# \+\d+ more/);
+            });
+
+            it("shows them at a cancelled date too", () => {
+                const cancelled = { status: "cancelled", title: "Kara + Gruul Twink-Run", instanceIds: ["kara", "gruul"] };
+                const soon = allText(buildOverviewMessage(inCategory(raidOf("gruul", cancelled)), opts));
+                expect(soon).toContain("~~**Thu 17.09.**~~ · cancelled\n-# + Karazhan · Kara + Gruul Twink-Run · [#");
+                const later = allText(buildOverviewMessage(inCategory(raidOf("gruul", { ...cancelled, startTime: OCT1 })), opts));
+                expect(later).toContain("-# ~~Thu 01.10.~~ · cancelled · + Karazhan · Kara + Gruul Twink-Run · [#");
+            });
         });
 
         it("lists only the first raid of a raid group", () => {
@@ -433,9 +565,9 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
 
         it("strikes the date through, without time, fill, lead or link, and does not offer it (#288)", () => {
             const payload = buildOverviewMessage(inCategory(cancelled({ startTime: sec(2026, 9, 18, 17, 30) }), ev()), { ...opts, leaderName: () => "Brokk" });
-            const block = textsOf(payload).find((t) => t.startsWith("### Hyjalgipfel"));
+            const block = textsOf(payload).find((t) => t.startsWith("### Hyjal Summit"));
             expect(block).toBe([
-                "### Hyjalgipfel",
+                "### Hyjal Summit",
                 "**This ID** · ~~**Fri 18.09.**~~ · cancelled",
                 "-# [#mi-17-09-ssc-tk](https://discord.com/channels/111/c1)",
             ].join("\n"));
@@ -516,6 +648,19 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
         });
     });
 
+    describe("what the clock changes", () => {
+        it("turns the fill into „signups closed“ past the signup deadline, and only then edits the message", () => {
+            const deadline = sec(2026, 9, 17, 10, 0);
+            const raid = raidOf("kara", { size: 10, signupDeadline: deadline, signUps: signed(2) });
+            const at = (seconds) => buildOverviewMessage(inCategory(raid), { ...opts, now: seconds * 1000 });
+            expect(allText(at(deadline - 7200))).toContain("2 / 10 signed up");
+            expect(payloadHash(at(deadline - 7200), "en")).toBe(payloadHash(at(deadline - 60), "en"));
+            expect(allText(at(deadline + 60))).toContain("signups closed");
+            expect(allText(at(deadline + 60))).not.toContain("2 / 10");
+            expect(payloadHash(at(deadline + 60), "en")).not.toBe(payloadHash(at(deadline - 60), "en"));
+        });
+    });
+
     describe("Discord's limits", () => {
         const KINDS = ["kara", "gruul", "mag", "ssc", "tk", "za", "hyjal", "bt", "swp"];
         const longChannel = "ein-langer-kanalname-fuer-den-raid";
@@ -524,6 +669,37 @@ describe("services/talk/talkOverview — buildOverviewMessage", () => {
             id: `${kind}-${i}`, channelName: longChannel, size: 25, signUps: signed(3),
             startTime: SEP17 + k * 3600 + i * 7 * 86400,
         }))));
+
+        it("does not let a cancelled first date take the place of a block's real date", () => {
+            const [group] = kinds(3, 40);
+            const late = SEP17 + 400 * 86400;
+            const events = [
+                ...group.events,
+                raidOf("ssc", { id: "gone", status: "cancelled", channelName: longChannel, startTime: SEP17 - 3600 }),
+                raidOf("ssc", { id: "real", channelName: longChannel, startTime: late }),
+            ];
+            const payload = buildOverviewMessage([{ ...group, events }], opts);
+            expect(allText(payload)).toContain("/e/real");
+            expect(allText(payload)).toMatch(/-# \+\d+ more/);
+        });
+
+        it("still lists a block that has nothing but cancelled dates", () => {
+            const [group] = kinds(3, 40);
+            const events = [...group.events, raidOf("ssc", { id: "gone", status: "cancelled", startTime: SEP17 + 400 * 86400 })];
+            expect(headingsOf(buildOverviewMessage([{ ...group, events }], opts))).toContain("### Serpentshrine Cavern");
+        });
+
+        it("reads a block's picture once per message: a broken address warns once, not per round of fitting", () => {
+            const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+            try {
+                const [group] = kinds(2, 10);
+                group.events[0].image = { url: "keine-adresse" };
+                buildOverviewMessage([group], opts);
+                expect(warn.mock.calls.filter(([text]) => String(text).includes("[embedLook]"))).toHaveLength(1);
+            } finally {
+                warn.mockRestore();
+            }
+        });
 
         it("gives up to 7 kinds a block with a picture", () => {
             const payload = buildOverviewMessage(kinds(7), opts);

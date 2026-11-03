@@ -89,7 +89,7 @@ Technik: [events.md](events.md)
 
 Technik: [discord-servers.md](discord-servers.md), [raidhelper-retirement.md](raidhelper-retirement.md)
 
-- **Raid-Liste auf verknüpften Servern:** eine sich selbst aktualisierende Nachricht mit allen kommenden Raids (aus beiden Quellen) plus Anmelde-Buttons. Je Raid-Art ein Block mit Bild, jeder Termin sagt, ob er in dieser oder der nächsten ID liegt.
+- **Raid-Liste auf verknüpften Servern:** eine sich selbst aktualisierende Nachricht mit allen kommenden Raids (aus beiden Quellen) plus Anmelde-Buttons. Je Raid-Art ein Block mit Bild, jeder Termin sagt, ob er in dieser oder der nächsten ID liegt. Weitere Instanzen und ein eigener Titel des Raids stehen klein am Termin.
 - **Erinnerungs-Pings:** X Stunden vor Anmeldeschluss (an alle ohne Reaktion) und X Stunden vor Start (an Angemeldete) — Zeitpunkt ist je Kategorie eingestellt.
 - **Automatische Ankündigung** neuer Events mit Rollenping (falls für die Kategorie aktiviert).
 - **Rollen-Synchronisierung** zwischen zwei Servern, die die Orga als Paar eingestellt hat.

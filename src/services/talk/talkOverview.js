@@ -30,8 +30,8 @@
 // text, thumbnail), one without 2, the "+N more" line 1: so at most 7 blocks of
 // their own (11 + 28 + 1 = 40). From the 8th kind on the first 6 keep theirs and
 // the others share one text with their names as small headings (11 + 24 + 2 + 1).
-// When the text does not fit, every kind keeps its first date before any kind
-// gets a second, by start time; what is left out is counted in the last line. A
+// When the text does not fit, every kind keeps its first date that is not cancelled
+// before any kind gets a second, by start time; what is left out is counted in the last line. A
 // channel link is always a plain URL — `<#id>` and `<@id>` only resolve on the
 // server they are posted on, so a lead is a name from the member cache.
 //
@@ -40,9 +40,11 @@
 // `serverLang`); every raid speaks its category's language (`eventLang`), so a
 // PuG raid reads English beside German guild raids. The frame language is hashed
 // with the payload, so a change of it redraws the message on the next sync
-// (languageChange.js schedules one). Nothing but `<t:…>` may depend on the clock
-// within an ID: "This ID" turns into the next one on the first sweep after the
-// reset, and that one edit is meant to happen.
+// (languageChange.js schedules one). What depends on the clock and is meant to
+// edit the message, on the first sweep after it happened: "This ID" turning into
+// the next one at the reset, a raid that started falling out of the list, and
+// the fill turning into "signups closed" past the `signupDeadline`. Nothing else
+// may: the rest of a time stands as `<t:…>`, which Discord renders itself.
 const crypto = require("crypto");
 const { isRaidSibling } = require("../../utils/raidGroup");
 const { serverDateTime, discordTimestamp } = require("../../utils/time");
@@ -60,13 +62,16 @@ const guildRoles = require("../discord/roles/guildRoles");
 const { loadEventGroups } = require("../events/raidEventGroups");
 const { leadInstance } = require("../events/embedLook");
 const { raidContentIds } = require("../events/overview/raidListing");
+const { contentsForText } = require("../../config/data/raidContent");
 const {
     dayLabel, fillLine, idTitle, raidPicture, rangeLabel, TEXT_BUDGET,
 } = require("../events/overview/raidOverviewPanel");
 const { getConfig } = require("../../stores/settings/settingsStore");
 const { versionOfEvent, isVersionVisible } = require("../versions/mainVersion");
 const { versionShort } = require("../versions/versionTag");
-const { VERSIONS } = require("../../config/gameVersions");
+const { VERSIONS, instanceById } = require("../../config/gameVersions");
+// The game data holds one name per instance; the web client's catalogue has the English ones.
+const { instance: EN_INSTANCE_NAMES } = require("../../web-client/src/i18n/locales/en/wow.json");
 const { plainCategoryName } = require("../../utils/signup/availabilityDialog");
 const { onSignupsChanged } = require("../../stores/events/signupStore");
 const {
@@ -89,6 +94,16 @@ const MAX_BLOCKS = 7;
 const BLOCKS_WITH_SHARED_TEXT = 6;
 // A category named only by its size ("10er") says nothing the fill does not say.
 const SIZE_ONLY_CATEGORY = /^\d+er$/i;
+// How much of a raid's own title its small line shows.
+const TITLE_MAX = 40;
+// What a title says about the date, the size or nothing at all: on its own it is no title worth showing.
+const TITLE_NOISE = new RegExp(`^(?:${[
+    "(?:montag|dienstag|mittwoch|donnerstag|freitag|samstag|sonnabend|sonntag|monday|tuesday|wednesday|thursday|friday|saturday|sunday)s?(?:raids?)?",
+    "mo|di|mi|do|fr|sa|so|mon|tue|tues|wed|thu|thur|thurs|fri|sat|sun",
+    "januar|january|jan|februar|february|feb|märz|march|mär|mar|april|apr|mai|may|juni|june|jun|juli|july|jul|august|aug",
+    "september|sept|sep|oktober|october|okt|oct|november|nov|dezember|december|dez|dec",
+    "\\d+(?:er|man|h|uhr|am|pm)?|uhr|pm|raids?|runs?|und|and|plus|am|on|at|um|ab",
+].join("|")})$`, "u");
 const SWEEP_MS = 5 * 60 * 1000;
 const DEBOUNCE_MS = 3000;
 // Raid-Helper's event list is cached for 30 s (raidEventGroups.js): a sync
@@ -203,6 +218,73 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [], versions =
 }
 
 /**
+ * An instance's name in a raid's language, without a bracket suffix ("(Forever)"). German is the
+ * game data's name, English the catalogue's; an instance missing there falls back to its `short`,
+ * never to the German name.
+ */
+function instanceTitle(instance, lang) {
+    const name = lang === "en" ? EN_INSTANCE_NAMES[instance.id] || instance.short : instance.name;
+    return plain(name).replace(/\s*\(.*\)$/, "");
+}
+
+/** A title reduced for comparing: lower case, no apostrophes (so "Gruul's" reads "gruuls"), no custom emojis. */
+function comparable(text) {
+    return plain(text).replace(/<a?:\w+:\d+>/g, " ").replace(/['’`´]/g, "").toLowerCase();
+}
+
+const wordsOf = (text) => text.match(/[\p{L}\p{N}]+/gu) || [];
+
+/** Every name of an instance a title may use, comparable, each also without its bracket suffix. */
+function instancePhrases(instance) {
+    return [instance.id, instance.name, EN_INSTANCE_NAMES[instance.id], instance.short, ...(instance.zoneNames || [])]
+        .filter(Boolean)
+        .flatMap((name) => [name, name.replace(/\s*\(.*\)$/, "")])
+        .map(comparable);
+}
+
+/** The words of a title that are left once its instances, whatever else names them and the version are taken out. */
+function titleLeftover(raid, contentIds) {
+    // longest first, so "Hyjal Summit" goes before "Hyjal"
+    const phrases = contentIds.flatMap((id) => instancePhrases(instanceById(id)))
+        .concat(comparable(versionShort(raid.versionId)))
+        .filter(Boolean)
+        .sort((a, b) => b.length - a.length);
+    let text = comparable(raid.title);
+    for (const phrase of new Set(phrases)) {
+        const quoted = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        text = text.replace(new RegExp(`(?<![\\p{L}\\p{N}])${quoted}(?![\\p{L}\\p{N}])`, "gu"), " ");
+    }
+    // What only the recognition knows ("KZ", "Das Auge"): one word first, so that "Kara Gear Check" stays "gear check".
+    let words = wordsOf(text);
+    for (const size of [1, 2, 3]) {
+        for (let i = 0; i + size <= words.length;) {
+            const hits = contentsForText(words.slice(i, i + size).join(" "), { versionId: raid.versionId });
+            if (hits.some((id) => contentIds.includes(id))) words = [...words.slice(0, i), ...words.slice(i + size)];
+            else i += 1;
+        }
+    }
+    return words.filter((word) => !TITLE_NOISE.test(word));
+}
+
+/**
+ * A raid's own title, when it says more than its instances and its date ("Kara Gear-Check", not
+ * "Barrow Deeps" or "Hyjal Mittwoch") and more than its category, which stands in the same line.
+ */
+function ownTitle(raid, contentIds) {
+    const left = titleLeftover(raid, contentIds);
+    const category = new Set(wordsOf(comparable(plainCategoryName(plain(raid.categoryName)))));
+    if (left.every((word) => category.has(word))) return "";
+    const title = plain(raid.title);
+    return title.length > TITLE_MAX ? `${title.slice(0, TITLE_MAX - 1).trimEnd()}…` : title;
+}
+
+/** What tells this date from the others of its block: the further instances ("+ Karazhan") and its own title. */
+function raidNote(raid, contentIds, lead) {
+    const further = contentIds.filter((id) => id !== lead.id).map((id) => `+ ${instanceTitle(instanceById(id), raid.lang)}`);
+    return [further.join(" "), ownTitle(raid, contentIds)].filter(Boolean);
+}
+
+/**
  * The block a raid belongs to: its instance (own events by `instanceIds`, Raid-Helper
  * rows by their title; "SSC + TK" counts as the larger one, leadInstance), else its
  * own title. The version is part of the key: TBC's and Forever's raids never share one.
@@ -210,18 +292,19 @@ function upcomingGroups(groups, { now = Date.now(), categoryIds = [], versions =
 function blockOf(raid) {
     const { contentIds } = raidContentIds({ title: raid.title, instanceIds: raid.instanceIds, versionId: raid.versionId });
     const instance = leadInstance(contentIds);
-    if (instance) return { key: `${raid.versionId}|${instance.id}`, name: plain(instance.name).replace(/\s*\(.*\)$/, ""), instance: true };
+    if (instance) return { key: `${raid.versionId}|${instance.id}`, instance, note: raidNote(raid, contentIds, instance) };
     const title = plain(raid.title) || "Raid";
-    return { key: `${raid.versionId}|${title.toLowerCase()}`, name: title, instance: false };
+    return { key: `${raid.versionId}|${title.toLowerCase()}`, name: title, instance: null, note: [] };
 }
 
 /** The raids (in time order) as blocks, soonest first — a block sits where its first raid does. */
 function raidBlocks(raids) {
     const blocks = new Map();
     for (const raid of raids) {
-        const { key, name, instance } = blockOf(raid);
-        if (!blocks.has(key)) blocks.set(key, { name, instance, raids: [] });
+        const { key, name, instance, note } = blockOf(raid);
+        if (!blocks.has(key)) blocks.set(key, { name, instance, raids: [], notes: new Map() });
         blocks.get(key).raids.push(raid);
+        blocks.get(key).notes.set(raid, note);
     }
     return [...blocks.values()];
 }
@@ -239,14 +322,15 @@ function sharedLead(raids, leaderName) {
     return going.every((r) => leadOf(r, leaderName) === first) ? first : "";
 }
 
-/** The small line of a date: what it means beyond its size, how full it is, its own lead, its channel. */
-function raidFacts(raid, ctx, shared) {
+/** The small line of a date: what tells it apart, what it means beyond its size, how full it is, its own lead, its channel. */
+function raidFacts(raid, note, ctx, shared) {
     const { lang: frame, now, leaderName } = ctx;
     const lang = raid.lang;
     const category = plainCategoryName(plain(raid.categoryName));
     const named = category && category !== plain(tr(frame, NO_CATEGORY)) && !SIZE_ONLY_CATEGORY.test(category);
     const leader = shared ? "" : leadOf(raid, leaderName);
     return [
+        ...note,
         named ? category : "",
         fillLine(raid, attendingCount(raid), lang, now),
         leader ? tr(lang, "Lead {leader}", { leader }) : "",
@@ -259,7 +343,7 @@ function raidFacts(raid, ctx, shared) {
  * small line; a later ID one small line without a mark. A cancelled raid (#288) stays until its
  * day, struck through and marked — without a time, a fill or a link: nobody can sign up anymore.
  */
-function dateLines(raid, ctx, shared) {
+function dateLines(raid, note, ctx, shared) {
     const { now, baseUrl, eventGuildId, channelInfo } = ctx;
     const lang = raid.lang;
     const start = Math.floor(Number(raid.startTime) || 0);
@@ -268,30 +352,31 @@ function dateLines(raid, ctx, shared) {
     const distance = idDistance(id, now);
     const mark = distance === 0 || distance === 1 ? `**${idTitle(id, now, lang)}**` : "";
     if (raid.status === "cancelled") {
-        const channel = channelPart(raid, eventGuildId, { channelInfo, lang });
+        const small = [...note, channelPart(raid, eventGuildId, { channelInfo, lang })].filter(Boolean);
         const cancelled = tr(lang, "cancelled");
-        if (!mark) return `-# ${[`~~${day}~~`, cancelled, channel].filter(Boolean).join(" · ")}`;
-        return [`${mark} · ~~**${day}**~~ · ${cancelled}`, channel ? `-# ${channel}` : ""].filter(Boolean).join("\n");
+        if (!mark) return `-# ${[`~~${day}~~`, cancelled, ...small].join(" · ")}`;
+        return [`${mark} · ~~**${day}**~~ · ${cancelled}`, small.length ? `-# ${small.join(" · ")}` : ""].filter(Boolean).join("\n");
     }
     const page = raid.source === "eventhelper" ? eventUrl(raid.id, baseUrl) : "";
     const date = page ? `[${day}](${page})` : day;
     const time = discordTimestamp(start, "t");
-    const facts = raidFacts(raid, ctx, shared);
+    const facts = raidFacts(raid, note, ctx, shared);
     if (!mark) return `-# ${[date, time, ...facts].join(" · ")}`;
     return `${mark} · ${distance === 0 ? `**${date}**` : date} · ${time}\n-# ${facts.join(" · ")}`;
 }
 
-/** The text of a block: its name (with the version once several are listed), then its dates. */
+/** The text of a block: its name in its first date's language (with the version once several are listed), then its dates. */
 function blockText(block, raids, ctx) {
     const [first] = raids;
     const shared = sharedLead(raids, ctx.leaderName);
     const version = first.versionTitled ? versionShort(first.versionId) : "";
+    const name = block.instance ? instanceTitle(block.instance, first.lang) : block.name;
     return [
-        `### ${[block.name, version].filter(Boolean).join(" · ")}`,
+        `### ${[name, version].filter(Boolean).join(" · ")}`,
         // A title without an instance says nothing about where the raid came from.
         !block.instance && raids.every((r) => r.source !== "eventhelper") ? "-# Raid-Helper" : "",
         shared ? `-# ${tr(first.lang, "Lead {leader}", { leader: shared })}` : "",
-        ...raids.map((raid) => dateLines(raid, ctx, !!shared)),
+        ...raids.map((raid) => dateLines(raid, block.notes.get(raid), ctx, !!shared)),
     ].filter(Boolean).join("\n");
 }
 
@@ -306,7 +391,7 @@ function headText(shown, { title, lang, now }) {
 
 /**
  * The message's text for the raids `shown` (a Set): its head, the blocks that have a date listed
- * (each with its picture, the one of its first date) and the text the blocks beyond the limit share.
+ * (each with the raids it shows) and the text the blocks beyond the limit share.
  */
 function drawList(blocks, shown, ctx) {
     const listed = blocks
@@ -318,7 +403,7 @@ function drawList(blocks, shown, ctx) {
     const head = headText(listed.flatMap((b) => b.raids), ctx);
     return {
         head,
-        own: own.map((b) => ({ text: b.text, picture: raidPicture(b.raids[0]) })),
+        own,
         shared,
         length: head.length + shared.length + own.reduce((n, b) => n + b.text.length, 0),
     };
@@ -332,7 +417,10 @@ function drawList(blocks, shown, ctx) {
 function fitList(raids, ctx) {
     const blocks = raidBlocks(raids);
     const byStart = (a, b) => (Number(a.startTime) || 0) - (Number(b.startTime) || 0);
-    const order = [...blocks.map((b) => b.raids[0]).sort(byStart), ...blocks.flatMap((b) => b.raids.slice(1)).sort(byStart)];
+    // A cancelled date only holds its block's place when the block has nothing else.
+    const firsts = new Set(blocks.map((b) => b.raids.find((r) => r.status !== "cancelled") || b.raids[0]));
+    const others = blocks.flatMap((b) => b.raids.filter((r) => !firsts.has(r)));
+    const order = [...[...firsts].sort(byStart), ...others.sort(byStart)];
     const shown = new Set();
     let drawn = drawList(blocks, shown, ctx);
     for (const raid of order) {
@@ -344,7 +432,12 @@ function fitList(raids, ctx) {
         }
         drawn = next;
     }
-    return { ...drawn, more: raids.length - shown.size };
+    // A block's picture is the one of its first date, read once: raidPicture warns about a broken address.
+    return {
+        ...drawn,
+        own: drawn.own.map((b) => ({ text: b.text, picture: raidPicture(b.raids[0]) })),
+        more: raids.length - shown.size,
+    };
 }
 
 const textPart = (content) => new TextDisplayBuilder().setContent(content);
@@ -764,6 +857,6 @@ module.exports = {
     attendingCount,
     // only for the tests (#424): not part of the module's API
     _internal: {
-        overviewLinks, formatStart, buildOverviewMessage, payloadHash, overviewEntries,
+        overviewLinks, formatStart, buildOverviewMessage, payloadHash, overviewEntries, instanceTitle,
     },
 };

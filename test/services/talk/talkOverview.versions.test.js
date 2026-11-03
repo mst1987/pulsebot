@@ -53,6 +53,13 @@ describe("talkOverview per game version (#743)", () => {
         expect(metas(payload)[0]).toMatch(/^-# Donnerstag ·/);
     });
 
+    it("names a block in its raid's language, not in the list's: real category languages", () => {
+        const english = { ...opts, config: { categoryLanguage: { k1: "en" } } };
+        expect(headings(buildOverviewMessage([groups[0]], english))).toEqual(["### Serpentshrine Cavern"]);
+        // the list speaks English, a category without its own language stays on the server's German
+        expect(headings(buildOverviewMessage([groups[0]], { ...opts, config: {} }))).toEqual(["### Höhle des Schlangenschreins"]);
+    });
+
     it("drops the raids of a hidden version (main version TBC)", () => {
         const payload = buildOverviewMessage(groups, { ...opts, config: { hideOtherVersions: true } });
         expect(metas(payload)).toHaveLength(1);
