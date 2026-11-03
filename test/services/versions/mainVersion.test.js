@@ -13,7 +13,7 @@ jest.mock("../../../src/stores/events/raidEventStore", () => ({
 }));
 
 const {
-    mainVersionFor, versionOfEvent, rulesForEvent, classesOfVersion, knownVersion, snapshotVersionOf,
+    mainVersionFor, versionOfEvent, rulesForEvent, eventHasLastNames, classesOfVersion, knownVersion, snapshotVersionOf,
 } = require("../../../src/services/versions/mainVersion");
 
 beforeEach(() => {
@@ -59,6 +59,20 @@ describe("mainVersionFor", () => {
         expect(mainVersionFor({ categoryId: "0" })).toBe("tbc");
         mockConfig = null;
         expect(mainVersionFor()).toBe("tbc");
+    });
+});
+
+describe("eventHasLastNames", () => {
+    it("is true only for a version whose characters have a last name", () => {
+        expect(eventHasLastNames({ versionId: "forever" })).toBe(true);
+        expect(eventHasLastNames({ versionId: "tbc" })).toBe(false);
+        expect(eventHasLastNames({ versionId: "classic" })).toBe(false);
+    });
+
+    it("follows the version the event falls back to, and the event's own over the setting", () => {
+        mockConfig = { mainVersion: "forever" };
+        expect(eventHasLastNames({})).toBe(true);
+        expect(eventHasLastNames({ versionId: "tbc" })).toBe(false);
     });
 });
 

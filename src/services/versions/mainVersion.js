@@ -114,6 +114,12 @@ function rulesForEvent(event, opts) {
     return rulesFor(versionOfEvent(event, opts));
 }
 
+/** Whether the event's version has characters with a last name - the rule set says so, never the space in a name. */
+function eventHasLastNames(event, opts) {
+    const rules = rulesForEvent(event, opts);
+    return !!(rules && rules.characterNames && rules.characterNames.lastName);
+}
+
 /**
  * The version filter a list reads from its `?version=` query (#545): every
  * list with game content answers for exactly one version (#741, strictly
@@ -192,6 +198,6 @@ function otherVersions(config) {
 }
 
 module.exports = {
-    mainVersionFor, versionOfEvent, snapshotVersionOf, registerOwnEventVersions, rulesForEvent, classesOfVersion, knownVersion, resolveVersionQuery,
+    mainVersionFor, versionOfEvent, snapshotVersionOf, registerOwnEventVersions, rulesForEvent, eventHasLastNames, classesOfVersion, knownVersion, resolveVersionQuery,
     hidesOtherVersions, visibleVersions, isVersionVisible, visibleRows, otherVersions,
 };

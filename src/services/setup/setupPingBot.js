@@ -16,7 +16,7 @@
 //
 // Access is `/event`'s (accessOf in the command file): the orga, checked by
 // the router on every click. Everyone else sees the button and gets told no.
-const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+const { ActionRowBuilder, MessageFlags, ModalBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { card } = require("../../utils/discord/card");
 const eventStore = require("../../stores/events/eventStore");
 const { setupPingPlan, saveSetupPingText } = require("./setupPing");
@@ -64,6 +64,8 @@ async function handlePingComponent(interaction, guildId) {
         return interaction.showModal(pingModal(event, { open, text: plan.text, count: plan.userIds.length }));
     }
 
+    // Before the work: the ping reposts the setup message, which on WoW Forever can wait for Discord names.
+    await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     const text = interaction.fields.getTextInputValue(FIELD_ID);
     if (eventId && !open) saveSetupPingText(eventId, text);
     const member = interaction.member || {};
@@ -72,7 +74,7 @@ async function handlePingComponent(interaction, guildId) {
         guildId, eventId, userId, text, byName: member.displayName || user.globalName || user.username || "",
         ...(open ? { open: true } : {}),
     });
-    return interaction.reply(notice(result.error ? result.error.message : result.message, result.error ? "err" : "ok"));
+    return interaction.editReply(card({ kind: result.error ? "error" : "ok", title: result.error ? result.error.message : result.message }));
 }
 
 module.exports = { PING_PREFIX, parsePingId, pingModal, handlePingComponent };

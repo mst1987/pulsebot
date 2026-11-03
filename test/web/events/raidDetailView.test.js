@@ -113,7 +113,7 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         expect(Object.keys(body)).toEqual([
             "event", "planning", "setupFromSnapshot", "categoryName", "openToAll", "guildId", "eventsWarning", "notifyTemplates", "roles",
             "raidsheets", "matchedSheetId", "setup", "setupError", "tankCandidates", "eventSheet", "sheetLink", "raidplanPost", "eventSoftres",
-            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
+            "softresCatalogue", "softresEdition", "softresOff", "versionId", "wowheadPath", "lastNames", "archived", "softresSuggested", "attendance", "ownSignups", "ownSetup", "raidGroup", "ownSetupPost",
             "ownSetupEditors", "attendanceRoleIds", "attendanceSource", "membersError", "signupTarget", "roleTargets", "lootItems", "lootTool", "lootSystem", "eventLogs", "unlinkedLogs",
             "orga", "viewer", "progress", "steps", "playerSummaries",
         ]);
@@ -169,6 +169,14 @@ describe("web/events/raidDetailView buildRaidDetail", () => {
         const { body } = await buildRaidDetail({ guildId: "g1", eventId: "rh1" });
         expect(body.planning).toBe("raidplan");
         expect(body.progress.steps.map((s) => s.key)).not.toContain("sheet");
+    });
+
+    it("says only for a version with last names that the lists may shorten a name", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(rhEvent()));
+        settingsStore.getConfig.mockReturnValue({ categoryVersion: { cat1: "forever" } });
+        expect((await buildRaidDetail({ guildId: "g1", eventId: "rh1" })).body.lastNames).toBe(true);
+        settingsStore.getConfig.mockReturnValue({ categoryVersion: { cat1: "tbc" } });
+        expect((await buildRaidDetail({ guildId: "g1", eventId: "rh1" })).body.lastNames).toBe(false);
     });
 
     it("follows the version of the event's category (#542): no softres edition, no TBC list, the version's own sheet", async () => {

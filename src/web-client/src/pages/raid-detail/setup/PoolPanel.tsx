@@ -3,6 +3,7 @@ import type { SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
 import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons/icons";
 import Switch from "../../../components/ui/form/Switch";
+import { shownCharacterName } from "../../../lib/signups/characterName";
 import { asCharacter, poolRole } from "../../../lib/signups/setupEditor";
 import { SigIcon, Slot, type Interaction } from "./Board";
 import { useZone } from "./useZone";
@@ -43,8 +44,8 @@ const sameName = (a: string | undefined, b: string | undefined) => String(a || "
 const hasStatus = (p: SetupPerson, status: MarkedStatus | null) => !status
     || markedStatus(p.status) === status || (p.characters || []).some((c) => markedStatus(c.status) === status);
 
-type Line = { key: string; p: SetupPerson; userId: string; as?: string; note?: string; label?: string; alt: boolean; st: MarkedStatus | "" };
-type AltText = { note: (n: number, character: string) => string; label: (shown: SetupPerson, n: number) => string };
+type Line = { key: string; p: SetupPerson; userId: string; as?: string; note?: string; noteTip?: string; label?: string; alt: boolean; st: MarkedStatus | "" };
+type AltText = { note: (n: number, character: string) => string; noteTip: (n: number, character: string) => string | undefined; label: (shown: SetupPerson, n: number) => string };
 
 /** The lines of one person in one role column: the character they stand as, then each further character of that role. */
 function linesOf(p: SetupPerson, role: Role, alt: AltText): Line[] {
@@ -54,7 +55,7 @@ function linesOf(p: SetupPerson, role: Role, alt: AltText): Line[] {
         if (sameName(c.character, p.character) || poolRole(c.role) !== role) continue;
         const shown = asCharacter(p, c);
         const n = c.priority + 1;
-        lines.push({ key: `${p.userId}:${c.character}`, p: shown, userId: p.userId, as: c.character, note: alt.note(n, p.character), label: alt.label(shown, n), alt: true, st: markedStatus(c.status) });
+        lines.push({ key: `${p.userId}:${c.character}`, p: shown, userId: p.userId, as: c.character, note: alt.note(n, p.character), noteTip: alt.noteTip(n, p.character), label: alt.label(shown, n), alt: true, st: markedStatus(c.status) });
     }
     return lines;
 }
@@ -89,7 +90,9 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
     const shown = pool.filter((p) => matchesQuery(p, query) && (!leadOnly || leadSet.has(p.userId)));
     // a further character's line: "2. Char von Zibbo" where the spec stands, its spec in the button's name
     const alt: AltText = {
-        note: (n, character) => t("setup.poolPanel.altOf", { n, character }),
+        note: (n, character) => t("setup.poolPanel.altOf", { n, character: shownCharacterName(character, ui.shortNames) }),
+        // the name shortened in that line, whole in its tooltip
+        noteTip: (n, character) => (shownCharacterName(character, ui.shortNames) !== character ? t("setup.poolPanel.altOf", { n, character }) : undefined),
         label: (c, n) => t("setup.chars.lineAria", { character: c.character, spec: specText(c), n }),
     };
     // plain signups first, then late, tentative, reserve (stable: the server's order within each)
@@ -190,7 +193,7 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
                                                     <SigIcon status={l.st} /><span>{label}</span>
                                                 </div>
                                             )}
-                                            <Slot p={l.p} ui={ui} inPool as={l.as} note={l.note} label={l.label} />
+                                            <Slot p={l.p} ui={ui} inPool as={l.as} note={l.note} noteTip={l.noteTip} label={l.label} />
                                         </Fragment>
                                     );
                                 })}

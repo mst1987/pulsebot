@@ -82,6 +82,7 @@ const { fail } = require("../../web/http/apiResult");
 const { eventVersionTag } = require("../versions/versionTag");
 const { setupImageSvg } = require("./setupImage");
 const { visualOn, withImages } = require("../discord/discordImage");
+const { LINK_CAPS, eventHasLastNames, hoverNames, fitLinks, resolveHoverNames } = require("../discord/hoverNames");
 const logger = require("../../logger").child("setupMessage");
 
 const LIMITS = { title: 256, description: 4096, fields: 25, fieldValue: 1024, total: 6000, content: 2000 };
@@ -113,11 +114,11 @@ function embedLength(embed) {
         + (embed.fields || []).reduce((n, f) => n + String(f.name).length + String(f.value).length, 0);
 }
 
-/** "<spec icon> **Name**", without icons "**Name** · Holy". */
-function personText(p, emojis, { icons = true, bold = true, lang = "de" } = {}) {
+/** "<spec icon> **Name**", without icons "**Name** · Holy". `show` names the person (hoverNames: the Discord name). */
+function personText(p, emojis, { icons = true, bold = true, lang = "de", show = nameOf } = {}) {
     const icon = icons ? emojiText(emojis, specEmojiName(p.spec)) : "";
     // The raid's leader (#1036) carries a small crown after the name.
-    const name = `${bold ? `**${nameOf(p)}**` : nameOf(p)}${p.leader ? " 👑" : ""}`;
+    const name = `${bold ? `**${show(p)}**` : show(p)}${p.leader ? " 👑" : ""}`;
     if (icon) return `${icon} ${name}`;
     const label = specLabel(p.spec, lang);
     return `${name}${label ? ` · ${label}` : ""}`;
@@ -181,9 +182,11 @@ const GRID_COLUMNS = 3;
  *   `images: [{ name, svg }]` for discordImage.withImages. `ping` ({ userIds, text }): the ping text and
  *   mentions in the embed under the role totals - or, with `pingInContent`, as the message's content
  *   (the new message that notifies them, allowedMentions scoped to exactly those users).
+ *   `discordNames` (userId → name): in a version with last names the fields name a raider by it, the character as
+ *   hover text (discord/hoverNames); the picture always draws the character.
  */
-function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de", image = false, raidOf = null, ping = null, pingInContent = false } = {}) {
-    const message = buildSetupBody(event, approved, { emojis, confirmations, withBench, lang, image, raidOf, ping: pingInContent ? null : ping });
+function buildSetupMessage(event, approved, { emojis = {}, confirmations = {}, bench: withBench = false, lang = "de", image = false, raidOf = null, ping = null, pingInContent = false, discordNames = null } = {}) {
+    const message = buildSetupBody(event, approved, { emojis, confirmations, withBench, lang, image, raidOf, ping: pingInContent ? null : ping, discordNames });
     if (!message || !ping || !pingInContent || event.status === "cancelled") return message;
     const text = String(ping.text || "").trim();
     // as many as fit the content - and Discord's allowedMentions, which takes at most 100 users
@@ -210,7 +213,7 @@ function pingLines(ping) {
     return [String(ping.text || "").trim(), mentionLine(users)].filter(Boolean);
 }
 
-function buildSetupBody(event, approved, { emojis, confirmations, withBench, lang, image, raidOf, ping }) {
+function buildSetupBody(event, approved, { emojis, confirmations, withBench, lang, image, raidOf, ping, discordNames }) {
     if (!event || !approved || !Array.isArray(approved.groups)) return null;
     const cancelled = event.status === "cancelled";
     const plainTitle = `Setup · ${event.title || "Raid"}`;
@@ -251,16 +254,28 @@ function buildSetupBody(event, approved, { emojis, confirmations, withBench, lan
 
     // "Ping unconfirmed" only while somebody in a group has not answered
     const buttons = setupButtons(event, lang, { open: unansweredOf(approved, confirmations).length > 0 });
-    const picture = image ? setupImageSvg(approved, { confirmations, bench: withBench, lang }) : null;
+    const lastNames = eventHasLastNames(event);
+    const picture = image ? setupImageSvg(approved, { confirmations, bench: withBench, lang, twoLineNames: lastNames }) : null;
     if (picture) return pictureMessage(event, approved, { title, description, link, svg: picture.svg, lang, buttons });
 
-    // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too.
-    const variants = [{ groupIcons: true, benchIcons: true }, { groupIcons: true, benchIcons: false }, { groupIcons: false, benchIcons: false }];
+    const hover = discordNames && compUrl && lastNames ? hoverNames({ discordNames, url: compUrl, fallback: nameOf }) : null;
+    // One text per person. With hover names a link only stays while its block has room and `cap` allows it, so that
+    // clip and joinClipped below never cut one in two.
+    const texts = (people, render, { sep, cap }) => (hover
+        ? fitLinks(people, (p, linked) => render(p, linked ? hover.linked : hover.plain), { max: LIMITS.fieldValue, sep, cap })
+        : people.map((p) => render(p, nameOf)));
+
+    // Tried in order until the embed fits: icons everywhere, a plain bench, plain groups too. The hover links go first:
+    // they cost the most and take nothing from anybody's line.
+    const variants = [
+        ...(hover ? LINK_CAPS.slice(0, -1).map((cap) => ({ groupIcons: true, benchIcons: true, cap })) : []),
+        { groupIcons: true, benchIcons: true, cap: 0 }, { groupIcons: true, benchIcons: false, cap: 0 }, { groupIcons: false, benchIcons: false, cap: 0 },
+    ];
     let embed = null;
     for (const v of variants) {
         const fields = groups.map((g) => ({
             name: tr(lang, "Group {index}", { index: g.index }),
-            value: clip(g.slots.map((s) => markedPersonText(s, emojis, { icons: v.groupIcons, lang }, confirmations)).join("\n"), LIMITS.fieldValue),
+            value: clip(texts(g.slots, (s, show) => markedPersonText(s, emojis, { icons: v.groupIcons, lang, show }, confirmations), { sep: "\n", cap: v.cap }).join("\n"), LIMITS.fieldValue),
             inline: true,
         }));
         // Discord spreads a short last row over the whole width (two fields at half
@@ -270,7 +285,7 @@ function buildSetupBody(event, approved, { emojis, confirmations, withBench, lan
         if (bench.length) {
             fields.push({
                 name: `${[emojiText(emojis, statusEmojiName("bench")), benchWord(lang)].filter(Boolean).join(" ")} (${bench.length})`,
-                value: joinClipped(bench.map((b) => personText(b, emojis, { icons: v.benchIcons, bold: false, lang })), " · ", lang),
+                value: joinClipped(texts(bench, (b, show) => personText(b, emojis, { icons: v.benchIcons, bold: false, lang, show }), { sep: " · ", cap: v.cap }), " · ", lang),
                 inline: false,
             });
         }
@@ -501,19 +516,26 @@ const isUnknownMessage = (e) => !!(e && (e.code === 10008 || /unknown message/i.
 /**
  * The message for discord.js: with the drawn setup rendered into its file while the switch
  * is on - or, when the picture cannot be rendered, the fields as before.
+ * `nameMemo`: an object shared by the payloads of one post, so that they ask for the Discord names once.
  */
-async function payloadFor(event, approved, { contentPing = null } = {}) {
+async function payloadFor(event, approved, { contentPing = null, nameMemo = {} } = {}) {
     await loadAppEmojis(discord.getClient());
-    const build = (image) => buildSetupMessage(event, approved, {
+    const build = (image, discordNames = null) => buildSetupMessage(event, approved, {
         emojis: appEmojiMap(), confirmations: confirmationsFor(event, approved), bench: benchPosted(event), lang: eventLang(event), image,
-        raidOf: raidOfEvent(event), ping: contentPing || shownPing(event), pingInContent: !!contentPing,
+        raidOf: raidOfEvent(event), ping: contentPing || shownPing(event), pingInContent: !!contentPing, discordNames,
     });
+    // Only the fields name a raider by the Discord name: a message with the picture asks Discord for nothing.
+    const names = () => {
+        nameMemo.names = nameMemo.names || resolveHoverNames(event, [...(approved.groups || []).flatMap((g) => g.slots || []), ...(approved.bench || [])].map((p) => p.userId));
+        return nameMemo.names;
+    };
     const key = `setup:${event.id}`;
     try {
-        return withImages(build(visualOn(getConfig(), "setupImage", event.guildId)), { key });
+        const image = visualOn(getConfig(), "setupImage", event.guildId);
+        return withImages(build(image, image ? null : await names()), { key });
     } catch (e) {
         logger.warn(`${key}: picture not rendered, fields instead: ${(e && e.message) || e}`);
-        return withImages(build(false));
+        return withImages(build(false, await names()));
     }
 }
 
@@ -563,10 +585,11 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
     if (cancelled && !post.messageId) return { code: "cancelled", error: "Das Event ist abgesagt." };
     if (!event.channelId && !post.channelId) return { code: "no_channel", error: "Das Event hat keinen Kanal." };
 
+    const nameMemo = {};
     try {
         if (post.messageId && !(repost && !cancelled)) {
             try {
-                const payload = await payloadFor(event, approved);
+                const payload = await payloadFor(event, approved, { nameMemo });
                 const channel = await discord.fetchTextChannel(post.channelId);
                 const message = await channel.messages.fetch(post.messageId);
                 await message.edit(payload);
@@ -579,7 +602,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
         }
         const pinging = ping && !cancelled && (ping.userIds || []).length ? ping : null;
         const channel = await discord.fetchTextChannel(event.channelId);
-        const sent = await channel.send(await payloadFor(event, approved, { contentPing: pinging }));
+        const sent = await channel.send(await payloadFor(event, approved, { contentPing: pinging, nameMemo }));
         eventStore.setEventSetupPost(event.id, {
             channelId: String(channel.id), messageId: String(sent.id), version: approved.version,
             postedAt: now, postedBy: str(userId), editedAt: 0, editedBy: "", error: "", errorAt: 0,
@@ -599,7 +622,7 @@ async function postOrEditSetupMessage(eventId, { userId = "", now = Date.now(), 
         // the mentions notified them on the way in; now they move into the embed and the content goes
         if (pinging) {
             try {
-                await sent.edit(await payloadFor(eventStore.getEvent(event.id), approved));
+                await sent.edit(await payloadFor(eventStore.getEvent(event.id), approved, { nameMemo }));
             } catch (e) {
                 logger.warn(`setup:${event.id}: ping not moved into the embed: ${(e && e.message) || e}`);
             }
