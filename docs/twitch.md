@@ -1,0 +1,102 @@
+# Twitch stream announcements
+
+Per Discord server, like MEE6: the orga lists Twitch channels, the bot posts a card when one goes live, keeps it
+current and greys it out when the stream ends. User view: [guide-web-admin.md](guide-web-admin.md#twitch).
+
+Code: `src/services/twitch/` (`twitchSettings.js` entries and limits, `twitchJob.js` the poll, `twitchCard.js` the
+message), `src/classes/twitch.js` (API client), `src/stores/discord/twitchStateStore.js`,
+`src/web/apiRoutes/system/twitch.js`; client `pages/settings/discord/SettingsTwitch.tsx`, words in
+`lib/settings/twitch.ts`.
+
+## Data model
+
+- **Entries** in `settings/config.json` at `serverSettings[guildId].twitchStreamers`:
+  `{ login, channelId, roleId, text, games, source }`. `source` is only `"orga"` for now. Limits: 25 streamers per
+  server, 500 characters of own text, 5 game names of 60 characters each. `login` matches `^[a-z0-9_]{2,25}$`; the API
+  also takes `@name` and a `twitch.tv/name` link and refuses other links.
+- **State** in `settings/twitch-state.json`, one record per `"<guildId>:<login>"` (message and channel id, stream id,
+  start, last sighting, end, end retries, last edit, hash, error). It is not part of the config: it changes every run
+  and a settings PATCH must not race it. It survives a restart.
+- **Credentials** in `settings/config.json` at `twitch: { clientId, clientSecret }`, one app for all servers.
+  `TWITCH_CLIENT_ID` and `TWITCH_CLIENT_SECRET` are only the bootstrap.
+- **Game filter:** empty means every game. Otherwise a name matches when the stream's category contains it,
+  ignoring case ("World of Warcraft" also hits "World of Warcraft: The War Within"). A stream without a category only
+  passes without a filter.
+
+## The job (`twitchJob.js`)
+
+Only the live bot polls (`isLiveInstance()`); a test instance does not, but "Jetzt prüfen" works everywhere. One
+central poll asks for each login once, whichever servers list it.
+
+- **Every 2 minutes.** A failed answer, a timeout or a 429 means "unknown": never offline, nothing is counted.
+- **Pause after a 429:** the next run is skipped (poll interval plus 30 seconds).
+- **Ending:** after 2 offline answers at least 1 minute apart.
+- **Resume:** a new stream id within 10 minutes of the end or last sighting is the same session. The old message goes
+  live again, without a ping and regardless of the filter.
+- **Updates:** at most every 5 minutes and only when name, title, game, viewers, text or role changed. A new preview
+  picture alone never causes an edit.
+- **State is written right after every post,** so a restart cannot ping twice.
+- **Message deleted in Discord:** it stays deleted for that session. No repost, no second ping, `messageGone` is set.
+- **Giving up:** when the "ended" edit keeps failing, the job stops after 24 hours from the first failure and shows
+  `end_gave_up` until the next stream starts.
+- **Errors stay visible:** an error lands on its entry and stays after the stream until a post or edit works. Codes:
+  `channel_gone`, `no_permission`, `wrong_guild`, `post_failed`, `end_gave_up`. An offline bot is no error of the entry.
+- **Removed entry:** its running message is ended, then the state is dropped.
+- **Changed channel:** a running message stays where it is (`postedChannelId` in the status); the next stream appears
+  in the new channel.
+
+## The ping
+
+- Only the **first post** of a stream pings, and only the entry's one role: `discord.postPayload(…, { pingRoleId })`
+  sends `allowedMentions: { parse: [], roles: [roleId] }`. The card itself and every edit send `parse: []`.
+- Foreign text (stream title, game, name) is escaped and stays on one line, so a title cannot ping anyone. The own text
+  fills `{streamer} {title} {game} {url}` in a single pass.
+- `twitchPing` is a **use** of a role, shown on the role page, but not a granting use: `selfRole.grantingUses` leaves
+  it out, so the role can still be taken by button. A ping grants no rights.
+- **Discord's rule:** `allowedMentions` only limits who may be pinged, it does not create the right to. A role that is
+  not set to "Allow anyone to @mention this role" only notifies when the bot has "Mention @everyone, @here, and All
+  Roles" in that channel. Without it the name appears in the card and nobody gets a notification, and **no error
+  comes back**, so the status cannot show it. Discord's developer docs do not spell this out; the interaction is
+  described by third-party guides and bot docs.
+
+## Rights
+
+Area `settings`: GET needs read, the write routes write plus CSRF. Always the session's active server;
+`serverSettingsGuildId` guards against a server switched in another tab (409 `server_switched`), as with the other
+per-server settings. A channel or role of another server is refused with 403 `other_server`. The credentials go
+through `PATCH /api/settings` and are full-admin only.
+
+## API
+
+| Call | Body | Answer |
+|---|---|---|
+| `GET /api/settings/twitch` | - | view; without an active server 400 `no_active_server` |
+| `POST /api/settings/twitch` | `serverSettingsGuildId, login, channelId, roleId?, text?, games?` | view |
+| `PUT /api/settings/twitch` | `serverSettingsGuildId, login, channelId?, roleId?, text?, games?`; omitted = kept, `roleId: ""` removes | view; 404 `not_found` |
+| `DELETE /api/settings/twitch` | `serverSettingsGuildId, login` | view; 404 `not_found` |
+| `POST /api/settings/twitch/check` | `serverSettingsGuildId` | `{ result, ...view }` |
+
+`result` is `{ checked, live }` or `{ skipped }` with `no_credentials`, `bot_offline`, `rate_limited`,
+`twitch_unavailable` or `failed`.
+
+The view holds `guildId, hasCredentials, lastRun: { at, error }, limits, streamers`, and each streamer a `status`:
+`state` (`live`, `filtered`, `offline`), `since, endedAt, title, game, viewers, messageGone, error, postedChannelId`.
+The status can be up to 5 minutes old. `filtered` means "running, no announcement": the filter, or a failed post, in
+which case `error` is set. `lastRun.at` is 0 until the first run of this process.
+
+Other errors: 400 `unknown_server`, `invalid_login`, `duplicate_streamer`, `missing_channel`, `invalid_role`,
+`text_too_long`, `too_many`, `too_many_games`, `invalid_list`. The server's messages are German only, so the client
+words every code itself (`twitchErrorText`). The form enforces the limits itself, because the server cuts a too long
+game name silently.
+
+## Creating the Twitch app
+
+1. Open <https://dev.twitch.tv/console> with any Twitch account (Twitch asks for two-factor authentication).
+2. **Applications → Register Your Application.** Any name; OAuth redirect URL `http://localhost` (required by the form,
+   never used); a category; client type **Confidential**.
+3. **Manage** the app, copy the **Client ID**, press **New Secret** and copy the secret.
+4. In the menu: Einstellungen → Alle Server → Verbindungen → Twitch. The secret is never shown again; leaving the field
+   empty keeps it.
+
+The bot only uses an app token (client credentials) to read public streams; no streamer has to log in or agree to
+anything.

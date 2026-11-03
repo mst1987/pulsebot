@@ -52,6 +52,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "raidhelper", group: "server", icon: "raidHelper", adminOnly: true, standalone: true },
     // #957: stays with the server - #952 turns it into a setting per server and version
     { id: "topitems", group: "server", icon: "loot", standalone: true },
+    // Twitch stream announcements of this server, saved on their own (docs/twitch.md)
+    { id: "twitch", group: "server", icon: "notify", standalone: true },
 
     // the block "Alle Server"
     { id: "discordserver", group: "global", icon: "discordServer", adminOnly: true, standalone: true },

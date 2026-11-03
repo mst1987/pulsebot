@@ -13,6 +13,7 @@ export type ServerRoleUse =
     | { code: "categoryRaider"; categoryIds: string[]; categories?: { id: string; name: string }[] }
     | { code: "roleSync"; guildIds: string[]; servers?: { guildId: string; name: string }[] }
     | { code: "pugVersion"; versionIds: string[] }
+    | { code: "twitchPing"; logins: string[] }
     | { code: "roster"; rosterId: string; name: string; kinds: ("member" | "trial" | "manager")[] }
     | { code: "roleMessage"; messageId: string; title: string };
 

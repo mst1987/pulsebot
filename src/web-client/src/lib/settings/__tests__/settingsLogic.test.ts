@@ -328,6 +328,14 @@ describe("connection cards", () => {
         expect(logic.connectionState("battlenet", { blizzard: { clientId: "" } }).missing).toBe(true);
     });
 
+    it("treats Twitch like the other client + secret connections", () => {
+        expect(logic.connectionState("twitch", { twitch: { clientId: "x", hasClientSecret: false } }))
+            .toEqual({ tone: "mid", label: "Secret fehlt", missing: true });
+        expect(logic.connectionState("twitch", { twitch: { clientId: "x", hasClientSecret: true } }))
+            .toEqual({ tone: "ok", label: "Verbunden", missing: false });
+        expect(logic.connectionState("twitch", { twitch: { clientId: "" } }).missing).toBe(true);
+    });
+
     it("never counts the Discord connection or unknown token numbers as missing", () => {
         expect(logic.connectionState("discord", { botOnline: false }).missing).toBe(false);
         expect(logic.connectionState("lootsync", { tokenCount: null }).missing).toBe(false);

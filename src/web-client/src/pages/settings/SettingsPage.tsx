@@ -49,6 +49,7 @@ import VersionFeaturesCard from "./versions/VersionFeaturesCard";
 import VersionLaunchCard from "./versions/VersionLaunchCard";
 import ServerVersionLinksSection from "./versions/ServerVersionLinksSection";
 import TopItemsSection from "./versions/TopItemsSection";
+import SettingsTwitch from "./discord/SettingsTwitch";
 import { withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { XIcon, SaveIcon } from "../../components/ui/icons/icons";
@@ -637,6 +638,13 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("settings.page.topItemsSub"))}
                     <TopItemsSection key={data.activeGuildId} guildId={data.activeGuildId || ""} />
+                </>
+            );
+
+            case "twitch": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.twitch.sub"))}
+                    <SettingsTwitch key={data.activeGuildId} guildId={data.activeGuildId || ""} channels={channels} roles={data.roles || []} />
                 </>
             );
 

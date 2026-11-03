@@ -65,6 +65,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
     const lastUsed = (tokens || []).filter((tok) => tok.lastUsedAt).sort((a, b) => b.lastUsedAt - a.lastUsedAt)[0];
     const uploads = (tokens || []).reduce((sum, tok) => sum + (tok.uses || 0), 0);
     const wclOk = connectionState("wcl", connectionInputs(data, tokens)).tone === "ok";
+    const twitchOk = connectionState("twitch", connectionInputs(data, tokens)).tone === "ok";
     const all: Card[] = [
         {
             id: "discord", title: "Discord & Raid-Helper", icon: "discord", adminOnly: true,
@@ -95,6 +96,17 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
                 [t("settings.connections.clientId"), shortId(c.warcraftlogsV2?.clientId || "")],
                 ["Secret", secret(c.warcraftlogsV2?.hasClientSecret)],
                 [t("settings.connections.effect"), wclOk ? t("settings.connections.curvesOn") : t("settings.connections.curvesOff")],
+            ],
+        },
+        {
+            // the icon of the announcements; there is no Twitch mark in the icon set
+            id: "twitch", title: "Twitch", icon: "notify", adminOnly: true,
+            tip: "Twitch",
+            tipSub: t("settings.connections.twitchSub"),
+            rows: [
+                [t("settings.connections.clientId"), shortId(c.twitch?.clientId || "")],
+                ["Secret", secret(c.twitch?.hasClientSecret)],
+                [t("settings.connections.effect"), twitchOk ? t("settings.connections.twitchOn") : t("settings.connections.twitchOff")],
             ],
         },
         {
@@ -256,6 +268,17 @@ function fieldsOf(id: Exclude<ConnectionId, "lootsync">): FieldsDef {
             secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.wclSecretSub") },
         };
     }
+    if (id === "twitch") {
+        return {
+            title: "Twitch",
+            missingText: t("settings.connections.twitchMissing"),
+            link: ["https://dev.twitch.tv/console", t("settings.connections.twitchLink")],
+            fields: [
+                { key: "clientId", label: clientId, mono: true, placeholder: t("settings.connections.twitchClientPlaceholder") },
+            ],
+            secret: { key: "clientSecret", label: secretLabel, tip: secretLabel, tipSub: t("settings.connections.twitchSecretSub") },
+        };
+    }
     if (id === "github") {
         return {
             title: t("settings.connections.githubTitle"),
@@ -284,6 +307,7 @@ function initialFields(id: ConnectionId, config: AdminConfig): Record<string, st
         return { clientId: b.clientId || "" };
     }
     if (id === "wcl") return { clientId: config.warcraftlogsV2?.clientId || "" };
+    if (id === "twitch") return { clientId: config.twitch?.clientId || "" };
     if (id === "anthropic") return { model: config.anthropic?.model || "" };
     return {};
 }
@@ -291,6 +315,7 @@ function initialFields(id: ConnectionId, config: AdminConfig): Record<string, st
 function hasStoredSecret(id: ConnectionId, config: AdminConfig): boolean {
     if (id === "battlenet") return !!config.blizzard.hasClientSecret;
     if (id === "wcl") return !!config.warcraftlogsV2?.hasClientSecret;
+    if (id === "twitch") return !!config.twitch?.hasClientSecret;
     if (id === "anthropic") return !!config.anthropic?.hasApiKey;
     if (id === "github") return !!config.github?.hasToken;
     return false;

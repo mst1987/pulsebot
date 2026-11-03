@@ -59,6 +59,10 @@
             "label": "Top-Items",
             "crumb": "Module · die großen Drops fürs Dashboard"
         },
+        "twitch": {
+            "label": "Twitch",
+            "crumb": "Server · Stream-Ankündigungen"
+        },
         "logs": {
             "label": "Log-Auswertung",
             "crumb": "Module · wo Logs automatisch gepostet werden"
@@ -730,6 +734,13 @@
         "wclLink": "Client anlegen auf warcraftlogs.com",
         "wclClientPlaceholder": "Client-ID von warcraftlogs.com/api/clients",
         "wclSecretSub": "Unter warcraftlogs.com/api/clients einen Client ohne Redirect-URL anlegen, „Public Client“ aus lassen.",
+        "twitchSub": "Ohne diese App prüft der Bot keine Streams. Welche Streamer angekündigt werden, stellt jeder Server selbst ein: Einstellungen › Server › Twitch.",
+        "twitchOn": "Stream-Prüfung möglich",
+        "twitchOff": "keine Stream-Prüfung",
+        "twitchMissing": "Ohne Client-ID und Secret gibt es keine Stream-Ankündigungen.",
+        "twitchLink": "App anlegen auf dev.twitch.tv/console",
+        "twitchClientPlaceholder": "Client-ID von dev.twitch.tv/console",
+        "twitchSecretSub": "In der Twitch-Konsole eine App anlegen, Kategorie beliebig, als Redirect-URL http://localhost reicht. Das Secret wird hier nie wieder angezeigt.",
         "aiMissing": "Ohne API-Key bleiben die Empfehlungen bei den Regeltexten.",
         "aiLink": "Key anlegen auf console.anthropic.com",
         "modelSub": "Leer = claude-opus-5. Die Formulierung startet auf der Report-Seite unter „Empfehlungen“.",
@@ -1718,6 +1729,116 @@
         "itemId": "Item {id}",
         "tooMany": "Höchstens {max} Top-Items je Spielversion.",
         "readOnly": "Nur lesen – Ändern braucht Schreibrecht für Einstellungen."
+    },
+    "twitch": {
+        "sub": "Der Bot postet und pingt, sobald ein Streamer auf Twitch live geht.",
+        "loading": "Lade Stream-Ankündigungen …",
+        "add": "Hinzufügen",
+        "check": "Jetzt prüfen",
+        "checking": "Prüfe …",
+        "empty": "Noch kein Streamer eingetragen.",
+        "noCredentials": "Die Twitch-App fehlt, ohne sie prüft der Bot keine Streams.",
+        "noCredentialsLink": "Zugangsdaten eintragen",
+        "limitReached": "Mehr als {max} Streamer gehen nicht.",
+        "lastRun": "Zuletzt geprüft: {time}",
+        "lastRunFailed": "Letzte Prüfung {time}: {reason}",
+        "lastRunError": {
+            "rate_limited": "Twitch bremst gerade",
+            "twitch_unavailable": "Twitch antwortet nicht",
+            "other": "fehlgeschlagen"
+        },
+        "col": {
+            "streamer": "Streamer",
+            "channel": "Kanal",
+            "role": "Rolle",
+            "filter": "Filter",
+            "status": "Status",
+            "statusTip": "Der Status kann bis zu fünf Minuten alt sein."
+        },
+        "filterAny": "Jedes Spiel",
+        "filterMore": {
+            "one": "{first} und {count} weiteres",
+            "other": "{first} und {count} weitere"
+        },
+        "roleNone": "Kein Ping",
+        "channelUnknown": "Unbekannter Kanal",
+        "roleUnknown": "Unbekannte Rolle",
+        "status": {
+            "liveSince": "Live seit {time}",
+            "live": "Live",
+            "filtered": "Live, Spiel passt nicht zum Filter",
+            "offline": "Offline",
+            "endedAt": "Zuletzt live bis {time}",
+            "title": "Titel: {value}",
+            "game": "Spiel: {value}",
+            "viewers": {
+                "one": "{count} Zuschauer",
+                "other": "{count} Zuschauer"
+            }
+        },
+        "statusError": {
+            "channel_gone": "Kanal gibt es nicht mehr",
+            "no_permission": "Bot darf in diesem Kanal nicht posten",
+            "wrong_guild": "Kanal liegt auf einem anderen Server",
+            "post_failed": "Posten fehlgeschlagen",
+            "end_gave_up": "Nachricht ließ sich nicht als beendet markieren",
+            "unknown": "Fehler beim Posten ({code})"
+        },
+        "movedChannel": "Laufende Nachricht bleibt in {channel}, der nächste Stream erscheint im neuen Kanal.",
+        "messageGone": "Nachricht in Discord gelöscht, für diesen Stream kommt keine neue.",
+        "openOnTwitch": "Auf Twitch öffnen",
+        "editTip": "Bearbeiten",
+        "removeTip": "Entfernen",
+        "removeTitle": "Streamer entfernen",
+        "removeText": "{login} wird nicht mehr angekündigt. Eine laufende Nachricht wird als beendet markiert.",
+        "removeAction": "Entfernen",
+        "removed": "{login} entfernt.",
+        "saved": "{login} gespeichert.",
+        "result": {
+            "checked": {
+                "one": "{count} Streamer geprüft, {live} live.",
+                "other": "{count} Streamer geprüft, {live} live."
+            },
+            "no_credentials": "Nicht geprüft: Die Twitch-App fehlt.",
+            "bot_offline": "Nicht geprüft: Der Bot ist gerade nicht verbunden.",
+            "rate_limited": "Nicht geprüft: Twitch bremst gerade, der nächste Lauf versucht es wieder.",
+            "twitch_unavailable": "Nicht geprüft: Twitch antwortet gerade nicht.",
+            "failed": "Prüfung fehlgeschlagen."
+        },
+        "modal": {
+            "addTitle": "Streamer hinzufügen",
+            "editTitle": "Streamer bearbeiten",
+            "login": "Name oder Link",
+            "loginPlaceholder": "twitch.tv/name",
+            "channel": "Kanal",
+            "channelPlaceholder": "Kanal wählen",
+            "role": "Rolle für den Ping",
+            "rolePlaceholder": "Kein Ping",
+            "text": "Eigener Text",
+            "textHint": "Platzhalter: {placeholders}",
+            "textCount": "{count} von {max} Zeichen",
+            "games": "Spielfilter",
+            "gamesPlaceholder": "Spielname",
+            "gamesAdd": "Spiel hinzufügen",
+            "gamesRemove": "{game} entfernen",
+            "gamesHint": "Leer = jedes Spiel. „World of Warcraft“ trifft auch Kategorien, die den Namen enthalten.",
+            "gamesCount": "{count} von {max} Spielen",
+            "gameTooLong": "Spielnamen haben höchstens {max} Zeichen.",
+            "gameTooMany": "Mehr als {max} Spiele gehen nicht.",
+            "gameDuplicate": "Dieses Spiel steht schon im Filter."
+        },
+        "error": {
+            "invalid_login": "Das ist kein gültiger Twitch-Name oder -Link.",
+            "duplicate_streamer": "Dieser Streamer steht schon in der Liste.",
+            "missing_channel": "Bitte einen Kanal wählen.",
+            "invalid_role": "Diese Rolle gibt es auf dem Server nicht.",
+            "text_too_long": "Der eigene Text ist zu lang.",
+            "too_many": "Die Liste ist voll, mehr Streamer gehen nicht.",
+            "too_many_games": "Der Spielfilter ist voll, mehr Spiele gehen nicht.",
+            "invalid_list": "Der Spielfilter ist ungültig.",
+            "not_found": "Diesen Streamer gibt es nicht mehr in der Liste.",
+            "other_server": "Kanal oder Rolle gehört nicht zu diesem Server."
+        }
     },
     "serverVersionLinks": {
         "sub": "Eigene Armory- und Warcraft-Logs-Links und ein eigener Realm je Spielversion, nur für diesen Server. Ohne eigenen Wert gilt der Standard aus Alle Server › Spielversion. Wowhead, Softres, Raidsheet und Farbe bleiben für alle Server gleich.",

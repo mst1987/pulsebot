@@ -280,10 +280,10 @@ describe("the sections", () => {
         for (const s of sectionsFor("all", true)) {
             expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`[data-icon="${s.icon}"], img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
-        // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818) and a loot-sync token missing.
-        await waitFor(() => expect(within(entry("Verbindungen")).getByText("5")).toBeInTheDocument());
-        expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "5 Verbindungen nicht eingerichtet");
-        expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 5 Verbindungen nicht eingerichtet");
+        // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818), a loot-sync token and the Twitch app missing.
+        await waitFor(() => expect(within(entry("Verbindungen")).getByText("6")).toBeInTheDocument());
+        expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "6 Verbindungen nicht eingerichtet");
+        expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 6 Verbindungen nicht eingerichtet");
         first.unmount();
 
         renderPage(<SettingsPage />, { route: "/settings" });
