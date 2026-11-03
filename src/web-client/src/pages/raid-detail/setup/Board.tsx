@@ -5,6 +5,7 @@ import type { SetupAttendance, SetupConfirmation, SetupEditorData, SetupEditorGr
 import type { VermerkShortMap } from "../../../api/roster/vermerke";
 import VermerkMark from "../../../components/vermerke/VermerkMark";
 import { balancedColumns, placeGrid, withAllGroups, GROUP_SIZE, type SetupTarget } from "../../../lib/signups/setupEditor";
+import { shownCharacterName } from "../../../lib/signups/characterName";
 import { wowIconUrl } from "../../../lib/wow/wowIcon";
 import { roleLabel } from "../../../lib/wow/wowNames";
 import { useT } from "../../../i18n";
@@ -80,6 +81,8 @@ export type Interaction = {
     onHeld?: (userId: string) => void;
     /** Vermerke (#981): the short form by user id - only in an answer past maySeeShort, else absent and no mark drawn. */
     vermerke?: VermerkShortMap;
+    /** Characters have a last name (WoW Forever): a long one is shortened on the line, the whole name stays in the tooltip. */
+    shortNames?: boolean;
 };
 
 /** A raider's order number for one of their characters (#293): 1 = their choice, 2 and up (as many as the category allows, at most 8) = "kann auch mit". */
@@ -107,6 +110,9 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order, note, 
     // late, tentative or bench: a labelled square field on the line (#setup-bar), not a dot
     const sig = markedStatus(p.status);
     const color = classColorProps(p.classColor);
+    const shownName = shownCharacterName(p.character, ui.shortNames);
+    // a shortened name needs its whole form somewhere: the editor's peek shows it (onLeave: there is a peek), else a tooltip
+    const nameTip = shownName !== p.character && !ui.onLeave ? p.character : undefined;
     const selected = ui.selected === p.userId && (ui.selectedCharacter || "") === (as || "");
     const confirmation = inGroup ? (ui.confirmations || {})[p.userId] : undefined;
     // another orga member holds this raider: drawn in their colour, nobody else takes them meanwhile
@@ -164,7 +170,7 @@ export function Slot({ p, ui, inPool = false, inGroup = false, as, order, note, 
                 {/* the note's mark (#981) right after the name - the line is a button, so the symbol only;
                     the link to the notes is in the drawer (SlotTip) */}
                 <span className="se-nameline">
-                    <span className={`se-name ${color.className || ""}`} style={color.style}>{p.character}</span>
+                    <span className={`se-name ${color.className || ""}`} style={color.style} data-tip={nameTip}>{shownName}</span>
                     <VermerkMark short={ui.vermerke?.[p.userId]} userId={p.userId} link={false} size={13} className="se-vmark" />
                 </span>
                 <span className="se-sub">
@@ -371,7 +377,7 @@ export function BenchCard({ bench, ui, layout = "row", posted }: { bench: SetupP
 export function ReadOnly({ data }: { data: SetupEditorData }) {
     const t = useT();
     const approved = data.approved;
-    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, vermerke: data.vermerke };
+    const ui: Interaction = { editable: false, selected: null, dragging: null, attendance: {}, extraRoles: {}, suggest: null, onInspect: () => {}, onPick: () => {}, onDrop: () => {}, onDrag: () => {}, vermerke: data.vermerke, shortNames: data.lastNames };
     if (!approved) return <p className="rd-empty">{t("setup.readOnly.notApproved")}</p>;
     const groupCount = Math.max(1, Math.ceil((data.event.size || 0) / GROUP_SIZE));
     return (

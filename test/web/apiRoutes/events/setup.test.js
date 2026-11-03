@@ -142,6 +142,18 @@ describe("access", () => {
     });
 });
 
+describe("names with a last name (WoW Forever)", () => {
+    it("tells orga and reader alike whether the event's version has them", async () => {
+        const forever = { ...mockEvents.get(ID), versionId: "forever" };
+        mockEvents.set(ID, forever);
+        expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).lastNames).toBe(true);
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`)).lastNames).toBe(true);
+        mockEvents.set(ID, { ...forever, versionId: "tbc" });
+        expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).lastNames).toBe(false);
+        expect(body(await call(route.getSetup, READER, null, `event=${ID}`)).lastNames).toBe(false);
+    });
+});
+
 describe("posting the approved setup (#290)", () => {
     it("posts on approval, not on a proposal, and not again for an already approved setup", async () => {
         await call(route.postPropose, ORGA, { event: ID });

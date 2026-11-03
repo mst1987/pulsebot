@@ -4,6 +4,7 @@ import Badge from "../../../components/ui/Badge";
 import { Button } from "../../../components/ui/Button";
 import { ItemLink } from "../../lootcouncil/ItemBits";
 import { WowheadPathProvider } from "../../../lib/settings/versionLinks";
+import { shownCharacterName } from "../../../lib/signups/characterName";
 import { clock } from "./setupText";
 import "../../../styles/loot.css";
 // ItemLink's classes (lc-*) live in the loot council's stylesheet: load it with the raid page (stylesheetReach)
@@ -36,7 +37,7 @@ function jobErrorLine(t: T, job: SetupLootStatus["job"]): string {
 }
 
 /** "Kara 1: Heilbert softres, Berserker bis · Kara 3: …" - who wants the item in which raid. */
-function ItemRaids({ item, t }: { item: SetupLootItem; t: T }) {
+function ItemRaids({ item, t, shortNames }: { item: SetupLootItem; t: T; shortNames?: boolean }) {
     return (
         <span className="se-loot-raids" aria-label={t("setup.loot.raidsAria")}>
             {item.raids.map((raid, r) => (
@@ -44,13 +45,16 @@ function ItemRaids({ item, t }: { item: SetupLootItem; t: T }) {
                     {r > 0 && <span className="se-loot-sep" aria-hidden="true"> · </span>}
                     <b className={raid.raiders.length > 1 ? "se-loot-mid" : undefined}>{raid.title}</b>
                     {": "}
-                    {raid.raiders.map((p, i) => (
-                        <span key={`${p.userId}:${p.character}`}>
-                            {i > 0 && ", "}
-                            {p.character}
-                            {p.source && <small className="se-loot-src"> {t(`setup.loot.source.${p.source}`)}</small>}
-                        </span>
-                    ))}
+                    {raid.raiders.map((p, i) => {
+                        const shown = shownCharacterName(p.character, shortNames);
+                        return (
+                            <span key={`${p.userId}:${p.character}`}>
+                                {i > 0 && ", "}
+                                <span data-tip={shown !== p.character ? p.character : undefined}>{shown}</span>
+                                {p.source && <small className="se-loot-src"> {t(`setup.loot.source.${p.source}`)}</small>}
+                            </span>
+                        );
+                    })}
                 </span>
             ))}
         </span>
@@ -63,7 +67,7 @@ function ItemRaids({ item, t }: { item: SetupLootItem; t: T }) {
  * and "Loot-Daten laden", the background job that gathers Softres, BiS and the worn gear.
  * The proposal itself never asks an API, and a finished load only offers a new proposal.
  */
-export function LootPanel({ status, check, busy, onLoad, ready = false, onPropose }: {
+export function LootPanel({ status, check, busy, onLoad, ready = false, onPropose, shortNames }: {
     status: SetupLootStatus;
     check: SetupLootCheck | undefined;
     busy: boolean;
@@ -71,6 +75,8 @@ export function LootPanel({ status, check, busy, onLoad, ready = false, onPropos
     /** the load just finished: show the hint setup.loot.loaded with its button */
     ready?: boolean;
     onPropose?: () => void;
+    /** the characters have a last name (WoW Forever): a long one is shortened, the full name in its tooltip */
+    shortNames?: boolean;
 }) {
     const t = useT();
     const running = status.job?.status === "running";
@@ -121,7 +127,7 @@ export function LootPanel({ status, check, busy, onLoad, ready = false, onPropos
                                     <ItemLink id={Number(item.itemId)} name={item.name} iconUrl={item.icon || undefined} quality={item.quality} />
                                     <span className="se-loot-meta">{t("setup.loot.wanted", { count: item.count })}</span>
                                 </span>
-                                <ItemRaids item={item} t={t} />
+                                <ItemRaids item={item} t={t} shortNames={shortNames} />
                             </li>
                         ))}
                     </ul>

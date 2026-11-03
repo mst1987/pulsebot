@@ -213,6 +213,8 @@ export type SetupEditorData = {
      * of a category edits the setup but not yet the event (#725, opens with #728). Missing = no.
      */
     canEditEvent?: boolean;
+    /** Characters of this version have a last name (WoW Forever): a long one is shortened on a line. Missing = no. */
+    lastNames?: boolean;
     approved: ApprovedSetup | null;
     /** Only for the orga (raids write) — a reader never receives the draft. */
     setup?: StoredSetup | null;

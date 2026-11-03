@@ -3,6 +3,7 @@ import type { SetupPerson } from "../../../api";
 import { useT } from "../../../i18n";
 import { ChevronDownIcon, SearchIcon } from "../../../components/ui/icons/icons";
 import Switch from "../../../components/ui/form/Switch";
+import { shownCharacterName } from "../../../lib/signups/characterName";
 import { asCharacter, poolRole } from "../../../lib/signups/setupEditor";
 import { SigIcon, Slot, type Interaction } from "./Board";
 import { useZone } from "./useZone";
@@ -89,7 +90,7 @@ export function PoolPanel({ pool, ui, absent = 0, absentNames, leaders, side = f
     const shown = pool.filter((p) => matchesQuery(p, query) && (!leadOnly || leadSet.has(p.userId)));
     // a further character's line: "2. Char von Zibbo" where the spec stands, its spec in the button's name
     const alt: AltText = {
-        note: (n, character) => t("setup.poolPanel.altOf", { n, character }),
+        note: (n, character) => t("setup.poolPanel.altOf", { n, character: shownCharacterName(character, ui.shortNames) }),
         label: (c, n) => t("setup.chars.lineAria", { character: c.character, spec: specText(c), n }),
     };
     // plain signups first, then late, tentative, reserve (stable: the server's order within each)

@@ -818,7 +818,7 @@ export default function SetupEditor({ ctx, raidId, onSwitchRaid }: { ctx: RaidCt
         const h = held[userId];
         if (h) jobs.notify(t(h.kind === "edit" ? "setup.live.editsMsg" : "setup.live.holdsMsg", { name: h.name, character: characters.get(userId) || "?" }));
     };
-    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: peekAt, onLeave: unpeek, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId, vermerke: data.vermerke };
+    const ui: Interaction = { held, flash, onHeld, editable: !busy, selected, selectedCharacter, dragging, attendance: data.attendance || {}, extraRoles: data.extraRoles || {}, suggest, onInspect: peekAt, onLeave: unpeek, onPick: pick, onDrop: move, onDrag: drag, onEdit: setEditing, confirmations, pinned: shownId, vermerke: data.vermerke, shortNames: data.lastNames };
     const closeDrawer = () => {
         setPinned(null);
         setSelected(null);

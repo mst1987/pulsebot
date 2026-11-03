@@ -16,7 +16,7 @@ const {
     getConfig, listNotify, listRaidsheets, resolveEventSheetLink,
 } = require("../../stores/settings/settingsStore");
 const { pickRaidsheet } = require("../../utils/setup/raidsheets");
-const { versionOfEvent } = require("../../services/versions/mainVersion");
+const { versionOfEvent, eventHasLastNames } = require("../../services/versions/mainVersion");
 const { archiveOf } = require("../../services/events/eventArchive");
 const { settingsForVersion, versionLinks } = require("../../services/versions/versionSettings");
 const { buildSetupView, tankCandidates } = require("../../utils/setup/setupView");
@@ -471,6 +471,8 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         // The event's version and its Wowhead path (#542) for the softres item search.
         versionId: version.versionId,
         wowheadPath: versionLinks(version.versionId, { config }).wowheadPath,
+        // Characters have a last name (WoW Forever): the lists shorten a long one, the tooltip keeps it whole.
+        lastNames: eventHasLastNames({ versionId: version.versionId }),
         // A hidden game version (#563): the page opens as a read-only archive (null = a normal event).
         archived: archiveOf({ versionId: version.versionId, categoryId: found.g.categoryId }, { config }),
         softresSuggested: softresInfo.suggestedInstances.map((i) => i.code),

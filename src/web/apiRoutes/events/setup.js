@@ -68,7 +68,7 @@ const raidGroup = require("../../../services/events/raidGroup");
 const { signupEventIdOf, inRaidGroup } = require("../../../utils/raidGroup");
 const setupLoot = require("../../../services/setup/setupLoot");
 const { getSetupLoot } = require("../../../stores/loot/setupLootStore");
-const { versionOfEvent } = require("../../../services/versions/mainVersion");
+const { versionOfEvent, eventHasLastNames } = require("../../../services/versions/mainVersion");
 const { versionLinks } = require("../../../services/versions/versionSettings");
 const { shortFor, shadowbannedAmong } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
@@ -142,6 +142,8 @@ async function view(event, user, { names = true, req = null } = {}) {
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
     // #728, the same rule as the setup's own (the orga of the raid, raidOrgaAccess.canOrgaRaid)
     out.canEditEvent = write;
+    // characters have a last name (WoW Forever): the lines shorten a long one, the tooltip keeps it whole
+    out.lastNames = eventHasLastNames(fresh);
     return out;
 }
 

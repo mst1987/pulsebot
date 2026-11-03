@@ -22,6 +22,53 @@ function approved() {
 /** How often `part` stands in `svg`. */
 const count = (svg, part) => svg.split(part).length - 1;
 
+describe("characters with a last name (twoLineNames)", () => {
+    const forever = () => ({
+        version: 2,
+        groups: [group(1, [p("1", "Aldric Sturmwind", "Warrior-Protection", "tank"), p("2", "Zibbo", "Priest-Holy", "healer")])],
+        bench: [p("5", "Tom Berg", "Priest-Shadow", "ranged")],
+    });
+
+    it("draws the first name above the last name, smaller, not bold and fainter, in the same class colour", () => {
+        const { svg } = setupImageSvg(forever(), { lang: "en", twoLineNames: true });
+        expect(svg).toMatch(/font-size="21"[^>]*fill="#C79C6E"[^>]*font-weight="700"[^>]*>Aldric</);
+        const last = svg.match(/<text[^>]*>Sturmwind</)[0];
+        expect(last).toContain("font-size=\"16\"");
+        expect(last).toContain("fill=\"#C79C6E\"");
+        expect(last).not.toContain("font-weight");
+        expect(last).toContain("opacity=\"0.8\"");
+        expect(svg).not.toContain("Aldric Sturmwind");
+    });
+
+    it("keeps a name of one part on one line in the size of every other name", () => {
+        const { svg } = setupImageSvg(forever(), { lang: "en", twoLineNames: true });
+        expect(svg).toMatch(/font-size="24"[^>]*font-weight="700"[^>]*>Zibbo</);
+    });
+
+    it("draws the bench on two lines as well", () => {
+        const { svg } = setupImageSvg(forever(), { lang: "en", twoLineNames: true, bench: true });
+        expect(svg).toContain(">Tom<");
+        expect(svg).toContain(">Berg<");
+    });
+
+    it("stays on one line without the option, also with a space in the name", () => {
+        const { svg } = setupImageSvg(forever(), { lang: "en", bench: true });
+        expect(svg).toContain(">Tom Berg<");
+        expect(svg).not.toContain(">Berg<");
+    });
+
+    it("does not change the size of the picture", () => {
+        const one = setupImageSvg(forever(), { lang: "en", bench: true });
+        const two = setupImageSvg(forever(), { lang: "en", bench: true, twoLineNames: true });
+        expect([two.width, two.height]).toEqual([one.width, one.height]);
+    });
+
+    it("renders into a picture", () => {
+        const { svg } = setupImageSvg(forever(), { lang: "en", twoLineNames: true });
+        expect(renderPng(svg).length).toBeGreaterThan(0);
+    });
+});
+
 describe("services/setup/setupImage", () => {
     it("draws one panel per group with people, its raiders in their class colour", () => {
         const out = setupImageSvg(approved(), { lang: "en" });
