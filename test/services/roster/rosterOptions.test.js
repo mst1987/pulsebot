@@ -14,7 +14,7 @@ jest.mock("../../../src/services/events/eventSources", () => ({
     listStoredEvents: jest.fn(() => [{ categoryId: "700000000000000002" }, { categoryId: "700000000000000004" }, {}]),
 }));
 jest.mock("../../../src/stores/events/raidTemplateStore", () => ({
-    getRaidTemplate: jest.fn((id) => (id === "t25" ? { id: "t25", name: "SSC 25", size: 25, composition: { tank: 3, healer: 6 } } : (id === "legacy" ? { id: "legacy", size: null } : null))),
+    getRaidTemplate: jest.fn((_guildId, id) => (id === "t25" ? { id: "t25", name: "SSC 25", size: 25, composition: { tank: 3, healer: 6 } } : (id === "legacy" ? { id: "legacy", size: null } : null))),
 }));
 
 const fs = require("fs");
@@ -91,7 +91,7 @@ describe("services/roster/rosterOptions", () => {
 
     it("prefills slots from the category's raid template when it has a size", () => {
         const cats = [{ id: "a" }, { id: "b" }, { id: "c" }];
-        expect(templateSlots(cats, { categoryRaidTemplate: { a: "t25", b: "legacy", c: "gone" } })).toEqual({
+        expect(templateSlots(cats, { categoryRaidTemplate: { a: "t25", b: "legacy", c: "gone" } }, "g1")).toEqual({
             a: { total: 25, tank: 3, healer: 6, bench: 0, templateId: "t25", templateName: "SSC 25" },
         });
     });

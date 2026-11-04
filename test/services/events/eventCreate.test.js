@@ -165,7 +165,7 @@ describe("services/events/eventCreate", () => {
 
     it("takes what the body leaves open from the category's default raid template", async () => {
         getConfig.mockReturnValue({ categorySignupSource: { "cat-eh": "eventhelper" }, categoryRaidTemplate: { "cat-eh": "tpl-t5" } });
-        getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? {
+        getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? {
             id: "tpl-t5", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25,
             composition: { tank: 3, healer: 7, melee: { min: 4, max: null }, ranged: null },
             signupDeadline: { hoursBefore: 24 }, fairness: true, wishes: false,
@@ -184,7 +184,7 @@ describe("services/events/eventCreate", () => {
 
     describe("a template of another version (#738)", () => {
         const TBC = { id: "tpl-t5", name: "SSC + TK", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25, composition: { tank: 3, healer: 7 } };
-        beforeEach(() => getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? TBC : null)));
+        beforeEach(() => getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? TBC : null)));
         afterEach(() => getRaidTemplate.mockReturnValue(null));
 
         it("creates no event from a TBC default template in a Forever category, before any channel", async () => {
@@ -415,7 +415,7 @@ describe("services/events/eventCreate", () => {
             requiredBuffs: ["windfury"], signupDeadline: null, fairness: false, wishes: true, raidhelperTemplateId: "rh-9",
         };
         const snapshot = JSON.parse(JSON.stringify(T5));
-        beforeEach(() => getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? T5 : null)));
+        beforeEach(() => getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? T5 : null)));
         afterEach(() => getRaidTemplate.mockReturnValue(null));
 
         it("takes size, tanks, healers, ranges and buffs from the chosen raid template", async () => {
@@ -438,7 +438,7 @@ describe("services/events/eventCreate", () => {
         });
 
         it("takes the waiting-list switches from the raid template (#306)", async () => {
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, overflow: "refuse", lockAtLimit: true } : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? { ...T5, overflow: "refuse", lockAtLimit: true } : null));
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
             expect(eventStore.getEvent(result.body.id)).toMatchObject({ overflow: "refuse", lockAtLimit: true });
         });
@@ -462,7 +462,7 @@ describe("services/events/eventCreate", () => {
 
         it("erbt Farbe und Bild von der Raid-Vorlage und ändert die Vorlage nicht (#307)", async () => {
             const look = { ...T5, color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" } };
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? look : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? look : null));
             const result = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
             expect(eventStore.getEvent(result.body.id)).toMatchObject({
                 color: "#ff8800", image: { mode: "banner", url: "https://cdn.example/a.png" },
@@ -476,7 +476,7 @@ describe("services/events/eventCreate", () => {
         });
 
         it("der Dialog überschreibt die Vorlage — auch mit „keine Farbe“ (#307)", async () => {
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, color: "#ff8800" } : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? { ...T5, color: "#ff8800" } : null));
             const own = await createEvent({ guildId: "g1", user, body: body({
                 channelId: "c2", raidTemplateId: "tpl-t5", color: "#1f8ba5", image: { mode: "thumbnail", url: "https://cdn.example/b.png" },
             }) });
@@ -487,7 +487,7 @@ describe("services/events/eventCreate", () => {
         });
 
         it("nimmt den Emoji-Stil aus der Vorlage, der Dialog überschreibt ihn, ohne beides gilt Arkan", async () => {
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, emojiStyle: "gold" } : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? { ...T5, emojiStyle: "gold" } : null));
             const fromTemplate = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
             expect(eventStore.getEvent(fromTemplate.body.id).emojiStyle).toBe("gold");
             const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", emojiStyle: "plain" }) });
@@ -505,7 +505,7 @@ describe("services/events/eventCreate", () => {
         });
 
         it("inherits the duration from the raid template, lets the body override it and refuses garbage (#305)", async () => {
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? { ...T5, durationMinutes: 300 } : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? { ...T5, durationMinutes: 300 } : null));
             const fromTemplate = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
             expect(eventStore.getEvent(fromTemplate.body.id).durationMinutes).toBe(300);
             const own = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: 240 }) });
@@ -516,7 +516,7 @@ describe("services/events/eventCreate", () => {
             const emptied = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5", durationMinutes: "" }) });
             expect(eventStore.getEvent(emptied.body.id).durationMinutes).toBeNull();
             // a template without one leaves the event without a duration (optional, no default)
-            getRaidTemplate.mockImplementation((id) => (id === "tpl-t5" ? T5 : null));
+            getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-t5" ? T5 : null));
             const plain = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", raidTemplateId: "tpl-t5" }) });
             expect(eventStore.getEvent(plain.body.id).durationMinutes).toBeNull();
             const bad = await createEvent({ guildId: "g1", user, body: body({ channelId: "c2", durationMinutes: 900 }) });

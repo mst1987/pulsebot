@@ -134,7 +134,7 @@ async function quickCreateAccess(user, req, categoryId, templateChannelId, { rai
     const access = await quickCreateRight(user, req, categoryId, templateChannelId);
     if (access && access.error) return access;
     const cat = str(categoryId);
-    const template = cat && str(raidTemplateId) ? getRaidTemplate(str(raidTemplateId)) : null;
+    const template = cat && str(raidTemplateId) ? getRaidTemplate(activeGuildFor(req), str(raidTemplateId)) : null;
     if (template && templateVersionProblem({ template, categoryId: cat, config: getConfig() })) {
         return versionFixed(mainVersionFor({ categoryId: cat, config: getConfig() }));
     }

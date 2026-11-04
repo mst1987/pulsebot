@@ -48,7 +48,7 @@ beforeEach(() => {
     archiveStore.getChannelConfig.mockImplementation(() => ({ schemas }));
     settings.getConfig.mockImplementation(() => config);
     settings.listRaidTemplates.mockReturnValue([T5, FOREVER]);
-    settings.getRaidTemplate.mockImplementation((id) => [T5, FOREVER].find((t) => t.id === id) || null);
+    settings.getRaidTemplate.mockImplementation((_guildId, id) => [T5, FOREVER].find((t) => t.id === id) || null);
     signupSourceFor.mockReturnValue("eventhelper");
     loadEventGroups.mockResolvedValue({ groups: [] });
 });
@@ -77,9 +77,9 @@ describe("eventDraft — templates of the category's version", () => {
     });
 
     it("re-fits the template when the category changes", () => {
-        const forever = draft.applyStep(state(), "c", CAT_FOREVER);
+        const forever = draft.applyStep("g1", state(), "c", CAT_FOREVER);
         expect(forever).toMatchObject({ cat: CAT_FOREVER, tpl: FOREVER.id });
-        expect(draft.applyStep(forever, "c", CAT_EH)).toMatchObject({ cat: CAT_EH, tpl: T5.id });
+        expect(draft.applyStep("g1", forever, "c", CAT_EH)).toMatchObject({ cat: CAT_EH, tpl: T5.id });
     });
 
     it("has no template to offer when none fits the version", async () => {
@@ -107,9 +107,9 @@ describe("eventDraft — the template's melee/ranged ranges", () => {
     });
 
     it("leaves compositionMax out when the template has no maximum, and caps it at the size", async () => {
-        settings.getRaidTemplate.mockImplementation((id) => (id === T5.id ? { ...T5, composition: { tank: 3, healer: 6, melee: { min: 4, max: null }, ranged: null } } : null));
+        settings.getRaidTemplate.mockImplementation((_guildId, id) => (id === T5.id ? { ...T5, composition: { tank: 3, healer: 6, melee: { min: 4, max: null }, ranged: null } } : null));
         expect((await build(state())).body.compositionMax).toBeUndefined();
-        settings.getRaidTemplate.mockImplementation((id) => (id === T5.id ? { ...T5, composition: { tank: 3, healer: 6, melee: { min: 4, max: 30 } } } : null));
+        settings.getRaidTemplate.mockImplementation((_guildId, id) => (id === T5.id ? { ...T5, composition: { tank: 3, healer: 6, melee: { min: 4, max: 30 } } } : null));
         expect((await build(state(), values({ comp: "10/1/1" }))).body.compositionMax).toEqual({ melee: 10, ranged: null });
     });
 });
@@ -206,8 +206,8 @@ describe("eventDraft — Kanal-Icon", () => {
             expect(draft.parseCustomId(draft._internal.stepId("i", { ...state(), ico })).state.ico).toBe(clean.ico);
             expect((await build(clean, values({ date: "23.09." }))).body.newChannel.name).toBe("🔥・mi-23-09-ssc-tk");
         }
-        expect(draft.applyStep(state(), "i", "w").ico).toBe("");
-        expect(draft.applyStep(state(), "i", "r2").ico).toBe("r2");
+        expect(draft.applyStep("g1", state(), "i", "w").ico).toBe("");
+        expect(draft.applyStep("g1", state(), "i", "r2").ico).toBe("r2");
     });
 
     it("shows the icon and a preview in the channel line of step 1", async () => {
@@ -228,9 +228,9 @@ describe("eventDraft — Kanal-Icon", () => {
     });
 
     it("a template or category change drops the pick (the suggestions belong to the raid)", () => {
-        expect(draft.applyStep(state({ ico: "r2" }), "t", T5.id).ico).toBe("");
-        expect(draft.applyStep(state({ ico: "r2" }), "c", CAT_FOREVER).ico).toBe("");
-        expect(draft.applyStep(state({ ico: "r2" }), "s").ico).toBe("");
+        expect(draft.applyStep("g1", state({ ico: "r2" }), "t", T5.id).ico).toBe("");
+        expect(draft.applyStep("g1", state({ ico: "r2" }), "c", CAT_FOREVER).ico).toBe("");
+        expect(draft.applyStep("g1", state({ ico: "r2" }), "s").ico).toBe("");
     });
 
     it("duplicate mode: five rows only, a button cycles through the same options", async () => {
@@ -243,7 +243,7 @@ describe("eventDraft — Kanal-Icon", () => {
         // the button's customId already carries the next choice
         const next = draft.parseCustomId(cycle.custom_id);
         expect(next).toMatchObject({ field: "j", state: { ico: "r0" } });
-        expect(draft.applyStep(next.state, "j")).toEqual(next.state);
+        expect(draft.applyStep("g1", next.state, "j")).toEqual(next.state);
         // wrapping around: after "Kein Icon" comes "Wie zuletzt" again
         const last = await draft.stepMessage("g1", { ...dup, ico: "x" });
         const wrap = last.payload.components[4].components.find((b) => b.label.startsWith("Icon:"));

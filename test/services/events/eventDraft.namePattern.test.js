@@ -49,7 +49,7 @@ beforeEach(() => {
     archiveStore.getChannelConfig.mockReturnValue({ schemas: {} });
     settings.getConfig.mockReturnValue({ categoryIds: [CAT], categoryRaidTemplate: { [CAT]: T5.id } });
     settings.listRaidTemplates.mockReturnValue([T5]);
-    settings.getRaidTemplate.mockImplementation((id) => (id === T5.id ? T5 : null));
+    settings.getRaidTemplate.mockImplementation((_guildId, id) => (id === T5.id ? T5 : null));
     signupSourceFor.mockReturnValue("eventhelper");
     loadEventGroups.mockResolvedValue({
         groups: [{
@@ -222,7 +222,7 @@ describe("Kanalname anpassen — when the channel is created", () => {
 
     it("refuses a pattern that ends up as nothing (no date, only placeholders of the date)", async () => {
         draft.submitNamePattern(USER, state(), "{raid}");
-        settings.getRaidTemplate.mockImplementation((id) => (id === T5.id ? { ...T5, instanceIds: [] } : null));
+        settings.getRaidTemplate.mockImplementation((_guildId, id) => (id === T5.id ? { ...T5, instanceIds: [] } : null));
         expect((await build(state())).error).toContain("kein Kanalname");
     });
 

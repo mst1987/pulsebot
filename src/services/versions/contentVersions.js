@@ -34,7 +34,7 @@ function versionsWithData(config) {
     for (const id of Object.values(config.categoryVersion || {})) add(id);
     for (const e of eventStore.listEvents("")) add(e.versionId);
     for (const e of listRaidEvents("")) add(versionOfEvent(e, { config }));
-    for (const t of settingsStore.listRaidTemplates()) add(t.versionId);
+    for (const t of settingsStore.allRaidTemplates()) add(t.versionId);
     for (const p of profiles.listProfiles()) for (const c of p.characters || []) add(c.versionId || LEGACY_VERSION);
     const ctx = buildVersionContext({ config });
     for (const it of lootStore.listAll()) add(eventVersion(ctx, it.eventId));

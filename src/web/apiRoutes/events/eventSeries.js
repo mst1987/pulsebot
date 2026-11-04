@@ -48,7 +48,7 @@ const getSeries = withUser({}, async ({ user, req, res, url }) => {
     ok(res, {
         ...overview,
         categories: overview.categories.filter((c) => mainVersionFor({ categoryId: c.id, config }) === versionId && (seesAll || own.has(c.id))),
-        templates: listRaidTemplates()
+        templates: listRaidTemplates(activeGuildFor(req))
             .filter((t) => (knownVersion(t.versionId) || mainVersionFor({ config })) === versionId)
             .map((t) => ({ id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null })),
         // writing: every row with the global path, else the rows of the categories they manage

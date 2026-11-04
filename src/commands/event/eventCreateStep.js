@@ -51,7 +51,7 @@ module.exports = {
             problem = saved.error || "";
         }
         const value = Array.isArray(interaction.values) ? interaction.values[0] : "";
-        const next = field === "b" ? state : applyStep(state, field, value);
+        const next = field === "b" ? state : applyStep(guildId, state, field, value);
         const { payload } = await stepMessage(guildId, next, { userId });
         await interaction.editReply({ content: "", ...payload });
         if (problem) return interaction.followUp(card({ kind: "warn", title: problem, ephemeral: true }));

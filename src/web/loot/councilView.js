@@ -66,11 +66,11 @@ function councilCategoryIds(config) {
  * The raids a category plays, from its default raid template
  * (config.categoryRaidTemplate) - a hint for the addon to pick the category
  * by GetInstanceInfo(). [] when the category has no template or the template
- * names no instance.
+ * names no instance. `guildId` is the category's server: only its own template counts.
  */
-function categoryInstances(config, categoryId) {
+function categoryInstances(config, categoryId, guildId) {
     const tplId = ((config && config.categoryRaidTemplate) || {})[categoryId];
-    const tpl = tplId ? getRaidTemplate(tplId) : null;
+    const tpl = tplId ? getRaidTemplate(guildId, tplId) : null;
     const ids = (tpl && Array.isArray(tpl.instanceIds)) ? tpl.instanceIds : [];
     return ids.map((id) => instanceById(id)).filter(Boolean).map((i) => ({
         id: i.id,

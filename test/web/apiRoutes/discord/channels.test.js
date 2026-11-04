@@ -403,7 +403,7 @@ describe("web/apiRoutes/channels", () => {
             requireAdmin.mockReturnValue(ADMIN);
             requireCsrf.mockReturnValue(true);
             activeGuildFor.mockReturnValue("g1");
-            settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null));
+            settingsStore.getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null));
             eventLookbackSince.mockReturnValue(1);
             discord.listAllChannels.mockReturnValue(CHANNELS);
             discord.listCategories.mockReturnValue([{ id: "cat1", name: "Raids" }, { id: "arch", name: "Archiv" }]);
@@ -794,7 +794,7 @@ describe("web/apiRoutes/channels", () => {
 
                     it("refuses a default template of another version than the category plays before the first channel", async () => {
                         const settingsStore = require("../../../../src/stores/settings/settingsStore");
-                        settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er", versionId: "forever" } : null));
+                        settingsStore.getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er", versionId: "forever" } : null));
                         try {
                             for (const who of [ADMIN, MANAGER]) {
                                 requireAdmin.mockReturnValue(who);
@@ -806,7 +806,7 @@ describe("web/apiRoutes/channels", () => {
                             expect(dc.createFromTemplate).not.toHaveBeenCalled();
                             expect(eventCreate.createEvent).not.toHaveBeenCalled();
                         } finally {
-                            settingsStore.getRaidTemplate.mockImplementation((id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null));
+                            settingsStore.getRaidTemplate.mockImplementation((_guildId, id) => (id === "tpl-kara" ? { id: "tpl-kara", name: "Karazhan 10er" } : null));
                         }
                     });
 

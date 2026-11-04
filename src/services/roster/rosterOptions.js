@@ -81,11 +81,11 @@ function serverRoles(guildId) {
  * `{ [categoryId]: { total, tank, healer, bench: 0, templateId, templateName } }`
  * - only categories whose template has a size.
  */
-function templateSlots(categories, config = {}) {
+function templateSlots(categories, config = {}, guildId = "") {
     const map = config.categoryRaidTemplate || {};
     const out = {};
     for (const c of categories) {
-        const template = map[c.id] ? getRaidTemplate(map[c.id]) : null;
+        const template = map[c.id] ? getRaidTemplate(guildId, map[c.id]) : null;
         if (!template || !template.size) continue;
         const comp = template.composition || {};
         out[c.id] = {
@@ -135,7 +135,7 @@ function rosterOptions({ guildId = "", config = {}, canSeeKader = false, version
         canManageRoles: guildId ? canManageRoles(guildId) : false,
         online: !!(guildId && discord.isOnline() && discord.getGuild(guildId)),
         kaders: canSeeKader ? kaderOptions(guildId).filter((k) => offered(k.versionId)) : [],
-        templateSlots: templateSlots(categories, config),
+        templateSlots: templateSlots(categories, config, guildId),
         lootSystems: [...LOOT_SYSTEMS],
         lootProfiles: lootProfileOptions(),
     };
