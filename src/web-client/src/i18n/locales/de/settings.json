@@ -317,6 +317,7 @@
     },
     "state": {
         "connected": "Verbunden",
+        "credentialsRejected": "Zugangsdaten abgelehnt",
         "botOffline": "Bot offline",
         "secretMissing": "Secret fehlt",
         "clientIdMissing": "Client-ID fehlt",
@@ -755,6 +756,7 @@
         "twitchSub": "Ohne diese App prüft der Bot keine Streams. Welche Streamer angekündigt werden, stellt jeder Server selbst ein: Einstellungen › Server › Twitch.",
         "twitchOn": "Stream-Prüfung möglich",
         "twitchOff": "keine Stream-Prüfung",
+        "twitchRejected": "Twitch lehnt die Zugangsdaten ab, keine Stream-Prüfung",
         "twitchMissing": "Ohne Client-ID und Secret gibt es keine Stream-Ankündigungen.",
         "twitchLink": "App anlegen auf dev.twitch.tv/console",
         "twitchClientPlaceholder": "Client-ID von dev.twitch.tv/console",

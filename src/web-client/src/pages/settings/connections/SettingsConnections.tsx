@@ -105,7 +105,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             rows: [
                 [t("settings.connections.clientId"), shortId(c.twitch?.clientId || "")],
                 ["Secret", secret(c.twitch?.hasClientSecret)],
-                [t("settings.connections.effect"), twitchOk ? t("settings.connections.twitchOn") : t("settings.connections.twitchOff")],
+                [t("settings.connections.effect"), twitchOk ? t("settings.connections.twitchOn") : c.twitch?.credentialsRejected ? t("settings.connections.twitchRejected") : t("settings.connections.twitchOff")],
             ],
         },
         {
@@ -391,7 +391,7 @@ function ConnectionModal({ id, card, data, onClose, onSaved }: {
                 {(state.missing || state.tone === "mid") && (
                     <div className="conn-status mid">
                         <Badge tone="mid" icon={<WarnIcon />}>{state.label}</Badge>
-                        <span>{def.missingText}</span>
+                        <span>{id === "twitch" && data.config.twitch?.credentialsRejected ? t("settings.connections.twitchRejected") : def.missingText}</span>
                     </div>
                 )}
                 {def.fields.slice(0, 1).map(input)}

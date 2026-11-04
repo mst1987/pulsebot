@@ -38,9 +38,13 @@ central poll asks for each login once, whichever servers list it.
   picture alone never causes an edit.
 - **State is written right after every post,** so a restart cannot ping twice. A failed write does not count as a
   failed post: it is logged, kept in the memory of the process and written again, so a second ping is also ruled out
-  within the process. A restart in exactly that gap is the one case that can still ping twice.
+  within the process. Two rare cases can still ping twice: a restart in exactly that gap, and a send that times out
+  although Discord did deliver it, because the job then counts the post as failed.
 - **Message deleted in Discord:** it stays deleted for that session. No repost, no second ping, `messageGone` is set.
-- **A failed resume edit** clears the hash, so the next run tries again.
+- **A failed resume edit** clears the hash and `lastEditAt`, so every next run tries again without the gap between
+  edits: the card must not say "ended" while the stream runs. A normal update that fails waits for the gap as usual.
+- **A restart during the "ended" edit:** `endPending` is written together with `endedAt`, before the edit, so the next
+  run finishes it.
 - **A new stream with an old message still open:** the old message gets one more "ended" edit first. If that fails it
   moves to `pendingEnds`, each with its own `endFailingSince`, and is retried; the new stream posts and pings as usual.
 - **Giving up:** when the "ended" edit keeps failing, the job stops after 24 hours from the first failure and shows
@@ -75,7 +79,8 @@ central poll asks for each login once, whichever servers list it.
   unmentionableRoleIds }` for the active server, read from the cache only, no member list. `botCanMentionAll` is `null`
   when unknown (bot offline, server not loaded), which never throws. The list leaves out @everyone and managed roles.
   The dialog shows a hint under the role picker and the table's role column a tooltip when the role is listed and
-  `botCanMentionAll` is `false`. `null` shows nothing, and neither ever blocks saving.
+  `botCanMentionAll` is `false`. `null` shows nothing, and neither ever blocks saving. The hint only checks the right
+  at server level: a channel overwrite that takes it away, or grants it, goes unnoticed.
 
 ## The icon
 
@@ -95,7 +100,10 @@ per-server settings. A channel or role of another server is refused with 403 `ot
 through `PATCH /api/settings` and are full-admin only; `hasCredentials` in the view tells everybody with the settings
 area only yes or no, because the page's status needs it. Full admins also get `config.twitch.inUse` in the settings
 config: whether any server lists a streamer, so missing credentials count only then: the badge at "Connections" stays
-quiet without `inUse`, while the Twitch row itself still says what is missing.
+quiet without `inUse`, while the Twitch row itself still says what is missing. `config.twitch.credentialsRejected`
+says that the last check got `bad_credentials` with the credentials saved now, only as yes or no. The row then warns
+"credentials rejected" and counts like missing credentials. It lives in memory only: empty after a restart until the
+next check, gone at once when other credentials are saved.
 
 ## API
 

@@ -52,6 +52,7 @@ const { mainVersionFor, knownVersion } = require("../../../services/versions/mai
 const { logChannelsOf, logChannelsFromBody } = require("../../../services/logcheck/logChannelSettings");
 const { wclGuildsOf, wclGuildsFromBody } = require("../../../services/logcheck/wclGuildSettings");
 const { allTwitchStreamers } = require("../../../services/twitch/twitchSettings");
+const { twitchCredentialsRejected } = require("../../../services/twitch/twitchJob");
 const { normalizeCategoryPlanning } = require("../../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
@@ -833,6 +834,7 @@ function publicConfig(config) {
             clientId: twitch.clientId || "",
             hasClientSecret: !!twitch.clientSecret,
             inUse: allTwitchStreamers({ config }).length > 0,
+            credentialsRejected: twitchCredentialsRejected(config),
         };
     }
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);

@@ -875,7 +875,7 @@ describe("a new stream over an old message", () => {
 });
 
 describe("a resume whose edit fails", () => {
-    it("tries again at the next due edit, although the card did not change", async () => {
+    it("tries again in the next run, although the card did not change", async () => {
         await runAt(0, [stream()]);
         await runAt(2, []);
         await runAt(4, []);
@@ -885,13 +885,151 @@ describe("a resume whose edit fails", () => {
         expect(mockDiscord.editPayload).toHaveBeenCalledTimes(2);
 
         await runAt(10, [stream({ id: "s2" })]);
-        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(2);
-
-        await runAt(13, [stream({ id: "s2" })]);
         expect(mockDiscord.editPayload).toHaveBeenCalledTimes(3);
         expect(accentOf(mockDiscord.editPayload.mock.calls[2][2])).toBe(TWITCH_COLOR);
         expect(statusOf().error).toBe("");
         expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+
+        // cured: from here on the normal gap between edits holds again
+        await runAt(12, [stream({ id: "s2", title: "Neu" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(3);
+    });
+
+    it("keeps trying every run while it fails, also right after the \"ended\" edit", async () => {
+        await runAt(0, [stream()]);
+        await runAt(2, []);
+        await runAt(4, []);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code: 50013 }).mockRejectedValueOnce({ code: 50013 });
+        await runAt(6, [stream({ id: "s2" })]);
+        await runAt(8, [stream({ id: "s2" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(3);
+        expect(statusOf().error).toBe("no_permission");
+
+        await runAt(10, [stream({ id: "s2" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(4);
+        expect(accentOf(mockDiscord.editPayload.mock.calls[3][2])).toBe(TWITCH_COLOR);
+        expect(statusOf().error).toBe("");
+    });
+
+    it("leaves a normal update that fails at the gap between edits", async () => {
+        await runAt(0, [stream()]);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code: 50013 });
+        await runAt(6, [stream({ title: "Neu" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(1);
+
+        await runAt(8, [stream({ title: "Neu" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(1);
+
+        await runAt(11, [stream({ title: "Neu" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(2);
+    });
+});
+
+describe("a live edit whose channel or message is gone", () => {
+    it.each([10003, "channel_not_found"])("%s ends the edits without a repost", async (code) => {
+        await runAt(0, [stream()]);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code });
+        await runAt(6, [stream({ title: "Neu" })]);
+
+        expect(statusOf()).toMatchObject({ messageGone: true, error: "channel_gone" });
+        expect(stateStore.getTwitchState(GUILD_A, "foo").messageId).toBe("");
+
+        await runAt(12, [stream({ title: "Noch neuer" })]);
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(1);
+        expect(mockDiscord.postPayload).toHaveBeenCalledTimes(1);
+    });
+
+    it("a deleted message shows no error", async () => {
+        await runAt(0, [stream()]);
+        mockDiscord.editPayload.mockRejectedValueOnce({ code: 10008 });
+        await runAt(6, [stream({ title: "Neu" })]);
+        expect(statusOf()).toMatchObject({ messageGone: true, error: "" });
+    });
+});
+
+describe("a restart between the state and the \"ended\" edit", () => {
+    /** The process dies during the edit: it never returns, the next run comes from fresh modules. */
+    async function crashDuringEdit(at, streams) {
+        mockDiscord.editPayload.mockImplementationOnce(() => new Promise(() => {}));
+        mockGetStreams.mockResolvedValueOnce(streams);
+        job.runTwitchCheck({ now: T0 + at * MINUTE });
+        await new Promise(setImmediate);
+        let fresh;
+        jest.isolateModules(() => {
+            require("../../../src/stores/discord/twitchStateStore").useFile(stateFile);
+            fresh = require("../../../src/services/twitch/twitchJob");
+        });
+        return fresh;
+    }
+
+    it("still ends the card of a stream that went offline", async () => {
+        await runAt(0, [stream()]);
+        await runAt(2, []);
+        const fresh = await crashDuringEdit(4, []);
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ endPending: true });
+        expect(stateStore.getTwitchState(GUILD_A, "foo").endedAt).toBeGreaterThan(0);
+
+        mockGetStreams.mockResolvedValueOnce([]);
+        await fresh.runTwitchCheck({ now: T0 + 6 * MINUTE });
+
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(2);
+        expect(accentOf(mockDiscord.editPayload.mock.calls[1][2])).toBe(ENDED_COLOR);
+        expect(stateStore.getTwitchState(GUILD_A, "foo").endPending).toBe(false);
+    });
+
+    it("still ends the card of a removed entry", async () => {
+        await runAt(0, [stream()]);
+        list(GUILD_A);
+        const fresh = await crashDuringEdit(2, [stream()]);
+        expect(stateStore.getTwitchState(GUILD_A, "foo")).toMatchObject({ endPending: true });
+
+        mockGetStreams.mockResolvedValueOnce([stream()]);
+        await fresh.runTwitchCheck({ now: T0 + 4 * MINUTE });
+
+        expect(mockDiscord.editPayload).toHaveBeenCalledTimes(2);
+        expect(accentOf(mockDiscord.editPayload.mock.calls[1][2])).toBe(ENDED_COLOR);
+        expect(stateStore.getTwitchState(GUILD_A, "foo").endPending).toBe(false);
+    });
+});
+
+describe("whether Twitch refused the credentials", () => {
+    const refused = () => Object.assign(new Error("refused"), { authFailed: true });
+
+    it("is false before any check, as after a restart", () => {
+        expect(job.twitchCredentialsRejected(mockConfig)).toBe(false);
+    });
+
+    it("is true after a refusal and false again after a clean answer", async () => {
+        mockGetStreams.mockRejectedValueOnce(refused());
+        await job.runTwitchCheck({ now: T0 });
+        expect(job.lastTwitchRun().error).toBe("bad_credentials");
+        expect(job.twitchCredentialsRejected(mockConfig)).toBe(true);
+
+        await runAt(2, []);
+        expect(job.twitchCredentialsRejected(mockConfig)).toBe(false);
+    });
+
+    it("is false for another failure of Twitch", async () => {
+        mockGetStreams.mockRejectedValueOnce(Object.assign(new Error("down"), { status: 500 }));
+        await job.runTwitchCheck({ now: T0 });
+        expect(job.lastTwitchRun().error).not.toBe("");
+        expect(job.twitchCredentialsRejected(mockConfig)).toBe(false);
+    });
+
+    it("lifts at once when other credentials are saved, before the next check", async () => {
+        mockGetStreams.mockRejectedValueOnce(refused());
+        await job.runTwitchCheck({ now: T0 });
+
+        expect(job.twitchCredentialsRejected({ twitch: { clientId: "id", clientSecret: "neu" } })).toBe(false);
+        expect(job.twitchCredentialsRejected({ twitch: { clientId: "id", clientSecret: "" } })).toBe(false);
+        expect(job.twitchCredentialsRejected({})).toBe(false);
+        expect(job.twitchCredentialsRejected(mockConfig)).toBe(true);
+    });
+
+    it("keeps the secret out of the last run", async () => {
+        mockGetStreams.mockRejectedValueOnce(refused());
+        await job.runTwitchCheck({ now: T0 });
+        expect(JSON.stringify(job.lastTwitchRun())).not.toContain("secret");
     });
 });
 

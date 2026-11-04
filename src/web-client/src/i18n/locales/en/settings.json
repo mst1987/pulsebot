@@ -317,6 +317,7 @@
     },
     "state": {
         "connected": "Connected",
+        "credentialsRejected": "Credentials rejected",
         "botOffline": "Bot offline",
         "secretMissing": "Secret missing",
         "clientIdMissing": "Client ID missing",
@@ -755,6 +756,7 @@
         "twitchSub": "Without this app the bot checks no streams. Each server sets which streamers it announces itself: Settings › Server › Twitch.",
         "twitchOn": "stream checks possible",
         "twitchOff": "no stream checks",
+        "twitchRejected": "Twitch rejects the credentials, no stream checks",
         "twitchMissing": "Without client ID and secret there are no stream announcements.",
         "twitchLink": "Create an app on dev.twitch.tv/console",
         "twitchClientPlaceholder": "Client ID from dev.twitch.tv/console",

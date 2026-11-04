@@ -56,6 +56,8 @@ let pausedUntil = 0;
 let client = null;
 let clientKey = "";
 let lastRun = { at: 0, error: "" };
+/** The credentials Twitch refused in the last run; apart from `lastRun`, which goes into the view. */
+let rejectedKey = "";
 /** Posts that went out but whose state could not be written: "<guild>:<login>" -> { guildId, login, patch }. */
 const unwrittenPosts = new Map();
 
@@ -63,12 +65,18 @@ function settingsStore() {
     return require("../../stores/settings/settingsStore");
 }
 
+/** Identifies one set of credentials in memory ("" = incomplete); never leaves this module. */
+function credentialsKeyOf(cfg) {
+    const { clientId = "", clientSecret = "" } = (cfg && cfg.twitch) || {};
+    return clientId && clientSecret ? `${clientId}\n${clientSecret}` : "";
+}
+
 /** The client of the configured app; kept while the credentials stay, so its token stays too. */
 function clientFor(cfg) {
-    const { clientId = "", clientSecret = "" } = (cfg && cfg.twitch) || {};
-    if (!clientId || !clientSecret) return null;
-    const key = `${clientId}\n${clientSecret}`;
+    const key = credentialsKeyOf(cfg);
+    if (!key) return null;
     if (!client || clientKey !== key) {
+        const { clientId, clientSecret } = cfg.twitch;
         client = new Twitch({ clientId, clientSecret });
         clientKey = key;
     }
@@ -274,8 +282,11 @@ function flushUnwrittenPosts() {
     }
 }
 
-/** Edit the message to the current live card and note the outcome; a deleted one is never posted again. */
-async function refreshMessage(cfg, entry, state, display, now, extra = {}) {
+/**
+ * Edit the message to the current live card and note the outcome; a deleted one is never posted again.
+ * `resumed`: the message still says "ended" although the stream runs, so a failed edit waits for no gap.
+ */
+async function refreshMessage(cfg, entry, state, display, now, extra = {}, { resumed = false } = {}) {
     const { guildId, login } = entry;
     const payload = liveCard({ lang: serverLang(cfg, guildId), entry, display, now });
     try {
@@ -284,11 +295,14 @@ async function refreshMessage(cfg, entry, state, display, now, extra = {}) {
         const error = state.error === END_GAVE_UP && !state.endedAt ? END_GAVE_UP : "";
         setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, hash: hashOf(entry, display), error });
     } catch (e) {
-        if (e && e.code === 10008) {
-            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, messageId: "", messageGone: true, error: "" });
+        if (isGone(e)) {
+            const error = e.code === 10008 ? "" : errorCodeOf(e);
+            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, messageId: "", messageGone: true, error });
         } else {
-            // no hash: the message still shows the old card, so the next due edit tries again
-            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt: now, hash: "", error: errorCodeOf(e) || state.error });
+            // no hash: the message still shows the old card, so the next due edit tries again.
+            // A posted message always has a lastEditAt, so 0 marks a resume still open: due at every run.
+            const lastEditAt = resumed || !state.lastEditAt ? 0 : now;
+            setTwitchState(guildId, login, { ...extra, display, lastSeenAt: now, lastEditAt, hash: "", error: errorCodeOf(e) || state.error });
             logFailure(`edit of ${login}`, e);
         }
     }
@@ -326,7 +340,7 @@ async function handleLive(cfg, entry, stream, now) {
         return "gone";
     }
     if (state.endedAt || resuming) {
-        await refreshMessage(cfg, entry, state, display, now, alive);
+        await refreshMessage(cfg, entry, state, display, now, alive, { resumed: true });
         return "resumed";
     }
     const due = now - state.lastEditAt >= EDIT_MIN_GAP_MS && hashOf(entry, display) !== state.hash;
@@ -366,7 +380,8 @@ async function handleOffline(cfg, entry, now) {
         setTwitchState(guildId, login, { offlineCount, lastOfflineAt: now });
         return "waiting";
     }
-    const ended = setTwitchState(guildId, login, { offlineCount, lastOfflineAt: now, endedAt: now });
+    // endPending before the edit: a restart in between leaves the retry open, finishMessage clears it
+    const ended = setTwitchState(guildId, login, { offlineCount, lastOfflineAt: now, endedAt: now, endPending: true });
     await finishMessage(cfg, guildId, login, ended, now);
     return "ended";
 }
@@ -399,7 +414,7 @@ async function handleRemoved(cfg, guildId, login, state, now) {
         return;
     }
     if (!state.removedAt) {
-        const marked = setTwitchState(guildId, login, { removedAt: now, endedAt: now });
+        const marked = setTwitchState(guildId, login, { removedAt: now, endedAt: now, endPending: true });
         await finishMessage(cfg, guildId, login, marked, now);
         return;
     }
@@ -468,6 +483,7 @@ async function run({ guildId = "", now = Date.now() } = {}) {
         const error = askErrorOf(e);
         if (error === "rate_limited") pausedUntil = now + RATE_LIMIT_PAUSE_MS;
         lastRun = { at: now, error };
+        rejectedKey = error === "bad_credentials" ? clientKey : "";
         logger.warn(`Twitch did not answer (${(e && (e.status || e.kind)) || "error"}): nothing changes this run`);
         return { skipped: error };
     }
@@ -546,6 +562,15 @@ function twitchStatusOf(entries) {
 /** The last run: when, and how Twitch answered ("" = fine). */
 const lastTwitchRun = () => ({ ...lastRun });
 
+/**
+ * Whether the last run was refused the credentials `cfg` holds now: new ones lift it at once.
+ * Memory only, so unknown (false) after a restart until the next check.
+ */
+function twitchCredentialsRejected(cfg) {
+    const key = credentialsKeyOf(cfg);
+    return !!key && lastRun.error === "bad_credentials" && rejectedKey === key;
+}
+
 function startTwitchJob({ intervalMs = POLL_MS, live = isLiveInstance() } = {}) {
     if (timer) return;
     if (!live) {
@@ -568,7 +593,8 @@ function _resetForTests() {
     client = null;
     clientKey = "";
     lastRun = { at: 0, error: "" };
+    rejectedKey = "";
     unwrittenPosts.clear();
 }
 
-module.exports = { runTwitchCheck, twitchStatusOf, lastTwitchRun, startTwitchJob, stopTwitchJob, _resetForTests };
+module.exports = { runTwitchCheck, twitchStatusOf, lastTwitchRun, twitchCredentialsRejected, startTwitchJob, stopTwitchJob, _resetForTests };

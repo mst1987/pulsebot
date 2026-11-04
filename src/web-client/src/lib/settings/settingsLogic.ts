@@ -501,8 +501,11 @@ export type ConnectionInputs = {
     blizzard?: { clientId?: string; hasClientSecret?: boolean };
     anthropic?: { hasApiKey?: boolean };
     warcraftlogsV2?: { clientId?: string; hasClientSecret?: boolean };
-    /** inUse: a server has at least one streamer entered (whether the connection is needed at all). */
-    twitch?: { clientId?: string; hasClientSecret?: boolean; inUse?: boolean };
+    /**
+     * inUse: a server has at least one streamer entered (whether the connection is needed at all).
+     * credentialsRejected: the last check got these credentials refused (empty after a restart).
+     */
+    twitch?: { clientId?: string; hasClientSecret?: boolean; inUse?: boolean; credentialsRejected?: boolean };
     github?: { hasToken?: boolean };
     botOnline?: boolean;
     /** null = not known (not loaded, or not a full admin). */
@@ -518,6 +521,9 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
         const block = id === "battlenet" ? input.blizzard : id === "wcl" ? input.warcraftlogsV2 : input.twitch;
         const hasId = !!(block && String(block.clientId || "").trim());
         const hasSecret = !!(block && block.hasClientSecret);
+        if (hasId && hasSecret && id === "twitch" && input.twitch?.credentialsRejected) {
+            return { tone: "mid", label: t("settings.state.credentialsRejected"), missing: true };
+        }
         if (hasId && hasSecret) return { tone: "ok", label: t("settings.state.connected"), missing: false };
         if (hasId || hasSecret) return { tone: "mid", label: t(hasId ? "settings.state.secretMissing" : "settings.state.clientIdMissing"), missing: true };
         return { tone: "mid", label: t("settings.state.notSetUp"), missing: true };
