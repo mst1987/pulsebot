@@ -39,6 +39,21 @@ function onlyByRank(user, req, rolesMay) {
 }
 
 /**
+ * The raiders `user` may see from this request (#1077, services/characters/profileVisibility.js):
+ * null for a full admin (no limit), otherwise a set: members of the active server, raiders signed up
+ * there, and the caller. A holder of only the rank stays behind its own stricter limit first.
+ * @returns {Promise<Set<string>|null>}
+ */
+async function visibleRaidersFor(user, req) {
+    if (user && user.isAdmin) return null;
+    // required here, not at the top: it pulls in the bot's discord module, see guildOfChannel
+    const { visibleRaiderIds } = require("../../services/characters/profileVisibility");
+    const visible = await visibleRaiderIds(activeGuildFor(req));
+    if (user && user.id) visible.add(str(user.id));
+    return visible;
+}
+
+/**
  * The server a channel (or thread) of the bot belongs to, from the bot's cache: "" for a
  * channel the bot does not see or while it is offline - a caller then reaches it only as a
  * full admin (fail closed).
@@ -99,4 +114,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, onlyByRank, visibleRaidersFor, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

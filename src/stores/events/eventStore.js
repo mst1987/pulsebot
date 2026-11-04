@@ -325,6 +325,13 @@ function listEvents(guildId, opts = {}) {
         .sort((a, b) => b.startTime - a.startTime);
 }
 
+/** The ids of a guild's own events, every record of it and without copying one. "" = none, not every guild. */
+function eventIdsOfGuild(guildId) {
+    const gid = str(guildId);
+    if (!gid) return [];
+    return peekAll().filter((e) => e && e.id && e.guildId === gid).map((e) => e.id);
+}
+
 /** One own event by id, or null. */
 function getEvent(id) {
     const key = str(id);
@@ -709,7 +716,7 @@ if (typeof versionHook === "function") {
 }
 
 module.exports = {
-    listEvents, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
+    listEvents, eventIdsOfGuild, getEvent, createEvent, updateEvent, setEventMessage, setEventSetup, deleteEvent, saveSetupDraft, setEventState,
     appendEventLog, setEventRaidGroup, setEventSetupPost, setEventSetupPingText, setEventExtraRole, EXTRA_ROLES, setEventDiscordEvent, setEventAnnounced,
     normalizePlan, isOwnEventId, migrateOverflowModes, onEventsChanged, useFile: store.useFile, eventEndTime, plannedEndOrDefault, durationOf, MIN_DURATION, MAX_DURATION,
     // only for the tests (#424): not part of the module's API

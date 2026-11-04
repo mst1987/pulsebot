@@ -8,6 +8,7 @@
 // (web/roster/activeRoster.js). Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
+const { visibleRaidersFor } = require("../../http/serverQuery");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeRoster } = require("../../roster/activeRoster");
 const { canManageRosterLive, isRosterOrga } = require("../../../services/roster/rosterAccess");
@@ -56,8 +57,9 @@ const getRosterSync = withUser({}, async ({ user, req, query, res }) => {
     const roster = activeRoster(req, query.get("id"));
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     if (!(await isRosterOrga(user, roster))) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
+    const visibleIds = await visibleRaidersFor(user, req);
     const [view, canManage] = await Promise.all([
-        rosterSyncView(roster, { config: getConfig() }),
+        rosterSyncView(roster, { config: getConfig(), visibleIds }),
         canManageRosterLive(user, roster),
     ]);
     return ok(res, { ...view, canManage: canManage && !roster.closedAt });

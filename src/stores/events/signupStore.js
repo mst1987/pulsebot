@@ -209,6 +209,25 @@ function signupsOfUser(userId) {
 }
 
 /**
+ * The accounts signed up to any of these events, in one pass and without copying a
+ * signup: a list of events per web request must not re-read the file per event.
+ * @param {Iterable<string>} eventIds
+ * @returns {Set<string>}
+ */
+function userIdsOfEvents(eventIds) {
+    const all = peekAll();
+    const out = new Set();
+    for (const eventId of eventIds || []) {
+        const byUser = all[String(eventId)];
+        if (!byUser) continue;
+        for (const [userId, signup] of Object.entries(byUser)) {
+            if (signup && signup.userId) out.add(String(userId));
+        }
+    }
+    return out;
+}
+
+/**
  * Create or replace a user's signup. `at` is kept from a previous signup, so
  * changing the spec does not move somebody to the end of the list.
  * @returns {{ signup?: object, error?: string }}
@@ -287,6 +306,6 @@ function deleteEventSignups(eventId) {
 }
 
 module.exports = {
-    listSignups, getSignup, signupsOfUser, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, renameCharacter, deleteEventSignups,
+    listSignups, getSignup, signupsOfUser, userIdsOfEvents, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, renameCharacter, deleteEventSignups,
     normalizeSignup, migrateSignup, onSignupsChanged, SIGNUPS_FILE, MAX_CHARACTERS, useFile: store.useFile,
 };

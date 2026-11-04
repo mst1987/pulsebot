@@ -12,6 +12,7 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { visibleRaidersFor } = require("../../http/serverQuery");
 const { canManageRosterLive } = require("../../../services/roster/rosterAccess");
 const rosterMembers = require("../../../services/roster/rosterMembers");
 const { searchMembers } = require("../../../services/roster/rosterMemberSearch");
@@ -64,6 +65,9 @@ const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, a
     if (mode && mode !== "add" && mode !== "update") return refuse(res, "bad_request");
     const userId = str(body.userId);
     const create = mode === "add" || (!mode && !roster.members[userId]);
+    // taking in copies the first profile character into the answer: only a raider this server may see (#1077)
+    const visible = create ? await visibleRaidersFor(user, req) : null;
+    if (visible && !visible.has(userId)) return refuse(res, "not_found");
     const patch = {};
     for (const key of MEMBER_FIELDS) if (body[key] !== undefined) patch[key] = body[key];
     const actor = { actor: str(user.id) };

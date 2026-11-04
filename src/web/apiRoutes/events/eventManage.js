@@ -19,7 +19,7 @@ const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
+const { onlyByRank, visibleRaidersFor, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const manage = require("../../../services/events/eventManage");
 const { getSignup } = require("../../../stores/events/signupStore");
@@ -65,6 +65,18 @@ async function rankReaches(user, req, eventId, userId) {
     return !!members && members.has(uid);
 }
 
+/**
+ * Whether the orga of this server may name this account in a raid (#1077): a signup writes a missing
+ * character into the global profile and shows what the profile holds, so only a raider the server may
+ * see. A missing id is left to the service. A full admin reaches everybody.
+ */
+async function orgaReaches(user, req, userId) {
+    const uid = String(userId ?? "").trim();
+    if (!uid) return true;
+    const visible = await visibleRaidersFor(user, req);
+    return !visible || visible.has(uid);
+}
+
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));
 });
@@ -88,15 +100,14 @@ const postSignups = action(async ({ user, body, req, res }) => {
 
 const getRaiderCandidates = reader(async ({ user, req, res, query }) => {
     const eventId = q.str(query, "event");
-    sendResult(res, await manage.raiderCandidates({
-        guildId: activeGuildFor(req), eventId,
-        ...(await raidOnlyByRank(user, req, eventId) ? { ownServerOnly: true } : {}),
-    }));
+    const limit = await raidOnlyByRank(user, req, eventId) ? { ownServerOnly: true } : { visibleIds: await visibleRaidersFor(user, req) };
+    sendResult(res, await manage.raiderCandidates({ guildId: activeGuildFor(req), eventId, ...limit }));
 });
 
 const postRaider = action(async ({ user, body: b, req, res }) => {
     const onlyRank = await raidOnlyByRank(user, req, b.event);
-    if (onlyRank && !(await rankReaches(user, req, b.event, b.userId))) return apiError(res, 403, "other_server", OTHER_SERVER);
+    const reaches = onlyRank ? await rankReaches(user, req, b.event, b.userId) : await orgaReaches(user, req, b.userId);
+    if (!reaches) return apiError(res, 403, "other_server", OTHER_SERVER);
     sendResult(res, await manage.addRaider({
         ...(onlyRank ? { keepProfiles: true } : {}),
         guildId: activeGuildFor(req), eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,

@@ -137,8 +137,11 @@ function typoDistance(typed, logged) {
  * aus den Logs): the logged names that look like a typo of its name come
  * first, marked `match: "similar"`, the closest and the same class first. The
  * character itself is not excluded then: its own name may be the logged one.
+ *
+ * `all` — the profiles `claimedBy` may name: the orga of a server gets only the raiders it may
+ * see (#1077); the raider's own "aus den Logs" keeps every account.
  */
-function logSuggestions(user, { query = "", near = null, index = logIndex() } = {}) {
+function logSuggestions(user, { query = "", near = null, index = logIndex(), all = profiles.listProfiles() } = {}) {
     const userId = String((user && user.id) || "");
     const own = profiles.getProfile(userId);
     const ownKeys = new Set(((own && own.characters) || []).map((c) => c.key));
@@ -149,7 +152,7 @@ function logSuggestions(user, { query = "", near = null, index = logIndex() } = 
     const q = String(query || "").trim().toLowerCase();
     const ctx = { userName: user && user.name, assigned };
     const claims = new Map();
-    for (const p of profiles.listProfiles()) {
+    for (const p of all) {
         if (p.userId === userId) continue;
         for (const c of p.characters) {
             if (!claims.has(c.key)) claims.set(c.key, []);

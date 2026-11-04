@@ -11,7 +11,14 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: (
 // the follow-up of a rename has its own suite (services/characters/characterEdit.test.js)
 const mockEdit = jest.fn();
 jest.mock("../../../../src/services/characters/characterEdit", () => ({ editProfileCharacter: (...a) => mockEdit(...a) }));
+// the rule itself has its own suite (services/characters/profileVisibility.test.js)
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => ({
+    ...jest.requireActual("../../../../src/services/characters/profileVisibility"),
+    visibleRaiderIds: jest.fn(),
+}));
 
+const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const store = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/roster/characters");
@@ -34,6 +41,7 @@ beforeAll(() => store.useFile(tempStoreFile("eh-profiles-characters-route.json")
 afterAll(() => store.useFile(null));
 beforeEach(() => {
     store.reset();
+    visibleRaiderIds.mockResolvedValue(new Set([ANNA.id, BERT.id]));
     mockEdit.mockReset();
     mockEdit.mockImplementation((uid, key, data) => ({ ...store.editCharacter(uid, key, data), moved: { rosters: 1 } }));
     store.addCharacter(ANNA.id, { name: "Gentle", className: "Druid", source: "manual", specs: ["Druid-Restoration"] }, { name: "Anna" });
@@ -104,6 +112,53 @@ describe("/api/characters (Orga)", () => {
         const refused = mockRes();
         await route.getLogSuggestions({}, refused, new URL(`http://x/api?userId=${ANNA.id}`));
         expect(status(refused)).toBe(403);
+    });
+
+    describe("nur Raider, die dieser Server sehen darf (#1077)", () => {
+        beforeEach(() => visibleRaiderIds.mockResolvedValue(new Set([ANNA.id])));
+
+        it("listet einen Raider nur eines anderen Servers nicht und nennt ihn nicht bei einem geteilten Charakter", async () => {
+            store.addCharacter(BERT.id, { name: "Gentle", className: "Druid", source: "manual" }, { name: "Bert" });
+            const data = json(await call(route.getCharacters, ORGA)).data;
+            expect(data.raiders.map((r) => r.name)).toEqual(["Anna"]);
+            expect(JSON.stringify(data)).not.toContain(BERT.id);
+        });
+
+        it("findet ihn, sobald er für diesen Server zählt", async () => {
+            visibleRaiderIds.mockResolvedValue(new Set([ANNA.id, BERT.id]));
+            const data = json(await call(route.getCharacters, ORGA)).data;
+            expect(data.raiders.map((r) => r.name)).toEqual(["Anna", "Bert"]);
+        });
+
+        it("antwortet auf jedem Weg wie für ein Konto ohne Profil und ändert nichts", async () => {
+            const bert = { userId: BERT.id, key: "brando", name: "Anders", className: "Shaman" };
+            for (const handler of [route.postEdit, route.postSave, route.postRemove]) {
+                const res = await call(handler, ORGA, bert);
+                expect(status(res)).toBe(404);
+                expect(json(res).error.message).toBe("Kein Profil für dieses Konto.");
+            }
+            expect(mockEdit).not.toHaveBeenCalled();
+            expect(store.getProfile(BERT.id).characters.map((c) => c.name)).toEqual(["Brando"]);
+            const res = mockRes();
+            mockUser = ORGA;
+            await route.getLogSuggestions({}, res, new URL(`http://x/api?userId=${BERT.id}`));
+            expect(status(res)).toBe(404);
+        });
+
+        it("nennt nach einer Änderung keinen fremden Raider am selben Charakter", async () => {
+            store.addCharacter(BERT.id, { name: "Gentle", className: "Druid", source: "manual" }, { name: "Bert" });
+            const res = await call(route.postSave, ORGA, { userId: ANNA.id, key: "gentle", canHeal: true });
+            expect(status(res)).toBe(200);
+            expect(JSON.stringify(json(res).data)).not.toContain(BERT.id);
+        });
+
+        it("lässt den Voll-Admin unverändert, ohne die Liste zu fragen", async () => {
+            const admin = { ...ORGA, isAdmin: true };
+            const data = json(await call(route.getCharacters, admin)).data;
+            expect(data.raiders.map((r) => r.name)).toEqual(["Anna", "Bert"]);
+            expect(status(await call(route.postSave, admin, { userId: BERT.id, key: "brando", canHeal: true }))).toBe(200);
+            expect(visibleRaiderIds).not.toHaveBeenCalled();
+        });
     });
 
     it("hängt am Bereich roster: lesen per GET, schreiben per POST", () => {
