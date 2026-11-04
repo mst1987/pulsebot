@@ -8,6 +8,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
+    // whose servers the switcher lists (#1074): a full admin unless a test says otherwise
+    guildViewerOf: jest.fn(() => ({ id: "1", guildAccess: { isAdmin: true, guilds: {} } })),
 }));
 jest.mock("../../../../src/stores/loot/reportStore", () => ({
     listReports: jest.fn(() => []),
@@ -456,6 +458,7 @@ describe("web/apiRoutes/session", () => {
                 id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: false } },
             });
             auth.csrfToken.mockReturnValue("csrf-bob");
+            auth.guildViewerOf.mockReturnValueOnce({ id: "7", guildAccess: { isAdmin: false, guilds: { g1: { isMember: true } } } });
             discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }]);
             activeGuildFor.mockReturnValue("g1");
             const res = mockRes();
@@ -465,9 +468,87 @@ describe("web/apiRoutes/session", () => {
             expect(data.activeGuildId).toBe("g1");
             expect(data.user.access.raids).toEqual({ read: true, write: false });
         });
+
+        // #1074: nobody reads the name of a server that is not theirs
+        describe("the servers it lists", () => {
+            const bob = { id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: false } } };
+            const listed = async () => {
+                const res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                return json(res).data.guilds.map((g) => g.id);
+            };
+
+            beforeEach(() => {
+                auth.getUser.mockReturnValue(bob);
+                discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }, { id: "g2", name: "Fremde Gilde" }]);
+            });
+
+            afterEach(() => {
+                auth.guildViewerOf.mockReturnValue({ id: "1", guildAccess: { isAdmin: true, guilds: {} } });
+                settingsStore.getConfig.mockReturnValue({});
+            });
+
+            it("shows a member their server and not the foreign one", async () => {
+                auth.guildViewerOf.mockReturnValue({ id: "7", guildAccess: { isAdmin: false, guilds: { g1: { isMember: true } } } });
+                expect(await listed()).toEqual(["g1"]);
+            });
+
+            it("lists nothing for the base access alone", async () => {
+                settingsStore.getConfig.mockReturnValue({ serverSettings: { g1: { baseAccess: { raids: { read: true, write: false } } } } });
+                auth.guildViewerOf.mockReturnValue({ id: "7", guildAccess: { isAdmin: false, guilds: { g1: { access: bob.access } } } });
+                expect(await listed()).toEqual([]);
+            });
+
+            it("lists a server where the account holds a grant of its own", async () => {
+                settingsStore.getConfig.mockReturnValue({ serverSettings: { g2: { userPermissions: { 7: { raids: { read: true, write: false } } } } } });
+                auth.guildViewerOf.mockReturnValue({ id: "7", guildAccess: { isAdmin: false, guilds: {} } });
+                expect(await listed()).toEqual(["g2"]);
+            });
+
+            it("still shows a full admin every server of the bot", async () => {
+                auth.guildViewerOf.mockReturnValue({ id: "1", guildAccess: { isAdmin: true, guilds: {} } });
+                expect(await listed()).toEqual(["g1", "g2"]);
+            });
+        });
     });
 
     describe("POST /api/session/guild", () => {
+        // #1074: the rule of the list holds for the switch as well
+        describe("for someone who is no full admin", () => {
+            const memberOfG1 = { id: "7", guildAccess: { isAdmin: false, guilds: { g1: { isMember: true }, g2: { access: {} } } } };
+
+            beforeEach(() => {
+                auth.setActiveGuild.mockClear();
+                auth.getUser.mockReturnValue({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: false } } });
+                auth.checkCsrf.mockReturnValue(true);
+                auth.guildViewerOf.mockReturnValue(memberOfG1);
+                discord.listGuilds.mockReturnValue([{ id: "g1", name: "Meine Gilde" }, { id: "g2", name: "Fremde Gilde" }]);
+            });
+
+            afterEach(() => {
+                auth.guildViewerOf.mockReturnValue({ id: "1", guildAccess: { isAdmin: true, guilds: {} } });
+            });
+
+            it("switches to their own server", async () => {
+                const res = await post("/api/session/guild", { guildId: "g1" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "g1");
+            });
+
+            it("refuses a foreign server with 403 and stays where it is", async () => {
+                const res = await post("/api/session/guild", { guildId: "g2" });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(json(res).error.code).toBe("other_server");
+                expect(auth.setActiveGuild).not.toHaveBeenCalled();
+            });
+
+            it("may still clear the selection", async () => {
+                const res = await post("/api/session/guild", { guildId: "" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(auth.setActiveGuild).toHaveBeenCalledWith(expect.any(Object), "");
+            });
+        });
+
         it("returns 403 when the CSRF token is invalid", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             auth.checkCsrf.mockReturnValue(false);

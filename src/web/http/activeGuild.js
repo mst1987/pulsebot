@@ -7,10 +7,12 @@ const { pickActiveGuild } = require("./guildChoice");
 /**
  * The server the admin is managing: the guild selected in this session, else
  * the configured guild when the bot is on it, else the bot's only guild ("" when
- * none fits). See guildChoice.pickActiveGuild.
+ * none fits); for anyone but a full admin only among the servers they may enter
+ * (#1074). See guildChoice.pickActiveGuild.
  */
 function activeGuildFor(req) {
-    return pickActiveGuild(auth.getActiveGuild(req));
+    // optional: tests of the callers mock auth without this export; test/web/http/guildChoice.session.test.js runs the real one
+    return pickActiveGuild(auth.getActiveGuild(req), auth.guildViewerOf?.(req));
 }
 
 module.exports = { activeGuildFor };

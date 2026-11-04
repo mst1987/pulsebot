@@ -250,6 +250,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     bekäme. Beim Review alle Wege prüfen, auch GET und `auth: "token"`, und auch die, die ein Zielkonto erst
     in eine Liste bringen (fremde ID als Raider eintragen, danach ihr Profil lesen).
     `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
+    Welche Server jemand sehen und betreten darf, entscheidet nur `mayEnterGuild` (`web/http/guildChoice.js`,
+    #1074); ein aktiver Server ist für Nicht-Voll-Admins nie fremd, er kann aber fehlen (`""`).
 
 ## Fach-Agenten
 

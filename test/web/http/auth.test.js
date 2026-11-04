@@ -466,8 +466,13 @@ describe("web/http/auth", () => {
 
         // config.baseAccess: what every logged-in account holds without any role.
         // Deliberately independent of Discord, so it also survives "not a member
-        // of the guild" and a lookup that fails outright.
+        // of the guild" and a lookup that fails outright - on the pages under
+        // "Alle Server" (allAccess). A server it does not make theirs (#1074): someone
+        // who may enter none has no active server, so nothing bound to one opens.
         describe("base access", () => {
+            const BASE_LOOT = { read: true, write: false };
+            const NOTHING = { read: false, write: false };
+
             it("grants it without any role and unions the role grants on top", async () => {
                 getConfig.mockImplementation(() => onServer({
                     adminRoleIds: [],
@@ -492,8 +497,11 @@ describe("web/http/auth", () => {
                 discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
 
                 const { req } = await loginAs("607");
+                const user = auth.getUser(req);
 
-                expect(auth.getUser(req).access.loot).toEqual({ read: true, write: false });
+                expect(user.allAccess.loot).toEqual(BASE_LOOT);
+                expect(user.access.loot).toEqual(NOTHING);
+                expect(user.guildId).toBe("");
             });
 
             it("applies to someone who is not a member of the guild", async () => {
@@ -507,7 +515,9 @@ describe("web/http/auth", () => {
                 const user = auth.getUser(req);
 
                 expect(user.isAdmin).toBe(false);
-                expect(user.access.loot).toEqual({ read: true, write: false });
+                expect(user.allAccess.loot).toEqual(BASE_LOOT);
+                expect(user.access.loot).toEqual(NOTHING);
+                expect(user.guildId).toBe("");
             });
 
             it("falls back to it when the role lookup fails outright", async () => {
@@ -521,7 +531,9 @@ describe("web/http/auth", () => {
                 const user = auth.getUser(req);
 
                 expect(user.isAdmin).toBe(false);
-                expect(user.access.loot).toEqual({ read: true, write: false });
+                expect(user.allAccess.loot).toEqual(BASE_LOOT);
+                expect(user.access.loot).toEqual(NOTHING);
+                expect(user.guildId).toBe("");
             });
 
             it("leaves an unconfigured base access closed", async () => {
@@ -869,6 +881,62 @@ describe("web/http/auth", () => {
                 const req = { headers: { cookie: "sid=stray-sid" } };
                 fresh.setActiveGuild(req, "guild-1");
                 expect(fresh.getUser(req).isServerAdmin).toBeUndefined();
+            });
+        });
+
+        // #1074: a login from before the servers were limited knows its rights, not its memberships.
+        describe("a session that never learned its memberships", () => {
+            const OLD = "old-sid";
+            const req = { headers: { cookie: `sid=${OLD}` } };
+
+            /** A fresh auth.js over a stored session without `membershipChecked`, its bot answering with `memberFetch`. */
+            function oldSession(memberFetch) {
+                getConfig.mockImplementation(() => ({ adminRoleIds: [] }));
+                const stored = {
+                    id: "820",
+                    createdAt: Date.now(),
+                    adminCheckedAt: Date.now(),
+                    guildAccess: { isAdmin: false, guilds: { "guild-1": { access: {} } } },
+                };
+                fs.mkdirSync(DATA_DIR, { recursive: true });
+                fs.writeFileSync(dataPath("sessions.json"), JSON.stringify({ [OLD]: stored }));
+                let fresh;
+                jest.isolateModules(() => {
+                    require("../../../src/services/discord/discord").setClient(makeClient({ guilds: [guildWith("guild-1", memberFetch)] }));
+                    fresh = require("../../../src/web/http/auth.js");
+                });
+                return fresh;
+            }
+
+            const memberships = (fresh) => fresh.guildViewerOf(req).guildAccess.guilds["guild-1"];
+
+            it("asks Discord on its first request and knows the server from then on", async () => {
+                const fetch = jest.fn().mockResolvedValue(memberWithRoles());
+                const fresh = oldSession(fetch);
+                expect(memberships(fresh).isMember).toBeUndefined();
+                await fresh.ensureAccess(req);
+                expect(fetch).toHaveBeenCalledTimes(1);
+                expect(memberships(fresh).isMember).toBe(true);
+                // asked and answered: the next requests leave Discord alone
+                await fresh.ensureAccess(req);
+                expect(fetch).toHaveBeenCalledTimes(1);
+            });
+
+            it("waits out the retry time when Discord does not answer, then asks again", async () => {
+                const fetch = jest.fn().mockRejectedValue(new Error("network down"));
+                const fresh = oldSession(fetch);
+                await fresh.ensureAccess(req);
+                await fresh.ensureAccess(req);
+                expect(fetch).toHaveBeenCalledTimes(1);
+                expect(memberships(fresh).isMember).toBeUndefined();
+
+                fetch.mockResolvedValue(memberWithRoles());
+                const realNow = Date.now();
+                const clock = jest.spyOn(Date, "now").mockReturnValue(realNow + fresh.MEMBERSHIP_RETRY_MS + 1);
+                await fresh.ensureAccess(req);
+                clock.mockRestore();
+                expect(fetch).toHaveBeenCalledTimes(2);
+                expect(memberships(fresh).isMember).toBe(true);
             });
         });
 

@@ -21,11 +21,12 @@ const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
 const { SESSION_TTL, SESSION_RENEW_MS, sessionCookie } = require("./sessionCookie");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
-// sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, renewedAt?, adminCheckedAt, activeGuildId? }
+// sid -> { id, name, isAdmin, guildAccess, membershipChecked?, csrf, createdAt, renewedAt?, adminCheckedAt, activeGuildId? }
 // `guildAccess` is userAccess.computeGuildAccess(): `{ isAdmin, guilds: { [guildId]:
-// { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }` — the rights per Discord server (#925). The session
+// { access, isOrga?, isMember?, membershipUnknown?, isServerAdmin?, roleAccess?, roleIsOrga? } } }` — the rights per Discord server (#925). The session
 // never carries one "global" access map: getUser() hands out the rights of the
-// request's active server (activeGuildOf) only.
+// request's active server (activeGuildOf) only. `membershipChecked` tells a session asked
+// since #1074 from an older one, whose missing `isMember` says nothing (membershipPending).
 const SESSIONS_FILE = dataPath("sessions.json");
 // How long a session's isAdmin flag and area access are trusted before they are
 // re-checked against the current role config — so admin roles and role
@@ -40,6 +41,8 @@ const RANK_MAX_AGE_MS = 2 * ADMIN_REFRESH_MS;
 // How long one re-check may take. Past it the lookup counts as failed: a hanging call
 // holds neither a waiting request nor the next re-check of the session.
 const RECHECK_TIMEOUT_MS = 5000;
+// How often a session in use asks again while its memberships are open (#1074, membershipPending).
+const MEMBERSHIP_RETRY_MS = 30000;
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
 
@@ -123,6 +126,8 @@ function sessionFor(req) {
 const refreshingSids = new Map();
 // session -> number of its latest re-check: an answer after the time limit must not undo a newer one
 const recheckRounds = new WeakMap();
+// session -> when Discord was last asked for it, for MEMBERSHIP_RETRY_MS (not persisted either)
+const membershipTries = new WeakMap();
 
 /** Store a computeGuildAccess() result on a session; the old global fields go. */
 function applyGuildAccess(s, guildAccess) {
@@ -139,7 +144,17 @@ function applyGuildAccess(s, guildAccess) {
  */
 function activeGuildOf(req) {
     const s = sessionFor(req);
-    return pickActiveGuild((s && s.activeGuildId) || null);
+    return pickActiveGuild((s && s.activeGuildId) || null, viewerOfSession(s));
+}
+
+/** What guildChoice.js decides by: the account's own rights, whatever "Ansicht als Rolle" shows. */
+function viewerOfSession(s) {
+    return s ? { id: s.id, guildAccess: s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} } } : null;
+}
+
+/** The request's person for guildChoice.js (which servers they may enter, #1074), null without a login. */
+function guildViewerOf(req) {
+    return viewerOfSession(sessionFor(req));
 }
 
 /**
@@ -202,13 +217,38 @@ function rankIsStale(s) {
 }
 
 /**
+ * Whether a session still has to learn which servers it is a member of (#1074) and may ask
+ * again: it was never asked (logged in before the servers were limited), or Discord gave no
+ * answer. Until then it enters only the servers it has a grant of its own on - no foreign
+ * server, but not for good either: a lookup at most every MEMBERSHIP_RETRY_MS while in use.
+ */
+function membershipPending(s) {
+    if (s.guildAccess.isAdmin) return false;
+    const unknown = !s.membershipChecked || Object.values(s.guildAccess.guilds || {}).some((g) => g && g.membershipUnknown);
+    return unknown && Date.now() - (membershipTries.get(s) || 0) >= MEMBERSHIP_RETRY_MS;
+}
+
+/**
+ * A new answer that could not ask Discord about a server says nothing about that server: a
+ * membership known from before stays. Its rights do not, those stay what the answer says.
+ */
+function keepKnownMembership(guildAccess, previous) {
+    const known = (previous && previous.guilds) || {};
+    const guilds = {};
+    for (const [gid, entry] of Object.entries(guildAccess.guilds || {})) {
+        guilds[gid] = entry.membershipUnknown && known[gid] && known[gid].isMember ? { ...entry, isMember: true } : entry;
+    }
+    return { ...guildAccess, guilds };
+}
+
+/**
  * Settle what the request's session is missing before the request goes on. A session
  * without per-server rights yet (logged in before #925) gets them computed, so its first
  * request after the update is answered with the right rights instead of the base access.
  * A session with a stale server-admin rank waits for its re-check (at most
  * RECHECK_TIMEOUT_MS): the first request after a pause answers with the rank Discord
- * confirms now, a lookup without an answer leaves the rank away. A no-op for every other
- * request.
+ * confirms now, a lookup without an answer leaves the rank away. So does a session whose
+ * memberships are open (membershipPending). A no-op for every other request.
  */
 async function ensureAccess(req) {
     const sid = parseCookies(req).sid;
@@ -216,10 +256,12 @@ async function ensureAccess(req) {
     if (!s || sid === DEV_SID) return;
     if (!isLive(s)) return;
     if (s.guildAccess) {
-        if (rankIsStale(s)) await refreshAdmin(sid, s);
+        if (rankIsStale(s) || membershipPending(s)) await refreshAdmin(sid, s);
         return;
     }
+    membershipTries.set(s, Date.now());
     applyGuildAccess(s, await resolveGuildAccess(s.id));
+    s.membershipChecked = true;
     s.adminCheckedAt = Date.now();
     saveSessions();
 }
@@ -245,10 +287,12 @@ function refreshAdmin(sid, s) {
     if (refreshingSids.has(sid)) return refreshingSids.get(sid);
     const round = (recheckRounds.get(s) || 0) + 1;
     recheckRounds.set(s, round);
+    membershipTries.set(s, Date.now());
     let waiting = true;
     const lookup = computeGuildAccess(s.id).then((guildAccess) => {
         if (recheckRounds.get(s) !== round) return;
-        applyGuildAccess(s, guildAccess);
+        applyGuildAccess(s, keepKnownMembership(guildAccess, s.guildAccess));
+        s.membershipChecked = true;
         if (waiting) return;
         s.adminCheckedAt = Date.now();
         saveSessions();
@@ -440,10 +484,12 @@ async function completeLogin(code) {
         ...(me.data.avatar ? { avatarUrl: `https://cdn.discordapp.com/avatars/${me.data.id}/${me.data.avatar}.png?size=64` } : {}),
         isAdmin: !!guildAccess.isAdmin,
         guildAccess,
+        membershipChecked: true,
         csrf: crypto.randomBytes(18).toString("hex"),
         createdAt: Date.now(),
         adminCheckedAt: Date.now(),
     };
+    membershipTries.set(user, Date.now());
     const sid = crypto.randomBytes(18).toString("hex");
     sessions.set(sid, user);
     saveSessions();
@@ -456,7 +502,7 @@ function destroy(sid) {
 
 module.exports = {
     configured, parseCookies, getUser, getRealUser, getUserWithoutRank, RECHECK_TIMEOUT_MS, setViewAs, loginUrl, completeLogin, destroy,
-    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, renewSession, sessionGuildAccess,
+    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, guildViewerOf, ensureAccess, renewSession, sessionGuildAccess, MEMBERSHIP_RETRY_MS,
     // services/discord/members/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,
 };

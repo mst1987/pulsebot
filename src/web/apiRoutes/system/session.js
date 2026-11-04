@@ -2,6 +2,8 @@ const auth = require("../../http/auth");
 const discord = require("../../../services/discord/discord");
 const { guildRole, serverLabel } = require("../../../services/discord/roles/guildRoles");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { enterableGuilds, mayEnterGuild } = require("../../http/guildChoice");
+const { OTHER_SERVER } = require("../../http/serverQuery");
 const { ok, error } = require("../../http/apiResponse");
 const { requireCsrf } = require("../../http/apiMiddleware");
 const { withUser } = require("../../http/apiHandler");
@@ -18,8 +20,8 @@ const { orgaCategoryIds, requestCache } = require("../../../services/roster/cate
 const { serverFeatures } = require("../../../services/plans/serverPlan");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
- * caller may see (per-area access) and — for menu users — the guilds the bot is
- * in plus which one they're managing. */
+ * caller may see (per-area access) and — for menu users — the guilds they may
+ * enter plus which one they're managing. */
 async function getSession(req, res) {
     const user = auth.getUser(req);
     const hasMenu = userHasMenuAccess(user);
@@ -65,7 +67,7 @@ async function getSession(req, res) {
         csrfToken: user ? auth.csrfToken(req) : null,
         areas: AREAS,
         // Each with its role ("event" = one of the servers, "" = none), the switcher's badge.
-        guilds: hasMenu ? sessionGuilds() : [],
+        guilds: hasMenu ? sessionGuilds(req) : [],
         activeGuildId: hasMenu ? activeGuildFor(req) : "",
         // The content switch of the menu (#563): main version, whether the others are
         // hidden, and the versions it offers (only those with data or a category).
@@ -121,18 +123,25 @@ function langField(userId) {
 }
 
 /**
- * The servers the bot is on, each tagged with its role, its own label (#895)
- * from the settings and its Discord icon (empty → the client's crest).
+ * The servers the caller may enter (#1074, guildChoice.mayEnterGuild), each tagged with its
+ * role, its own label (#895) from the settings and its Discord icon (empty → the client's crest).
+ * Goes by the caller's own rights: "Ansicht als Rolle" changes what the menu shows, not this list.
  */
-function sessionGuilds() {
-    return discord.listGuilds().map((g) => ({ ...g, role: guildRole(g.id), label: serverLabel(g.id), iconUrl: discord.guildIconUrl(g.id) }));
+function sessionGuilds(req) {
+    return enterableGuilds(auth.guildViewerOf(req)).map((g) => ({ ...g, role: guildRole(g.id), label: serverLabel(g.id), iconUrl: discord.guildIconUrl(g.id) }));
 }
 
-/** POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }. */
+/**
+ * POST /api/session/guild — switch which guild the admin is managing. Body: { guildId }.
+ * A server the caller may not enter answers 403 (#1074), whether the bot is on it or not says only the 400.
+ */
 const postActiveGuild = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const guildId = String(body.guildId || "").trim();
     if (guildId && !discord.listGuilds().some((g) => g.id === guildId)) {
         return error(res, 400, "unknown_guild", "Unbekannter Server.");
+    }
+    if (guildId && !mayEnterGuild(auth.guildViewerOf(req), guildId)) {
+        return error(res, 403, "other_server", OTHER_SERVER);
     }
     auth.setActiveGuild(req, guildId);
     ok(res, { activeGuildId: guildId });
