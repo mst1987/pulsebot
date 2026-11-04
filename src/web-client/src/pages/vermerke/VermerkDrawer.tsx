@@ -80,7 +80,7 @@ export default function VermerkDrawer({ userId, guildId, guildName, fallbackName
     const actions: EntryActions = {
         busy,
         canWrite,
-        noLink: !!data && data.hasLinkedServers === false,
+        noLink: !!data && data.hasSharingServers === false,
         edit: (e) => onEdit(person, e),
         archive: async (e) => {
             const yes = await ask({ title: t("vermerke.drawer.archiveIt"), text: t("vermerke.drawer.archiveSub"), action: t("vermerke.drawer.archiveIt"), tone: "danger" });
@@ -144,7 +144,7 @@ export default function VermerkDrawer({ userId, guildId, guildName, fallbackName
 type EntryActions = {
     busy: string;
     canWrite: boolean;
-    /** this server is linked with none: its shared entries reach nobody yet */
+    /** no link shares Vermerke with this server: its shared entries reach nobody yet */
     noLink: boolean;
     edit: (e: VermerkEntry) => void;
     archive: (e: VermerkEntry) => void;

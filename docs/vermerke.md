@@ -36,19 +36,25 @@ settings, else its Discord name) and cannot be changed there (404). B can **hide
 note — text, author, history, `eventIds` — just as A does (a decision of the user: sharing means sharing all).
 When A takes `shared` back, B's hide mark stays in the store; should A share the note again, it stays hidden on B.
 
-**Sharing means with linked servers (#1078).** B reads a shared note of A only while A and B are linked in the server
-network (docs/discord-servers.md), in either direction: `guildRoles.linkedServerIds(id)`, applied in one place,
-`sharedFrom` in the store. Everything that reads notes goes through it: the list, the person, the short form, the
-hints, the setup proposal's shadowban. An unlinked server gets the same answer as for a person without notes, nothing
-says that a note exists elsewhere; `hide` answers 404.
+**Sharing needs a link with the switch (#1078).** B reads a shared note of A only while a link between A and B in the
+server network (docs/discord-servers.md) has `shareNotes` on, whichever direction the link runs and with both servers
+in `servers`: `guildRoles.noteSharingServerIds(id)`, applied in one place, `sharedFrom` in the store. Everything that
+reads notes goes through it: the list, the person, the short form, the hints, the setup proposal's shadowban. Any other
+server gets the same answer as for a person without notes, nothing says that a note exists elsewhere; `hide` answers
+404. A link that only posts the raid list shares nothing: the switch is off by default.
 
 - `versions` of a link does **not** limit sharing: it filters the raid list of that link and nothing else. A note
   belongs to an account, not to a game version.
-- **A link removed:** the notes of the other side are gone at once on the next read (the rule is checked on every read,
-  nothing is copied). The data stays with A, B's hide marks stay too; linked again, everything is back as it was.
-- **A new link** shows the existing shared notes of both sides.
-- **Sharing without a link** is allowed: the note stays `shared` and only A sees it until a link exists. The answers
-  of `GET /api/vermerke` and `/person` carry `hasLinkedServers` for the text in the dialog and the drawer.
+- **The switch off or the link removed:** the notes of the other side are gone at once on the next read (the rule is
+  checked on every read, nothing is copied). The data stays with A, B's hide marks stay too; on again, everything is
+  back as it was.
+- **The switch on** shows the existing shared notes of both sides, and shared shadowbans then count in the other
+  server's setup proposal. The switch asks before it goes on and says so.
+- **Links of before:** `settingsMigration.migrateLinkShareNotes` turned the switch on once for every link that existed
+  then, so nothing got lost; the mark `linkShareNotes` in `migrations.json` keeps a switch turned off later from coming
+  back on. A link onto its own server gets no switch.
+- **Sharing without such a link** is allowed: the note stays `shared` and only A sees it until a link has the switch.
+  The answers of `GET /api/vermerke` and `/person` carry `hasSharingServers` for the text in the dialog and the drawer.
 - Expiry, archive and removing for good work on the store of A and do not ask the rule. A full admin has no way
   around it: everything works on the active server, so he reads another server's notes by switching to that server.
 
@@ -70,20 +76,20 @@ Only three modules read it: the routes (`src/web/apiRoutes/roster/vermerke.js`),
 Area `vermerke` (docs/permissions.md): **in no base access**, like `kader` — full admins and named people (an
 account grant under "Einzelne Konten" or a role grant). `read` = the list and the notes, `write` = add, change,
 archive, hide. Everything works on the **active server**; an entry of another server answers 404 `not_found`
-unless it is shared and that server is linked (then read only). Without an active server: 400 `no_server`.
+unless it is shared and a link with the switch joins the two servers (then read only). Without an active server: 400 `no_server`.
 
 ## API
 
 | Route | Right | What |
 |---|---|---|
-| `GET /api/vermerke` | read | `{ hasLinkedServers, people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
-| `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, hasLinkedServers, entries: [note + own, originGuildId, originName?, hidden, active] }` |
+| `GET /api/vermerke` | read | `{ hasSharingServers, people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
+| `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, hasSharingServers, entries: [note + own, originGuildId, originName?, hidden, active] }` |
 | `GET /api/vermerke/people?q=` | read | person search of the dialog: `{ results: [{ userId, name, gone }] }` — members first, then who left (found through earlier signups), at most 25 |
 | `GET /api/vermerke/raids?userId=` | read | `{ raids: [{ eventId, title, startTime, signed }] }` — the raids of the last four weeks on the server, newest first |
 | `POST /api/vermerke` | write | `{ userId, name, level, reason, text?, eventIds?, expiresAt?, shared? }` → 201 `{ entry }` |
 | `POST /api/vermerke/update` | write | `{ userId, id, …fields }` → `{ entry }`; archived: 409 `archived` |
 | `POST /api/vermerke/archive` | write | `{ userId, id, archived = true }` → `{ entry }` |
-| `POST /api/vermerke/hide` | write | `{ id, hidden = true }` → `{ id, hidden }` (shared notes of linked servers only) |
+| `POST /api/vermerke/hide` | write | `{ id, hidden = true }` → `{ id, hidden }` (shared notes of servers sharing with this one only) |
 | `POST /api/vermerke/delete` | full admin | `{ userId, id }` → `{ removed: true }` |
 | `GET /api/vermerke/short?userIds=a,b` | see below | `{ short: { [userId]: { level, reasons } } }`, at most 200 ids |
 
@@ -95,10 +101,10 @@ Store refusals keep their code: `bad_user`, `bad_level`, `bad_reason`, `text_too
 `/vermerke` in the menu group "Gilde" beside Roster and Kaderplaner, version-neutral (`src/config/menu.json`),
 client `src/web-client/src/pages/vermerke/`. One compact, sortable list (a person per row: level as symbol and word,
 reasons with their count, "Zuletzt"), a level filter and an archive tab; the drawer opens by link (`?user=<id>`) with
-the entries, a shared entry of a linked server read only (it may only be hidden here). The dialog adds a note: person
+the entries, a shared entry of another server read only (it may only be hidden here). The dialog adds a note: person
 search, level, reason as chips (all seven, `left_server` = "Server verlassen" with a door icon), recent raids, expiry,
-"Mit verknüpften Servern teilen" (on a server without a link a line below the switch says that the note stays only
-here until a link exists). Below the list the section "Hinweise aus den Daten": five hints, then "Alle zeigen"; "Vermerk anlegen"
+the sharing switch (on a server no link shares with, a line below the switch says that the note stays only here for
+now). Below the list the section "Hinweise aus den Daten": five hints, then "Alle zeigen"; "Vermerk anlegen"
 prefills the reason (`reasonOfSignal`: both sign-off kinds → `late_signoff`, the others their own), "Ignorieren"
 hides one. Without the hints route (404) the section is gone; with no hints it keeps its head, so the sliders
 button stays reachable: it opens the **thresholds dialog** — one line per key with −/+ and the number with its word

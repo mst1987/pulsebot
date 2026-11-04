@@ -8,7 +8,7 @@ const fs = require("fs");
 const { status, body, routerClient } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 
-const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions });
+const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions, shareNotes: true });
 let mockLinks = [];
 jest.mock("../../../../src/stores/settings/settingsStore", () => {
     const actual = jest.requireActual("../../../../src/stores/settings/settingsStore");
@@ -244,6 +244,30 @@ describe("web/apiRoutes/vermerke", () => {
             expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
         });
 
+        it("a link without the switch shares nothing, turning it off takes it away at once", async () => {
+            const { entry } = body(await add({ shared: true }));
+            mockActive = "B";
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+            const off = { ...link("A", "B") };
+            delete off.shareNotes;
+            mockLinks = [off];
+            await nothingOnActive(entry.id);
+            expect(body(await get("/api/vermerke")).hasSharingServers).toBe(false);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasSharingServers).toBe(false);
+            mockActive = "A";
+            expect(body(await get("/api/vermerke")).hasSharingServers).toBe(false);
+            expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ id: entry.id, own: true, shared: true })]);
+            mockLinks = [link("A", "B")];
+            mockActive = "B";
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+        });
+
+        it("a link onto the own server shares with nobody", async () => {
+            mockLinks = [link("A", "A")];
+            expect(body(await get("/api/vermerke")).hasSharingServers).toBe(false);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasSharingServers).toBe(false);
+        });
+
         it("counts a link whatever its versions say", async () => {
             mockLinks = [link("A", "B", ["forever"])];
             const { entry } = body(await add({ shared: true }));
@@ -263,11 +287,11 @@ describe("web/apiRoutes/vermerke", () => {
 
         it("says whether the server has a link at all, without naming one", async () => {
             const list = body(await get("/api/vermerke"));
-            expect(list.hasLinkedServers).toBe(true);
-            expect(body(await get("/api/vermerke/person", { userId: U })).hasLinkedServers).toBe(true);
+            expect(list.hasSharingServers).toBe(true);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasSharingServers).toBe(true);
             mockActive = "C";
-            expect(body(await get("/api/vermerke")).hasLinkedServers).toBe(false);
-            expect(body(await get("/api/vermerke/person", { userId: U })).hasLinkedServers).toBe(false);
+            expect(body(await get("/api/vermerke")).hasSharingServers).toBe(false);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasSharingServers).toBe(false);
             expect(JSON.stringify(list)).not.toContain("\"B\"");
         });
     });

@@ -46,11 +46,11 @@ function expiryOf(choice: Expiry, date: string): number | null {
     return null;
 }
 
-export default function VermerkDialog({ guildId, hasLinkedServers, preset, onClose, onSaved }: {
+export default function VermerkDialog({ guildId, hasSharingServers, preset, onClose, onSaved }: {
     /** the server the page was loaded for: a write from another one is refused (409 server_switched) */
     guildId: string;
-    /** false: the server is linked with none, sharing is said to reach nobody yet (unknown: no word) */
-    hasLinkedServers?: boolean;
+    /** false: no link shares Vermerke with this server, sharing is said to reach nobody yet (unknown: no word) */
+    hasSharingServers?: boolean;
     preset: VermerkDialogPreset;
     onClose: () => void;
     /** after a save, with the person's id */
@@ -169,7 +169,7 @@ export default function VermerkDialog({ guildId, hasLinkedServers, preset, onClo
                 {person ? <RaidChips userId={person.userId} picked={eventIds} titles={preset.eventTitles} onChange={setEventIds} /> : <p className="vmk-muted">{t("vermerke.dialog.raidsPick")}</p>}
             </Field>
             <Switch checked={shared} onChange={setShared} label={t("vermerke.dialog.shared")} tip={t("vermerke.dialog.sharedTip")} />
-            {shared && hasLinkedServers === false && <p className="vmk-muted">{t("vermerke.dialog.sharedNoLink")}</p>}
+            {shared && hasSharingServers === false &&<p className="vmk-muted">{t("vermerke.dialog.sharedNoLink")}</p>}
         </Modal>
     );
 }

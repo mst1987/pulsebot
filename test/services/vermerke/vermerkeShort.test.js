@@ -4,8 +4,8 @@ const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
-// A and B are linked, C stands alone (#1078)
-const link = (from, to) => ({ from, to, channelId: "1400000000000000011", lang: "", versions: [] });
+// A and B share through a link with the switch on, C stands alone (#1078)
+const link = (from, to) => ({ from, to, channelId: "1400000000000000011", lang: "", versions: [], shareNotes: true });
 let mockLinks = [];
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settings/settingsStore"),
@@ -109,6 +109,17 @@ describe("services/vermerke/vermerkeShort", () => {
             expect(shadowbannedAmong("B", [U], { now: 3000 })).toEqual([U]);
             mockLinks = [];
             expect(shortFor("B", [U], { now: 3000 })).toEqual({});
+            expect(shadowbannedAmong("B", [U], { now: 3000 })).toEqual([]);
+            expect(shadowbannedAmong("A", [U], { now: 3000 })).toEqual([U]);
+        });
+
+        it("a link without the switch gives nothing either", () => {
+            const off = link("A", "B");
+            delete off.shareNotes;
+            mockLinks = [off];
+            expect(shortFor("B", [U], { now: 3000 })).toEqual({});
+            expect(shortOf("B", U)).toBe(null);
+            expect(activeLevelFor("B", U)).toBe(null);
             expect(shadowbannedAmong("B", [U], { now: 3000 })).toEqual([]);
             expect(shadowbannedAmong("A", [U], { now: 3000 })).toEqual([U]);
         });

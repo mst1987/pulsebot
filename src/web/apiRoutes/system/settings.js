@@ -687,7 +687,10 @@ function checkServersAndLinks(sent, stored) {
             if (!["", "de", "en"].includes(lang)) return { error: "Unbekannte Sprache." };
             const versions = link.versions === undefined ? [] : link.versions;
             if (!Array.isArray(versions) || versions.some((v) => !versionIds.has(String(v)))) return { error: "Unbekannte Spielversion." };
-            out.links.push({ from, to, channelId, lang, versions: [...new Set(versions.map(String))] });
+            const entry = { from, to, channelId, lang, versions: [...new Set(versions.map(String))] };
+            // The switch "share Vermerke" (#1078): stored only when on, like normalizeLinks().
+            if (link.shareNotes === true) entry.shareNotes = true;
+            out.links.push(entry);
         }
     }
     return out;

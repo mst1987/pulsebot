@@ -641,12 +641,21 @@ describe("Vermerke in the editor (#981)", () => {
         expect(body(saved).shadowbanInPool).toEqual([]);
     });
 
-    // g9 shares with the raid's server g1 only through a link between them (#1078)
-    const linkedToG9 = () => ({
+    // g9 shares with the raid's server g1 only through a link with the switch on (#1078)
+    const linkedToG9 = (extra = { shareNotes: true }) => ({
         discordServers: {
             servers: [{ guildId: "g1", label: "" }, { guildId: "g9", label: "" }],
-            links: [{ from: "g9", to: "g1", channelId: "1400000000000000011", lang: "", versions: [] }],
+            links: [{ from: "g9", to: "g1", channelId: "1400000000000000011", lang: "", versions: [], ...extra }],
         },
+    });
+
+    it("ignores the shared shadowban of a linked server when the link does not share Vermerke", async () => {
+        mockConfig = linkedToG9({});
+        notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toContain("rogue");
+        expect(view.shadowbanInPool).toEqual([]);
+        expect(view.vermerke).toEqual({});
     });
 
     it("leaves a warning, a hint, an expired and a hidden shadowban out of it", async () => {

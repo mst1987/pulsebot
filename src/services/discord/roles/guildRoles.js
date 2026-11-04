@@ -3,8 +3,9 @@
 //   servers — every server, as equals (`discordServers.servers`). Each may hold
 //             raids (event channels, Raid-Helper, the admin-role check).
 //   links   — directed: `{ from, to, channelId }` posts the raid list of `from`
-//             to channelId on `to` (from = to is allowed). Two servers with a link
-//             between them also read each other's shared Vermerke (#1078).
+//             to channelId on `to` (from = to is allowed). A link with the switch
+//             `shareNotes` also opens the shared Vermerke of both servers to each
+//             other (#1078); without it a link only posts.
 // All come from settingsStore's `discordServers`; no server at all falls back
 // to the old single `guildId`. Since #897 there is one kind of server:
 // each is an ordinary server of the list. The web
@@ -47,7 +48,7 @@ function serverLabel(guildId, config = getConfig()) {
     return (entry && entry.label) || "";
 }
 
-/** Every stored link `{ from, to, channelId, lang, versions }` (normalised by configSchema). */
+/** Every stored link `{ from, to, channelId, lang, versions, shareNotes? }` (normalised by configSchema). */
 function links(config = getConfig()) {
     const list = blockOf(config).links;
     return Array.isArray(list) ? list.filter((l) => l && l.from && l.to && l.channelId) : [];
@@ -66,16 +67,21 @@ function linkedTargets(guildId, config = getConfig()) {
 }
 
 /**
- * The other servers `guildId` is linked with, in either direction, whatever the link's
- * `versions` say: those only filter the raid list a link posts (#1078). A Set of ids, never `guildId`.
+ * The other servers `guildId` shares Vermerke with (#1078): a link with `shareNotes`, in either
+ * direction, whatever its `versions` say (those only filter the raid list it posts). Both ends
+ * have to be in the server list: a removed server sees nothing any more and nobody sees its
+ * entries. A Set of ids, never `guildId`.
  */
-function linkedServerIds(guildId, config = getConfig()) {
+function noteSharingServerIds(guildId, config = getConfig()) {
     const id = String(guildId || "");
     const out = new Set();
     if (!id) return out;
+    const listed = new Set(listedServerIds(config));
+    if (!listed.has(id)) return out;
     for (const link of links(config)) {
-        if (link.from === id) out.add(link.to);
-        if (link.to === id) out.add(link.from);
+        if (link.shareNotes !== true) continue;
+        if (link.from === id && listed.has(link.to)) out.add(link.to);
+        if (link.to === id && listed.has(link.from)) out.add(link.from);
     }
     out.delete(id);
     return out;
@@ -220,6 +226,6 @@ function roleMessageGuild(entry, config = getConfig()) {
 
 module.exports = {
     serverIds, listedServerIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
-    linkedServerIds, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
+    noteSharingServerIds, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
     eventGuildCards, describeGuild, guildOverlap,
 };

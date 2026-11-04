@@ -11,7 +11,15 @@ export type ServerEntry = {
 };
 
 /** One link (#890): the raid list of `from` is posted to `channelId` on `to`; lang "" = the target's server language, versions [] = all. */
-export type ServerLink = { from: string; to: string; channelId: string; lang: "de" | "en" | ""; versions: string[] };
+export type ServerLink = {
+    from: string;
+    to: string;
+    channelId: string;
+    lang: "de" | "en" | "";
+    versions: string[];
+    /** The switch "Vermerke teilen" (#1078): both servers see each other's shared notes; missing = off. */
+    shareNotes?: boolean;
+};
 
 export type DiscordServers = {
     servers: ServerEntry[];

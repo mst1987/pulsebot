@@ -24,7 +24,7 @@
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 const { newId } = require("../../utils/ids");
-const { linkedServerIds } = require("../../services/discord/roles/guildRoles");
+const { noteSharingServerIds } = require("../../services/discord/roles/guildRoles");
 
 const LEVELS = ["hint", "warning", "shadowban"];
 const REASONS = ["left_early", "no_show", "late_signoff", "left_server", "behavior", "loot", "other"];
@@ -263,11 +263,11 @@ function removeEntry(guildId, userId, entryId) {
 }
 
 /**
- * The one rule for reading another server's entries (#1078): the servers `guildId` is linked with, each
- * with its people. Every other server is not there at all, whatever it stored.
+ * The one rule for reading another server's entries (#1078): the servers `guildId` shares Vermerke with
+ * (a link with the switch on), each with its people. Every other server is not there at all, whatever it stored.
  */
 function sharedFrom(doc, guildId) {
-    return [...linkedServerIds(guildId)].filter((g) => doc.guilds[g]).map((g) => [g, doc.guilds[g]]);
+    return [...noteSharingServerIds(guildId)].filter((g) => doc.guilds[g]).map((g) => [g, doc.guilds[g]]);
 }
 
 /** The shared entry `entryId` of a server linked with `guildId`: `{ originGuildId, userId, entry }` or null. */

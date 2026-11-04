@@ -71,8 +71,8 @@ export type VermerkPersonDetail = {
     userId: string;
     name: string;
     level: NoteLevel | null;
-    /** false: this server is linked with none, so its shared entries reach nobody yet */
-    hasLinkedServers?: boolean;
+    /** false: no link shares Vermerke with this server, so its shared entries reach nobody yet */
+    hasSharingServers?: boolean;
     entries: VermerkEntry[];
 };
 
@@ -91,8 +91,8 @@ export type RecentRaid = { eventId: string; title: string; startTime: number; si
 export type VermerkList = {
     guildId: string;
     guildName: string;
-    /** false: this server is linked with none, so its shared entries reach nobody yet */
-    hasLinkedServers?: boolean;
+    /** false: no link shares Vermerke with this server, so its shared entries reach nobody yet */
+    hasSharingServers?: boolean;
     people: VermerkPerson[];
 };
 

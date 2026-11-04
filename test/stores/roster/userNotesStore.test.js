@@ -1,13 +1,13 @@
 // The Vermerke store (docs/vermerke.md, #979): notes per server and Discord
 // account, normalised, limited, with expiry and history; a shared entry is read
-// on the servers linked with its origin (#1078) and changed on its server of
-// origin alone - and the store is read by the Vermerke routes and the short form
-// only, never logged.
+// on the servers a link with the switch on connects with its origin (#1078) and
+// changed on its server of origin alone - and the store is read by the Vermerke
+// routes and the short form only, never logged.
 const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
-const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions });
+const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions, shareNotes: true });
 let mockLinks = [];
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     ...jest.requireActual("../../../src/stores/settings/settingsStore"),
@@ -219,6 +219,24 @@ describe("stores/roster/userNotesStore", () => {
             expect(notes.activeLevelFor("A", U)).toBe("warning");
             mockLinks = [link("B", "A")];
             seenOn("B", e.id);
+        });
+
+        it("a link without the switch shares nothing, in either direction; switching it back brings the entry back", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            seenOn("B", e.id);
+            const off = link("A", "B");
+            delete off.shareNotes;
+            mockLinks = [off];
+            nothingOn("B");
+            expect(code(() => notes.hideShared("B", e.id))).toBe("404 not_found");
+            expect(notes.personFor("A", U).entries).toEqual([expect.objectContaining({ id: e.id, own: true, shared: true })]);
+            expect(notes.activeLevelFor("A", U)).toBe("warning");
+            const fromB = notes.addEntry("B", V, { ...base, shared: true }, by);
+            expect(notes.personFor("A", V).entries).toEqual([]);
+            expect(notes.activeLevelFor("A", V)).toBe(null);
+            mockLinks = [link("A", "B")];
+            expect(notes.personFor("B", U).entries.map((x) => x.id)).toEqual([e.id]);
+            expect(notes.personFor("A", V).entries).toEqual([expect.objectContaining({ id: fromB.id, own: false })]);
         });
 
         it("keeps a server's hide mark while the link is gone", () => {

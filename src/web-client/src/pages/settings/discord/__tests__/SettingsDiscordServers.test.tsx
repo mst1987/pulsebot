@@ -231,6 +231,93 @@ describe("Discord-Server: Verknüpfungen", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [] } });
     });
 
+    describe("Schalter Vermerke teilen (#1078)", () => {
+        const SHARED: ServerLink = { ...LINK, shareNotes: true };
+
+        async function openFilledDialog(target = "20002", channel = "c2") {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+            render("links");
+            fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung anlegen" }));
+            const dialog = await screen.findByRole("dialog");
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: target } });
+            fireEvent.change(dialog.querySelector("#srv-link-channel") as HTMLSelectElement, { target: { value: channel } });
+            return dialog;
+        }
+        const sentLinks = () => (vi.mocked(api.updateSettings).mock.calls[0][0] as { discordServers: { links: ServerLink[] } }).discordServers.links;
+
+        it("starts off and leaves the field out of a new link", async () => {
+            const dialog = await openFilledDialog();
+            expect(within(dialog).getByRole("switch", { name: "Vermerke teilen" })).not.toBeChecked();
+            expect(within(dialog).queryByRole("note")).toBeNull();
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0]).not.toHaveProperty("shareNotes");
+        });
+
+        it("says what sharing means once it is on and saves the field", async () => {
+            const dialog = await openFilledDialog();
+            fireEvent.click(within(dialog).getByRole("switch", { name: "Vermerke teilen" }));
+            expect(within(dialog).getByRole("note")).toHaveTextContent(/beide Richtungen.*schon geteilte Einträge.*Setup-Vorschlag/);
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0].shareNotes).toBe(true);
+        });
+
+        it("offers no switch for a link onto the source itself and never sends the field", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+            render("links");
+            fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung anlegen" }));
+            const dialog = await screen.findByRole("dialog");
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "20002" } });
+            fireEvent.click(within(dialog).getByRole("switch", { name: "Vermerke teilen" }));
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "10001" } });
+            expect(within(dialog).queryByRole("switch", { name: "Vermerke teilen" })).toBeNull();
+            fireEvent.change(dialog.querySelector("#srv-link-channel") as HTMLSelectElement, { target: { value: "c1" } });
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0]).not.toHaveProperty("shareNotes");
+        });
+
+        it("turns an existing link off at once and leaves the field out", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED] }));
+            render("links");
+            fireEvent.click(await screen.findByRole("switch", { name: "Teilt Vermerke" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [LINK] } });
+        });
+
+        it("asks before an existing link starts sharing, and saves nothing when declined", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK] }));
+            render("links");
+            fireEvent.click(await screen.findByRole("switch", { name: "Teilt nicht" }));
+            let dialog = await screen.findByRole("dialog");
+            expect(within(dialog).getByText(/beide Richtungen/)).toBeInTheDocument();
+            fireEvent.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+            await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+            expect(api.updateSettings).not.toHaveBeenCalled();
+
+            fireEvent.click(screen.getByRole("switch", { name: "Teilt nicht" }));
+            dialog = await screen.findByRole("dialog");
+            fireEvent.click(within(dialog).getByRole("button", { name: "Vermerke teilen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [SHARED] } });
+        });
+
+        it("shows a dash instead of a switch for a link onto its own server", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [{ from: "10001", to: "10001", channelId: "c1", lang: "", versions: [] }] }));
+            render("links");
+            await screen.findByText("#orga-gildenbank");
+            expect(screen.queryByRole("switch", { name: /Teilt/ })).toBeNull();
+        });
+
+        it("says in the remove dialog that sharing ends, only when the link shares", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED] }));
+            render("links");
+            fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung entfernen" }));
+            expect(within(await screen.findByRole("dialog")).getByText(/geteilten Vermerke des anderen nicht mehr/)).toBeInTheDocument();
+        });
+    });
+
     it("hints that a source without a raid category gives an empty list", async () => {
         vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ raidCategories: 0 }));
         render();
@@ -305,9 +392,9 @@ describe("Discord-Server: Einladungen (#905)", () => {
         expect(within(td).getByRole("button", { name: "Einladung kopieren" })).toBeInTheDocument();
         expect(within(td).getByText("3 beigetreten")).toBeInTheDocument();
         expect(within(td).getByText("1 angemeldet")).toBeInTheDocument();
-        // six columns, every value cell labelled for the stacked narrow layout
+        // seven columns, every value cell labelled for the stacked narrow layout
         const table = td.closest("table") as HTMLElement;
-        expect(table.querySelectorAll("thead th")).toHaveLength(6);
+        expect(table.querySelectorAll("thead th")).toHaveLength(7);
         expect(td).toHaveAttribute("data-label", "Einladung");
     });
 

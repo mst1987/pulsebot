@@ -57,7 +57,7 @@ beforeEach(() => {
     mockVisible.add(HUB).add(ORGA).add(OWN);
     mockHub = null;
     mockChannelGuild.clear();
-    mockLinks = [{ from: "A", to: "B", channelId: "900000000000000009", lang: "", versions: [] }];
+    mockLinks = [{ from: "A", to: "B", channelId: "900000000000000009", lang: "", versions: [], shareNotes: true }];
 });
 afterAll(() => notes.useFile(null));
 

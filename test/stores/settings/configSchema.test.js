@@ -264,7 +264,15 @@ function migrated952(config, stored) {
     const own = (config.serverSettings || {})[first] || {};
     return { ...out, serverSettings: { ...config.serverSettings, [first]: { ...own, topItems: { tbc: legacy } } } };
 }
-const golden = schemaOnly.map((g, i) => ({ ...g, config: migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config) }));
+// #1078: sharing Vermerke became a switch per link - the start turns it on once for the links of before,
+// a link onto its own server shares with nobody and gets none.
+function after1078(config) {
+    const block = config.discordServers;
+    if (!block || !Array.isArray(block.links)) return config;
+    const links = block.links.map((link) => (link.from === link.to ? link : { ...link, shareNotes: true }));
+    return { ...config, discordServers: { ...block, links } };
+}
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config)) }));
 // Read without the start migration: a global #924 field no server block carries yet stays visible (a save
 // in between must not lose it, the next start moves it).
 function unmoved924(config, stored) {
@@ -276,7 +284,7 @@ function unmoved924(config, stored) {
     }
     return out;
 }
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)") && !line.includes("(#1076)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)") && !line.includes("(#1076)") && !line.includes("(#1078)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -547,6 +555,20 @@ describe("stores/settings/configSchema server federation (#890)", () => {
             ], [A, B])).toEqual([
                 link(A, B, C1, { versions: ["forever", "tbc"] }), link(A, A, C1), link(B, A, C1),
             ]);
+        });
+
+        it("keeps the Vermerke switch only when it is really on, off stays out of the file (#1078)", () => {
+            expect(schema.normalizeLinks([
+                { from: A, to: B, channelId: C1, shareNotes: true },
+                { from: B, to: A, channelId: C1, shareNotes: "true" },
+                { from: A, to: A, channelId: C1, shareNotes: 1 },
+                { from: B, to: B, channelId: C1, shareNotes: false },
+            ], [A, B])).toEqual([
+                link(A, B, C1, { shareNotes: true }), link(B, A, C1), link(A, A, C1), link(B, B, C1),
+            ]);
+            const once = schema.normalizeDiscordServers({ servers, links: [{ from: A, to: B, channelId: C1, shareNotes: true }] });
+            expect(once.links).toEqual([link(A, B, C1, { shareNotes: true })]);
+            expect(schema.normalizeDiscordServers(once)).toEqual(once);
         });
 
         it("keeps language and versions through a second normalisation (idempotent)", () => {

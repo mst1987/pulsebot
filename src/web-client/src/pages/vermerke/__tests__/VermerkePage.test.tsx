@@ -285,8 +285,8 @@ describe("Vermerke: dialog", () => {
 });
 
 describe("Vermerke: sharing means with linked servers (#1078)", () => {
-    const NO_LINK = "Dieser Server ist mit keinem anderen verknüpft";
-    const list = (hasLinkedServers?: boolean) => ({ guildId: "g1", guildName: "Testgilde", people: [THRALL], hasLinkedServers });
+    const NO_LINK = "Es gibt keinen Server, mit dem Vermerke geteilt werden";
+    const list = (hasSharingServers?: boolean) => ({ guildId: "g1", guildName: "Testgilde", people: [THRALL], hasSharingServers });
 
     async function openDialog(user: ReturnType<typeof userEvent.setup>) {
         renderPage(<VermerkePage />, { route: "/vermerke" });
@@ -317,10 +317,10 @@ describe("Vermerke: sharing means with linked servers (#1078)", () => {
 
     it.each([
         ["without a link", false, /nur hier sichtbar/],
-        ["with a link", true, /Verknüpfte Server sehen/],
-    ])("the lock of an own shared entry says where it shows, %s", async (_label, hasLinkedServers, tip) => {
+        ["with a link", true, /Server, mit denen Vermerke geteilt werden, sehen/],
+    ])("the lock of an own shared entry says where it shows, %s", async (_label, hasSharingServers, tip) => {
         vi.mocked(api.getVermerkPerson).mockResolvedValue({
-            ...JAINA_DETAIL, hasLinkedServers,
+            ...JAINA_DETAIL, hasSharingServers,
             entries: [entry({ id: "mine", text: "Eigener geteilter Eintrag.", shared: true })],
         });
         renderPage(<VermerkePage />, { route: "/vermerke?user=j" });

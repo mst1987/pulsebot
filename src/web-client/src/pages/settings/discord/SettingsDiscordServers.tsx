@@ -45,7 +45,7 @@ const MAX_SERVERS = 10;
 const SERVER_TABS = ["servers", "links", "roles", "reminders"] as const;
 type ServerTab = (typeof SERVER_TABS)[number];
 
-type LinkSortKey = "link" | "channel" | "status" | "summary" | "invite";
+type LinkSortKey = "link" | "channel" | "status" | "summary" | "shareNotes" | "invite";
 
 /** What an invite cell shows: the invite itself, or why there is none. */
 type InviteView = { code: string; url: string; error: string; deleted: boolean };
@@ -80,6 +80,14 @@ function guildChannels(data: DiscordServersData, id: string): TextChannel[] {
 // The server allows one link per source and target ("from:to"), so the client compares the same way.
 const sameLink = (a: ServerLink, b: ServerLink) => a.from === b.from && a.to === b.to;
 
+/** The link with the switch "Vermerke teilen" set; like `pug`, the field is only stored while on (#1078). */
+function withShareNotes(link: ServerLink, on: boolean): ServerLink {
+    const next = { ...link };
+    if (on) next.shareNotes = true;
+    else delete next.shareNotes;
+    return next;
+}
+
 export default function DiscordServersSection({ onConfig, crumb }: {
     onConfig: (config: AdminConfig) => void;
     crumb: string;
@@ -99,7 +107,7 @@ export default function DiscordServersSection({ onConfig, crumb }: {
     const [invites, setInvites] = useState<PugInvites | null>(null);
     const [inviteBusy, setInviteBusy] = useState("");
     const linkSort = useTableSort<LinkSortKey>("settings-links-sort", {
-        link: "asc", channel: "asc", status: "asc", summary: "asc", invite: "desc",
+        link: "asc", channel: "asc", status: "asc", summary: "asc", shareNotes: "desc", invite: "desc",
     }, "link");
     const serverSort = useTableSort<ServerSortKey>("settings-servers-sort", { server: "asc", status: "desc", categories: "desc", members: "desc" }, "server");
     const channelSort = useTableSort<ChannelSortKey>("settings-signup-channels-sort", { server: "asc", note: "asc", bank: "asc" }, "server");
@@ -171,12 +179,30 @@ export default function DiscordServersSection({ onConfig, crumb }: {
                     channel: channelName(guildChannels(data, link.to), link.channelId),
                 }),
                 inviteOf(link)?.url ? t("settings.discordServers.removeLinkInvite") : "",
+                link.shareNotes ? t("settings.discordServers.removeLinkNotes") : "",
             ].filter(Boolean).join(" "),
             action: t("settings.discordServers.removeLink"),
             tone: "danger",
         });
         if (!ok) return;
         await save({ links: config.links.filter((l) => !sameLink(l, link)) }, t("settings.discordServers.linkRemoved"));
+    };
+
+    // Links can only be added or removed, so an existing one gets its switch in the table. Turning it on opens
+    // notes to another server at once, so that asks first; turning it off closes them and does not (#1078).
+    const setShareNotes = async (link: ServerLink, on: boolean) => {
+        if (on) {
+            const ok = await ask({
+                title: t("settings.discordServers.shareNotesAskTitle"),
+                text: t("settings.discordServers.shareNotesSub"),
+                action: t("settings.discordServers.shareNotes"),
+            });
+            if (!ok) return;
+        }
+        await save(
+            { links: config.links.map((l) => (sameLink(l, link) ? withShareNotes(l, on) : l)) },
+            t(on ? "settings.discordServers.shareNotesTurnedOn" : "settings.discordServers.shareNotesTurnedOff"),
+        );
     };
 
     const removeServer = async (row: ServerRow) => {
@@ -274,6 +300,15 @@ export default function DiscordServersSection({ onConfig, crumb }: {
         },
         { id: "summary", label: t("settings.discordServers.colLangVersions"), sortKey: "summary", className: "srv-muted", cell: (l) => linkSummary(l, data.versions) },
         {
+            id: "shareNotes", label: t("settings.discordServers.colShareNotes"), sortKey: "shareNotes",
+            // A link onto its own server has nobody to share with.
+            cell: (l) => (l.from === l.to ? <span className="srv-muted">—</span> : (
+                <Switch checked={l.shareNotes === true} onChange={(on) => setShareNotes(l, on)}
+                    label={t(l.shareNotes ? "settings.discordServers.shareNotesOn" : "settings.discordServers.shareNotesOff")}
+                    tipHead={t("settings.discordServers.shareNotes")} tip={t("settings.discordServers.shareNotesSub")} />
+            )),
+        },
+        {
             id: "invite", label: t("settings.discordServers.colInvite"), sortKey: "invite",
             cell: (l) => {
                 const inv = inviteOf(l);
@@ -314,6 +349,7 @@ export default function DiscordServersSection({ onConfig, crumb }: {
         if (key === "channel") return channelName(guildChannels(data, l.to), l.channelId).toLowerCase();
         if (key === "status") return linkStatusBadge(statusOf(l), now).label;
         if (key === "summary") return linkSummary(l, data.versions);
+        if (key === "shareNotes") return l.shareNotes ? 1 : 0;
         // By who came through it; a link without an invite after one with nobody yet.
         if (key === "invite") return inviteOf(l)?.url ? inviteOf(l)?.joined ?? 0 : -1;
         return `${guildName(data, l.from)} ${guildName(data, l.to)}`.toLowerCase();
@@ -587,7 +623,7 @@ function ServerStatus({ row }: { row: ServerRow }) {
     );
 }
 
-/** Creating one link: source, target, channel on the target, language and versions (#891). */
+/** Creating one link: source, target, channel on the target, language, versions (#891) and whether it shares notes (#1078). */
 function LinkModal({ data, onClose, onSave }: {
     data: DiscordServersData;
     onClose: () => void;
@@ -600,6 +636,8 @@ function LinkModal({ data, onClose, onSave }: {
     const sourceRow = data.servers.find((s) => s.id === link.from);
     const exists = data.discordServers.links.some((l) => sameLink(l, link));
     const ready = !!(link.from && link.to && link.channelId) && !exists;
+    // A link onto its own server has nobody to share with, so it has no switch either.
+    const selfLink = !!link.to && link.from === link.to;
 
     // The language follows the target's Discord language as a suggestion; "" = server language.
     const pickTarget = (to: string) => {
@@ -611,7 +649,7 @@ function LinkModal({ data, onClose, onSave }: {
     };
     const submit = async () => {
         setBusy(true);
-        try { await onSave(link); } finally { setBusy(false); }
+        try { await onSave(selfLink ? withShareNotes(link, false) : link); } finally { setBusy(false); }
     };
 
     return (
@@ -688,6 +726,13 @@ function LinkModal({ data, onClose, onSave }: {
                             })}
                         </div>
                     </div>
+                )}
+                {!selfLink && (
+                    <Switch checked={link.shareNotes === true} onChange={(on) => setLink(withShareNotes(link, on))}
+                        label={t("settings.discordServers.shareNotes")} tip={t("settings.discordServers.shareNotesSub")} />
+                )}
+                {!selfLink && link.shareNotes && (
+                    <div className="conn-status mid srv-hint" role="note"><WarnIcon /><span>{t("settings.discordServers.shareNotesSub")}</span></div>
                 )}
                 {exists && <div className="conn-status mid srv-hint" role="note"><WarnIcon /><span>{t("settings.discordServers.linkExists")}</span></div>}
             </div>

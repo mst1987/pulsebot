@@ -111,7 +111,7 @@ export default function MembersPage() {
             {dialog && (
                 <VermerkDialog
                     guildId={data ? data.guildId : ""} preset={dialog} onClose={() => setDialog(null)} onSaved={() => { setDialog(null); notesState.reload(); }}
-                    hasLinkedServers={data && notesState.data && notesState.data.guildId === data.guildId ? notesState.data.hasLinkedServers : undefined}
+                    hasSharingServers={data && notesState.data && notesState.data.guildId === data.guildId ? notesState.data.hasSharingServers : undefined}
                 />
             )}
         </div>

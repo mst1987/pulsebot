@@ -548,7 +548,10 @@ function normalizeLinks(list, serverIds) {
         const key = `${from}:${to}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ from, to, channelId, lang: normalizeLinkLang(raw.lang), versions: normalizeLinkVersions(raw.versions) });
+        const link = { from, to, channelId, lang: normalizeLinkLang(raw.lang), versions: normalizeLinkVersions(raw.versions) };
+        // The switch "share Vermerke" (#1078): stored only when on, like `pug` on a server.
+        if (raw.shareNotes === true) link.shareNotes = true;
+        out.push(link);
     }
     return out;
 }
