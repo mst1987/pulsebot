@@ -336,6 +336,25 @@ describe("connection cards", () => {
         expect(logic.connectionState("twitch", { twitch: { clientId: "" } }).missing).toBe(true);
     });
 
+    it("counts missing Twitch credentials in the sidebar badge only once a streamer is entered", () => {
+        const data = (twitch: Record<string, unknown>) => ({
+            config: {
+                blizzard: { clientId: "x", hasClientSecret: true },
+                warcraftlogsV2: { clientId: "x", hasClientSecret: true },
+                anthropic: { hasApiKey: true },
+                github: { hasToken: true },
+                twitch,
+            },
+            bot: { online: true },
+        });
+        expect(logic.missingConnections(data({}), [{}], true)).toBe(0);
+        expect(logic.missingConnections(data({ inUse: false }), [{}], true)).toBe(0);
+        expect(logic.missingConnections(data({ inUse: true }), [{}], true)).toBe(1);
+        expect(logic.missingConnections(data({ inUse: true, clientId: "x", hasClientSecret: true }), [{}], true)).toBe(0);
+        // the card keeps saying what is missing, only the badge stays quiet
+        expect(logic.connectionState("twitch", { twitch: { inUse: false } }).missing).toBe(true);
+    });
+
     it("never counts the Discord connection or unknown token numbers as missing", () => {
         expect(logic.connectionState("discord", { botOnline: false }).missing).toBe(false);
         expect(logic.connectionState("lootsync", { tokenCount: null }).missing).toBe(false);

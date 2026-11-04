@@ -99,8 +99,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             ],
         },
         {
-            // the icon of the announcements; there is no Twitch mark in the icon set
-            id: "twitch", title: "Twitch", icon: "notify", adminOnly: true,
+            id: "twitch", title: "Twitch", icon: "twitch", adminOnly: true,
             tip: "Twitch",
             tipSub: t("settings.connections.twitchSub"),
             rows: [

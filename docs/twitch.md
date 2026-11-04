@@ -74,6 +74,8 @@ central poll asks for each login once, whichever servers list it.
 - **What the page can warn about instead:** `view.mention` (`discord.mentionInfoIn`) is `{ botCanMentionAll,
   unmentionableRoleIds }` for the active server, read from the cache only, no member list. `botCanMentionAll` is `null`
   when unknown (bot offline, server not loaded), which never throws. The list leaves out @everyone and managed roles.
+  The dialog shows a hint under the role picker and the table's role column a tooltip when the role is listed and
+  `botCanMentionAll` is `false`. `null` shows nothing, and neither ever blocks saving.
 
 ## The icon
 
@@ -82,6 +84,9 @@ card's kicker through `emojiText`; without the emoji loaded the kicker is just t
 the one exception to the grey line icons: Twitch's filled glitch in `#9146FF`, path from `simple-icons` (CC0-1.0; the
 trademark stays Twitch's), which is no dependency. `ensureAppEmojis` uploads it at startup.
 
+The web client draws the same path inline as the brand icon `twitch` (`lib/ui/iconSet.ts`, `Icon.tsx`) in the token
+`--twitch-purple`: in the settings menu, the section head, the dialog head and the row under Connections.
+
 ## Rights
 
 Area `settings`: GET needs read, the write routes write plus CSRF. Always the session's active server;
@@ -89,7 +94,8 @@ Area `settings`: GET needs read, the write routes write plus CSRF. Always the se
 per-server settings. A channel or role of another server is refused with 403 `other_server`. The credentials go
 through `PATCH /api/settings` and are full-admin only; `hasCredentials` in the view tells everybody with the settings
 area only yes or no, because the page's status needs it. Full admins also get `config.twitch.inUse` in the settings
-config: whether any server lists a streamer, so missing credentials count only then.
+config: whether any server lists a streamer, so missing credentials count only then: the badge at "Connections" stays
+quiet without `inUse`, while the Twitch row itself still says what is missing.
 
 ## API
 

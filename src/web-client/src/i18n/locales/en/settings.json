@@ -1735,12 +1735,16 @@
         "empty": "No streamer added yet.",
         "noCredentials": "The Twitch app is missing, without it the bot checks no streams.",
         "noCredentialsLink": "Enter credentials",
+        "badCredentials": "Twitch rejects the credentials, so the bot checks no streams.",
+        "badCredentialsLink": "Check credentials",
+        "roleNoPingTip": "Won't be pinged: the role can't be mentioned and the bot lacks \"Mention @everyone, @here and all roles\".",
         "limitReached": "No more than {max} streamers.",
         "lastRun": "Last checked: {time}",
         "lastRunFailed": "Last check {time}: {reason}",
         "lastRunError": {
             "rate_limited": "Twitch is throttling right now",
             "twitch_unavailable": "Twitch is not answering",
+            "bad_credentials": "credentials rejected",
             "other": "failed"
         },
         "col": {
@@ -1799,6 +1803,7 @@
             "bot_offline": "Not checked: the bot is not connected right now.",
             "rate_limited": "Not checked: Twitch is throttling, the next run tries again.",
             "twitch_unavailable": "Not checked: Twitch is not answering right now.",
+            "bad_credentials": "Not checked: Twitch rejects the credentials. Please check them under Settings › Connections.",
             "failed": "The check failed."
         },
         "modal": {
@@ -1810,6 +1815,7 @@
             "channelPlaceholder": "Pick a channel",
             "role": "Role for the ping",
             "rolePlaceholder": "No ping",
+            "roleNoPing": "This role won't be pinged: it can't be mentioned in Discord and the bot lacks the permission \"Mention @everyone, @here and all roles\". Make the role mentionable in Discord or give the bot this permission.",
             "text": "Own text",
             "textHint": "Placeholders: {placeholders}",
             "textCount": "{count} of {max} characters",
@@ -1827,6 +1833,7 @@
             "invalid_login": "That is not a valid Twitch name or link.",
             "duplicate_streamer": "This streamer is already on the list.",
             "missing_channel": "Please pick a channel.",
+            "invalid_channel": "The bot can't post in this channel. Please pick a text channel.",
             "invalid_role": "This role does not exist on the server.",
             "text_too_long": "The own text is too long.",
             "too_many": "The list is full, no more streamers.",

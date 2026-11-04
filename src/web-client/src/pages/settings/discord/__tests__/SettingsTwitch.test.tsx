@@ -77,9 +77,9 @@ describe("rejected credentials", () => {
     it("names the rejection and links to the connections", async () => {
         api.getTwitchSettings.mockResolvedValue(view({ lastRun: { at: Date.now(), error: "bad_credentials" } }));
         show();
-        const hint = await screen.findByRole("status");
-        expect(hint.textContent).toContain("Twitch lehnt die Zugangsdaten ab");
-        expect(screen.getByText("Zugangsdaten prüfen")).toBeTruthy();
+        const hint = await screen.findByText(/Twitch lehnt die Zugangsdaten ab/);
+        expect(hint.getAttribute("role")).toBe("status");
+        expect(within(hint).getByText("Zugangsdaten prüfen")).toBeTruthy();
     });
 
     it("says nothing about them after a good run", async () => {

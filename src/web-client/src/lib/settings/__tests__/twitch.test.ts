@@ -3,8 +3,23 @@ import { describe, expect, it } from "vitest";
 import { inLang } from "../../../test/i18n";
 import type { ApiError, TwitchStreamerStatus } from "../../../api";
 import {
-    addTwitchGame, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText, twitchStatusRank, twitchStatusWords, twitchUrl,
+    addTwitchGame, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText, twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
 } from "../twitch";
+
+describe("twitchRoleWontPing", () => {
+    const mention = (botCanMentionAll: boolean | null, unmentionableRoleIds: string[] = ["r1"]) => ({ botCanMentionAll, unmentionableRoleIds });
+
+    it("warns only when the role is listed and the bot certainly lacks the right", () => {
+        expect(twitchRoleWontPing(mention(false), "r1")).toBe(true);
+        expect(twitchRoleWontPing(mention(true), "r1")).toBe(false);
+        expect(twitchRoleWontPing(mention(false), "r2")).toBe(false);
+    });
+
+    it("stays quiet when nothing is known or no role is chosen", () => {
+        expect(twitchRoleWontPing(mention(null), "r1")).toBe(false);
+        expect(twitchRoleWontPing(mention(false), "")).toBe(false);
+    });
+});
 
 const LIMITS = { streamers: 25, textLength: 500, games: 5, gameNameLength: 60 };
 const NOW = new Date("2026-11-03T21:00:00").getTime();
