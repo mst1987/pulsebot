@@ -361,6 +361,19 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
     };
 }
 
+/**
+ * The source as the server-admin rank (#1072) may see it: bot profiles and log characters are
+ * stores of every server, so only those of the server's current members stay. Deliberately not
+ * "known to the planner": any Discord id can be typed in there, which would reveal that account's
+ * profile. No member list (bot offline, no intent): nothing stays.
+ */
+function limitSourceToServer(source) {
+    const members = new Set((source.members || []).map((m) => m.userId));
+    const logChars = {};
+    for (const [userId, chars] of Object.entries(source.logChars || {})) if (members.has(userId)) logChars[userId] = chars;
+    return { ...source, profiles: (source.profiles || []).filter((p) => members.has(p.userId)), logChars };
+}
+
 /** The rule set's classes alone — enough for a change inside one Kader (no Discord, no profiles). */
 function loadKaderRules(versionId = plannerVersion()) {
     const rules = rulesFor(versionId);
@@ -368,4 +381,4 @@ function loadKaderRules(versionId = plannerVersion()) {
     return { versionId, classes: sourceClasses(rules) };
 }
 
-module.exports = { loadKaderSource, loadKaderRules, listRaidCategories, groupByVersion, plannerVersion, PREFERRED_VERSION };
+module.exports = { loadKaderSource, loadKaderRules, limitSourceToServer, listRaidCategories, groupByVersion, plannerVersion, PREFERRED_VERSION };

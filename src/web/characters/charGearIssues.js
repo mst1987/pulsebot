@@ -108,7 +108,7 @@ function condenseReport(meta) {
  * Character key -> the newest evaluation that contains them, with that
  * evaluation's gear issues.
  *
- * @param {object} opts { maxReports }
+ * @param {object} opts { maxReports, accept } `accept(meta)` narrows the reports looked at
  * @returns {Object<string, {character, className, issues, issueCount, reportRefId,
  *                           reportId, reportUrl, reportTitle, zone, generatedAt}>}
  */
@@ -117,7 +117,8 @@ function latestIssuesByCharacter(opts = {}) {
     const byKey = {};
     // listReports() is already sorted newest first, so the first report that
     // mentions a character is their latest one.
-    for (const meta of listReports().slice(0, maxReports)) {
+    const reports = opts.accept ? listReports().filter(opts.accept) : listReports();
+    for (const meta of reports.slice(0, maxReports)) {
         const { entries } = condenseReport(meta);
         for (const entry of entries) {
             if (byKey[entry.key]) continue;

@@ -4,7 +4,7 @@
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 jest.mock("../../../src/config/variables", () => ({ logcheckAdminIds: [], adminRoleIds: [] }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]) }));
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["g1"]), listedServerIds: jest.fn(() => ["g1"]) }));
 jest.mock("../../../src/services/discord/roles/memberRoles", () => ({ giveRole: jest.fn(), takeRole: jest.fn(), recentWrite: jest.fn(() => undefined) }));
 jest.mock("../../../src/stores/roster/raiderProfileStore", () => ({ getProfile: jest.fn((userId) => ({ userId, characters: [] })), firstCharacter: jest.fn(() => null) }));
 

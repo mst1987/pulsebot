@@ -5,12 +5,13 @@ let mockUser = null;
 let mockViewer = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
+let mockRoleUser = null;
+jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000"), getUserWithoutRank: jest.fn(() => mockRoleUser) }));
 const mockEvents = {};
 jest.mock("../../../../src/stores/events/eventStore", () => ({
     ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
-    isOwnEventId: jest.fn((id) => String(id).startsWith("eh_")),
+    isOwnEventId: jest.fn((id) => /^eh[-_]/.test(String(id))),
 }));
 
 const { readJsonBody, readRawBody } = require("../../../../src/web/http/apiBody");
@@ -268,6 +269,61 @@ describe("room map upload", () => {
         expect(status(await upload(READER, "bt/supremus", PNG))).toBe(403);
         expect(store.readMap("bt/supremus")).toBeNull();
         expect(status(await call(route.postMapDelete, ORGA, { key: "nope" }))).toBe(400);
+    });
+
+    // A default map serves every server (store.mapForBoss): the server-admin rank alone may not touch
+    // it, the maps of a raid or of a server's template stay open to it.
+    describe("with the server-admin rank (#1072)", () => {
+        const templates = require("../../../../src/stores/raidplan/raidplanTemplateStore");
+        const RANK = { id: "rank", name: "Rang", isAdmin: false, isOrga: true, isServerAdmin: true, access: { raidplan: { read: true, write: true } } };
+        const NO_ROLE = { id: "rank", isAdmin: false, access: {} };
+        const ROLE_RAIDPLAN = { id: "rank", isAdmin: false, access: { raidplan: { read: true, write: true } } };
+
+        beforeEach(() => { templates.useFile(tempStoreFile("templates.json")); });
+        afterAll(() => { templates.useFile(); });
+
+        it("refuses an upload to a default map when only the rank gives the right", async () => {
+            mockRoleUser = NO_ROLE;
+            const r = await upload(RANK, "bt/supremus", PNG);
+            expect(status(r)).toBe(403);
+            expect(body(r).code).toBe("forbidden");
+            expect(store.readMap("bt/supremus")).toBeNull();
+        });
+
+        it("refuses deleting a default map when only the rank gives the right", async () => {
+            store.saveMap("bt/supremus", PNG);
+            mockRoleUser = NO_ROLE;
+            const r = await call(route.postMapDelete, RANK, { key: "bt/supremus" });
+            expect(status(r)).toBe(403);
+            expect(body(r).code).toBe("forbidden");
+            expect(store.readMap("bt/supremus").mime).toBe("image/png");
+        });
+
+        it("keeps both for a Discord admin with a role that holds raidplan", async () => {
+            mockRoleUser = ROLE_RAIDPLAN;
+            expect(status(await upload(RANK, "bt/supremus", PNG))).toBe(200);
+            expect(store.readMap("bt/supremus").mime).toBe("image/png");
+            expect(status(await call(route.postMapDelete, RANK, { key: "bt/supremus" }))).toBe(200);
+            expect(store.readMap("bt/supremus")).toBeNull();
+        });
+
+        it("leaves the maps of a raid and of a template open to the rank", async () => {
+            mockRoleUser = NO_ROLE;
+            const template = templates.createTemplate("500000", { name: "Montag", category: "Raid", instanceIds: ["bt"] }).template;
+            mockEvents["eh-map"] = eventWith({ approved: APPROVED });
+            for (const key of ["e/eh-map/bt/supremus", `t/${template.id}/bt/supremus`]) {
+                expect(status(await upload(RANK, key, PNG))).toBe(200);
+                expect(store.readMap(key).mime).toBe("image/png");
+                expect(status(await call(route.postMapDelete, RANK, { key }))).toBe(200);
+                expect(store.readMap(key)).toBeNull();
+            }
+        });
+
+        it("does not ask anyone without the rank", async () => {
+            const { getUserWithoutRank } = require("../../../../src/web/http/auth");
+            expect(status(await upload(ORGA, "bt/supremus", PNG))).toBe(200);
+            expect(getUserWithoutRank).not.toHaveBeenCalled();
+        });
     });
 });
 

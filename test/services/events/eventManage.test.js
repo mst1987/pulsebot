@@ -7,6 +7,7 @@ jest.mock("../../../src/services/discord/discord", () => require("../../helpers/
     listAllChannels: jest.fn(() => []),
     resolveUserNames: jest.fn(async () => ({})),
     listMembersWithRoles: jest.fn(async () => ({ members: [], error: null })),
+    listHumanMembers: jest.fn(async () => ({ members: [], error: null })),
     memberRoleIds: jest.fn(async () => null),
     getClient: jest.fn(() => null),
 }));
@@ -222,6 +223,32 @@ describe("signing raiders up and off as the orga", () => {
         const wrong = await manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Neuling", spec: "Priest-Holy", user: ORGA });
         expect(wrong.error.code).toBe("spec");
         expect((await manage.addRaider({ guildId: "g1", eventId: event.id, userId: "x", character: "A", spec: "Mage-Frost" })).error.code).toBe("bad_request");
+    });
+
+    describe("keepProfiles (#1072, a holder of only the server-admin rank)", () => {
+        const add = (over) => manage.addRaider({ guildId: "g1", eventId: event.id, userId: RAIDER, character: "Thorwald", spec: "Warrior-Protection", user: ORGA, keepProfiles: true, ...over });
+
+        it("signs up a character that exists, with its spec", async () => {
+            profiles.addCharacter(RAIDER, { name: "Thorwald", className: "Warrior", specs: [{ key: "Warrior-Protection" }] });
+            const result = await add();
+            expect(result.body.profileChanged).toBe(false);
+            expect(signupStore.getSignup(event.id, RAIDER)).toMatchObject({ character: "Thorwald" });
+        });
+
+        it("changes no profile of another account: no new character, no new spec, no alternate", async () => {
+            expect((await add()).error.code).toBe("character");
+            expect(profiles.getProfile(RAIDER).characters).toEqual([]);
+            profiles.addCharacter(RAIDER, { name: "Thorwald", className: "Warrior", specs: [{ key: "Warrior-Protection" }] });
+            expect((await add({ spec: "Warrior-Fury" })).error.code).toBe("character");
+            expect((await add({ alternates: [{ character: "Heilbert", spec: "Priest-Holy" }] })).error.code).toBe("character");
+            expect(profiles.getProfile(RAIDER).characters.map((c) => [c.name, c.specs.map((s) => s.key)])).toEqual([["Thorwald", ["Warrior-Protection"]]]);
+            expect(signupStore.getSignup(event.id, RAIDER)).toBeFalsy();
+        });
+
+        it("still adds to the caller's own profile", async () => {
+            const result = await add({ userId: ORGA.id, character: "Selbst", spec: "Mage-Frost" });
+            expect(result.body.profileChanged).toBe(true);
+        });
     });
 
     it("takes further own characters as „kann auch mit“ and keeps them on a later single add (#293)", async () => {
@@ -483,6 +510,40 @@ describe("what the menu shows", () => {
         expect(thor.signup).toMatchObject({ status: "signed" });
         expect(body.raiders.find((r) => r.userId === OTHER)).toMatchObject({ name: "Ysi", characters: [] });
         expect(body.classes.map((c) => c.id)).toContain("Mage");
+    });
+
+    describe("ownServerOnly (#1072, a holder of only the server-admin rank)", () => {
+        const THIRD = "800000000000000003";
+        const FOREIGN = "800000000000000004";
+        const ids = (body) => body.raiders.map((r) => r.userId).sort();
+        const hasProfile = (id, name) => profiles.addCharacter(id, { name, className: "Mage", specs: [{ key: "Mage-Frost" }] });
+
+        beforeEach(() => {
+            hasProfile(FOREIGN, "Fremder");
+            hasProfile(OTHER, "Ysolde");
+            signUp(RAIDER, "Thorwald", "Warrior-Protection");
+        });
+
+        it("offers the profiles of the server's members and of those signed up, none of another server", async () => {
+            discord.listHumanMembers.mockResolvedValueOnce({ members: [{ id: OTHER }, { id: THIRD }], error: null });
+            const { body } = await manage.raiderCandidates({ guildId: "g1", eventId: event.id, ownServerOnly: true });
+            expect(ids(body)).toEqual([RAIDER, OTHER]);
+            expect(discord.listHumanMembers).toHaveBeenCalledWith("g1");
+            expect(body.raiders.find((r) => r.userId === OTHER).characters[0]).toMatchObject({ name: "Ysolde" });
+        });
+
+        it("offers only those signed up when the member list cannot be shown", async () => {
+            discord.listHumanMembers.mockResolvedValueOnce({ members: [], error: "boom" });
+            const { body } = await manage.raiderCandidates({ guildId: "g1", eventId: event.id, ownServerOnly: true });
+            expect(ids(body)).toEqual([RAIDER]);
+        });
+
+        it("offers every profile without the option, and asks for no member list", async () => {
+            discord.listHumanMembers.mockClear();
+            const { body } = await manage.raiderCandidates({ guildId: "g1", eventId: event.id });
+            expect(ids(body)).toEqual([RAIDER, OTHER, FOREIGN]);
+            expect(discord.listHumanMembers).not.toHaveBeenCalled();
+        });
     });
 });
 

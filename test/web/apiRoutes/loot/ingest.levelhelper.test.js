@@ -76,9 +76,32 @@ describe("POST /api/ingest/levelhelper", () => {
         const res = await upload(payload());
         expect(status(res)).toBe(403);
         expect(json(res).error.code).toBe("no_server");
-        expect(serversOfToken).toHaveBeenCalledWith(person);
+        expect(serversOfToken).toHaveBeenCalledWith(person, { rolesOnly: true });
         expect(store.listRuns()).toEqual([]);
         expect(touchToken).not.toHaveBeenCalled();
+    });
+
+    // #1072: the runs have no server, so only a role counts. The rule itself: ingestServers.test.js.
+    it("refuses a personal key whose owner holds nothing but the server-admin rank", async () => {
+        const { orgaServersOf } = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
+        const guildAccess = { isAdmin: false, guilds: { gA: { access: {}, isOrga: true, isServerAdmin: true, roleAccess: {} } } };
+        const config = { discordServers: { servers: [{ guildId: "gA" }] } };
+        verifyToken.mockReturnValue({ id: "p1", name: "Laptop", ownerId: "u1", guildId: "" });
+        serversOfToken.mockImplementationOnce(async (_token, opts) => (await orgaServersOf("u1", { ...opts, guildAccess, config })).map((s) => s.guildId));
+        const res = await upload(payload());
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("no_server");
+        expect(store.listRuns()).toEqual([]);
+    });
+
+    it("takes the runs of a personal key whose owner holds an orga role next to the rank", async () => {
+        const { orgaServersOf } = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
+        const guildAccess = { isAdmin: false, guilds: { gA: { access: {}, isOrga: true, isServerAdmin: true, roleAccess: {}, roleIsOrga: true } } };
+        const config = { discordServers: { servers: [{ guildId: "gA" }] } };
+        verifyToken.mockReturnValue({ id: "p1", name: "Laptop", ownerId: "u1", guildId: "" });
+        serversOfToken.mockImplementationOnce(async (_token, opts) => (await orgaServersOf("u1", { ...opts, guildAccess, config })).map((s) => s.guildId));
+        expect(status(await upload(payload()))).toBe(200);
+        expect(store.listRuns()).toHaveLength(1);
     });
 
     it("takes the runs of a personal key whose owner is orga somewhere", async () => {

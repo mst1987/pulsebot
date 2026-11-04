@@ -28,8 +28,8 @@ const postVersionLaunch = withUser({ write: "settings", csrf: true, body: true }
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/settings/version-launch", handler: getVersionLaunch, area: "settings" },
-    { method: "POST", path: "/api/settings/version-launch", handler: postVersionLaunch, area: "settings" },
+    { method: "GET", path: "/api/settings/version-launch", handler: getVersionLaunch, area: "settings", sharedData: true },
+    { method: "POST", path: "/api/settings/version-launch", handler: postVersionLaunch, area: "settings", sharedData: true },
 ];
 
 module.exports = { getVersionLaunch, postVersionLaunch, routes };

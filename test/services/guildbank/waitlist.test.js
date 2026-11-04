@@ -280,6 +280,16 @@ describe("services/guildbank/waitlist — linking in the import and the list", (
         expect(waitlist.listForBank(KEY).map((e) => e.linked)).toEqual([true, true, false]);
     });
 
+    it("searches only the profiles a limited caller hands in (`list`, #1072)", () => {
+        profiles.addCharacter("u-c", { source: "log", name: "Ragemain", className: "Warrior" }, { name: "Cleo" });
+        const text = "Ragemain\tCrimson Spinal\t1";
+        expect(waitlist.previewImport(KEY, text).rows[0].linked).toBe(true);
+        expect(waitlist.previewImport(KEY, text, { list: [] }).rows[0]).toMatchObject({ linked: false, match: null });
+        expect(waitlist.importLines(KEY, text, { by: "o1", list: [] }).added[0].userId).toBe("");
+        expect(waitlist.addEntry(KEY, { name: "Ragemain", itemId: SPINAL, amount: 1 }, { list: [] }).request.userId).toBe("");
+        expect(waitlist.addEntry(KEY, { name: "Ragemain", itemId: SPINAL, amount: 1 }).request.userId).toBe("u-c");
+    });
+
     it("adds one entry for a picked profile character, refuses a pick the profile does not have", () => {
         profiles.addCharacter("u-c", { source: "log", name: "Ragemain", className: "Warrior" }, { name: "Cleo" });
         const added = waitlist.addEntry(KEY, { userId: "u-c", characterKey: "ragemain", itemId: SPINAL, amount: 2, by: "o1" });

@@ -238,6 +238,18 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Abschnitt Teile je Server enthält (z. B. Spielversion je Kategorie, Server-Schlüssel aus
     `SERVER_SCOPED_KEYS`): die bleiben auf der Server-Seite, sonst kann sie der Einstellungs-Schreiber
     nicht mehr ändern. Das Speichern schickt je Seite nur ihre Schlüssel (`save()` in `SettingsPage`).
+28. Bereichsrechte und `userIsOrga` sagen nichts über den Server der Daten (#1072): Sie gelten für den
+    aktiven Server. Eine Route, die `categoryId`, `userId` oder eine Listen-`id` aus der Anfrage nimmt,
+    braucht eine eigene Serverprüfung (`mayUseServer`, 403 `other_server`). Eine Route auf einem globalen
+    Store braucht die Marke `sharedData: true`, sonst öffnet sie der Rang Server-Admin jedem
+    Discord-Administrator (docs/permissions.md). Die Marke greift nur, wenn die ganze Route global ist:
+    Routen, deren Schlüssel zwischen Server- und globalen Daten wechselt (Raidplan-Karten), oder die einen
+    Serverkontext prüfen, aber global schreiben (`PUT /api/leads`), brauchen eine Prüfung im Handler
+    (`auth.getUserWithoutRank`). Maßstab ist der Store, nicht die Rechteprüfung davor. Baustein im Handler
+    ist `onlyByRank(user, req, rolesMay)` (`web/http/serverQuery.js`): Das Konto bekommt, was es ohne Rang
+    bekäme. Beim Review alle Wege prüfen, auch GET und `auth: "token"`, und auch die, die ein Zielkonto erst
+    in eine Liste bringen (fremde ID als Raider eintragen, danach ihr Profil lesen).
+    `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
 
 ## Fach-Agenten
 

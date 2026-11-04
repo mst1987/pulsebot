@@ -49,6 +49,14 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({
     roleFor: (...a) => mockRoleFor(...a),
 }));
 
+// The server of a category and of a report: only asked for the rank Server-Admin (#1072).
+const mockGuildOfCategory = jest.fn(() => "");
+jest.mock("../../../src/services/events/eventServer", () => ({
+    ...jest.requireActual("../../../src/services/events/eventServer"),
+    guildOfCategory: (...a) => mockGuildOfCategory(...a),
+}));
+jest.mock("../../../src/stores/loot/logStore", () => ({ listLogs: () => [] }));
+
 const { buildRoster, rosterCharacter } = require("../../../src/web/characters/roster");
 
 const lootChar = (over = {}) => ({
@@ -71,6 +79,44 @@ describe("web/characters/roster buildRoster", () => {
 
     it("returns an empty roster when nothing is known", () => {
         expect(buildRoster("guild-1")).toEqual({ chars: [], categories: [], categoryInfo: {}, versions: [] });
+    });
+
+    describe("ownServerOnly (#1072): only the rank Server-Admin", () => {
+        const assignments = { own: { u1: "Anna" }, foreign: { u2: "Fremd" }, unknown: { u3: "Alt" } };
+
+        beforeEach(() => {
+            mockListAllAssignments.mockReturnValue(assignments);
+            mockGuildOfCategory.mockImplementation((id) => ({ own: "guild-1", foreign: "guild-2" })[id] || "");
+        });
+
+        const names = (roster) => roster.chars.map((c) => c.character).sort();
+
+        it("joins only assignments of the own server, a category of no known server stays out", () => {
+            expect(names(buildRoster("guild-1", { ownServerOnly: true }))).toEqual(["Anna"]);
+        });
+
+        it("narrows the gear findings to reports of the own server, a report of no server stays out", () => {
+            buildRoster("guild-1", { ownServerOnly: true });
+            const { accept } = mockLatestIssues.mock.calls[0][0];
+            expect(accept({ id: "r1", guildId: "guild-1" })).toBe(true);
+            expect(accept({ id: "r2", guildId: "guild-2" })).toBe(false);
+            expect(accept({ id: "r3" })).toBe(false);
+        });
+
+        it("joins everything and asks for every report without the option, as on main", () => {
+            expect(names(buildRoster("guild-1"))).toEqual(["Alt", "Anna", "Fremd"]);
+            expect(mockLatestIssues).toHaveBeenCalledWith(undefined);
+            expect(mockGuildOfCategory).not.toHaveBeenCalled();
+        });
+
+        it("hands the option on from a single character", () => {
+            mockAnnotatedCharacters.mockReturnValue([lootChar({ categoryIds: ["own"] })]);
+            rosterCharacter("guild-1", "Anna", { ownServerOnly: true });
+            expect(mockLatestIssues.mock.calls[0][0].accept({ id: "r2", guildId: "guild-2" })).toBe(false);
+            mockLatestIssues.mockClear();
+            rosterCharacter("guild-1", "Anna");
+            expect(mockLatestIssues).toHaveBeenCalledWith(undefined);
+        });
     });
 
     it("attaches role and per-category attendance, with the raiders assigned in that category", () => {

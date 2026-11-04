@@ -234,6 +234,14 @@ describe("buildOverview", () => {
         expect(view.categories.map((c) => c.id)).toEqual(["wed"]);
         expect(overview.buildOverview({ now: NOW, guildId: "g1" }).raiders.map((r) => r.userId).sort()).toEqual(["both", "older", "onG1"]);
     });
+
+    it("lists with `showEntry` only the entries it lets through, without it all (#1072)", () => {
+        entry("scoped", "2030-03-24", "2030-03-30", { scope: [{ guildId: "g1", categoryIds: [] }] });
+        entry("older", "2030-03-24", "2030-03-30");
+        const shown = overview.buildOverview({ now: NOW, showEntry: (e) => e.userId === "scoped" });
+        expect(shown.raiders.map((r) => r.userId)).toEqual(["scoped"]);
+        expect(overview.buildOverview({ now: NOW }).raiders.map((r) => r.userId).sort()).toEqual(["older", "scoped"]);
+    });
 });
 
 describe("raiderDetail", () => {
@@ -279,6 +287,14 @@ describe("raiderDetail", () => {
         const detail = overview.raiderDetail("u1", { now: NOW, guildId: "g2" });
         expect(detail.entries.map((e) => e.from)).toEqual(["2030-04-01"]);
         expect(detail.history.map((h) => h.eventId)).toEqual(["eh-b"]);
+    });
+
+    it("lists with `showEntry` only the entries it lets through, without it all (#1072)", () => {
+        entry("u1", "2030-03-25", "2030-03-30");
+        entry("u1", "2030-04-01", "2030-04-05");
+        const shown = overview.raiderDetail("u1", { now: NOW, showEntry: (e) => e.from === "2030-03-25" });
+        expect(shown.entries.map((e) => e.from)).toEqual(["2030-03-25"]);
+        expect(overview.raiderDetail("u1", { now: NOW }).entries.map((e) => e.from)).toEqual(["2030-04-01", "2030-03-25"]);
     });
 });
 

@@ -48,6 +48,9 @@ async function getSession(req, res) {
                 // Orga (permissions.userIsOrga): a full admin, or holding one of the orga roles
                 // (Einstellungen → Berechtigungen) — sees the orga's parts of the pages.
                 isOrga: userIsOrga(user),
+                // Server-Admin (#1072): Discord administrator or owner of the active server — every
+                // area and the orga rank here, nothing elsewhere. Never true for a full admin.
+                isServerAdmin: !!user.isServerAdmin,
                 // The categories whose current roster the caller manages (#729, categoryOrga.orgaCategoryIds with
                 // `managerOnly`): the orga of those categories - the client shows them the orga's parts there.
                 orgaCategories,

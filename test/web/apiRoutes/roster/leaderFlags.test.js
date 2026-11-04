@@ -3,9 +3,11 @@
 // übrigen, eine Kategorie-Orga einer fremden Kategorie bekommt 403, ein Roster eines anderen Servers
 // gibt 404, und Orga oder Admin sein macht niemanden zum Leader.
 let mockUser = null;
+let mockRoleUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),
+    getUserWithoutRank: jest.fn(() => mockRoleUser),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
@@ -204,6 +206,45 @@ describe("PUT /api/leads (Orga für andere)", () => {
         const r = await put("/api/leads", { event: own.id, userId: "m2", instances: ["kara"] });
         expect(status(r)).toBe(403);
         expect(leaderFlagsStore.allLeads()).toEqual({});
+    });
+
+    // Die Flags gelten je Konto und Version auf jedem Server (setupInput): der Rang allein setzt keine.
+    describe("mit dem Server-Admin-Rang (#1072)", () => {
+        const rank = (id) => ({ id, name: "Rang", isAdmin: false, isOrga: true, isServerAdmin: true, access: { ...emptyAccess(), raids: { read: true, write: true }, signup: { read: true, write: true } } });
+
+        it("gibt 403, wenn nur der Rang das Recht gibt, über den Raid und das Roster", async () => {
+            mockUser = rank("ohne");
+            mockRoleUser = { id: "ohne", isAdmin: false, access: emptyAccess() };
+            for (const payload of [{ event: own.id, userId: "m2", instances: ["kara"] }, { rosterId: "r1", userId: "m1", instances: ["kara"] }]) {
+                const r = await put("/api/leads", payload);
+                expect(status(r)).toBe(403);
+                expect(code(r)).toBe("forbidden");
+            }
+            expect(leaderFlagsStore.allLeads()).toEqual({});
+        });
+
+        it("gibt 403, wenn die Rolle das Recht ohne Orga-Rang gibt", async () => {
+            mockUser = rank("bereich");
+            mockRoleUser = { id: "bereich", isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true } } };
+            expect(status(await put("/api/leads", { event: own.id, userId: "m2", instances: ["kara"] }))).toBe(403);
+            expect(leaderFlagsStore.allLeads()).toEqual({});
+        });
+
+        it("lässt eine Orga-Rolle mit Schreibrecht durch", async () => {
+            mockUser = rank("orga");
+            mockRoleUser = { ...ORGA };
+            expect(status(await put("/api/leads", { event: own.id, userId: "m2", instances: ["kara"] }))).toBe(200);
+            expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
+        });
+
+        it("lässt den Manager seiner Kategorie durch, aber nur dort", async () => {
+            mockUser = rank("mgr");
+            mockRoleUser = { ...MANAGER };
+            expect(status(await put("/api/leads", { rosterId: "r1", userId: "m2", instances: ["kara"] }))).toBe(200);
+            expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
+            expect(status(await put("/api/leads", { event: foreign.id, userId: "s1", instances: ["kara"] }))).toBe(403);
+            expect(userCanLead("s1", "tbc", ["kara"])).toBe(false);
+        });
     });
 
     it("nur für Konten, die zum Raid oder Roster gehören", async () => {

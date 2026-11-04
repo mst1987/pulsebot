@@ -60,6 +60,16 @@ describe("viewAs", () => {
         expect(withUnion.allAccess.settings).toEqual({ read: false, write: false });
     });
 
+    // #1072: a view shows what the role gets; the rank belongs to the person
+    it("drops the server-admin rank from a view, the session keeps it", () => {
+        const now = Date.now();
+        const session = { id: "u1", isAdmin: true, isServerAdmin: true, access: fullAccess(), viewAs: { roleIds: [RAIDER], at: now } };
+        const user = effectiveUser(session, config, [], now);
+        expect(user.isServerAdmin).toBeUndefined();
+        expect(user.access.settings).toEqual({ read: false, write: false });
+        expect(session.isServerAdmin).toBe(true);
+    });
+
     it("ends after MAX_AGE_MS", () => {
         const now = 10 * MAX_AGE_MS;
         expect(viewAsActive({ roleIds: [], at: now - 1000 }, now)).toBe(true);

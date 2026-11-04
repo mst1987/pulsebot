@@ -302,8 +302,9 @@ function hintsFor({ now, config, entries, categoryNames, signups: lookup, versio
  * @param {object} opts { weeks, categoryId, versionId, guildId, now, config, withReasons, names: { userId: name }, categoryNames: { id: name } }
  *   `versionId`: only raids of this game version (#740); the main version when none is named
  *   `guildId`: only raids and entries of this server (the web's active one); none = every server
+ *   `showEntry`: which entries the caller may see (#1072: the server-admin rank alone sees fewer); none = all
  */
-function buildOverview({ weeks = 8, categoryId = "", versionId = "", guildId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, eventUrl = () => "" } = {}) {
+function buildOverview({ weeks = 8, categoryId = "", versionId = "", guildId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, eventUrl = () => "", showEntry = () => true } = {}) {
     const cfg = config || settingsStore.getConfig();
     const version = versionFor(versionId, cfg);
     const span = Math.max(1, Math.min(MAX_WEEKS, Number(weeks) || 8));
@@ -320,6 +321,7 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", guildId = "
     const entries = store.listEntries()
         .filter((e) => e.to >= from && e.from <= to)
         .filter((e) => entryOnServer(e, guildId))
+        .filter(showEntry)
         .filter((e) => entryInFilter(e, { picked, inPick, inCategory, serverCategories }));
     // every category of the weeks stays offered (and keeps its colour) while the view shows only the picked ones
     const allRaids = raidsBetween(from, to, { config: cfg, versionId: version, guildId });
@@ -417,13 +419,14 @@ function buildOverview({ weeks = 8, categoryId = "", versionId = "", guildId = "
  * and, with `guildId`, of one server - the entries then those that concern it (entryOnServer).
  * Each entry carries its readable `scope` and its `characters` (availabilityScope.scopeView /
  * charactersView), named by `servers` (guildId -> name) and `categoryNames` (id -> name).
+ * `showEntry`: which entries the caller may see (see buildOverview).
  */
-function raiderDetail(userId, { versionId = "", guildId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, servers = {} } = {}) {
+function raiderDetail(userId, { versionId = "", guildId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, servers = {}, showEntry = () => true } = {}) {
     const uid = str(userId);
     const cfg = config || settingsStore.getConfig();
     const version = versionFor(versionId, cfg);
     const cats = activeCategories(cfg);
-    const entries = store.listEntries({ userId: uid }).filter((e) => entryOnServer(e, guildId)).map((e) => {
+    const entries = store.listEntries({ userId: uid }).filter((e) => entryOnServer(e, guildId)).filter(showEntry).map((e) => {
         const applied = Object.values(e.applied || {});
         return { ...periodView(e, { withReasons, categoryNames, now }), done: applied.filter((a) => a && a.ok).length, character: e.character, spec: e.spec,
             scope: scopeView(e, { servers, categories: categoryNames }), characters: charactersView(e) };

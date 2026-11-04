@@ -11,7 +11,10 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 let mockClient = null;
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
-const { serverFromQuery, mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
+jest.mock("../../../src/web/http/auth", () => ({ getUserWithoutRank: jest.fn(() => null) }));
+
+const { getUserWithoutRank } = require("../../../src/web/http/auth");
+const { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
 const admin = { id: "1", isAdmin: true };
@@ -88,6 +91,40 @@ describe("mayUseServer", () => {
         mockActive = "";
         expect(mayUseServer(orga, req, "")).toBe(false);
         expect(mayUseServer(null, req, "900000000000000002")).toBe(false);
+    });
+});
+
+describe("onlyByRank (#1072)", () => {
+    const rank = { id: "9", isAdmin: false, isServerAdmin: true };
+    const roles = { id: "9", isAdmin: false };
+
+    beforeEach(() => {
+        getUserWithoutRank.mockClear();
+        getUserWithoutRank.mockReturnValue(roles);
+    });
+
+    it("never holds for somebody without the rank, and does not look at the roles", () => {
+        const rolesMay = jest.fn(() => false);
+        expect(onlyByRank(orga, req, rolesMay)).toBe(false);
+        expect(onlyByRank(admin, req, rolesMay)).toBe(false);
+        expect(onlyByRank(null, req, rolesMay)).toBe(false);
+        expect(getUserWithoutRank).not.toHaveBeenCalled();
+        expect(rolesMay).not.toHaveBeenCalled();
+    });
+
+    it("holds for the rank unless the rights without it allow the same", () => {
+        expect(onlyByRank(rank, req, () => false)).toBe(true);
+        expect(onlyByRank(rank, req, () => true)).toBe(false);
+        expect(getUserWithoutRank).toHaveBeenCalledWith(req);
+    });
+
+    it("hands the rights without the rank to the check, null when nothing is known of them", () => {
+        const rolesMay = jest.fn(() => false);
+        onlyByRank(rank, req, rolesMay);
+        expect(rolesMay).toHaveBeenCalledWith(roles);
+        getUserWithoutRank.mockReturnValue(null);
+        onlyByRank(rank, req, rolesMay);
+        expect(rolesMay).toHaveBeenLastCalledWith(null);
     });
 });
 

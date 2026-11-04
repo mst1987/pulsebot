@@ -350,7 +350,7 @@ const postCalendarToken = withUser({ csrf: true, body: true }, async ({ user, bo
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/roster/character-claims", handler: getCharacterClaims, area: "roster" },
+    { method: "GET", path: "/api/roster/character-claims", handler: getCharacterClaims, area: "roster", sharedData: true },
     { method: "GET", path: "/api/profile", handler: getProfile, area: "signup", scope: "all" },
     { method: "PUT", path: "/api/profile", handler: putProfile, area: "signup", scope: "all" },
     { method: "GET", path: "/api/profile/log-characters", handler: getLogCharacters, area: "signup", scope: "all" },
@@ -360,7 +360,7 @@ const routes = [
     { method: "GET", path: "/api/profile/raiders", handler: getRaiderSearch, area: "signup", scope: "all" },
     { method: "GET", path: "/api/profile/raiding", handler: getProfileRaiding, area: "signup", scope: "all" },
     { method: "GET", path: "/api/profile/item-search", handler: getItemSearch, area: "signup", scope: "all" },
-    { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster" },
+    { method: "GET", path: "/api/profile/user", handler: getUserProfile, area: "roster", sharedData: true },
 ];
 
 module.exports = {

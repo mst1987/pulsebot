@@ -34,6 +34,8 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     resolveUserNames: jest.fn(async () => ({ u1: "Bananajoe#discord" })),
     getClient: () => ({ channels: { cache: mockChannels } }),
 }));
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
+const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g" }));
 jest.mock("../../../../src/services/signups/absenceOverview", () => ({
     buildOverview: jest.fn(() => ({ from: "2030-03-18", raiders: [{ userId: "u1", name: "u1" }], hints: [{ userId: "u2", name: "u2" }], raids: [], tiles: {} })),
@@ -530,6 +532,164 @@ describe("Meine Anwesenheit", () => {
         expect(json(res).data).toMatchObject({ userId: "u1", name: "Bananajoe#discord", own: false, orga: true });
         // the orga sees the night as set ("left early"), not neutralised
         expect(raiderAttendance).toHaveBeenLastCalledWith("u1", expect.objectContaining({ neutral: false }));
+    });
+});
+
+// #1072: profiles and attendance are global. The server-admin rank alone reaches the members of its server, on its server.
+describe("the server-admin rank alone", () => {
+    const access = { signup: { read: true, write: true }, raids: { read: true, write: true } };
+    const RANK = { id: "200000000000000020", name: "Rang", isAdmin: false, isOrga: true, isServerAdmin: true, access };
+    const NO_ROLES = { ...RANK, isOrga: false, isServerAdmin: false, access: {} };
+    const MEMBER = "200000000000000030";
+    const STRANGER = "200000000000000031";
+    let withoutRank;
+
+    beforeEach(() => {
+        withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue(NO_ROLES);
+        serverMemberIds.mockResolvedValue(new Set([MEMBER]));
+        raiderAttendance.mockReturnValueOnce({ userId: MEMBER, categories: [{ id: "cat1", raids: [], upcoming: [] }, { id: "catA", raids: [], upcoming: [] }] });
+    });
+    afterEach(() => {
+        withoutRank.mockRestore();
+        raiderAttendance.mockReset();
+        raiderAttendance.mockImplementation((userId) => ({ userId, categories: [{ id: "cat1", pct: 80, raids: [], upcoming: [] }] }));
+    });
+
+    it("refuses an account who is no member of the active server, also when the member list is unknown", async () => {
+        for (const [method, path, opts] of [
+            ["GET", "/api/availability", { query: `userId=${STRANGER}` }],
+            ["GET", "/api/availability/attendance", { query: `userId=${STRANGER}` }],
+            ["POST", "/api/availability/preview", { json: { userId: STRANGER, from: "2030-03-20", scope: [{ guildId: "g" }] } }],
+            ["POST", "/api/availability", { json: { userId: STRANGER, from: "2030-03-20", scope: [{ guildId: "g" }] } }],
+        ]) {
+            const res = await call(method, path, RANK, opts);
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+        }
+        expect(availability.createEntry).not.toHaveBeenCalled();
+        serverMemberIds.mockResolvedValue(null);
+        expect(status(await call("GET", "/api/availability", RANK, { query: `userId=${MEMBER}` }))).toBe(403);
+    });
+
+    it("shows a member's characters and only the attendance of its own server", async () => {
+        expect(status(await call("GET", "/api/availability", RANK, { query: `userId=${MEMBER}` }))).toBe(200);
+        const res = await call("GET", "/api/availability/attendance", RANK, { query: `userId=${MEMBER}` });
+        expect(status(res)).toBe(200);
+        expect(json(res).data.categories.map((c) => c.id)).toEqual(["cat1"]);
+    });
+
+    it("previews a member only on its own server", async () => {
+        const body = (guildId) => ({ json: { userId: MEMBER, from: "2030-03-20", scope: [{ guildId }] } });
+        expect(status(await call("POST", "/api/availability/preview", RANK, body("g")))).toBe(200);
+        expect(status(await call("POST", "/api/availability/preview", RANK, body("A")))).toBe(403);
+    });
+
+    it("leaves the own view of the rank holder alone", async () => {
+        raiderAttendance.mockReset();
+        raiderAttendance.mockReturnValue({ userId: RANK.id, categories: [{ id: "cat1", raids: [], upcoming: [] }, { id: "catA", raids: [], upcoming: [] }] });
+        expect(status(await call("GET", "/api/availability", RANK))).toBe(200);
+        const res = await call("GET", "/api/availability/attendance", RANK);
+        expect(json(res).data.categories.map((c) => c.id)).toEqual(["cat1", "catA"]);
+        expect(serverMemberIds).not.toHaveBeenCalled();
+    });
+
+    it("leaves somebody who holds the right by a role next to the rank, and a full admin, as they were", async () => {
+        withoutRank.mockReturnValue({ ...NO_ROLES, access });
+        const res = await call("GET", "/api/availability/attendance", RANK, { query: `userId=${STRANGER}` });
+        expect(status(res)).toBe(200);
+        expect(json(res).data.categories.map((c) => c.id)).toEqual(["cat1", "catA"]);
+        const preview = { json: { userId: STRANGER, from: "2030-03-20", scope: [{ guildId: "A" }] } };
+        expect(status(await call("POST", "/api/availability/preview", RANK, preview))).toBe(200);
+        const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+        expect(status(await call("GET", "/api/availability", ADMIN, { query: `userId=${STRANGER}` }))).toBe(200);
+        expect(serverMemberIds).not.toHaveBeenCalled();
+    });
+
+    describe("one raider in the orga's overview", () => {
+        const PATH = "/api/availability/overview/raider";
+
+        it("refuses an account of no member, also when the member list is unknown", async () => {
+            const res = await call("GET", PATH, RANK, { query: `userId=${STRANGER}` });
+            expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+            serverMemberIds.mockResolvedValue(null);
+            expect(status(await call("GET", PATH, RANK, { query: `userId=${MEMBER}` }))).toBe(403);
+            expect(absenceOverview.raiderDetail).not.toHaveBeenCalled();
+        });
+
+        it("shows a member and the rank holder itself", async () => {
+            expect(status(await call("GET", PATH, RANK, { query: `userId=${MEMBER}` }))).toBe(200);
+            expect(serverMemberIds).toHaveBeenCalledTimes(1);
+            expect(status(await call("GET", PATH, RANK, { query: `userId=${RANK.id}` }))).toBe(200);
+            expect(serverMemberIds).toHaveBeenCalledTimes(1);
+        });
+
+        it("leaves an orga role, even without raids write, and a full admin as on main", async () => {
+            withoutRank.mockReturnValue({ ...NO_ROLES, isOrga: true });
+            expect(status(await call("GET", PATH, RANK, { query: `userId=${STRANGER}` }))).toBe(200);
+            expect(absenceOverview.raiderDetail.mock.lastCall[1]).not.toHaveProperty("showEntry");
+            const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+            expect(status(await call("GET", PATH, ADMIN, { query: `userId=${STRANGER}` }))).toBe(200);
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("an entry without a scope concerns every server", () => {
+        const older = (over = {}) => entry({ userId: MEMBER, createdBy: MEMBER, ...over });
+        const SCOPED = { id: "e2", scope: [{ guildId: "g", categoryIds: [] }] };
+        const stored = () => {
+            const added = store.addEntry({ userId: MEMBER, kind: "absence", from: "2030-03-20", to: "2030-03-25", createdBy: MEMBER });
+            return (added.entry || added).id;
+        };
+
+        it("is neither changed nor removed nor previewed by the rank", async () => {
+            const id = stored();
+            expect(status(await call("PUT", "/api/availability", RANK, { json: { id, from: "2030-03-21", scope: [{ guildId: "g" }] } }))).toBe(404);
+            expect(status(await call("DELETE", "/api/availability", RANK, { json: { id } }))).toBe(404);
+            expect(status(await call("POST", "/api/availability/preview", RANK, { json: { id, userId: MEMBER, from: "2030-03-20", scope: [{ guildId: "g" }] } }))).toBe(404);
+            expect(availability.changeEntry).not.toHaveBeenCalled();
+            expect(availability.deleteEntry).not.toHaveBeenCalled();
+        });
+
+        it("stays with an orga by role and with its owner", async () => {
+            const id = stored();
+            availability.deleteEntry.mockReturnValue({ entry: { id } });
+            withoutRank.mockReturnValue({ ...NO_ROLES, access });
+            expect(status(await call("DELETE", "/api/availability", RANK, { json: { id } }))).toBe(200);
+            expect(status(await call("POST", "/api/availability/preview", RANK, { json: { id, userId: MEMBER, from: "2030-03-20", scope: [{ guildId: "g" }] } }))).toBe(200);
+            withoutRank.mockReturnValue(NO_ROLES);
+            expect(status(await call("DELETE", "/api/availability", { ...ANNA, id: MEMBER }, { json: { id } }))).toBe(200);
+            expect(status(await call("DELETE", "/api/availability", ORGA, { json: { id } }))).toBe(200);
+        });
+
+        it("is left out of the dialog's list for the rank, not for a role or the owner", async () => {
+            availability.activeEntries.mockReturnValue([older(), entry({ userId: MEMBER, createdBy: MEMBER, ...SCOPED })]);
+            const ids = async (user, query) => json(await call("GET", "/api/availability", user, { query })).data.entries.map((e) => e.id);
+            expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(["e2"]);
+            withoutRank.mockReturnValue({ ...NO_ROLES, access });
+            expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(["e1", "e2"]);
+            withoutRank.mockReturnValue(NO_ROLES);
+            expect(await ids({ ...ANNA, id: MEMBER }, "")).toEqual(["e1", "e2"]);
+            expect(await ids(ORGA, `userId=${MEMBER}`)).toEqual(["e1", "e2"]);
+        });
+
+        it("is left out of the overviews for the rank, its own stay", async () => {
+            await call("GET", "/api/availability/overview", RANK);
+            await call("GET", "/api/availability/overview/raider", RANK, { query: `userId=${MEMBER}` });
+            for (const { showEntry } of [absenceOverview.buildOverview.mock.lastCall[0], absenceOverview.raiderDetail.mock.lastCall[1]]) {
+                expect(showEntry(older())).toBe(false);
+                expect(showEntry(entry({ userId: MEMBER, ...SCOPED }))).toBe(true);
+                expect(showEntry(entry({ userId: RANK.id }))).toBe(true);
+            }
+        });
+
+        it("adds no filter to the overviews of a role, a full admin or an orga without the rank", async () => {
+            const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+            withoutRank.mockReturnValue({ ...NO_ROLES, isOrga: true });
+            for (const user of [RANK, ADMIN, ORGA]) {
+                await call("GET", "/api/availability/overview", user);
+                expect(absenceOverview.buildOverview.mock.lastCall[0]).not.toHaveProperty("showEntry");
+            }
+        });
     });
 });
 
