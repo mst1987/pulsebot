@@ -27,6 +27,7 @@ const { approvedSetupOf } = require("../../services/setup/setupCore");
 const { canWriteSetup } = require("../setup/setupAccess");
 const { pugPageViewer } = require("../../services/signups/pugMembership");
 const { versionInfo } = require("./version");
+const { sessionCookie, clearedSessionCookie } = require("./sessionCookie");
 const { runMode } = require("../../config/runMode");
 const auth = require("./auth");
 const { userHasMenuAccess } = require("../../config/permissions");
@@ -138,7 +139,7 @@ async function authCallback({ res, url }) {
     if (state) states.delete(state);
     try {
         const sid = await auth.completeLogin(code);
-        return redirect(res, pending && pending.next ? pending.next : "/", { "Set-Cookie": `sid=${sid}; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800` });
+        return redirect(res, pending && pending.next ? pending.next : "/", { "Set-Cookie": sessionCookie(sid) });
     } catch (e) {
         const detail = e.response && e.response.data ? JSON.stringify(e.response.data) : e.message;
         console.error("OAuth callback failed:", detail);
@@ -148,7 +149,7 @@ async function authCallback({ res, url }) {
 
 function authLogout({ req, res }) {
     auth.destroy(auth.parseCookies(req).sid);
-    return redirect(res, "/", { "Set-Cookie": "sid=; HttpOnly; Path=/; Max-Age=0" });
+    return redirect(res, "/", { "Set-Cookie": clearedSessionCookie() });
 }
 
 // Admins only.
