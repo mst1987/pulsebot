@@ -100,7 +100,7 @@ const { ownEvent } = require("../factories/events");
 const isHeadLine = (line, title) => line.startsWith("🗓️")
     || line === `## ${title}`
     || /^<t:\d+:f> <t:\d+:R>$/.test(line)
-    || /^\d+ \/ \d+ (signed up|angemeldet)$/.test(line);
+    || /^(\d+ \/ )?\d+ (signed up|angemeldet)$/.test(line);
 
 function answerOf(payload) {
     const p = payload || {};

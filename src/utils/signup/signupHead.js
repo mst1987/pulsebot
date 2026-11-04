@@ -11,6 +11,8 @@ const { tr } = require("../i18n/botText");
 const { nameFromSignups, plainName } = require("../discord/mentionName");
 const { lookOf, messageLookOf } = require("../../services/events/embedLook");
 const { raidPicture } = require("../../services/events/overview/raidOverviewPanel");
+const { groupPlaces } = require("../../services/events/raidGroup");
+const { allowedStatuses } = require("../../services/signups/signupService");
 const { getConfig } = require("../../stores/settings/settingsStore");
 const { listSignups } = require("../../stores/events/signupStore");
 
@@ -22,24 +24,27 @@ function signupWhen(event) {
 
 /**
  * The picture of a step: as raidPicture (the event's own, else the zone art of its instances), but a category that
- * switched the raid picture off (`raidArt`, Einstellungen › Kategorien) keeps only the event's own. "" when there is none.
+ * switched the raid picture off (`raidArt`, Einstellungen › Kategorien) keeps only the event's own. "" when there is none,
+ * and "" for an address Discord would refuse (only https, no spaces, as card.addImage): a refused picture would block every
+ * step of this event, without it the head is plain text.
  */
 function signupPicture(event) {
     if (!event) return "";
-    if (messageLookOf(getConfig(), event.categoryId).raidArt) return raidPicture(event);
-    return lookOf(event).url || "";
+    const showsArt = messageLookOf(getConfig(), event.categoryId).raidArt;
+    const url = String((showsArt ? raidPicture(event) : lookOf(event).url) || "").trim();
+    return /^https:\/\/\S+$/i.test(url) ? url : "";
 }
 
 /**
- * "12 / 20 signed up", without a size "12 signed up"; "" without a size and without signups. "20 / 20 full" only for a raid
- * with a real limit: without one (`overflow` "none", the default since #516) signups go on and the setup picks who plays.
+ * With a real limit (`overflow` "waitlist"/"refuse") "12 / 20 signed up" and "20 / 20 full", measured against all places of a
+ * raid group as the service does (raidGroup.groupPlaces). Without one (`overflow` "none", the default since #516) only the
+ * count, "12 signed up" (#520): signups go on and the setup picks who plays. "" when that count is zero.
  */
 function signupFill(event, lang, signups = listSignups(event.id)) {
     const count = accountCount(signups);
-    const size = Number(event.size) || 0;
-    if (!size) return count ? tr(lang, "{count} signed up", { count }) : "";
-    const full = count >= size && normalizeOverflow(event.overflow) !== "none";
-    return tr(lang, full ? "{count} / {size} full" : "{count} / {size} signed up", { count, size });
+    const size = groupPlaces(event);
+    if (!size || normalizeOverflow(event.overflow) === "none") return count ? tr(lang, "{count} signed up", { count }) : "";
+    return tr(lang, count >= size ? "{count} / {size} full" : "{count} / {size} signed up", { count, size });
 }
 
 /** The name the lead signed up with. A lead without a signup stays out: a silent `<@id>` can read "@unknown-user". */
@@ -55,10 +60,12 @@ function deadlineFact(event, lang, now) {
     return { name: tr(lang, "Signup deadline"), value: `<t:${deadline}:f>` };
 }
 
-/** The line of a full raid whose new signups go to the waiting list; "" otherwise. */
-function waitlistLine(event, lang, signups) {
-    const size = Number(event.size) || 0;
+/** The line of a full raid whose new signups go to the waiting list, while one can still sign up at all; "" otherwise. */
+function waitlistLine(event, lang, signups, now) {
+    const size = groupPlaces(event);
     if (!size || normalizeOverflow(event.overflow) !== "waitlist" || accountCount(signups) < size) return "";
+    const allowed = allowedStatuses(event, { now });
+    if (!allowed.includes("signed") && !allowed.includes("late")) return "";
     return tr(lang, "The raid is full – new signups go to the waiting list.");
 }
 
@@ -80,7 +87,7 @@ function stepCard(event, { lang = "de", now = Date.now(), detail = false, above 
         thumbnail: signupPicture(event),
         facts: facts.filter(Boolean),
         parts: [
-            detail ? waitlistLine(event, lang, signups) : "",
+            detail ? waitlistLine(event, lang, signups, now) : "",
             ...above,
             "---",
             lines.filter(Boolean).join("\n").trim(),

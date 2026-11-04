@@ -78,7 +78,7 @@ describe("utils/signup/signupReply", () => {
 });
 
 describe("signupButtons.savedEmbed", () => {
-    const event = ownEvent({ color: "#112233" });
+    const event = ownEvent({ color: "#112233", overflow: "waitlist" });
     const signup = {
         status: "signed",
         characters: [

@@ -43,6 +43,12 @@ const textBesidePicture = (payload) => {
     return section ? section.components.map((c) => c.content).join("\n") : "";
 };
 const setEvent = (over = {}) => mocks.events.set("eh-kara", mocks.ownEvent(over));
+/** Two raids of 25 on one evening; the signups stay on the first (docs/setup.md "Raid-Gruppe"). */
+const raidGroup = (over = {}) => {
+    const group = { size: 25, guildId: "g1", raidGroupId: "eh-kara", ...over };
+    mocks.events.set("eh-kara-2", mocks.ownEvent({ id: "eh-kara-2", raidGroupIndex: 2, ...group }));
+    return setEvent({ raidGroupIndex: 1, ...group }).get("eh-kara");
+};
 const addSignups = (n, extra = {}) => {
     for (let i = 0; i < n; i += 1) {
         mocks.signups.set(`eh-kara/f${i}`, { userId: `f${i}`, character: `F${i}`, spec: "Mage-Fire", role: "ranged", status: "signed", characters: [], canAlso: [], comment: "", at: 1, ...extra });
@@ -109,27 +115,60 @@ describe("signupPicture", () => {
         expect(signupPicture(null)).toBe("");
         expect(signupPicture(mocks.ownEvent({ title: "Stammtisch", instanceIds: [] }))).toBe("");
     });
+
+    it("drops an address Discord would refuse, with the raid picture on and off", () => {
+        const url = "https://x.y/a b.png";
+        mocks.access.config.categoryMessageLook = { cat: { raidArt: false } };
+        expect(signupPicture(mocks.ownEvent({ image: { url } }))).toBe("");
+        expect(signupPicture(mocks.ownEvent({ categoryId: "cat", image: { url } }))).toBe("");
+    });
+
+    it("an address without https already falls back to the zone art (embedLook)", () => {
+        expect(signupPicture(mocks.ownEvent({ image: { url: "http://x.y/a.png" } }))).toBe(ZONE);
+    });
 });
 
 describe("signupFill", () => {
-    it("counts accounts against the size", () => {
+    it("counts accounts against the size of a raid with a real limit", () => {
         addSignups(3);
-        expect(signupFill(mocks.ownEvent({ size: 10 }), "en")).toBe("3 / 10 signed up");
-        expect(signupFill(mocks.ownEvent({ size: 10 }), "de")).toBe("3 / 10 angemeldet");
+        for (const overflow of ["waitlist", "refuse"]) {
+            expect(signupFill(mocks.ownEvent({ size: 10, overflow }), "en")).toBe("3 / 10 signed up");
+            expect(signupFill(mocks.ownEvent({ size: 10, overflow }), "de")).toBe("3 / 10 angemeldet");
+        }
     });
 
-    it("without a size shows the count alone, without signups nothing", () => {
-        expect(signupFill(mocks.ownEvent({ size: 0 }), "en")).toBe("");
+    it("without a real limit shows the count alone, without signups nothing", () => {
+        expect(signupFill(mocks.ownEvent({ size: 10 }), "en")).toBe("");
+        addSignups(3);
+        expect(signupFill(mocks.ownEvent({ size: 10 }), "en")).toBe("3 signed up");
+        expect(signupFill(mocks.ownEvent({ size: 10, overflow: "none" }), "de")).toBe("3 angemeldet");
+        // a legacy value reads as no limit (#516)
+        expect(signupFill(mocks.ownEvent({ size: 10, overflow: "bench" }), "en")).toBe("3 signed up");
+    });
+
+    it("without a size shows the count alone, whatever the mode", () => {
+        expect(signupFill(mocks.ownEvent({ size: 0, overflow: "waitlist" }), "en")).toBe("");
         addSignups(2);
         expect(signupFill(mocks.ownEvent({ size: 0 }), "en")).toBe("2 signed up");
+        expect(signupFill(mocks.ownEvent({ size: 0, overflow: "waitlist" }), "en")).toBe("2 signed up");
     });
 
     it("says full only with a real limit", () => {
         addSignups(2);
-        expect(signupFill(mocks.ownEvent({ size: 2 }), "en")).toBe("2 / 2 signed up");
-        expect(signupFill(mocks.ownEvent({ size: 2, overflow: "none" }), "en")).toBe("2 / 2 signed up");
+        expect(signupFill(mocks.ownEvent({ size: 2 }), "en")).toBe("2 signed up");
+        expect(signupFill(mocks.ownEvent({ size: 2, overflow: "none" }), "en")).toBe("2 signed up");
         expect(signupFill(mocks.ownEvent({ size: 2, overflow: "waitlist" }), "en")).toBe("2 / 2 full");
         expect(signupFill(mocks.ownEvent({ size: 2, overflow: "refuse" }), "en")).toBe("2 / 2 full");
+        expect(signupFill(mocks.ownEvent({ size: 2, overflow: "refuse" }), "de")).toBe("2 / 2 voll");
+    });
+
+    it("measures a raid group against all its places, as the service does", () => {
+        const group = raidGroup({ overflow: "waitlist" });
+        addSignups(30);
+        expect(signupFill(group, "en")).toBe("30 / 50 signed up");
+        mocks.signups.clear();
+        addSignups(50);
+        expect(signupFill(group, "en")).toBe("50 / 50 full");
     });
 });
 
@@ -166,7 +205,8 @@ describe("stepCard", () => {
         const text = cardText(stepCard(event, { lang: "en", detail: true }));
         expect(text).toContain("Lead");
         expect(text).toContain("Nerathil");
-        expect(text).toContain("1 / 10 signed up");
+        expect(text).toContain("1 signed up");
+        expect(text).not.toContain("1 / 10");
         expect(text).toContain("Signup deadline");
         expect(text).toContain(`<t:${deadline}:f>`);
     });
@@ -200,6 +240,54 @@ describe("stepCard", () => {
         expect(of({ overflow: "none" })).not.toContain(line);
         expect(of({ overflow: "refuse" })).not.toContain(line);
         expect(of({ overflow: "waitlist", size: 3 })).not.toContain(line);
+    });
+
+    it("keeps quiet about the waiting list once nobody can sign up any more", () => {
+        const line = "The raid is full – new signups go to the waiting list.";
+        addSignups(2);
+        const of = (over) => cardText(stepCard(mocks.ownEvent({ size: 2, overflow: "waitlist", ...over }), { lang: "en", detail: true }));
+        expect(of({ signupsClosed: true })).not.toContain(line);
+        expect(of({ startTime: sec() - 60 })).not.toContain(line);
+        expect(of({ status: "cancelled" })).not.toContain(line);
+        // past the deadline one can still sign up late, and that goes to the waiting list too
+        expect(of({ signupDeadline: sec() - 60 })).toContain(line);
+    });
+
+    it("takes the moment it is built for, not the clock", () => {
+        const line = "The raid is full – new signups go to the waiting list.";
+        addSignups(2);
+        const event = mocks.ownEvent({ size: 2, overflow: "waitlist" });
+        const after = (Number(event.startTime) + 60) * 1000;
+        expect(cardText(stepCard(event, { lang: "en", detail: true }))).toContain(line);
+        expect(cardText(stepCard(event, { lang: "en", detail: true, now: after }))).not.toContain(line);
+    });
+
+    it("a raid group is not full at the size of one raid: no full mark, no waiting list", () => {
+        const group = raidGroup({ overflow: "waitlist" });
+        addSignups(30);
+        const text = cardText(stepCard(group, { lang: "en", detail: true }));
+        expect(text).toContain("30 / 50 signed up");
+        expect(text).not.toContain("full");
+        mocks.signups.clear();
+        addSignups(50);
+        expect(cardText(stepCard(group, { lang: "en", detail: true }))).toContain("The raid is full – new signups go to the waiting list.");
+    });
+
+    it("a picture Discord would refuse leaves the step without a thumbnail, not without an answer", () => {
+        twoCharacters();
+        const event = mocks.ownEvent({ image: { url: "https://x.y/a b.png" } });
+        for (const payload of [
+            stepCard(event, { lang: "en", lines: ["Which character?"] }),
+            buildSignupDialog(event, ANNA, { lang: "en" }),
+            buildJoinPicker(event, ANNA, "signed", { lang: "en" }),
+        ]) {
+            expectCard(payload);
+            expect(nodes(payload).some((n) => n.type === 11)).toBe(false);
+            expect(JSON.stringify(payload)).not.toContain("a b.png");
+            expect(cardText(payload)).toContain("Karazhan");
+        }
+        const saved = savedEmbed(event, { userId: ANNA, status: "signed", characters: [{ character: "Nerathil", spec: "Mage-Arcane", status: "signed" }] }, profiles.getProfile(ANNA), { lang: "en" });
+        expect(saved.thumbnail).toBeUndefined();
     });
 
     it("translates the labels", () => {

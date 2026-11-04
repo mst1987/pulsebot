@@ -28,8 +28,8 @@ const { asEphemeral } = require("../../utils/discord/card");
 //   * otherwise the character select with Anmelden / Kann auch … / Kommentar.
 // Deadline, start, raider roles and the profile rules are the service's; the
 // select on the message already offers only what is still allowed.
-// A text answer (`{ content }`) and the save confirmation (`{ embed }`) go out as an
-// embed in the raid's colour (#508, utils/signup/signupReply.js); a picker as it is.
+// A text answer (`{ content }`) and the save confirmation (`{ embed }`) go out as a
+// card in the raid's colour (#508, utils/signup/signupReply.js); a picker as it is.
 // Everything is in the member's language (langOfInteraction).
 const reply = (interaction, payload, event = null) => {
     if (payload.embed) return interaction.reply(answerPayload(payload.embed));
