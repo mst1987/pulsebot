@@ -57,6 +57,8 @@
     "/api/settings/raidhelper-history-import": "settings",
     "/api/settings/raidhelper-sync": "settings",
     "/api/settings/wcl-guilds/fetch": "settings",
+    "/api/settings/twitch": "settings",
+    "/api/settings/twitch/check": "settings",
     "/api/raider-characters": "settings",
     "/api/roster": "roster",
     "/api/roster/hide": "roster",

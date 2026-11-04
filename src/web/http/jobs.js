@@ -19,6 +19,7 @@ const sheetCleanup = require("../../utils/setup/sheetCleanup");
 const raidhelperSync = require("../../services/events/raidhelperSync");
 const logAutoLink = require("../../services/logcheck/logAutoLink");
 const wclGuildSync = require("../../services/logcheck/wclGuildSync");
+const twitchJob = require("../../services/twitch/twitchJob");
 const eventMessage = require("../../services/events/eventMessage");
 const reminders = require("../events/reminders");
 const roleSync = require("../../services/discord/roles/roleSync");
@@ -59,6 +60,8 @@ const JOBS = [
     // Every server's Warcraft Logs guild (#922): each minute the due entries ask
     // WCL for new reports, one after another; a new one becomes a log like a posted link.
     { name: "wclGuildSync", start: () => wclGuildSync.startWclGuildSync(), stop: () => wclGuildSync.stopWclGuildSync() },
+    // Twitch stream announcements (docs/twitch.md): one poll every 2 minutes for all servers, live bot only.
+    { name: "twitchJob", start: () => twitchJob.startTwitchJob(), stop: () => twitchJob.stopTwitchJob() },
     // Keep the bot's event messages of EventHelper events current as signups change.
     { name: "eventMessageSync", start: () => eventMessage.startEventMessageSync(), stop: () => eventMessage.stopEventMessageSync() },
     // Automatic reminders per raid category and the role sync between paired

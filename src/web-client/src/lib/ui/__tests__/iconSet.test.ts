@@ -30,7 +30,7 @@ describe("icon set", () => {
         const all = [...glyphs, ...lines, ...brands];
         expect(new Set(all).size).toBe(all.length);
         for (const [name, src] of Object.entries(BRAND_ICONS)) {
-            if (!src) continue; // Discord is drawn inline
+            if (!src) continue; // Discord and Twitch are drawn inline
             expect({ name, file: existsSync(path.join(__dirname, "../../../../public", src)) }).toEqual({ name, file: true });
         }
         expect(isUiGlyph("raids") && isUiLineIcon("edit") && isBrandIcon("warcraftLogs")).toBe(true);

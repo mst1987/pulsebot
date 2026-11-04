@@ -4,7 +4,7 @@
 jest.mock("../../../../src/config/variables", () => ({ adminRoleIds: ["900000000000000009"] }));
 
 const rosterStore = require("../../../../src/stores/roster/rosterStore");
-const { privilegedReason, roleUses } = require("../../../../src/services/discord/roles/selfRole");
+const { privilegedReason, roleUses, grantingUses } = require("../../../../src/services/discord/roles/selfRole");
 
 const ROLE = "200000000000000002";
 const OTHER = "200000000000000003";
@@ -147,6 +147,42 @@ describe("selfRole roleUses", () => {
         expect(roleUses(config, ROLE)).toEqual([{ code: "pugVersion", versionIds: ["tbc", "forever"] }]);
         expect(privilegedReason(config, ROLE)).toBe("the role is a PuG version role (Rollen & Onboarding)");
         expect(roleUses({ pugRoles: { "g-1": { versions: {}, classes: { Mage: ROLE } } } }, ROLE)).toEqual([]);
+    });
+
+    it("names the ping role of a Twitch announcement with its streamers", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const config = { serverSettings: {
+            "g-1": { twitchStreamers: [{ login: "foo", roleId: ROLE }, { login: "bar", roleId: OTHER }] },
+            "g-2": { twitchStreamers: [{ login: "baz", roleId: ROLE }, { login: "foo", roleId: ROLE }] },
+            "g-3": {},
+            broken: null,
+        } };
+        expect(roleUses(config, ROLE)).toEqual([{ code: "twitchPing", logins: ["foo", "baz"] }]);
+        expect(roleUses({ serverSettings: { "g-1": { twitchStreamers: [{ login: "bar", roleId: OTHER }] } } }, ROLE)).toEqual([]);
+    });
+
+    it("lets a role that is only a Twitch ping role be self-service, the roles page still names it", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const config = { serverSettings: { "g-1": { twitchStreamers: [{ login: "foo", roleId: ROLE }] } } };
+        expect(roleUses(config, ROLE).map((u) => u.code)).toEqual(["twitchPing"]);
+        expect(grantingUses(config, ROLE)).toEqual([]);
+        expect(privilegedReason(config, ROLE)).toBe("");
+    });
+
+    it("keeps refusing a Twitch ping role that is an orga role as well", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([]);
+        const config = { serverSettings: { "g-1": { orgaRoleIds: [ROLE], twitchStreamers: [{ login: "foo", roleId: ROLE }] } } };
+        expect(roleUses(config, ROLE).map((u) => u.code)).toEqual(["orga", "twitchPing"]);
+        expect(privilegedReason(config, ROLE)).toBe("the role is an orga role");
+    });
+
+    it("keeps refusing a Twitch ping role that belongs to a roster, which comes after it in the list", () => {
+        jest.spyOn(rosterStore, "listRosters").mockReturnValue([
+            { id: "r-main", name: "Main", roleIds: [ROLE], trialRoleId: null, managers: { roleIds: [], userIds: [] } },
+        ]);
+        const config = { serverSettings: { "g-1": { twitchStreamers: [{ login: "foo", roleId: ROLE }] } } };
+        expect(roleUses(config, ROLE).map((u) => u.code)).toEqual(["twitchPing", "roster"]);
+        expect(privilegedReason(config, ROLE)).toBe("the role belongs to the roster Main");
     });
 
     it("is empty for a plain role, no id or no config", () => {

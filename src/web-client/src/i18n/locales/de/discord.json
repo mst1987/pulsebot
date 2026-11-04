@@ -157,6 +157,7 @@
             "roleSync": "Rollen-Abgleich ({servers})",
             "roleSyncAny": "Rollen-Abgleich",
             "pugVersion": "PuG-Versionsrolle",
+            "twitchPing": "Ping bei Twitch: {logins}",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "Mitglied",

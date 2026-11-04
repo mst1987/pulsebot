@@ -115,6 +115,7 @@ Bereichswissen steht in `docs/` — die passende Datei öffnen, Neues dorthin sc
 | [docs/loot-import.md](docs/loot-import.md) | Loot-Import (Gargul/RCLC), Addon-Sync und Inbox, Vergabegrund |
 | [docs/addons.md](docs/addons.md) | Addon-Downloads über GitHub-Releases: Token, Cache, Rechte, `/addons` |
 | [docs/dungeon-leaderboard.md](docs/dungeon-leaderboard.md) | Dungeon-Bestzeiten aus LevelHelper: Upload, Seite, `/bestzeiten` |
+| [docs/twitch.md](docs/twitch.md) | Twitch-Ankündigungen je Server: Job, Ping-Regel, Rechte, API, Twitch-App anlegen |
 | [docs/raidhelper-retirement.md](docs/raidhelper-retirement.md) | Umstieg von Raid-Helper: Standardquelle, Checkliste, Schalter |
 | [docs/known-issues.md](docs/known-issues.md) | Bekannte Fallstricke, die schon einmal Zeit gekostet haben |
 | [docs/testing.md](docs/testing.md) | Test-Helfer, Fabriken, `test/setup/`, Mock-Konvention, Coverage |

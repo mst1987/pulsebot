@@ -25,6 +25,8 @@ export function roleUseLabel(use: ServerRoleUse): string {
             return t("discord.roles.use.roster", { name: use.name, kinds: use.kinds.map((k) => t(`discord.roles.use.rosterKind.${k}`)).join(", ") });
         case "roleMessage":
             return t("discord.roles.use.roleMessage", { title: use.title });
+        case "twitchPing":
+            return t("discord.roles.use.twitchPing", { logins: use.logins.join(", ") });
         default:
             return t(`discord.roles.use.${use.code}`);
     }

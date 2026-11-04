@@ -157,6 +157,8 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Discord-Berechtigungen über @everyone hinaus, keine Kanal-Overwrites mit allow
     (`services/discord/roles/selfRole.js`). **Jedes neue rollenbasierte Config-Feld** (Rechte, Pings,
     Freigaben) muss auch in `selfRole.configReason` — sonst kann sich jemand die Rolle selbst holen.
+    Ausnahme: reine Twitch-Ping-Rolle (`twitchPing`) steht in `roleUses` (Rollenseite), sperrt allein aber
+    nicht (`grantingUses`); trägt sie zusätzlich eine andere Verwendung, bleibt die Sperre.
     Rollenfelder entstehen auch als **Nebenwirkung**: der Versionswechsel einer Kategorie legt mit
     `categorySwitchFixes[*].roster.roleIds` ein Roster an (`rosterVersionSwitch`) und
     `mirrorCategoryRoles` spiegelt Roster-Rollen nach `categoryRoles`. Ein Schutz auf Rollenfelder

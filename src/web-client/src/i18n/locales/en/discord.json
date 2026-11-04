@@ -157,6 +157,7 @@
             "roleSync": "Role sync ({servers})",
             "roleSyncAny": "Role sync",
             "pugVersion": "PuG version role",
+            "twitchPing": "Twitch ping: {logins}",
             "roster": "Roster {name}: {kinds}",
             "rosterKind": {
                 "member": "member",

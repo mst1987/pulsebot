@@ -494,13 +494,18 @@ export function draftChanges(saved: DraftShape, draft: DraftShape, names: Change
 
 // ---- connections: one status card and one self-saving modal each ----
 
-export type ConnectionId = "discord" | "battlenet" | "wcl" | "anthropic" | "github" | "lootsync";
+export type ConnectionId = "discord" | "battlenet" | "wcl" | "twitch" | "anthropic" | "github" | "lootsync";
 export type ConnectionState = { tone: "ok" | "mid" | "accent" | ""; label: string; missing: boolean };
 
 export type ConnectionInputs = {
     blizzard?: { clientId?: string; hasClientSecret?: boolean };
     anthropic?: { hasApiKey?: boolean };
     warcraftlogsV2?: { clientId?: string; hasClientSecret?: boolean };
+    /**
+     * inUse: a server has at least one streamer entered (whether the connection is needed at all).
+     * credentialsRejected: the last check got these credentials refused (empty after a restart).
+     */
+    twitch?: { clientId?: string; hasClientSecret?: boolean; inUse?: boolean; credentialsRejected?: boolean };
     github?: { hasToken?: boolean };
     botOnline?: boolean;
     /** null = not known (not loaded, or not a full admin). */
@@ -512,10 +517,13 @@ export function connectionState(id: ConnectionId, input: ConnectionInputs): Conn
     if (id === "discord") {
         return input.botOnline ? { tone: "ok", label: t("settings.state.connected"), missing: false } : { tone: "mid", label: t("settings.state.botOffline"), missing: false };
     }
-    if (id === "battlenet" || id === "wcl") {
-        const block = id === "battlenet" ? input.blizzard : input.warcraftlogsV2;
+    if (id === "battlenet" || id === "wcl" || id === "twitch") {
+        const block = id === "battlenet" ? input.blizzard : id === "wcl" ? input.warcraftlogsV2 : input.twitch;
         const hasId = !!(block && String(block.clientId || "").trim());
         const hasSecret = !!(block && block.hasClientSecret);
+        if (hasId && hasSecret && id === "twitch" && input.twitch?.credentialsRejected) {
+            return { tone: "mid", label: t("settings.state.credentialsRejected"), missing: true };
+        }
         if (hasId && hasSecret) return { tone: "ok", label: t("settings.state.connected"), missing: false };
         if (hasId || hasSecret) return { tone: "mid", label: t(hasId ? "settings.state.secretMissing" : "settings.state.clientIdMissing"), missing: true };
         return { tone: "mid", label: t("settings.state.notSetUp"), missing: true };
@@ -555,13 +563,16 @@ export function connectionPatch(id: ConnectionId, fields: Record<string, string>
     if (id === "wcl") {
         return { warcraftlogsV2: { clientId: v("clientId"), ...(secret !== undefined ? { clientSecret: secret } : {}) } };
     }
+    if (id === "twitch") {
+        return { twitch: { clientId: v("clientId"), ...(secret !== undefined ? { clientSecret: secret } : {}) } };
+    }
     // #818: only the token; nothing to send when it stays as it is.
     if (id === "github") return secret !== undefined ? { github: { token: secret } } : {};
     return {};
 }
 
 export type SettingsLike = {
-    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"]; github?: ConnectionInputs["github"] };
+    config: { blizzard?: ConnectionInputs["blizzard"]; anthropic?: ConnectionInputs["anthropic"]; warcraftlogsV2?: ConnectionInputs["warcraftlogsV2"]; twitch?: ConnectionInputs["twitch"]; github?: ConnectionInputs["github"] };
     bot?: { online: boolean };
 };
 
@@ -571,6 +582,7 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
         blizzard: data.config.blizzard,
         anthropic: data.config.anthropic,
         warcraftlogsV2: data.config.warcraftlogsV2,
+        twitch: data.config.twitch,
         github: data.config.github,
         botOnline: !!(data.bot && data.bot.online),
         tokenCount: tokens ? tokens.length : null,
@@ -579,13 +591,18 @@ export function connectionInputs(data: SettingsLike, tokens: unknown[] | null): 
 
 /** The connections a user sees — a limited settings user only gets Battle.net (the rest are FULL_ADMIN_KEYS or admin-only ids). */
 export function visibleConnections(canManageAccess: boolean): ConnectionId[] {
-    return canManageAccess ? ["discord", "battlenet", "wcl", "anthropic", "github", "lootsync"] : ["battlenet"];
+    return canManageAccess ? ["discord", "battlenet", "wcl", "twitch", "anthropic", "github", "lootsync"] : ["battlenet"];
 }
 
-/** The sidebar badge of "Verbindungen": how many visible connections are not set up. */
+/**
+ * The sidebar badge of "Verbindungen": how many visible connections are not set up. Twitch
+ * only counts once a streamer is entered: without one nothing is missing, the card still says so.
+ */
 export function missingConnections(data: SettingsLike, tokens: unknown[] | null, canManageAccess: boolean): number {
     const inputs = connectionInputs(data, tokens);
-    return visibleConnections(canManageAccess).filter((id) => connectionState(id, inputs).missing).length;
+    return visibleConnections(canManageAccess)
+        .filter((id) => id !== "twitch" || inputs.twitch?.inUse)
+        .filter((id) => connectionState(id, inputs).missing).length;
 }
 
 // ---- Discord-Server: equal servers plus links that post a source's raid list to a target channel (#890, #891) ----

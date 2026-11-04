@@ -11,7 +11,7 @@
 // what `leftovers` reports to the Bot-Check (services/discord/botCheck.js). Without
 // config.pugRoles nothing changes. A roster of another server does not count: the role
 // does not exist there.
-const { roleUses } = require("../roles/selfRole");
+const { grantingUses } = require("../roles/selfRole");
 const { VERSIONS } = require("../../../config/gameVersions");
 const { CLASSES } = require("../../../config/gameVersions/classes");
 const rosterStore = require("../../../stores/roster/rosterStore");
@@ -52,7 +52,7 @@ function onboardingRoles(config) {
 }
 
 /**
- * The rights the role carries (selfRole.roleUses) without its own onboarding purpose. For
+ * The rights the role carries (selfRole.grantingUses) without its own onboarding purpose. For
  * an `item` of the onboarding (pugOnboarding.privilegeOf) the PuG version role of that very
  * version is no right, a class role being a version role is one. With no `item` the PuG
  * version use is dropped entirely: config.pugRoles is no field to guard.
@@ -63,7 +63,7 @@ function onboardingRoles(config) {
  */
 function grantsOf(config, roleId, { item = null, rosters } = {}) {
     const own = (u) => !!item && item.kind === "version" && (u.versionIds || []).every((v) => v === item.id);
-    return roleUses(config, roleId, { rosters }).filter((u) => u.code !== "pugVersion" || (item ? !own(u) : false));
+    return grantingUses(config, roleId, { rosters }).filter((u) => u.code !== "pugVersion" || (item ? !own(u) : false));
 }
 
 // One key per single right, so a save that adds one more is told apart from an old one.

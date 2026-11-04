@@ -127,6 +127,9 @@ export type AdminConfig = {
     // of the fight timeline. Same contract as above: the secret never comes
     // back. Read: { clientId, hasClientSecret }. Write: { clientId, clientSecret? }.
     warcraftlogsV2?: { clientId: string; hasClientSecret?: boolean; clientSecret?: string };
+    // The Twitch app of the stream announcements, full admins only. Same contract.
+    // credentialsRejected: the last check got them refused (read only, empty after a restart).
+    twitch?: { clientId: string; hasClientSecret?: boolean; clientSecret?: string; credentialsRejected?: boolean };
     // GitHub token for the private addon repos (#818), full admins only. Same
     // contract: the token never comes back. Read: { hasToken }. Write: { token }.
     github?: { hasToken?: boolean; token?: string };
