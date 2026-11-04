@@ -15,6 +15,7 @@ const { normalizeRoleIds, MAX_ROLES } = require("../../http/viewAs");
 const { contentVersions } = require("../../../services/versions/contentVersions");
 const { areaAudience, orgaRoleNames } = require("../../http/areaAudience");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
+const { serverFeatures } = require("../../../services/plans/serverPlan");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds the bot is
@@ -53,6 +54,9 @@ async function getSession(req, res) {
                 // The categories whose current roster the caller manages (#729, categoryOrga.orgaCategoryIds with
                 // `managerOnly`): the orga of those categories - the client shows them the orga's parts there.
                 orgaCategories,
+                // The features the plan of the active server unlocks (docs/server-plans.md), for the
+                // menu's `feature`; the server refuses for real (apiAccess.planRefusal).
+                ...(hasMenu ? { planFeatures: serverFeatures(activeGuildFor(req)) } : {}),
                 // Who sees each area the caller may open (areaAudience.js): the client marks an area
                 // only admins and orga roles open as "Orga-Bereich" and names those orga roles.
                 ...audienceFields(user, req),

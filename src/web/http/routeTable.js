@@ -3,7 +3,7 @@
 // area gate (apiAccess.js) read from here — so a path can no longer be
 // registered in one place and forgotten in the other.
 //
-// An entry is `{ method, path, handler, area | auth | adminOnly, level? }`:
+// An entry is `{ method, path, handler, area | auth | adminOnly, level?, feature? }`:
 //   area      the menu area(s) that open it (one id or a list; any one at the
 //             required level lets the call through); the level follows the
 //             method — GET reads, everything else writes — unless `level` says so
@@ -11,6 +11,8 @@
 //             "menu"  — any menu user, whatever area (the guild switcher)
 //             "token" — bearer-token endpoints; the handler checks the token itself
 //   adminOnly an entry that belongs to no area on purpose: full admins only
+//   feature   the plan feature the active server needs (config/plans.js), else 403
+//             "plan_required" - for everyone, full admins too (docs/server-plans.md)
 // A handler built with withUser({ orgaScoped }) carries the mark itself
 // (isOrgaScoped): the area gate then lets the orga of a category in as well.
 // An entry with none of these is admin-only too (fail-closed), and a test keeps
@@ -27,7 +29,7 @@ const MODULES = [
     "system/session", "system/dashboard", "system/version", "discord/channels", "system/settings", "loot/topItems", "discord/talkOverview", "discord/pugInvites", "system/raidhelperRetirement", "system/wclGuilds", "system/versionLaunch",
     "loot/ingest", "roster/kader", "roster/vermerke", "discord/botCommands", "roster/raiderCharacters", "roster/roster", "roster/rosters", "roster/rosterRoles", "roster/rosterMembers", "roster/rosterImage", "roster/rosterAdmin", "roster/profile", "roster/leaderFlags", "loot/syncKeys", "roster/characters", "events/signups", "loot/lootCouncil", "loot/lootCouncilBis",
     "events/raids", "events/raidDetail", "events/voice", "events/setup", "raidplan/raidplan", "events/eventManage", "events/eventSeries", "system/gameVersions",
-    "events/notifyTemplates", "events/raidTemplates", "system/recruitment", "loot/history", "system/cla", "events/availability", "discord/orgaHub", "events/attendance", "loot/guildBank", "system/dungeons", "system/addons", "system/addonCenter", "discord/roleMessages", "discord/discordRoles", "discord/discordMembers", "system/system", "discord/discordOverview", "discord/pugOnboarding",
+    "events/notifyTemplates", "events/raidTemplates", "system/recruitment", "loot/history", "system/cla", "events/availability", "discord/orgaHub", "events/attendance", "loot/guildBank", "system/dungeons", "system/addons", "system/addonCenter", "system/serverPlans", "discord/roleMessages", "discord/discordRoles", "discord/discordMembers", "system/system", "discord/discordOverview", "discord/pugOnboarding",
 ];
 
 const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);

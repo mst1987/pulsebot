@@ -64,6 +64,8 @@ const RULES = [
     [/^Bitte einen Namen angeben\.$/, "Please enter a name."],
     // utils/characterNames.validateCharacterName (via addCharacter)
     [/^Höchstens Vor- und Nachname – ein Leerzeichen dazwischen\.$/, "At most a first and a last name – one space between them."],
+    [/^In WoW Forever braucht der Charakter Vor- und Nachname – ein Leerzeichen dazwischen\.$/,
+        "In WoW Forever a character needs a first and a last name – one space between them."],
     [/^Der Name darf kein Leerzeichen haben – Vor- und Nachname gibt es nur in WoW Forever\.$/,
         "The name must not contain a space – first and last names exist only in WoW Forever."],
     [/^Der Name darf nur Buchstaben haben\.$/, "The name may only contain letters."],

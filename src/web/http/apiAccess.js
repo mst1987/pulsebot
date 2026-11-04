@@ -29,9 +29,15 @@
 // A read marked `orgaRead` (#729, routeTable.isOrgaRead) does the same for a GET
 // of one raid - the raid plan of a raid, which its category's orga plans.
 // Every other route answers exactly as checkAccess() does.
+//
+// The plan of the server (docs/server-plans.md) is a second question, asked by the
+// router after this gate: a route with `feature` needs that feature on the active
+// server (planRefusal). Full admins are not exempt there - a plan is about the server,
+// not the person, and tests and support should see what the server really gets.
 const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
 const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead } = require("./routeTable");
 const categoryOrga = require("../../services/roster/categoryOrga");
+const { hasFeature } = require("../../services/plans/serverPlan");
 
 /** `{ [path]: area | [areas] }` — every gated path with its area(s), the shape the tests and the docs know. */
 const AREA_BY_PATH = {};
@@ -145,4 +151,15 @@ async function gate(pathname, method, user, req) {
     return null;
 }
 
-module.exports = { checkAccess, gate, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };
+/**
+ * The refusal of a route whose `feature` the server's plan does not include, else null.
+ * Asked after gate(), so only somebody who may use the route learns about the plan;
+ * `guildOf` is only called on a route that names a feature.
+ * @returns {null | { status: number, code: string, message: string }}
+ */
+function planRefusal(route, guildOf) {
+    if (!route.feature || hasFeature(guildOf(), route.feature)) return null;
+    return { status: 403, code: "plan_required", message: "Diese Funktion ist im Tarif dieses Servers nicht enthalten." };
+}
+
+module.exports = { checkAccess, gate, planRefusal, areasFor, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH };

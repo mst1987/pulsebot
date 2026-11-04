@@ -49,6 +49,8 @@ module.exports = {
     "Saved: **{status}**": "Gespeichert: **{status}**",
     "Your character's name": "Name deines Charakters",
     "Your character's name ({class})": "Name deines Charakters ({class})",
+    "First and last name": "Vor- und Nachname",
+    "First and last name ({class})": "Vor- und Nachname ({class})",
     "First name Last name – at most {max} letters each": "Vorname Nachname – je höchstens {max} Buchstaben",
     "At most {max} letters": "Höchstens {max} Buchstaben",
     "Add a character": "Charakter hinzufügen",
@@ -148,6 +150,7 @@ module.exports = {
     "Go to the event channel": "Zum Event-Kanal",
     // the access refusal
     "This is reserved for admins.": "Das ist den Admins vorbehalten.",
+    "This feature is not part of this server's plan.": "Diese Funktion ist im Tarif dieses Servers nicht enthalten.",
     "unknown role": "unbekannte Rolle",
     "{first} or {last}": "{first} oder {last}",
     "You need {roles} for this.": "Dafür brauchst du {roles}.",

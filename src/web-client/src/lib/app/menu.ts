@@ -52,6 +52,11 @@ export type MenuEntry = {
      * The menu draws it in the block "Alle Server" below the active server's (#918).
      */
     scope?: string;
+    /**
+     * the plan feature the active server needs for this entry (docs/server-plans.md, src/config/plans.js):
+     * without it the entry is hidden, for full admins too. The server refuses the route as well.
+     */
+    feature?: string;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON as MenuEntry[];
@@ -71,9 +76,11 @@ export function isNeutralPage(entry: MenuEntry | undefined, pathname: string): b
 /**
  * Whether the account may open an entry: one of its areas, or full admin for an
  * adminOnly entry. An entry under "Alle Server" goes by the rights on any server,
- * every other one by those on the active server (#925).
+ * every other one by those on the active server (#925). An entry with a `feature`
+ * also needs that feature on the active server; a session without the list hides nothing.
  */
 export function mayOpen(user: SessionUser | null, entry: MenuEntry): boolean {
+    if (entry.feature && user?.planFeatures && !user.planFeatures.includes(entry.feature)) return false;
     if (entry.adminOnly) return !!(user && user.isAdmin);
     return entry.scope === "all" ? canAccessAnywhere(user, entry.areas) : canAccessAny(user, entry.areas);
 }

@@ -354,6 +354,25 @@ describe("SignupDialog ohne Charakter: Klasse -> Spec -> Name (#907)", () => {
         expect(onSaved).toHaveBeenCalledWith("eh-kara", expect.anything(), expect.anything(), true);
     });
 
+    it("verlangt in einer Version mit Nachnamen Vor- und Nachname, ohne den Discord-Namen vorzubelegen", async () => {
+        const user = userEvent.setup();
+        renderPage(<SignupDialog row={ownRow()} profile={{ ...PROFILE, characters: [] }} classes={WITH_SPECS}
+            lastName accountName="Bert the 2nd!" onClose={vi.fn()} onSaved={vi.fn()} />);
+        await user.click(screen.getByRole("radio", { name: /Krieger/ }));
+        await user.click(screen.getByRole("radio", { name: /Protection/ }));
+        const name = screen.getByLabelText(t("signups.newChar.fullName"));
+        expect(name).toHaveValue("");
+        expect(name).toHaveAttribute("maxlength", "25");
+        await user.type(name, "Bertholt");
+        expect(submitButton()).toBeDisabled();
+        await user.type(name, " Sturmwind");
+        expect(submitButton()).toBeEnabled();
+        await user.click(submitButton());
+        expect(api.saveSignup).toHaveBeenCalledWith(expect.objectContaining({
+            newCharacter: { name: "Bertholt Sturmwind", spec: "Warrior-Protection" },
+        }));
+    });
+
     it("nennt die Version des Raids und lässt Abmelden ohne Charakter zu", async () => {
         const user = userEvent.setup();
         open(vi.fn(), "Forever");

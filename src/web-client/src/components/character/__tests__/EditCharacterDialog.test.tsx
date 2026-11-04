@@ -91,6 +91,22 @@ describe("EditCharacterDialog", () => {
         expect(onSave).toHaveBeenCalledWith({ name: "Bo Rest" });
     });
 
+    it("mit Nachnamen-Version: Umbenennen ohne Nachnamen geht nicht, ein alter Charakter ohne Nachnamen bleibt bearbeitbar", async () => {
+        const { user } = renderDialog({ character: { ...GENTLE, key: "forever~bo res", name: "Bo Res", versionId: "forever" }, lastName: true });
+        await user.click(screen.getByRole("radio", { name: t("profile.edit.wayManual") }));
+        await user.clear(screen.getByLabelText(t("profile.add.lastName")));
+        expect(screen.getByRole("button", { name: t("profile.edit.save") })).toBeDisabled();
+    });
+
+    it("lässt bei einem Forever-Charakter ohne Nachnamen die übrigen Felder speicherbar", async () => {
+        const { user, onSave } = renderDialog({ character: { ...GENTLE, key: "forever~bo", name: "Bo", versionId: "forever" }, lastName: true });
+        await user.click(screen.getByRole("radio", { name: t("profile.edit.wayManual") }));
+        await user.type(screen.getByLabelText(t("profile.add.realm")), "Thunderstrike");
+        await user.click(screen.getByRole("button", { name: t("profile.edit.save") }));
+        expect(onSave).toHaveBeenCalledWith(expect.objectContaining({ realm: expect.stringContaining("Thunderstrike") }));
+        expect(onSave.mock.calls[0][0]).not.toHaveProperty("name");
+    });
+
     it("ist ohne Charakter zu", () => {
         render(<EditCharacterDialog character={null} classes={CLASSES} loadLog={vi.fn()} onSave={vi.fn()} onClose={() => undefined} />);
         expect(screen.queryByRole("dialog")).toBeNull();

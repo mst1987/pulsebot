@@ -104,7 +104,7 @@ const getSignups = withUser({}, async ({ user, req, res, url }) => {
         classesByVersion: Object.fromEntries(VERSIONS.map((v) => [v.id, classesWithSpecs(v.id, config)])),
         // The names of the versions (#543): "Lege einen Forever-Charakter an" when the
         // profile has none of the event's version (the rows carry their versionId).
-        versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short || v.label })),
+        versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short || v.label, lastName: !!(v.characterNames && v.characterNames.lastName) })),
         error: err,
     });
 });
