@@ -49,6 +49,8 @@ export type EmojiStyle = "arcane" | "gold" | "parchment" | "plain";
 
 export type RaidTemplate = RaidTemplateInput & {
     id: string;
+    /** the id this copy was made from when the templates went per server (#1076); empty on an original */
+    originId?: string;
     createdAt?: number;
     updatedAt?: number;
     /** migrated without size: badge "Größe ergänzen" */

@@ -264,7 +264,8 @@ describe("stores/events/raidTemplateStore migrateToServers (#1076)", () => {
     it("the global entry stays when the copies are not on disk afterwards", () => {
         writeFile({ templates: REAL });
         // the backup is written, the store's own atomic writes get lost
-        const spy = jest.spyOn(fs, "renameSync").mockImplementation((from) => fs.unlinkSync(from));
+        const rename = fs.renameSync;
+        const spy = jest.spyOn(fs, "renameSync").mockImplementation((from, to) => (String(to).endsWith(".pre-1076") ? rename(from, to) : fs.unlinkSync(from)));
         let lines;
         try {
             lines = store.migrateToServers([A, B]);
@@ -274,6 +275,31 @@ describe("stores/events/raidTemplateStore migrateToServers (#1076)", () => {
         expect(lines).toHaveLength(1);
         expect(lines[0]).toContain(": WARNUNG ");
         expect(readFile().templates.map((t) => t.id)).toEqual(REAL.map((t) => t.id));
+    });
+
+    it("the log line counts the stamped originals and the copies apart", () => {
+        writeFile({ templates: REAL });
+        const [line] = store.migrateToServers([A, B]);
+        expect(line).toContain("3 Vorlage(n) je Server");
+        expect(line).toContain("3 Original(e) gestempelt, 3 Kopie(n), 2 Server");
+    });
+
+    it("a crash while writing the backup leaves no half backup, and the next run writes the whole one", () => {
+        writeFile({ templates: REAL });
+        const original = fs.readFileSync(file, "utf8");
+        const spy = jest.spyOn(fs, "renameSync").mockImplementationOnce(() => {
+            throw new Error("crash");
+        });
+        try {
+            expect(() => store.migrateToServers([A, B])).toThrow("crash");
+        } finally {
+            spy.mockRestore();
+        }
+        expect(fs.existsSync(`${file}.pre-1076`)).toBe(false);
+        expect(fs.readFileSync(file, "utf8")).toBe(original);
+
+        store.migrateToServers([A, B]);
+        expect(fs.readFileSync(`${file}.pre-1076`, "utf8")).toBe(original);
     });
 
     it("a template already on a server is left alone", () => {

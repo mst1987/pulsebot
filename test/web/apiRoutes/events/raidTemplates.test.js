@@ -310,6 +310,18 @@ describe("web/apiRoutes/raidTemplates", () => {
             expect(settingsStore.deleteRaidTemplate).not.toHaveBeenCalled();
         });
 
+        it("DELETE refused for a category of unknown name counts it and does not name its raw id", async () => {
+            orga();
+            settingsStore.getRaidTemplate.mockImplementation((server, id) => (server === A && id === "k1" ? { ...stored, guildId: A } : null));
+            settingsStore.getConfig.mockReturnValue({ categoryRaidTemplate: { "999000000000000001": "k1", "999000000000000002": "k1" } });
+            const res = await request("DELETE", "/api/raid-templates", { id: "k1", libraryGuildId: A });
+            expect(status(res)).toBe(409);
+            const { message } = json(res).error;
+            expect(message).toContain("2 Kategorie(n) ohne bekannten Namen");
+            expect(message).not.toContain("999000000000000001");
+            expect(settingsStore.deleteRaidTemplate).not.toHaveBeenCalled();
+        });
+
         it("every write from a tab of another server answers 409 server_switched and changes nothing", async () => {
             orga();
             ownedByB();

@@ -5,7 +5,7 @@ import {
 } from "../../api";
 import { useT } from "../../i18n";
 import { eventDay } from "../../lib/raids/raidTime";
-import { instancesOf } from "../../lib/raids/raidTemplates";
+import { instancesOf, templateByStoredId } from "../../lib/raids/raidTemplates";
 import {
     categoryVersionOf, emptyPlan, planBody, planFromEvent, planFromTemplate, planProblem, raidTag, schemaName, sourceOf, stepsFor, templateFromPlan, withInstance,
     type EventPlan, type StepKey,
@@ -113,14 +113,14 @@ export function useRaidCreateForm({ open, sourceId, editEventId, onCreated }: {
         return [...seen].map(([id, name]) => ({ id, name }));
     }, [ctx]);
     const sourceEvent = ctx && choice?.kind === "event" ? ctx.reusableEvents.find((e) => e.id === choice.id) || null : null;
-    const baseTemplate = raidTemplates.find((tp) => tp.id === plan.raidTemplateId) || null;
+    const baseTemplate = templateByStoredId(raidTemplates, plan.raidTemplateId);
     const steps = stepsFor(editing, form.source);
     const stepAt = Math.max(0, steps.indexOf(step));
 
     /** The plan a category proposes: its default raid template, else the rule set. */
     const categoryPlan = (data: RaidCreateContext, catId: string): EventPlan => {
         const tplId = (data.categoryRaidTemplates || {})[catId];
-        const tpl = (data.raidTemplates || []).find((tp) => tp.id === tplId);
+        const tpl = templateByStoredId(data.raidTemplates || [], tplId);
         const vs = data.versions || [];
         if (tpl) return planFromTemplate(tpl, vs.find((v) => v.id === tpl.versionId));
         return emptyPlan(categoryVersionOf(data, catId));

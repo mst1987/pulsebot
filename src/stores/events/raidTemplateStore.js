@@ -196,9 +196,15 @@ function migrateToServers(serverIds) {
     }
     const file = store.file;
     const backup = `${file}.pre-1076`;
-    if (fs.existsSync(file) && !fs.existsSync(backup)) fs.writeFileSync(backup, fs.readFileSync(file));
+    // Temp plus rename: a crash in the middle must not leave a half backup the next run takes for the real one.
+    if (fs.existsSync(file) && !fs.existsSync(backup)) {
+        const temp = `${backup}.tmp`;
+        fs.writeFileSync(temp, fs.readFileSync(file));
+        fs.renameSync(temp, backup);
+    }
     const has = (list, server, id) => list.some((x) => str(x.guildId) === server && (x.id === id || x.originId === id));
     const next = all.slice();
+    let stamped = 0;
     let copies = 0;
     for (const t of legacy) {
         const id = str(t.id);
@@ -207,10 +213,11 @@ function migrateToServers(serverIds) {
             // Only the first copy may keep the id: template ids stay unique.
             const keep = !next.some((x) => x !== t && x.id === id);
             next.push({ ...t, guildId: server, originId: keep ? "" : id, id: keep ? id : newId() });
-            copies += 1;
+            if (keep) stamped += 1;
+            else copies += 1;
         }
     }
-    if (copies) store.write({ templates: next });
+    if (stamped || copies) store.write({ templates: next });
     const written = storedTemplates();
     const safe = legacyOf(written).every((t) => servers.every((server) => has(written, server, str(t.id))));
     if (!safe) {
@@ -218,7 +225,7 @@ function migrateToServers(serverIds) {
     }
     const gone = new Set(legacyOf(written));
     store.write({ templates: written.filter((t) => !gone.has(t)) });
-    return [`raid-templates.json: ${legacy.length} Vorlage(n) je Server übernommen (#1076) - ${copies} Kopie(n) auf ${servers.length} Server, globale Einträge entfernt (Sicherung ${path.basename(backup)})`];
+    return [`raid-templates.json: ${legacy.length} Vorlage(n) je Server übernommen (#1076) - ${stamped} Original(e) gestempelt, ${copies} Kopie(n), ${servers.length} Server, globale Einträge entfernt (Sicherung ${path.basename(backup)})`];
 }
 
 /** Tests: another file; null = raid-templates.json again. */

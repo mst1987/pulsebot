@@ -39,7 +39,8 @@ function categoryNames(server) {
 /**
  * The categories using `template` of `server` as their default. A reference the migration could not place still
  * names the id the copy came from, and a category of unknown server may be this one's: both count, so a delete
- * never takes a category's default away (the refusal names an id the orga may not know, a lost default is worse).
+ * never takes a category's default away (the refusal only counts a category it has no name for: its id may be
+ * another server's, and a lost default is worse than a vague refusal).
  */
 function categoriesUsing(template, server) {
     const ids = new Set([template.id, template.originId].filter(Boolean));
@@ -97,7 +98,9 @@ const deleteRaidTemplateHandler = withUser({ csrf: true, body: true }, async ({ 
     const usedBy = categoriesUsing(template, server);
     if (usedBy.length) {
         const names = categoryNames(server);
-        const list = usedBy.map((catId) => names[catId] || catId).join(", ");
+        const known = usedBy.map((catId) => names[catId]).filter(Boolean);
+        const unnamed = usedBy.length - known.length;
+        const list = [...known, ...(unnamed ? [`${unnamed} Kategorie(n) ohne bekannten Namen`] : [])].join(", ");
         return error(res, 409, "template_in_use", `„${template.name}“ ist Standard für ${list}. Erst unter Einstellungen → Kategorien eine andere Vorlage wählen.`);
     }
     deleteRaidTemplate(server, id);

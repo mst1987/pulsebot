@@ -6,7 +6,12 @@ jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAtt
 jest.mock("../../../src/services/events/eventSources", () => ({ listStoredEvents: jest.fn() }));
 jest.mock("../../../src/stores/roster/rosterStore", () => ({ rosterForCategory: jest.fn(() => null) }));
 jest.mock("../../../src/stores/roster/leaderFlagsStore", () => ({ allLeads: jest.fn(() => ({})) }));
+jest.mock("../../../src/stores/jsonStore", () => {
+    const actual = jest.requireActual("../../../src/stores/jsonStore");
+    return { ...actual, readJsonFile: jest.fn(actual.readJsonFile) };
+});
 
+const { readJsonFile } = require("../../../src/stores/jsonStore");
 const eventStore = require("../../../src/stores/events/eventStore");
 const signupStore = require("../../../src/stores/events/signupStore");
 const profileStore = require("../../../src/stores/roster/raiderProfileStore");
@@ -126,6 +131,20 @@ describe("setupInput", () => {
         expect(ev.composition).toEqual({ tank: 1, healer: 2, melee: { min: 3, max: 5 }, ranged: 2 });
         // the event dropped the template's buff for this one night
         expect(ev.requiredBuffs).toEqual([]);
+    });
+
+    it("asks for the category's template on the raid's server, an event without guildId on its category's (#1076)", () => {
+        collectSetupInput(["eh-new"], { now: 5000 });
+        expect(settingsStore.getRaidTemplate).toHaveBeenLastCalledWith("g1", "tpl");
+
+        const actual = jest.requireActual("../../../src/stores/jsonStore").readJsonFile;
+        readJsonFile.mockImplementation((file, fallback) => (String(file).endsWith("category-names.json")
+            ? { guilds: { g2: { cat: "Raids" } } } : actual(file, fallback)));
+        eventStore.getEvent.mockImplementation((id) => (id === "eh-new" ? event({ guildId: "" }) : null));
+        const [ev] = collectSetupInput(["eh-new"], { now: 5000 }).events;
+        readJsonFile.mockImplementation(actual);
+        expect(settingsStore.getRaidTemplate).toHaveBeenLastCalledWith("g2", "tpl");
+        expect(ev.requiredBuffs).toEqual(["kings"]);
     });
 
     it("returns null for unknown events", () => {

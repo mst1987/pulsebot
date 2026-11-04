@@ -43,6 +43,7 @@ const { signupEventIdOf } = require("../../utils/raidGroup");
 const leaderFlagsStore = require("../../stores/roster/leaderFlagsStore");
 const { lootInputFor } = require("./setupLoot");
 const { canLead, instanceChoices } = require("../roster/leaderFlags");
+const { guildOfEvent } = require("../discord/servers/serverOf");
 
 // How many earlier nights per category go into the fairness history.
 const HISTORY_NIGHTS = 10;
@@ -136,7 +137,8 @@ function fixedFromSetup(event, { keepPlaced = false } = {}) {
 function requiredBuffsFor(event, config) {
     if (event.raidTemplateId || (Array.isArray(event.requiredBuffs) && event.requiredBuffs.length)) return event.requiredBuffs || [];
     const templateId = (config.categoryRaidTemplate || {})[event.categoryId];
-    const template = templateId ? settingsStore.getRaidTemplate(event.guildId, templateId) : null;
+    // an event without its own guildId stays on its category's server, or the buffs would silently go
+    const template = templateId ? settingsStore.getRaidTemplate(guildOfEvent(event), templateId) : null;
     return template && Array.isArray(template.requiredBuffs) ? template.requiredBuffs : [];
 }
 

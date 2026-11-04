@@ -476,16 +476,32 @@ function listedServers() {
 }
 
 /**
- * The proven server of each category: the stored name snapshot, then a stored event, raid event
- * or roster of the category. A category nothing proves is missing from the answer. The records
- * are only read when the snapshot left one open.
+ * Whether a stored `guildId` can be the server of a category. Snowflakes grow with time, and a
+ * category cannot be older than its server: an older one has a guessed `guildId` (an event or
+ * roster may have got its server from the active session, not from the category).
+ * @param {string} categoryId
+ * @param {string} guildId
+ * @returns {boolean}
+ */
+function categoryFitsServer(categoryId, guildId) {
+    const category = String(categoryId || "");
+    const guild = String(guildId || "");
+    return isSnowflake(category) && isSnowflake(guild) && BigInt(category) >= BigInt(guild);
+}
+
+/**
+ * The proven server of each category: the stored name snapshot first, as Discord itself named the
+ * category there. Only then a stored event, raid event or roster of the category, whose `guildId`
+ * can be a guess: it counts when the category is not older than that server, and a record that
+ * does not fit leaves the category open for the next. A category nothing proves is missing from
+ * the answer. The records are only read when the snapshot left one open.
  * @param {string[]} categoryIds
  * @returns {Map<string, string>} categoryId -> guildId
  */
 function provenCategoryServers(categoryIds) {
     const open = new Set(categoryIds.map(String));
     const proven = new Map();
-    const note = (categoryId, guildId) => {
+    const take = (categoryId, guildId) => {
         const id = String(categoryId || "");
         const guild = String(guildId || "");
         if (open.has(id) && isSnowflake(guild)) {
@@ -493,11 +509,14 @@ function provenCategoryServers(categoryIds) {
             open.delete(id);
         }
     };
-    for (const [id, guild] of categoryGuildIndex(categoryNameSnapshot())) note(id, guild);
+    const fromRecord = (record) => {
+        if (categoryFitsServer(record.categoryId, record.guildId)) take(record.categoryId, record.guildId);
+    };
+    for (const [id, guild] of categoryGuildIndex(categoryNameSnapshot())) take(id, guild);
     if (!open.size) return proven;
-    for (const e of eventStore.listEvents("", { siblings: true })) note(e.categoryId, e.guildId);
-    for (const e of raidEventStore.listRaidEvents("")) note(e.categoryId, e.guildId);
-    for (const r of rosterStore.listRosters("")) note(r.categoryId, r.guildId);
+    eventStore.listEvents("", { siblings: true }).forEach(fromRecord);
+    raidEventStore.listRaidEvents("").forEach(fromRecord);
+    rosterStore.listRosters("").forEach(fromRecord);
     return proven;
 }
 
@@ -513,8 +532,7 @@ function repointTemplateReferences() {
     const defaults = stored.categoryRaidTemplate && typeof stored.categoryRaidTemplate === "object" && !Array.isArray(stored.categoryRaidTemplate)
         ? stored.categoryRaidTemplate : {};
     const series = Object.values(eventSeriesStore.listSeries()).filter((s) => s && s.raidTemplateId);
-    const unknown = [...Object.keys(defaults), ...series.filter((s) => !isSnowflake(String(s.guildId || ""))).map((s) => s.categoryId)];
-    const proven = provenCategoryServers(unknown);
+    const proven = provenCategoryServers([...Object.keys(defaults), ...series.map((s) => s.categoryId)]);
     const copyOn = (server, id) => {
         const own = server ? raidTemplateStore.getRaidTemplate(server, id) : null;
         return own && own.id !== String(id) ? own.id : "";
@@ -536,7 +554,8 @@ function repointTemplateReferences() {
     if (movedDefaults) configStore.writeStored({ ...stored, categoryRaidTemplate: nextDefaults });
     let movedSeries = 0;
     for (const s of series) {
-        const server = isSnowflake(String(s.guildId || "")) ? String(s.guildId) : proven.get(String(s.categoryId));
+        // a series' own guildId is a record like the others: the snapshot first, a guess does not count
+        const server = proven.get(String(s.categoryId)) || (categoryFitsServer(s.categoryId, s.guildId) ? String(s.guildId) : "");
         if (!server) {
             unproven.add(String(s.categoryId));
             continue;
@@ -553,18 +572,23 @@ function repointTemplateReferences() {
     return { changes, unproven: [...unproven] };
 }
 
+const TEMPLATE_REFERENCES_MARK = "raidTemplateReferences";
+
 /**
  * The raid templates per server (#1076): after migrateRaidplanServers (same server list). A single
- * server gets no copy, so no reference needs to move and nothing else is read. A start finding
- * copies checks the references again: a run that broke off between the two files goes on, and a
- * second run moves nothing.
+ * server gets no copy, so no reference needs to move and nothing else is read. The references move
+ * once: the mark is set only after they moved, so a run that broke off between the files goes on at
+ * the next start, and later starts leave them alone. While global entries are left (a warning) they
+ * wait; a run that copies again (an entry restored by hand) moves them again whatever the mark says.
  */
 function migrateRaidTemplateServers() {
     const lines = raidTemplateStore.migrateToServers(listedServers());
+    if (lines.some((line) => line.includes(": WARNUNG "))) return lines;
+    if (!lines.length && migrationMarkStore.isDone(TEMPLATE_REFERENCES_MARK)) return lines;
     if (!raidTemplateStore.allRaidTemplates().some((t) => t.originId)) return lines;
     const { changes, unproven } = repointTemplateReferences();
-    // Only in the run that made the copies: the entry works when read, so no line on every start.
-    const note = lines.length && unproven.length
+    migrationMarkStore.markDone(TEMPLATE_REFERENCES_MARK);
+    const note = unproven.length
         ? [`config.json: ${unproven.length} Kategorie(n) ohne belegten Server behalten ihre Vorlagen-ID (#1076) - ${unproven.join(", ")}`]
         : [];
     return [...lines, ...changes, ...note];
