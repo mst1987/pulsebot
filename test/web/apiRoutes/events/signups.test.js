@@ -169,7 +169,7 @@ describe("GET /api/signups", () => {
         expect(tbc.profile.characters.map((c) => [c.name, c.versionId])).toEqual([["Nerathil", "tbc"]]);
         // an event without a version plays its category's (the dialog filters by it)
         expect(data.events[0].versionId).toBe("forever");
-        expect(data.versions).toEqual(expect.arrayContaining([{ id: "forever", label: "WoW Forever", short: "Forever" }]));
+        expect(data.versions).toEqual(expect.arrayContaining([{ id: "forever", label: "WoW Forever", short: "Forever", lastName: true }]));
     });
 
     it("zeigt einem Raider nie einen Setup-Entwurf, nur das freigegebene Setup (#263)", async () => {
@@ -503,12 +503,19 @@ describe("PUT /api/signups", () => {
 
     it("legt einen neuen Charakter im Profil der Raid-Version an und meldet ihn an (#907)", async () => {
         mockEvents.set("eh-kara", { ...ownEvent, versionId: "forever" });
-        const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", newCharacter: { name: "Bertholt", spec: "Warrior-Protection" }, status: "signed" } });
+        const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", newCharacter: { name: "Bertholt Sturm", spec: "Warrior-Protection" }, status: "signed" } });
         expect(status(res)).toBe(200);
-        expect(json(res).data.signup).toMatchObject({ character: "Bertholt", status: "signed" });
+        expect(json(res).data.signup).toMatchObject({ character: "Bertholt Sturm", status: "signed" });
         const chars = profiles.getProfile(BERT.id).characters;
         expect(chars).toHaveLength(1);
-        expect(chars[0]).toMatchObject({ name: "Bertholt", className: "Warrior", versionId: "forever", source: "manual" });
+        expect(chars[0]).toMatchObject({ name: "Bertholt Sturm", className: "Warrior", versionId: "forever", source: "manual" });
+    });
+
+    it("weist einen neuen Forever-Charakter ohne Nachnamen ab", async () => {
+        mockEvents.set("eh-kara", { ...ownEvent, versionId: "forever" });
+        const res = await call(route.putSignup, BERT, { json: { eventId: "eh-kara", newCharacter: { name: "Bertholt", spec: "Warrior-Protection" }, status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(profiles.getProfile(BERT.id).characters).toHaveLength(0);
     });
 
     it("weist beim neuen Charakter eine fremde Spec und einen Namen mit anderer Klasse ab (#907)", async () => {

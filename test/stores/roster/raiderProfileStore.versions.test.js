@@ -54,9 +54,26 @@ describe("stores/roster/raiderProfileStore je Spielversion", () => {
 
     it("erlaubt denselben Vornamen in zwei Versionen – ein Forever-Devi ohne Nachnamen ist nicht der TBC-Devi", () => {
         store.addCharacter(A, { name: "Devi", className: "Priest" });
-        const forever = store.addCharacter(A, { name: "Devi", className: "Priest", versionId: "forever" });
+        // only from the logs: a typed Forever name needs a last name
+        const forever = store.addCharacter(A, { name: "Devi", className: "Priest", versionId: "forever", source: "log" });
         expect(forever.character).toMatchObject({ key: "forever~devi", versionId: "forever" });
         expect(store.getProfile(A).characters).toHaveLength(2);
+    });
+
+    it("verlangt beim Tippen in Forever einen Nachnamen, ein gespeicherter Charakter ohne Nachnamen bleibt nutzbar", () => {
+        expect(store.addCharacter(A, { name: "Devi", className: "Priest", versionId: "forever" }).error).toMatch(/Vor- und Nachname/);
+        expect(store.getProfile(A).characters).toHaveLength(0);
+
+        store.addCharacter(A, { name: "Devi", className: "Priest", versionId: "forever", source: "log" });
+        // the same name again adds a spec instead of being refused
+        const again = store.addCharacter(A, { name: "Devi", className: "Priest", specs: ["Priest-Holy"], versionId: "forever", source: "manual" });
+        expect(again.error).toBeUndefined();
+        expect(again.character.specs.map((s) => s.key)).toEqual(["Priest-Holy"]);
+        // and a change that leaves the name alone needs no last name either
+        const edited = store.editCharacter(A, "forever~devi", { specs: ["Priest-Shadow"] });
+        expect(edited.error).toBeUndefined();
+        expect(store.editCharacter(A, "forever~devi", { name: "Devo" }).code).toBe("bad_name");
+        expect(store.editCharacter(A, "forever~devi", { name: "Devi Res" }).character.name).toBe("Devi Res");
     });
 
     it("nimmt die Version aus den Optionen (Discord-Modal) und fällt sonst auf TBC zurück", () => {

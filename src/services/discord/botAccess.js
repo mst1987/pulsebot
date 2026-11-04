@@ -24,6 +24,7 @@ const userAccess = require("./members/userAccess");
 const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCommands");
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
+const { hasFeature } = require("../plans/serverPlan");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 // The "full admin on another server" answer: remembered a short while per user, and never
@@ -168,6 +169,15 @@ async function guardInteraction(interaction, command, commands) {
     const guildId = interactionGuildId(interaction, { recordGuildId: await recordGuildOf(command, interaction) });
     const config = configForGuild(stored, guildId);
     const name = command && command.name;
+    const lang = () => langOfInteraction(interaction, { config });
+    // The plan of the server (docs/server-plans.md) before any right: it holds for everyone,
+    // admins too. A button or modal goes by the command it belongs to (`accessOf`).
+    const feature = commandFeature(command, commands);
+    if (feature && !hasFeature(guildId, feature)) {
+        console.log(`Bot access denied: ${name} on ${guildId} needs feature ${feature}`);
+        await refuse(interaction, () => tr(lang(), "This feature is not part of this server's plan."));
+        return false;
+    }
     // "Jeder" needs no Discord lookup at all.
     const rule = ruleFor(name, { commands, config });
     const userId = String(interaction.user && interaction.user.id);
@@ -178,17 +188,29 @@ async function guardInteraction(interaction, command, commands) {
     // a full admin through an admin role on another server (#925): asked only on a refusal
     if (await isFullAdminAnywhere(userId)) return true;
     console.log(`Bot access denied: ${name} for ${userId}`);
+    await refuse(interaction, () => denyMessage(result.rule, guildId, lang()));
+    return false;
+}
+
+/** The plan feature a command needs: its own `feature`, else that of the command whose rule it follows. */
+function commandFeature(command, commands) {
+    if (!command) return "";
+    if (command.feature) return command.feature;
+    const owner = accessOwner(command.name, commands);
+    return (owner && owner.feature) || "";
+}
+
+/** Answers a refused interaction with a message only the user sees (`title` is asked only when one is sent). */
+async function refuse(interaction, title) {
     try {
         if (typeof interaction.isAutocomplete === "function" && interaction.isAutocomplete()) {
             await interaction.respond([]);
         } else if (!interaction.replied && !interaction.deferred) {
-            const title = denyMessage(result.rule, guildId, langOfInteraction(interaction, { config }));
-            await interaction.reply(card({ kind: "error", title, ephemeral: true }));
+            await interaction.reply(card({ kind: "error", title: title(), ephemeral: true }));
         }
     } catch (e) {
         console.error("botAccess: deny reply failed:", e.message);
     }
-    return false;
 }
 
 /**

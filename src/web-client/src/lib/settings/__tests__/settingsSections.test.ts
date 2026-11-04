@@ -41,7 +41,7 @@ describe("the sections", () => {
     it("puts what belongs to one server in its block and what the bot shares under Alle Server", () => {
         const of = (group: SettingsGroup) => SETTINGS_SECTIONS.filter((s) => s.group === group).map((s) => s.id);
         expect(of("server")).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems"]);
-        expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
+        expect(of("global")).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons", "serverplans"]);
     });
 
     it("keeps the sections of a group together, so every heading prints once", () => {
@@ -104,7 +104,7 @@ describe("two pages: System › Einstellungen and Alle Server › Einstellungen 
     it("shows only the active server's sections under System and the shared ones under Alle Server", () => {
         expect(SCOPE_PATH).toEqual({ server: "/settings", all: "/settings/all" });
         expect(idsOf(sectionsFor("server", true))).toEqual(["berechtigungen", "kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "raidhelper", "topitems"]);
-        expect(idsOf(sectionsFor("all", true))).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons"]);
+        expect(idsOf(sectionsFor("all", true))).toEqual(["discordserver", "vollAdmins", "verbindungen", "spielversion", "dungeons", "addons", "serverplans"]);
         // a settings writer without full admin: no admin-only section on either page,
         // but the categories' versions are the server's (#957 review)
         expect(idsOf(sectionsFor("server", false))).toEqual(["kategorien", "raids", "logs", "recruitment", "versionlinks", "raidsheets", "topitems"]);

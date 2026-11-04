@@ -263,7 +263,13 @@ jest.mock("../../../../src/services/setup/setupEditor", () => ({
     ...jest.requireActual("../../../../src/services/setup/setupEditor"),
     raidHelperSlots: (...args) => mockRaidHelperSlots(...args),
 }));
+jest.mock("../../../../src/services/plans/serverPlan", () => {
+    const actual = jest.requireActual("../../../../src/services/plans/serverPlan");
+    return { ...actual, serverFeatures: jest.fn(actual.serverFeatures) };
+});
+
 const auth = require("../../../../src/web/http/auth");
+const { serverFeatures } = require("../../../../src/services/plans/serverPlan");
 const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const discord = require("../../../../src/services/discord/discord");
@@ -284,13 +290,23 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isOrga: true, orgaCategories: [], planFeatures: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
             expect(data.guilds).toEqual([{ id: "g1", name: "Meine Gilde", role: "", label: "", iconUrl: "" }]);
             expect(data.activeGuildId).toBe("g1");
             expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
+        });
+
+        it("names the features of the active server's plan (#1080)", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            activeGuildFor.mockReturnValue("g7");
+            serverFeatures.mockReturnValueOnce(["test"]);
+            const res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(serverFeatures).toHaveBeenCalledWith("g7");
+            expect(json(res).data.user.planFeatures).toEqual(["test"]);
         });
 
         it("sends the Discord picture of the login, else the one the bot knows", async () => {
