@@ -14,7 +14,8 @@
 // can ask it as well (test/docs/layering.test.js).
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { eventGuildIds, serverLabel } = require("../roles/guildRoles");
-const { resolveGuildAccess, accessForGuild } = require("../members/userAccess");
+const { resolveGuildAccess, accessForGuild, withoutServerAdminRank } = require("../members/userAccess");
+const { userCan } = require("../../../config/permissions");
 const categoryOrga = require("../../roster/categoryOrga");
 const discord = require("../discord");
 const { listKnownCategories } = require("../../categories/categoryNames");
@@ -32,12 +33,15 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
  *   `guildAccess`: a computeGuildAccess() result to reuse instead of asking Discord. The profile
  *   route (web/apiRoutes/loot/syncKeys.js) passes the session's (auth.sessionGuildAccess), so a page view
  *   never waits on a member lookup; the /api/ingest/* routes leave it out and ask anew.
+ *   `rolesOnly`: leave the server-admin rank out (#1072). For an upload that is tied to no server:
+ *   the rank is a right on one server's own data and says nothing about what every server shares.
  */
-async function orgaServersOf(userId, { config, guildAccess, cache, memberRoleIds } = {}) {
+async function orgaServersOf(userId, { config, guildAccess, cache, memberRoleIds, rolesOnly = false } = {}) {
     const uid = str(userId);
     if (!uid) return [];
     const cfg = config || getConfig();
-    const access = guildAccess || await resolveGuildAccess(uid);
+    const known = guildAccess || await resolveGuildAccess(uid);
+    const access = rolesOnly ? withoutServerAdminRank(known, uid) : known;
     const shared = cache || categoryOrga.createCache();
     const out = [];
     for (const gid of eventGuildIds(cfg)) {
@@ -73,6 +77,27 @@ async function serversOfToken(token, opts = {}) {
     if (isPersonToken(token)) return (await orgaServersOf(token.ownerId, opts)).map((s) => s.guildId);
     const own = str(token.guildId);
     return own ? [own] : null;
+}
+
+/**
+ * Whether what a sync key uploads for `guildId` may teach the shared character store (the classes
+ * of services/characters/characterInfo.js, which every server reads). Only the owner of a personal
+ * key who holds nothing but the server-admin rank there may not (#1072): the rule of
+ * `mayLearnClasses` in web/apiRoutes/loot/history.js, for a key instead of a session. A server key,
+ * an old key, a role holder and a full admin go on as before. A raid without a known server asks
+ * every server the owner holds the rank on (fail closed).
+ * @returns {Promise<boolean>}
+ */
+async function tokenMayLearnClasses(token, guildId) {
+    if (!isPersonToken(token)) return true;
+    const uid = str(token.ownerId);
+    const known = await resolveGuildAccess(uid);
+    if (known && known.isAdmin) return true;
+    const gid = str(guildId);
+    const ranked = (gid ? [gid] : Object.keys((known && known.guilds) || {})).filter((g) => accessForGuild(known, uid, g).isServerAdmin);
+    if (!ranked.length) return true;
+    const byRoles = withoutServerAdminRank(known, uid);
+    return ranked.every((g) => userCan(accessForGuild(byRoles, uid, g), "history", "write"));
 }
 
 /**
@@ -114,4 +139,4 @@ function describeServers(servers, { config } = {}) {
     }));
 }
 
-module.exports = { orgaServersOf, isPersonToken, serversOfToken, versionHead, versionsOfServer, describeServers };
+module.exports = { orgaServersOf, isPersonToken, serversOfToken, tokenMayLearnClasses, versionHead, versionsOfServer, describeServers };

@@ -57,6 +57,69 @@ describe("orgaServersOf", () => {
         expect(await ingestServers.orgaServersOf("", opts)).toEqual([]);
         expect(resolveGuildAccess).toHaveBeenCalledTimes(1);
     });
+
+    // #1072: an upload tied to no server counts the roles, the rank is a right on one server's data.
+    describe("with rolesOnly", () => {
+        const rank = (over = {}) => ({ access: {}, isOrga: true, isMember: true, isServerAdmin: true, roleAccess: {}, ...over });
+
+        it("drops a server held by the rank alone and keeps one with an orga role next to it", async () => {
+            resolveGuildAccess.mockResolvedValue(access({ g1: rank(), g2: rank({ roleIsOrga: true }) }));
+            expect(await ingestServers.orgaServersOf("u1", opts)).toEqual([{ guildId: "g1", role: "orga" }, { guildId: "g2", role: "orga" }]);
+            expect(await ingestServers.orgaServersOf("u1", { ...opts, rolesOnly: true })).toEqual([{ guildId: "g2", role: "orga" }]);
+        });
+
+        it("does the same for a session's stored access", async () => {
+            const guildAccess = access({ g1: rank() });
+            expect(await ingestServers.orgaServersOf("u1", { ...opts, guildAccess, rolesOnly: true })).toEqual([]);
+            expect(resolveGuildAccess).not.toHaveBeenCalled();
+        });
+
+        it("leaves a full admin, an orga role and a category manager as they are", async () => {
+            resolveGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
+            expect(await ingestServers.orgaServersOf("u1", { ...opts, rolesOnly: true })).toHaveLength(3);
+            resolveGuildAccess.mockResolvedValue(orgaOn("g2"));
+            categoryOrga.isAnyCategoryManager.mockImplementation(async (_user, { guildId }) => guildId === "g3");
+            expect(await ingestServers.orgaServersOf("u1", { ...opts, rolesOnly: true })).toEqual([
+                { guildId: "g2", role: "orga" }, { guildId: "g3", role: "category" },
+            ]);
+        });
+
+        it("reaches serversOfToken", async () => {
+            resolveGuildAccess.mockResolvedValue(access({ g1: rank(), g2: rank({ roleIsOrga: true }) }));
+            expect(await ingestServers.serversOfToken({ id: "t", ownerId: "u1" }, { ...opts, rolesOnly: true })).toEqual(["g2"]);
+        });
+    });
+});
+
+describe("tokenMayLearnClasses (#1072)", () => {
+    const PERSON = { id: "t", ownerId: "u1" };
+    const WRITE = { history: { read: true, write: true } };
+    const rank = (roleAccess = {}) => ({ access: { history: { read: true, write: true } }, isOrga: true, isServerAdmin: true, roleAccess });
+
+    it("refuses the owner of a personal key holding only the rank on that server", async () => {
+        resolveGuildAccess.mockResolvedValue(access({ g1: rank() }));
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(false);
+    });
+
+    it("refuses a raid without a known server when a rank alone could be behind it", async () => {
+        resolveGuildAccess.mockResolvedValue(access({ g1: rank(WRITE), g2: rank() }));
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "")).toBe(false);
+    });
+
+    it("lets a role with the right, a full admin, a key without an owner and an owner without the rank learn as before", async () => {
+        resolveGuildAccess.mockResolvedValue(access({ g1: rank(WRITE) }));
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(true);
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "")).toBe(true);
+        resolveGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(true);
+        // the rank on another server says nothing about this raid's; orga without history write stays as on main
+        resolveGuildAccess.mockResolvedValue(access({ g1: rank(), g2: { access: {}, isOrga: true } }));
+        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g2")).toBe(true);
+        resolveGuildAccess.mockClear();
+        expect(await ingestServers.tokenMayLearnClasses({ id: "s", guildId: "g1" }, "g1")).toBe(true);
+        expect(await ingestServers.tokenMayLearnClasses({ id: "o" }, "")).toBe(true);
+        expect(resolveGuildAccess).not.toHaveBeenCalled();
+    });
 });
 
 describe("serversOfToken", () => {

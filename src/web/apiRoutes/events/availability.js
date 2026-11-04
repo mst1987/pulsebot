@@ -49,8 +49,9 @@ const { entryCategoryIds, eventCategoryNames } = require("../../availability/ent
 const { entryServers, serverNames } = require("../../availability/entryServers");
 const { scopeOf, entryOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
-const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, onlyByRank, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -69,6 +70,16 @@ function targetOf(user, requested) {
     if (!id || id === str(user.id)) return { userId: str(user.id) };
     if (!isOrga(user)) return { error: "Nur die Raidleitung kann für andere eintragen." };
     return { userId: id };
+}
+
+/** Whether only the server-admin rank (#1072) lets the caller look at somebody else here. */
+const foreignByRank = (user, req, userId) => userId !== str(user.id) && onlyByRank(user, req, isOrga);
+
+/** Whether the rank alone is all that names this account, and it is no member of the active server: profiles and attendance are global. */
+async function outOfRankReach(user, req, userId) {
+    if (!foreignByRank(user, req, userId)) return false;
+    const members = await serverMemberIds(activeGuildFor(req));
+    return !members || !members.has(userId);
 }
 
 /**
@@ -147,6 +158,7 @@ function resultView(r) {
 const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    if (await outOfRankReach(user, req, target.userId)) return otherServer(res);
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
     // only what concerns the server the web shows - another server's entries are edited there
@@ -196,9 +208,12 @@ const eventIdsOf = (body) => (Array.isArray(body.eventIds) ? body.eventIds.map(s
  * With `id` (the dialog edits that entry): the raid it already touched is `applied` (it stays as it is), and
  * `absent` (an absence covers the raid, so an attendance stays out) leaves that entry itself out.
  */
-const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postPreview = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    // the preview names raids and the raider's status in them: by the rank alone only on its own server
+    if (await outOfRankReach(user, req, target.userId)) return otherServer(res);
+    if (foreignByRank(user, req, target.userId) && !mayUseScope(user, req, body)) return otherServer(res);
     const config = getConfig();
     const id = str(body.id);
     const editing = id ? availabilityStore.getEntry(id) : null;
@@ -229,6 +244,7 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, body, re
 const postEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    if (await outOfRankReach(user, req, target.userId)) return otherServer(res);
     const config = getConfig();
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     // for somebody else only on servers the caller may use (#925)
@@ -414,15 +430,20 @@ const getOverviewRaider = withUser({}, async ({ user, req, query, res }) => {
  * verdict of every counted raid, plus the coming raids with the own status. Somebody else's only for the orga.
  * `canEdit`: the caller may set a night by hand (POST /api/attendance/override; admin or raids write, #677).
  */
-const getAttendance = withUser({}, async ({ user, query, res }) => {
+const getAttendance = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
+    if (await outOfRankReach(user, req, target.userId)) return otherServer(res);
     const config = getConfig();
-    const view = raiderAttendance(target.userId, {
+    const counted = raiderAttendance(target.userId, {
         versionId: versionOf(query, config), config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e),
         // #990: the raider's own view never shows "left early"; the orga's view of somebody else does
         neutral: String(target.userId) === String(user.id),
     });
+    // the view counts the categories of every server: by the rank alone only those of its own
+    const view = foreignByRank(user, req, target.userId)
+        ? { ...counted, categories: counted.categories.filter((c) => categoryOnActiveServer(user, req, c.id)) }
+        : counted;
     const profile = profiles.getProfile(target.userId);
     const named = await namerFor([target.userId], config);
     ok(res, { ...named({ ...view, name: profile.name || "" }), own: target.userId === str(user.id), orga: isOrga(user), canEdit: canEditAnyAttendance(user) });

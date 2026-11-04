@@ -326,6 +326,59 @@ describe("apiRoutes/guildBank", () => {
             res = await call(assignGuildBank, { payload: { key: bank.key, guildId: "g1" } });
             expect(body(res).bank).toMatchObject({ guildId: "g1", pending: false });
         });
+
+        // #1072: like an unbound session in the loot inbox
+        describe("a bank that waits for no particular server", () => {
+            const RANK = { ...ORGA, isServerAdmin: true };
+            const listed = async () => body(await call(getGuildBanks, { url: "http://x/api/settings/guild-banks" })).banks.map((b) => b.guild);
+            const take = (bank) => call(assignGuildBank, { payload: { key: bank.key, guildId: "g1" } });
+            let withoutRank;
+
+            beforeEach(() => {
+                mockUser = RANK;
+                withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue({ id: "7", isAdmin: false, access: {} });
+            });
+            afterEach(() => withoutRank.mockRestore());
+
+            it("stays out of reach for a holder of only the rank", async () => {
+                const bank = record("Beta");
+                expect(await listed()).toEqual([]);
+                const res = await take(bank);
+                expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
+                expect(status(await call(deleteGuildBank, { payload: { key: bank.key } }))).toBe(404);
+                expect(store.getBank(bank.key)).toMatchObject({ pending: true });
+            });
+
+            it("a bank waiting for this very server stays theirs", async () => {
+                const scan = parseGuildBankScan({
+                    format: GB_FORMAT, version: 1, client: { project: "tbc" }, guild: { name: "Delta", realm: "Spineshatter" },
+                    scannedAt: 1791000000, tabs: [{ index: 1, name: "A", items: [{ itemId: 22854, count: 3 }] }],
+                });
+                const bank = store.recordScan(scan, { now: NOW, waitingFor: ["g1"] }).bank;
+                expect(await listed()).toEqual(["Delta"]);
+                expect(body(await take(bank)).bank).toMatchObject({ guildId: "g1", pending: false });
+            });
+
+            it("reading needs a role that reads the settings, taking one that writes them", async () => {
+                const bank = record("Beta");
+                withoutRank.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: false } } });
+                expect(await listed()).toEqual(["Beta"]);
+                expect(status(await take(bank))).toBe(404);
+                withoutRank.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
+                expect(body(await take(bank)).bank).toMatchObject({ guildId: "g1", pending: false });
+            });
+
+            it.each([
+                ["an orga without the rank", ORGA],
+                ["a full admin", { id: "1", isAdmin: true }],
+            ])("%s sees and takes it as on main", async (_who, user) => {
+                const bank = record("Beta");
+                mockUser = user;
+                expect(await listed()).toEqual(["Beta"]);
+                expect(body(await take(bank)).bank).toMatchObject({ guildId: "g1", pending: false });
+                expect(withoutRank).not.toHaveBeenCalled();
+            });
+        });
     });
 
     it("POST delete forgets a bank, 404 for an unknown one", async () => {

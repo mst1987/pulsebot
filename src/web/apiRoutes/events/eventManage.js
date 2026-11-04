@@ -15,10 +15,12 @@
 //   POST /api/raids/manage/delete                      { event, archiveChannel, notify, confirmStarted }
 //   POST /api/raids/manage/recreate-channel            { event } — the event's channel was deleted (#537)
 const { ok } = require("../../http/apiResponse");
-const { withUser } = require("../../http/apiHandler");
+const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { onlyByRank } = require("../../http/serverQuery");
+const { userCan, userIsOrga } = require("../../../config/permissions");
 const manage = require("../../../services/events/eventManage");
 
 // "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
@@ -36,6 +38,18 @@ const BY_QUERY = (body, query) => query.get("event");
 const reader = (fn) => withUser({ orgaScoped: BY_QUERY, write: "raids" }, fn);
 /** A write: CSRF, JSON body - the orga with `raids` write, or the orga of the raid's category. */
 const action = (fn) => withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, fn);
+
+/**
+ * Whether only the server-admin rank (#1072) makes `user` the orga of this raid: neither its roles
+ * (the orga with `raids` write) nor its roster (a manager of the raid's category) would. Profiles are
+ * global, so such a caller sees and changes less of them; everybody else keeps what they had.
+ */
+async function raidOnlyByRank(user, req, eventId) {
+    if (!onlyByRank(user, req, (roles) => userIsOrga(roles) && userCan(roles, "raids", "write"))) return false;
+    // required here, not at the top: tests of this route mock auth without this export
+    const { getUserWithoutRank } = require("../../http/auth");
+    return !(await categoryOrgaOfAll(getUserWithoutRank(req), eventId, req));
+}
 
 const getManage = reader(async ({ req, res, query }) => {
     sendResult(res, await manage.manageInfo({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));
@@ -58,12 +72,17 @@ const postSignups = action(async ({ user, body, req, res }) => {
     sendResult(res, await manage.setSignupsOpen({ guildId: activeGuildFor(req), eventId: body.event, open: body.open === true, user, byName: user.name }));
 });
 
-const getRaiderCandidates = reader(async ({ req, res, query }) => {
-    sendResult(res, await manage.raiderCandidates({ guildId: activeGuildFor(req), eventId: q.str(query, "event") }));
+const getRaiderCandidates = reader(async ({ user, req, res, query }) => {
+    const eventId = q.str(query, "event");
+    sendResult(res, await manage.raiderCandidates({
+        guildId: activeGuildFor(req), eventId,
+        ...(await raidOnlyByRank(user, req, eventId) ? { ownServerOnly: true } : {}),
+    }));
 });
 
 const postRaider = action(async ({ user, body: b, req, res }) => {
     sendResult(res, await manage.addRaider({
+        ...(await raidOnlyByRank(user, req, b.event) ? { keepProfiles: true } : {}),
         guildId: activeGuildFor(req), eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,
         // further own characters, "kann auch mit" (#293)
         alternates: Array.isArray(b.alternates) ? b.alternates : undefined,

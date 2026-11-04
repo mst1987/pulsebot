@@ -36,6 +36,7 @@ const channelNaming = require("../discord/channelNaming");
 const discordChannels = require("../discord/discordChannels");
 const archiveStore = require("../../stores/discord/channelArchiveStore");
 const discord = require("../discord/discord");
+const { serverMemberIds } = require("../discord/members/serverMembers");
 const linkCheck = require("../discord/linkCheck");
 const { refreshEventMessage } = require("./eventMessage");
 const { refreshSetupMessage, postOrEditSetupMessage } = require("../setup/setupMessage");
@@ -342,7 +343,7 @@ async function setSignupsOpen({ guildId, eventId, open, user, byName }) {
  * auch mit", in priority order after `character` — each goes through the same
  * profile check. Without it an existing signup keeps its alternates.
  */
-async function addRaider({ guildId, eventId, userId, character, spec, alternates, status = "signed", comment, user, byName }) {
+async function addRaider({ guildId, eventId, userId, character, spec, alternates, status = "signed", comment, user, byName, keepProfiles = false }) {
     const found = ownEvent(guildId, eventId);
     if (found.error) return found;
     const uid = str(userId);
@@ -369,6 +370,10 @@ async function addRaider({ guildId, eventId, userId, character, spec, alternates
         if (existing && existing.className === specInfo.classId && existing.specs.some((s) => s.key === specInfo.key)) return null;
         if (existing && existing.className !== specInfo.classId) {
             return fail(400, "spec", `${existing.name} ist im Profil ${existing.className} — die Spec passt nicht.`);
+        }
+        // a holder of only the rank (#1072) signs up what exists: a profile is global, not theirs to change
+        if (keepProfiles && uid !== str(user && user.id)) {
+            return fail(400, "character", `${charName} steht mit dieser Spec nicht im Profil. Nur vorhandene Charaktere lassen sich eintragen.`);
         }
         const added = profiles.addCharacter(uid, { name: charName, className: specInfo.classId, specs: [{ key: specInfo.key }], source: "manual", versionId });
         if (added.error) return fail(400, "character", added.error);
@@ -760,8 +765,12 @@ async function manageInfo({ guildId, eventId, now = Date.now() }) {
  * holders of the category's raider roles (best-effort) and whoever is signed
  * up — each with their profile characters — plus the rule set's classes, so a
  * character that is not in any profile yet can be typed in.
+ *
+ * `ownServerOnly` (#1072, a holder of only the server-admin rank): the profiles of
+ * the server's members and of whoever is signed up, not of every account. Without
+ * a provable member list only those signed up.
  */
-async function raiderCandidates({ guildId, eventId }) {
+async function raiderCandidates({ guildId, eventId, ownServerOnly = false }) {
     const found = ownEvent(guildId, eventId, { allowCancelled: true });
     if (found.error) return found;
     const { event } = found;
@@ -779,7 +788,14 @@ async function raiderCandidates({ guildId, eventId }) {
         byId.set(id, row);
         return row;
     };
+    const signups = signupStore.listSignups(event.id);
+    let shown = null;
+    if (ownServerOnly) {
+        const members = await serverMemberIds(event.guildId || guildId);
+        shown = new Set([...(members || []), ...signups.map((s) => str(s.userId))]);
+    }
     for (const p of profiles.listProfiles()) {
+        if (shown && !shown.has(str(p.userId))) continue;
         const row = add(p.userId, p.name);
         if (!row) continue;
         row.characters = profiles.charactersOfVersion(p, versionOfEvent(event)).map((c) => ({
@@ -796,7 +812,6 @@ async function raiderCandidates({ guildId, eventId }) {
             // the member list is a convenience; profiles and signups still come
         }
     }
-    const signups = signupStore.listSignups(event.id);
     for (const s of signups) {
         const row = add(s.userId, "");
         if (row) row.signup = { character: s.character, spec: s.spec, status: s.status };

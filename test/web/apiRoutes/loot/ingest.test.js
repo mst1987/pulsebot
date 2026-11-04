@@ -55,7 +55,7 @@ jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
 // A personal key's servers (#1000) come from its owner's orga roles - set per test, never Discord.
 jest.mock("../../../../src/services/discord/servers/ingestServers", () => {
     const actual = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
-    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken) };
+    return { ...actual, serversOfToken: jest.fn(actual.serversOfToken), tokenMayLearnClasses: jest.fn(async () => true) };
 });
 jest.mock("../../../../src/services/versions/mainVersion", () => {
     const actual = jest.requireActual("../../../../src/services/versions/mainVersion");
@@ -71,7 +71,8 @@ const { verifyToken, touchToken } = require("../../../../src/stores/loot/ingestT
 const { upsertPending, resolutionFor } = require("../../../../src/stores/loot/lootInboxStore");
 const { addImport } = require("../../../../src/stores/loot/lootStore");
 const { loadEventGroups } = require("../../../../src/services/events/raidEventGroups");
-const { serversOfToken } = require("../../../../src/services/discord/servers/ingestServers");
+const { serversOfToken, tokenMayLearnClasses } = require("../../../../src/services/discord/servers/ingestServers");
+const { rememberFromLoot } = require("../../../../src/services/characters/characterInfo");
 const { handle } = require("../../../../src/web/http/apiRouter");
 const { EH_FORMAT, EH_VERSION } = require("../../../../src/utils/loot/lootImport");
 
@@ -416,6 +417,24 @@ describe("POST /api/ingest/loot with a personal key", () => {
         const res = await upload(payload());
         expect(addImport).toHaveBeenCalledWith("e1", expect.any(Array), { categoryId: "cat1", eventLabel: "SSC", guildId: "gC" });
         expect(json(res).data.results[0]).toMatchObject({ status: "appended", added: 1 });
+    });
+
+    // #1072: the appended items land in the raid, the shared classes only with the owner's role.
+    it("appends for an owner holding only the server-admin rank without teaching the classes", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA"]);
+        tokenMayLearnClasses.mockResolvedValueOnce(false);
+        resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gA" });
+        const res = await upload(payload());
+        expect(tokenMayLearnClasses).toHaveBeenCalledWith(PERSON, "gA");
+        expect(json(res).data.results[0]).toMatchObject({ status: "appended", added: 1 });
+        expect(rememberFromLoot).not.toHaveBeenCalled();
+    });
+
+    it("teaches the classes when the owner may", async () => {
+        serversOfToken.mockResolvedValueOnce(["gA"]);
+        resolutionFor.mockReturnValue({ action: "accepted", eventId: "e1", eventLabel: "SSC", categoryId: "cat1", guildId: "gA" });
+        await upload(payload());
+        expect(rememberFromLoot).toHaveBeenCalledTimes(1);
     });
 
     it("never takes over an open card of another server", async () => {

@@ -116,6 +116,8 @@ function sessionFor(req) {
 // Sid -> the promise of the role re-check in flight (kept out of the session
 // objects so it is never persisted to disk).
 const refreshingSids = new Map();
+// session -> number of its latest re-check: an answer after the time limit must not undo a newer one
+const recheckRounds = new WeakMap();
 
 /** Store a computeGuildAccess() result on a session; the old global fields go. */
 function applyGuildAccess(s, guildAccess) {
@@ -217,31 +219,42 @@ async function ensureAccess(req) {
     saveSessions();
 }
 
-/** computeGuildAccess() that gives up after RECHECK_TIMEOUT_MS; a later answer is dropped. */
-function lookupWithTimeout(id) {
+/** Waits for `lookup` at most RECHECK_TIMEOUT_MS; only the waiting ends, the lookup itself goes on. */
+function waitForLookup(lookup) {
     let timer;
     const timeout = new Promise((_, reject) => {
         timer = setTimeout(() => reject(new Error(`no answer within ${RECHECK_TIMEOUT_MS} ms`)), RECHECK_TIMEOUT_MS);
         if (timer.unref) timer.unref();
     });
-    return Promise.race([computeGuildAccess(id), timeout]).finally(() => clearTimeout(timer));
+    return Promise.race([lookup, timeout]).finally(() => clearTimeout(timer));
 }
 
 /**
  * Re-check a session's rights now, or join the re-check in flight. Never rejects and always
  * ends within RECHECK_TIMEOUT_MS. A failed lookup (bot offline, Discord unreachable, no answer
  * in time) keeps the last known status instead of demoting a working session - except a
- * server-admin rank (#1072), which never outlives an unanswered lookup.
+ * server-admin rank (#1072), which never outlives an unanswered lookup. Discord's answer still
+ * counts when it comes after the limit, unless a newer re-check has started since.
  */
 function refreshAdmin(sid, s) {
     if (refreshingSids.has(sid)) return refreshingSids.get(sid);
-    const running = lookupWithTimeout(s.id)
-        .then((guildAccess) => applyGuildAccess(s, guildAccess))
+    const round = (recheckRounds.get(s) || 0) + 1;
+    recheckRounds.set(s, round);
+    let waiting = true;
+    const lookup = computeGuildAccess(s.id).then((guildAccess) => {
+        if (recheckRounds.get(s) !== round) return;
+        applyGuildAccess(s, guildAccess);
+        if (waiting) return;
+        s.adminCheckedAt = Date.now();
+        saveSessions();
+    });
+    const running = waitForLookup(lookup)
         .catch((e) => {
             console.warn(`Admin re-check failed for ${s.id}:`, e.message);
             if (s.guildAccess) applyGuildAccess(s, withoutServerAdminRank(s.guildAccess, s.id));
         })
         .finally(() => {
+            waiting = false;
             s.adminCheckedAt = Date.now();
             refreshingSids.delete(sid);
             saveSessions();

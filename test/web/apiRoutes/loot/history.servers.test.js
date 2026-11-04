@@ -14,6 +14,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
 jest.mock("../../../../src/services/characters/characterInfo", () => ({
     ...jest.requireActual("../../../../src/services/characters/characterInfo"),
     rememberFromLoot: jest.fn(),
+    resolveMissing: jest.fn(async () => ({ fromExport: 0, fromReports: 0, fromWcl: 0, checkedReports: 0, pendingReports: 0, missing: [], unlinked: [], error: "" })),
 }));
 jest.mock("../../../../src/web/characters/charGearIssues", () => ({
     ...jest.requireActual("../../../../src/web/characters/charGearIssues"),
@@ -63,7 +64,7 @@ const mockConfig = {
 
 const { json, status, routerClient } = require("../../../helpers/http");
 const { getUser, getUserWithoutRank } = require("../../../../src/web/http/auth");
-const { rememberFromLoot } = require("../../../../src/services/characters/characterInfo");
+const { rememberFromLoot, resolveMissing } = require("../../../../src/services/characters/characterInfo");
 const { issuesForCharacter } = require("../../../../src/web/characters/charGearIssues");
 const characterStore = require("../../../../src/stores/roster/characterStore");
 const inbox = require("../../../../src/stores/loot/lootInboxStore");
@@ -289,6 +290,24 @@ describe("the rank Server-Admin (#1072): the store decides, not the right", () =
             const res = await post("/api/history/inbox-accept", { id: own.id, event: "__manual__", manualLabel: "Kara" });
             expect(status(res)).toBeLessThan(300);
             expect(rememberFromLoot).not.toHaveBeenCalled();
+        });
+
+        describe("POST /api/history/characters-resolve", () => {
+            it("refuses the rank alone before anything is written", async () => {
+                const res = await post("/api/history/characters-resolve", {});
+                expect(status(res)).toBe(403);
+                expect(json(res).error.code).toBe("forbidden");
+                expect(resolveMissing).not.toHaveBeenCalled();
+            });
+
+            it("runs for a role with the right and for regular orga, as on main", async () => {
+                getUserWithoutRank.mockReturnValue(HISTORY_ROLE);
+                expect(status(await post("/api/history/characters-resolve", {}))).toBe(200);
+                expect(resolveMissing).toHaveBeenCalledTimes(1);
+                getUser.mockReturnValue(ORGA);
+                expect(status(await post("/api/history/characters-resolve", {}))).toBe(200);
+                expect(resolveMissing).toHaveBeenCalledTimes(2);
+            });
         });
     });
 

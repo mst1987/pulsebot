@@ -1001,7 +1001,7 @@ describe("web/http/auth", () => {
                     expect(auth.getUser(req).isServerAdmin).toBe(true);
                 });
 
-                it("an answer after the time limit is dropped", async () => {
+                it("an answer after the time limit still counts: the rank falls at the limit and Discord brings it back", async () => {
                     const { req, fetch } = await adminWithRole("824");
                     expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
                     let answer;
@@ -1010,7 +1010,58 @@ describe("web/http/auth", () => {
                     const waiting = auth.ensureAccess(req);
                     await jest.advanceTimersByTimeAsync(auth.RECHECK_TIMEOUT_MS);
                     await waiting;
+                    expectRoleRightsOnly(auth.getUser(req));
                     answer(asAdministrator(memberWithRoles("role-b")));
+                    await flush();
+                    expect(auth.getUser(req).isServerAdmin).toBe(true);
+                });
+
+                it("a late failure leaves the rank away and does not reject", async () => {
+                    const { req, fetch } = await adminWithRole("825");
+                    expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                    let fail;
+                    fetch.mockImplementation(() => new Promise((_, reject) => { fail = reject; }));
+                    now += 2 * FIVE_MIN + 1000;
+                    const waiting = auth.ensureAccess(req);
+                    await jest.advanceTimersByTimeAsync(auth.RECHECK_TIMEOUT_MS);
+                    await waiting;
+                    fail(new Error("Discord down"));
+                    await flush();
+                    expectRoleRightsOnly(auth.getUser(req));
+                });
+
+                it("a late answer does not undo a newer re-check", async () => {
+                    const { req, fetch } = await adminWithRole("826");
+                    expect(userOn(req, "guild-1").isServerAdmin).toBe(true);
+                    let oldAnswer;
+                    fetch.mockImplementation(() => new Promise((resolve) => { oldAnswer = resolve; }));
+                    now += 2 * FIVE_MIN + 1000;
+                    const waiting = auth.ensureAccess(req);
+                    await jest.advanceTimersByTimeAsync(auth.RECHECK_TIMEOUT_MS);
+                    await waiting;
+                    // the next round says: no administrator any more
+                    fetch.mockResolvedValue(memberWithRoles("role-b"));
+                    now += FIVE_MIN + 1000;
+                    auth.getUser(req);
+                    await flush();
+                    expectRoleRightsOnly(auth.getUser(req));
+                    // the old round's answer comes only now, with the old rank
+                    oldAnswer(asAdministrator(memberWithRoles("role-b")));
+                    await flush();
+                    expectRoleRightsOnly(auth.getUser(req));
+                });
+
+                it("a session without the rank gets an answer after the time limit, as on main", async () => {
+                    const { req, fetch } = await adminWithRole("827", jest.fn().mockResolvedValue(asPlainMember()));
+                    expect(userOn(req, "guild-1").isServerAdmin).toBeUndefined();
+                    expect(auth.getUser(req).access.raids).toEqual({ read: false, write: false });
+                    let answer;
+                    fetch.mockImplementation(() => new Promise((resolve) => { answer = resolve; }));
+                    now += FIVE_MIN + 1000;
+                    auth.getUser(req); // the background re-check starts and takes its time
+                    await jest.advanceTimersByTimeAsync(auth.RECHECK_TIMEOUT_MS + 1000);
+                    await flush();
+                    answer(asPlainMember(memberWithRoles("role-b")));
                     await flush();
                     expectRoleRightsOnly(auth.getUser(req));
                 });

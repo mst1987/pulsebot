@@ -945,7 +945,9 @@ const getHistoryEvent = withUser({}, async ({ req, res, url }) => {
  * missing for the loot characters: from the export, from an already evaluated
  * CLA report, else from the Warcraft-Logs report of the raid.
  */
-const resolveCharacters = withUser({ csrf: true }, async ({ res }) => {
+const resolveCharacters = withUser({ csrf: true }, async ({ user, req, res }) => {
+    // Writes the classes of every server's characters: not by the rank alone (#1072).
+    if (!mayLearnClasses(user, req)) return error(res, 403, "forbidden", "Das betrifft alle Server, dafür reicht der Rang Server-Admin nicht.");
     const r = await resolveMissing();
     if (r.error) return error(res, 502, "wcl_unavailable", r.error);
     const filled = r.fromExport + r.fromReports + r.fromWcl;
