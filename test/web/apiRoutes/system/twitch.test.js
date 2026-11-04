@@ -40,8 +40,11 @@ const twitchJob = require("../../../../src/services/twitch/twitchJob");
 const { AREA_BY_PATH } = require("../../../../src/web/http/apiAccess");
 const { mockRes, status, body, json } = require("../../../helpers/http");
 const {
-    getStreamers, postStreamer, putStreamer, deleteStreamer, postCheck, routes,
+    getStreamers, postStreamer, putStreamer, deleteStreamer, postCheck, approveRequest, postRejectRequest, routes,
 } = require("../../../../src/web/apiRoutes/system/twitch");
+const { tempStoreFile } = require("../../../helpers/tempStore");
+const requestStore = require("../../../../src/stores/discord/twitchRequestStore");
+const { fileRequest, statusOf } = require("../../../../src/services/twitch/twitchRequests");
 
 const GUILD_A = "100000";
 const GUILD_B = "200000";
@@ -64,8 +67,11 @@ const write = (handler, payload) => call(handler, { serverSettingsGuildId: GUILD
 const code = (res) => json(res).error.code;
 const listOf = (guildId = GUILD_A) => mockConfig.serverSettings[guildId].twitchStreamers;
 
+afterAll(() => requestStore.useFile(null));
+
 beforeEach(() => {
     jest.clearAllMocks();
+    requestStore.useFile(tempStoreFile("twitch-requests.json"));
     mockUser = { id: "1", name: "Orga", isAdmin: false };
     mockConfig = {
         guildId: "",
@@ -100,7 +106,11 @@ describe("the route table", () => {
             "PUT /api/settings/twitch settings",
             "DELETE /api/settings/twitch settings",
             "POST /api/settings/twitch/check settings",
+            "POST /api/settings/twitch/requests/approve settings",
+            "POST /api/settings/twitch/requests/reject settings",
         ]);
+        expect(AREA_BY_PATH["/api/settings/twitch/requests/approve"]).toBe("settings");
+        expect(AREA_BY_PATH["/api/settings/twitch/requests/reject"]).toBe("settings");
         expect(AREA_BY_PATH["/api/settings/twitch"]).toBe("settings");
         expect(AREA_BY_PATH["/api/settings/twitch/check"]).toBe("settings");
     });
@@ -125,6 +135,7 @@ describe("GET /api/settings/twitch", () => {
                 ...stored(),
                 status: { state: "live", since: "2026-11-03T18:00:00Z", endedAt: 0, title: "Raid", game: "WoW", viewers: 7, messageGone: false, postedChannelId: "", error: "" },
             }],
+            requests: [],
         });
     });
 
@@ -402,6 +413,181 @@ describe("an orga of server B on the data of server A", () => {
         expect(status(res)).toBe(404);
         expect(code(res)).toBe("not_found");
         expect(listOf(GUILD_B)).toHaveLength(1);
+    });
+});
+
+describe("raiders' requests", () => {
+    const RAIDER = "777777";
+    const ask = (over = {}) => fileRequest({ guildId: GUILD_A, userId: RAIDER, userName: "Anna", login: "anna", now: 9, config: mockConfig, ...over });
+
+    describe("in the list's answer", () => {
+        it("shows the open requests of the active server only, without a decided one", async () => {
+            ask();
+            ask({ userId: "888888", login: "bert", now: 3 });
+            ask({ userId: "999999", login: "cara", guildId: GUILD_B });
+            ask({ userId: "333333", login: "dora" });
+            await write(postRejectRequest, { userId: "333333" });
+            const res = await call(getStreamers);
+            expect(body(res).requests).toEqual([
+                { userId: "888888", userName: "Anna", login: "bert", requestedAt: 3 },
+                { userId: RAIDER, userName: "Anna", login: "anna", requestedAt: 9 },
+            ]);
+        });
+    });
+
+    describe("POST .../requests/approve", () => {
+        const approve = (over = {}) => write(approveRequest, { userId: RAIDER, channelId: CHANNEL_A, roleId: ROLE_A, text: "Hallo", games: ["WoW"], ...over });
+
+        it("gives the request a normal entry with its source and clears it from the open ones", async () => {
+            ask();
+            const res = await approve();
+            expect(status(res)).toBe(200);
+            expect(listOf().find((e) => e.login === "anna")).toEqual({
+                login: "anna", channelId: CHANNEL_A, roleId: ROLE_A, text: "Hallo", games: ["WoW"], source: "raider",
+            });
+            expect(body(res).requests).toEqual([]);
+            expect(statusOf(requestStore.requestOf(GUILD_A, RAIDER), mockConfig)).toBe("approved");
+        });
+
+        it("takes the login from the request and the source from nobody's body", async () => {
+            ask();
+            await approve({ login: "fremd", source: "orga" });
+            expect(listOf().some((e) => e.login === "fremd")).toBe(false);
+            expect(listOf().find((e) => e.login === "anna").source).toBe("raider");
+        });
+
+        it("a later edit keeps the source", async () => {
+            ask();
+            await approve();
+            await write(putStreamer, { login: "anna", text: "Neu", source: "orga" });
+            expect(listOf().find((e) => e.login === "anna")).toMatchObject({ text: "Neu", source: "raider" });
+        });
+
+        it("the orga's removal takes it off and the raider sees no entry again", async () => {
+            ask();
+            await approve();
+            await write(deleteStreamer, { login: "anna" });
+            expect(listOf().some((e) => e.login === "anna")).toBe(false);
+            expect(requestStore.requestOf(GUILD_A, RAIDER)).toBeNull();
+        });
+
+        it("refuses a full list with 409, the request stays open, and an open one does not count", async () => {
+            mockConfig.serverSettings[GUILD_A].twitchStreamers = Array.from({ length: 24 }, (_, i) => stored({ login: `voll${i}` }));
+            ask();
+            ask({ userId: "888888", login: "bert" });
+            expect(status(await approve())).toBe(200);
+
+            const res = await write(approveRequest, { userId: "888888", channelId: CHANNEL_A });
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("too_many");
+            expect(listOf()).toHaveLength(25);
+            expect(requestStore.requestOf(GUILD_A, "888888").status).toBe("pending");
+        });
+
+        it("refuses a login that is listed meanwhile, the request stays open", async () => {
+            ask();
+            listOf().push(stored({ login: "anna" }));
+            const res = await approve();
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("duplicate_streamer");
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("reuses the channel and role checks: another server's channel or role gets 403", async () => {
+            ask();
+            const channel = await approve({ channelId: CHANNEL_B });
+            expect(status(channel)).toBe(403);
+            expect(code(channel)).toBe("other_server");
+            const role = await approve({ roleId: ROLE_B });
+            expect(status(role)).toBe(403);
+            expect(listOf().some((e) => e.login === "anna")).toBe(false);
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("refuses @everyone and a voice channel", async () => {
+            ask();
+            expect(code(await approve({ roleId: GUILD_A }))).toBe("invalid_role");
+            discord.isNonTextChannel.mockReturnValue(true);
+            expect(code(await approve())).toBe("invalid_channel");
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("needs a channel", async () => {
+            ask();
+            const res = await approve({ channelId: "" });
+            expect(status(res)).toBe(400);
+            expect(code(res)).toBe("missing_channel");
+        });
+
+        it("cannot reach a request of another server: 404", async () => {
+            ask({ guildId: GUILD_B });
+            const res = await approve();
+            expect(status(res)).toBe(404);
+            expect(code(res)).toBe("not_found");
+            expect(requestStore.requestOf(GUILD_B, RAIDER).status).toBe("pending");
+        });
+
+        it("cannot approve twice", async () => {
+            ask();
+            await approve();
+            expect(status(await approve())).toBe(404);
+        });
+
+        it("a stale tab of another server gets 409 and changes nothing", async () => {
+            ask();
+            activeGuildFor.mockReturnValue(GUILD_B);
+            const res = await write(approveRequest, { userId: RAIDER, channelId: CHANNEL_A });
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("server_switched");
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("needs the CSRF token", async () => {
+            ask();
+            requireCsrf.mockReturnValueOnce(false);
+            await approveRequest({}, mockRes(), new URL("http://localhost/x"));
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+            expect(saveConfig).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("POST .../requests/reject", () => {
+        it("says no, nothing lands in the list", async () => {
+            ask();
+            const res = await write(postRejectRequest, { userId: RAIDER });
+            expect(status(res)).toBe(200);
+            expect(body(res).requests).toEqual([]);
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("rejected");
+            expect(listOf().some((e) => e.login === "anna")).toBe(false);
+        });
+
+        it("cannot reach a request of another server: 404", async () => {
+            ask({ guildId: GUILD_B });
+            const res = await write(postRejectRequest, { userId: RAIDER });
+            expect(status(res)).toBe(404);
+            expect(requestStore.requestOf(GUILD_B, RAIDER).status).toBe("pending");
+        });
+
+        it("a stale tab of another server gets 409", async () => {
+            ask();
+            activeGuildFor.mockReturnValue(GUILD_B);
+            const res = await write(postRejectRequest, { userId: RAIDER });
+            expect(code(res)).toBe("server_switched");
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("the raider may ask again at once", async () => {
+            ask();
+            await write(postRejectRequest, { userId: RAIDER });
+            expect(ask({ login: "anderer" }).status).toBe("pending");
+        });
+
+        it("needs the CSRF token", async () => {
+            ask();
+            requireCsrf.mockReturnValueOnce(false);
+            await postRejectRequest({}, mockRes(), new URL("http://localhost/x"));
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
     });
 });
 

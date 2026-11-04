@@ -356,3 +356,35 @@ export function createSyncKey(name: string): Promise<SyncKeys & { token: string;
 export function deleteSyncKey(id: string): Promise<SyncKeys> {
     return send("POST", "/api/profile/sync-keys/delete", { id });
 }
+
+// Being announced on Twitch (docs/twitch.md): the caller's own request per server. The
+// account comes from the session; a request names a server and a Twitch name, nothing else.
+export type ProfileTwitchStatus = "none" | "pending" | "rejected" | "approved";
+
+export type ProfileTwitchServer = {
+    guildId: string;
+    name: string;
+    icon: string;
+    status: ProfileTwitchStatus;
+    login: string;
+    requestedAt: number;
+    decidedAt: number;
+};
+
+export type ProfileTwitch = { servers: ProfileTwitchServer[]; lastLogin: string };
+
+export function getProfileTwitch(): Promise<ProfileTwitch> {
+    return get("/api/profile/twitch");
+}
+
+export function requestTwitch(guildId: string, login: string): Promise<ProfileTwitch> {
+    return send("POST", "/api/profile/twitch", { guildId, login });
+}
+
+export function withdrawTwitch(guildId: string): Promise<ProfileTwitch> {
+    return send("POST", "/api/profile/twitch/withdraw", { guildId });
+}
+
+export function removeOwnTwitch(guildId: string): Promise<ProfileTwitch> {
+    return send("POST", "/api/profile/twitch/remove", { guildId });
+}

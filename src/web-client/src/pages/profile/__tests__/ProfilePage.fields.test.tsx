@@ -16,6 +16,7 @@ vi.mock("../../../api", async (orig) => ({
     saveProfile: vi.fn(),
     getCalendarTokens: vi.fn(),
     getSyncKeys: vi.fn(),
+    getProfileTwitch: vi.fn(),
     getRaiderAttendance: vi.fn(),
     getProfileRaiding: vi.fn(),
     searchProfileItems: vi.fn(),
@@ -79,6 +80,7 @@ function setup(p = profile(), professions?: Parameters<typeof data>[1], lootCoun
     vi.mocked(api.saveProfile).mockImplementation(async (patch) => { current = answer(current, patch); return { profile: current }; });
     vi.mocked(api.getCalendarTokens).mockResolvedValue({ tokens: [], max: 3, configured: true });
     vi.mocked(api.getSyncKeys).mockResolvedValue({ allowed: false, servers: [], keys: [], max: 10 });
+    vi.mocked(api.getProfileTwitch).mockResolvedValue({ servers: [], lastLogin: "" });
     vi.mocked(api.getRaiderAttendance).mockResolvedValue({ userId: "u1", name: "Anna", own: true, orga: false, categories: [] });
     vi.mocked(api.getProfileRaiding).mockResolvedValue(raiding(lootCouncil));
     vi.mocked(api.searchProfileItems).mockResolvedValue({ items: [{ id: 28830, name: "Dragonspine Trophy", iconUrl: "", quality: 4 }] });

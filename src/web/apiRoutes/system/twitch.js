@@ -1,7 +1,8 @@
 // The Twitch streamers of the active server (settings page, docs/twitch.md): read the
-// list with its status, add, change, remove, "Jetzt prüfen". Always the server active in
-// the session, never one named by the request: a tab that loaded another server gets
-// 409, a login this server does not list 404, a channel or role of another server 403.
+// list with its status, add, change, remove, "Jetzt prüfen", decide raiders' requests.
+// Always the server active in the session, never one named by the request: a tab that
+// loaded another server gets 409, a login or request this server does not have 404, a
+// channel or role of another server 403. The raider's own side: roster/profileTwitch.js.
 //
 // The credentials are not this file's: PATCH /api/settings shows and writes them, full
 // admins only (CREDENTIAL_KEYS in apiRoutes/system/settings.js). This answer says only yes
@@ -18,6 +19,9 @@ const {
     TwitchSettingsError, parseLogin, twitchStreamersOf, twitchStreamersFromBody,
 } = require("../../../services/twitch/twitchSettings");
 const { runTwitchCheck, twitchStatusOf, lastTwitchRun } = require("../../../services/twitch/twitchJob");
+const {
+    openRequests, openRequestOf, rejectRequest, markApproved, removeStreamer,
+} = require("../../../services/twitch/twitchRequests");
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 
@@ -46,6 +50,7 @@ function view(guildId, config = getConfig()) {
             delete entryStatus.login;
             return { ...entry, status: entryStatus };
         }),
+        requests: openRequests(guildId).map(({ userId, userName, login, requestedAt }) => ({ userId, userName, login, requestedAt })),
     };
 }
 
@@ -187,8 +192,48 @@ const deleteStreamer = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (!current.some((e) => e.login === login)) {
         return error(res, 404, "not_found", "Diesen Streamer gibt es auf diesem Server nicht.");
     }
-    const saved = saveConfig({ serverSettings: { [guildId]: { twitchStreamers: current.filter((e) => e.login !== login) } } });
-    ok(res, view(guildId, saved || config));
+    ok(res, view(guildId, removeStreamer(guildId, login, { config })));
+    return undefined;
+});
+
+/**
+ * POST /api/settings/twitch/requests/approve - give a raider's open request its entry: the
+ * login is the request's, channel, role, text and games are the orga's, `source` is fixed
+ * here. Refused (a full list, a login listed meanwhile) the request stays open.
+ */
+const approveRequest = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
+    const target = writeTarget(body, req, res);
+    if (!target) return undefined;
+    const { guildId, config } = target;
+    const request = openRequestOf(guildId, str(body.userId));
+    if (!request) return error(res, 404, "not_found", "Diese Anfrage gibt es auf diesem Server nicht.");
+    const current = twitchStreamersOf(guildId, { config });
+    if (current.length >= MAX_STREAMERS_PER_SERVER) {
+        return error(res, 409, "too_many", `Höchstens ${MAX_STREAMERS_PER_SERVER} Streamer je Server.`);
+    }
+    if (current.some((e) => e.login === request.login)) {
+        return error(res, 409, "duplicate_streamer", `${request.login} steht schon in der Liste.`);
+    }
+    const saved = saveList({ guildId, config, res }, [...current, { ...formOf(body), login: request.login }], current, (list) => {
+        const entry = list[list.length - 1];
+        if (!targetsAllowed({ user, req, res, guildId }, entry, null)) return false;
+        entry.source = "raider";
+        return true;
+    });
+    if (!saved) return undefined;
+    markApproved(request);
+    ok(res, view(guildId));
+    return undefined;
+});
+
+/** POST /api/settings/twitch/requests/reject - say no to an open request of this server. */
+const postRejectRequest = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+    const target = writeTarget(body, req, res);
+    if (!target) return undefined;
+    if (!rejectRequest(target.guildId, str(body.userId))) {
+        return error(res, 404, "not_found", "Diese Anfrage gibt es auf diesem Server nicht.");
+    }
+    ok(res, view(target.guildId, target.config));
     return undefined;
 });
 
@@ -210,6 +255,8 @@ const routes = [
     { method: "PUT", path: "/api/settings/twitch", handler: putStreamer, area: "settings" },
     { method: "DELETE", path: "/api/settings/twitch", handler: deleteStreamer, area: "settings" },
     { method: "POST", path: "/api/settings/twitch/check", handler: postCheck, area: "settings" },
+    { method: "POST", path: "/api/settings/twitch/requests/approve", handler: approveRequest, area: "settings" },
+    { method: "POST", path: "/api/settings/twitch/requests/reject", handler: postRejectRequest, area: "settings" },
 ];
 
-module.exports = { getStreamers, postStreamer, putStreamer, deleteStreamer, postCheck, routes };
+module.exports = { getStreamers, postStreamer, putStreamer, deleteStreamer, postCheck, approveRequest, postRejectRequest, routes };

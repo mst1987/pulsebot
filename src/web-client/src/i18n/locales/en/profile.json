@@ -68,6 +68,16 @@
         "syncKeysActive": {
             "one": "{count} key active",
             "other": "{count} keys active"
+        },
+        "twitch": "Twitch announcement",
+        "twitchNone": "no entry",
+        "twitchApproved": {
+            "one": "{count} entry approved",
+            "other": "{count} entries approved"
+        },
+        "twitchPending": {
+            "one": "{count} request waiting",
+            "other": "{count} requests waiting"
         }
     },
     "days": {
@@ -414,6 +424,38 @@
         "removeSub": "Say, a mistyped second entry. Logs, loot and signups stay.",
         "noHit": "No character matches the search.",
         "none": "No raider has a character in their profile yet."
+    },
+    "twitch": {
+        "intro": "The bot announces your stream on the server once the orga approves your request. The orga sets the channel and the ping.",
+        "name": "Twitch name or link",
+        "namePlaceholder": "twitch.tv/name",
+        "colServer": "Server",
+        "colStatus": "Status",
+        "colAction": "Action",
+        "empty": "You are not on a server where this works.",
+        "status": {
+            "none": "No entry",
+            "pending": "Waiting for approval",
+            "approved": "Approved",
+            "rejected": "Rejected"
+        },
+        "request": "Request",
+        "withdraw": "Withdraw",
+        "remove": "Remove me",
+        "removeTitle": "Remove yourself from the list?",
+        "removeText": "{login} will no longer be announced on {server}.",
+        "requested": "Request sent.",
+        "withdrawn": "Request withdrawn.",
+        "removed": "You are off the list.",
+        "error": {
+            "invalid_login": "That is not a valid Twitch name or link.",
+            "not_member": "You are not a member of this server.",
+            "member_unknown": "Your membership can't be checked right now. Please try again in a moment.",
+            "already_open": "You already have a waiting request on this server.",
+            "already_approved": "You are already on this server's list.",
+            "already_listed": "This name is already on the server's list.",
+            "not_found": "There is no such entry any more."
+        }
     },
     "sync": {
         "loading": "Loading keys",

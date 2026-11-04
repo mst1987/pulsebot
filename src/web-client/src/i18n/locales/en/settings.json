@@ -143,6 +143,10 @@
             "one": "{count} active raid category",
             "other": "{count} active raid categories"
         },
+        "badgeTwitch": {
+            "one": "{count} open Twitch request",
+            "other": "{count} open Twitch requests"
+        },
         "unsaved": {
             "one": "{count} unsaved change",
             "other": "{count} unsaved changes"
@@ -1831,9 +1835,32 @@
             "bad_credentials": "Not checked: Twitch rejects the credentials. Please check them under Settings › Connections.",
             "failed": "The check failed."
         },
+        "requests": {
+            "aria": "Open requests from raiders",
+            "title": {
+                "one": "{count} open request",
+                "other": "{count} open requests"
+            },
+            "full": "The list is full. Approving works again once an entry is removed.",
+            "col": {
+                "raider": "Raider",
+                "login": "Twitch name",
+                "since": "Since"
+            },
+            "approve": "Approve",
+            "reject": "Reject",
+            "rejectTitle": "Reject this request?",
+            "rejectText": "{name} sees in their profile that {login} was rejected and can ask again.",
+            "approved": "{login} is on the list now.",
+            "rejected": "Request from {login} rejected.",
+            "gone": "This request no longer exists."
+        },
         "modal": {
             "addTitle": "Add streamer",
             "editTitle": "Edit streamer",
+            "approveTitle": "Approve request",
+            "approveAction": "Approve",
+            "requestedBy": "Requested by {name}",
             "login": "Name or link",
             "loginPlaceholder": "twitch.tv/name",
             "channel": "Channel",

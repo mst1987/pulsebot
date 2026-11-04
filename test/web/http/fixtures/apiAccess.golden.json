@@ -59,6 +59,8 @@
     "/api/settings/wcl-guilds/fetch": "settings",
     "/api/settings/twitch": "settings",
     "/api/settings/twitch/check": "settings",
+    "/api/settings/twitch/requests/approve": "settings",
+    "/api/settings/twitch/requests/reject": "settings",
     "/api/raider-characters": "settings",
     "/api/roster": "roster",
     "/api/roster/hide": "roster",
@@ -323,6 +325,9 @@
     "/api/addons/download": ["signup", "history"],
     "/api/profile/sync-keys": "signup",
     "/api/profile/sync-keys/delete": "signup",
+    "/api/profile/twitch": "signup",
+    "/api/profile/twitch/remove": "signup",
+    "/api/profile/twitch/withdraw": "signup",
     "/api/profile/leads": "signup",
     "/api/leads": "raids"
   },

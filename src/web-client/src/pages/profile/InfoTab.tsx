@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import type { AttendanceCategory, CalendarTokens, LeadVersion, ProfileData, ProfilePatch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
+import type { AttendanceCategory, CalendarTokens, LeadVersion, ProfileData, ProfilePatch, ProfileTwitch, RaiderAttendanceData, RaiderProfile, SyncKeys } from "../../api";
 import { Badge, buttonClass, IconButton, NumberStepper, type ConfirmFn } from "../../components/ui";
 import AttendanceCell from "../../components/roster/AttendanceCell";
 import { EyeOffIcon, XIcon } from "../../components/ui/icons/icons";
@@ -10,6 +10,7 @@ import { tOr, useT } from "../../i18n";
 import { AvoidPart, type Fold, FoldPart, NoteField, RaidPicker, WishPicker } from "./ProfileParts";
 import { CalendarPart } from "./CalendarPart";
 import { SyncKeysPart } from "./SyncKeysPart";
+import { TwitchPart } from "./TwitchPart";
 import { LeadsPart } from "./LeadsPart";
 import { leadsSummary } from "../../lib/roster/leaders";
 
@@ -17,7 +18,8 @@ import { leadsSummary } from "../../lib/roster/leaders";
 // three calm groups, every part folded to one line until it is opened:
 //   Raiden         the attendance of the shown version (GET /api/availability/attendance),
 //                  which instances the person can lead (#1034, PUT /api/profile/leads)
-//   Verknüpfungen  the calendar subscription; the sync app keys (#1000) only for orga of a server
+//   Verknüpfungen  the calendar subscription; the sync app keys (#1000) only for orga of a server;
+//                  the own Twitch announcements (docs/twitch.md)
 //   Vorlieben      weekdays, preferred raids, with whom (not), a note for the orga
 // Saving works as before: every change goes through `patch` (PUT /api/profile).
 
@@ -40,6 +42,16 @@ function attendanceSummary(data: RaiderAttendanceData | null, failed: boolean, t
     const first = counted[0];
     const line = t("profile.attendance.sum", { pct: first.pct ?? 0, attended: first.attended, count: first.total, name: first.name || first.id });
     return counted.length > 1 ? `${line} ${t("profile.attendance.more", { count: counted.length - 1 })}` : line;
+}
+
+/** The folded line of the Twitch part: what is listed and what waits, in words. */
+function twitchSummary(data: ProfileTwitch, t: ReturnType<typeof useT>): string {
+    const approved = data.servers.filter((s) => s.status === "approved").length;
+    const pending = data.servers.filter((s) => s.status === "pending").length;
+    const parts = [];
+    if (approved) parts.push(t("profile.fold.twitchApproved", { count: approved }));
+    if (pending) parts.push(t("profile.fold.twitchPending", { count: pending }));
+    return parts.join(", ") || t("profile.fold.twitchNone");
 }
 
 /** One category: the quota large, the counted nights as status fields (read only here), how many of how many. */
@@ -113,7 +125,7 @@ function DayTimes({ days, times, step, onChange }: {
     );
 }
 
-export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, syncKeys = null, onSyncKeys, attendance, attendanceFailed, leadVersions = [], onLeads }: {
+export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onCalendar, syncKeys = null, onSyncKeys, twitch = null, onTwitch, attendance, attendanceFailed, leadVersions = [], onLeads }: {
     data: ProfileData;
     profile: RaiderProfile;
     fold: Fold[];
@@ -125,6 +137,9 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
     /** The own sync app keys; the part shows only when `allowed` (orga of at least one server). */
     syncKeys?: SyncKeys | null;
     onSyncKeys?: (next: SyncKeys) => void;
+    /** The own Twitch requests per server; null while it loads or after a failed load hides the part. */
+    twitch?: ProfileTwitch | null;
+    onTwitch?: (next: ProfileTwitch) => void;
     /** The own attendance of the shown version, null while it loads. */
     attendance: RaiderAttendanceData | null;
     attendanceFailed: boolean;
@@ -165,6 +180,11 @@ export function InfoTab({ data, profile, fold, onFold, patch, ask, calendar, onC
                             summary={syncKeys.keys.length === 0 ? t("profile.fold.syncKeysNone") : t("profile.fold.syncKeysActive", { count: syncKeys.keys.length })}
                         >
                             <SyncKeysPart data={syncKeys} onChange={onSyncKeys} />
+                        </FoldPart>
+                    )}
+                    {twitch && onTwitch && (
+                        <FoldPart id="twitch" open={fold} onToggle={onFold} title={t("profile.fold.twitch")} summary={twitchSummary(twitch, t)}>
+                            <TwitchPart data={twitch} onChange={onTwitch} />
                         </FoldPart>
                     )}
                 </Group>

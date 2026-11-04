@@ -6,14 +6,19 @@ current and greys it out when the stream ends. User view: [guide-web-admin.md](g
 Code: `src/services/twitch/` (`twitchSettings.js` entries and limits, `twitchJob.js` the poll, `twitchCard.js` the
 message), `src/classes/twitch.js` (API client), `src/stores/discord/twitchStateStore.js`,
 `src/web/apiRoutes/system/twitch.js`; client `pages/settings/discord/SettingsTwitch.tsx`, words in
-`lib/settings/twitch.ts`.
+`lib/settings/twitch.ts`. Raider requests: `src/services/twitch/twitchRequests.js`,
+`src/stores/discord/twitchRequestStore.js`, `src/web/apiRoutes/roster/profileTwitch.js`; client
+`pages/profile/TwitchPart.tsx`, `pages/settings/discord/TwitchRequests.tsx`.
 
 ## Data model
 
 - **Entries** in `settings/config.json` at `serverSettings[guildId].twitchStreamers`:
-  `{ login, channelId, roleId, text, games, source }`. `source` is only `"orga"` for now. Limits: 25 streamers per
-  server, 500 characters of own text, 5 game names of 60 characters each. `login` matches `^[a-z0-9_]{2,25}$`; the API
-  also takes `@name` and a `twitch.tv/name` link and refuses other links.
+  `{ login, channelId, roleId, text, games, source }`. `source` is `"orga"` or `"raider"` and never comes from a body:
+  an approval sets `"raider"`, an edit keeps what is there. Limits: 25 streamers per server, 500 characters of own
+  text, 5 game names of 60 characters each. `login` matches `^[a-z0-9_]{2,25}$`; the API also takes `@name` and a
+  `twitch.tv/name` link and refuses other links.
+- **Requests** in `settings/twitch-requests.json`, one record per `"<guildId>:<userId>"`: `{ guildId, userId, userName,
+  login, status, requestedAt, decidedAt }`. See [Raider requests](#raider-requests).
 - **State** in `settings/twitch-state.json`, one record per `"<guildId>:<login>"` (message and channel id, stream id,
   start, last sighting, end, end retries, last edit, hash, error, `pendingEnds`, `removedAt`). It is not part of the
   config: it changes every run and a settings PATCH must not race it. It survives a restart.
@@ -92,9 +97,40 @@ trademark stays Twitch's), which is no dependency. `ensureAppEmojis` uploads it 
 The web client draws the same path inline as the brand icon `twitch` (`lib/ui/iconSet.ts`, `Icon.tsx`) in the token
 `--twitch-purple`: in the settings menu, the section head, the dialog head and the row under Connections.
 
+## Raider requests
+
+A raider asks in "Mein Profil" (fold "Twitch-Ankündigung", one table row per server), the orga decides on the Twitch
+page above the list. The orga list stays the one source: an approval adds a normal entry with `source: "raider"`, which
+the orga edits or removes like any other. A raider chooses only the server and the name, never a role, a channel or a
+text, so nobody can ping through a request. There is no DM; the status lives in the profile.
+
+- **Status:** `none`, `pending`, `rejected`, `approved`. At most one open request per server and account, because the
+  record's key is server plus account. After a rejection the raider may ask again at once.
+- **`approved` only holds** while the login is in the list with `source: "raider"`. Without that the profile shows "no
+  entry" again. A removal by the orga also clears the approved record.
+- **Limit:** every entry counts towards the 25, an open request does not. A full list answers 409 `too_many` and the
+  request stays open; the page disables approving and says why, rejecting still works.
+- **Leaving a list:** the raider's own removal runs the same code as the orga's, so a running message ends as described
+  under "Removed entry".
+
+Edge cases, and what happens:
+
+| Case | Result |
+|---|---|
+| Login is already in the list | 409 `already_listed` when asking. It is not marked as approved, otherwise anyone could claim someone else's entry and remove it |
+| Two open requests for one login | Allowed. The second approval answers 409 `duplicate_streamer`, the request stays open and the orga rejects it |
+| Raider changes the name | An open request keeps the old name until withdrawn and asked again; an approved entry stays until the raider removes it and asks again |
+| Raider leaves the server | Request and entry stay, the orga decides; the raider can still withdraw or remove |
+| Membership lookup fails | Asking is refused with 503 `member_unknown` (fail closed); listing keeps the servers already known |
+
 ## Rights
 
-Area `settings`: GET needs read, the write routes write plus CSRF. Always the session's active server;
+Raider routes: basic access (area `signup`, `scope: "all"` as part of the page Profil, see
+[permissions.md](permissions.md)). The Discord id always comes from the session, never from a body, so a raider can
+only reach their own record. Asking needs membership of that server; a server the raider is no member of answers 403
+`not_member`.
+
+The orga's routes: area `settings`: GET needs read, the write routes write plus CSRF. Always the session's active server;
 `serverSettingsGuildId` guards against a server switched in another tab (409 `server_switched`), as with the other
 per-server settings. A channel or role of another server is refused with 403 `other_server`. The credentials go
 through `PATCH /api/settings` and are full-admin only; `hasCredentials` in the view tells everybody with the settings
@@ -114,6 +150,14 @@ next check, gone at once when other credentials are saved.
 | `PUT /api/settings/twitch` | `serverSettingsGuildId, login, channelId?, roleId?, text?, games?`; omitted = kept, `roleId: ""` removes | view; 404 `not_found` |
 | `DELETE /api/settings/twitch` | `serverSettingsGuildId, login` | view; 404 `not_found` |
 | `POST /api/settings/twitch/check` | `serverSettingsGuildId` | `{ result, ...view }` |
+| `POST /api/settings/twitch/requests/approve` | `serverSettingsGuildId, userId, channelId, roleId?, text?, games?` | view; 404 `not_found`, 409 `too_many`, `duplicate_streamer` |
+| `POST /api/settings/twitch/requests/reject` | `serverSettingsGuildId, userId` | view; 404 `not_found` |
+| `GET /api/profile/twitch` | - | `{ servers, lastLogin }` |
+| `POST /api/profile/twitch` | `guildId, login` | 201 `{ servers, lastLogin }`; 404 `not_found`, 403 `not_member`, 503 `member_unknown`, 400 `invalid_login`, 409 `already_open`, `already_approved`, `already_listed` |
+| `POST /api/profile/twitch/withdraw` | `guildId` | `{ servers, lastLogin }`; 404 `not_found` |
+| `POST /api/profile/twitch/remove` | `guildId` | `{ servers, lastLogin }`; 404 `not_found` |
+
+`servers` holds per server `guildId, name, icon, status, login, requestedAt, decidedAt`.
 
 `result` is `{ checked, live }` or `{ skipped }` with `no_credentials`, `bad_credentials`, `bot_offline`,
 `rate_limited`, `twitch_unavailable` or `failed`. `bad_credentials` means Twitch refused the app: 400, 401 or 403 from
@@ -122,7 +166,9 @@ the token call, or a 401 that stays after a new token. The secret appears in no 
 `lastRun` is global, since a Twitch failure is too. "Jetzt prüfen" only writes it when it really asked Twitch: a server
 without entries does not wipe the error of the last run.
 
-The view holds `guildId, hasCredentials, mention, lastRun: { at, error }, limits, streamers`, and each streamer a `status`:
+The view holds `guildId, hasCredentials, mention, lastRun: { at, error }, limits, requests, streamers`. `requests` lists
+the open ones as `{ userId, userName, login, requestedAt }`; `GET /api/settings` carries their number as
+`twitchRequestsOpen` for the counter at the section. Each streamer has a `status`:
 `state` (`live`, `filtered`, `offline`), `since, endedAt, title, game, viewers, messageGone, error, postedChannelId`.
 The status can be up to 5 minutes old. `filtered` means "running, no announcement": the filter, or a failed post, in
 which case `error` is set. `lastRun.at` is 0 until the first run of this process.

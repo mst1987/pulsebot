@@ -68,6 +68,16 @@
         "syncKeysActive": {
             "one": "{count} Schlüssel aktiv",
             "other": "{count} Schlüssel aktiv"
+        },
+        "twitch": "Twitch-Ankündigung",
+        "twitchNone": "kein Eintrag",
+        "twitchApproved": {
+            "one": "{count} Eintrag freigegeben",
+            "other": "{count} Einträge freigegeben"
+        },
+        "twitchPending": {
+            "one": "{count} Anfrage wartet",
+            "other": "{count} Anfragen warten"
         }
     },
     "days": {
@@ -414,6 +424,38 @@
         "removeSub": "Etwa ein vertippter zweiter Eintrag. Logs, Loot und Anmeldungen bleiben.",
         "noHit": "Kein Charakter passt zur Suche.",
         "none": "Noch hat kein Raider einen Charakter im Profil."
+    },
+    "twitch": {
+        "intro": "Der Bot kündigt deinen Stream auf dem Server an, sobald die Orga deine Anfrage freigibt. Kanal und Ping legt die Orga fest.",
+        "name": "Twitch-Name oder Link",
+        "namePlaceholder": "twitch.tv/name",
+        "colServer": "Server",
+        "colStatus": "Status",
+        "colAction": "Aktion",
+        "empty": "Du bist auf keinem Server, auf dem das geht.",
+        "status": {
+            "none": "Kein Eintrag",
+            "pending": "Wartet auf Freigabe",
+            "approved": "Freigegeben",
+            "rejected": "Abgelehnt"
+        },
+        "request": "Anfragen",
+        "withdraw": "Zurückziehen",
+        "remove": "Austragen",
+        "removeTitle": "Aus der Liste austragen?",
+        "removeText": "{login} wird auf {server} nicht mehr angekündigt.",
+        "requested": "Anfrage gestellt.",
+        "withdrawn": "Anfrage zurückgezogen.",
+        "removed": "Du bist ausgetragen.",
+        "error": {
+            "invalid_login": "Das ist kein gültiger Twitch-Name oder -Link.",
+            "not_member": "Du bist kein Mitglied dieses Servers.",
+            "member_unknown": "Deine Mitgliedschaft lässt sich gerade nicht prüfen. Bitte versuch es gleich noch einmal.",
+            "already_open": "Auf diesem Server wartet schon eine Anfrage von dir.",
+            "already_approved": "Du stehst auf diesem Server schon in der Liste.",
+            "already_listed": "Dieser Name steht auf dem Server schon in der Liste.",
+            "not_found": "Dazu gibt es keinen Eintrag mehr."
+        }
     },
     "sync": {
         "loading": "Schlüssel werden geladen",
