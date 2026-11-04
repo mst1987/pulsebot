@@ -41,7 +41,7 @@ function onlyByRank(user, req, rolesMay) {
 /**
  * The raiders `user` may see from this request (#1077, services/characters/profileVisibility.js):
  * null for a full admin (no limit), otherwise a set: members of the active server, raiders signed up
- * there, and the caller. A holder of only the rank stays behind its own stricter limit first.
+ * there, and the caller. Routes check the stricter limit of the rank alone (`onlyByRank`) before this.
  * @returns {Promise<Set<string>|null>}
  */
 async function visibleRaidersFor(user, req) {

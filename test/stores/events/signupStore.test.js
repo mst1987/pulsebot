@@ -2,11 +2,22 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 
 const fs = require("fs");
 const {
-    listSignups, getSignup, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged,
+    listSignups, getSignup, lastSignupOf, lastOwnSignupOf, saveSignup, removeSignup, deleteEventSignups, normalizeSignup, onSignupsChanged, userIdsOfEvents,
 } = require("../../../src/stores/events/signupStore");
 
 describe("stores/events/signupStore", () => {
     beforeEach(() => fs.__store.clear());
+
+    it("collects the accounts signed up to the named events, the others stay out (#1077)", () => {
+        saveSignup("eh-1", "u1", { character: "Eins", spec: "Priest-Holy", status: "signed" });
+        saveSignup("eh-2", "u2", { status: "absence" });
+        saveSignup("eh-2", "u1", { character: "Eins", spec: "Priest-Holy", status: "signed" });
+        saveSignup("eh-3", "u3", { character: "Drei", spec: "Mage-Frost", status: "signed" });
+        const ids = userIdsOfEvents(["eh-1", "eh-2", "eh-unknown"]);
+        expect(ids).toBeInstanceOf(Set);
+        expect([...ids].sort()).toEqual(["u1", "u2"]);
+        expect(userIdsOfEvents([]).size).toBe(0);
+    });
 
     it("stores a signup with the role taken from the rule set", () => {
         const { signup } = saveSignup("eh-1", "u1", {

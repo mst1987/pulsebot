@@ -53,6 +53,8 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     postAnnouncement: jest.fn(async () => ({})),
     resolveUserNames: jest.fn(async () => ({})),
     listRoles: () => [],
+    // #1077: the raider the orga adds below is a member of the active server
+    listHumanMembers: jest.fn(async () => ({ members: [{ id: "200000000000000001" }], error: null })),
 }));
 // the raid list of the server (resolveEventForPost): the stored events, with their channels
 jest.mock("../../../../src/services/events/raidEventGroups", () => ({
@@ -154,7 +156,7 @@ describe("the orga of a category (a manager of its roster)", () => {
             expect([key, status(r)]).toEqual([key, 200]);
         }
         expect(manage.setSignupsOpen).toHaveBeenCalledWith(expect.objectContaining({ eventId: own.id, open: false, user: MANAGER }));
-        expect(manage.raiderCandidates).toHaveBeenCalledWith({ guildId: "g1", eventId: own.id });
+        expect(manage.raiderCandidates).toHaveBeenCalledWith({ guildId: "g1", eventId: own.id, visibleIds: expect.any(Set) });
         expect(manage.addRaider).toHaveBeenCalledWith(expect.objectContaining({ eventId: own.id, character: "Neu" }));
         expect(manage.removeRaider).toHaveBeenCalledWith(expect.objectContaining({ eventId: own.id, userId: "h1" }));
         expect(pingMissingRaiders).toHaveBeenCalledWith(expect.objectContaining({ eventId: own.id }));

@@ -12,6 +12,16 @@ jest.mock("../../../../src/services/discord/discord", () => ({
         ? { members: mockMembers[guildId].map((id) => ({ id })), error: null }
         : { members: [], error: "Server nicht gefunden oder Bot nicht verbunden." })),
 }));
+// who signed up to a raid of each server (#1077)
+let mockSignups = {};
+jest.mock("../../../../src/stores/events/eventStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/eventStore"),
+    eventIdsOfGuild: (guildId) => [guildId],
+}));
+jest.mock("../../../../src/stores/events/signupStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/signupStore"),
+    userIdsOfEvents: (ids) => new Set(ids.flatMap((id) => mockSignups[id] || [])),
+}));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 
@@ -64,6 +74,7 @@ beforeEach(() => {
     mockConfigured = true;
     mockActive = "g1";
     mockMembers = { g1: ["200000000000000001", "200000000000000002"] };
+    mockSignups = {};
 });
 
 describe("GET/PUT /api/profile", () => {
@@ -245,6 +256,51 @@ describe("Wünsche bleiben bei der Orga", () => {
         const orgaRole = { ...ANNA, isOrga: true };
         expect(status(await call(route.getUserProfile, orgaRole, { query: `id=${BERT.id}` }))).toBe(200);
         expect(status(await call(route.getCharacterClaims, orgaRole))).toBe(200);
+    });
+
+    describe("Sicht je Server (#1077)", () => {
+        const orgaRole = { ...ANNA, isOrga: true };
+        const profileOf = (user, id) => call(route.getUserProfile, user, { query: `id=${id}` });
+
+        beforeEach(() => {
+            mockMembers = { g1: [ANNA.id], g2: [BERT.id] };
+        });
+
+        it("antwortet 404 auf einen Raider nur von einem anderen Server, der Voll-Admin sieht ihn", async () => {
+            const res = await profileOf(orgaRole, BERT.id);
+            expect(status(res)).toBe(404);
+            expect(json(res).error.code).toBe("not_found");
+            expect(status(await profileOf(ORGA, BERT.id))).toBe(200);
+        });
+
+        it("sieht ihn, sobald er sich auf diesem Server angemeldet hat", async () => {
+            mockSignups.g1 = [BERT.id];
+            expect(status(await profileOf(orgaRole, BERT.id))).toBe(200);
+        });
+
+        it("zeigt nur die Anmeldungen, wenn die Mitgliederliste nicht lesbar ist, nie alle Profile", async () => {
+            mockMembers = {};
+            expect(status(await profileOf(orgaRole, BERT.id))).toBe(404);
+            mockSignups.g1 = [BERT.id];
+            expect(status(await profileOf(orgaRole, BERT.id))).toBe(200);
+        });
+
+        it("nennt bei Wünschen und Doppel-Charakteren keine fremden Konten", async () => {
+            const carl = "200000000000000003";
+            store.addCharacter(carl, { source: "log", name: "Nerathil", className: "Mage" }, { name: "Carl" });
+            store.saveProfile(carl, { wishes: [BERT.id] }, { name: "Carl" });
+            mockSignups.g1 = [BERT.id];
+
+            const { profile } = json(await profileOf(orgaRole, BERT.id)).data;
+            expect(profile.wishes.map((w) => w.userId)).toEqual([ANNA.id]);
+            expect(profile.wishedBy.map((w) => w.userId)).toEqual([ANNA.id]);
+            const full = json(await profileOf(ORGA, BERT.id)).data.profile;
+            expect(full.wishedBy.map((w) => w.userId).sort()).toEqual([ANNA.id, carl].sort());
+
+            const nerathil = (data) => data.claims.find((c) => /nerathil/i.test(c.key || c.character || ""));
+            expect(nerathil(json(await call(route.getCharacterClaims, orgaRole)).data)).toBeUndefined();
+            expect(nerathil(json(await call(route.getCharacterClaims, ORGA)).data).claims.map((c) => c.userId).sort()).toEqual([ANNA.id, carl].sort());
+        });
     });
 
     it("antwortet 404 für ein Konto ohne Profil", async () => {

@@ -7,6 +7,7 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../../../src/stores/events/signupStore", () => ({ getSignup: (eventId) => (eventId === "eh-a" ? { status: "tentative" } : null) }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
 jest.mock("../../../../src/services/signups/availability", () => ({
     MAX_DAYS: 180,
     today: () => "2030-03-17",
@@ -56,6 +57,7 @@ jest.mock("../../../../src/web/availability/entryServers", () => ({
     serverNames: () => ({ g: "Pulse", A: "Server A" }),
 }));
 
+const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const store = require("../../../../src/stores/events/availabilityStore");
@@ -102,6 +104,8 @@ beforeEach(() => {
     profiles.reset();
     profiles.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }, { key: "Mage-Fire", gear: "none" }] }, { name: "Anna" });
     profiles.addCharacter(ANNA.id, { name: "Ohnegear", className: "Priest", specs: [{ key: "Priest-Holy", gear: "none" }] }, { name: "Anna" });
+    // #1077: the raiders these tests act for are ones the active server may see
+    visibleRaiderIds.mockResolvedValue(new Set(["u1", "u2", ANNA.id, "200000000000000002", "999"]));
 });
 
 describe("GET /api/availability", () => {
@@ -547,6 +551,8 @@ describe("the server-admin rank alone", () => {
     beforeEach(() => {
         withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue(NO_ROLES);
         serverMemberIds.mockResolvedValue(new Set([MEMBER]));
+        // an orga by role also reaches a raider signed up here (#1077); the rank alone only members
+        visibleRaiderIds.mockResolvedValue(new Set([MEMBER, STRANGER]));
         raiderAttendance.mockReturnValueOnce({ userId: MEMBER, categories: [{ id: "cat1", raids: [], upcoming: [] }, { id: "catA", raids: [], upcoming: [] }] });
     });
     afterEach(() => {
@@ -706,6 +712,43 @@ describe("one game version per view (#740)", () => {
         expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "forever" }));
         await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1&version=forever" });
         expect(absenceOverview.raiderDetail).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+    });
+});
+
+describe("the orga reaches only raiders this server may see (#1077)", () => {
+    const FOREIGN = "200000000000000077";
+    const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+    const ways = [
+        ["GET /api/availability", () => call("GET", "/api/availability", ORGA, { query: `userId=${FOREIGN}` })],
+        ["GET /api/availability/attendance", () => call("GET", "/api/availability/attendance", ORGA, { query: `userId=${FOREIGN}` })],
+        ["GET /api/availability/overview/raider", () => call("GET", "/api/availability/overview/raider", ORGA, { query: `userId=${FOREIGN}` })],
+        ["POST /api/availability/preview", () => call("POST", "/api/availability/preview", ORGA, { json: { userId: FOREIGN, from: "2030-03-20", to: "2030-03-25" } })],
+        ["POST /api/availability", () => call("POST", "/api/availability", ORGA, { json: { userId: FOREIGN, kind: "absence", from: "2030-03-20", to: "2030-03-25" } })],
+    ];
+
+    it.each(ways)("%s answers 403 other_server and reads nothing of them", async (_way, send) => {
+        const res = await send();
+        expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+        expect(raiderAttendance).not.toHaveBeenCalled();
+        expect(absenceOverview.raiderDetail).not.toHaveBeenCalled();
+        expect(availability.createEntry).not.toHaveBeenCalled();
+    });
+
+    it("lets them through once they are in reach, as after a signup on this server", async () => {
+        visibleRaiderIds.mockResolvedValue(new Set([FOREIGN]));
+        expect(status(await call("GET", "/api/availability/attendance", ORGA, { query: `userId=${FOREIGN}` }))).toBe(200);
+        expect(raiderAttendance).toHaveBeenCalledWith(FOREIGN, expect.anything());
+    });
+
+    it("keeps the caller's own view, whatever the member list says", async () => {
+        visibleRaiderIds.mockResolvedValue(new Set());
+        expect(status(await call("GET", "/api/availability", ANNA))).toBe(200);
+        expect(status(await call("GET", "/api/availability", ORGA, { query: `userId=${ORGA.id}` }))).toBe(200);
+    });
+
+    it("leaves a full admin without a limit and without a member list", async () => {
+        expect(status(await call("GET", "/api/availability/attendance", ADMIN, { query: `userId=${FOREIGN}` }))).toBe(200);
+        expect(visibleRaiderIds).not.toHaveBeenCalled();
     });
 });
 

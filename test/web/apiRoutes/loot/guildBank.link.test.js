@@ -19,7 +19,9 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
 
+const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
 const discord = require("../../../../src/services/discord/discord");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
@@ -251,6 +253,57 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
         res = await call(importGuildBankWaitlist, { payload: { key: KEY, text, links } });
         expect(body(res)).toMatchObject({ added: 2, skipped: 0, unlinked: 1 });
         expect(body(res).entries.map((e) => [e.characterName, e.linked])).toEqual([["Whapap", true], ["Niemand", false]]);
+    });
+
+    describe("the orga by role reaches only raiders this server may see (#1077)", () => {
+        const ROLE_ORGA = { id: "7", name: "Bob", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
+
+        beforeEach(() => {
+            mockUser = ROLE_ORGA;
+            visibleRaiderIds.mockResolvedValue(new Set(["u8"]));
+        });
+
+        it("offers the characters of visible raiders only, a full admin all", async () => {
+            let res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY }) });
+            expect(status(res)).toBe(200);
+            expect(body(res).characters.map((c) => c.userId)).toEqual(["u8"]);
+            expect(visibleRaiderIds).toHaveBeenCalledWith("g1");
+
+            mockUser = { id: "1", name: "Orga", isAdmin: true };
+            visibleRaiderIds.mockClear();
+            res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY }) });
+            expect(body(res).characters.map((c) => c.userId).sort()).toEqual(["u7", "u8"]);
+            expect(visibleRaiderIds).not.toHaveBeenCalled();
+        });
+
+        it("searches nothing beyond the sign-ups when the member list cannot be read: never every profile", async () => {
+            visibleRaiderIds.mockResolvedValue(new Set());
+            const res = await call(searchGuildBankCharacters, { url: q("characters", { key: KEY }) });
+            expect(body(res).characters).toEqual([]);
+        });
+
+        it("refuses to link a request or add a waiting entry for a raider out of reach, and takes a visible one", async () => {
+            const entry = imported();
+            let res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u7", characterKey: "whapap" } });
+            expect([status(res), body(res).error.code]).toEqual([400, "invalid"]);
+            expect(requests.listRequests().find((r) => r.id === entry.id).userId).toBe("");
+
+            const before = requests.listRequests().length;
+            res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u7", characterKey: "whapap", itemId: SPINAL, amount: 1 } });
+            expect(status(res)).not.toBe(200);
+            expect(requests.listRequests()).toHaveLength(before);
+
+            res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u8", characterKey: "skerra", itemId: SPINAL, amount: 1 } });
+            expect(status(res)).toBe(200);
+        });
+
+        it("drops an import's pick of a raider out of reach and matches names among the visible ones only", async () => {
+            const text = "Whapap\tCrimson Spinal\t1";
+            let res = await call(previewGuildBankWaitlist, { payload: { key: KEY, text, links: { 1: { userId: "u7", characterKey: "whapap" } } } });
+            expect(body(res).rows.map((r) => [r.linked, r.picked])).toEqual([[false, false]]);
+            res = await call(importGuildBankWaitlist, { payload: { key: KEY, text, links: { 1: { userId: "u7", characterKey: "whapap" } } } });
+            expect(body(res)).toMatchObject({ added: 1, unlinked: 1 });
+        });
     });
 
     it("adds an entry for a picked character", async () => {

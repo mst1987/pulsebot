@@ -177,6 +177,20 @@ describe("logSuggestions", () => {
         expect(out.find((s) => s.character === "Char00")).toBeUndefined();
     });
 
+    it("takes its claims from the handed profiles, so a limited orga sees no foreign account (#1077)", () => {
+        seedReports();
+        seedProfiles({
+            100002: { name: "Other", characters: [ch("Delta", "Rogue")] },
+            100003: { name: "Foreign", characters: [ch("Alpha", "Mage")] },
+        });
+        const within = profiles.listProfiles().filter((p) => p.userId === "100002");
+        const out = logSuggestions(USER, { all: within });
+        expect(out.find((s) => s.character === "Delta").claimedBy).toEqual([{ userId: "100002", name: "Other" }]);
+        expect(out.find((s) => s.character === "Alpha").claimedBy).toEqual([]);
+        // without a limit every account counts
+        expect(logSuggestions(USER).find((s) => s.character === "Alpha").claimedBy).toEqual([{ userId: "100003", name: "Foreign" }]);
+    });
+
     it("works for a caller without an id or name", () => {
         seedReports();
         const out = logSuggestions(null);

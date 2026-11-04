@@ -374,7 +374,12 @@ function limitSourceToServer(source, { alsoIds = [] } = {}) {
     const stays = new Set([...(source.members || []).map((m) => m.userId), ...alsoIds]);
     const logChars = {};
     for (const [userId, chars] of Object.entries(source.logChars || {})) if (stays.has(userId)) logChars[userId] = chars;
-    return { ...source, profiles: (source.profiles || []).filter((p) => stays.has(p.userId)), logChars };
+    return {
+        ...source,
+        profiles: (source.profiles || []).filter((p) => stays.has(p.userId)),
+        logChars,
+        attendance: (source.attendance || []).filter((a) => stays.has(a.userId)),
+    };
 }
 
 /** The rule set's classes alone — enough for a change inside one Kader (no Discord, no profiles). */
