@@ -49,7 +49,7 @@ const { versionOfEvent } = require("../../services/versions/mainVersion");
 const { MIN_NOTE } = require("../../services/signups/signupNotes");
 const { tr, serviceText, specLabel, classLabel } = require("../i18n/botText");
 const { plainTitle, colorOf } = require("./signupReply");
-const { shortWhen } = require("../time");
+const { signupWhen, signupPicture, signupFill, stepCard } = require("./signupHead");
 
 const MAX_OPTIONS = 25;
 const MAX_REASON = 100;
@@ -101,13 +101,6 @@ function characterText(profile, entry, emojis = {}, lang = "de") {
 function savedText(event, signup, profile, { emojis = {}, lang = "de" } = {}) {
     const title = String((event && event.title) || "Raid");
     const icon = (name) => emojiText(emojis, name);
-    const lead = (name, text) => [icon(name), text].filter(Boolean).join(" ");
-    if (!signup || signup.status === "absence") {
-        const text = signup && signup.comment
-            ? tr(lang, "Signed off from **{title}** – reason: {reason}", { title, reason: signup.comment })
-            : tr(lang, "Signed off from **{title}**", { title });
-        return `${lead(uiEmojiName("absence"), text)}.`;
-    }
     const s = migrateSignup(signup);
     const lines = s.characters.map((c, i) => {
         const word = statusWord(lang, c.status);
@@ -122,34 +115,26 @@ function savedText(event, signup, profile, { emojis = {}, lang = "de" } = {}) {
 }
 
 /**
- * The confirmation after a save as an embed (#508): the head line of savedText
- * as the title ("Saved for …" / "Signed off from …"), one line per character
- * with spec and status icon as the description, then the raid start as a
- * Discord timestamp and the service's notice (waiting list) below it. The
- * colour is the raid's (embedLook).
- * @returns {{ title: string, description: string, color: number }}
+ * The confirmation after a save as the input of a card (signupReply.answerPayload): the same head as every step (title
+ * "Saved for …" / "Signed off from …", the raid start beside the picture), below it one line per character with spec and
+ * status icon, the fill and the service's notice (waiting list). The colour is the raid's (embedLook).
+ * @returns {{ title: string, description?: string, thumbnail?: string, parts?: string[], color?: number }}
  */
 function savedEmbed(event, signup, profile, { emojis = {}, notice = "", lang = "de" } = {}) {
     const title = String((event && event.title) || "Raid");
-    const icon = (name) => emojiText(emojis, name);
-    let head;
-    let lines;
-    if (!signup || signup.status === "absence") {
-        head = [icon(uiEmojiName("absence")), tr(lang, "Signed off from {title}", { title })].filter(Boolean).join(" ");
-        lines = signup && signup.comment ? [tr(lang, "Reason: {reason}", { reason: signup.comment })] : [];
-    } else {
-        const [first, ...rest] = savedText(event, signup, profile, { emojis, lang }).split("\n");
-        head = plainTitle(first).replace(/:$/, "");
-        lines = rest;
-    }
-    const start = Number(event && event.startTime) || 0;
-    const meta = [
-        start ? `🗓️ ${shortWhen(start, { relative: true })}` : "",
-        notice ? `⏳ ${serviceText(lang, notice)}` : "",
-    ].filter(Boolean).join("\n");
-    const out = { title: head };
-    const description = [lines.join("\n"), meta].filter(Boolean).join("\n\n");
-    if (description) out.description = description;
+    const absent = !signup || signup.status === "absence";
+    const out = { title: absent ? tr(lang, "Signed off from {title}", { title }) : plainTitle(tr(lang, "Saved for **{title}**", { title })) };
+    const lines = absent
+        ? [signup && signup.comment ? tr(lang, "Reason: {reason}", { reason: signup.comment }) : ""]
+        : [savedText(event, signup, profile, { emojis, lang }).split("\n").slice(1).join("\n")];
+    if (!absent && event) lines.push(signupFill(event, lang));
+    if (notice) lines.push(serviceText(lang, notice));
+    const parts = lines.filter(Boolean);
+    if (parts.length) out.parts = parts;
+    const when = signupWhen(event);
+    if (when) out.description = when;
+    const picture = signupPicture(event);
+    if (picture) out.thumbnail = picture;
     const color = colorOf(event);
     if (color !== undefined) out.color = color;
     return out;
@@ -237,11 +222,8 @@ function pickOptions(profile, userId, eventId, { emojis = {}, versionId = "", la
     });
 }
 
-const headLine = (event, status, lang) => {
-    const start = Number(event.startTime) || 0;
-    const what = status === "signed" ? tr(lang, "Sign up") : tr(lang, "as **{status}**", { status: statusWord(lang, status) });
-    return `**${String(event.title || "Raid")}**${start ? ` · <t:${start}:f>` : ""} · ${what}`;
-};
+/** "as **Late**" under a step's question; plain signing up needs no word. */
+const asStatus = (status, lang) => (status === "signed" ? "" : tr(lang, "as **{status}**", { status: statusWord(lang, status) }));
 
 const otherClassButton = (eventId, status, emojis, label) => {
     const button = { type: 2, style: 2, custom_id: btnId(eventId, "other", codeOf(status)), label };
@@ -270,29 +252,30 @@ function classSelect(event, status, emojis, placeholder, lang) {
 /**
  * Step: pick own characters (up to the category's limit — pickLimitFor: as
  * many as a signup from before a lowered limit already has), the classes below them for
- * a new character (#303). Only the member sees it — an embed reads clearer
- * than plain content here (#356), so the lines go into its description.
- * @returns {{ embeds: object[], components: object[] }}
+ * a new character (#303). Only the member sees it.
+ * @returns {object} a card payload (signupHead.js)
  */
 function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "", lang = "de" } = {}) {
     const profile = profiles.getProfile(userId) || { characters: [] };
     const options = pickOptions(profile, userId, event.id, { emojis, versionId: versionOfEvent(event), lang });
     const stored = getSignup(event.id, userId);
     const max = Math.min(pickLimitFor(event, stored), options.length);
-    const lines = [headLine(event, status, lang)];
+    const above = [];
     const mine = migrateSignup(stored);
     if (mine && mine.status !== "absence" && (mine.characters || []).length) {
         const list = mine.characters.map((c) => `${characterText(profile, c, emojis, lang)} (${statusWord(lang, c.status)})`).join(", ");
-        lines.push(tr(lang, "So far: {list}", { list }));
+        above.push(tr(lang, "So far: {list}", { list }));
     }
-    lines.push(max > 1
+    const question = max > 1
         ? tr(lang, "Pick up to {max} characters – the topmost in the list is your 1st choice.", { max })
-        : tr(lang, "Pick your character."));
-    if (notice) lines.push("", notice);
-    return {
-        embeds: [{ color: colorOf(event), description: lines.join("\n") }],
-        components: [
-            {
+        : tr(lang, "Pick your character.");
+    return stepCard(event, {
+        lang,
+        detail: true,
+        above,
+        lines: [question, asStatus(status, lang), notice && `\n${notice}`],
+        rows: [
+            options.length ? {
                 type: 1,
                 components: [{
                     type: 3,
@@ -302,10 +285,10 @@ function buildCharacterPicker(event, userId, status, { emojis = {}, notice = "",
                     max_values: Math.max(1, max),
                     options,
                 }],
-            },
+            } : null,
             { type: 1, components: [classSelect(event, status, emojis, tr(lang, "Or a new character: pick a class …"), lang)] },
         ],
-    };
+    });
 }
 
 /**
@@ -334,21 +317,22 @@ function buildChangeRow(event, userId, { emojis = {}, lang = "de" } = {}) {
 
 /** Step: the classes of the event's game version. */
 function buildClassPicker(event, status, { emojis = {}, notice = "", lang = "de" } = {}) {
-    const lines = [headLine(event, status, lang), tr(lang, "Which class?")];
-    if (notice) lines.push("", notice);
-    return {
-        embeds: [{ color: colorOf(event), description: lines.join("\n") }],
-        components: [{ type: 1, components: [classSelect(event, status, emojis, tr(lang, "Pick a class …"), lang)] }],
-    };
+    return stepCard(event, {
+        lang,
+        lines: [tr(lang, "Which class?"), asStatus(status, lang), notice && `\n${notice}`],
+        rows: [{ type: 1, components: [classSelect(event, status, emojis, tr(lang, "Pick a class …"), lang)] }],
+    });
 }
 
 /** Step: the specs of the picked class, with a way back to the classes. null for an unknown class. */
 function buildSpecPicker(event, status, classId, { emojis = {}, lang = "de" } = {}) {
     const cls = classesFor(event).find((c) => c.id === classId);
     if (!cls) return null;
-    return {
-        embeds: [{ color: colorOf(event), description: `${headLine(event, status, lang)}\n${tr(lang, "**{class}** – which spec?", { class: classLabel(lang, cls) })}` }],
-        components: [
+    const question = [emojiText(emojis, classEmojiName(cls.id)), tr(lang, "**{class}** – which spec?", { class: classLabel(lang, cls) })].filter(Boolean).join(" ");
+    return stepCard(event, {
+        lang,
+        lines: [question, asStatus(status, lang)],
+        rows: [
             {
                 type: 1,
                 components: [{
@@ -367,7 +351,7 @@ function buildSpecPicker(event, status, classId, { emojis = {}, lang = "de" } = 
             },
             { type: 1, components: [otherClassButton(event.id, status, emojis, tr(lang, "Other class"))] },
         ],
-    };
+    });
 }
 
 /**

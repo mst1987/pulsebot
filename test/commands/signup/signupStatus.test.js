@@ -14,7 +14,7 @@ const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupStatus");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
@@ -43,8 +43,7 @@ describe("commands/signup/signupStatus", () => {
         });
         expect(mocks.changed).toHaveBeenCalledWith("eh-kara");
         const payload = payloadOf(i);
-        expect(payload.embeds[0].description).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
-        expect(payload.embeds[0].description).toContain("Tank 1/2");
+        expect(asEmbed(payload).text).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
         expect(i.reply).not.toHaveBeenCalled();
     });
 
@@ -53,7 +52,7 @@ describe("commands/signup/signupStatus", () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:t:nerathil:Mage-Arcane:", userId: ANNA });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "tentative", comment: "Pizza" });
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Saved: **Tentative**");
+        expect(asEmbed(payloadOf(i)).text).toContain("✅ Saved: **Tentative**");
     });
 
     it("refuses a new signup after the deadline with the service's reason", async () => {
@@ -61,7 +60,7 @@ describe("commands/signup/signupStatus", () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:s:nerathil:Mage-Arcane:", userId: ANNA });
         await command.execute(i);
         expect(mocks.signups.size).toBe(0);
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ The signup deadline has passed");
+        expect(asEmbed(payloadOf(i)).text).toContain("⚠️ The signup deadline has passed");
 
         const late = mockInteraction({ customId: "signup-status:eh-kara:l:nerathil:Mage-Arcane:", userId: ANNA });
         await command.execute(late);
@@ -72,14 +71,14 @@ describe("commands/signup/signupStatus", () => {
         mocks.events.set("eh-kara", mocks.ownEvent({ startTime: Math.floor(Date.now() / 1000) - 60, signupDeadline: 0 }));
         const i = mockInteraction({ customId: "signup-status:eh-kara:a:::", userId: ANNA });
         await command.execute(i);
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ The raid has already started");
+        expect(asEmbed(payloadOf(i)).text).toContain("⚠️ The raid has already started");
     });
 
     it("signs off without a profile character", async () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:a:::", userId: NOBODY });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${NOBODY}`)).toMatchObject({ status: "absence", spec: "" });
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Signed off.");
+        expect(asEmbed(payloadOf(i)).text).toContain("✅ Signed off.");
     });
 
     it("without a profile asks for the character name, then adds it and signs up", async () => {
@@ -96,7 +95,7 @@ describe("commands/signup/signupStatus", () => {
         await command.execute(submit);
         expect(profiles.getProfile(NOBODY).characters).toEqual([expect.objectContaining({ name: "Ysolde", className: "Priest", specs: [{ key: "Priest-Holy", gear: "usable" }] })]);
         expect(mocks.signups.get(`eh-kara/${NOBODY}`)).toMatchObject({ character: "Ysolde", spec: "Priest-Holy", status: "signed" });
-        expect(payloadOf(submit).embeds[0].description).toContain("✅ Saved: **Signed up** (Ysolde · Holy)");
+        expect(asEmbed(payloadOf(submit)).text).toContain("✅ Saved: **Signed up** (Ysolde · Holy)");
     });
 
     it("without a profile after the deadline gives the reason instead of the name modal", async () => {
@@ -104,13 +103,13 @@ describe("commands/signup/signupStatus", () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:s::Priest-Holy:", userId: NOBODY });
         await command.execute(i);
         expect(i.showModal).not.toHaveBeenCalled();
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ The signup deadline has passed");
+        expect(asEmbed(payloadOf(i)).text).toContain("⚠️ The signup deadline has passed");
     });
 
     it("asks for a spec first when none is picked", async () => {
         const i = mockInteraction({ customId: "signup-status:eh-kara:s:::", userId: NOBODY });
         await command.execute(i);
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ Please pick character and spec first.");
+        expect(asEmbed(payloadOf(i)).text).toContain("⚠️ Please pick character and spec first.");
     });
 
     describe("raider role of the category", () => {
@@ -124,14 +123,14 @@ describe("commands/signup/signupStatus", () => {
             const i = mockInteraction({ customId: "signup-status:eh-kara:s:nerathil:Mage-Arcane:", userId: ANNA });
             await command.execute(i);
             expect(mocks.signups.size).toBe(0);
-            expect(payloadOf(i).embeds[0].description).toContain("⚠️ You need a raider role for this raid.");
+            expect(asEmbed(payloadOf(i)).text).toContain("⚠️ You need a raider role for this raid.");
         });
 
         it("says so before asking a member without profile for a character name", async () => {
             const i = mockInteraction({ customId: "signup-status:eh-kara:s::Priest-Holy:", userId: NOBODY });
             await command.execute(i);
             expect(i.showModal).not.toHaveBeenCalled();
-            expect(payloadOf(i).embeds[0].description).toContain("⚠️ You need a raider role for this raid.");
+            expect(asEmbed(payloadOf(i)).text).toContain("⚠️ You need a raider role for this raid.");
         });
 
         it("still lets an existing signup be withdrawn", async () => {
@@ -183,8 +182,8 @@ describe("<server> beitreten after „Gespeichert“ (#904)", () => {
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "signed" });
         expect(i.update.mock.invocationCallOrder[0]).toBeLessThan(members.fetch.mock.invocationCallOrder[0]);
         const edited = i.editReply.mock.calls[0][0];
-        expect(edited.embeds[0].description).toContain("✅ Saved: **Signed up**");
-        expect(edited.embeds[0].description).toContain("ℹ️ Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
+        expect(asEmbed(edited).text).toContain("✅ Saved: **Signed up**");
+        expect(asEmbed(edited).text).toContain("ℹ️ Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
         // no invite yet (#905): no link button
         expect(JSON.stringify(edited.components)).not.toContain("Join Pulse PuGs");
     });

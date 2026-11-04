@@ -21,11 +21,12 @@ const commentCommand = require("../../../src/commands/signup/signupComment");
 const eventSignup = require("../../../src/commands/signup/eventSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
 const payloadOf = (i) => i.update.mock.calls[0][0];
-const byPrefix = (payload, prefix) => payload.components.flatMap((r) => r.components).filter((c) => String(c.custom_id || "").startsWith(prefix));
+const byPrefix = (payload, prefix) => cardRows(payload).flatMap((r) => r.components).filter((c) => String(c.custom_id || "").startsWith(prefix));
 
 beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-signup-pick.json")));
 afterAll(() => {

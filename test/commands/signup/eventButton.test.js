@@ -21,7 +21,7 @@ const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const userPrefs = require("../../../src/stores/settings/userPrefsStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed, cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
@@ -211,7 +211,7 @@ describe("commands/signup/eventButton", () => {
             const limited = click("join");
             await command.execute(limited);
             expect(selectOf(replyOf(limited))).toMatchObject({ max_values: 2 });
-            expect(replyOf(limited).embeds[0].description).toContain("up to 2 characters");
+            expect(asEmbed(replyOf(limited)).text).toContain("up to 2 characters");
             mocks.access.config = { guildId: "g1", botLanguage: "en", serverSettings: { g1: { botLanguage: "en" } } };
             const open = click("join");
             await command.execute(open);
@@ -225,15 +225,15 @@ describe("commands/signup/eventButton", () => {
             await command.execute(i);
             const payload = replyOf(i);
             expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-            expect(payload.embeds[0].description).toContain("up to 2 characters");
+            expect(asEmbed(payload).text).toContain("up to 2 characters");
             const select = selectOf(payload);
             expect(select).toMatchObject({ custom_id: "event-btn:eh-kara:pick:s", min_values: 1, max_values: 2 });
             expect(select.options.map((o) => o.value)).toEqual(["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"]);
             // a fresh signup preselects nothing: picking is what saves
             expect(select.options.some((o) => o.default)).toBe(false);
             // below the characters the classes, for a new character (#303)
-            expect(payload.components[1].components[0]).toMatchObject({ type: 3, custom_id: "event-btn:eh-kara:cls:s" });
-            expect(payload.components[1].components[0].options.map((o) => o.value)).toContain("Mage");
+            expect(cardRows(payload)[1].components[0]).toMatchObject({ type: 3, custom_id: "event-btn:eh-kara:cls:s" });
+            expect(cardRows(payload)[1].components[0].options.map((o) => o.value)).toContain("Mage");
 
             // values handed back out of order: the listed order decides the priority
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"] }), select);
@@ -251,7 +251,7 @@ describe("commands/signup/eventButton", () => {
             const again = click("join");
             await command.execute(again);
             const next = replyOf(again);
-            expect(next.embeds[0].description).toContain("So far: Zibbo · Holy (Late), Zibbowar · Protection (Signed up)");
+            expect(asEmbed(next).text).toContain("So far: Zibbo · Holy (Late), Zibbowar · Protection (Signed up)");
             expect(selectOf(next).options.some((o) => o.default)).toBe(false);
             const same = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: ["zibbo|Priest-Holy", "zibbowar|Warrior-Protection"] }), selectOf(next));
             await command.execute(same);
@@ -262,7 +262,7 @@ describe("commands/signup/eventButton", () => {
             const i = click("join");
             await command.execute(i);
             const payload = replyOf(i);
-            expect(payload.embeds[0].description).toContain("No character in your profile yet");
+            expect(asEmbed(payload).text).toContain("No character in your profile yet");
             expect(selectOf(payload).custom_id).toBe("event-btn:eh-kara:cls:s");
             expect(selectOf(payload).options.map((o) => o.value)).toContain("Priest");
         });
@@ -277,7 +277,7 @@ describe("commands/signup/eventButton", () => {
             const cls = mockInteraction({ customId: "event-btn:eh-kara:cls:b", userId: ANNA, values: ["Priest"] });
             await command.execute(cls);
             const specs = updateOf(cls);
-            expect(specs.embeds[0].description).toContain("**Priest** – which spec?");
+            expect(asEmbed(specs).text).toContain("**Priest** – which spec?");
             expect(selectOf(specs)).toMatchObject({ custom_id: "event-btn:eh-kara:spec:b" });
             expect(selectOf(specs).options.map((o) => o.value)).toContain("Priest-Holy");
 
@@ -385,7 +385,7 @@ describe("commands/signup/eventButton", () => {
             const submit = mockInteraction({ customId: modal.custom_id, userId: ANNA, modal: true, options: { reason: "  maybe   work " } });
             await command.execute(submit);
             const payload = replyOf(submit);
-            expect(payload.embeds[0].description).toContain("as **Tentative**");
+            expect(asEmbed(payload).text).toContain("as **Tentative**");
             const select = selectOf(payload);
             expect(select.custom_id).toBe("event-btn:eh-kara:pick:t");
             const pick = withComponent(mockInteraction({ customId: select.custom_id, userId: ANNA, values: select.options.map((o) => o.value) }), select);
@@ -474,18 +474,18 @@ describe("commands/signup/eventButton", () => {
             await command.execute(pick);
             const saved = answerOf(updateOf(pick));
             const noIds = (s) => s.replace(/:\d+>/g, ">");
-            // #508: the head line is the embed's title, the characters its description
-            expect(noIds(saved.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
+            // the head of the card names the raid without an icon, the characters run below it
+            expect(saved.title).toBe("Saved for Karazhan");
             expect(noIds(saved.body).split("\n")).toEqual([
                 "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_bench> **Reserve**",
                 "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Reserve**",
             ]);
             const start = mocks.events.get("eh-kara").startTime;
-            expect(saved.description.split("\n").pop()).toBe(`🗓️ <t:${start}:d> <t:${start}:t> · <t:${start}:R>`);
+            expect(saved.description).toBe(`<t:${start}:f> <t:${start}:R>`);
             const submit = mockInteraction({ customId: "event-btn:eh-kara:why", userId: ANNA, modal: true, options: { reason: "Arbeit" } });
             await command.execute(submit);
             const off = answerOf(replyOf(submit));
-            expect(noIds(off.title)).toBe("<:eh_ui_absence> Signed off from Karazhan");
+            expect(off.title).toBe("Signed off from Karazhan");
             expect(off.body).toBe("Reason: Arbeit");
         });
     });
@@ -550,7 +550,7 @@ describe("commands/signup/eventButton", () => {
             expect(mocks.postNotice).toHaveBeenCalledTimes(1);
             const [channelId, payload] = mocks.postNotice.mock.calls[0];
             expect(channelId).toBe("777777");
-            const description = payload.embeds[0].description;
+            const description = asEmbed(payload).text;
             expect(description).toContain(`**Zibbo** · <@${ANNA}>`);
             expect(description).toContain("**Absent**");
             expect(description).toContain("Arbeit");
@@ -686,9 +686,9 @@ describe("Sprache der Antworten", () => {
         const i = click("join");
         await command.execute(i);
         const payload = replyOf(i);
-        expect(payload.embeds[0].description).toContain("Wähle bis zu 2 Charaktere");
+        expect(asEmbed(payload).text).toContain("Wähle bis zu 2 Charaktere");
         expect(selectOf(payload).options[0].description).toBe("raidbereit");
-        expect(payload.components[1].components[0].placeholder).toBe("Oder ein neuer Charakter: Klasse wählen …");
+        expect(cardRows(payload)[1].components[0].placeholder).toBe("Oder ein neuer Charakter: Klasse wählen …");
     });
 
     it("lässt die Ablehnung des Dienstes (Raider-Rolle) deutsch, wie der Dienst sie schreibt", async () => {

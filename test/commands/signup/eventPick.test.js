@@ -16,12 +16,12 @@ const command = require("../../../src/commands/signup/eventPick");
 const buttons = require("../../../src/commands/signup/eventButton");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed, cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const sec = () => Math.floor(Date.now() / 1000);
 const followOf = (i) => i.followUp.mock.calls[0][0];
-const selectOf = (payload, row = 0) => payload.components[row].components[0];
+const selectOf = (payload, row = 0) => cardRows(payload)[row].components[0];
 const stored = () => mocks.signups.get(`eh-kara/${ANNA}`);
 
 /** A pick in the public select: update() acknowledges like discord.js does (replied = true). */
@@ -90,7 +90,7 @@ describe("commands/signup/eventPick", () => {
     it("Meine Charaktere without a profile character goes the class way", async () => {
         const i = pick("mine");
         await command.execute(i);
-        expect(followOf(i).embeds[0].description).toContain("No character in your profile yet");
+        expect(asEmbed(followOf(i)).text).toContain("No character in your profile yet");
         expect(selectOf(followOf(i)).custom_id).toBe("event-btn:eh-kara:cls:s");
     });
 
@@ -98,7 +98,7 @@ describe("commands/signup/eventPick", () => {
         const i = pick("Priest");
         await command.execute(i);
         const specs = followOf(i);
-        expect(specs.embeds[0].description).toContain("**Priest** – which spec?");
+        expect(asEmbed(specs).text).toContain("**Priest** – which spec?");
         expect(selectOf(specs).custom_id).toBe("event-btn:eh-kara:spec:s");
 
         const spec = mockInteraction({ customId: "event-btn:eh-kara:spec:s", userId: ANNA, values: ["Priest-Holy"] });

@@ -13,7 +13,7 @@ const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const command = require("../../../src/commands/signup/signupComment");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const ID = "signup-comment:eh-kara:nerathil:Mage-Arcane:";
@@ -51,7 +51,7 @@ describe("commands/signup/signupComment", () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "  komme 20 min später " } });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ status: "signed", spec: "Mage-Arcane", comment: "komme 20 min später" });
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment saved.");
+        expect(asEmbed(payloadOf(i)).text).toContain("✅ Comment saved.");
     });
 
     it("works after the deadline, since nothing but the comment changes", async () => {
@@ -60,7 +60,7 @@ describe("commands/signup/signupComment", () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "" } });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`).comment).toBe("");
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment removed.");
+        expect(asEmbed(payloadOf(i)).text).toContain("✅ Comment removed.");
     });
 
     it("keeps a character the orga entered that is not in the profile (#521)", async () => {
@@ -68,14 +68,14 @@ describe("commands/signup/signupComment", () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "bin dabei" } });
         await command.execute(i);
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ character: "Frostzwerg", spec: "Mage-Frost", comment: "bin dabei" });
-        expect(payloadOf(i).embeds[0].description).toContain("✅ Comment saved.");
+        expect(asEmbed(payloadOf(i)).text).toContain("✅ Comment saved.");
     });
 
     it("asks to sign up first when there is no signup", async () => {
         const i = mockInteraction({ customId: ID, userId: ANNA, modal: true, options: { comment: "hi" } });
         await command.execute(i);
         expect(mocks.signups.size).toBe(0);
-        expect(payloadOf(i).embeds[0].description).toContain("⚠️ Sign up first");
+        expect(asEmbed(payloadOf(i)).text).toContain("⚠️ Sign up first");
     });
 
     it("clears the message when the event is gone", async () => {

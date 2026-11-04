@@ -51,7 +51,7 @@ async function save(interaction, event, status, picks, character) {
         }
         const profile = profiles.getProfile(uid);
         // The waiting list (#306) rides on the same line as the confirmation.
-        const notice = [savedNotice(result.signup, profile, versionOfEvent(event), lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+        const notice = [savedNotice(result.signup, profile, versionOfEvent(event), lang), result.notice].filter(Boolean).join("\n");
         await interaction.update(buildSignupDialog(event, uid, { state: picks, notice, lang }));
         // From a partner server's list (#904): someone not on the raid's server hears nothing of it
         // there, so the answer says so - checked only now, the click is answered already.

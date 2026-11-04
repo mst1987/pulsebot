@@ -29,6 +29,7 @@
 const crypto = require("crypto");
 const { serverDateTime, discordTimestamp } = require("../time");
 const { embedAccentColor } = require("../../config/variables");
+const { card } = require("../discord/card");
 const { publicBaseUrl } = require("../publicUrl");
 const eventStore = require("../../stores/events/eventStore");
 const { getSignup } = require("../../stores/events/signupStore");
@@ -390,7 +391,8 @@ function resultLine(result, profile, lang = "de") {
 /**
  * The answer after a modal page: every result so far, and "Weiter" when pages are left.
  * `joinHint` ({ line, buttons }) is the note of services/signups/partnerJoinHint.js (#904).
- * @returns {{ embeds: object[], components: object[] }}
+ * A card: "Mehrere Charaktere …" opens the modal from one, and a card stays a card.
+ * @returns {object} a card payload
  */
 function buildResults(token, session, { nextPage = null, profile = null, lang = "de", joinHint = null } = {}) {
     const results = session.results;
@@ -412,10 +414,7 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
     if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}/signups` });
     for (const button of (joinHint && joinHint.buttons) || []) if (buttons.length < 5) buttons.push(button);
     if (buttons.length) components.push({ type: 1, components: buttons });
-    return {
-        embeds: [{ color: embedAccentColor, title, description: description || tr(lang, "Nothing picked.") }],
-        components,
-    };
+    return card({ color: embedAccentColor, title, text: description || tr(lang, "Nothing picked."), buttons: components });
 }
 
 module.exports = {

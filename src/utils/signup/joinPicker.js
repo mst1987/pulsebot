@@ -13,7 +13,6 @@
 // carries, so its handlers take over seamlessly. A customId is a hint, never a
 // permission: every save goes through signupService.submitSignup.
 // Only the member sees it: the texts are in their language (`lang`).
-const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const { getSignup, lastSignupOf, lastOwnSignupOf, migrateSignup } = require("../../stores/events/signupStore");
 const profiles = require("../../stores/roster/raiderProfileStore");
@@ -28,6 +27,7 @@ const {
     MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, statusState, gearText,
     encodeState, decodeState, statusId, commentId, signableCharacters, pickText, missingVersionLine,
 } = require("./signupDialog");
+const { stepCard } = require("./signupHead");
 
 const JOIN_PREFIX = "event-join";
 const MAX_OPTIONS = 25;
@@ -35,7 +35,6 @@ const GEAR_RANK = { ready: 2, usable: 1, none: 0 };
 // English, translated with tr(lang, ROLE_TEXT[role]).
 const ROLE_TEXT = { tank: "Tank", healer: "Healer" };
 const CLASS_INFO = new Map(buildClasses().map((c) => [c.id, c]));
-
 
 /** customId of a picker component; the state is dropped when the id would pass 100 characters. */
 function joinId(eventId, status, field, state) {
@@ -166,7 +165,7 @@ function resolvePick(profile, options, { state = null, mine = null, last = null 
 /**
  * The picker payload for one member, one own event and the status they chose.
  * @param {{ state?: object|null, notice?: string, emojis?: object, now?: number, lang?: string }} opts
- * @returns {{ embeds: object[], components: object[] }}
+ * @returns {object} a card payload (signupHead.js)
  */
 function buildJoinPicker(event, userId, status, { state = null, notice = "", emojis = {}, now = Date.now(), lang = "de" } = {}) {
     const uid = String(userId || "");
@@ -178,18 +177,16 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
     const picks = resolvePick(profile, options, { state, mine, last });
     const win = signupWindow(event, now);
 
-    const lines = [];
-    const start = Number(event.startTime) || 0;
-    lines.push([`**${statusState(lang, status)}**`, start ? `<t:${start}:f>` : ""].filter(Boolean).join(" · "));
-    lines.push(tr(lang, "Which character? – from your EventHelper profile"));
+    const above = [];
+    const lines = [`**${statusState(lang, status)}**`, tr(lang, "Which character? – from your EventHelper profile")];
     if (mine) {
         const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId, lang);
-        lines.push(`${tr(lang, "So far: **{status}**", { status: statusState(lang, mine.status) })}${what ? ` · ${what}` : ""}`);
+        above.push(`${tr(lang, "So far: **{status}**", { status: statusState(lang, mine.status) })}${what ? ` · ${what}` : ""}`);
     }
     if (win.deadlinePassed && !win.started) lines.push(tr(lang, "The signup deadline has passed – only “Late” or Absence now."));
     const missing = missingVersionLine(profile, versionId, lang);
     if (missing) lines.push(missing);
-    if (notice) lines.push("", serviceText(lang, notice));
+    if (notice) lines.push(`\n${serviceText(lang, notice)}`);
 
     const lastOption = last
         ? options.find((o) => sameOption(o, last.character, last.spec))
@@ -206,7 +203,7 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
         const option = {
             label: `${o.name} · ${specLabel(lang, info) || o.spec}`.slice(0, 100),
             value: `${o.character}|${o.spec}`.slice(0, 100),
-            description: description.slice(0, 100),
+            description: description.slice(0, 100) || undefined,
             default: o.character === picks.character && o.spec === picks.spec,
         };
         const emoji = emojiOption(emojis, specEmojiName(o.spec));
@@ -251,12 +248,7 @@ function buildJoinPicker(event, userId, status, { state = null, notice = "", emo
         components[components.length - 1].components.push({ type: 2, style: 5, label: tr(lang, "Profile"), url: `${publicBaseUrl()}/profile` });
     }
 
-    const embed = {
-        color: embedAccentColor,
-        title: String(event.title || "Raid").slice(0, 256),
-        description: lines.join("\n").slice(0, 4000),
-    };
-    return { embeds: [embed], components };
+    return stepCard(event, { lang, now, detail: true, above, lines, rows: components });
 }
 
 module.exports = {

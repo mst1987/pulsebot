@@ -17,10 +17,9 @@
 // event, the profile and the signup again and every save goes through
 // signupService.submitSignup — a customId is a hint, never a permission.
 const {
-    ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, StringSelectMenuBuilder,
+    ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder,
     ModalBuilder, TextInputBuilder, TextInputStyle,
 } = require("discord.js");
-const { embedAccentColor } = require("../../config/variables");
 const { publicBaseUrl } = require("../publicUrl");
 const { rulesForEvent, versionOfEvent } = require("../../services/versions/mainVersion");
 const { rulesFor } = require("../../config/gameVersions");
@@ -28,11 +27,12 @@ const { ROLES } = require("../../config/gameVersions/classes");
 const { tr, serviceText, specLabel: specLabelOf, classLabel: classLabelOf } = require("../i18n/botText");
 const { langOfInteraction } = require("../../services/discord/botLanguage");
 const { answerUpdate } = require("./signupReply");
+const { stepCard } = require("./signupHead");
 const { listSignups, getSignup } = require("../../stores/events/signupStore");
 const profiles = require("../../stores/roster/raiderProfileStore");
 const { allowsLastName, NAME_PART_MIN, NAME_PART_MAX, NAME_MAX } = require("./characterNames");
 const {
-    roleCounts, signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,
+    signupWindow, allowedStatuses, defaultCanAlso, wishPartnersSignedUp,
 } = require("../../services/signups/signupService");
 
 const PICK_PREFIX = "signup-pick";
@@ -184,12 +184,6 @@ function classLabel(event, classId, lang = "de") {
     return cls ? classLabelOf(lang, cls) : classId;
 }
 
-/** "Tank 1/2 · Healer 1/3 · DPS 4/5" (without a target just the count). */
-function roleCountLine(counts, lang = "de") {
-    const part = (label, c) => `${label} ${c.n}${c.target ? `/${c.target}` : ""}`;
-    return [part(tr(lang, "Tank"), counts.tank), part(tr(lang, "Healer"), counts.healer), part("DPS", counts.dps)].join(" · ");
-}
-
 /** "Thorwald · Protection" for a signup or a state (a character of `versionId` when given). */
 function pickText(profile, character, spec, versionId = "", lang = "de") {
     const ch = profiles.findCharacter({ characters: signableCharacters(profile, versionId) }, character);
@@ -197,14 +191,16 @@ function pickText(profile, character, spec, versionId = "", lang = "de") {
     return [name, specName(spec, lang)].filter(Boolean).join(" · ");
 }
 
-/** The text lines of the dialog: time and counts, the own status, the window, the profile hints, the notice. */
+/**
+ * The text of the dialog below the head: the own status above the divider; the window, the profile hints and the notice
+ * below it.
+ */
 function dialogLines(event, { uid, signups, mine, profile, versionId, chars, win, notice, lang }) {
+    const above = [];
     const lines = [];
-    const start = Number(event.startTime) || 0;
-    lines.push([start ? `<t:${start}:f>` : "", roleCountLine(roleCounts(event, signups), lang)].filter(Boolean).join(" · "));
     if (mine) {
         const what = mine.status === "absence" ? "" : pickText(profile, mine.character, mine.spec, versionId, lang);
-        lines.push(`${tr(lang, "Your status: **{status}**", { status: statusState(lang, mine.status) })}${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
+        above.push(`${tr(lang, "Your status: **{status}**", { status: statusState(lang, mine.status) })}${what ? ` · ${what}` : ""}${mine.comment ? ` · „${mine.comment}“` : ""}`);
     }
     if (event.status === "cancelled") {
         const reason = event.cancel && event.cancel.reason;
@@ -219,8 +215,8 @@ function dialogLines(event, { uid, signups, mine, profile, versionId, chars, win
     }
     const partners = wishPartnersSignedUp(profile, signups.filter((s) => String(s.userId) !== uid));
     if (partners.length) lines.push(tr(lang, "Also signed up: {names}", { names: partners.map((p) => p.name).filter(Boolean).join(", ") }));
-    if (notice) lines.push("", serviceText(lang, notice));
-    return { lines, missing };
+    if (notice) lines.push(`\n${serviceText(lang, notice)}`);
+    return { above, lines, missing };
 }
 
 /** The character · spec select — or, without profile characters, the class and spec selects. */
@@ -266,7 +262,7 @@ function pickRows(event, chars, picks, lang) {
  * @param {string} userId
  * @param {{ state?: object|null, notice?: string, now?: number, lang?: string, joinButton?: object|null }} opts
  *   joinButton: the link button of partnerJoinHint.buildJoinHint (#904), in the last row
- * @returns {{ embeds: object[], components: object[] }}
+ * @returns {object} a card payload (signupHead.js)
  */
 function buildSignupDialog(event, userId, { state = null, notice = "", now = Date.now(), lang = "de", joinButton = null } = {}) {
     const uid = String(userId || "");
@@ -278,12 +274,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     const picks = resolveState(event, profile, mine, state);
     const win = signupWindow(event, now);
     const allowed = allowedStatuses(event, { now });
-    const { lines, missing } = dialogLines(event, { uid, signups, mine, profile, versionId, chars, win, notice, lang });
-
-    const embed = new EmbedBuilder()
-        .setColor(embedAccentColor)
-        .setTitle(String(event.title || "Raid").slice(0, 256))
-        .setDescription(lines.join("\n").slice(0, 4000));
+    const { above, lines, missing } = dialogLines(event, { uid, signups, mine, profile, versionId, chars, win, notice, lang });
 
     const rows = pickRows(event, chars, picks, lang);
 
@@ -322,7 +313,7 @@ function buildSignupDialog(event, userId, { state = null, notice = "", now = Dat
     if (joinButton && joinButton.url) extra.push(new ButtonBuilder().setStyle(ButtonStyle.Link).setLabel(String(joinButton.label || "").slice(0, 80)).setURL(joinButton.url));
     rows.push(new ActionRowBuilder().addComponents(extra));
 
-    return { embeds: [embed.toJSON()], components: rows.map((r) => r.toJSON()) };
+    return stepCard(event, { lang, now, detail: true, above, lines, rows });
 }
 
 /** The confirmation line after a save. */
@@ -390,6 +381,6 @@ module.exports = {
     PICK_PREFIX, STATUS_PREFIX, COMMENT_PREFIX, MAX_CUSTOM_ID, STATUS_CODES, STATUS_BY_CODE, STATUS_LABELS, STATUS_STATE, ALSO_LABELS, GEAR_LABELS, GEAR_TEXT,
     statusLabel, statusState, gearText, specName,
     encodeState, decodeState, pickId, statusId, commentId, parsePickId, parseStatusId, parseCommentId,
-    signableCharacters, missingVersionLine, versionLabel, classesFor, classLabel, resolveState, roleCountLine, pickText,
+    signableCharacters, missingVersionLine, versionLabel, classesFor, classLabel, resolveState, pickText,
     buildSignupDialog, savedNotice, buildCharacterModal, buildCommentModal, plainUpdate,
 };

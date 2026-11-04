@@ -44,13 +44,21 @@ function answerEmbed(text, { event = null, title = "", lang = "en" } = {}) {
     return out;
 }
 
+/** What a step's card holds beyond an embed's fields (savedEmbed): the picture beside the head, the lines below it. */
+function cardExtras(spec) {
+    const extras = {};
+    if (spec && typeof spec.thumbnail === "string" && spec.thumbnail) extras.thumbnail = spec.thumbnail;
+    if (spec && Array.isArray(spec.parts)) extras.parts = spec.parts;
+    return extras;
+}
+
 /**
  * The ephemeral reply / follow-up payload of an answer text (or buildEmbed input): one card, `components` (rows or buttons)
  * inside it. A caller adds buttons through `components`, never by overwriting the payload's own `components` or `flags`.
  */
 function answerPayload(answer, { event = null, title = "", components = [], lang = "en" } = {}) {
     const spec = typeof answer === "string" ? answerEmbed(answer, { event, title, lang }) : answer;
-    return cardFromEmbed(spec, { ephemeral: true, buttons: components });
+    return cardFromEmbed(spec, { ...cardExtras(spec), ephemeral: true, buttons: components });
 }
 
 /**
@@ -58,7 +66,8 @@ function answerPayload(answer, { event = null, title = "", components = [], lang
  * embed (an update keeps the message's visibility, so no ephemeral flag).
  */
 function answerUpdate(answer, { event = null, title = "", lang = "en" } = {}) {
-    return cardFromEmbed(typeof answer === "string" ? answerEmbed(answer, { event, title, lang }) : answer);
+    const spec = typeof answer === "string" ? answerEmbed(answer, { event, title, lang }) : answer;
+    return cardFromEmbed(spec, cardExtras(spec));
 }
 
 module.exports = { plainTitle, colorOf, answerEmbed, answerPayload, answerUpdate };

@@ -99,7 +99,7 @@ async function onStatus(interaction, event) {
         });
         const notice = result.error
             ? `⚠️ ${result.error}`
-            : [savedNotice(result.signup, profiles.getProfile(uid), versionId, lang), result.notice ? `⏳ ${result.notice}` : ""].filter(Boolean).join("\n");
+            : [savedNotice(result.signup, profiles.getProfile(uid), versionId, lang), result.notice].filter(Boolean).join("\n");
         return reply(interaction, buildJoinPicker(event, uid, status, { notice, emojis, lang }));
     }
     return reply(interaction, buildJoinPicker(event, uid, status, { emojis, lang }));
