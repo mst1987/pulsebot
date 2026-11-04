@@ -81,7 +81,11 @@ function liveCard({ lang, entry, display, now = Date.now() }) {
         allowedMentions: { parse: [] },
         kicker: kickerOf(tr(lang, "Live on Twitch")),
         title: escapeText(display.name || entry.login),
-        text: [fillText(entry.text, { login: entry.login, display }), escapeText(display.title)].filter(Boolean),
+        // A text that already names the title does not get it a second time below.
+        text: [
+            fillText(entry.text, { login: entry.login, display }),
+            str(entry.text).includes("{title}") ? "" : escapeText(display.title),
+        ].filter(Boolean),
         facts: [
             [tr(lang, "Game"), escapeText(display.game)],
             [tr(lang, "Viewers"), numberOf(lang, display.viewers)],

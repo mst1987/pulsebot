@@ -133,6 +133,16 @@ describe("liveCard", () => {
         expect(text).not.toContain("@everyone");
     });
 
+    it("shows the title once when the own text already names it", () => {
+        const count = (text) => text.split("Raidabend").length - 1;
+        const named = liveCard({ lang: "de", entry: entry({ text: "{streamer}: {title}" }), display: display(), now: NOW });
+        const other = liveCard({ lang: "de", entry: entry({ text: "Schaut rein!" }), display: display(), now: NOW });
+        const none = liveCard({ lang: "de", entry: entry(), display: display(), now: NOW });
+        expect(count(markdownOf(named))).toBe(1);
+        expect(count(markdownOf(other))).toBe(1);
+        expect(count(markdownOf(none))).toBe(1);
+    });
+
     it("carries the colour, the preview in its size, the viewers and the link button", () => {
         const payload = liveCard({ lang: "de", entry: entry(), display: display(), now: NOW });
         const container = payload.components[0];

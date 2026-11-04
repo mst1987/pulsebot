@@ -67,7 +67,7 @@ central poll asks for each login once, whichever servers list it.
 - Only the **first post** of a stream pings, and only the entry's one role: `discord.postPayload(…, { pingRoleId })`
   sends `allowedMentions: { parse: [], roles: [roleId] }`. The card itself and every edit send `parse: []`.
 - Foreign text (stream title, game, name) is escaped and stays on one line, so a title cannot ping anyone. The own text
-  fills `{streamer} {title} {game} {url}` in a single pass.
+  fills `{streamer} {title} {game} {url}` in a single pass; a text with `{title}` gets no second title line below it.
 - `twitchPing` is a **use** of a role, shown on the role page, but not a granting use: `selfRole.grantingUses` leaves
   it out, so the role can still be taken by button. A ping grants no rights.
 - **Discord's rule:** `allowedMentions` only limits who may be pinged, it does not create the right to. A role that is
