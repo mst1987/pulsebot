@@ -8,7 +8,7 @@ jest.mock("../../../src/services/discord/servers/serverOf", () => ({
     storedCategoryGuilds: () => new Map([["cat-b", "gB"]]),
 }));
 
-const { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, serverWithoutSession, serverOfInteraction } = require("../../../src/services/loot/lootServer");
+const { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, sessionIsBound, serverWithoutSession, serverOfInteraction } = require("../../../src/services/loot/lootServer");
 
 const EVENTS = {
     evA: { id: "evA", guildId: "gA" },
@@ -133,6 +133,29 @@ describe("sessionInGuild (addon inbox cards, #919)", () => {
         const ctx = ctxOf();
         expect(sessionInGuild(ctx, card(null), "")).toBe(false);
         expect(sessionInGuild(ctx, card({ eventId: "evB", guildId: "gB" }), undefined)).toBe(true);
+    });
+});
+
+describe("sessionIsBound (cards the rank Server-Admin must not see, #1072)", () => {
+    it("is false for a waiting upload without servers", () => {
+        expect(sessionIsBound({ waiting: true, servers: [] })).toBe(false);
+        expect(sessionIsBound({ waiting: true, servers: ["", null] })).toBe(false);
+        expect(sessionIsBound({ waiting: true })).toBe(false);
+    });
+
+    it("is true for a waiting upload with a server", () => {
+        expect(sessionIsBound({ waiting: true, servers: ["gA"] })).toBe(true);
+    });
+
+    it("is false for a card with neither a suggested raid nor a server", () => {
+        expect(sessionIsBound({})).toBe(false);
+        expect(sessionIsBound(null)).toBe(false);
+        expect(sessionIsBound({ match: { suggested: { eventId: "" } } })).toBe(false);
+    });
+
+    it("is true once a raid is suggested or the upload key names a server", () => {
+        expect(sessionIsBound({ match: { suggested: { eventId: "ev1" } } })).toBe(true);
+        expect(sessionIsBound({ guildId: "gA" })).toBe(true);
     });
 });
 

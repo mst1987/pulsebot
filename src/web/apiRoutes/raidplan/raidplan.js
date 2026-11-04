@@ -226,6 +226,18 @@ function mapKeyOk(res, key, libraryServer = "") {
 // `raidplan` write only (the category orga names no event there and is refused).
 const MAP_RIGHTS = { globalByWrite: true, write: "raidplan", csrf: true };
 
+/**
+ * Refuses the server-admin rank (#1072) on a default map: such a key is the map of every server
+ * (store.mapForBoss falls back to it), while the other keys of these routes belong to one server,
+ * so the route cannot carry the `sharedData` mark. The right from a role stays. Sends the error.
+ */
+function defaultMapRefused(res, user, req, key) {
+    if (!user.isServerAdmin || store.mapScope(key)) return false;
+    if (userCan(auth.getUserWithoutRank(req), "raidplan", "write")) return false;
+    error(res, 403, "forbidden", "Standardkarten gelten für alle Server: Dafür reicht der Server-Admin-Rang nicht.");
+    return true;
+}
+
 /** Whether a map key is a template's (`t/<id>/<boss>`): it belongs to the library of one server (#945). */
 function isTemplateMapKey(key) {
     const scope = store.mapScope(key);
@@ -241,6 +253,7 @@ const postMap = withUser({ ...MAP_RIGHTS, orgaScoped: (body, query) => eventOfMa
     const server = isTemplateMapKey(key) ? libraryWriteServer(res, user, req, url.searchParams.get("libraryGuildId")) : "";
     if (server === null) return;
     if (!mapKeyOk(res, key, server)) return;
+    if (defaultMapRefused(res, user, req, key)) return;
     const buffer = await readRawBody(req, store.LIMITS.mapBytes);
     if (buffer === null) return error(res, 413, "too_large", "Das Bild ist größer als 3 MB.");
     const result = store.saveMap(key, buffer);
@@ -254,6 +267,7 @@ const postMapDelete = withUser({ ...MAP_RIGHTS, orgaScoped: (body) => eventOfMap
     const server = isTemplateMapKey(key) ? libraryWriteServer(res, user, req, body.libraryGuildId) : "";
     if (server === null) return;
     if (!mapKeyOk(res, key, server)) return;
+    if (defaultMapRefused(res, user, req, key)) return;
     ok(res, { key, removed: store.deleteMap(key) });
 });
 
@@ -579,14 +593,14 @@ const routes = [
     { method: "POST", path: "/api/raidplan/groups", handler: postGroups, area: "raidplan" },
     { method: "POST", path: "/api/raidplan/map", handler: postMap, area: "raidplan" },
     { method: "POST", path: "/api/raidplan/map/delete", handler: postMapDelete, area: "raidplan" },
-    { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raidplan" },
-    { method: "POST", path: "/api/raidplan/catalog/mobs", handler: postMob, area: "raidplan" },
-    { method: "PATCH", path: "/api/raidplan/catalog/mobs", handler: patchMob, area: "raidplan" },
-    { method: "DELETE", path: "/api/raidplan/catalog/mobs", handler: deleteMob, area: "raidplan" },
-    { method: "POST", path: "/api/raidplan/catalog/spells", handler: postSpell, area: "raidplan" },
-    { method: "PATCH", path: "/api/raidplan/catalog/spells", handler: patchSpell, area: "raidplan" },
-    { method: "DELETE", path: "/api/raidplan/catalog/spells", handler: deleteSpell, area: "raidplan" },
-    { method: "POST", path: "/api/raidplan/catalog/reset", handler: postCatalogReset, area: "raidplan" },
+    { method: "GET", path: "/api/raidplan/catalog", handler: getCatalog, area: "raidplan", sharedData: true },
+    { method: "POST", path: "/api/raidplan/catalog/mobs", handler: postMob, area: "raidplan", sharedData: true },
+    { method: "PATCH", path: "/api/raidplan/catalog/mobs", handler: patchMob, area: "raidplan", sharedData: true },
+    { method: "DELETE", path: "/api/raidplan/catalog/mobs", handler: deleteMob, area: "raidplan", sharedData: true },
+    { method: "POST", path: "/api/raidplan/catalog/spells", handler: postSpell, area: "raidplan", sharedData: true },
+    { method: "PATCH", path: "/api/raidplan/catalog/spells", handler: patchSpell, area: "raidplan", sharedData: true },
+    { method: "DELETE", path: "/api/raidplan/catalog/spells", handler: deleteSpell, area: "raidplan", sharedData: true },
+    { method: "POST", path: "/api/raidplan/catalog/reset", handler: postCatalogReset, area: "raidplan", sharedData: true },
     { method: "GET", path: "/api/raidplan/profiles", handler: getProfiles, area: "raidplan" },
     { method: "POST", path: "/api/raidplan/profiles", handler: postProfile, area: "raidplan" },
     { method: "PATCH", path: "/api/raidplan/profiles", handler: patchProfile, area: "raidplan" },

@@ -3140,7 +3140,7 @@ describe("web/apiRoutes/settings: content switch (#563)", () => {
         // only a full admin writes - reading stays open, the pages need it.
         it("lists the shared keys that only a full admin writes", () => {
             const { SHARED_WRITE_KEYS } = require("../../../../src/web/apiRoutes/system/settings");
-            expect([...SHARED_WRITE_KEYS].sort()).toEqual(["blizzard", "dungeonRecords", "hideOtherVersions", "mainVersion", "versionSettings"]);
+            expect([...SHARED_WRITE_KEYS].sort()).toEqual(["blizzard", "dungeonRecords", "guildId", "hideOtherVersions", "mainVersion", "versionSettings"]);
         });
 
         it.each([
@@ -3149,6 +3149,7 @@ describe("web/apiRoutes/settings: content switch (#563)", () => {
             ["hideOtherVersions", true],
             ["versionSettings", {}],
             ["dungeonRecords", { post: true }],
+            ["guildId", "other-home-server"],
         ])("refuses %s to a settings writer who is no full admin", async (key, value) => {
             auth.checkCsrf.mockReturnValue(true);
             auth.getUser.mockReturnValue(settingsWriter());

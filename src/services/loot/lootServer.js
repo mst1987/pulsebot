@@ -115,6 +115,17 @@ function sessionInGuild(ctx, session, guildId) {
 }
 
 /**
+ * Whether anything ties an inbox card to a server: its candidate servers, its
+ * suggested raid or its upload key. A card without any shows on every server
+ * (sessionInGuild), so it may well be another server's upload.
+ */
+function sessionIsBound(session) {
+    if (session && session.waiting) return Array.isArray(session.servers) && session.servers.some((s) => !!str(s));
+    const suggested = session && session.match && session.match.suggested;
+    return !!((suggested && str(suggested.eventId)) || str(session && session.guildId));
+}
+
+/**
  * The server a request without a session works on (the sync tool's token
  * routes): the server of the named category, else the first server - the same
  * rule 4 as above, never a guess from the bot's guild list.
@@ -132,4 +143,4 @@ function serverOfInteraction(interaction, ctx) {
     return own || serverWithoutSession("", ctx);
 }
 
-module.exports = { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, serverWithoutSession, serverOfInteraction };
+module.exports = { serverContext, guildOfLootEvent, lootInGuild, lootOfGuild, eventInGuild, sessionInGuild, sessionIsBound, serverWithoutSession, serverOfInteraction };

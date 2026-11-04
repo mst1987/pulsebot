@@ -103,11 +103,11 @@ const postRemove = withUser({ csrf: true, body: true }, async ({ user, body, res
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/characters", handler: getCharacters, area: "roster" },
-    { method: "GET", path: "/api/characters/log-suggestions", handler: getLogSuggestions, area: "roster" },
-    { method: "POST", path: "/api/characters/edit", handler: postEdit, area: "roster" },
-    { method: "POST", path: "/api/characters/save", handler: postSave, area: "roster" },
-    { method: "POST", path: "/api/characters/remove", handler: postRemove, area: "roster" },
+    { method: "GET", path: "/api/characters", handler: getCharacters, area: "roster", sharedData: true },
+    { method: "GET", path: "/api/characters/log-suggestions", handler: getLogSuggestions, area: "roster", sharedData: true },
+    { method: "POST", path: "/api/characters/edit", handler: postEdit, area: "roster", sharedData: true },
+    { method: "POST", path: "/api/characters/save", handler: postSave, area: "roster", sharedData: true },
+    { method: "POST", path: "/api/characters/remove", handler: postRemove, area: "roster", sharedData: true },
 ];
 
 module.exports = { getCharacters, getLogSuggestions, postEdit, postSave, postRemove, routes };

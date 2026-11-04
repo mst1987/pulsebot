@@ -9,7 +9,8 @@ const { withUser } = require("../../http/apiHandler");
 const { AppError } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer } = require("../../http/serverQuery");
+const { mayUseServer, onlyByRank } = require("../../http/serverQuery");
+const { userCan } = require("../../../config/permissions");
 const { listReports, deleteReport, getReport, saveReport } = require("../../../stores/loot/reportStore");
 const { prepareClaList, claRowFromLog, annotateLogCategories } = require("../../../services/logcheck/reportList");
 const { deleteLogKeepingReportGuild, reportGuild } = require("../../../services/logcheck/reportGuild");
@@ -34,6 +35,7 @@ const { linkConflict, inVersionList } = require("../../../services/logcheck/logV
 const { logChannelsOf } = require("../../../services/logcheck/logChannelSettings");
 const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const discord = require("../../../services/discord/discord");
+const { guildOfCategory } = require("../../../services/events/eventServer");
 
 /**
  * Whether a log or an evaluation may be read or changed from the page (#925):
@@ -45,6 +47,19 @@ const discord = require("../../../services/discord/discord");
  */
 function onActiveServer(user, req, recordGuildId) {
     return mayUseServer(user, req, recordGuildId);
+}
+
+/**
+ * The name-to-account assignments a report's DMs are matched against. The store
+ * holds every server's categories; whoever has the CLA area by the rank Server-Admin
+ * alone (#1072) only gets those of the active server, so a name in a report cannot
+ * reach an account elsewhere.
+ */
+function assignmentsFor(user, req, level) {
+    const all = listAllAssignments();
+    if (!onlyByRank(user, req, (roles) => userCan(roles, "cla", level))) return all;
+    const active = activeGuildFor(req);
+    return Object.fromEntries(Object.entries(all).filter(([categoryId]) => active && guildOfCategory(categoryId) === active));
 }
 
 /** The server a report belongs to (the log it came from decides, reportGuild.js). */
@@ -398,7 +413,7 @@ const linkLog = withUser({ csrf: true, body: true }, async ({ user, body, req, r
  * Warcraft-Logs URL (if not already tracked) and assigns it to the event in one
  * step — for logs that were never posted in a tracked log channel.
  */
-const linkLogUrl = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
+const linkLogUrl = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const eventId = q.str(body, "eventId");
     if (!eventId) return error(res, 400, "no_event", "Kein Event gewählt.");
     // Re-resolve the event on the server, same as linkLog above.
@@ -406,7 +421,11 @@ const linkLogUrl = withUser({ csrf: true, body: true }, async ({ body, req, res 
     if (loadError) return error(res, 400, "events_unavailable", loadError);
     const event = events.find((e) => e.id === eventId);
     if (!event) return error(res, 400, "event_not_found", "Event nicht gefunden.");
-    const result = linkLogByUrl(String(body.link || ""), event, activeGuildFor(req));
+    // The rank alone (#1072) may not take over a log of another server; a CLA role may, as before.
+    const mayTouch = onlyByRank(user, req, (roles) => userCan(roles, "cla", "write"))
+        ? (log) => onActiveServer(user, req, log.guildId)
+        : undefined;
+    const result = linkLogByUrl(String(body.link || ""), event, activeGuildFor(req), mayTouch);
     if (result.error) return error(res, 400, "invalid_link", result.error);
     await backfillLogTitles([result.log]); // best-effort report name for the row
     ok(res, {
@@ -510,7 +529,7 @@ const recommendationSendStatus = withUser({}, async ({ user, req, res, query }) 
     const reportId = q.str(query, "id");
     const report = reportId ? getReport(reportId) : null;
     if (!report || !onActiveServer(user, req, guildOfReport(reportId, report))) return reportNotHere(res);
-    ok(res, { reportId, players: sendStatus(report, listAllAssignments()) });
+    ok(res, { reportId, players: sendStatus(report, assignmentsFor(user, req, "read")) });
 });
 
 /**
@@ -526,7 +545,7 @@ const sendRecommendations = withUser({ csrf: true, body: true }, async ({ user, 
     if (!discord.getClient()) return error(res, 503, "bot_offline", "Bot nicht verbunden – DMs können gerade nicht gesendet werden.");
     const only = Array.isArray(body.players) ? body.players.map((n) => String(n || "").trim()).filter(Boolean) : null;
     const result = await sendApproved(report, {
-        discord, assignments: listAllAssignments(), by: user.name || user.id || "", force: body.force === true, only: only && only.length ? only : null,
+        discord, assignments: assignmentsFor(user, req, "write"), by: user.name || user.id || "", force: body.force === true, only: only && only.length ? only : null,
     });
     saveReport(result.report, reportId);
     const message = result.sent.length
@@ -590,7 +609,8 @@ const routes = [
     { method: "GET", path: "/api/cla/recommendations/send", handler: recommendationSendStatus, area: "cla" },
     { method: "POST", path: "/api/cla/recommendations/send", handler: sendRecommendations, area: "cla" },
     { method: "GET", path: "/api/cla/recommendations/phrase", handler: phraseStatus, area: "cla" },
-    { method: "POST", path: "/api/cla/recommendations/phrase", handler: phraseRecommendations, area: "cla" },
+    // Spends the bot's one Anthropic key, shared by all servers (#1072).
+    { method: "POST", path: "/api/cla/recommendations/phrase", handler: phraseRecommendations, area: "cla", sharedData: true },
 ];
 
 module.exports = {

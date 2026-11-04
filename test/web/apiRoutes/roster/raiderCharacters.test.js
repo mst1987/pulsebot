@@ -4,6 +4,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
@@ -39,6 +40,10 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({
         : null)),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "") }));
+jest.mock("../../../../src/services/events/eventServer", () => ({
+    ...jest.requireActual("../../../../src/services/events/eventServer"),
+    guildOfCategory: jest.fn(() => ""),
+}));
 jest.mock("../../../../src/stores/roster/characterStore", () => ({
     getCharacter: jest.fn(() => null),
     listCharacters: jest.fn(() => []),
@@ -104,6 +109,7 @@ jest.mock("../../../../src/utils/loot/wowhead", () => {
 const auth = require("../../../../src/web/http/auth");
 const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
+const { guildOfCategory } = require("../../../../src/services/events/eventServer");
 const discord = require("../../../../src/services/discord/discord");
 const characterStore = require("../../../../src/stores/roster/characterStore");
 const raiderCharactersStore = require("../../../../src/stores/roster/raiderCharactersStore");
@@ -149,6 +155,22 @@ describe("web/apiRoutes/raiderCharacters", () => {
                     knownCharacters: ["Elesham", "Mage"],
                 },
             });
+        });
+
+        it("gives the server-admin rank only the names of the category's own assignments (#1072)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: { settings: { read: true, write: true } } });
+            activeGuildFor.mockReturnValue("guild-1");
+            guildOfCategory.mockReturnValueOnce("guild-1");
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
+            raiderCharactersStore.getCategoryAssignments.mockReturnValue({ u1: "Zul", u2: "Elesham", u3: "Elesham" });
+            // the character list holds the names of every server
+            characterStore.listCharacters.mockReturnValue([{ character: "Elesham" }, { character: "FremderServer" }]);
+
+            const data = json(await get("/api/raider-characters", { category: "cat1" })).data;
+
+            expect(data.knownCharacters).toEqual(["Elesham", "Zul"]);
+            expect(data.assignments).toEqual({ u1: "Zul", u2: "Elesham", u3: "Elesham" });
+            expect(characterStore.listCharacters).not.toHaveBeenCalled();
         });
 
         it("offers only the known characters of the version the category plays (#741)", async () => {
@@ -208,6 +230,91 @@ describe("web/apiRoutes/raiderCharacters", () => {
 
             expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat1", { u1: "Elesham", u2: "" }, { actor: "1" });
             expect(json(res)).toEqual({ data: { assignments: { u1: "Elesham" } } });
+        });
+    });
+
+    // The server-admin rank alone holds for its own server (#1072): the category comes from
+    // the request. Whoever has the area by a role keeps what the role always allowed.
+    describe("the server of the category (#1072)", () => {
+        const SETTINGS = { settings: { read: true, write: true } };
+        const settingsUser = { id: "2", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: SETTINGS };
+        const roleUser = { id: "3", name: "Lead", isAdmin: false, access: SETTINGS };
+        const fullAdmin = { id: "1", name: "Admin", isAdmin: true };
+        const body = { categoryId: "cat-x", assignments: { u1: "Elesham" } };
+
+        beforeEach(() => {
+            jest.clearAllMocks();
+            auth.getUser.mockReturnValue(settingsUser);
+            auth.checkCsrf.mockReturnValue(true);
+            activeGuildFor.mockReturnValue("guild-own");
+            guildOfCategory.mockReturnValue("guild-other");
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: { "cat-x": ["role1"] } });
+            raiderCharactersStore.setCategoryAssignments.mockReturnValue({ u1: "Elesham" });
+        });
+        afterEach(() => {
+            guildOfCategory.mockReturnValue("");
+            auth.getUserWithoutRank.mockReturnValue(null);
+        });
+
+        it.each([
+            ["a role right", () => auth.getUser.mockReturnValue(roleUser), "3"],
+            ["the rank plus a role right", () => auth.getUserWithoutRank.mockReturnValue(roleUser), "2"],
+        ])("leaves %s as on main: any category, old ones without a server too, every known name", async (_label, arrange, actor) => {
+            arrange();
+            characterStore.listCharacters.mockReturnValue([{ character: "FremderServer" }]);
+            for (const owner of ["guild-other", ""]) {
+                guildOfCategory.mockReturnValue(owner);
+                const res = await get("/api/raider-characters", { category: "cat-x" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(json(res).data.knownCharacters).toEqual(["FremderServer"]);
+                expect((await post("/api/raider-characters", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            }
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat-x", body.assignments, { actor });
+            characterStore.listCharacters.mockReturnValue([]);
+        });
+
+        it("still refuses the rank to write another server when the role only reads", async () => {
+            auth.getUserWithoutRank.mockReturnValue({ ...roleUser, access: { settings: { read: true, write: false } } });
+            expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(json(await post("/api/raider-characters", body)).error.code).toBe("other_server");
+        });
+
+        it("refuses to read a category of another server", async () => {
+            const res = await get("/api/raider-characters", { category: "cat-x" });
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(json(res).error.code).toBe("other_server");
+            expect(guildOfCategory).toHaveBeenCalledWith("cat-x");
+            expect(discord.listMembersWithRoles).not.toHaveBeenCalled();
+            expect(raiderCharactersStore.getCategoryAssignments).not.toHaveBeenCalled();
+        });
+
+        it("refuses to write a category of another server", async () => {
+            const res = await post("/api/raider-characters", body);
+            expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(json(res).error.code).toBe("other_server");
+            expect(raiderCharactersStore.setCategoryAssignments).not.toHaveBeenCalled();
+        });
+
+        it("refuses a category no server claims", async () => {
+            guildOfCategory.mockReturnValue("");
+            expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect((await post("/api/raider-characters", body)).writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+            expect(raiderCharactersStore.setCategoryAssignments).not.toHaveBeenCalled();
+        });
+
+        it("keeps a category of the own server working", async () => {
+            guildOfCategory.mockReturnValue("guild-own");
+            expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(discord.listMembersWithRoles).toHaveBeenCalledWith("guild-own", ["role1"]);
+            expect((await post("/api/raider-characters", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat-x", body.assignments, { actor: "2" });
+        });
+
+        it("leaves a full admin free of the check", async () => {
+            auth.getUser.mockReturnValue(fullAdmin);
+            expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect((await post("/api/raider-characters", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat-x", body.assignments, { actor: "1" });
         });
     });
 });

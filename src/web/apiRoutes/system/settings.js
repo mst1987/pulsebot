@@ -257,7 +257,9 @@ const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...R
 // per version, the dungeon record post. Every settings user reads them (the pages
 // need the versions), but only a full admin writes them: one server's orga must
 // not change what all servers use. The client leaves them out on System › Einstellungen.
-const SHARED_WRITE_KEYS = ["blizzard", "mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords"];
+// `guildId` (#1072): the fallback home server, which no page sends; whoever moves it
+// decides which server counts as the home of everything without a server of its own.
+const SHARED_WRITE_KEYS = ["blizzard", "mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords", "guildId"];
 
 // #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
 const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
@@ -1721,8 +1723,8 @@ const routes = [
     { method: "GET", path: "/api/settings/category-switch", handler: getCategorySwitch, area: "settings" },
     { method: "GET", path: "/api/settings/category-deactivate", handler: getCategoryDeactivate, area: "settings" },
     { method: "POST", path: "/api/settings/category-close", handler: closeCategoryHandler, area: "settings" },
-    { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings" },
-    { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings" },
+    { method: "POST", path: "/api/settings/raidsheets", handler: saveRaidsheetHandler, area: "settings", sharedData: true },
+    { method: "POST", path: "/api/settings/raidsheets/delete", handler: deleteRaidsheetHandler, area: "settings", sharedData: true },
     { method: "GET", path: "/api/settings/discord-servers", handler: getDiscordServers, area: "settings" },
     { method: "GET", path: "/api/settings/role-sync", handler: getRoleSync, area: "settings" },
     { method: "GET", path: "/api/settings/reminders", handler: getReminders, area: "settings" },

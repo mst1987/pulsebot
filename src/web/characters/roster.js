@@ -25,6 +25,9 @@ const { listKnownCategories } = require("../../services/categories/categoryNames
 const { buildAttendanceContext, attendanceFor, categoryInfo, roleFor } = require("../../services/characters/rosterAttendance");
 const { buildVersionContext, versionsOfCharacter, versionChoices } = require("../../services/characters/characterVersions");
 const { mainVersionFor } = require("../../services/versions/mainVersion");
+const { guildOfCategory } = require("../../services/events/eventServer");
+const { reportGuildResolver } = require("../../services/logcheck/reportGuild");
+const { listLogs } = require("../../stores/loot/logStore");
 
 // How much loot a roster row carries for its hover panel. The overview shows
 // the newest pieces, not a full history — the character page has that.
@@ -49,18 +52,26 @@ function attendanceContexts(guildId, versionId, { mainVersion = "", config } = {
     };
 }
 
+/** The filter for `latestIssuesByCharacter`: only reports of this guild; one no server is tied to stays out. */
+function ownServerReports(guildId) {
+    const guildOf = reportGuildResolver(listLogs());
+    return { accept: (meta) => !!guildId && guildOf(meta) === guildId };
+}
+
 /**
  * Assemble the roster of one guild.
  *
  * @param {string} guildId  active guild — resolves category names and limits
  *                          the raid events attendance counts
- * @param {{ versionId?: string }} [opts]  `versionId` (#543): only the characters of
- *                          that game version, attendance over its raid nights only
+ * @param {{ versionId?: string, ownServerOnly?: boolean }} [opts]  `versionId` (#543): only the
+ *                          characters of that game version, attendance over its raid nights only.
+ *                          `ownServerOnly` (#1072, the server-admin rank alone): assignments and
+ *                          gear findings of this guild only, not those the stores hold of other servers
  * @returns {{chars: object[], categories: {id: string, name: string}[],
  *            categoryInfo: Object<string, {raids: number, contents: string[], icon: string}>,
  *            versions: {id: string, label: string, short: string, count: number}[]}}
  */
-function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {}) {
+function buildRoster(guildId, { versionId = "", mainVersion = "", config, ownServerOnly = false } = {}) {
     const rows = new Map();
     const versionCtx = buildVersionContext({ config });
 
@@ -115,6 +126,7 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
 
     // 2. the manual per-category assignments
     for (const [categoryId, map] of Object.entries(listAllAssignments())) {
+        if (ownServerOnly && guildOfCategory(categoryId) !== guildId) continue;
         for (const [userId, characterName] of Object.entries(map)) {
             const row = ensure(characterName);
             if (!row) continue;
@@ -131,7 +143,7 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
     // 3. annotate: class/spec for the rows loot didn't cover, links, gear
     //    issues, role and attendance per category
     const known = characterMap();
-    const issuesByKey = latestIssuesByCharacter();
+    const issuesByKey = latestIssuesByCharacter(ownServerOnly ? ownServerReports(guildId) : undefined);
     const contexts = attendanceContexts(guildId, versionId, { mainVersion, config });
     const all = [...rows.values()].map(({ allItems, ...row }) => ({
         ...row,
@@ -190,10 +202,10 @@ function buildRoster(guildId, { versionId = "", mainVersion = "", config } = {})
  * One character's roster facts for the character page: role, the categories it
  * raids in with their attendance night by night.
  */
-function rosterCharacter(guildId, name, { versionId = "" } = {}) {
+function rosterCharacter(guildId, name, { versionId = "", ownServerOnly = false } = {}) {
     const key = characterKeyOf(name);
     if (!key) return null;
-    const roster = buildRoster(guildId, { versionId });
+    const roster = buildRoster(guildId, { versionId, ownServerOnly });
     const row = roster.chars.find((c) => c.key === key);
     if (!row) return null;
     const contexts = attendanceContexts(guildId, versionId);

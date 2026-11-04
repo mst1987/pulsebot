@@ -46,6 +46,12 @@ describe("services/discord/roles/guildRoles ids", () => {
         expect(guildRoles.isEventGuild(X, config)).toBe(false);
     });
 
+    // #1072: the server-admin rank counts only for a server named in the list.
+    it("lists only the servers named in the list, without the old guildId as a fallback", () => {
+        expect(guildRoles.listedServerIds({ guildId: HOME, discordServers: block() })).toEqual([]);
+        expect(guildRoles.listedServerIds({ guildId: HOME, discordServers: block({ servers: [server(E1), server(E2), server(E1)] }) })).toEqual([E1, E2]);
+    });
+
     // #897: no talk role any more, every server of the list is an equal one.
     it("tells the role of a server: one of the list or none", () => {
         getConfig.mockReturnValue({ guildId: "", discordServers: block({ servers: [server(E1), server(T)] }) });

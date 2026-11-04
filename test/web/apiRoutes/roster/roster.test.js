@@ -4,6 +4,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
@@ -359,6 +360,41 @@ describe("web/apiRoutes/roster", () => {
             expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
             expect(rosterHidden.isHidden("Anna")).toBe(false);
         });
+
+        describe("the rank Server-Admin (#1072)", () => {
+            const { latestIssuesByCharacter } = require("../../../../src/web/characters/charGearIssues");
+            const RANK = { id: "9", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: { ...emptyAccess(), roster: { read: true, write: true } } };
+
+            beforeEach(() => {
+                rosterHidden.hide("Bob", { reason: "left the guild", by: "Admin" });
+                latestIssuesByCharacter.mockClear();
+                auth.getUserWithoutRank.mockClear();
+            });
+            afterEach(() => auth.getUserWithoutRank.mockReturnValue(null));
+
+            it("gets no reason or name of a hide and only findings of its server when the rank alone gives the right", async () => {
+                auth.getUser.mockReturnValue(RANK);
+                const data = json(await get("/api/roster")).data;
+                expect(data.hiddenChars[0].hidden).toMatchObject({ character: "Bob", reason: "", by: "" });
+                expect(latestIssuesByCharacter).toHaveBeenCalledWith({ accept: expect.any(Function) });
+            });
+
+            it("sees everything as on main when a role gives the right too", async () => {
+                auth.getUser.mockReturnValue(RANK);
+                auth.getUserWithoutRank.mockReturnValue(ORGA_ROLE);
+                const data = json(await get("/api/roster")).data;
+                expect(data.hiddenChars[0].hidden).toMatchObject({ reason: "left the guild", by: "Admin" });
+                expect(latestIssuesByCharacter).toHaveBeenCalledWith(undefined);
+            });
+
+            it.each([["a full admin", ADMIN], ["an orga role", ORGA_ROLE]])("does not touch %s, nor ask for the rights without the rank", async (_name, user) => {
+                auth.getUser.mockReturnValue(user);
+                const data = json(await get("/api/roster")).data;
+                expect(data.hiddenChars[0].hidden).toMatchObject({ reason: "left the guild", by: "Admin" });
+                expect(latestIssuesByCharacter).toHaveBeenCalledWith(undefined);
+                expect(auth.getUserWithoutRank).not.toHaveBeenCalled();
+            });
+        });
     });
 
     describe("orga only (epic #723)", () => {
@@ -378,6 +414,25 @@ describe("web/apiRoutes/roster", () => {
 
     describe("GET /api/roster/char", () => {
         beforeEach(() => auth.getUser.mockReturnValue(ADMIN));
+
+        it("limits the facts to the own server only when the rank alone gives the right (#1072)", async () => {
+            const rosterCharacter = require("../../../../src/web/characters/roster").rosterCharacter;
+            const lastOwnServerOnly = () => rosterCharacter.mock.calls[rosterCharacter.mock.calls.length - 1][2].ownServerOnly;
+            const RANK = { id: "9", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: { ...emptyAccess(), roster: { read: true, write: true } } };
+            try {
+                auth.getUser.mockReturnValue(RANK);
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastOwnServerOnly()).toBe(true);
+                auth.getUserWithoutRank.mockReturnValue(ORGA_ROLE);
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastOwnServerOnly()).toBe(false);
+                auth.getUser.mockReturnValue(ORGA_ROLE);
+                await get("/api/roster/char", { name: "Nobody" });
+                expect(lastOwnServerOnly()).toBe(false);
+            } finally {
+                auth.getUserWithoutRank.mockReturnValue(null);
+            }
+        });
 
         it("reads the facts in the page's version (#741), the main version while the others are hidden (#563), every one when none is asked", async () => {
             const settingsStore = require("../../../../src/stores/settings/settingsStore");

@@ -215,9 +215,9 @@ const postManualBis = withUser({ write: "lootcouncil", csrf: true, body: true },
 });
 
 const routes = [
-    { method: "GET", path: "/api/lootcouncil/manual-bis", handler: getManualBis, area: "lootcouncil" },
-    { method: "GET", path: "/api/lootcouncil/manual-bis/search", handler: getManualBisSearch, area: "lootcouncil" },
-    { method: "POST", path: "/api/lootcouncil/manual-bis", handler: postManualBis, area: "lootcouncil" },
+    { method: "GET", path: "/api/lootcouncil/manual-bis", handler: getManualBis, area: "lootcouncil", sharedData: true },
+    { method: "GET", path: "/api/lootcouncil/manual-bis/search", handler: getManualBisSearch, area: "lootcouncil", sharedData: true },
+    { method: "POST", path: "/api/lootcouncil/manual-bis", handler: postManualBis, area: "lootcouncil", sharedData: true },
 ];
 
 module.exports = { getManualBis, getManualBisSearch, postManualBis, routes };

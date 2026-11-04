@@ -31,12 +31,15 @@ async function handle(pathname, req, res, url) {
     try {
         // a session from before #925 gets its per-server rights before the gate looks at them
         if (typeof auth.ensureAccess === "function") await auth.ensureAccess(req);
+        const route = find(req.method, pathname);
+        // On data of every server the rank of one does not count (routeTable.js): from
+        // here on the gate and the handler read the user without it (auth.getUser).
+        if (route && route.sharedData) req.sharedDataRoute = true;
         const denied = await gate(pathname, req.method, auth.getUser(req), req);
         if (denied) {
             error(res, denied.status, denied.code, denied.message);
             return true;
         }
-        const route = find(req.method, pathname);
         if (!route) {
             const allowed = methodsFor(pathname);
             if (allowed.length) {

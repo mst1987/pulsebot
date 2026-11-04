@@ -6,7 +6,10 @@ jest.mock("../../../../src/config/variables", () => ({
     adminRoleIds: [],
 }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({})) }));
-jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ eventGuildIds: jest.fn(() => ["guild-1"]) }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    eventGuildIds: jest.fn(() => ["guild-1"]),
+    listedServerIds: jest.fn(() => ["guild-1"]),
+}));
 
 const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
@@ -29,6 +32,7 @@ function onGuild1(settings, extra = {}) {
 beforeEach(() => {
     getConfig.mockReturnValue({});
     guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
+    guildRoles.listedServerIds.mockReturnValue(["guild-1"]);
     discord.setClient(null);
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -129,6 +133,216 @@ describe("services/discord/members/userAccess", () => {
             const onB = await userAccess.computeAccess("orgaB", { guildId: B });
             expect(onB.access.loot).toEqual({ read: true, write: false });
             expect(onB.access.raids).toEqual({ read: false, write: false });
+        });
+    });
+
+    describe("server-admin rank (#1072)", () => {
+        const A = "guild-a";
+        const B = "guild-b";
+        const OTHER = "guild-overview";
+        const { fullAccess } = require("../../../../src/config/permissions");
+        const { PermissionFlagsBits } = require("discord.js");
+
+        /** A member whose permissions answer like Discord: only `right` counts. */
+        function holding(id, right, over = {}) {
+            return makeMember({ id, permissions: { has: jest.fn((perm) => perm === right) }, ...over });
+        }
+        const discordAdmin = (id, over) => holding(id, PermissionFlagsBits.Administrator, over);
+
+        beforeEach(() => {
+            guildRoles.eventGuildIds.mockReturnValue([A, B]);
+            guildRoles.listedServerIds.mockReturnValue([A, B]);
+            getConfig.mockReturnValue({ serverSettings: { [B]: { baseAccess: { loot: { read: true } } } } });
+        });
+
+        it("carries the role rights beside the rank: what the account may without it", async () => {
+            getConfig.mockReturnValue({ serverSettings: { [A]: { rolePermissions: { "r-lead": RAIDS_WRITE }, orgaRoleIds: ["r-lead"] } } });
+            clientWith(makeGuild({ id: A, members: [discordAdmin("u1", { roleIds: ["r-lead"] }), discordAdmin("u2")] }));
+            const withRole = await userAccess.computeGuildAccess("u1");
+            expect(withRole.guilds[A].access).toEqual(fullAccess());
+            expect(withRole.guilds[A].roleIsOrga).toBe(true);
+            expect(withRole.guilds[A].roleAccess.raids).toEqual({ read: true, write: true });
+            expect(withRole.guilds[A].roleAccess.settings).toEqual({ read: false, write: false });
+            const withoutRole = await userAccess.computeGuildAccess("u2");
+            expect(withoutRole.guilds[A].isServerAdmin).toBe(true);
+            expect(withoutRole.guilds[A].roleIsOrga).toBeUndefined();
+            expect(withoutRole.guilds[A].roleAccess.raids).toEqual({ read: false, write: false });
+        });
+
+        it("gives no rank on the fallback home server while the server list is empty", async () => {
+            guildRoles.eventGuildIds.mockReturnValue([A]);
+            guildRoles.listedServerIds.mockReturnValue([]);
+            getConfig.mockReturnValue({});
+            clientWith(makeGuild({ id: A, members: [discordAdmin("u1")] }));
+            const result = await userAccess.computeAccess("u1", { guildId: A });
+            expect(result.isServerAdmin).toBeUndefined();
+            expect(result.isOrga).toBeUndefined();
+            expect(result.access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("an administrator on A has every area on A, only the base access on B, and is no full admin", async () => {
+            clientWith(
+                makeGuild({ id: A, members: [discordAdmin("u1")] }),
+                makeGuild({ id: B, members: [holding("u1", PermissionFlagsBits.SendMessages)] }),
+            );
+            const onA = await userAccess.computeAccess("u1", { guildId: A });
+            expect(onA).toEqual({ isAdmin: false, access: fullAccess(), isOrga: true, isServerAdmin: true });
+            const onB = await userAccess.computeAccess("u1", { guildId: B });
+            expect(onB.isAdmin).toBe(false);
+            expect(onB.isServerAdmin).toBeUndefined();
+            expect(onB.isOrga).toBeUndefined();
+            expect(onB.access.loot).toEqual({ read: true, write: false });
+            expect(onB.access.settings).toEqual({ read: false, write: false });
+            // the bot's gates ask the same answer
+            expect(await userAccess.userMayAny("u1", ["settings"], "write", { guildId: A })).toBe(true);
+            expect(await userAccess.userMayAny("u1", ["settings"], "write", { guildId: B })).toBe(false);
+        });
+
+        it("gives the owner the rank without any role (permissions.has answers for the owner)", async () => {
+            const owner = discordAdmin("owner", { roleIds: [] });
+            clientWith(makeGuild({ id: A, members: [owner] }));
+            expect(await userAccess.computeAccess("owner", { guildId: A })).toMatchObject({ isAdmin: false, isServerAdmin: true });
+            expect(owner.permissions.has).toHaveBeenCalledWith(PermissionFlagsBits.Administrator);
+        });
+
+        it("gives a member without the right, or of an unexpected shape, no rank", async () => {
+            clientWith(makeGuild({ id: A, members: [
+                holding("plain", PermissionFlagsBits.ManageGuild),
+                makeMember({ id: "shapeless" }),
+                makeMember({ id: "truthy", permissions: { has: () => "yes" } }),
+                makeMember({ id: "broken", permissions: { has: () => { throw new Error("no cache"); } } }),
+            ] }));
+            for (const id of ["plain", "shapeless", "truthy", "broken"]) {
+                const result = await userAccess.computeAccess(id, { guildId: A });
+                expect(result.isServerAdmin).toBeUndefined();
+                expect(result.isOrga).toBeUndefined();
+                expect(result.access.settings).toEqual({ read: false, write: false });
+            }
+        });
+
+        it("gives no rank on a server outside discordServers.servers, even with settings there", async () => {
+            guildRoles.eventGuildIds.mockReturnValue([A]);
+            guildRoles.listedServerIds.mockReturnValue([A]);
+            getConfig.mockReturnValue({ serverSettings: { [OTHER]: { baseAccess: { loot: { read: true } } } } });
+            clientWith(
+                makeGuild({ id: A, members: [] }),
+                makeGuild({ id: OTHER, members: [discordAdmin("u1")] }),
+            );
+            const there = await userAccess.computeAccess("u1", { guildId: OTHER });
+            expect(there.isServerAdmin).toBeUndefined();
+            expect(there.isOrga).toBeUndefined();
+            expect(there.access.loot).toEqual({ read: true, write: false });
+            expect(there.access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("asks Discord even with nothing role-based configured", async () => {
+            getConfig.mockReturnValue({});
+            const guild = makeGuild({ id: A, members: [discordAdmin("u1")] });
+            const fetch = jest.spyOn(guild.members, "fetch");
+            clientWith(guild);
+            expect(await userAccess.computeAccess("u1", { guildId: A })).toMatchObject({ isServerAdmin: true });
+            expect(fetch).toHaveBeenCalledWith("u1");
+        });
+
+        it("with nothing role-based configured, no answer from Discord is the base access without a throw", async () => {
+            // bot not logged in
+            expect((await userAccess.computeAccess("u1", { guildId: B })).access.loot).toEqual({ read: true, write: false });
+            // Discord fails on A: no rank there, the rest goes on
+            const failing = makeGuild({ id: A, members: [] });
+            failing.members.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+            clientWith(failing, makeGuild({ id: B, members: [discordAdmin("u1")] }));
+            const onA = await userAccess.computeAccess("u1", { guildId: A });
+            expect(onA.isServerAdmin).toBeUndefined();
+            expect(onA.access.settings).toEqual({ read: false, write: false });
+            expect(await userAccess.computeAccess("u1", { guildId: B })).toMatchObject({ isServerAdmin: true });
+        });
+
+        it("with roles configured, a Discord error still throws and resolveAccess falls back without a rank", async () => {
+            getConfig.mockReturnValue({ serverSettings: { [A]: { rolePermissions: { "r-lead": RAIDS_WRITE }, baseAccess: { loot: { read: true } } } } });
+            const failing = makeGuild({ id: A, members: [] });
+            failing.members.fetch = jest.fn().mockRejectedValue(new Error("network down"));
+            clientWith(failing);
+            await expect(userAccess.computeAccess("u1", { guildId: A })).rejects.toThrow("network down");
+            const fallback = await userAccess.resolveAccess("u1", { guildId: A });
+            expect(fallback.isServerAdmin).toBeUndefined();
+            expect(fallback.isOrga).toBeUndefined();
+            expect(fallback.access.loot).toEqual({ read: true, write: false });
+            expect(fallback.access.settings).toEqual({ read: false, write: false });
+        });
+
+        it("a full-admin role wins over the rank", async () => {
+            getConfig.mockReturnValue({ adminRoleIds: ["r-admin"] });
+            clientWith(makeGuild({ id: A, members: [discordAdmin("u1", { roleIds: ["r-admin"] })] }));
+            const result = await userAccess.computeAccess("u1", { guildId: B });
+            expect(result.isAdmin).toBe(true);
+            expect(result.isServerAdmin).toBeUndefined();
+        });
+
+        describe("withoutServerAdminRank", () => {
+            it("puts a server with the rank back on its role rights and leaves the others alone", () => {
+                const other = { access: { raids: { read: true, write: true } }, isOrga: true, isMember: true };
+                const stored = { isAdmin: false, guilds: {
+                    [A]: { access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true, roleAccess: RAIDS_WRITE, roleIsOrga: true },
+                    [B]: other,
+                } };
+                const result = userAccess.withoutServerAdminRank(stored, "u1");
+                expect(result.isAdmin).toBe(false);
+                expect(result.guilds[A]).toEqual({ access: RAIDS_WRITE, isOrga: true, isMember: true });
+                expect(result.guilds[B]).toBe(other);
+                // the stored object itself stays as it was
+                expect(stored.guilds[A].isServerAdmin).toBe(true);
+            });
+
+            it("without role orga the rank's orga goes with it", () => {
+                const stored = { isAdmin: false, guilds: {
+                    [A]: { access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true, roleAccess: RAIDS_WRITE },
+                } };
+                expect(userAccess.withoutServerAdminRank(stored, "u1").guilds[A]).toEqual({ access: RAIDS_WRITE, isMember: true });
+            });
+
+            it("falls back on the base access for a stored entry from before the role rights were carried", () => {
+                getConfig.mockReturnValue({ serverSettings: { [A]: { baseAccess: { loot: { read: true } }, userPermissions: { u1: { cla: { read: true } } } } } });
+                const stored = { isAdmin: false, guilds: { [A]: { access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true } } };
+                const entry = userAccess.withoutServerAdminRank(stored, "u1").guilds[A];
+                expect(entry.isOrga).toBeUndefined();
+                expect(entry.access.settings).toEqual({ read: false, write: false });
+                expect(entry.access.loot).toEqual({ read: true, write: false });
+                expect(entry.access.cla).toEqual({ read: true, write: false });
+            });
+
+            it("keep spares a server whose re-check still found the rank", () => {
+                const stored = { isAdmin: false, guilds: {
+                    [A]: { access: fullAccess(), isOrga: true, isServerAdmin: true, roleAccess: {} },
+                    [B]: { access: fullAccess(), isOrga: true, isServerAdmin: true, roleAccess: {} },
+                } };
+                const result = userAccess.withoutServerAdminRank(stored, "u1", { keep: (id) => id === A });
+                expect(result.guilds[A].isServerAdmin).toBe(true);
+                expect(result.guilds[B].isServerAdmin).toBeUndefined();
+            });
+
+            it("returns a result without a rank as it is, and tolerates none at all", () => {
+                const stored = { isAdmin: false, guilds: { [A]: { access: {}, isOrga: true } } };
+                expect(userAccess.withoutServerAdminRank(stored, "u1")).toBe(stored);
+                expect(userAccess.withoutServerAdminRank(null, "u1")).toBeNull();
+            });
+        });
+
+        describe("withoutDelistedRank", () => {
+            const ranked = () => ({ access: fullAccess(), isOrga: true, isMember: true, isServerAdmin: true, roleAccess: RAIDS_WRITE });
+
+            it("takes the rank off a server gone from the list and keeps it on a listed one", () => {
+                guildRoles.listedServerIds.mockReturnValue([A]);
+                const stored = { isAdmin: false, guilds: { [A]: ranked(), [B]: ranked() } };
+                const result = userAccess.withoutDelistedRank(stored, "u1");
+                expect(result.guilds[A].isServerAdmin).toBe(true);
+                expect(result.guilds[B]).toEqual({ access: RAIDS_WRITE, isMember: true });
+            });
+
+            it("answers an unranked session as it is", () => {
+                const stored = { isAdmin: false, guilds: { [A]: { access: {} } } };
+                expect(userAccess.withoutDelistedRank(stored, "u1")).toBe(stored);
+                expect(userAccess.withoutDelistedRank(null, "u1")).toBeNull();
+            });
         });
     });
 

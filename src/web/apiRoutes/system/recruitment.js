@@ -249,10 +249,10 @@ const scanRecruitmentPosts = withUser({ csrf: true }, async ({ req, res }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/recruitment", handler: getRecruitmentData, area: "recruitment" },
-    { method: "POST", path: "/api/recruitment", handler: saveRecruitmentTemplate, area: "recruitment" },
-    { method: "POST", path: "/api/recruitment/delete", handler: deleteRecruitmentTemplate, area: "recruitment" },
-    { method: "POST", path: "/api/recruitment/post", handler: postRecruitmentTemplate, area: "recruitment" },
+    { method: "GET", path: "/api/recruitment", handler: getRecruitmentData, area: "recruitment", sharedData: true },
+    { method: "POST", path: "/api/recruitment", handler: saveRecruitmentTemplate, area: "recruitment", sharedData: true },
+    { method: "POST", path: "/api/recruitment/delete", handler: deleteRecruitmentTemplate, area: "recruitment", sharedData: true },
+    { method: "POST", path: "/api/recruitment/post", handler: postRecruitmentTemplate, area: "recruitment", sharedData: true },
     { method: "POST", path: "/api/recruitment/post-update", handler: updateRecruitmentPost, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/invite", handler: createRecruitmentInviteHandler, area: "recruitment" },
     { method: "POST", path: "/api/recruitment/post-delete", handler: deleteRecruitmentPostHandler, area: "recruitment" },

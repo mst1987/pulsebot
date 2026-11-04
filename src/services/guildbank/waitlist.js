@@ -309,13 +309,14 @@ function picksVersionError(bank, links) {
  * wins over the name (`picked`). `linked` = the row lands linked to a profile
  * character; `ok` = the row will be imported. A pick of a character of another
  * game version than the bank's answers `{ error }` (German) instead (#741).
+ * `list` limits the profiles a name may match (default: every profile).
  */
-function previewImport(bankKey, text, { links = null } = {}) {
+function previewImport(bankKey, text, { links = null, list: only } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { rows: [] };
     const versionError = picksVersionError(bank, links);
     if (versionError) return { error: versionError };
-    const list = profiles.listProfiles();
+    const list = only || profiles.listProfiles();
     const index = seenIndex();
     const rows = parseImport(text).map((row) => {
         const found = row.error ? { item: null, fuzzy: false } : findItem(row.itemText, bank.items);
@@ -365,10 +366,10 @@ function entryFor(bank, item, { name, match, amount, by, byName }) {
  * Returns `{ added: [request], skipped: number, unlinked: number }` or
  * `{ error }` (German).
  */
-function importLines(bankKey, text, { by = "", byName = "", links = null, now = Date.now() } = {}) {
+function importLines(bankKey, text, { by = "", byName = "", links = null, list, now = Date.now() } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { error: "Gildenbank nicht gefunden." };
-    const preview = previewImport(bankKey, text, { links });
+    const preview = previewImport(bankKey, text, { links, list });
     if (preview.error) return { error: preview.error };
     const { rows } = preview;
     if (!rows.length) return { error: "Keine Zeile zum Importieren." };
@@ -393,7 +394,7 @@ function importLines(bankKey, text, { by = "", byName = "", links = null, now = 
  * picked profile character (`userId` + `characterKey`), an offered item of
  * the bank and the amount. Returns `{ request }` or `{ error }`.
  */
-function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId = 0, amount = 0, by = "", byName = "" } = {}, { now = Date.now() } = {}) {
+function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId = 0, amount = 0, by = "", byName = "" } = {}, { now = Date.now(), list } = {}) {
     const bank = stockStore.getBank(bankKey);
     if (!bank) return { error: "Gildenbank nicht gefunden." };
     const picked = userId || characterKey ? pickedMatch({ 1: { userId, characterKey } }, 1) : null;
@@ -405,7 +406,7 @@ function addEntry(bankKey, { name = "", userId = "", characterKey = "", itemId =
     if (!item || !stockView.isRequestable(item)) return { error: "Diesen Gegenstand gibt die Bank nicht aus." };
     const n = store.parseAmount(amount);
     if (!n) return { error: `Die Menge muss eine ganze Zahl von ${store.AMOUNT_MIN} bis ${store.AMOUNT_MAX} sein.` };
-    const match = picked || matchCharacter(name, bank.gameVersion);
+    const match = picked || matchCharacter(name, bank.gameVersion, list);
     return store.addWaiting(entryFor(bank, item, { name, match: isHit(match) ? match : null, amount: n, by, byName }), { now });
 }
 

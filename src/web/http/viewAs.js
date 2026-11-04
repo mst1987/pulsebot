@@ -66,9 +66,10 @@ function viewAsActive(viewAs, now = Date.now()) {
 function effectiveUser(session, config, envAdminRoleIds = [], now = Date.now()) {
     if (!session || !session.isAdmin || !viewAsActive(session.viewAs, now)) return session;
     const { isAdmin, access, isOrga } = accessAsRoles(config, session.viewAs.roleIds, envAdminRoleIds);
-    // the role's orga flag, never the admin's own
+    // the role's orga flag, never the admin's own; a role has no server-admin rank (#1072)
     const rest = { ...session };
     delete rest.isOrga;
+    delete rest.isServerAdmin;
     return { ...rest, isAdmin, access, allAccess: access, ...(isOrga ? { isOrga: true } : {}), viewAs: { roleIds: session.viewAs.roleIds.slice(), at: session.viewAs.at } };
 }
 

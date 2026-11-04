@@ -14,6 +14,7 @@ jest.mock("../../../../src/services/guildbank/itemMeta", () => ({
 jest.mock("../../../../src/services/guildbank/itemEmojis", () => ({ queueItemEmojiSync: jest.fn() }));
 jest.mock("../../../../src/services/discord/discord", () => ({
     listGuilds: jest.fn(() => []),
+    listHumanMembers: jest.fn(),
     postPayload: jest.fn(async () => ({ channelId: "900000", messageId: "m1" })),
     editPayload: jest.fn(async () => ({})),
     sendDirectMessage: jest.fn(async () => ({ ok: true })),
@@ -35,8 +36,9 @@ const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../../src/utils/guildbank/guildBankScan");
 const {
     searchGuildBankCharacters, checkGuildBankCharacterArmory, verifyGuildBankCharacter, linkGuildBankRequest, getGuildBankWaitlist, getGuildBankRequests,
-    previewGuildBankWaitlist,
+    previewGuildBankWaitlist, addGuildBankWaiting, importGuildBankWaitlist, reassignGuildBankRequest,
 } = require("../../../../src/web/apiRoutes/loot/guildBank");
+const discord = require("../../../../src/services/discord/discord");
 const { AREA_BY_PATH } = require("../../../../src/web/http/apiAccess");
 const { mockRes, status, body } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
@@ -178,5 +180,153 @@ describe("apiRoutes/guildBank — confirmed characters", () => {
         }
         expect(lookupArmory).not.toHaveBeenCalled();
         expect(profiles.getProfile("u3").characters.find((c) => c.key === "gentle").verifiedAt).toBeUndefined();
+    });
+});
+
+// #1072: profiles are global. The rank alone reaches the active server's members only;
+// whoever holds a role for it works as on main.
+describe("apiRoutes/guildBank — a holder of only the server-admin rank", () => {
+    const RANK = { id: "r1", name: "Rang", isAdmin: false, isOrga: true, isServerAdmin: true, access: { raids: { read: true, write: true } } };
+    const NO_ROLES = { id: "r1", isAdmin: false, access: {} };
+    const RAID_ROLES = { id: "r1", isAdmin: false, access: { raids: { read: true, write: true } } };
+    const NOT_THERE = "Diesen Charakter gibt es im Profil nicht.";
+    const search = () => call(searchGuildBankCharacters, { url: q("characters", { key: KEY, q: "Gentle" }) });
+    const charactersFound = (res) => body(res).characters.map((c) => c.characterName);
+    const namesOfProfile = (id) => profiles.getProfile(id).characters.map((c) => c.name);
+    let withoutRank;
+
+    beforeEach(() => {
+        mockUser = RANK;
+        withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue(NO_ROLES);
+        // u3 (Gentle...) plays elsewhere, u4 on the active server
+        profiles.addCharacter("u4", { source: "log", name: "Gentlehere", className: "Mage" }, { name: "Hier" });
+        discord.listHumanMembers.mockResolvedValue({ members: [{ id: "u4" }], error: null });
+    });
+    afterEach(() => withoutRank.mockRestore());
+
+    it("searches the members of the active server only, without the known names of other servers", async () => {
+        const res = await search();
+        expect(discord.listHumanMembers).toHaveBeenCalledWith("g1");
+        expect(charactersFound(res)).toEqual(["Gentlehere"]);
+        expect(JSON.stringify(body(res).names)).not.toMatch(/Gentleowl|Gentletwowl/);
+    });
+
+    it("finds a character of another account once that account is a member", async () => {
+        discord.listHumanMembers.mockResolvedValue({ members: [{ id: "u3" }], error: null });
+        expect(charactersFound(await search())).toEqual(expect.arrayContaining(["Gentleowl", "Gentletwowl"]));
+    });
+
+    it("treats nobody as a member when the member list cannot be read", async () => {
+        discord.listHumanMembers.mockResolvedValue({ members: [], error: "unavailable" });
+        expect(charactersFound(await search())).toEqual([]);
+        expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u4", characterKey: "gentlehere" } }))).toBe(404);
+    });
+
+    it.each([
+        ["verifying in game", () => verifyGuildBankCharacter],
+        ["checking the armory", () => checkGuildBankCharacterArmory],
+    ])("%s refuses a character outside the server and stores nothing", async (_name, handler) => {
+        lookupArmory.mockResolvedValue({ url: "x", fetched: true, className: "Druid", level: 70, guild: "G" });
+        const res = await call(handler(), { payload: { key: KEY, userId: "u3", characterKey: "gentle" } });
+        expect([status(res), body(res).error.message]).toEqual([404, NOT_THERE]);
+        const stored = profiles.getProfile("u3").characters.find((c) => c.key === "gentle");
+        expect(stored.verifiedAt).toBeUndefined();
+        expect(stored.armory).toBeNull();
+        expect(lookupArmory).not.toHaveBeenCalled();
+    });
+
+    it("confirms a character of a member", async () => {
+        profiles.addCharacter("u4", { name: "Tipphere", className: "Mage" });
+        const res = await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u4", characterKey: "tipphere" } });
+        expect(status(res)).toBe(200);
+        expect(profiles.getProfile("u4").characters.find((c) => c.key === "tipphere").verifiedBy).toBe("r1");
+    });
+
+    it("links a request to a member's character, not to one outside the server", async () => {
+        const entry = gentleEntry();
+        requests.promoteWaiting(entry.id, 1);
+        let res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u3", characterKey: "gentleowl" } });
+        expect([status(res), body(res).error.message]).toEqual([400, NOT_THERE]);
+        expect(requests.getRequest(entry.id).characterName).toBe("Gentle");
+        res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u4", characterKey: "gentlehere" } });
+        expect(status(res)).toBe(200);
+        expect(body(res).request.characterName).toBe("Gentlehere");
+    });
+
+    it("moves a request to a name but does not write it into another account's profile", async () => {
+        const entry = gentleEntry();
+        requests.promoteWaiting(entry.id, 1);
+        const payload = { key: KEY, id: entry.id, characterName: "Neuname", checked: true, className: "Druid" };
+        let res = await call(reassignGuildBankRequest, { payload: { ...payload, addToProfile: true } });
+        expect(status(res)).toBe(400);
+        expect(namesOfProfile("u3")).not.toContain("Neuname");
+        expect(requests.getRequest(entry.id).characterName).toBe("Gentle");
+        res = await call(reassignGuildBankRequest, { payload });
+        expect(status(res)).toBe(200);
+        expect(requests.getRequest(entry.id).characterName).toBe("Neuname");
+        expect(namesOfProfile("u3")).not.toContain("Neuname");
+    });
+
+    it("may write into the profile behind their own request", async () => {
+        const entry = requests.addWaiting({ userId: "r1", userName: "Rang", characterName: "Altname", item: "Crimson Spinal", amount: 1, bankKey: KEY, itemId: SPINAL }).request;
+        requests.promoteWaiting(entry.id, 1);
+        const res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuname", checked: true, addToProfile: true, className: "Druid" } });
+        expect(status(res)).toBe(200);
+        expect(namesOfProfile("r1")).toContain("Neuname");
+    });
+
+    it("adds a waiting entry for a member, a name outside the server stays without an account", async () => {
+        let res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u3", characterKey: "gentleowl", itemId: SPINAL, amount: 1 } });
+        expect([status(res), body(res).error.message]).toEqual([400, NOT_THERE]);
+        res = await call(addGuildBankWaiting, { payload: { key: KEY, name: "Gentleowl", itemId: SPINAL, amount: 1 } });
+        expect(status(res)).toBe(200);
+        res = await call(addGuildBankWaiting, { payload: { key: KEY, name: "Gentlehere", itemId: SPINAL, amount: 1 } });
+        expect(status(res)).toBe(200);
+        const entries = requests.listRequests();
+        expect(entries.find((e) => e.characterName === "Gentleowl").userId).toBe("");
+        expect(entries.find((e) => e.characterName === "Gentlehere").userId).toBe("u4");
+    });
+
+    it("previews and imports against the members, a pick of another account is dropped", async () => {
+        const text = "Gentleowl\tCrimson Spinal\t1\nGentlehere\tCrimson Spinal\t1";
+        const links = { 1: { userId: "u3", characterKey: "gentleowl" } };
+        const { rows } = body(await call(previewGuildBankWaitlist, { payload: { key: KEY, text, links } }));
+        expect(rows[0]).toMatchObject({ linked: false, match: null, picked: false });
+        expect(JSON.stringify(rows[0])).not.toContain("u3");
+        expect(rows[1]).toMatchObject({ linked: true });
+        expect(status(await call(importGuildBankWaitlist, { payload: { key: KEY, text, links } }))).toBe(200);
+        const entries = requests.listRequests();
+        expect(entries.filter((e) => e.userId === "u3")).toEqual([]);
+        expect(entries.find((e) => e.characterName === "Gentlehere").userId).toBe("u4");
+    });
+
+    describe.each([
+        ["somebody whose role writes raids", RANK, RAID_ROLES],
+        ["an orga without the rank", { id: "o1", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } }, null],
+        ["a full admin", { id: "1", name: "Admin", isAdmin: true }, null],
+    ])("%s", (_who, user, roles) => {
+        beforeEach(() => {
+            mockUser = user;
+            if (roles) withoutRank.mockReturnValue(roles);
+        });
+        afterEach(() => expect(discord.listHumanMembers).not.toHaveBeenCalled());
+
+        it("works on every profile as on main", async () => {
+            expect(charactersFound(await search())).toEqual(expect.arrayContaining(["Gentleowl", "Gentlehere"]));
+            expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u3", characterKey: "gentle" } }))).toBe(200);
+            const entry = gentleEntry();
+            requests.promoteWaiting(entry.id, 1);
+            const res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuname", checked: true, addToProfile: true, className: "Druid" } });
+            expect(status(res)).toBe(200);
+            expect(namesOfProfile("u3")).toContain("Neuname");
+        });
+
+        it("links, adds and imports for every account as on main", async () => {
+            const preview = body(await call(previewGuildBankWaitlist, { payload: { key: KEY, text: "Gentleowl\tCrimson Spinal\t1" } }));
+            expect(preview.rows[0]).toMatchObject({ linked: true, match: expect.objectContaining({ userId: "u3" }) });
+            const res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u3", characterKey: "gentleowl", itemId: SPINAL, amount: 1 } });
+            expect(status(res)).toBe(200);
+            expect(requests.listRequests().find((e) => e.characterName === "Gentleowl").userId).toBe("u3");
+        });
     });
 });

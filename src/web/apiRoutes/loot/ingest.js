@@ -31,7 +31,7 @@ const { getConfig } = require("../../../stores/settings/settingsStore");
 const { serverIds, serverLabel } = require("../../../services/discord/roles/guildRoles");
 const { versionOfEvent, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { wclGuildsOf } = require("../../../services/logcheck/wclGuildSettings");
-const { serversOfToken, orgaServersOf, isPersonToken, describeServers, versionHead } = require("../../../services/discord/servers/ingestServers");
+const { serversOfToken, orgaServersOf, isPersonToken, tokenMayLearnClasses, describeServers, versionHead } = require("../../../services/discord/servers/ingestServers");
 const discord = require("../../../services/discord/discord");
 const { serverWithoutSession, serverContext, guildOfLootEvent } = require("../../../services/loot/lootServer");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
@@ -65,10 +65,11 @@ function requireToken(req, res) {
  * for a personal key (#1000), `[guildId]` for a server key (#994), null for an old key (the rules
  * from before #994). A personal key whose owner is orga nowhere (any more) gets the 403
  * `no_server` and `undefined` back - the caller stops.
+ * `opts` go on to serversOfToken (`rolesOnly`: an upload tied to no server, #1072).
  * @returns {Promise<string[]|null|undefined>}
  */
-async function requireServers(token, res) {
-    const servers = await serversOfToken(token);
+async function requireServers(token, res, opts) {
+    const servers = await (opts ? serversOfToken(token, opts) : serversOfToken(token));
     if (Array.isArray(servers) && !servers.length) {
         error(res, 403, "no_server", "Dieser Schlüssel gilt gerade für keinen Server: Du bist auf keinem Server Orga.");
         return undefined;
@@ -258,7 +259,8 @@ async function ingestLoot(req, res) {
                 guildId: prior.guildId || "",
             });
             if (added) {
-                rememberFromLoot(session.items);
+                // The classes are shared by every server: the rank of one server does not teach them (#1072).
+                if (await tokenMayLearnClasses(token, guildOfLootEvent(ctx, prior.eventId, prior.categoryId, prior.guildId))) rememberFromLoot(session.items);
                 // Shown as "+n nachgeliefert" in the inbox's linked list.
                 noteAppended(session.sessionId, added);
             }
@@ -658,8 +660,9 @@ async function ingestHandoutReport(req, res) {
 async function ingestLevelHelperRuns(req, res) {
     const token = requireToken(req, res);
     if (!token) return;
-    // the runs are not tied to a server, but a personal key whose owner is orga nowhere stops here
-    if (await requireServers(token, res) === undefined) return;
+    // the runs are not tied to a server, but a personal key whose owner is orga nowhere stops here;
+    // the server-admin rank does not count: it is no orga role and the runs are every server's (#1072)
+    if (await requireServers(token, res, { rolesOnly: true }) === undefined) return;
     const body = await readJsonBody(req);
     let result;
     try {

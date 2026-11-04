@@ -6,6 +6,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
@@ -1064,10 +1065,54 @@ describe("web/apiRoutes/cla", () => {
                 "https://classic.warcraftlogs.com/reports/AAA",
                 expect.objectContaining({ id: "e2", title: "Other" }),
                 "guild-1",
+                undefined,
             );
             expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([log]);
             expect(json(res)).toEqual({
                 data: { logId: "l9", eventId: "e2", eventLabel: "Other", message: "WCL-Link „Other\" zugeordnet." },
+            });
+        });
+
+        // The check on an existing log (#1072) is for whoever has the area by the server-admin rank alone.
+        describe("the server of an existing log", () => {
+            const CLA_RIGHTS = { cla: { read: true, write: true } };
+            const RANK = { id: "9", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: CLA_RIGHTS };
+            const ROLE_ORGA = { id: "8", name: "Lead", isAdmin: false, isOrga: true, access: CLA_RIGHTS };
+            const link = () => {
+                manualLog.linkLogByUrl.mockClear();
+                manualLog.linkLogByUrl.mockReturnValue({ log: { id: "l9", reportId: "AAA" }, created: false });
+                return post("/api/cla/log-link-url", { link: "https://classic.warcraftlogs.com/reports/AAA", eventId: "e2" });
+            };
+
+            afterEach(() => auth.getUserWithoutRank.mockReturnValue(null));
+
+            it("limits the rank alone to logs of the active server, an old log without a server stays out", async () => {
+                auth.getUser.mockReturnValue(RANK);
+                await link();
+                const mayTouch = manualLog.linkLogByUrl.mock.calls[0][3];
+                expect(mayTouch({ guildId: "guild-1" })).toBe(true);
+                expect(mayTouch({ guildId: "other" })).toBe(false);
+                expect(mayTouch({})).toBe(false);
+            });
+
+            it("leaves the rank plus a role with the right as on main: every log, old ones too", async () => {
+                auth.getUser.mockReturnValue(RANK);
+                auth.getUserWithoutRank.mockReturnValue(ROLE_ORGA);
+                await link();
+                expect(manualLog.linkLogByUrl.mock.calls[0][3]).toBeUndefined();
+            });
+
+            it("still limits the rank when the role only reads the area", async () => {
+                auth.getUser.mockReturnValue(RANK);
+                auth.getUserWithoutRank.mockReturnValue({ ...ROLE_ORGA, access: { cla: { read: true, write: false } } });
+                await link();
+                expect(manualLog.linkLogByUrl.mock.calls[0][3]).toEqual(expect.any(Function));
+            });
+
+            it("leaves an orga with role rights as on main: every log, old ones too", async () => {
+                auth.getUser.mockReturnValue(ROLE_ORGA);
+                await link();
+                expect(manualLog.linkLogByUrl.mock.calls[0][3]).toBeUndefined();
             });
         });
     });
