@@ -9,6 +9,7 @@ const { tempStoreFile } = require("../../../helpers/tempStore");
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     getRealUser: jest.fn(() => null),
+    getUserWithoutRank: jest.fn(() => null),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
@@ -276,6 +277,27 @@ describe("web/apiRoutes/kader", () => {
         const onlyBea = () => discord.listHumanMembers.mockResolvedValue({ members: [
             { id: U2, displayName: "Bea", avatarUrl: null, roleIds: [] },
         ], error: null });
+
+        afterEach(() => auth.getUserWithoutRank.mockReturnValue(null));
+
+        it("leaves the rank plus a role with the right as before, reading and writing", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(RANK);
+            auth.getUserWithoutRank.mockReturnValue(granted("write"));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+            const { kaderId } = body(await post("/api/kader/kaders", { name: "Beide", version: "forever" }));
+            const res = await post("/api/kader/players/add", { kaderId, players: [{ userId: U1 }] });
+            expect(JSON.stringify(body(res))).toContain("Aldric Sturmwind");
+        });
+
+        it("limits a write when the role only gives reading", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(RANK);
+            auth.getUserWithoutRank.mockReturnValue(granted("read"));
+            const { kaderId } = body(await post("/api/kader/kaders", { name: "Lesen", version: "forever" }));
+            const res = await post("/api/kader/players/add", { kaderId, players: [{ userId: U1 }] });
+            expect(JSON.stringify(body(res))).not.toContain("Aldric Sturmwind");
+        });
 
         it("reveals nothing of an account that is not on the active server", async () => {
             onlyBea();

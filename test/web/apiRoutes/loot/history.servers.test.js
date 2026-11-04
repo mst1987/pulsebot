@@ -233,6 +233,35 @@ describe("the rank Server-Admin (#1072): the store decides, not the right", () =
             const own = upload("own", { guildId: "gA", match: null });
             expect(status(await post("/api/history/inbox-dismiss", { id: own.id }))).toBe(200);
         });
+
+        describe("when a role gives the rank holder the area too: as on main", () => {
+            beforeEach(() => getUserWithoutRank.mockReturnValue(HISTORY_ROLE));
+
+            it("shows the cards without a server", async () => {
+                const free = upload("free", { match: null });
+                const waiting = upload("waiting", { waiting: true, servers: [], match: { candidates: [], suggested: null } });
+                expect(await sessionIds()).toEqual([free.id]);
+                expect(await waitingIds()).toEqual([waiting.id]);
+            });
+
+            it("files, dismisses and brings back a card without a server", async () => {
+                const filed = upload("filed", { match: null });
+                const res = await post("/api/history/inbox-accept", { id: filed.id, event: "__manual__", manualLabel: "Kara" });
+                expect(status(res)).toBeLessThan(300);
+                const free = upload("free", { match: null });
+                expect(status(await post("/api/history/inbox-dismiss", { id: free.id }))).toBe(200);
+                expect(status(await post("/api/history/inbox-restore", { id: free.id }))).toBe(200);
+            });
+        });
+
+        it("keeps the card from the rank when its role only reads the area, while writing", async () => {
+            getUserWithoutRank.mockReturnValue({ id: "9", isAdmin: false, access: { history: { read: true, write: false } } });
+            const free = upload("free", { match: null });
+            expect(await sessionIds()).toEqual([free.id]);
+            const res = await post("/api/history/inbox-dismiss", { id: free.id });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+        });
     });
 
     describe("classes learned from an import, a store of every server", () => {
@@ -287,6 +316,14 @@ describe("the rank Server-Admin (#1072): the store decides, not the right", () =
             getUser.mockReturnValue(ORGA);
             await charData("Anna");
             expect(issuesForCharacter).toHaveBeenCalledWith("Anna");
+        });
+
+        it("leaves the rank plus a role with the right as on main: the entry and every finding", async () => {
+            getUserWithoutRank.mockReturnValue(HISTORY_ROLE);
+            characterStore.saveCharacter("Bert", { className: "Rogue", source: "manual" });
+            expect((await charData("Bert")).info).toEqual(expect.objectContaining({ className: "Rogue" }));
+            await charData("Anna");
+            expect(issuesForCharacter).toHaveBeenLastCalledWith("Anna");
         });
     });
 });

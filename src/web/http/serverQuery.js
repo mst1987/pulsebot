@@ -28,6 +28,17 @@ function mayUseServer(user, req, guildId) {
 }
 
 /**
+ * Whether only the server-admin rank (#1072) lets `user` do this: it holds the rank, and what its
+ * roles alone give (`rolesMay(userWithoutRank)`) would not allow it. Everybody else keeps what they
+ * had before the rank, so a limit of the rank goes behind this check and never touches them.
+ */
+function onlyByRank(user, req, rolesMay) {
+    if (!user || !user.isServerAdmin) return false;
+    // required here, not at the top: tests of the callers mock auth without this export
+    return !rolesMay(require("./auth").getUserWithoutRank(req));
+}
+
+/**
  * The server a channel (or thread) of the bot belongs to, from the bot's cache: "" for a
  * channel the bot does not see or while it is offline - a caller then reaches it only as a
  * full admin (fail closed).
@@ -88,4 +99,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

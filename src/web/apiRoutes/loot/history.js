@@ -2,7 +2,7 @@ const log = require("../../../logger").child("lootHistory");
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer } = require("../../http/serverQuery");
+const { mayUseServer, onlyByRank } = require("../../http/serverQuery");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
 const { loadRecentEvents, annotateUpcomingExtras } = require("../../dashboard/dashboardData");
 const { getConfig, saveConfig } = require("../../../stores/settings/settingsStore");
@@ -52,7 +52,6 @@ const linkCheck = require("../../../services/discord/linkCheck");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { versionHead } = require("../../../services/discord/servers/ingestServers");
 const { reportGuildResolver } = require("../../../services/logcheck/reportGuild");
-const auth = require("../../http/auth");
 
 // A manually-labelled loot bucket's synthetic event id: "manual-<slug>".
 const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
@@ -63,21 +62,32 @@ const slugify = (label) => String(label || "").toLowerCase().replace(/[^a-z0-9]+
  * of its own: the rank Server-Admin (#1072) alone only gets the loot saved.
  */
 function mayLearnClasses(user, req) {
-    return !user.isServerAdmin || userCan(auth.getUserWithoutRank(req), "history", "write");
+    return !onlyByRank(user, req, (roles) => userCan(roles, "history", "write"));
+}
+
+/** Whether only the rank (#1072) gives this user the inbox at `level`. */
+function inboxOnlyByRank(user, req, level) {
+    return onlyByRank(user, req, (roles) => userCan(roles, "history", level));
 }
 
 /**
  * An inbox card this user may see and decide on the active server. A card no
- * server is tied to shows everywhere (#919); the rank (#1072) leaves it alone,
- * or it could read and take another server's upload.
+ * server is tied to shows everywhere (#919); whoever has the inbox by the rank
+ * alone (`rankOnly`, #1072) leaves it be, or it could read and take another
+ * server's upload.
  */
-function sessionForUser(user, ctx, session, guildId) {
-    return sessionInGuild(ctx, session, guildId) && (!user.isServerAdmin || sessionIsBound(session));
+function sessionForUser(rankOnly, ctx, session, guildId) {
+    return sessionInGuild(ctx, session, guildId) && (!rankOnly || sessionIsBound(session));
 }
 
-/** The gear findings of a character: the rank (#1072) only from its own server's evaluations. */
-function gearIssuesFor(user, req, name) {
-    if (!user.isServerAdmin) return issuesForCharacter(name);
+/** Whether only the rank (#1072) shows this user a character's page. */
+function charOnlyByRank(user, req) {
+    return onlyByRank(user, req, (roles) => userCan(roles, "history") || userCan(roles, "loot"));
+}
+
+/** The gear findings of a character: for the rank alone (`rankOnly`, #1072) only from its own server's evaluations. */
+function gearIssuesFor(rankOnly, req, name) {
+    if (!rankOnly) return issuesForCharacter(name);
     const active = activeGuildFor(req);
     const guildOf = reportGuildResolver(listLogs());
     return issuesForCharacter(name, { accept: (meta) => !!active && guildOf(meta) === active });
@@ -680,7 +690,8 @@ const getLootInbox = withUser({}, async ({ user, req, res, url }) => {
     // stored yet — the preview should look like the history it is about to be.
     // An upload that names its game version (#1002) shows under that version only.
     const ofVersion = (s) => (s.gameVersion ? s.gameVersion === versionId : inVersion(suggestedOf(s)));
-    const visible = (s) => ofVersion(s) && sessionForUser(user, serverCtx, s, guildId);
+    const rankOnly = inboxOnlyByRank(user, req, "read");
+    const visible = (s) => ofVersion(s) && sessionForUser(rankOnly, serverCtx, s, guildId);
     const decorate = (s) => {
         // Welcher Raid das war, notfalls aus den Item-IDs — das Addon kann es
         // nicht immer wissen (siehe lootSessionContent.js).
@@ -816,7 +827,7 @@ const acceptLootInbox = withUser({ csrf: true, body: true }, async ({ user, body
     // First decision wins (#1002): the other server learns it was taken or dismissed.
     if (!entry) return goneAnswer(res, id);
     // A card the active server does not show is not this server's to file (#919).
-    if (!sessionForUser(user, serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
+    if (!sessionForUser(inboxOnlyByRank(user, req, "write"), serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
 
     const picked = pickedCategory(req, body.categoryId);
     if (picked.error) return error(res, 400, "bad_category", picked.error);
@@ -870,7 +881,7 @@ const dismissLootInbox = withUser({ csrf: true, body: true }, async ({ user, bod
     const entry = getPendingSession(id);
     if (!entry) return goneAnswer(res, id);
     // Same rule as the list (#919): only a card the active server shows.
-    if (!sessionForUser(user, serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
+    if (!sessionForUser(inboxOnlyByRank(user, req, "write"), serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
     const removed = resolvePendingSession(id, "dismissed", { by: (user && (user.name || user.username || user.id)) || "" });
     if (!removed) return error(res, 404, "not_found", GONE);
     ok(res, { id: removed.id, sessionId: removed.sessionId });
@@ -884,7 +895,7 @@ const restoreLootInbox = withUser({ csrf: true, body: true }, async ({ user, bod
     const id = String(body.id || "").trim();
     const entry = getDismissedSession(id);
     if (!entry) return error(res, 404, "not_found", "Diese Session ist nicht mehr unter „Verworfen“.");
-    if (!sessionForUser(user, serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
+    if (!sessionForUser(inboxOnlyByRank(user, req, "write"), serverContext(), entry, activeGuildFor(req))) return error(res, 403, "other_server", OTHER_SERVER);
     const restored = restorePendingSession(id);
     if (!restored) return error(res, 404, "not_found", "Diese Session ist nicht mehr unter „Verworfen“.");
     ok(res, { id: restored.id, sessionId: restored.sessionId, waiting: !!restored.waiting });
@@ -1001,6 +1012,7 @@ const getHistoryChar = withUser({}, async ({ user, req, res, url }) => {
             else gearError = `Blizzard-API nicht erreichbar (${e.message || "Netzwerkfehler"}).`;
         }
     }
+    const rankOnly = charOnlyByRank(user, req);
     ok(res, {
         character: name,
         realm,
@@ -1016,11 +1028,11 @@ const getHistoryChar = withUser({}, async ({ user, req, res, url }) => {
         versionId,
         // The Wowhead path of that version for the gear links ("" = no links).
         wowheadPath: links.wowheadPath,
-        // The character store is global: the rank (#1072) only learns about a name its server has loot for.
-        info: user.isServerAdmin && !items.length ? null : enrichCharInfo(getCharacter(name)),
+        // The character store is global: the rank alone (#1072) only learns about a name its server has loot for.
+        info: rankOnly && !items.length ? null : enrichCharInfo(getCharacter(name)),
         // What the last CLA evaluation found on this character's gear — the
         // detail behind the roster overview's issue count.
-        gearIssues: gearIssuesFor(user, req, name),
+        gearIssues: gearIssuesFor(rankOnly, req, name),
     });
 });
 

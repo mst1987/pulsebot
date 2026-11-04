@@ -4,6 +4,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
     getRealUser: jest.fn(),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
@@ -232,10 +233,12 @@ describe("web/apiRoutes/raiderCharacters", () => {
         });
     });
 
-    // Area rights say nothing about the server of the category (#1072): the rights were
-    // computed on the active server, the category comes from the request.
+    // The server-admin rank alone holds for its own server (#1072): the category comes from
+    // the request. Whoever has the area by a role keeps what the role always allowed.
     describe("the server of the category (#1072)", () => {
-        const settingsUser = { id: "2", name: "Lead", isAdmin: false, access: { settings: { read: true, write: true } } };
+        const SETTINGS = { settings: { read: true, write: true } };
+        const settingsUser = { id: "2", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: SETTINGS };
+        const roleUser = { id: "3", name: "Lead", isAdmin: false, access: SETTINGS };
         const fullAdmin = { id: "1", name: "Admin", isAdmin: true };
         const body = { categoryId: "cat-x", assignments: { u1: "Elesham" } };
 
@@ -248,7 +251,33 @@ describe("web/apiRoutes/raiderCharacters", () => {
             settingsStore.getConfig.mockReturnValue({ categoryRoles: { "cat-x": ["role1"] } });
             raiderCharactersStore.setCategoryAssignments.mockReturnValue({ u1: "Elesham" });
         });
-        afterEach(() => guildOfCategory.mockReturnValue(""));
+        afterEach(() => {
+            guildOfCategory.mockReturnValue("");
+            auth.getUserWithoutRank.mockReturnValue(null);
+        });
+
+        it.each([
+            ["a role right", () => auth.getUser.mockReturnValue(roleUser), "3"],
+            ["the rank plus a role right", () => auth.getUserWithoutRank.mockReturnValue(roleUser), "2"],
+        ])("leaves %s as on main: any category, old ones without a server too, every known name", async (_label, arrange, actor) => {
+            arrange();
+            characterStore.listCharacters.mockReturnValue([{ character: "FremderServer" }]);
+            for (const owner of ["guild-other", ""]) {
+                guildOfCategory.mockReturnValue(owner);
+                const res = await get("/api/raider-characters", { category: "cat-x" });
+                expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                expect(json(res).data.knownCharacters).toEqual(["FremderServer"]);
+                expect((await post("/api/raider-characters", body)).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            }
+            expect(raiderCharactersStore.setCategoryAssignments).toHaveBeenCalledWith("cat-x", body.assignments, { actor });
+            characterStore.listCharacters.mockReturnValue([]);
+        });
+
+        it("still refuses the rank to write another server when the role only reads", async () => {
+            auth.getUserWithoutRank.mockReturnValue({ ...roleUser, access: { settings: { read: true, write: false } } });
+            expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+            expect(json(await post("/api/raider-characters", body)).error.code).toBe("other_server");
+        });
 
         it("refuses to read a category of another server", async () => {
             const res = await get("/api/raider-characters", { category: "cat-x" });

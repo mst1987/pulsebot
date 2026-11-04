@@ -102,6 +102,15 @@ describe("web/logcheck/manualLog — linkLogByUrl", () => {
         expect(mayTouch).toHaveBeenCalledTimes(1);
     });
 
+    it("links an old log without a server when the caller hands no check, refuses it with one", () => {
+        const old = logStore.saveLog({ reportId: "RPT12", link: "https://classic.warcraftlogs.com/reports/RPT12" });
+        const url = "https://classic.warcraftlogs.com/reports/RPT12";
+        expect(linkLogByUrl(url, EVENT, "g1", (log) => log.guildId === "g1").error).toBe("Dieses Log gehört zu einem anderen Server.");
+        expect(logStore.getLog(old.id).eventId || "").toBe("");
+        expect(linkLogByUrl(url, EVENT, "g1").error).toBeUndefined();
+        expect(logStore.getLog(old.id).eventId).toBe(EVENT.id);
+    });
+
     it("allows re-linking to the same event", () => {
         const first = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT3", EVENT, "g1");
         const again = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT3", EVENT, "g1");

@@ -21,6 +21,7 @@
 const { ok, sendJson, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { onlyByRank } = require("../../http/serverQuery");
 const { q } = require("../../http/apiParams");
 const { userCan } = require("../../../config/permissions");
 const kaderStore = require("../../../stores/roster/kaderStore");
@@ -59,13 +60,14 @@ function unpack(result) {
  * every raid category the Kader of that version picked - also those of
  * another version (docs/game-versions.md: attendance is the one deliberate
  * reading across versions), counted only for the versions actually picked.
- * The server-admin rank reads the profiles of the server's members only (#1072).
+ * Whoever has the Kader by the server-admin rank alone reads the profiles of the
+ * server's members only (#1072).
  */
-async function sourceFor(guildId, planner, versionId, user) {
+async function sourceFor(guildId, planner, versionId, { user, req, level }) {
     const picked = new Set();
     for (const k of planner.kaders) if (model.kaderInVersion(k, versionId)) for (const id of k.attendanceCategories || []) picked.add(id);
     const source = await loadKaderSource({ guildId, versionId, attendanceCategoryIds: [...picked] });
-    return user.isServerAdmin ? limitSourceToServer(source) : source;
+    return onlyByRank(user, req, (roles) => userCan(roles, "kader", level)) ? limitSourceToServer(source) : source;
 }
 
 /**
@@ -147,7 +149,7 @@ const getKader = withUser({}, async ({ user, req, res, query }) => {
     const kaderId = str(query, "kader");
     const shown = shownVersion(query);
     const before = kaderStore.readPlanner(guildId);
-    const source = await sourceFor(guildId, before, versionFor(before, kaderId, shown), user);
+    const source = await sourceFor(guildId, before, versionFor(before, kaderId, shown), { user, req, level: "read" });
     const view = buildKaderView({ source, planner: kaderStore.readPlanner(guildId), kaderId, versionId: shown });
     // Vermerke (#981): the short form of the planner's pool, only past the one rule of every short form -
     // `kader` read alone is not enough (an Einzelkonto with it may stand in the pool itself)
@@ -198,7 +200,7 @@ function fullWrite(mutate) {
     return withUser(WRITE, guarded(async ({ req, res, body, user }) => {
         const guildId = activeGuildFor(req);
         const before = kaderStore.readPlanner(guildId);
-        const source = await sourceFor(guildId, before, writeVersion(before, body), user);
+        const source = await sourceFor(guildId, before, writeVersion(before, body), { user, req, level: "write" });
         const planner = kaderStore.readPlanner(guildId);
         const ctx = mutationContext({ source, planner, actor: user.id });
         const { planner: next, ...extra } = unpack(mutate(planner, body, ctx));
@@ -221,7 +223,7 @@ function kaderWrite(mutate, { source: withSource = false, categories = false, ve
         const guildId = activeGuildFor(req);
         const before = kaderStore.readPlanner(guildId);
         const versionId = version(before, body);
-        const source = withSource ? await sourceFor(guildId, before, versionId, user) : null;
+        const source = withSource ? await sourceFor(guildId, before, versionId, { user, req, level: "write" }) : null;
         const planner = kaderStore.readPlanner(guildId);
         const ctx = source
             ? mutationContext({ source, planner, actor: user.id })

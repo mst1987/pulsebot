@@ -9,7 +9,8 @@ const { sourceForItem, content, tier } = require("../../../config/data/tbcConten
 const { bisSpecsView } = require("../../loot/lootCouncil");
 const { knownVersion, resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { getConfig } = require("../../../stores/settings/settingsStore");
-const { userIsOrga } = require("../../../config/permissions");
+const { userIsOrga, userCan } = require("../../../config/permissions");
+const { onlyByRank } = require("../../http/serverQuery");
 const profiles = require("../../../stores/roster/raiderProfileStore");
 const { neutralAttendance } = require("../../../services/characters/rosterAttendance");
 
@@ -39,7 +40,10 @@ const getRoster = withUser({}, async ({ req, res, user, url }) => {
     await repairLootItemNames();
     const guildId = activeGuildFor(req);
     const { versionId, mainVersion } = versionFilter(url);
-    const { chars, categories, categoryInfo, versions } = buildRoster(guildId, { versionId, mainVersion, config: getConfig() });
+    // Assignments, gear findings and the hide notes are not per server: whoever reads the roster
+    // by the server-admin rank alone (#1072) gets what belongs to its own server only.
+    const rankOnly = onlyByRank(user, req, (roles) => userIsOrga(roles) && userCan(roles, "roster"));
+    const { chars, categories, categoryInfo, versions } = buildRoster(guildId, { versionId, mainVersion, config: getConfig(), ownServerOnly: rankOnly });
     // Characters somebody took off the roster (left the guild, one-off alt) go
     // out in their own list instead of being dropped: the page's "Ausgeblendet"
     // tab lists them and puts them back. The stats describe the roster that is
@@ -48,7 +52,12 @@ const getRoster = withUser({}, async ({ req, res, user, url }) => {
     const hidden = rosterHidden.listHidden();
     const isHidden = (c) => !!hidden[rosterHidden.characterKey(c.character)];
     const active = chars.filter((c) => !isHidden(c));
-    const hiddenChars = chars.filter(isHidden).map((c) => ({ ...c, hidden: hidden[rosterHidden.characterKey(c.character)] }));
+    const hiddenEntry = (c) => {
+        const entry = hidden[rosterHidden.characterKey(c.character)];
+        // who hid it and why may come from another server's orga
+        return rankOnly ? { ...entry, reason: "", by: "" } : entry;
+    };
+    const hiddenChars = chars.filter(isHidden).map((c) => ({ ...c, hidden: hiddenEntry(c) }));
     // Aggregated server-side so the header band and the table can never
     // disagree, and so the numbers are covered by the test suite.
     ok(res, {
@@ -139,7 +148,12 @@ const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
     // The page's version (#741); a hidden version (#563) is answered as the main one. Nothing asked = every version, as before.
     const version = String(url.searchParams.get("version") || "").trim();
     const versionId = knownVersion(version) ? versionFilter(url).versionId : "";
-    const facts = name ? rosterCharacter(guildId, name, { versionId }) : null;
+    // The categories are the orga's: by the server-admin rank alone (#1072) only those of its own server.
+    // The role stays what the caller's roles already showed for any name.
+    const mayReadChar = (roles) => userCan(roles, "roster") || userCan(roles, "history");
+    const rankOnly = onlyByRank(user, req, (roles) => userIsOrga(roles) && mayReadChar(roles));
+    const facts = name ? rosterCharacter(guildId, name, { versionId, ownServerOnly: rankOnly }) : null;
+    const roleFacts = name && rankOnly && !onlyByRank(user, req, mayReadChar) ? rosterCharacter(guildId, name, { versionId }) : facts;
     const ids = String(url.searchParams.get("items") || "")
         .split(",")
         .map((s) => Number(s.trim()))
@@ -151,7 +165,7 @@ const getRosterChar = withUser({}, async ({ req, res, user, url }) => {
     const attendanceVisible = orga || isOwnCharacter(user, name);
     ok(res, {
         character: name,
-        role: (facts && facts.role) || "",
+        role: (roleFacts && roleFacts.role) || "",
         categories: attendanceVisible ? (facts && facts.categories) || [] : [],
         attendance: attendanceVisible ? attendanceView((facts && facts.attendance) || {}, orga) : {},
         attendanceVisible,

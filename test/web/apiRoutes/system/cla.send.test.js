@@ -8,7 +8,9 @@ let mockBody = {};
 let mockUser = { id: "u1", name: "Lead", isAdmin: true };
 let mockCsrf = true;
 let mockClient = {};
+let mockRolesOnly = null;
 
+jest.mock("../../../../src/web/http/auth.js", () => ({ getUserWithoutRank: () => mockRolesOnly }));
 jest.mock("../../../../src/stores/loot/reportStore.js", () => ({
     getReport: (...a) => mockGetReport(...a), saveReport: (...a) => mockSaveReport(...a), listReports: jest.fn(() => []), deleteReport: jest.fn(),
 }));
@@ -72,7 +74,20 @@ describe("assignments of the rank Server-Admin", () => {
         mockAssignments.mockReturnValue(bothServers);
         mockGetReport.mockImplementation((id) => (id === "abc123" ? { id: "abc123", guildId: "g1", recommendations: { raid: [], players: [] } } : null));
     });
-    afterEach(() => mockAssignments.mockReturnValue({ c1: { u1: "Farin" } }));
+    afterEach(() => {
+        mockAssignments.mockReturnValue({ c1: { u1: "Farin" } });
+        mockRolesOnly = null;
+    });
+
+    it("stay whole when a role gives the rank holder the area too", async () => {
+        mockUser = RANK;
+        mockRolesOnly = { id: "u9", isAdmin: false, access: { cla: { read: true, write: true } } };
+        mockBody = { reportId: "abc123" };
+        await sendRecommendations({}, mockRes());
+        expect(mockSendApproved.mock.calls[0][1].assignments).toEqual(bothServers);
+        await recommendationSendStatus({}, mockRes(), new URL("http://x/api/cla/recommendations/send?id=abc123"));
+        expect(mockSendStatus.mock.calls[0][1]).toEqual(bothServers);
+    });
 
     it("only match against the active server", async () => {
         mockUser = RANK;

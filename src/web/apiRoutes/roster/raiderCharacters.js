@@ -4,7 +4,8 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
+const { userCan } = require("../../../config/permissions");
 const { guildOfCategory } = require("../../../services/events/eventServer");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { getCategoryAssignments, setCategoryAssignments } = require("../../../stores/roster/raiderCharactersStore");
@@ -13,6 +14,11 @@ const discord = require("../../../services/discord/discord");
 const { expectedRoleIds } = require("../../../services/roster/categoryRoles");
 const { mainVersionFor } = require("../../../services/versions/mainVersion");
 const { buildVersionContext, versionsOfCharacter } = require("../../../services/characters/characterVersions");
+
+/** Whether only the server-admin rank (#1072) gives this user the settings area at `level`. */
+function settingsOnlyByRank(user, req, level) {
+    return onlyByRank(user, req, (roles) => userCan(roles, "settings", level));
+}
 
 /**
  * GET /api/raider-characters?category=<id> — the category's expected raiders
@@ -26,7 +32,8 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url, user }) => {
     const guildId = activeGuildFor(req);
     const categoryId = (url.searchParams.get("category") || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
-    if (!mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
+    const rankOnly = settingsOnlyByRank(user, req, "read");
+    if (rankOnly && !mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
     const roleIds = expectedRoleIds(categoryId, getConfig());
     let members = [];
     let membersError = null;
@@ -45,9 +52,9 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url, user }) => {
         membersError,
         roleIds,
         assignments,
-        // the character list holds the names of every server: the server-admin rank (#1072) gets
-        // the names this answer shows anyway, nothing a role gave it
-        knownCharacters: user.isServerAdmin
+        // the character list holds the names of every server: the server-admin rank alone (#1072)
+        // gets the names this answer shows anyway
+        knownCharacters: rankOnly
             ? [...new Set(Object.values(assignments))].sort((a, b) => String(a).localeCompare(String(b)))
             : listCharacters()
                 .filter((c) => versionsOfCharacter(versions, { name: c.character, categoryIds: [categoryId] }).includes(versionId))
@@ -67,7 +74,7 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url, user }) => {
 const saveRaiderCharacters = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     const categoryId = String(body.categoryId || "").trim();
     if (!categoryId) return error(res, 400, "missing_category", "Kategorie fehlt.");
-    if (!mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
+    if (settingsOnlyByRank(user, req, "write") && !mayUseServer(user, req, guildOfCategory(categoryId))) return error(res, 403, "other_server", OTHER_SERVER);
     if (!body.assignments || typeof body.assignments !== "object") {
         return error(res, 400, "invalid", "Zuordnungen fehlen.");
     }
