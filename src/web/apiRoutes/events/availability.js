@@ -72,14 +72,26 @@ function targetOf(user, requested) {
     return { userId: id };
 }
 
-/** Whether only the server-admin rank (#1072) lets the caller look at somebody else here. */
-const foreignByRank = (user, req, userId) => userId !== str(user.id) && onlyByRank(user, req, isOrga);
+/**
+ * Whether only the server-admin rank (#1072) lets the caller look at somebody else here.
+ * @param {Function} [rolesMay] what the roles would need: `raids` write, or for the overview the orga
+ */
+const foreignByRank = (user, req, userId, rolesMay = isOrga) => userId !== str(user.id) && onlyByRank(user, req, rolesMay);
 
 /** Whether the rank alone is all that names this account, and it is no member of the active server: profiles and attendance are global. */
-async function outOfRankReach(user, req, userId) {
-    if (!foreignByRank(user, req, userId)) return false;
+async function outOfRankReach(user, req, userId, rolesMay = isOrga) {
+    if (!foreignByRank(user, req, userId, rolesMay)) return false;
     const members = await serverMemberIds(activeGuildFor(req));
     return !members || !members.has(userId);
+}
+
+/**
+ * What the orga's overview may list for the rank alone (#1072): an entry without a scope concerns
+ * every server, so it is nobody's own server's to read; the caller's own stay.
+ */
+function rankEntryFilter(user, req) {
+    if (!onlyByRank(user, req, userIsOrga)) return {};
+    return { showEntry: (e) => !!scopeOf(e) || str(e.userId) === str(user.id) };
 }
 
 /**
@@ -116,12 +128,13 @@ function entryView(entry, names = {}) {
 
 /**
  * Whether the caller may touch somebody else's entry (#925): every server it names is one they may
- * use - an older entry's category by the channel cache, an older entry for everything always.
+ * use - an older entry's category by the channel cache. An older entry for everything concerns every
+ * server: any role may, the server-admin rank alone may not (#1072).
  */
 function mayTouchEntry(user, req, entry) {
     if (!entry || entry.userId === str(user.id)) return true;
     const scope = scopeOf(entry);
-    if (!scope) return true;
+    if (!scope) return !foreignByRank(user, req, entry.userId);
     return scope.every((s) => (s.guildId ? mayUseServer(user, req, s.guildId) : s.categoryIds.every((c) => categoryOnActiveServer(user, req, c))));
 }
 
@@ -163,7 +176,10 @@ const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const profile = profiles.getProfile(target.userId);
     // only what concerns the server the web shows - another server's entries are edited there
     const activeGuildId = activeGuildFor(req);
-    const entries = availability.activeEntries(target.userId).filter((e) => entryOnServer(e, activeGuildId));
+    const hideUnscoped = foreignByRank(user, req, target.userId);
+    const entries = availability.activeEntries(target.userId)
+        .filter((e) => entryOnServer(e, activeGuildId))
+        .filter((e) => !hideUnscoped || scopeOf(e));
     const names = viewNames(config, entries);
     // the servers of the raider the entry is for (their memberships), each with its categories;
     // for somebody else only the servers the caller may use (#925) - a save elsewhere is refused anyway
@@ -218,6 +234,7 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, req, bod
     const id = str(body.id);
     const editing = id ? availabilityStore.getEntry(id) : null;
     if (id && (!editing || editing.userId !== target.userId)) return apiError(res, 404, "not_found", NOT_FOUND);
+    if (editing && foreignByRank(user, req, target.userId) && !mayTouchEntry(user, req, editing)) return apiError(res, 404, "not_found", NOT_FOUND);
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     const input = editing ? { ...body, kind: editing.kind } : body;
     const checked = availability.checkInput(target.userId, input, { config });
@@ -408,6 +425,7 @@ const getOverview = withUser({}, async ({ user, req, query, res }) => {
         withReasons: isOrga(user),
         categoryNames: categoryNamesOf(config),
         eventUrl: (e) => linkCheck.eventLink(e),
+        ...rankEntryFilter(user, req),
     });
     const named = await namerFor([...new Set([...view.raiders.map((r) => r.userId), ...view.hints.map((h) => h.userId)])], config);
     ok(res, { ...view, raiders: view.raiders.map(named), hints: view.hints.map(named), canEdit: isOrga(user), withReasons: isOrga(user) });
@@ -418,9 +436,11 @@ const getOverviewRaider = withUser({}, async ({ user, req, query, res }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", ORGA_ONLY);
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
+    // the gate here is the orga, not `raids` write: a role that passes it keeps this view
+    if (await outOfRankReach(user, req, userId, userIsOrga)) return otherServer(res);
     const config = getConfig();
     const names = viewNames(config);
-    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), guildId: activeGuildFor(req), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers });
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), guildId: activeGuildFor(req), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers, ...rankEntryFilter(user, req) });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });

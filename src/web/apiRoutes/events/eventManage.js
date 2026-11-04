@@ -14,14 +14,16 @@
 //   POST /api/raids/manage/reopen                      { event }
 //   POST /api/raids/manage/delete                      { event, archiveChannel, notify, confirmStarted }
 //   POST /api/raids/manage/recreate-channel            { event } — the event's channel was deleted (#537)
-const { ok } = require("../../http/apiResponse");
+const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { onlyByRank } = require("../../http/serverQuery");
+const { onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const manage = require("../../../services/events/eventManage");
+const { getSignup } = require("../../../stores/events/signupStore");
+const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 
 // "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
 // write is still no orga, so every path here wants the orga as well as its right.
@@ -49,6 +51,18 @@ async function raidOnlyByRank(user, req, eventId) {
     // required here, not at the top: tests of this route mock auth without this export
     const { getUserWithoutRank } = require("../../http/auth");
     return !(await categoryOrgaOfAll(getUserWithoutRank(req), eventId, req));
+}
+
+/**
+ * Whether the rank alone may name this account in a raid: a signup shows its character, class and
+ * gear, all global, so only somebody of the active server or already signed up to the raid. An
+ * unknown member list counts as no proof.
+ */
+async function rankReaches(user, req, eventId, userId) {
+    const uid = String(userId ?? "").trim();
+    if (!uid || uid === String(user.id) || getSignup(eventId, uid)) return true;
+    const members = await serverMemberIds(activeGuildFor(req));
+    return !!members && members.has(uid);
 }
 
 const getManage = reader(async ({ req, res, query }) => {
@@ -81,8 +95,10 @@ const getRaiderCandidates = reader(async ({ user, req, res, query }) => {
 });
 
 const postRaider = action(async ({ user, body: b, req, res }) => {
+    const onlyRank = await raidOnlyByRank(user, req, b.event);
+    if (onlyRank && !(await rankReaches(user, req, b.event, b.userId))) return apiError(res, 403, "other_server", OTHER_SERVER);
     sendResult(res, await manage.addRaider({
-        ...(await raidOnlyByRank(user, req, b.event) ? { keepProfiles: true } : {}),
+        ...(onlyRank ? { keepProfiles: true } : {}),
         guildId: activeGuildFor(req), eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,
         // further own characters, "kann auch mit" (#293)
         alternates: Array.isArray(b.alternates) ? b.alternates : undefined,

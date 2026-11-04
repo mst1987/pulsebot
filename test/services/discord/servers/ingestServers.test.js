@@ -2,7 +2,7 @@
 // (the roles, the category rosters) is stubbed; the rule itself runs for real.
 jest.mock("../../../../src/services/discord/members/userAccess", () => {
     const actual = jest.requireActual("../../../../src/services/discord/members/userAccess");
-    return { ...actual, resolveGuildAccess: jest.fn() };
+    return { ...actual, resolveGuildAccess: jest.fn(), computeGuildAccess: jest.fn() };
 });
 jest.mock("../../../../src/services/roster/categoryOrga", () => ({
     createCache: jest.fn(() => ({ roles: new Map() })),
@@ -16,7 +16,7 @@ jest.mock("../../../../src/services/categories/categoryNames", () => ({
     listKnownCategories: jest.fn(() => []),
 }));
 
-const { resolveGuildAccess } = require("../../../../src/services/discord/members/userAccess");
+const { resolveGuildAccess, computeGuildAccess } = require("../../../../src/services/discord/members/userAccess");
 const categoryOrga = require("../../../../src/services/roster/categoryOrga");
 const { listKnownCategories } = require("../../../../src/services/categories/categoryNames");
 const ingestServers = require("../../../../src/services/discord/servers/ingestServers");
@@ -93,32 +93,59 @@ describe("orgaServersOf", () => {
 
 describe("tokenMayLearnClasses (#1072)", () => {
     const PERSON = { id: "t", ownerId: "u1" };
-    const WRITE = { history: { read: true, write: true } };
-    const rank = (roleAccess = {}) => ({ access: { history: { read: true, write: true } }, isOrga: true, isServerAdmin: true, roleAccess });
+    const rank = (over = {}) => ({ access: { history: { read: true, write: true } }, isOrga: true, isMember: true, isServerAdmin: true, roleAccess: {}, ...over });
+    const mayLearn = (token, guildId) => ingestServers.tokenMayLearnClasses(token, guildId, opts);
 
     it("refuses the owner of a personal key holding only the rank on that server", async () => {
-        resolveGuildAccess.mockResolvedValue(access({ g1: rank() }));
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(false);
+        computeGuildAccess.mockResolvedValue(access({ g1: rank() }));
+        expect(await mayLearn(PERSON, "g1")).toBe(false);
     });
 
-    it("refuses a raid without a known server when a rank alone could be behind it", async () => {
-        resolveGuildAccess.mockResolvedValue(access({ g1: rank(WRITE), g2: rank() }));
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "")).toBe(false);
+    it("lets an orga role next to the rank learn, also without history write, as the same account without the rank", async () => {
+        computeGuildAccess.mockResolvedValue(access({ g1: rank({ roleIsOrga: true }) }));
+        expect(await mayLearn(PERSON, "g1")).toBe(true);
+        computeGuildAccess.mockResolvedValue(access({ g1: { access: {}, isOrga: true } }));
+        expect(await mayLearn(PERSON, "g1")).toBe(true);
     });
 
-    it("lets a role with the right, a full admin, a key without an owner and an owner without the rank learn as before", async () => {
-        resolveGuildAccess.mockResolvedValue(access({ g1: rank(WRITE) }));
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(true);
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "")).toBe(true);
-        resolveGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g1")).toBe(true);
-        // the rank on another server says nothing about this raid's; orga without history write stays as on main
-        resolveGuildAccess.mockResolvedValue(access({ g1: rank(), g2: { access: {}, isOrga: true } }));
-        expect(await ingestServers.tokenMayLearnClasses(PERSON, "g2")).toBe(true);
-        resolveGuildAccess.mockClear();
-        expect(await ingestServers.tokenMayLearnClasses({ id: "s", guildId: "g1" }, "g1")).toBe(true);
-        expect(await ingestServers.tokenMayLearnClasses({ id: "o" }, "")).toBe(true);
+    it("lets a manager of a category roster next to the rank learn", async () => {
+        computeGuildAccess.mockResolvedValue(access({ g1: rank() }));
+        categoryOrga.isAnyCategoryManager.mockImplementation(async (_user, { guildId }) => guildId === "g1");
+        expect(await mayLearn(PERSON, "g1")).toBe(true);
+    });
+
+    it("learns nothing when the lookup fails", async () => {
+        computeGuildAccess.mockRejectedValue(new Error("Discord down"));
+        expect(await mayLearn(PERSON, "g1")).toBe(false);
+        expect(await mayLearn(PERSON, "")).toBe(false);
         expect(resolveGuildAccess).not.toHaveBeenCalled();
+    });
+
+    it("learns nothing when a later lookup of the roles fails", async () => {
+        computeGuildAccess.mockResolvedValue(access({ g1: rank() }));
+        categoryOrga.isAnyCategoryManager.mockRejectedValue(new Error("Discord down"));
+        expect(await mayLearn(PERSON, "g1")).toBe(false);
+    });
+
+    it("asks every ranked server for a raid without a known server", async () => {
+        computeGuildAccess.mockResolvedValue(access({ g1: rank({ roleIsOrga: true }), g2: rank() }));
+        expect(await mayLearn(PERSON, "")).toBe(false);
+        computeGuildAccess.mockResolvedValue(access({ g1: rank({ roleIsOrga: true }), g2: rank({ roleIsOrga: true }) }));
+        expect(await mayLearn(PERSON, "")).toBe(true);
+    });
+
+    it("lets a full admin, a key without an owner and an owner without the rank learn as before", async () => {
+        computeGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
+        expect(await mayLearn(PERSON, "g1")).toBe(true);
+        // the rank on another server says nothing about this raid's
+        computeGuildAccess.mockResolvedValue(access({ g1: rank(), g2: { access: {}, isOrga: true } }));
+        expect(await mayLearn(PERSON, "g2")).toBe(true);
+        computeGuildAccess.mockResolvedValue(access({}));
+        expect(await mayLearn(PERSON, "g1")).toBe(true);
+        computeGuildAccess.mockClear();
+        expect(await mayLearn({ id: "s", guildId: "g1" }, "g1")).toBe(true);
+        expect(await mayLearn({ id: "o" }, "")).toBe(true);
+        expect(computeGuildAccess).not.toHaveBeenCalled();
     });
 });
 

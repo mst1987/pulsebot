@@ -23,7 +23,14 @@ jest.mock("../../../../src/services/events/eventManage", () => ({
     deleteEvent: jest.fn(async () => ({ status: 200, body: { message: "gelöscht", warnings: [] } })),
     recreateChannel: jest.fn(async () => ({ status: 200, body: { message: "Kanal #mi-kara angelegt, Anmelde-Nachricht gepostet.", channelId: "c-new", channelName: "mi-kara" } })),
 }));
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
+jest.mock("../../../../src/stores/events/signupStore", () => ({
+    ...jest.requireActual("../../../../src/stores/events/signupStore"),
+    getSignup: jest.fn(),
+}));
 
+const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
+const { getSignup } = require("../../../../src/stores/events/signupStore");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const manage = require("../../../../src/services/events/eventManage");
 const route = require("../../../../src/web/apiRoutes/events/eventManage");
@@ -123,6 +130,8 @@ describe("handlers", () => {
         beforeEach(() => {
             orgaOfRaid.mockResolvedValue(false);
             withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue(NO_ROLES);
+            serverMemberIds.mockResolvedValue(new Set(["1"]));
+            getSignup.mockReturnValue(null);
         });
         afterEach(() => withoutRank.mockRestore());
         afterAll(() => orgaOfRaid.mockRestore());
@@ -134,6 +143,31 @@ describe("handlers", () => {
             expect(manage.addRaider).toHaveBeenLastCalledWith(expect.objectContaining({ keepProfiles: true, character: "A" }));
         });
 
+        it("refuses an account of no member before the service can name its class", async () => {
+            const refused = await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(status(refused)).toBe(403);
+            expect(body(refused).error.code).toBe("other_server");
+            expect(manage.addRaider).not.toHaveBeenCalled();
+        });
+
+        it("refuses every other account while the member list is unknown, except a signup of this raid", async () => {
+            serverMemberIds.mockResolvedValue(null);
+            const refused = await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
+            expect(body(refused).error.code).toBe("other_server");
+            expect(manage.addRaider).not.toHaveBeenCalled();
+            getSignup.mockImplementation((eventId, userId) => (eventId === "eh-a" && userId === "2" ? { userId } : null));
+            await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(manage.addRaider).toHaveBeenLastCalledWith(expect.objectContaining({ keepProfiles: true, userId: "2" }));
+        });
+
+        it("lets the rank holder sign up itself, and leaves a missing id to the service, without asking for members", async () => {
+            await call(route.postRaider, RANK, { event: "eh-a", userId: "rank", character: "A", spec: "" });
+            expect(manage.addRaider).toHaveBeenCalledTimes(1);
+            await call(route.postRaider, RANK, { event: "eh-a", character: "A", spec: "" });
+            expect(manage.addRaider).toHaveBeenCalledTimes(2);
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+
         it.each([
             ["the orga by role", () => withoutRank.mockReturnValue(ORGA_ROLES)],
             ["the manager of the raid's category", () => orgaOfRaid.mockResolvedValue(true)],
@@ -141,16 +175,18 @@ describe("handlers", () => {
             arrange();
             await call(route.getRaiderCandidates, RANK, null, "event=eh-a");
             expect(manage.raiderCandidates).toHaveBeenLastCalledWith({ guildId: "g1", eventId: "eh-a" });
-            await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
+            await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
             expect(manage.addRaider.mock.lastCall[0]).not.toHaveProperty("keepProfiles");
+            expect(serverMemberIds).not.toHaveBeenCalled();
         });
 
         it.each([["a full admin", { id: "a", name: "A", isAdmin: true, access: {} }], ["an orga without the rank", ORGA]])("leaves %s as on main", async (_who, user) => {
             await call(route.getRaiderCandidates, user, null, "event=eh-a");
             expect(manage.raiderCandidates).toHaveBeenLastCalledWith({ guildId: "g1", eventId: "eh-a" });
-            await call(route.postRaider, user, { event: "eh-a", userId: "1", character: "A", spec: "" });
+            await call(route.postRaider, user, { event: "eh-a", userId: "2", character: "A", spec: "" });
             expect(manage.addRaider.mock.lastCall[0]).not.toHaveProperty("keepProfiles");
             expect(withoutRank).not.toHaveBeenCalled();
+            expect(serverMemberIds).not.toHaveBeenCalled();
         });
     });
 

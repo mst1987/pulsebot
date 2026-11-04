@@ -14,8 +14,8 @@
 // can ask it as well (test/docs/layering.test.js).
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { eventGuildIds, serverLabel } = require("../roles/guildRoles");
-const { resolveGuildAccess, accessForGuild, withoutServerAdminRank } = require("../members/userAccess");
-const { userCan } = require("../../../config/permissions");
+const { resolveGuildAccess, computeGuildAccess, accessForGuild, withoutServerAdminRank } = require("../members/userAccess");
+const logger = require("../../../logger").child("ingestServers");
 const categoryOrga = require("../../roster/categoryOrga");
 const discord = require("../discord");
 const { listKnownCategories } = require("../../categories/categoryNames");
@@ -82,22 +82,32 @@ async function serversOfToken(token, opts = {}) {
 /**
  * Whether what a sync key uploads for `guildId` may teach the shared character store (the classes
  * of services/characters/characterInfo.js, which every server reads). Only the owner of a personal
- * key who holds nothing but the server-admin rank there may not (#1072): the rule of
- * `mayLearnClasses` in web/apiRoutes/loot/history.js, for a key instead of a session. A server key,
- * an old key, a role holder and a full admin go on as before. A raid without a known server asks
- * every server the owner holds the rank on (fail closed).
+ * key who holds nothing but the server-admin rank there may not (#1072). The measure is what the
+ * same account could do without the rank, so what makes it the orga of that server without it
+ * (orgaServersOf with `rolesOnly`), the rule a key's upload had before. A server key and an old key
+ * go on as before. A raid without a known server asks every server the owner holds the rank on, and
+ * a lookup that fails teaches nothing (both fail closed).
+ * @param {object} token
+ * @param {string} guildId the server of the raid, "" when unknown
+ * @param {{ config?: object }} [opts] as orgaServersOf
  * @returns {Promise<boolean>}
  */
-async function tokenMayLearnClasses(token, guildId) {
+async function tokenMayLearnClasses(token, guildId, opts = {}) {
     if (!isPersonToken(token)) return true;
     const uid = str(token.ownerId);
-    const known = await resolveGuildAccess(uid);
-    if (known && known.isAdmin) return true;
-    const gid = str(guildId);
-    const ranked = (gid ? [gid] : Object.keys((known && known.guilds) || {})).filter((g) => accessForGuild(known, uid, g).isServerAdmin);
-    if (!ranked.length) return true;
-    const byRoles = withoutServerAdminRank(known, uid);
-    return ranked.every((g) => userCan(accessForGuild(byRoles, uid, g), "history", "write"));
+    try {
+        // not resolveGuildAccess: it answers a failed lookup with the base access, which holds no rank
+        const known = await computeGuildAccess(uid);
+        if (known && known.isAdmin) return true;
+        const gid = str(guildId);
+        const ranked = (gid ? [gid] : Object.keys((known && known.guilds) || {})).filter((g) => accessForGuild(known, uid, g).isServerAdmin);
+        if (!ranked.length) return true;
+        const byRoles = (await orgaServersOf(uid, { ...opts, guildAccess: known, rolesOnly: true })).map((s) => s.guildId);
+        return ranked.every((g) => byRoles.includes(g));
+    } catch (e) {
+        logger.warn(`Class learning refused for ${uid}, lookup failed: ${e && e.message}`);
+        return false;
+    }
 }
 
 /**
