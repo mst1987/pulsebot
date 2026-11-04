@@ -517,7 +517,7 @@ async function councilEntries(guildIds = null) {
     const entries = [];
     for (const id of ids) {
         const { opts, built, profile, roster } = await categoryCouncil(id);
-        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id), profile, roster });
+        entries.push({ id, name: names.get(id) || id, opts, built, instances: categoryInstances(config, id, opts.guildId), profile, roster });
     }
     return entries;
 }

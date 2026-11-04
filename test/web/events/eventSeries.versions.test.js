@@ -32,7 +32,7 @@ jest.mock("../../../src/services/events/eventMessage", () => ({ postEventMessage
 jest.mock("../../../src/services/talk/talkOverview", () => ({ scheduleOverviewSync: jest.fn(), RAIDHELPER_CREATE_DELAY_MS: 35000 }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(),
-    getRaidTemplate: jest.fn((id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25 } : null)),
+    getRaidTemplate: jest.fn((_guildId, id) => (id === "tpl-ssc" ? { id: "tpl-ssc", name: "SSC + TK 25er", versionId: "tbc", instanceIds: ["ssc", "tk"], size: 25 } : null)),
 }));
 
 const { DateTime } = require("luxon");

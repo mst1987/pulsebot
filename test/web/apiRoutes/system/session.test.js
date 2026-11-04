@@ -30,6 +30,7 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     saveRaidsheet: jest.fn(),
     deleteRaidsheet: jest.fn(),
     listRaidTemplates: jest.fn(() => []),
+    allRaidTemplates: jest.fn(() => []),
     getRaidTemplate: jest.fn(),
     saveRaidTemplate: jest.fn(),
     saveRaidTemplates: jest.fn(),

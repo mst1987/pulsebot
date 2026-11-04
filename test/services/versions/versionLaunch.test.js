@@ -4,7 +4,7 @@
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => mockConfig),
     saveConfig: jest.fn((partial) => { mockConfig = { ...mockConfig, ...partial }; return mockConfig; }),
-    listRaidTemplates: jest.fn(() => mockTemplates),
+    allRaidTemplates: jest.fn(() => mockTemplates),
 }));
 jest.mock("../../../src/stores/roster/rosterStore", () => ({
     rosterForCategory: jest.fn((cat, version) => mockRosters[`${cat}|${version}`] || null),

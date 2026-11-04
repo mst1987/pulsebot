@@ -82,12 +82,12 @@ function archiveFor(guildId, channels, connected) {
  * of its new events (`categorySignupSource`). Only categories with either.
  * @returns {Record<string, { templateId: string, templateName: string, source: string }>}
  */
-function quickEventDefaults(categories, config = getConfig()) {
+function quickEventDefaults(guildId, categories, config = getConfig()) {
     const out = {};
     const templates = config.categoryRaidTemplate || {};
     for (const c of categories || []) {
         const templateId = String(templates[c.id] || "");
-        const template = templateId ? getRaidTemplate(templateId) : null;
+        const template = templateId ? getRaidTemplate(guildId, templateId) : null;
         out[c.id] = {
             templateId: template ? template.id : "",
             templateName: template ? template.name || template.id : "",
@@ -133,7 +133,7 @@ const getChannels = withUser({}, async ({ user, req, res }) => {
         // with `raids` write in every category, the orga of a category in theirs (`eventCategoryIds`, #728)
         canCreateEvents: !eventScope || eventScope.size > 0,
         eventCategoryIds: eventScope ? [...eventScope] : null,
-        eventDefaults: quickEventDefaults(categories),
+        eventDefaults: quickEventDefaults(guildId, categories),
         defaultSchema: DEFAULT_SCHEMA,
         placeholders: PLACEHOLDERS,
     });
@@ -400,7 +400,7 @@ const batchCreate = withUser({ csrf: true, body: true }, async ({ user, body, re
     // category (eventCreateAccess.quickCreateAccess) - checked before any channel is made; channels
     // without an event stay the `channels` area's.
     let guard = null;
-    const defaults = withEvent ? quickEventDefaults([{ id: categoryId }])[categoryId] : null;
+    const defaults = withEvent ? quickEventDefaults(guildId, [{ id: categoryId }])[categoryId] : null;
     if (withEvent) {
         // the default raid template's version is checked too (createEvent only checks EventHelper events)
         const raidTemplateId = defaults && defaults.source === "eventhelper" ? defaults.templateId : "";

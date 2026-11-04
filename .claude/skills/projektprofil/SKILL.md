@@ -185,7 +185,9 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `categoryGuild.categoryState()` → `missing` (Bot online, Server konfiguriert und im Cache) darf
     etwas als gelöscht zeigen oder abschließen lassen; fehlt der Nachweis → `unknown`, nie löschen.
     `config.categoryIds` gilt für alle Server — Einstellungen zeigen und speichern nur den Teil des
-    aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server.
+    aktiven Servers (`mergeServerCategoryIds`), nie die globale Liste je Server. `guildId` an Events
+    und Rostern kann geraten sein und taugt für Einmal-Migrationen nicht allein als Serverbeweis;
+    Vorrang hat der Snapshot `category-names.json`, sonst Snowflake-Plausibilität (#1076).
     Jede serverbezogene Änderung im PATCH (auch der categoryIds-Merge) nimmt den Server aus dem Tab (`serverSettingsGuildId`, geprüft per `serverSettingsTarget`), nie allein aus `activeGuildFor(req)`.
     Ein Server in `client.guilds.cache` beweist nicht, dass seine Kanäle bekannt sind: bei einem
     Discord-Ausfall bleibt er mit `available === false` und ohne Kanäle im Cache

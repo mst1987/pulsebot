@@ -16,6 +16,19 @@ const versions = publicVersions();
 const v = (id: string) => versions.find((x: any) => x.id === id);
 
 describe("Raid-Vorlagen rules (client)", () => {
+    it("a stored id finds its template like on the server: the exact id, else the copy made from it (#1076)", () => {
+        const original = { id: "k1", originId: "" };
+        const copy = { id: "c1", originId: "k0" };
+        const list = [copy, original, { id: "k0x", originId: "k1" }];
+        expect(logic.templateByStoredId(list, "k1")).toBe(original);
+        expect(logic.templateByStoredId(list, "k0")).toBe(copy);
+        expect(logic.templateByStoredId(list, "c1")).toBe(copy);
+        expect(logic.templateByStoredId(list, "other")).toBeNull();
+        // an empty id must not match the originals' empty originId
+        expect(logic.templateByStoredId(list, "")).toBeNull();
+        expect(logic.templateByStoredId(list, undefined)).toBeNull();
+    });
+
     it("proposes tanks and healers for a size, like the server", () => {
         const cases = [
             ["tbc", ["kara"], 10], ["tbc", ["gruul", "mag"], 25], ["tbc", ["kara"], 25],

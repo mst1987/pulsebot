@@ -4,6 +4,7 @@ const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../../utils/raidhelper/servers");
 const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/servers/serverOf");
+const { guildOfCategory } = require("../../../services/events/eventServer");
 const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
@@ -449,7 +450,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         raidsheets: listRaidsheets(),
         // For the default-template select per category — names only, so a
         // settings user needs no raid rights to pick one.
-        raidTemplates: listRaidTemplates().map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
+        raidTemplates: listRaidTemplates(guildId).map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
         gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, icon: v.icon || "", color: defaultColorOf(v.id) })),
         // The standard values per version (#553) for "Standardwerte übernehmen";
@@ -957,6 +958,33 @@ function addonListPatch(body) {
     return { partial: { addonDownloads: list, addonDownloadsCustomized: true } };
 }
 
+/** The server whose raid templates a category picks from (#1076): its own, a category of unknown server the active one's. */
+function templateServerOf(categoryId, req) {
+    return guildOfCategory(categoryId) || activeGuildFor(req);
+}
+
+/**
+ * The default template per category, sent whole (the store normalises the rest). An entry as stored stays as it is:
+ * the map holds the other servers' categories too, and their guard (foreignCategoryEdits) comes after this. A changed
+ * entry must name a template of the category's server, a copy's old id becomes the copy's own, anything else is
+ * dropped - so a category can never point at a template that is not there or belongs to another server.
+ */
+function categoryTemplatesOf(sent, config, req) {
+    const raw = sent && typeof sent === "object" ? sent : {};
+    const stored = config.categoryRaidTemplate || {};
+    const out = {};
+    for (const [categoryId, value] of Object.entries(raw)) {
+        const id = String(value || "");
+        if (id && id === stored[categoryId]) {
+            out[categoryId] = id;
+            continue;
+        }
+        const template = id ? getRaidTemplate(templateServerOf(categoryId, req), id) : null;
+        if (template) out[categoryId] = template.id;
+    }
+    return out;
+}
+
 /**
  * PATCH /api/settings — merge-updates the admin config. Only keys present in
  * the body are changed (saveConfig() itself merges serverSettings/blizzard).
@@ -1146,13 +1174,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (body.categorySheets !== undefined) partial.categorySheets = normalizeCategorySheets(body.categorySheets);
     // Raid plan or sheet per category: merged by the store, an unknown mode drops out.
     if (body.categoryPlanning !== undefined) partial.categoryPlanning = normalizeCategoryPlanning(body.categoryPlanning);
-    // Sent whole; an id no template has is dropped, so a category can never
-    // point at a template that is not there (the store normalises the rest).
-    if (body.categoryRaidTemplate !== undefined) {
-        const known = new Set(listRaidTemplates().map((t) => t.id));
-        const raw = body.categoryRaidTemplate && typeof body.categoryRaidTemplate === "object" ? body.categoryRaidTemplate : {};
-        partial.categoryRaidTemplate = Object.fromEntries(Object.entries(raw).filter(([, id]) => known.has(String(id || ""))));
-    }
+    if (body.categoryRaidTemplate !== undefined) partial.categoryRaidTemplate = categoryTemplatesOf(body.categoryRaidTemplate, getConfig(), req);
     // The main version and the categories that play another one (#541): the
     // store keeps only known version ids, the map is sent whole.
     if (body.mainVersion !== undefined) partial.mainVersion = String(body.mainVersion || "").trim();
@@ -1224,7 +1246,7 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (partial.categoryRoles !== undefined) syncRosterRoleIds(saved.categoryRoles, { actor: String((user && user.id) || ""), config: saved, skip: switchedIds, guildOf: categoryGuildOf });
     // #739: the listeners (the roster: close the old one, maybe a new one) get the dialog's choices
     const switchedCategories = await notifyCategoryVersionSwitch(
-        afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user }),
+        afterCategorySwitches(versions.switches, body.categorySwitchFixes, { user, req }),
         { config: saved, user, fixes: body.categorySwitchFixes && typeof body.categorySwitchFixes === "object" ? body.categorySwitchFixes : {} },
     );
     // A new server language (#924: of any server), or a category's own, redraws the bot's public messages (not awaited).
@@ -1498,11 +1520,12 @@ function categoryVersionPatch(body, partial, before) {
  * = `{ [categoryId]: { series: "pause" | templateId } }`), applied once the
  * switch is saved. Returns the switches with what happened to the series.
  */
-function afterCategorySwitches(switches, fixes, { user }) {
+function afterCategorySwitches(switches, fixes, { user, req }) {
     const src = fixes && typeof fixes === "object" && !Array.isArray(fixes) ? fixes : {};
     return (switches || []).map((sw) => {
         const fix = src[sw.categoryId] && typeof src[sw.categoryId] === "object" ? src[sw.categoryId].series : "";
-        const series = applySeriesFix({ categoryId: sw.categoryId, fix, toVersion: sw.toVersion, getTemplate: getRaidTemplate, user });
+        const getTemplate = (id) => getRaidTemplate(templateServerOf(sw.categoryId, req), id);
+        const series = applySeriesFix({ categoryId: sw.categoryId, fix, toVersion: sw.toVersion, getTemplate, user });
         console.log(`[settings] Kategorie ${sw.name || sw.categoryId}: Spielversion ${sw.fromVersion} → ${sw.toVersion}, neuer Abschnitt (#738)${series ? `, Serie ${series === "paused" ? "pausiert" : "mit neuer Vorlage"}` : ""}`);
         return { ...sw, series };
     });
@@ -1522,7 +1545,7 @@ const getCategorySwitch = withUser({}, async ({ user, req, res, url }) => {
     if (!mayEditCategory(user, req, categoryId)) return error(res, 404, "not_found", "Kategorie nicht gefunden.");
     if (!VERSIONS.some((v) => v.id === versionId)) return error(res, 400, "invalid", "Unbekannte Spielversion.");
     const config = getConfig();
-    const preview = switchPreview({ categoryId, versionId, config, listTemplates: listRaidTemplates });
+    const preview = switchPreview({ categoryId, versionId, config, listTemplates: () => listRaidTemplates(templateServerOf(categoryId, req)) });
     // #739: the roster that is closed, the one of the new version, whether one can be created
     const roster = switchRosterPreview(categoryId, { fromVersion: preview.from.id, toVersion: preview.switching ? preview.to.id : "" });
     ok(res, { ...preview, roster, name: categoryNamesOf(config).get(categoryId) || "" });

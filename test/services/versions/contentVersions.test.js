@@ -12,7 +12,7 @@ let mockPlanners = {};
 jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/stores/settings/settingsStore", () => ({
     getConfig: () => mockConfig,
-    listRaidTemplates: () => mockTemplates,
+    allRaidTemplates: () => mockTemplates,
 }));
 jest.mock("../../../src/stores/events/eventStore", () => ({
     listEvents: () => mockEvents,

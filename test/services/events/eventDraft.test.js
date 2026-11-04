@@ -39,7 +39,7 @@ beforeEach(() => {
     archiveStore.getChannelConfig.mockReturnValue({ schemas: {} });
     settings.getConfig.mockReturnValue({ categoryIds: [CAT_EH, CAT_RH], categoryRaidTemplate: { [CAT_EH]: T5.id } });
     settings.listRaidTemplates.mockReturnValue([T5, RH]);
-    settings.getRaidTemplate.mockImplementation((id) => [T5, RH].find((t) => t.id === id) || null);
+    settings.getRaidTemplate.mockImplementation((_guildId, id) => [T5, RH].find((t) => t.id === id) || null);
     signupSourceFor.mockImplementation((cat) => (cat === CAT_EH ? "eventhelper" : "raidhelper"));
     loadEventGroups.mockResolvedValue({ groups: [] });
     serverIds.mockReturnValue([]);
@@ -87,7 +87,7 @@ describe("services/events/eventDraft — step 1", () => {
         // Kategorie aus: die Zeile sagt "aus", der Knopf schaltet an.
         const off = await draft.stepMessage("g1", state());
         expect(off.payload.embeds[0].description).toContain("**Ankündigung:** aus");
-        expect(draft.applyStep(state(), "a").ann).toBe("1");
+        expect(draft.applyStep("g1", state(), "a").ann).toBe("1");
 
         // Kategorie an: die Zeile nennt den Event-Kanal (#894: ein altes Ziel zählt nicht), der Knopf schaltet aus.
         settings.getConfig.mockReturnValue({
@@ -98,7 +98,7 @@ describe("services/events/eventDraft — step 1", () => {
         expect(on.payload.embeds[0].description).toContain("**Ankündigung:** Raider-Rolle pingen (Event-Kanal)");
         const buttons = on.payload.components[on.payload.components.length - 1].components;
         expect(buttons.map((b) => b.label)).toContain("Ankündigung: an");
-        expect(draft.applyStep(state(), "a").ann).toBe("0");
+        expect(draft.applyStep("g1", state(), "a").ann).toBe("0");
 
         // Für ein Raid-Helper-Event gibt es den Schalter nicht.
         const rh = await draft.stepMessage("g1", state({ cat: CAT_RH, tpl: RH.id, src: "r" }));
@@ -106,10 +106,10 @@ describe("services/events/eventDraft — step 1", () => {
     });
 
     it("changing the category proposes its source and template again, the toggle switches the source", () => {
-        expect(draft.applyStep(state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "", ico: "" });
-        expect(draft.applyStep(state(), "s")).toMatchObject({ src: "r", tpl: RH.id });
-        expect(draft.applyStep(state(), "k", "e")).toMatchObject({ mode: "e", ref: "" });
-        expect(draft.applyStep(state(), "t", "../evil")).toMatchObject({ tpl: "" });
+        expect(draft.applyStep("g1", state({ ref: "x" }), "c", CAT_RH)).toEqual({ cat: CAT_RH, tpl: RH.id, mode: "n", src: "r", ref: "", ann: "", ico: "" });
+        expect(draft.applyStep("g1", state(), "s")).toMatchObject({ src: "r", tpl: RH.id });
+        expect(draft.applyStep("g1", state(), "k", "e")).toMatchObject({ mode: "e", ref: "" });
+        expect(draft.applyStep("g1", state(), "t", "../evil")).toMatchObject({ tpl: "" });
     });
 
     it("lists the category's events to duplicate, newest first, and picks the newest", async () => {

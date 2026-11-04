@@ -102,8 +102,8 @@ async function sourceChannelFor(rh, guildId, sourceEventId) {
  * The values are copied: an event changed afterwards never writes back into
  * its template ("Als Vorlage speichern" in the dialog is the only way there).
  */
-function templateDefaults(templateId, startTime) {
-    const t = templateId ? getRaidTemplate(String(templateId)) : null;
+function templateDefaults(guildId, templateId, startTime) {
+    const t = templateId ? getRaidTemplate(guildId, String(templateId)) : null;
     if (!t) return {};
     const comp = t.composition || {};
     const range = (r) => (r ? { min: r.min || 0, max: r.max === undefined ? null : r.max } : 0);
@@ -219,7 +219,7 @@ function deadlineFrom(body, startTime) {
  * #266), the instances last from the title. Validated as a whole.
  * @returns {{ plan?: object, error?: object }}
  */
-function planFor(body, categoryId, title, startTime) {
+function planFor(guildId, body, categoryId, title, startTime) {
     const config = getConfig();
     const templateId = body.raidTemplateId || (config.categoryRaidTemplate || {})[categoryId];
     // #738: a template of another version than the category plays creates no
@@ -227,10 +227,10 @@ function planFor(body, categoryId, title, startTime) {
     // one (the template used to win). A version the body names (the dialog) is
     // a deliberate choice and wins as before.
     if (templateId && !given(body, "versionId")) {
-        const problem = templateVersionProblem({ template: getRaidTemplate(String(templateId)), categoryId, config });
+        const problem = templateVersionProblem({ template: getRaidTemplate(guildId, String(templateId)), categoryId, config });
         if (problem) return { error: fail(409, "template_version_mismatch", `${problem} Kein Event angelegt – bitte eine passende Vorlage wählen (Serie oder Einstellungen → Kategorien).`) };
     }
-    const template = templateDefaults(templateId, startTime);
+    const template = templateDefaults(guildId, templateId, startTime);
     const merged = { ...template };
     for (const key of PLAN_KEYS) {
         if (given(body, key)) merged[key] = body[key];
@@ -367,11 +367,11 @@ function requestedCategoryId(guildId, body = {}) {
  * orphan channel behind.
  * @returns {{ plan: object, startTime: number } | { error: object }}
  */
-function ownEventPlan(body, date, categoryId, title) {
+function ownEventPlan(guildId, body, date, categoryId, title) {
     if (!title) return fail(400, "invalid_title", "Das Event braucht einen Titel.");
     const startTime = startTimeOf(date, body.time);
     if (!startTime) return fail(400, "invalid_time", "Ungültige Uhrzeit.");
-    const planned = planFor(body, categoryId, title, startTime);
+    const planned = planFor(guildId, body, categoryId, title, startTime);
     if (planned.error) return planned.error;
     return { plan: planned.plan, startTime };
 }
@@ -418,8 +418,8 @@ async function makeChannel({ guildId, categoryId, body, request, sourceChannel, 
 }
 
 /** The event at Raid-Helper; a raid template that links a Raid-Helper template stands in for a missing id. */
-async function createAtRaidHelper(rh, { body, date, title, channel }) {
-    const linked = !String(body.templateId || "").trim() && body.raidTemplateId ? getRaidTemplate(String(body.raidTemplateId)) : null;
+async function createAtRaidHelper(rh, { guildId, body, date, title, channel }) {
+    const linked = !String(body.templateId || "").trim() && body.raidTemplateId ? getRaidTemplate(guildId, String(body.raidTemplateId)) : null;
     try {
         const result = await rh.createEvent({
             channelId: channel.channelId,
@@ -542,7 +542,7 @@ async function createEvent({ guildId, user, body = {}, allowHidden = false, guar
     let plan = null;
     let startTime = 0;
     if (source === "eventhelper") {
-        const own = ownEventPlan(body, date, categoryId, title);
+        const own = ownEventPlan(guildId, body, date, categoryId, title);
         if (own.error) return own;
         ({ plan, startTime } = own);
     }
@@ -562,7 +562,7 @@ async function createEvent({ guildId, user, body = {}, allowHidden = false, guar
     if (channel.error) return channel;
 
     // persistence and the Discord side effects
-    if (source === "raidhelper") return createAtRaidHelper(rh, { body, date, title, channel });
+    if (source === "raidhelper") return createAtRaidHelper(rh, { guildId, body, date, title, channel });
     const created = createOwnEvent({ guildId, user, body, plan, startTime, title, meta, categoryId, channel });
     if (created.error) return created;
     const published = await publishOwnEvent(created.event.id, body);

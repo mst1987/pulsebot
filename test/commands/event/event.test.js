@@ -50,7 +50,7 @@ beforeEach(() => {
     archiveStore.getChannelConfig.mockReturnValue({ schemas: {} });
     settings.getConfig.mockReturnValue({ categoryIds: [CAT_EH, CAT_RH], categoryRaidTemplate: { [CAT_EH]: T5.id } });
     settings.listRaidTemplates.mockReturnValue([T5, RH]);
-    settings.getRaidTemplate.mockImplementation((id) => [T5, RH].find((t) => t.id === id) || null);
+    settings.getRaidTemplate.mockImplementation((_guildId, id) => [T5, RH].find((t) => t.id === id) || null);
     signupSourceFor.mockImplementation((cat) => (cat === CAT_EH ? "eventhelper" : "raidhelper"));
     loadEventGroups.mockResolvedValue({ groups: [] });
     serverIds.mockReturnValue([]);

@@ -226,9 +226,9 @@ function eventCategories(guildId) {
  * (categoryEras.templateVersionProblem), so nothing is offered that would be refused with
  * 409 template_version_mismatch.
  */
-function templatesFor(src, cat = "") {
+function templatesFor(guildId, src, cat = "") {
     const config = getConfig();
-    return listRaidTemplates()
+    return listRaidTemplates(guildId)
         .filter((t) => TEMPLATE_ID.test(t.id))
         .filter((t) => !templateVersionProblem({ template: t, categoryId: cat, config }))
         .filter((t) => (src === "r" ? !!t.raidhelperTemplateId : !!(t.size || (t.instanceIds || []).length)))
@@ -236,25 +236,25 @@ function templatesFor(src, cat = "") {
 }
 
 /** The template chosen, else the category's default, else the first that fits the source. */
-function fitTemplate(state) {
-    const templates = templatesFor(state.src, state.cat);
+function fitTemplate(guildId, state) {
+    const templates = templatesFor(guildId, state.src, state.cat);
     if (templates.some((t) => t.id === state.tpl)) return state;
     const preferred = (getConfig().categoryRaidTemplate || {})[state.cat];
-    const pick = templates.find((t) => t.id === preferred) || templates[0];
+    const pick = templates.find((t) => t.id === preferred) || templates.find((t) => t.originId && t.originId === preferred) || templates[0];
     return { ...state, tpl: pick ? pick.id : "" };
 }
 
 /** A category chosen: its source and default template are proposed again. */
-function withCategory(state, cat) {
+function withCategory(guildId, state, cat) {
     const src = signupSourceFor(cat) === "eventhelper" ? "e" : "r";
-    return fitTemplate({ ...state, cat, src, tpl: "", ref: "", ico: "" });
+    return fitTemplate(guildId, { ...state, cat, src, tpl: "", ref: "", ico: "" });
 }
 
 /** Where /event anlegen starts: the category of the channel it was typed in, if it is one. */
 function initialState(guildId, parentId = "") {
     const categories = eventCategories(guildId);
     const cat = (categories.find((c) => c.id === parentId) || categories[0] || {}).id || "";
-    return withCategory(cleanState({ mode: "n" }), cat);
+    return withCategory(guildId, cleanState({ mode: "n" }), cat);
 }
 
 /** The instance shorts of a template ("SSC + TK"), "" without instances. */
@@ -367,12 +367,12 @@ async function stepMessage(guildId, rawState, { userId = "" } = {}) {
             },
         };
     }
-    if (!categories.some((c) => c.id === state.cat)) state = withCategory(state, categories[0].id);
-    if (!state.src) state = fitTemplate({ ...state, src: signupSourceFor(state.cat) === "eventhelper" ? "e" : "r" });
-    state = fitTemplate(state);
+    if (!categories.some((c) => c.id === state.cat)) state = withCategory(guildId, state, categories[0].id);
+    if (!state.src) state = fitTemplate(guildId, { ...state, src: signupSourceFor(state.cat) === "eventhelper" ? "e" : "r" });
+    state = fitTemplate(guildId, state);
 
     const category = categories.find((c) => c.id === state.cat);
-    const templates = templatesFor(state.src, state.cat);
+    const templates = templatesFor(guildId, state.src, state.cat);
     const template = templates.find((t) => t.id === state.tpl) || null;
 
     let candidates = [];
@@ -509,16 +509,16 @@ async function stepMessage(guildId, rawState, { userId = "" } = {}) {
 }
 
 /** The state after a select or button of step 1 (`field` from the customId, `value` the picked one). */
-function applyStep(state, field, value = "") {
+function applyStep(guildId, state, field, value = "") {
     const v = String(value || "");
     switch (field) {
-        case "c": return withCategory(state, isSnowflake(v) ? v : "");
+        case "c": return withCategory(guildId, state, isSnowflake(v) ? v : "");
         // the suggestions "Passt zu <Raid>" belong to the template: its icon pick is over
         case "t": return { ...state, tpl: TEMPLATE_ID.test(v) ? v : "", ico: "" };
         case "i": return { ...state, ico: icon.cleanIcon(v) };
         case "k": return { ...state, mode: MODES.includes(v) ? v : "n", ref: "" };
         case "r": return { ...state, ref: REF_ID.test(v) ? v : "" };
-        case "s": return fitTemplate({ ...state, src: state.src === "e" ? "r" : "e", ico: "" });
+        case "s": return fitTemplate(guildId, { ...state, src: state.src === "e" ? "r" : "e", ico: "" });
         case "a": return { ...state, ann: announceFor(state).enabled ? "0" : "1" };
         default: return state;
     }
@@ -577,7 +577,7 @@ function compositionOf(template) {
  * EventHelper event: Raid-Helper has no place to keep it.
  */
 function formModal(state, { values = null, guildId = "" } = {}) {
-    const template = state.tpl ? getRaidTemplate(state.tpl) : null;
+    const template = state.tpl ? getRaidTemplate(guildId, state.tpl) : null;
     const label = instancesLabel(template) || (template && template.name) || "Event";
     const v = values || {};
     const input = (id, lab, style, { value, placeholder, required = true, max } = {}) => {
@@ -652,7 +652,7 @@ async function buildBody(guildId, rawState, values, { userId, now = Date.now() }
     const fail = (error) => ({ error });
     if (!eventCategories(guildId).some((c) => c.id === state.cat)) return fail("Die Kategorie gibt es nicht mehr oder sie ist keine Event-Kategorie.");
     const src = state.src || (signupSourceFor(state.cat) === "eventhelper" ? "e" : "r");
-    const template = state.tpl ? getRaidTemplate(state.tpl) : null;
+    const template = state.tpl ? getRaidTemplate(guildId, state.tpl) : null;
     if (state.tpl && !template) return fail("Die Raid-Vorlage gibt es nicht mehr.");
     if (src === "r" && !(template && template.raidhelperTemplateId)) {
         return fail("Für Raid-Helper braucht es eine Raid-Vorlage mit verknüpfter Raid-Helper-Vorlage.");

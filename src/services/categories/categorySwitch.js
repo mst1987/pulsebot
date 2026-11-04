@@ -65,7 +65,8 @@ function switchPreview({ categoryId, versionId, config, listTemplates, now = Dat
     const toVersion = knownVersion(versionId);
     const fromVersion = mainVersionFor({ categoryId: cat, config });
     const templates = typeof listTemplates === "function" ? listTemplates() || [] : [];
-    const byId = new Map(templates.map((t) => [t.id, t]));
+    // A reference the migration could not place still names the id this server's copy came from (#1076).
+    const byId = new Map(templates.flatMap((t) => [[t.originId, t], [t.id, t]]).filter(([id]) => id));
     const fits = (t) => !!t && knownVersion(t.versionId) === toVersion;
 
     const defaultId = String(((config && config.categoryRaidTemplate) || {})[cat] || "");
