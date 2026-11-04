@@ -170,11 +170,20 @@ describe("main version (#541)", () => {
 
     it("says first and last name in the label of a Forever modal", () => {
         const field = (opts) => dialog.buildCharacterModal("x", opts).toJSON().components[0].components[0];
-        expect(field({ versionId: "forever", classText: "Magier · Frost" }).label).toBe("Vor- und Nachname (Magier · Frost)");
+        expect(field({ versionId: "forever", classText: "Magier · Frost" }).label).toBe("Vor- und Nachname");
         expect(field({ versionId: "forever" }).label).toBe("Vor- und Nachname");
         expect(field({ versionId: "forever" }).min_length).toBe(5);
-        expect(field({ versionId: "tbc", classText: "Magier · Frost" }).label).toBe("Name deines Charakters (Magier · Frost)");
+        expect(field({ versionId: "tbc", classText: "Magier · Frost" }).label).toBe("Name deines Charakters");
         expect(field({ versionId: "tbc" }).min_length).toBe(2);
+    });
+
+    it("names class and spec in the modal's title, whole even for the longest pair", () => {
+        const title = (opts) => dialog.buildCharacterModal("x", opts).toJSON().title;
+        expect(title({ versionId: "forever", classText: "Schamane · Wiederherstellung" })).toBe("Schamane · Wiederherstellung");
+        expect(title({ versionId: "tbc", classText: "Magier · Frost" })).toBe("Magier · Frost");
+        expect(title({ versionId: "forever" })).toBe("Charakter hinzufügen");
+        // Discord refuses a title over 45 characters
+        expect(title({ versionId: "forever", classText: "x".repeat(60) })).toHaveLength(45);
     });
 
     it("prefills a Forever modal only with a full name, so that a one-word Discord name is not just sent", () => {
