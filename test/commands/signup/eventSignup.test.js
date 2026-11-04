@@ -14,6 +14,7 @@ const profiles = require("../../../src/stores/roster/raiderProfileStore");
 const command = require("../../../src/commands/signup/eventSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { asEmbed, cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 
@@ -40,8 +41,8 @@ describe("commands/signup/eventSignup", () => {
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].title).toBe("Karazhan");
-        const ids = payload.components.flatMap((r) => r.components).map((c) => c.custom_id).filter(Boolean);
+        expect(asEmbed(payload).title).toBe("Karazhan");
+        const ids = cardRows(payload).flatMap((r) => r.components).map((c) => c.custom_id).filter(Boolean);
         expect(ids).toContain("signup-status:eh-kara:s:nerathil:Mage-Arcane:");
     });
 
@@ -58,7 +59,7 @@ describe("commands/signup/eventSignup", () => {
         mocks.signups.set(`eh-kara/${ANNA}`, { userId: ANNA, character: "Nerathil", spec: "Mage-Arcane", status: "signed" });
         interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
         await command.execute(interaction);
-        expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe("Karazhan");
+        expect(asEmbed(interaction.reply.mock.calls[0][0]).title).toBe("Karazhan");
     });
 
     it("refuses somebody outside the roster where the roster takes signups only from its members (#658)", async () => {
@@ -82,7 +83,7 @@ describe("commands/signup/eventSignup", () => {
             rosterStore.upsertMember(roster.id, ANNA, { status: "bench" });
             interaction = mockInteraction({ customId: "event-signup:eh-kara", userId: ANNA });
             await command.execute(interaction);
-            expect(interaction.reply.mock.calls[0][0].embeds[0].title).toBe("Karazhan");
+            expect(asEmbed(interaction.reply.mock.calls[0][0]).title).toBe("Karazhan");
         } finally {
             rosterStore.useFile(null);
         }

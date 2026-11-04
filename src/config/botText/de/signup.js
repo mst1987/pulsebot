@@ -60,8 +60,6 @@ module.exports = {
     "Please pick class and spec first.": "Bitte zuerst Klasse und Spec wählen.",
     "Please pick character and spec first.": "Bitte zuerst Charakter und Spec wählen.",
     // the buttons and selects under the event message
-    "Signed off from **{title}**": "Abgemeldet von **{title}**",
-    "Signed off from **{title}** – reason: {reason}": "Abgemeldet von **{title}** – Grund: {reason}",
     "Signed off from {title}": "Abgemeldet von {title}",
     "Saved for **{title}**": "Gespeichert für **{title}**",
     "You are already signed up with {max} characters – pick again under “My characters …”.":
@@ -77,6 +75,8 @@ module.exports = {
     "You are already signed up for {title}": "Du bist schon dabei: {title}",
     "Or a new character: pick a class …": "Oder ein neuer Charakter: Klasse wählen …",
     "Which class?": "Welche Klasse?",
+    "Lead": "Leitung",
+    "Signup deadline": "Anmeldeschluss",
     "**{class}** – which spec?": "**{class}** – welche Spec?",
     "Other class": "Andere Klasse",
     "Message to the raid lead": "Nachricht an die Raidleitung",

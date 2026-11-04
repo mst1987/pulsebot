@@ -29,6 +29,14 @@ function cardButtons(payload) {
     return rows.filter((c) => c && c.type === ComponentType.ActionRow).flatMap((r) => (r.components || []).map(json));
 }
 
+/** The action rows of a payload as JSON, in order: inside the card when it is one, else its top-level rows. */
+function cardRows(payload) {
+    const top = ((payload && payload.components) || []).map(json);
+    const box = top[0];
+    const rows = box && box.type === ComponentType.Container ? (box.components || []).map(json) : top;
+    return rows.filter((c) => c && c.type === ComponentType.ActionRow).map((r) => ({ ...r, components: (r.components || []).map(json) }));
+}
+
 const isCardPayload = (p) => !!p && (Number(p.flags) & MessageFlags.IsComponentsV2) === MessageFlags.IsComponentsV2;
 
 function asEmbed(payload) {
@@ -63,4 +71,4 @@ function asEmbed(payload) {
     return out;
 }
 
-module.exports = { asEmbed, cardTexts, cardButtons, isCardPayload };
+module.exports = { asEmbed, cardTexts, cardButtons, cardRows, isCardPayload };

@@ -19,7 +19,7 @@ const command = require("../../../src/commands/signup/talkSignup");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
 const { knownChannels } = require("../../helpers/linkCheck");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed } = require("../../helpers/card");
 
 // The Discord channels these tests link exist (#537: only a link to an existing channel is shown).
 beforeEach(() => knownChannels("c-1", "c-2"));
@@ -46,8 +46,8 @@ describe("commands/signup/talkSignup", () => {
         await command.execute(interaction);
         const payload = interaction.reply.mock.calls[0][0];
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].title).toBe("Karazhan");
-        expect(payload.embeds[0].description).toContain("create a profile");
+        expect(asEmbed(payload).title).toBe("Karazhan");
+        expect(asEmbed(payload).text).toContain("create a profile");
         expect(getStoredEvent).not.toHaveBeenCalled();
     });
 
@@ -74,7 +74,7 @@ describe("commands/signup/talkSignup", () => {
             interaction.guildId = PARTNER;
             await command.execute(interaction);
             const payload = interaction.reply.mock.calls[0][0];
-            expect(payload.embeds[0].title).toBe("PuG Gruul");
+            expect(asEmbed(payload).title).toBe("PuG Gruul");
             expect(JSON.stringify(payload)).not.toContain("raider role");
         });
 

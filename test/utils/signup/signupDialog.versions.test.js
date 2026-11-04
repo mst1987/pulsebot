@@ -12,6 +12,7 @@ const dialog = require("../../../src/utils/signup/signupDialog");
 const joinPicker = require("../../../src/utils/signup/joinPicker");
 const { toEnglish } = require("../../../src/utils/signup/botEnglish");
 const { tempStoreFile } = require("../../helpers/tempStore");
+const { asEmbed, cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
@@ -31,9 +32,9 @@ beforeEach(() => {
     profiles.addCharacter(BERT, { name: "Ysolde", className: "Mage", specs: ["Mage-Frost"] }, { name: "Bert" });
 });
 
-const flat = (payload) => (payload.components || []).flatMap((row) => row.components || []);
+const flat = (payload) => cardRows(payload).flatMap((row) => row.components || []);
 const selectOf = (payload, prefix) => flat(payload).find((c) => String(c.custom_id || "").startsWith(prefix) && c.options);
-const description = (payload) => (payload.embeds[0].description || "");
+const description = (payload) => (asEmbed(payload).text || "");
 
 describe("signupDialog je Spielversion", () => {
     it("bietet für ein Forever-Event nur Devi Res, für TBC nur Devi", () => {

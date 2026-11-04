@@ -7,10 +7,12 @@
 //
 // The raider profiles use the real store on a temp file (raiderProfileStore.useFile).
 const { MessageFlags } = require("discord.js");
-const { asEmbed, cardButtons, isCardPayload } = require("./card");
+const { asEmbed, cardButtons, cardTexts, isCardPayload } = require("./card");
 
 const events = new Map();
 const signups = new Map();
+// A spec imported from Raid-Helper by user id (`{ character, spec }`): signupStore.lastSignupOf's fallback (#291).
+const importedSpecs = new Map();
 const changed = jest.fn();
 // The raider-role rule (signupService.checkRaiderRole): config and the member's roles.
 const access = { config: {}, roleIds: null };
@@ -70,7 +72,8 @@ function signupStore() {
         getSignup: (eventId, userId) => signups.get(`${eventId}/${userId}`) || null,
         lastOwnSignupOf,
         // With `versionId` + `versionOf` (#543) only the events of that game version count.
-        lastSignupOf: (userId, { versionId = "", versionOf = null } = {}) => lastOwnSignupOf(userId, versionId && versionOf ? (eventId) => versionOf(eventId) === versionId : null),
+        lastSignupOf: (userId, { versionId = "", versionOf = null } = {}) => lastOwnSignupOf(userId, versionId && versionOf ? (eventId) => versionOf(eventId) === versionId : null)
+            || (importedSpecs.has(userId) ? { eventId: "rh-1", ...importedSpecs.get(userId), imported: true } : null),
         listSignups: list,
         saveSignup: jest.fn((eventId, userId, input, opts) => {
             const checked = actual.normalizeSignup(input, opts);
@@ -91,13 +94,21 @@ const { ownEvent } = require("../factories/events");
  * title, description and colour, the payload's flags (without the card flag), content and the buttons inside the card as
  * `components` — plus `body`, the description without the raid-start line (its timestamps move with the clock), `text`,
  * title and body as one string, and `embedCount` (a card counts as the one answer block, an old embed payload by its embeds).
+ * `body` covers every text of the card (a confirmation's lines are parts of it) without the title, the raid start and the
+ * fill line, which moves with who else signed up; test/utils/signup/signupHead.test.js checks those.
  */
+const isHeadLine = (line, title) => line.startsWith("🗓️")
+    || line === `## ${title}`
+    || /^<t:\d+:f> <t:\d+:R>$/.test(line)
+    || /^(\d+ \/ )?\d+ (signed up|angemeldet)$/.test(line);
+
 function answerOf(payload) {
     const p = payload || {};
     const card = isCardPayload(p);
     const e = (card ? asEmbed(p) : (p.embeds || [])[0]) || {};
     const description = String(e.description || "");
-    const body = description.split("\n").filter((l) => !l.startsWith("🗓️")).join("\n").trim();
+    const lines = card ? cardTexts(p).join("\n").split("\n") : description.split("\n");
+    const body = lines.filter((l) => !isHeadLine(l, e.title)).join("\n").trim();
     return {
         title: e.title || "",
         description,
@@ -114,6 +125,7 @@ function answerOf(payload) {
 function reset() {
     events.clear();
     signups.clear();
+    importedSpecs.clear();
     changed.mockClear();
     access.config = {};
     access.roleIds = null;
@@ -122,4 +134,4 @@ function reset() {
     postNotice.mockClear();
 }
 
-module.exports = { events, signups, changed, access, memberRoleIds, eventLog, postNotice, settingsStore, discord, eventStore, signupStore, ownEvent, answerOf, reset };
+module.exports = { events, signups, importedSpecs, changed, access, memberRoleIds, eventLog, postNotice, settingsStore, discord, eventStore, signupStore, ownEvent, answerOf, reset };

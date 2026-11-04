@@ -18,7 +18,7 @@ const { parseJoinId, joinId, characterOptions, defaultPick } = require("../../..
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed, cardRows } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const NOBODY = "200000000000000009";
@@ -27,7 +27,7 @@ const replyOf = (i) => i.reply.mock.calls[0][0];
 const updateOf = (i) => i.update.mock.calls[0][0];
 const pick = (status, extra = {}) => mockInteraction({ customId: "event-join:eh-kara", userId: ANNA, values: [status], ...extra });
 const selectOf = (payload) => cardButtons(payload)[0];
-const buttonsOf = (payload) => payload.components[payload.components.length - 1].components;
+const buttonsOf = (payload) => cardRows(payload).at(-1).components;
 
 beforeAll(() => profiles.useFile(tempStoreFile("eh-cmd-event-join.json")));
 afterAll(() => {
@@ -70,7 +70,7 @@ describe("commands/signup/eventJoin", () => {
         await command.execute(i);
         const payload = replyOf(i);
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("Which character?");
+        expect(asEmbed(payload).text).toContain("Which character?");
         const options = selectOf(payload).options;
         expect(options.map((o) => o.value)).toEqual(["nerathil|Mage-Arcane", "brokk|Warrior-Protection"]);
         expect(options[0]).toMatchObject({ label: "Nerathil · Arcane", description: "Mage · raid ready", default: true, emoji: { id: "77", name: "eh_mage_arcane" } });
@@ -122,7 +122,7 @@ describe("commands/signup/eventJoin", () => {
         expect(mocks.signups.get(`eh-kara/${ANNA}`)).toMatchObject({ character: "Brokk", spec: "Warrior-Protection", status: "signed" });
         const payload = replyOf(i);
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
+        expect(asEmbed(payload).text).toContain("✅ Saved: **Signed up** (Brokk · Protection)");
         expect(buttonsOf(payload)[2]).toMatchObject({ label: "Comment", disabled: false });
     });
 
@@ -149,7 +149,7 @@ describe("commands/signup/eventJoin", () => {
         await command.execute(i);
         const payload = replyOf(i);
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].description).toContain("Pick class and spec, then click “Sign up”");
+        expect(asEmbed(payload).text).toContain("Pick class and spec, then click “Sign up”");
         expect(cardButtons(payload)[0].custom_id).toMatch(/^signup-pick:eh-kara:k:/);
         expect(mocks.signups.size).toBe(0);
     });
@@ -164,7 +164,7 @@ describe("commands/signup/eventJoin", () => {
 
         const late = pick("late");
         await command.execute(late);
-        expect(replyOf(late).embeds[0].description).toContain("**Late**");
+        expect(asEmbed(replyOf(late)).text).toContain("**Late**");
         expect(selectOf(replyOf(late)).options).toHaveLength(2);
     });
 
@@ -189,7 +189,7 @@ describe("commands/signup/eventJoin", () => {
         mocks.access.roleIds = ["role-raider"];
         const ok = pick("signed");
         await command.execute(ok);
-        expect(replyOf(ok).embeds[0].description).toContain("Which character?");
+        expect(asEmbed(replyOf(ok)).text).toContain("Which character?");
     });
 
     it("says so for a gone event or an unknown status", async () => {
@@ -221,7 +221,7 @@ describe("commands/signup/eventJoin", () => {
         const i = mockInteraction({ customId: "event-join:eh-kara:s:m:brokk:Warrior-Protection:h", userId: ANNA });
         await command.execute(i);
         const payload = updateOf(i);
-        const also = payload.components.map((r) => r.components[0]).find((c) => String(c.custom_id).startsWith("signup-pick:eh-kara:a:"));
+        const also = cardRows(payload).map((r) => r.components[0]).find((c) => String(c.custom_id).startsWith("signup-pick:eh-kara:a:"));
         expect(also.options.find((o) => o.value === "healer").default).toBe(true);
     });
 
@@ -239,9 +239,9 @@ describe("Deutsch als Standard (Server-Sprache)", () => {
         const i = pick("signed");
         await command.execute(i);
         const payload = replyOf(i);
-        expect(payload.embeds[0].description).toContain("Welcher Charakter? – aus deinem EventHelper-Profil");
+        expect(asEmbed(payload).text).toContain("Welcher Charakter? – aus deinem EventHelper-Profil");
         expect(selectOf(payload).options[0]).toMatchObject({ label: "Nerathil · Arkan", description: "Magier · raidbereit" });
-        const labels = payload.components[1].components.map((c) => c.label);
+        const labels = cardRows(payload)[1].components.map((c) => c.label);
         expect(labels.slice(0, 3)).toEqual(["Anmelden", "Kann auch …", "Kommentar"]);
     });
 });

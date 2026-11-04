@@ -78,7 +78,7 @@ describe("utils/signup/signupReply", () => {
 });
 
 describe("signupButtons.savedEmbed", () => {
-    const event = ownEvent({ color: "#112233" });
+    const event = ownEvent({ color: "#112233", overflow: "waitlist" });
     const signup = {
         status: "signed",
         characters: [
@@ -87,60 +87,72 @@ describe("signupButtons.savedEmbed", () => {
         ],
     };
     const profile = { characters: [] };
-    const when = `🗓️ <t:${event.startTime}:d> <t:${event.startTime}:t> · <t:${event.startTime}:R>`;
+    const when = `<t:${event.startTime}:f> <t:${event.startTime}:R>`;
+    const thumbnail = "https://render.worldofwarcraft.com/eu/zones/karazhan-small.jpg";
 
-    it("plain text: title, one line per character, the raid start, the waiting list", () => {
+    it("plain text: title, one line per character, the raid start, the fill, the waiting list", () => {
         expect(savedEmbed(event, signup, profile, { lang: "en", notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({
             title: "Saved for Karazhan",
-            description: [
-                "`1.` Zibbo · Holy – **Signed up**",
-                "`2.` Zibbowar · Protection – **Reserve**",
-                "",
-                when,
-                "⏳ The raid is full (10/10) – you are on the waiting list (reserve). The raid lead decides who moves up.",
-            ].join("\n"),
+            description: when,
+            thumbnail,
+            parts: [
+                "`1.` Zibbo · Holy – **Signed up**\n`2.` Zibbowar · Protection – **Reserve**",
+                "0 / 10 signed up",
+                "The raid is full (10/10) – you are on the waiting list (reserve). The raid lead decides who moves up.",
+            ],
             color: 0x112233,
         });
     });
 
-    it("with the app emojis: spec and status icons stay in the lines, the head icon in the title", () => {
+    it("with the app emojis: spec and status icons stay in the lines, no icon in the title", () => {
         appEmojis.setAppEmojis(appEmojis.emojiCatalog().map((e, i) => ({ id: String(900 + i), name: e.name })));
         const embed = savedEmbed(event, signup, profile, { emojis: appEmojis.appEmojiMap(), lang: "en" });
         const noIds = (s) => s.replace(/:\d+>/g, ">");
-        expect(noIds(embed.title)).toBe("<:eh_ui_signed> Saved for Karazhan");
-        expect(noIds(embed.description).split("\n")).toEqual([
+        expect(embed.title).toBe("Saved for Karazhan");
+        expect(noIds(embed.parts[0]).split("\n")).toEqual([
             "`1` <:eh_priest_holy> Zibbo · Holy  ·  <:eh_ui_signed> **Signed up**",
             "`2` <:eh_warrior_protection> Zibbowar · Protection  ·  <:eh_ui_bench> **Reserve**",
-            "",
-            when,
         ]);
     });
 
     it("auf Deutsch: Titel, Status-Wörter und der Hinweis des Dienstes bleiben deutsch", () => {
         expect(savedEmbed(event, signup, profile, { notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung." })).toEqual({
             title: "Gespeichert für Karazhan",
-            description: [
-                "`1.` Zibbo · Heilig – **Dabei**",
-                "`2.` Zibbowar · Schutz – **Ersatz**",
-                "",
-                when,
-                "⏳ Der Raid ist voll (10/10) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung.",
-            ].join("\n"),
+            description: when,
+            thumbnail,
+            parts: [
+                "`1.` Zibbo · Heilig – **Dabei**\n`2.` Zibbowar · Schutz – **Ersatz**",
+                "0 / 10 angemeldet",
+                "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung.",
+            ],
             color: 0x112233,
         });
         expect(savedEmbed(event, { status: "absence", comment: "Arbeit" }, profile).title).toBe("Abgemeldet von Karazhan");
     });
 
-    it("a sign-off names the raid in the title and the reason below", () => {
+    it("a sign-off names the raid in the title and the reason below, without the fill", () => {
         expect(savedEmbed(event, { status: "absence", comment: "Arbeit" }, profile, { lang: "en" })).toEqual({
             title: "Signed off from Karazhan",
-            description: `Reason: Arbeit\n\n${when}`,
+            description: when,
+            thumbnail,
+            parts: ["Reason: Arbeit"],
             color: 0x112233,
         });
         const noStart = ownEvent({ startTime: undefined });
         expect(savedEmbed(noStart, null, profile, { lang: "en" })).toEqual({
             title: "Signed off from Karazhan",
+            thumbnail,
             color: embedColor(noStart),
         });
+    });
+
+    it("the confirmation is one card with the thumbnail and no calendar or hourglass", () => {
+        const payload = answerPayload({ embed: savedEmbed(event, signup, profile, { lang: "en", notice: "Der Raid ist voll (10/10) – du stehst auf der Warteliste (Ersatz). Ob jemand nachrückt, entscheidet die Raidleitung." }) }.embed);
+        const shown = JSON.stringify(payload);
+        expect(shown).toContain(thumbnail);
+        expect(shown).not.toContain("🗓️");
+        expect(shown).not.toContain("⏳");
+        expect(asEmbed(payload)).toMatchObject({ title: "Saved for Karazhan", color: 0x112233 });
+        expect(asEmbed(payload).text).toContain("`2.` Zibbowar · Protection – **Reserve**");
     });
 });

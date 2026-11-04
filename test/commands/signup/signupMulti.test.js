@@ -23,7 +23,7 @@ const pickRaids = require("../../../src/commands/signup/talkSignupMulti");
 const step = require("../../../src/commands/signup/signupMulti");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { tempStoreFile } = require("../../helpers/tempStore");
-const { cardButtons } = require("../../helpers/card");
+const { cardButtons, asEmbed } = require("../../helpers/card");
 
 const ANNA = "200000000000000001";
 const BERT = "200000000000000002";
@@ -127,8 +127,8 @@ describe("talk overview buttons (#293)", () => {
         const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbowar|Warrior-Protection", "zibbo|Priest-Holy"], r1: ["zibbo|Priest-Holy"] }, { message: { id: "step1" } });
         await step.execute(submit);
         const payload = submit.editReply.mock.calls[0][0];
-        expect(payload.embeds[0].title).toBe("Signup: 1 of 2 raids saved");
-        const lines = payload.embeds[0].description.split("\n");
+        expect(asEmbed(payload).title).toBe("Signup: 1 of 2 raids saved");
+        const lines = asEmbed(payload).description.split("\n");
         // the listed order decides: Zibbo was listed first, so Zibbo is the choice
         expect(lines[0]).toMatch(/^✅ \*\*Raid 1\*\* · <t:\d+:D>: Zibbo · Holy, \+Zibbowar · Protection$/);
         expect(lines[1]).toMatch(/^⛔ \*\*Raid 2\*\*.*signup deadline/);
@@ -165,7 +165,7 @@ describe("<server> beitreten under the results (#904)", () => {
         const submit = await submitFrom(PARTNER);
         expect(submit.deferUpdate.mock.invocationCallOrder[0]).toBeLessThan(members.fetch.mock.invocationCallOrder[0]);
         expect(members.fetch).toHaveBeenCalledTimes(1);
-        const desc = submit.editReply.mock.calls[0][0].embeds[0].description;
+        const desc = asEmbed(submit.editReply.mock.calls[0][0]).description;
         expect(desc).toContain("Join the server **Pulse PuGs**, otherwise you will not get pings and info.");
         expect(desc.match(/Join the server/g)).toHaveLength(1);
         // no invite yet (#905): no link button, only "My signups"
@@ -175,13 +175,13 @@ describe("<server> beitreten under the results (#904)", () => {
     it("says nothing to a member of the raid's server", async () => {
         members.cache.set(ANNA, {});
         const member = await submitFrom(PARTNER);
-        expect(member.editReply.mock.calls[0][0].embeds[0].description).not.toContain("Join the server");
+        expect(asEmbed(member.editReply.mock.calls[0][0]).description).not.toContain("Join the server");
     });
 
     it("says nothing on the raid's own server - not even a member check", async () => {
         const home = await submitFrom(RAID_SERVER);
         expect(members.fetch).not.toHaveBeenCalled();
-        expect(home.editReply.mock.calls[0][0].embeds[0].description).not.toContain("Join the server");
+        expect(asEmbed(home.editReply.mock.calls[0][0]).description).not.toContain("Join the server");
     });
 });
 
@@ -199,7 +199,7 @@ describe("Mehrere Raids wählen … (#293)", () => {
     it("shows step 1 only to the member: nothing preselected, status, Weiter disabled until a raid is picked", async () => {
         const { payload, token } = await startStep1();
         expect(payload.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
-        expect(payload.embeds[0].title).toBe("Which raids?");
+        expect(asEmbed(payload).title).toBe("Which raids?");
         const [raidRow, statusRow, goRow] = payload.components;
         expect(raidRow.components[0]).toMatchObject({ custom_id: `signup-multi:${token}:r`, min_values: 1, max_values: 7 });
         expect(raidRow.components[0].options.every((o) => o.default)).toBe(false);
@@ -228,9 +228,9 @@ describe("Mehrere Raids wählen … (#293)", () => {
         await step.execute(submit);
         expect(submit.deferUpdate).toHaveBeenCalled();
         const partial = submit.editReply.mock.calls[0][0];
-        expect(partial.embeds[0].title).toBe("So far 2 of 5 raids saved");
-        expect(partial.embeds[0].description).toContain("⏭️ **Raid 3**");
-        expect(partial.embeds[0].description).toMatch(/✅ \*\*Raid 1\*\*.*Zibbo · Holy – Tentative/);
+        expect(asEmbed(partial).title).toBe("So far 2 of 5 raids saved");
+        expect(asEmbed(partial).description).toContain("⏭️ **Raid 3**");
+        expect(asEmbed(partial).description).toMatch(/✅ \*\*Raid 1\*\*.*Zibbo · Holy – Tentative/);
         expect(cardButtons(partial)[0]).toMatchObject({ custom_id: `signup-multi:${token}:go:1`, label: "Next: Raid 6" });
         expect(mocks.signups.get(`eh-r2/${ANNA}`).characters.map((c) => c.character)).toEqual(["Zibbo", "Zibbowar"]);
 
@@ -242,8 +242,8 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const last = modalSubmit(second.custom_id, { r0: ["zibbowar|Warrior-Protection"] }, { message });
         await step.execute(last);
         const done = last.editReply.mock.calls[0][0];
-        expect(done.embeds[0].title).toBe("Signup: 3 of 6 raids saved");
-        expect(done.components[0].components.map((b) => b.label)).toEqual(["My signups"]);
+        expect(asEmbed(done).title).toBe("Signup: 3 of 6 raids saved");
+        expect(cardButtons(done).map((b) => b.label)).toEqual(["My signups"]);
         expect(mocks.signups.has(`eh-r7/${ANNA}`)).toBe(false);
     });
 
@@ -331,8 +331,8 @@ describe("Deutsch als Standard (Server-Sprache)", () => {
         const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbo|Priest-Holy"], r1: ["zibbo|Priest-Holy"] }, { message: { id: "step1" } });
         await step.execute(submit);
         const payload = submit.editReply.mock.calls[0][0];
-        expect(payload.embeds[0].title).toBe("Anmeldung: 1 von 2 Raids gespeichert");
-        const lines = payload.embeds[0].description.split("\n");
+        expect(asEmbed(payload).title).toBe("Anmeldung: 1 von 2 Raids gespeichert");
+        const lines = asEmbed(payload).description.split("\n");
         expect(lines[0]).toMatch(/^✅ \*\*Raid 1\*\* · <t:\d+:D>: Zibbo · Heilig – Spät$/);
         expect(lines[1]).toMatch(/^⛔ \*\*Raid 2\*\*/);
     });
@@ -344,8 +344,8 @@ describe("Deutsch als Standard (Server-Sprache)", () => {
         const i = mockInteraction({ customId: "talk-signup-multi", userId: ANNA });
         await pickRaids.execute(i);
         const payload = i.reply.mock.calls[0][0];
-        expect(payload.embeds[0].title).toBe("Welche Raids?");
-        expect(payload.embeds[0].description).toContain("Schritt 1 von 2 · nur für dich sichtbar");
+        expect(asEmbed(payload).title).toBe("Welche Raids?");
+        expect(asEmbed(payload).description).toContain("Schritt 1 von 2 · nur für dich sichtbar");
         expect(payload.components[2].components[0].label).toBe("Weiter: Charaktere");
     });
 });
