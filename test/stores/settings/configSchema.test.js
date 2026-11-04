@@ -8,7 +8,7 @@
 // before anything loads, exactly as when the fixture was frozen.
 const ENV_KEYS = ["GUILD_ID", "RAIDHELPER_SERVER_ID", "OFFICER_ROLE_ID", "APPLICATION_CHANNEL_ID", "GOOGLE_SPREADSHEET_ID",
     "GOOGLE_SHEET_NAME", "GOOGLE_SHEET_GID", "BLIZZARD_CLIENT_ID", "BLIZZARD_CLIENT_SECRET", "BLIZZARD_REGION", "BLIZZARD_REALM",
-    "BLIZZARD_NAMESPACE", "ADMIN_ROLE_IDS"];
+    "BLIZZARD_NAMESPACE", "ADMIN_ROLE_IDS", "TWITCH_CLIENT_ID", "TWITCH_CLIENT_SECRET"];
 for (const key of ENV_KEYS) delete process.env[key];
 
 jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
@@ -226,7 +226,9 @@ function after921(config, stored = {}) {
     delete rest.logChannelIds;
     return rest;
 }
-const schemaOnly = frozen.map((g, i) => ({ ...g, config: after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterTempVoice(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))))), cases[i].config), cases[i].config)) }));
+// The Twitch announcements add the app credentials, empty by default; the streamers live in the server settings.
+const afterTwitch = (config) => ({ ...config, twitch: { clientId: "", clientSecret: "" } });
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: afterTwitch(after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterTempVoice(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))))), cases[i].config), cases[i].config))) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.

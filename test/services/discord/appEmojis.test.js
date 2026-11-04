@@ -88,6 +88,14 @@ describe("services/discord/appEmojis", () => {
         }
     });
 
+    it("carries the Twitch symbol as the filled, violet exception among the UI icons", () => {
+        const { svgFor } = require("../../../scripts/render-ui-emojis");
+        expect(appEmojis.UI_ICONS).toContain("twitch");
+        expect(appEmojis.uiEmojiName("twitch")).toBe("eh_ui_twitch");
+        expect(appEmojis.emojiCatalog().some((e) => e.name === "eh_ui_twitch" && e.file)).toBe(true);
+        expect(svgFor("twitch")).toContain("<path fill=\"#9146FF\" stroke=\"none\"");
+    });
+
     it("renders an emoji from a map, or the fallback", () => {
         const map = { eh_ui_tank: { id: "9", name: "eh_ui_tank" }, eh_anim: { id: "8", name: "eh_anim", animated: true } };
         expect(appEmojis.emojiText(map, "eh_ui_tank", "T")).toBe("<:eh_ui_tank:9>");

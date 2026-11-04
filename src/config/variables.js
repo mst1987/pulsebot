@@ -32,6 +32,8 @@ module.exports = {
     blizzardRegion: env.blizzardRegion,
     blizzardRealmSlug: env.blizzardRealmSlug,
     blizzardNamespace: env.blizzardNamespace,
+    twitchClientId: env.twitchClientId,
+    twitchClientSecret: env.twitchClientSecret,
     webPort: env.webPort,
     publicBaseUrl: env.publicBaseUrl,
     discordClientId: env.discordClientId,

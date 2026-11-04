@@ -212,6 +212,49 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .tis-name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; text-decoration: none; }
 .tis-name:hover { text-decoration: underline; }
 .tis-row:not(.is-on) .tis-name { opacity: .78; }
+
+/* Twitch stream announcements: one table, the status in words (docs/twitch.md) */
+.tws-head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px; margin-bottom: 12px; }
+.tws-last { margin-left: auto; font-size: 13px; color: var(--muted); }
+.tws-missing { margin: 0 0 12px; padding-left: 10px; border-left: 2px solid var(--medium); font-size: 14px; }
+.tws-hint { margin: 0 0 12px; font-size: 13px; color: var(--muted); }
+.tws-noping { color: var(--medium); }
+.tws-noping-hint { margin: 6px 0 0; padding-left: 10px; border-left: 2px solid var(--medium); font-size: 13px; }
+.tws-empty { margin: 8px 0; font-size: 14px; color: var(--muted); }
+.tws-name { display: inline-block; max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; font-weight: 600; }
+.tws-cut { display: inline-block; max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; vertical-align: bottom; }
+.tws-none { color: var(--muted); }
+.tws-status { font-size: 14px; }
+.tws-status.is-live { color: var(--good); font-weight: 600; }
+.tws-status.is-bad { color: var(--high); font-weight: 600; }
+.tws-status.is-muted { color: var(--muted); }
+.tws-note { display: block; max-width: 340px; margin-top: 2px; font-size: 12px; color: var(--muted); white-space: normal; }
+.tws-actions { display: inline-flex; gap: 4px; }
+.tws-field + .tws-field { margin-top: 14px; }
+.tws-field textarea {
+    display: block; width: 100%; min-height: 72px; padding: 8px 12px; background-color: var(--bg); color: var(--text);
+    border: 1px solid var(--line); border-radius: var(--ctl-radius); font: inherit; font-size: 14px; line-height: 1.35; resize: vertical;
+}
+.tws-field textarea:focus { border-color: var(--accent); outline: none; box-shadow: 0 0 0 3px var(--accent-soft); }
+.tws-counter { display: block; margin-top: 4px; font-size: 12px; color: var(--muted); }
+.tws-counter-over { color: var(--high); font-weight: 600; }
+.tws-game-add { display: flex; gap: 8px; }
+.tws-game-add input { flex: 1 1 auto; min-width: 0; }
+.tws-games { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.tws-games .tws-game { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+.tws-game .badge-x { flex: none; }
+.tws-name:hover { text-decoration: underline; }
+@media (max-width: 720px) {
+    .tws-last { margin-left: 0; flex-basis: 100%; }
+    .tws-table thead { display: none; }
+    .tws-table, .tws-table tbody, .tws-table td { display: block; width: auto; }
+    .tws-table tr { display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+    table.idx.tws-table td { grid-column: 1; padding: 2px 0; border: 0; white-space: normal; }
+    .tws-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400; }
+    .tws-table td:first-child::before { content: none; }
+    table.idx.tws-table td.cell-act { grid-column: 2; grid-row: 1; width: auto; align-self: start; }
+    .tws-name, .tws-cut { max-width: 100%; white-space: normal; overflow-wrap: anywhere; display: inline; }
+}
 /* a phone: the boss choice as one select above the list */
 @media (max-width: 720px) {
     .tis-body { grid-template-columns: minmax(0, 1fr); gap: 10px; }

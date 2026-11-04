@@ -16,6 +16,8 @@ describe("config/variables", () => {
         "blizzardRegion",
         "blizzardRealmSlug",
         "blizzardNamespace",
+        "twitchClientId",
+        "twitchClientSecret",
         "webPort",
         "publicBaseUrl",
         "discordClientId",
@@ -47,6 +49,8 @@ describe("config/variables", () => {
             "BLIZZARD_REGION",
             "BLIZZARD_REALM",
             "BLIZZARD_NAMESPACE",
+            "TWITCH_CLIENT_ID",
+            "TWITCH_CLIENT_SECRET",
             "GUILD_ID",
         ]) {
             delete process.env[key];
@@ -111,6 +115,11 @@ describe("config/variables", () => {
         expect(variables.blizzardRegion).toBe("eu");
         expect(variables.blizzardRealmSlug).toBe("thunderstrike");
         expect(variables.blizzardNamespace).toBe("");
+    });
+
+    it("defaults the Twitch app to empty credentials", () => {
+        expect(variables.twitchClientId).toBe("");
+        expect(variables.twitchClientSecret).toBe("");
     });
 
     it("derives logcheckAdminIds as a trimmed non-empty list including the admin", () => {

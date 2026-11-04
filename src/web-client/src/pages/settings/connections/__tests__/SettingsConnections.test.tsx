@@ -142,6 +142,57 @@ describe("SettingsConnections — upload keys per server (#994)", () => {
         }
     });
 
+    describe("the Twitch card", () => {
+        function showTwitch(twitch: AdminConfig["twitch"]) {
+            const data = settings();
+            renderPage(
+                <ConnectionsSection
+                    data={{ ...data, config: { ...data.config, twitch } }}
+                    tokens={[]}
+                    tokenServers={SERVERS}
+                    onConfig={vi.fn()}
+                    onTokensChanged={vi.fn()}
+                    icon="settings"
+                    crumb="Einstellungen"
+                />,
+            );
+        }
+        const REFUSED = { clientId: "tw-id", hasClientSecret: true, credentialsRejected: true };
+
+        it("warns instead of saying connected when Twitch refused the credentials", async () => {
+            showTwitch(REFUSED);
+            expect(screen.getByText("Zugangsdaten abgelehnt")).toBeInTheDocument();
+            expect(screen.getByText("Twitch lehnt die Zugangsdaten ab, keine Stream-Prüfung")).toBeInTheDocument();
+            expect(screen.queryByText("Stream-Prüfung möglich")).not.toBeInTheDocument();
+        });
+
+        it("says connected as long as nothing was refused", () => {
+            showTwitch({ clientId: "tw-id", hasClientSecret: true, credentialsRejected: false });
+            expect(screen.getByText("Stream-Prüfung möglich")).toBeInTheDocument();
+            expect(screen.queryByText("Zugangsdaten abgelehnt")).not.toBeInTheDocument();
+        });
+
+        it("names the rejection in the dialog, not missing credentials", async () => {
+            showTwitch(REFUSED);
+            const card = screen.getByText("Zugangsdaten abgelehnt").closest("article, section, li, div.conn-card") as HTMLElement;
+            await userEvent.click(within(card).getByRole("button"));
+            const dlg = within(await screen.findByRole("dialog"));
+            expect(dlg.getByText("Twitch lehnt die Zugangsdaten ab, keine Stream-Prüfung")).toBeInTheDocument();
+            expect(dlg.queryByText(/Ohne Client-ID und Secret/)).not.toBeInTheDocument();
+        });
+
+        it("warns in English too", async () => {
+            await switchLang("en");
+            try {
+                showTwitch(REFUSED);
+                expect(screen.getByText("Credentials rejected")).toBeInTheDocument();
+                expect(screen.getByText("Twitch rejects the credentials, no stream checks")).toBeInTheDocument();
+            } finally {
+                await switchLang("de");
+            }
+        });
+    });
+
     describe("in English", () => {
         beforeEach(() => switchLang("en"));
         afterEach(() => switchLang("de"));

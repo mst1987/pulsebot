@@ -18,6 +18,7 @@ const AREAS = [
     require("./roleMessages"),
     require("./softres"),
     require("./roster"),
+    require("./twitch"),
 ];
 
 const merged = {};
