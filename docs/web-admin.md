@@ -68,7 +68,7 @@ Jeder `*Store.js` hält seinen Stand in einer JSON-Datei unter `data/` — und a
 | Datei | Inhalt |
 |---|---|
 | `recruitmentStore.js` | Recruitment-Vorlagen (`recruitment.json`) und gepostete Nachrichten (`recruitment-posts.json`); `useFile(templates, posts)` |
-| `raidTemplateStore.js` | Raid-Vorlagen (`raid-templates.json`); Form und Regeln bleiben die reinen Funktionen in `raidTemplates.js` |
+| `raidTemplateStore.js` | Raid-Vorlagen (`raid-templates.json`), je Discord-Server seit #1076; Form und Regeln bleiben die reinen Funktionen in `raidTemplates.js` |
 | `notifyTemplateStore.js` | Anmelde-Aufruf-Vorlagen (`notify.json`) |
 | `raidsheetStore.js` | Google-Sheets-Ziele — die Liste `raidsheets` in `config.json`, liest und schreibt über `configStore` |
 | `configStore.js` | `getConfig()`, `saveConfig()`, `resolveEventSheetLink()` (kein Link für eine Kategorie, die mit dem Raidplan plant — `services/events/planning.js`), dazu `readStored()`/`writeStored()` für die Datei, wie sie liegt |

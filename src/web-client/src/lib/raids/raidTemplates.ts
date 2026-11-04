@@ -166,6 +166,12 @@ export function filterByVersion(templates: RaidTemplate[], versionId: string): R
     return versionId ? templates.filter((t) => t.versionId === versionId) : templates;
 }
 
+/** The template a stored id means, as the server's getRaidTemplate: the exact id, else the copy made from it (#1076). */
+export function templateByStoredId(templates: RaidTemplate[], id: string | undefined): RaidTemplate | null {
+    if (!id) return null;
+    return templates.find((tpl) => tpl.id === id) || templates.find((tpl) => tpl.originId === id) || null;
+}
+
 /** A fresh draft for "Vorlage": the first instance of the version at its default size, with its suggestion. */
 export function newDraft(version: GameVersion | null | undefined): RaidTemplateInput {
     const first = version && version.instances.length ? version.instances[0] : null;

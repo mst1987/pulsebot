@@ -159,7 +159,7 @@ Technik: [raid-templates.md](raid-templates.md)
 
 *Bereich "Raids"*
 
-Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Details: [docs/raid-templates.md](raid-templates.md).
+Wiederverwendbare Vorlagen (Instanzen, Größe, Rollen, Pflicht-Buffs, Anmeldeschluss, Aussehen der Nachricht) für ein schnelles Event-Anlegen. Jeder Discord-Server hat seine eigenen Vorlagen; ein neuer Server startet ohne Vorlagen. Details: [docs/raid-templates.md](raid-templates.md).
 
 Die Liste zeigt die Vorlagen der Spielversion des Content-Umschalters in der Kopfleiste (Start: die Hauptversion); eine neue Vorlage beginnt in dieser Version.
 
@@ -245,7 +245,7 @@ Technik: [roster-profile.md](roster-profile.md)
 - **Setup** und **Raidplan** des Raids (bearbeiten, freigeben, posten, „Raidplan aktivieren“ bei Raid-Helper-Events) – den Raidplan auch ohne den Bereich „Raidplan“;
 - auf der **Übersicht** den Orga-Block, aber nur mit ihren Kategorien: nächster Raid, offene Aufgaben (Sheet füllen, Kanal fehlt, fehlgeschlagene Serien), letzte Raids. Die Kacheln mit den Zahlen des ganzen Servers bleiben bei der globalen Orga.
 
-Raids anderer Kategorien sehen sie wie jeder Raider. Die türkise Orga-Zone sagt ihnen „sichtbar für die Orga dieser Kategorie“. Raid-Vorlagen, Benachrichtigungen (Aufruf-Vorlagen), Raidplan-Vorlagen und -Katalog bleiben bei den globalen Bereichen; Logs zuordnen und auswerten braucht weiter Schreibrecht auf die Log-Auswertung, Loot eintragen Schreibrecht auf Historie & Loot – ohne diese Rechte zeigt das Cockpit den Schritt nur an. Eine Serie gibt es für ihre Kategorie, sobald ein Admin sie unter Einstellungen → Kategorien als Raid-Kategorie eingeschaltet hat. Den Bereich „Raid-Events“ (lesen) brauchen sie wie jeder, der die Raid-Seiten öffnet. Prüfen lässt sich das mit **Ansicht als Rolle** und der Manager-Rolle; „So sieht es ein Raider“ zeigt einem Admin, der selbst Manager ist, die Raider-Sicht.
+Raids anderer Kategorien sehen sie wie jeder Raider. Die türkise Orga-Zone sagt ihnen „sichtbar für die Orga dieser Kategorie“. Raid-Vorlagen, Benachrichtigungen (Aufruf-Vorlagen), Raidplan-Vorlagen und -Katalog bleiben bei den globalen Rechte-Bereichen (der Rechte-Bereich ist global, die Inhalte von Raid-Vorlagen und Raidplan-Bibliothek gehören aber je einem Server); Logs zuordnen und auswerten braucht weiter Schreibrecht auf die Log-Auswertung, Loot eintragen Schreibrecht auf Historie & Loot – ohne diese Rechte zeigt das Cockpit den Schritt nur an. Eine Serie gibt es für ihre Kategorie, sobald ein Admin sie unter Einstellungen → Kategorien als Raid-Kategorie eingeschaltet hat. Den Bereich „Raid-Events“ (lesen) brauchen sie wie jeder, der die Raid-Seiten öffnet. Prüfen lässt sich das mit **Ansicht als Rolle** und der Manager-Rolle; „So sieht es ein Raider“ zeigt einem Admin, der selbst Manager ist, die Raider-Sicht.
 
 Wer wann fehlt, steht unter dem eigenen Menüpunkt [Abwesenheiten](#abwesenheiten).
 

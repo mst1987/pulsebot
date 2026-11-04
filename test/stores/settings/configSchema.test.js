@@ -17,7 +17,7 @@ const fs = require("fs");
 const { settingsPath } = require("../../../src/config/paths");
 const schema = require("../../../src/stores/settings/configSchema");
 const { getConfig } = require("../../../src/stores/settings/configStore");
-const { listRaidTemplates } = require("../../../src/stores/events/raidTemplateStore");
+const { allRaidTemplates } = require("../../../src/stores/events/raidTemplateStore");
 const { migrateSettings } = require("../../../src/stores/settings/settingsMigration");
 const cases = require("../../fixtures/configSchema/cases.json");
 const frozen = require("../../fixtures/configSchema/golden.json");
@@ -276,7 +276,7 @@ function unmoved924(config, stored) {
     }
     return out;
 }
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)") && !line.includes("(#1076)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -305,7 +305,8 @@ describe("stores/settings/configSchema golden master (#420)", () => {
         it("reads the same as before the split once the start-up migration ran", () => {
             load(c);
             migrateSettings({ log: () => {} });
-            expect(listRaidTemplates()).toEqual(expected.raidTemplates);
+            // the frozen shape is from before the servers (#1076): the originals, without the copies of further servers
+            expect(allRaidTemplates().filter((template) => !template.originId).map(({ guildId: _guildId, originId: _originId, ...template }) => template)).toEqual(expected.raidTemplates);
             expect(getConfig()).toEqual(expected.config);
         });
 

@@ -61,10 +61,10 @@ function todayIn(now) {
 /**
  * Validate a series as the page sends it.
  * @param {object} input { categoryId, enabled, weekdays, time, raidTemplateId, daysBefore, title, skipDates }
- * @param {{ now?: number, categoryTemplateId?: string, config?: object }} opts
+ * @param {{ now?: number, categoryTemplateId?: string, config?: object, guildId?: string }} opts  `guildId`: the series' server, whose templates count
  * @returns {{ value?: object, error?: string }}
  */
-function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "", config } = {}) {
+function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = "", config, guildId = "" } = {}) {
     const categoryId = String(input.categoryId || "").trim();
     if (!categoryId) return { error: "Keine Kategorie angegeben." };
     const weekdays = [...new Set((Array.isArray(input.weekdays) ? input.weekdays : [])
@@ -77,14 +77,14 @@ function normalizeSeries(input = {}, { now = Date.now(), categoryTemplateId = ""
         return { error: `„Tage vorher“ muss zwischen ${MIN_DAYS_BEFORE} und ${MAX_DAYS_BEFORE} liegen.` };
     }
     const raidTemplateId = String(input.raidTemplateId || "").trim();
-    if (raidTemplateId && !getRaidTemplate(raidTemplateId)) return { error: "Die Raid-Vorlage gibt es nicht mehr." };
+    if (raidTemplateId && !getRaidTemplate(guildId, raidTemplateId)) return { error: "Die Raid-Vorlage gibt es nicht mehr." };
     if (!raidTemplateId && !categoryTemplateId) {
         return { error: "Bitte eine Raid-Vorlage wählen — die Kategorie hat keine Standard-Vorlage." };
     }
     // #738: a running series needs a template of the version the category
     // plays — a paused one may keep its old template until the orga picks one.
     if (input.enabled !== false) {
-        const problem = templateVersionProblem({ template: getRaidTemplate(raidTemplateId || categoryTemplateId), categoryId, config });
+        const problem = templateVersionProblem({ template: getRaidTemplate(guildId, raidTemplateId || categoryTemplateId), categoryId, config });
         if (problem) return { error: `${problem} Bitte eine passende Vorlage wählen oder die Serie pausieren.` };
     }
     const today = todayIn(now);
@@ -195,10 +195,13 @@ function planSeries(series, runs = {}, { now = Date.now(), count = 4, events = [
     });
 }
 
-/** "SSC + TK 25er" — the template a series uses: its own, else the category's default. */
-function templateFor(series, config = getConfig()) {
+/**
+ * "SSC + TK 25er" — the template a series uses: its own, else the category's default. Looked up on the
+ * series' server (#1076); `guildId` only counts for a series that has none stored.
+ */
+function templateFor(series, config = getConfig(), guildId = "") {
     const id = (series && series.raidTemplateId) || (config.categoryRaidTemplate || {})[series && series.categoryId] || "";
-    const t = id ? getRaidTemplate(id) : null;
+    const t = id ? getRaidTemplate((series && series.guildId) || guildId, id) : null;
     return t ? { id: t.id, name: t.name || "", instanceIds: t.instanceIds || [], size: t.size || null, isDefault: !series.raidTemplateId } : null;
 }
 
@@ -275,7 +278,7 @@ async function runSeries({ now = Date.now(), config = getConfig(), onlyCategoryI
             const due = dueDates(series, store.getRuns(categoryId), now);
             if (!due.length) continue;
             const events = await categoryEvents(guildId, categoryId, now);
-            const template = templateFor(series, config);
+            const template = templateFor(series, config, guildId);
             const title = series.title || (template && template.name) || categoryName(guildId, categoryId) || "Raid";
             for (const occ of due) {
                 const existing = events.find((ev) => dayOf(ev) === occ.date);
@@ -377,7 +380,7 @@ async function seriesOverview({ guildId, config = getConfig(), now = Date.now(),
             const view = await describeSeries(inactive ? { ...series, enabled: false } : series, { guildId, config, now, count, inputs });
             Object.assign(row, view, { series });
         } else {
-            const template = templateFor({ categoryId: id, raidTemplateId: "" }, config);
+            const template = templateFor({ categoryId: id, raidTemplateId: "" }, config, guildId);
             row.template = template;
         }
         categories.push(row);
@@ -387,7 +390,7 @@ async function seriesOverview({ guildId, config = getConfig(), now = Date.now(),
 
 /** Summary line, upcoming dates with naming, and the newest creation of one series. */
 async function describeSeries(series, { guildId, config = getConfig(), now = Date.now(), count = 4, inputs = null } = {}) {
-    const template = templateFor(series, config);
+    const template = templateFor(series, config, guildId);
     const runs = store.getRuns(series.categoryId);
     const events = inputs
         ? inputs.events.filter((ev) => ev.categoryId === series.categoryId)
@@ -449,7 +452,8 @@ const RAIDHELPER_HINT = "Neue Events dieser Kategorie laufen über Raid-Helper �
  */
 async function previewSeries({ guildId, input = {}, config = getConfig(), now = Date.now(), count = 4 } = {}) {
     const categoryTemplateId = (config.categoryRaidTemplate || {})[String(input.categoryId || "")] || "";
-    const checked = normalizeSeries(input, { now, categoryTemplateId, config });
+    const stored = store.getSeries(String(input.categoryId || "").trim());
+    const checked = normalizeSeries(input, { now, categoryTemplateId, config, guildId: (stored && stored.guildId) || guildId });
     if (checked.error) return { error: checked.error, summary: "", upcoming: [], template: null, lastCreated: null };
     const series = { ...(store.getSeries(checked.value.categoryId) || {}), ...checked.value };
     const view = await describeSeries(series, { guildId, config, now, count });
@@ -467,11 +471,12 @@ function saveSeriesFor({ guildId, input = {}, user = null, config = getConfig(),
     if (categoryId && !current && signupSourceFor(categoryId) !== "eventhelper") {
         return { error: { status: 409, code: "raidhelper_category", message: RAIDHELPER_HINT } };
     }
-    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "", config });
+    const seriesGuild = (current && current.guildId) || guildId || guildRoles.serverIds(config)[0] || "";
+    const checked = normalizeSeries(input, { now, categoryTemplateId: (config.categoryRaidTemplate || {})[categoryId] || "", config, guildId: seriesGuild });
     if (checked.error) return { error: { status: 400, code: "invalid", message: checked.error } };
     const series = store.saveSeries({
         ...checked.value,
-        guildId: (current && current.guildId) || guildId || guildRoles.serverIds(config)[0] || "",
+        guildId: seriesGuild,
         leaderId: (current && current.leaderId) || (user && user.id) || "",
         updatedAt: now,
         updatedBy: (user && user.id) || "",

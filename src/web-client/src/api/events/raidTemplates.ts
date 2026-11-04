@@ -1,4 +1,5 @@
-import { get, send } from "../client";
+import { get, send, type ApiError } from "../client";
+import { t } from "../../i18n";
 import type { VersionExamples } from "../../lib/app/versionExamples";
 
 // Raid templates (#266, src/web/raidTemplates.js): what an evening looks like.
@@ -48,6 +49,8 @@ export type EmojiStyle = "arcane" | "gold" | "parchment" | "plain";
 
 export type RaidTemplate = RaidTemplateInput & {
     id: string;
+    /** the id this copy was made from when the templates went per server (#1076); empty on an original */
+    originId?: string;
     createdAt?: number;
     updatedAt?: number;
     /** migrated without size: badge "Größe ergänzen" */
@@ -140,25 +143,43 @@ export function getGameVersions(): Promise<GameVersionsData> {
     return get<GameVersionsData>("/api/game-versions");
 }
 
-export type RaidTemplatesData = { templates: RaidTemplate[]; categoryNames: Record<string, string> };
+export type RaidTemplatesData = { guildId: string; templates: RaidTemplate[]; categoryNames: Record<string, string> };
+
+/*
+ * Raid templates are per Discord server (#1076): every write names the server this tab loaded them of
+ * (`libraryGuildId`). The active server is per session, not per tab - a tab of server A whose session switched to B
+ * is refused with 409 `server_switched` instead of writing into B.
+ */
+let templatesServer = "";
+
+/** A template write: names the tab's server and says a server switch in plain words. */
+function templateWrite<T>(method: string, path: string, body: object, server = templatesServer): Promise<T> {
+    return send<T>(method, path, { ...body, libraryGuildId: server }).catch((err: ApiError) => {
+        throw err && err.code === "server_switched" ? { ...err, message: t("settings.serverSwitched") } : err;
+    });
+}
 
 /** `version`: the templates of that game version only (the menu's content version, #741); "" = every shown one. */
 export function getRaidTemplates(version = ""): Promise<RaidTemplatesData> {
-    return get<RaidTemplatesData>(`/api/raid-templates${version ? `?version=${encodeURIComponent(version)}` : ""}`);
+    return get<RaidTemplatesData>(`/api/raid-templates${version ? `?version=${encodeURIComponent(version)}` : ""}`).then((data) => {
+        if (data.guildId) templatesServer = data.guildId;
+        return data;
+    });
 }
 
-/** Create (no id) or update (id) a raid template. */
-export function saveRaidTemplate(input: RaidTemplateInput): Promise<RaidTemplate> {
-    return input.id
-        ? send("PATCH", "/api/raid-templates", input)
-        : send("POST", "/api/raid-templates", input);
+/**
+ * Create (no id) or update (id) a raid template. `server`: the server the caller's own answer named (the create dialog
+ * loads no template list of its own); default the one the template page loaded.
+ */
+export function saveRaidTemplate(input: RaidTemplateInput, server = templatesServer): Promise<RaidTemplate> {
+    return templateWrite(input.id ? "PATCH" : "POST", "/api/raid-templates", input, server);
 }
 
 /** 409 while a category uses it as its default — the message names the category. */
 export function deleteRaidTemplate(id: string): Promise<{ id: string }> {
-    return send("DELETE", "/api/raid-templates", { id });
+    return templateWrite("DELETE", "/api/raid-templates", { id });
 }
 
 export function importRaidTemplates(): Promise<{ added: number; updated: number; templates: RaidTemplate[] }> {
-    return send("POST", "/api/raid-templates/import", {});
+    return templateWrite("POST", "/api/raid-templates/import", {});
 }

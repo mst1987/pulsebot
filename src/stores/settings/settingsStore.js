@@ -29,6 +29,7 @@ module.exports = {
     saveRecruitmentPost: recruitment.saveRecruitmentPost,
     deleteRecruitmentPost: recruitment.deleteRecruitmentPost,
     listRaidTemplates: raidTemplates.listRaidTemplates,
+    allRaidTemplates: raidTemplates.allRaidTemplates,
     getRaidTemplate: raidTemplates.getRaidTemplate,
     saveRaidTemplate: raidTemplates.saveRaidTemplate,
     saveRaidTemplates: raidTemplates.saveRaidTemplates,

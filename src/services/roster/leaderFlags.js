@@ -72,7 +72,7 @@ function categoryLeadInstances(categoryId, versionId, { config, guildId = "", no
         ids.push(...(Array.isArray(event.instanceIds) ? event.instanceIds : []));
     }
     const tplId = ((config && config.categoryRaidTemplate) || {})[cat];
-    const tpl = tplId ? getRaidTemplate(tplId) : null;
+    const tpl = tplId ? getRaidTemplate(guildId, tplId) : null;
     if (tpl && Array.isArray(tpl.instanceIds)) ids.push(...tpl.instanceIds);
     return leaderFlagsStore.validInstances(vid, ids);
 }

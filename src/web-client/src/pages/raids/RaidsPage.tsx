@@ -178,7 +178,7 @@ function RaidsList({ user }: Pick<ShellContext, "user">) {
                 {(orga || canCreate) && (
                     <div className="ph-act">
                         {orga && <Link className={buttonClass("ghost", "md", true)} to="/raids/series"><WowIcon name="raids" size={22} />{t("raids.page.series")}</Link>}
-                        {/* raid and notify templates are global (#728): the global orga's */}
+                        {/* the links stay the global orga's (#728); raid templates are per server since #1076, notify templates still global */}
                         {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/raid-templates"><WowIcon name="tasks" size={22} />{t("raids.page.raidTemplates")}</Link>}
                         {globalOrga && <Link className={buttonClass("ghost", "md", true)} to="/raids/templates"><WowIcon name="notify" size={22} />{t("raids.page.notifyTemplates")}</Link>}
                         {canCreate && <Link className={buttonClass("primary", "md", true)} to="/raids/new"><WowIcon name="edit" size={22} />{t("raids.page.newEvent")}</Link>}
