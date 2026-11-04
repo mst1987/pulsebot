@@ -81,7 +81,7 @@ export function TwitchPart({ data, onChange }: {
         },
         {
             id: "status", label: t("profile.twitch.colStatus"), sortKey: "status",
-            cell: (s) => <span className={`pf-twitch-status is-${s.status}`}>{t(`profile.twitch.status.${s.status}`)}</span>,
+            cell: (s) => <span className={`pf-twitch-status pf-twitch-${s.status}`}>{t(`profile.twitch.status.${s.status}`)}</span>,
         },
         { id: "action", label: t("profile.twitch.colAction"), actions: true, className: "pf-sync-act", cell: action },
     ];
