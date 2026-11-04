@@ -11,6 +11,7 @@ jest.mock("../../../src/services/discord/discord", () => ({ setClient: jest.fn()
 jest.mock("../../../src/utils/setup/sheetCleanup", () => mockJob("startSheetCleanup", "stopSheetCleanup"));
 jest.mock("../../../src/services/events/raidhelperSync", () => mockJob("startRaidhelperSync", "stopRaidhelperSync"));
 jest.mock("../../../src/services/logcheck/wclGuildSync", () => mockJob("startWclGuildSync", "stopWclGuildSync"));
+jest.mock("../../../src/services/twitch/twitchJob", () => mockJob("startTwitchJob", "stopTwitchJob"));
 jest.mock("../../../src/services/logcheck/logAutoLink", () => mockJob("startLogAutoLink", "stopLogAutoLink"));
 jest.mock("../../../src/services/events/eventMessage", () => mockJob("startEventMessageSync", "stopEventMessageSync"));
 jest.mock("../../../src/web/events/reminders", () => mockJob("startReminders", "stopReminders"));
@@ -38,7 +39,7 @@ const discord = require("../../../src/services/discord/discord");
 const { startJobs, stopJobs, JOBS } = require("../../../src/web/http/jobs");
 
 const START_ORDER = [
-    "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startWclGuildSync", "startEventMessageSync",
+    "start", "startSheetCleanup", "startRaidhelperSync", "startLogAutoLink", "startWclGuildSync", "startTwitchJob", "startEventMessageSync",
     "startReminders", "startRoleSync", "startRosterRoleSync", "startTalkOverview", "startEventSeries", "start", "startPanelRefresh", "startOrgaHubs", "startOrgaSignupNotice", "startRaidOverviews", "startRosterImageLive", "startAddonCenter", "startMetaRefresh", "startSoftresDetect", "startSoftresStatus", "startBackupJob", "startRestoreTestJob", "startBackupAlerts", "startTempVoice",
 ];
 
@@ -54,7 +55,7 @@ describe("web/http/jobs", () => {
         const names = startJobs();
         expect(mockCalls).toEqual(START_ORDER.map((n) => `start:${n}`));
         expect(names).toEqual([
-            "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "wclGuildSync", "eventMessageSync",
+            "systemMonitor", "sheetCleanup", "raidhelperSync", "logAutoLink", "wclGuildSync", "twitchJob", "eventMessageSync",
             "reminders", "roleSync", "rosterRoleSync", "talkOverview", "eventSeries", "applicationState", "availabilityPanels", "orgaHubs", "orgaSignupNotice", "raidOverviews", "rosterImageLive", "addonCenter", "guildBankItemMeta", "softresDetect", "softresStatus", "backupSnapshots", "backupRestoreTest", "backupAlerts", "tempVoice",
         ]);
         expect(JOBS.map((j) => j.name)).toEqual(names);
@@ -64,7 +65,7 @@ describe("web/http/jobs", () => {
         startJobs();
         startJobs();
         const lines = console.log.mock.calls.map((c) => c[0]).filter((l) => /Background jobs started/.test(l));
-        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, wclGuildSync, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, orgaSignupNotice, raidOverviews, rosterImageLive, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts, tempVoice"]);
+        expect(lines).toEqual(["Background jobs started: systemMonitor, sheetCleanup, raidhelperSync, logAutoLink, wclGuildSync, twitchJob, eventMessageSync, reminders, roleSync, rosterRoleSync, talkOverview, eventSeries, applicationState, availabilityPanels, orgaHubs, orgaSignupNotice, raidOverviews, rosterImageLive, addonCenter, guildBankItemMeta, softresDetect, softresStatus, backupSnapshots, backupRestoreTest, backupAlerts, tempVoice"]);
     });
 
     // #608: what a job asks Raid-Helper counts as background work (utils/raidhelper/budget.js)
@@ -110,7 +111,7 @@ describe("web/http/jobs", () => {
         stopJobs();
         expect(mockCalls).toEqual([
             "stop:stopTempVoice", "stop:stopBackupAlerts", "stop:stopRestoreTestJob", "stop:stopBackupJob", "stop:stopSoftresStatus", "stop:stopSoftresDetect", "stop:stopMetaRefresh", "stop:stopAddonCenter", "stop:stopRosterImageLive", "stop:stopRaidOverviews", "stop:stopOrgaSignupNotice", "stop:stopOrgaHubs", "stop:stopPanelRefresh", "stop:stop", "stop:stopEventSeries", "stop:stopTalkOverview", "stop:stopRosterRoleSync", "stop:stopRoleSync", "stop:stopReminders",
-            "stop:stopEventMessageSync", "stop:stopWclGuildSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
+            "stop:stopEventMessageSync", "stop:stopTwitchJob", "stop:stopWclGuildSync", "stop:stopLogAutoLink", "stop:stopRaidhelperSync", "stop:stopSheetCleanup", "stop:stop",
         ]);
         mockCalls.length = 0;
         startJobs();

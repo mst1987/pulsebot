@@ -328,6 +328,56 @@ describe("connection cards", () => {
         expect(logic.connectionState("battlenet", { blizzard: { clientId: "" } }).missing).toBe(true);
     });
 
+    it("treats Twitch like the other client + secret connections", () => {
+        expect(logic.connectionState("twitch", { twitch: { clientId: "x", hasClientSecret: false } }))
+            .toEqual({ tone: "mid", label: "Secret fehlt", missing: true });
+        expect(logic.connectionState("twitch", { twitch: { clientId: "x", hasClientSecret: true } }))
+            .toEqual({ tone: "ok", label: "Verbunden", missing: false });
+        expect(logic.connectionState("twitch", { twitch: { clientId: "" } }).missing).toBe(true);
+    });
+
+    it("counts missing Twitch credentials in the sidebar badge only once a streamer is entered", () => {
+        const data = (twitch: Record<string, unknown>) => ({
+            config: {
+                blizzard: { clientId: "x", hasClientSecret: true },
+                warcraftlogsV2: { clientId: "x", hasClientSecret: true },
+                anthropic: { hasApiKey: true },
+                github: { hasToken: true },
+                twitch,
+            },
+            bot: { online: true },
+        });
+        expect(logic.missingConnections(data({}), [{}], true)).toBe(0);
+        expect(logic.missingConnections(data({ inUse: false }), [{}], true)).toBe(0);
+        expect(logic.missingConnections(data({ inUse: true }), [{}], true)).toBe(1);
+        expect(logic.missingConnections(data({ inUse: true, clientId: "x", hasClientSecret: true }), [{}], true)).toBe(0);
+        // the card keeps saying what is missing, only the badge stays quiet
+        expect(logic.connectionState("twitch", { twitch: { inUse: false } }).missing).toBe(true);
+    });
+
+    it("warns about rejected Twitch credentials and counts them only once a streamer is entered", () => {
+        const twitch = { clientId: "x", hasClientSecret: true, credentialsRejected: true };
+        expect(logic.connectionState("twitch", { twitch }))
+            .toEqual({ tone: "mid", label: "Zugangsdaten abgelehnt", missing: true });
+        // what is missing comes first: the flag says nothing about credentials that are not complete
+        expect(logic.connectionState("twitch", { twitch: { ...twitch, hasClientSecret: false } }).label).toBe("Secret fehlt");
+        expect(logic.connectionState("wcl", { warcraftlogsV2: { clientId: "x", hasClientSecret: true } }).tone).toBe("ok");
+
+        const data = (over: Record<string, unknown>) => ({
+            config: {
+                blizzard: { clientId: "x", hasClientSecret: true },
+                warcraftlogsV2: { clientId: "x", hasClientSecret: true },
+                anthropic: { hasApiKey: true },
+                github: { hasToken: true },
+                twitch: { ...twitch, ...over },
+            },
+            bot: { online: true },
+        });
+        expect(logic.missingConnections(data({ inUse: true }), [{}], true)).toBe(1);
+        expect(logic.missingConnections(data({ inUse: false }), [{}], true)).toBe(0);
+        expect(logic.missingConnections(data({ inUse: true, credentialsRejected: false }), [{}], true)).toBe(0);
+    });
+
     it("never counts the Discord connection or unknown token numbers as missing", () => {
         expect(logic.connectionState("discord", { botOnline: false }).missing).toBe(false);
         expect(logic.connectionState("lootsync", { tokenCount: null }).missing).toBe(false);

@@ -140,6 +140,11 @@ describe("pugRoleGuard grantsOf (pugOnboarding.privilegeOf)", () => {
         // without an item the onboarding itself is no right
         expect(guard.grantsOf(cfg, VERSION_ROLE, { rosters: [] })).toEqual([]);
     });
+
+    it("does not count a Twitch ping as a right", () => {
+        const cfg = { serverSettings: { [GID]: { twitchStreamers: [{ login: "foo", roleId: CLASS_ROLE }] } } };
+        expect(guard.grantsOf(cfg, CLASS_ROLE, { rosters: [] })).toEqual([]);
+    });
 });
 
 describe("pugRoleGuard texts", () => {

@@ -51,6 +51,8 @@ const { isVersionFeature, normalizeDisabled } = require("../../../config/version
 const { mainVersionFor, knownVersion } = require("../../../services/versions/mainVersion");
 const { logChannelsOf, logChannelsFromBody } = require("../../../services/logcheck/logChannelSettings");
 const { wclGuildsOf, wclGuildsFromBody } = require("../../../services/logcheck/wclGuildSettings");
+const { allTwitchStreamers } = require("../../../services/twitch/twitchSettings");
+const { twitchCredentialsRejected } = require("../../../services/twitch/twitchJob");
 const { normalizeCategoryPlanning } = require("../../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
@@ -215,7 +217,10 @@ const ACCESS_KEYS = ["adminRoleIds", "rolePermissions", "baseAccess", "userPermi
 // can replace it with their own. The client mirrors this with `adminOnly` on
 // the section (src/web-client/src/lib/settings/settingsSections.ts).
 // The GitHub token (#818) reads the private addon repos.
-const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github"];
+// One yes or no is the exception: GET /api/settings/twitch tells a limited settings
+// user whether the Twitch credentials are set (`hasCredentials`), the streamer list needs
+// it to explain why nothing is announced. Their values and writing them stay full-admin.
+const CREDENTIAL_KEYS = ["anthropic", "warcraftlogsV2", "github", "twitch"];
 
 // The addon downloads (#818): which repos the server fetches files from with
 // the GitHub token and hands to every member — guarded like the token itself.
@@ -822,6 +827,16 @@ function publicConfig(config) {
     if (config.github !== undefined) {
         out.github = { hasToken: !!(config.github && config.github.token) };
     }
+    if (config.twitch !== undefined) {
+        const twitch = config.twitch || {};
+        // inUse: this block only reaches a full admin, whose view holds every server's list
+        out.twitch = {
+            clientId: twitch.clientId || "",
+            hasClientSecret: !!twitch.clientSecret,
+            inUse: allTwitchStreamers({ config }).length > 0,
+            credentialsRejected: twitchCredentialsRejected(config),
+        };
+    }
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
     // #952: the old global list is kept for the server only, the browser reads the lists per server
     delete out.topItemsLegacy;
@@ -1129,6 +1144,12 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.warcraftlogsV2 = {};
         if (body.warcraftlogsV2.clientId !== undefined) partial.warcraftlogsV2.clientId = String(body.warcraftlogsV2.clientId || "").trim();
         if (body.warcraftlogsV2.clientSecret !== undefined) partial.warcraftlogsV2.clientSecret = String(body.warcraftlogsV2.clientSecret || "").trim();
+    }
+    // twitch.clientSecret: the same contract — omit = keep, "" = clear.
+    if (body.twitch !== undefined && body.twitch && typeof body.twitch === "object") {
+        partial.twitch = {};
+        if (body.twitch.clientId !== undefined) partial.twitch.clientId = String(body.twitch.clientId || "").trim();
+        if (body.twitch.clientSecret !== undefined) partial.twitch.clientSecret = String(body.twitch.clientSecret || "").trim();
     }
     // github.token (#818): the same contract — omit = keep, "" = clear.
     if (body.github !== undefined && body.github && typeof body.github === "object" && body.github.token !== undefined) {

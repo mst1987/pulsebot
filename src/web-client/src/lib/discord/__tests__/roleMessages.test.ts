@@ -12,6 +12,7 @@ import {
     ROLE_MESSAGE_LIMITS, buttonRows, colorToHex, emojiKey, groupChannels, problemText, reasonText, roleBlockReason,
     roleMessageErrorText, roleMessageProblems, toInput,
 } from "../roleMessages";
+import { roleUseLabel } from "../serverRoles";
 
 const role = (over: Partial<RoleMessageRoleOption> = {}): RoleMessageRoleOption => ({
     id: "r1", name: "Kochen", color: "#e67e22", managed: false, privileged: "", editable: true, ...over,
@@ -25,6 +26,16 @@ const input = (over: Partial<RoleMessageInput> = {}): RoleMessageInput => ({
 });
 
 const backendSource = (rel: string) => fs.readFileSync(path.join(BACKEND_SRC, rel), "utf8");
+
+describe("the Twitch ping as a role's use", () => {
+    it("is named on the role page, but never blocks taking the role yourself", () => {
+        // the server keeps it out of selfRole.grantingUses, so `privileged` stays empty
+        expect(roleBlockReason(role({ privileged: "" }))).toBe("");
+        const label = roleUseLabel({ code: "twitchPing", logins: ["somebody", "other_one"] });
+        expect(label).toContain("Twitch");
+        expect(label).toContain("somebody, other_one");
+    });
+});
 
 describe("roleBlockReason", () => {
     it("lets a plain role through and names why the others are blocked", () => {

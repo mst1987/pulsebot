@@ -288,6 +288,7 @@ describe("the sections", () => {
             expect({ id: s.id, icon: !!entry(sectionLabel(s)).querySelector(`[data-icon="${s.icon}"], img[src*="/${s.icon}.jpg"]`) }).toEqual({ id: s.id, icon: true });
         }
         // Bot online, but Battle.net, Warcraft Logs, the AI key, the GitHub token (#818) and a loot-sync token missing.
+        // The Twitch app is missing as well, but counts only once a streamer is entered.
         await waitFor(() => expect(within(entry("Verbindungen")).getByText("5")).toBeInTheDocument());
         expect(entry("Verbindungen")).toHaveAttribute("data-tip-sub", "5 Verbindungen nicht eingerichtet");
         expect(entry("Verbindungen")).toHaveAccessibleName("Verbindungen · 5 Verbindungen nicht eingerichtet");

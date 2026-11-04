@@ -123,6 +123,7 @@
     --discord-light-code: #ebedef; --discord-light-quote: #c4c9ce;
     --discord-light-mention: rgba(88, 101, 242, .15); --discord-light-mention-text: #505cdc;
     --discord-blurple: #5865f2; --discord-green: #248046;
+    --twitch-purple: #9146ff;
     /* a card's container, a grey (Secondary) button and the bot's own accent bar
        (EMBED_ACCENT_COLOR in src/config/constants.js) — the role-message preview */
     --discord-dark-card: #2b2d31; --discord-dark-secondary: #4e5058; --discord-dark-reaction: #2b2d31;

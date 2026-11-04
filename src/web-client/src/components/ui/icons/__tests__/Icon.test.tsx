@@ -42,6 +42,14 @@ describe("Icon", () => {
         expect(screen.getByRole("img", { name: "Discord" })).toHaveClass("uic-discord");
     });
 
+    it("draws Twitch's filled mark inline, in its own colour class and not as a line icon", () => {
+        render(<Icon name="twitch" title="Twitch" />);
+        const svg = screen.getByRole("img", { name: "Twitch" });
+        expect(svg).toHaveClass("uic-brand", "uic-twitch");
+        expect(svg).not.toHaveClass("uic-line");
+        expect(svg.querySelector("path")).toHaveAttribute("fill", "currentColor");
+    });
+
     it("renders nothing for a name outside the set instead of throwing", () => {
         // menu.json is cast, so a typo there must not take the shell down
         const { container } = render(<Icon name={"noSuchIcon" as never} />);

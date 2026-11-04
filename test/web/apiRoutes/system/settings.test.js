@@ -17,6 +17,11 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 // A new language (the server's or a category's) redraws the public messages; never for real here.
 jest.mock("../../../../src/services/discord/languageChange", () => ({ afterServerLangChange: jest.fn(async () => ({})) }));
+const mockCredentialsRejected = jest.fn(() => false);
+jest.mock("../../../../src/services/twitch/twitchJob", () => ({
+    ...jest.requireActual("../../../../src/services/twitch/twitchJob"),
+    twitchCredentialsRejected: (...args) => mockCredentialsRejected(...args),
+}));
 // The raider organizers redraw when the guild bank channel changes; never for real here.
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({
     refreshPanels: jest.fn(() => Promise.resolve({ edited: 0, failed: 0, unchanged: 0 })),
@@ -999,6 +1004,91 @@ describe("web/apiRoutes/settings", () => {
 
                 await patch("/api/settings", { warcraftlogsV2: { clientSecret: "" } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ warcraftlogsV2: { clientSecret: "" } });
+            });
+
+            it("forwards the Twitch client secret only when sent (omit = keep, \"\" = clear), never echoing it", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockReturnValue({ guildId: "g1", twitch: { clientId: "tw-id", clientSecret: "tw-new" } });
+
+                const res = await patch("/api/settings", { twitch: { clientId: " tw-id " } });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ twitch: { clientId: "tw-id" } });
+                expect(json(res).data.config.twitch).toEqual({ clientId: "tw-id", hasClientSecret: true, inUse: false, credentialsRejected: false });
+                expect(JSON.stringify(json(res))).not.toContain("tw-new");
+
+                await patch("/api/settings", { twitch: { clientId: "tw-id", clientSecret: " tw-new " } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ twitch: { clientId: "tw-id", clientSecret: "tw-new" } });
+
+                await patch("/api/settings", { twitch: { clientSecret: "" } });
+                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ twitch: { clientSecret: "" } });
+            });
+
+            it("tells a full admin whether any server lists a streamer, whichever is active", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockReturnValueOnce({
+                    guildId: "g1",
+                    twitch: {},
+                    serverSettings: { g1: {}, g2: { twitchStreamers: [{ login: "foo", channelId: "111111" }] } },
+                });
+                const used = await patch("/api/settings", { twitch: { clientId: "x" } });
+                expect(json(used).data.config.twitch.inUse).toBe(true);
+                expect(JSON.stringify(json(used).data.config.twitch)).not.toContain("foo");
+
+                settingsStore.saveConfig.mockReturnValueOnce({
+                    guildId: "g1", twitch: {}, serverSettings: { g1: { twitchStreamers: [] }, g2: {} },
+                });
+                const unused = await patch("/api/settings", { twitch: { clientId: "x" } });
+                expect(json(unused).data.config.twitch.inUse).toBe(false);
+            });
+
+            it("tells a full admin that Twitch refused the credentials, as yes or no only", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                const saved = { guildId: "g1", twitch: { clientId: "tw-id", clientSecret: "tw-refused" } };
+                settingsStore.saveConfig.mockReturnValueOnce(saved);
+                mockCredentialsRejected.mockReturnValueOnce(true);
+
+                const res = await patch("/api/settings", { twitch: { clientId: "tw-id" } });
+
+                expect(mockCredentialsRejected).toHaveBeenCalledWith(expect.objectContaining({ twitch: saved.twitch }));
+                expect(json(res).data.config.twitch.credentialsRejected).toBe(true);
+                expect(JSON.stringify(json(res))).not.toContain("tw-refused");
+            });
+
+            it("gives a limited settings user no Twitch block, so no inUse either", async () => {
+                auth.getUser.mockReturnValue({
+                    id: "2", name: "Orga", isAdmin: false,
+                    access: { ...emptyAccess(), settings: { read: true, write: true } },
+                });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockReturnValueOnce({
+                    guildId: "g1", twitch: { clientId: "x" }, serverSettings: { g2: { twitchStreamers: [{ login: "foo", channelId: "111111" }] } },
+                });
+                const res = await patch("/api/settings", { title: "x" });
+                expect(json(res).data.config.twitch).toBeUndefined();
+            });
+
+            it("lets nobody but a full admin write the Twitch credentials", async () => {
+                auth.getUser.mockReturnValue({
+                    id: "2", name: "Orga", isAdmin: false,
+                    access: { ...emptyAccess(), settings: { read: true, write: true } },
+                });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockClear();
+
+                const res = await patch("/api/settings", { twitch: { clientId: "x", clientSecret: "y" } });
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
+            it("does not take a Twitch list through the settings patch", async () => {
+                auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                auth.checkCsrf.mockReturnValue(true);
+                settingsStore.saveConfig.mockClear();
+
+                await patch("/api/settings", { serverSettings: { g1: { twitchStreamers: [{ login: "foo", channelId: "111111" }] } } });
+                expect(JSON.stringify(settingsStore.saveConfig.mock.calls)).not.toContain("twitchStreamers");
             });
 
             // #818: the GitHub token of the addon downloads follows the same contract.

@@ -472,6 +472,18 @@ Die Bereiche wählst du in der Icon-Leiste links neben der Seite (Name beim Übe
   - **Rollen & Onboarding** (nur Voll-Admins, je Server mit dem Schalter *PuG-Server* — Stift am Server › Server bearbeiten; offene Kategorien, Einladungen und Partner-Listen funktionieren auch ohne den Schalter): zeigt, welche Versions- und Klassenrollen und welche Onboarding-Fragen der Server haben soll und was davon schon da ist. Je PuG-Kategorie ein Schalter. Die Vorschau „Das ändert sich in Discord“ nennt jede Rolle, jedes Kategorie-Recht und Fragen, die verloren gehen; erst **In Discord übernehmen** schreibt. Das Onboarding selbst schaltest du danach in Discord ein (mindestens 7 Standard-Kanäle, alle für jeden sichtbar).
   - **Einladungen:** In der Verknüpfungs-Tabelle erzeugst du je Verknüpfung eine dauerhafte Einladung (*Erzeugen*, später *Neu erzeugen* – die alte gilt dann nicht mehr) und gibst sie dem Partner. Daneben steht, wie viele über sie **beigetreten** und **davon angemeldet** sind. Je Server gibt es dazu eine allgemeine Einladung, die das Web Nicht-Mitgliedern zeigt. Der Bot erzeugt nie von selbst eine; ist eine auf Discord gelöscht, steht „Einladung gelöscht – neu erzeugen?“. Einrichtung Schritt für Schritt: [docs/pug-server.md](pug-server.md#checkliste-einen-pug-server-einrichten).
 
+### Twitch
+
+Technik: [twitch.md](twitch.md)
+
+Unter **Einstellungen › Server › Twitch** kündigt der Bot Streams im Discord an, je Server eigene Liste. Geht jemand live, erscheint eine Karte im gewählten Kanal, die sich aktualisiert und am Ende grau wird.
+
+- **Hinzufügen:** Name oder Link des Kanals, Discord-Kanal, optional eine Rolle zum Pingen, ein eigener Text (Platzhalter `{streamer}`, `{title}`, `{game}`, `{url}`) und bis zu fünf Spielnamen. Ohne Spielnamen zählt jedes Spiel; „World of Warcraft“ trifft auch Kategorien, die den Namen enthalten.
+- **Status** in der Tabelle: „Live seit …“, „Offline“, „Live, Spiel passt nicht zum Filter“ oder der Fehler im Klartext; Titel, Spiel und Zuschauer beim Überfahren. Er kann bis zu fünf Minuten alt sein. **Jetzt prüfen** fragt sofort nach.
+- **Kanal geändert:** Die laufende Nachricht bleibt im alten Kanal, der nächste Stream erscheint im neuen.
+- **Gepingt** wird nur beim ersten Beitrag eines Streams. Ist die Rolle in Discord nicht als erwähnbar eingestellt, braucht der Bot dort „Alle erwähnen“, sonst erscheint der Name ohne Benachrichtigung.
+- **Twitch-App** (einmal für alle Server, nur Voll-Admins): Alle Server › Verbindungen. Anleitung: [twitch.md](twitch.md#creating-the-twitch-app).
+
 ### Raid-Standardwerte
 
 - **Raid-Standardwerte → Bot-Sprache** — Deutsch oder Englisch für die öffentlichen Bot-Nachrichten (Anmelde-Nachricht, Setup, Übersicht, Panels) und als Standard für alle Raider. Ein Wechsel zeichnet die laufenden Nachrichten neu. Jeder Raider kann sich mit `/language` oder dem DE/EN-Schalter oben seine eigene Sprache wählen.

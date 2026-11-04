@@ -50,6 +50,7 @@ const AREAS = {
     "roleMessages.js": require("../../../src/config/botText/de/roleMessages"),
     "softres.js": require("../../../src/config/botText/de/softres"),
     "roster.js": require("../../../src/config/botText/de/roster"),
+    "twitch.js": require("../../../src/config/botText/de/twitch"),
 };
 
 describe("config/botText/de", () => {
