@@ -54,8 +54,11 @@ export type TwitchView = {
 
 export type TwitchRequest = { userId: string; userName: string; login: string; requestedAt: number };
 
-/** What the orga decides on approval; the login comes from the request, never from here. */
-export type TwitchApproval = { userId: string; channelId: string; roleId: string; text: string; games: string[] };
+/**
+ * What the orga decides on approval. `login` is the name they saw: the server only compares it
+ * (409 request_changed), the entry takes the name from the request, never from here.
+ */
+export type TwitchApproval = { userId: string; login: string; channelId: string; roleId: string; text: string; games: string[] };
 
 export type TwitchCheckResult =
     | { checked: number; live: number; skipped?: undefined }
@@ -85,8 +88,8 @@ export function approveTwitchRequest(guildId: string, input: TwitchApproval): Pr
     return send("POST", `${PATH}/requests/approve`, { serverSettingsGuildId: guildId, ...input });
 }
 
-export function rejectTwitchRequest(guildId: string, userId: string): Promise<TwitchView> {
-    return send("POST", `${PATH}/requests/reject`, { serverSettingsGuildId: guildId, userId });
+export function rejectTwitchRequest(guildId: string, userId: string, login: string): Promise<TwitchView> {
+    return send("POST", `${PATH}/requests/reject`, { serverSettingsGuildId: guildId, userId, login });
 }
 
 export function checkTwitchStreamers(guildId: string): Promise<TwitchView & { result: TwitchCheckResult }> {

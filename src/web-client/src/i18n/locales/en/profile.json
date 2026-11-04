@@ -433,6 +433,7 @@
         "colStatus": "Status",
         "colAction": "Action",
         "empty": "You are not on a server where this works.",
+        "unknown": "Discord is not answering right now, so some servers may be missing.",
         "status": {
             "none": "No entry",
             "pending": "Waiting for approval",

@@ -197,16 +197,37 @@ const deleteStreamer = withUser({ csrf: true, body: true }, async ({ body, req, 
 });
 
 /**
+ * The open request a decision is about, or null after the refusal was sent. The body's
+ * `login` is the name the orga saw: a raider may have withdrawn and asked again with another
+ * one meanwhile, and nobody decides about a name they never saw. It is only compared, the
+ * entry's login always comes from the request.
+ */
+function requestToDecide(guildId, body, res) {
+    const request = openRequestOf(guildId, str(body.userId));
+    if (!request) {
+        error(res, 404, "not_found", "Diese Anfrage gibt es auf diesem Server nicht.");
+        return null;
+    }
+    if (parseLogin(body.login) !== request.login) {
+        error(res, 409, "request_changed", "Diese Anfrage hat sich geändert. Bitte neu prüfen.");
+        return null;
+    }
+    return request;
+}
+
+/**
  * POST /api/settings/twitch/requests/approve - give a raider's open request its entry: the
  * login is the request's, channel, role, text and games are the orga's, `source` is fixed
- * here. Refused (a full list, a login listed meanwhile) the request stays open.
+ * here. Refused (a changed request, a full list, a login listed meanwhile) the request stays
+ * open. The record is written before the list: should the list fail then, the raider's status
+ * is "none" and they ask again; the other way round they would be announced with no way off.
  */
 const approveRequest = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     const target = writeTarget(body, req, res);
     if (!target) return undefined;
     const { guildId, config } = target;
-    const request = openRequestOf(guildId, str(body.userId));
-    if (!request) return error(res, 404, "not_found", "Diese Anfrage gibt es auf diesem Server nicht.");
+    const request = requestToDecide(guildId, body, res);
+    if (!request) return undefined;
     const current = twitchStreamersOf(guildId, { config });
     if (current.length >= MAX_STREAMERS_PER_SERVER) {
         return error(res, 409, "too_many", `Höchstens ${MAX_STREAMERS_PER_SERVER} Streamer je Server.`);
@@ -218,11 +239,10 @@ const approveRequest = withUser({ csrf: true, body: true }, async ({ user, body,
         const entry = list[list.length - 1];
         if (!targetsAllowed({ user, req, res, guildId }, entry, null)) return false;
         entry.source = "raider";
+        markApproved(request);
         return true;
     });
-    if (!saved) return undefined;
-    markApproved(request);
-    ok(res, view(guildId));
+    if (saved) ok(res, saved);
     return undefined;
 });
 
@@ -230,9 +250,9 @@ const approveRequest = withUser({ csrf: true, body: true }, async ({ user, body,
 const postRejectRequest = withUser({ csrf: true, body: true }, async ({ body, req, res }) => {
     const target = writeTarget(body, req, res);
     if (!target) return undefined;
-    if (!rejectRequest(target.guildId, str(body.userId))) {
-        return error(res, 404, "not_found", "Diese Anfrage gibt es auf diesem Server nicht.");
-    }
+    const request = requestToDecide(target.guildId, body, res);
+    if (!request) return undefined;
+    rejectRequest(target.guildId, request.userId);
     ok(res, view(target.guildId, target.config));
     return undefined;
 });

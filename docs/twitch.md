@@ -120,8 +120,9 @@ Edge cases, and what happens:
 | Login is already in the list | 409 `already_listed` when asking. It is not marked as approved, otherwise anyone could claim someone else's entry and remove it |
 | Two open requests for one login | Allowed. The second approval answers 409 `duplicate_streamer`, the request stays open and the orga rejects it |
 | Raider changes the name | An open request keeps the old name until withdrawn and asked again; an approved entry stays until the raider removes it and asks again |
-| Raider leaves the server | Request and entry stay, the orga decides; the raider can still withdraw or remove |
-| Membership lookup fails | Asking is refused with 503 `member_unknown` (fail closed); listing keeps the servers already known |
+| Raider asks again under another name while the orga's tab is open | Approve and reject carry the login the orga saw; a difference answers 409 `request_changed` and the page reloads. The entry always takes the name from the request |
+| Raider leaves the server | Request and entry stay; approving does not check membership again, the orga decides. The raider can still withdraw or remove |
+| Membership lookup fails | Asking is refused with 503 `member_unknown` (fail closed). The list drops servers without an own record and sets `unknown: true`: the names of foreign servers must not show |
 
 ## Rights
 
@@ -150,12 +151,12 @@ next check, gone at once when other credentials are saved.
 | `PUT /api/settings/twitch` | `serverSettingsGuildId, login, channelId?, roleId?, text?, games?`; omitted = kept, `roleId: ""` removes | view; 404 `not_found` |
 | `DELETE /api/settings/twitch` | `serverSettingsGuildId, login` | view; 404 `not_found` |
 | `POST /api/settings/twitch/check` | `serverSettingsGuildId` | `{ result, ...view }` |
-| `POST /api/settings/twitch/requests/approve` | `serverSettingsGuildId, userId, channelId, roleId?, text?, games?` | view; 404 `not_found`, 409 `too_many`, `duplicate_streamer` |
-| `POST /api/settings/twitch/requests/reject` | `serverSettingsGuildId, userId` | view; 404 `not_found` |
-| `GET /api/profile/twitch` | - | `{ servers, lastLogin }` |
-| `POST /api/profile/twitch` | `guildId, login` | 201 `{ servers, lastLogin }`; 404 `not_found`, 403 `not_member`, 503 `member_unknown`, 400 `invalid_login`, 409 `already_open`, `already_approved`, `already_listed` |
-| `POST /api/profile/twitch/withdraw` | `guildId` | `{ servers, lastLogin }`; 404 `not_found` |
-| `POST /api/profile/twitch/remove` | `guildId` | `{ servers, lastLogin }`; 404 `not_found` |
+| `POST /api/settings/twitch/requests/approve` | `serverSettingsGuildId, userId, login, channelId, roleId?, text?, games?` | view; 404 `not_found`, 409 `request_changed`, `too_many`, `duplicate_streamer` |
+| `POST /api/settings/twitch/requests/reject` | `serverSettingsGuildId, userId, login` | view; 404 `not_found`, 409 `request_changed` |
+| `GET /api/profile/twitch` | - | `{ servers, lastLogin, unknown }` |
+| `POST /api/profile/twitch` | `guildId, login` | 201 `{ servers, lastLogin, unknown }`; 404 `not_found`, 403 `not_member`, 503 `member_unknown`, 400 `invalid_login`, 409 `already_open`, `already_approved`, `already_listed` |
+| `POST /api/profile/twitch/withdraw` | `guildId` | `{ servers, lastLogin, unknown }`; 404 `not_found` |
+| `POST /api/profile/twitch/remove` | `guildId` | `{ servers, lastLogin, unknown }`; 404 `not_found` |
 
 `servers` holds per server `guildId, name, icon, status, login, requestedAt, decidedAt`.
 

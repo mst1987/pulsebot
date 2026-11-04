@@ -1861,6 +1861,8 @@
             "approveTitle": "Anfrage freigeben",
             "approveAction": "Freigeben",
             "requestedBy": "Angefragt von {name}",
+            "requestLogin": "Twitch-Name",
+            "approveNeedsChannel": "Erst einen Kanal wählen.",
             "login": "Name oder Link",
             "loginPlaceholder": "twitch.tv/name",
             "channel": "Kanal",
@@ -1883,6 +1885,7 @@
         },
         "error": {
             "invalid_login": "Das ist kein gültiger Twitch-Name oder -Link.",
+            "request_changed": "Diese Anfrage hat sich geändert. Die Liste ist neu geladen, bitte noch einmal prüfen.",
             "duplicate_streamer": "Dieser Streamer steht schon in der Liste.",
             "missing_channel": "Bitte einen Kanal wählen.",
             "invalid_channel": "In diesen Kanal kann der Bot nichts posten. Bitte einen Textkanal wählen.",

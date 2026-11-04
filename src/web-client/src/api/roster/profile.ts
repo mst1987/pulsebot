@@ -371,7 +371,12 @@ export type ProfileTwitchServer = {
     decidedAt: number;
 };
 
-export type ProfileTwitch = { servers: ProfileTwitchServer[]; lastLogin: string };
+export type ProfileTwitch = {
+    servers: ProfileTwitchServer[];
+    lastLogin: string;
+    /** Discord could not say for at least one server: its line is left out, a foreign server's name must not show. */
+    unknown?: boolean;
+};
 
 export function getProfileTwitch(): Promise<ProfileTwitch> {
     return get("/api/profile/twitch");

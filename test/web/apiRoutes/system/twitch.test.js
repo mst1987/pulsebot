@@ -44,7 +44,7 @@ const {
 } = require("../../../../src/web/apiRoutes/system/twitch");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const requestStore = require("../../../../src/stores/discord/twitchRequestStore");
-const { fileRequest, statusOf } = require("../../../../src/services/twitch/twitchRequests");
+const { fileRequest, statusOf, withdrawRequest } = require("../../../../src/services/twitch/twitchRequests");
 
 const GUILD_A = "100000";
 const GUILD_B = "200000";
@@ -426,7 +426,7 @@ describe("raiders' requests", () => {
             ask({ userId: "888888", login: "bert", now: 3 });
             ask({ userId: "999999", login: "cara", guildId: GUILD_B });
             ask({ userId: "333333", login: "dora" });
-            await write(postRejectRequest, { userId: "333333" });
+            await write(postRejectRequest, { userId: "333333", login: "dora" });
             const res = await call(getStreamers);
             expect(body(res).requests).toEqual([
                 { userId: "888888", userName: "Anna", login: "bert", requestedAt: 3 },
@@ -436,7 +436,7 @@ describe("raiders' requests", () => {
     });
 
     describe("POST .../requests/approve", () => {
-        const approve = (over = {}) => write(approveRequest, { userId: RAIDER, channelId: CHANNEL_A, roleId: ROLE_A, text: "Hallo", games: ["WoW"], ...over });
+        const approve = (over = {}) => write(approveRequest, { userId: RAIDER, login: "anna", channelId: CHANNEL_A, roleId: ROLE_A, text: "Hallo", games: ["WoW"], ...over });
 
         it("gives the request a normal entry with its source and clears it from the open ones", async () => {
             ask();
@@ -451,9 +451,72 @@ describe("raiders' requests", () => {
 
         it("takes the login from the request and the source from nobody's body", async () => {
             ask();
-            await approve({ login: "fremd", source: "orga" });
-            expect(listOf().some((e) => e.login === "fremd")).toBe(false);
+            // the body only has to mean the same name, the entry gets the request's spelling
+            expect(status(await approve({ login: "https://twitch.tv/ANNA", source: "orga" }))).toBe(200);
+            expect(listOf().map((e) => e.login)).toEqual(["foo", "anna"]);
             expect(listOf().find((e) => e.login === "anna").source).toBe("raider");
+        });
+
+        it.each([
+            ["another name", { login: "fremd" }],
+            ["no name at all", { login: undefined }],
+            ["an empty name", { login: "" }],
+        ])("refuses %s with 409 request_changed and changes nothing", async (_label, over) => {
+            ask();
+            const before = listOf().length;
+            const res = await approve(over);
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("request_changed");
+            expect(listOf()).toHaveLength(before);
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+            expect(saveConfig).not.toHaveBeenCalled();
+        });
+
+        it("cannot give out a name nobody saw when the raider asked again with another one", async () => {
+            ask();
+            withdrawRequest(GUILD_A, RAIDER);
+            ask({ login: "neuername" });
+            const res = await approve();
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("request_changed");
+            expect(listOf().some((e) => e.login === "neuername")).toBe(false);
+            expect(requestStore.requestOf(GUILD_A, RAIDER)).toMatchObject({ login: "neuername", status: "pending" });
+            expect(status(await approve({ login: "neuername" }))).toBe(200);
+        });
+
+        it("a list that cannot be saved leaves the raider able to ask again, and not announced", async () => {
+            ask();
+            const before = listOf().length;
+            saveConfig.mockImplementationOnce(() => { throw new Error("Platte voll"); });
+            await expect(approve()).rejects.toThrow("Platte voll");
+            expect(listOf()).toHaveLength(before);
+            expect(statusOf(requestStore.requestOf(GUILD_A, RAIDER), mockConfig)).toBe("none");
+            expect(ask({ login: "anna" }).status).toBe("pending");
+        });
+
+        it("a record that cannot be written leaves the list alone: nobody is announced with no way off", async () => {
+            ask();
+            const before = listOf().length;
+            const put = jest.spyOn(requestStore, "putRequest").mockImplementationOnce(() => { throw new Error("Platte voll"); });
+            try {
+                await expect(approve()).rejects.toThrow("Platte voll");
+            } finally {
+                put.mockRestore();
+            }
+            expect(saveConfig).not.toHaveBeenCalled();
+            expect(listOf()).toHaveLength(before);
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("marks the record only after every check of the entry", async () => {
+            ask();
+            const put = jest.spyOn(requestStore, "putRequest");
+            try {
+                await approve({ channelId: CHANNEL_B });
+                expect(put).not.toHaveBeenCalled();
+            } finally {
+                put.mockRestore();
+            }
         });
 
         it("a later edit keeps the source", async () => {
@@ -477,7 +540,7 @@ describe("raiders' requests", () => {
             ask({ userId: "888888", login: "bert" });
             expect(status(await approve())).toBe(200);
 
-            const res = await write(approveRequest, { userId: "888888", channelId: CHANNEL_A });
+            const res = await write(approveRequest, { userId: "888888", login: "bert", channelId: CHANNEL_A });
             expect(status(res)).toBe(409);
             expect(code(res)).toBe("too_many");
             expect(listOf()).toHaveLength(25);
@@ -552,9 +615,11 @@ describe("raiders' requests", () => {
     });
 
     describe("POST .../requests/reject", () => {
+        const reject = (over = {}) => write(postRejectRequest, { userId: RAIDER, login: "anna", ...over });
+
         it("says no, nothing lands in the list", async () => {
             ask();
-            const res = await write(postRejectRequest, { userId: RAIDER });
+            const res = await reject();
             expect(status(res)).toBe(200);
             expect(body(res).requests).toEqual([]);
             expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("rejected");
@@ -563,7 +628,7 @@ describe("raiders' requests", () => {
 
         it("cannot reach a request of another server: 404", async () => {
             ask({ guildId: GUILD_B });
-            const res = await write(postRejectRequest, { userId: RAIDER });
+            const res = await reject();
             expect(status(res)).toBe(404);
             expect(requestStore.requestOf(GUILD_B, RAIDER).status).toBe("pending");
         });
@@ -571,14 +636,34 @@ describe("raiders' requests", () => {
         it("a stale tab of another server gets 409", async () => {
             ask();
             activeGuildFor.mockReturnValue(GUILD_B);
-            const res = await write(postRejectRequest, { userId: RAIDER });
+            const res = await reject();
             expect(code(res)).toBe("server_switched");
             expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
         });
 
+        it.each([
+            ["another name", { login: "fremd" }],
+            ["no name at all", { login: undefined }],
+        ])("refuses %s with 409 request_changed, the request stays open", async (_label, over) => {
+            ask();
+            const res = await reject(over);
+            expect(status(res)).toBe(409);
+            expect(code(res)).toBe("request_changed");
+            expect(requestStore.requestOf(GUILD_A, RAIDER).status).toBe("pending");
+        });
+
+        it("cannot say no to a name nobody saw when the raider asked again with another one", async () => {
+            ask();
+            withdrawRequest(GUILD_A, RAIDER);
+            ask({ login: "neuername" });
+            expect(code(await reject())).toBe("request_changed");
+            expect(requestStore.requestOf(GUILD_A, RAIDER)).toMatchObject({ login: "neuername", status: "pending" });
+            expect(status(await reject({ login: "neuername" }))).toBe(200);
+        });
+
         it("the raider may ask again at once", async () => {
             ask();
-            await write(postRejectRequest, { userId: RAIDER });
+            await reject();
             expect(ask({ login: "anderer" }).status).toBe("pending");
         });
 

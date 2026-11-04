@@ -417,7 +417,7 @@ describe("open requests", () => {
         fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
         fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
         await waitFor(() => expect(api.approveTwitchRequest).toHaveBeenCalledWith(GUILD, {
-            userId: "u7", channelId: "c1", roleId: "", text: "", games: [],
+            userId: "u7", login: "annastream", channelId: "c1", roleId: "", text: "", games: [],
         }));
         await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining("annastream")));
         expect(screen.queryByRole("dialog")).toBeNull();
@@ -437,7 +437,7 @@ describe("open requests", () => {
         confirm.mockResolvedValue(true);
         api.rejectTwitchRequest.mockResolvedValue(view());
         fireEvent.click(rejectButton());
-        await waitFor(() => expect(api.rejectTwitchRequest).toHaveBeenCalledWith(GUILD, "u7"));
+        await waitFor(() => expect(api.rejectTwitchRequest).toHaveBeenCalledWith(GUILD, "u7", "annastream"));
         await waitFor(() => expect(requestsBlock()).toBeNull());
     });
 
@@ -451,9 +451,9 @@ describe("open requests", () => {
         expect((requestsBlock() as HTMLElement).textContent).toContain("Die Liste ist voll");
     });
 
-    it("words too_many in a toast and keeps the request open", async () => {
+    it.each(["too_many", "duplicate_streamer"])("words %s in a toast, keeps the dialog and reloads list and counter", async (code) => {
         api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
-        api.approveTwitchRequest.mockRejectedValue(apiError("too_many"));
+        api.approveTwitchRequest.mockRejectedValue(apiError(code));
         show();
         await screen.findByText("1 offene Anfrage");
         fireEvent.click(approveButton());
@@ -462,9 +462,78 @@ describe("open requests", () => {
         fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
         await waitFor(() => expect(toast).toHaveBeenCalled());
         expect(toast.mock.calls[0][1]).toBe("err");
-        expect(toast.mock.calls[0][0]).not.toContain("too_many");
+        expect(toast.mock.calls[0][0]).not.toContain(code);
+        await waitFor(() => expect(api.getTwitchSettings).toHaveBeenCalledTimes(2));
         expect(screen.getByRole("dialog")).toBeTruthy();
         expect(requestsBlock()).not.toBeNull();
+    });
+
+    it("does not reload on a refusal about the dialog's own input", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError("invalid_channel"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalled());
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole("dialog")).toBeTruthy();
+    });
+
+    it("closes the dialog, reloads and says so when the name was changed in the meantime", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError("request_changed"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [{ ...REQUEST, login: "othername" }] }));
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect((requestsBlock() as HTMLElement).textContent).toContain("othername"));
+        expect(toast).toHaveBeenCalledWith(expect.stringContaining("geändert"), "err");
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it("reloads and says so when rejecting a name that was changed in the meantime", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        confirm.mockResolvedValue(true);
+        api.rejectTwitchRequest.mockRejectedValue(apiError("request_changed"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [{ ...REQUEST, login: "othername" }] }));
+        fireEvent.click(rejectButton());
+        await waitFor(() => expect((requestsBlock() as HTMLElement).textContent).toContain("othername"));
+        expect(toast).toHaveBeenCalledWith(expect.stringContaining("geändert"), "err");
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it("names the field after what it holds, focuses the channel and says why approving is locked", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        expect(d.getByLabelText("Twitch-Name")).toBe(document.getElementById("tws-login"));
+        expect(d.queryByLabelText("Name oder Link")).toBeNull();
+        await waitFor(() => expect(document.activeElement).toBe(document.getElementById("tws-channel")));
+        expect((d.getByRole("button", { name: /Freigeben/ }) as HTMLButtonElement).disabled).toBe(true);
+        expect(d.getByText("Erst einen Kanal wählen.")).toBeTruthy();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        expect(d.queryByText("Erst einen Kanal wählen.")).toBeNull();
+        expect((d.getByRole("button", { name: /Freigeben/ }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("leaves editing an entry as it was", async () => {
+        show();
+        await screen.findByRole("link", { name: "somebody" });
+        fireEvent.click(document.querySelector(".tws-actions button") as HTMLElement);
+        const d = await dialog();
+        expect(d.getByLabelText("Name oder Link")).toBe(document.getElementById("tws-login"));
+        expect(d.queryByText("Erst einen Kanal wählen.")).toBeNull();
     });
 
     it("reloads when the request is gone, from the dialog and from rejecting", async () => {

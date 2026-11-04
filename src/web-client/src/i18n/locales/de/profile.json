@@ -433,6 +433,7 @@
         "colStatus": "Status",
         "colAction": "Aktion",
         "empty": "Du bist auf keinem Server, auf dem das geht.",
+        "unknown": "Discord antwortet gerade nicht, deshalb fehlen vielleicht Server.",
         "status": {
             "none": "Kein Eintrag",
             "pending": "Wartet auf Freigabe",

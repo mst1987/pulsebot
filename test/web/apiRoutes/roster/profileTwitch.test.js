@@ -79,16 +79,61 @@ describe("the route table", () => {
 });
 
 describe("GET /api/profile/twitch", () => {
-    it("shows the servers one is a member of, and those Discord cannot answer for", async () => {
+    it("shows only the servers one is a member of, and says when Discord cannot answer for one", async () => {
         const res = await api.get("/api/profile/twitch");
         expect(status(res)).toBe(200);
         expect(json(res).data).toEqual({
             servers: [
                 { guildId: "g1", name: "Pulse", icon: "http://icon/1", status: "none", login: "", requestedAt: 0, decidedAt: 0 },
-                { guildId: "g3", name: "Dritter", icon: "", status: "none", login: "", requestedAt: 0, decidedAt: 0 },
             ],
             lastLogin: "",
+            unknown: true,
         });
+    });
+
+    it("never names a foreign server, not even while Discord is down", async () => {
+        discord.guildMembership.mockReset().mockResolvedValue(null);
+        const data = json(await api.get("/api/profile/twitch")).data;
+        expect(data).toEqual({ servers: [], lastLogin: "", unknown: true });
+        expect(JSON.stringify(data)).not.toMatch(/Pulse|PuGs|Dritter/);
+    });
+
+    it("keeps one's own line with a record while Discord cannot answer", async () => {
+        fileRequest({ guildId: "g3", userId: "u1", userName: "Anna", login: "anna", now: 5 });
+        const data = json(await api.get("/api/profile/twitch")).data;
+        expect(data.servers.find((s) => s.guildId === "g3")).toMatchObject({ name: "Dritter", status: "pending", login: "anna" });
+        // no line is missing then: g1 is yours, g2 Discord denied, g3 is shown
+        expect(data.unknown).toBe(false);
+    });
+
+    it("an approved record whose entry is gone is no record: no line without membership", async () => {
+        markApproved(fileRequest({ guildId: "g3", userId: "u1", userName: "Anna", login: "anna" }));
+        const data = json(await api.get("/api/profile/twitch")).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g1"]);
+        expect(data.unknown).toBe(true);
+    });
+
+    it("has nothing to say when Discord answers for every server", async () => {
+        members["g3:u1"] = true;
+        const data = json(await api.get("/api/profile/twitch")).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g1", "g3"]);
+        expect(data.unknown).toBe(false);
+    });
+
+    it("a clear no is no gap", async () => {
+        members["g3:u1"] = false;
+        const data = json(await api.get("/api/profile/twitch")).data;
+        expect(data.servers.map((s) => s.guildId)).toEqual(["g1"]);
+        expect(data.unknown).toBe(false);
+    });
+
+    it("reads the list after the wait: a decision during the Discord round counts", async () => {
+        markApproved(fileRequest({ guildId: "g1", userId: "u1", userName: "Anna", login: "anna" }));
+        discord.guildMembership.mockImplementation(async (guildId) => {
+            if (guildId === "g1") listOf().push(entry("anna"));
+            return true;
+        });
+        expect(lineOf(await api.get("/api/profile/twitch"), "g1")).toMatchObject({ status: "approved", login: "anna" });
     });
 
     it("keeps a server one left while a record of one's own is there", async () => {

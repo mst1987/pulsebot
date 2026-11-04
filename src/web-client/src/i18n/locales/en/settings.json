@@ -1861,6 +1861,8 @@
             "approveTitle": "Approve request",
             "approveAction": "Approve",
             "requestedBy": "Requested by {name}",
+            "requestLogin": "Twitch name",
+            "approveNeedsChannel": "Choose a channel first.",
             "login": "Name or link",
             "loginPlaceholder": "twitch.tv/name",
             "channel": "Channel",
@@ -1883,6 +1885,7 @@
         },
         "error": {
             "invalid_login": "That is not a valid Twitch name or link.",
+            "request_changed": "This request has changed. The list has been reloaded, please check it again.",
             "duplicate_streamer": "This streamer is already on the list.",
             "missing_channel": "Please pick a channel.",
             "invalid_channel": "The bot can't post in this channel. Please pick a text channel.",

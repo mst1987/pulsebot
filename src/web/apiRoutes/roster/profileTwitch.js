@@ -22,18 +22,23 @@ const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 const CONFLICT_CODES = new Set(["already_open", "already_approved", "already_listed"]);
 
 /**
- * The caller's line per server: the servers they are in, and any they left but still have
- * a record on. "Not knowable" keeps the server in view (a Discord hiccup never empties the
- * section), the request itself is then refused.
+ * The caller's line per server: the servers they are in, and any they have a record on,
+ * left or not. A server's name is only shown to those two: "not knowable" (bot offline,
+ * Discord slow) drops the line and says so with `unknown`, a Discord hiccup must not show
+ * the names of foreign servers. The list is read after the wait, a decision may fall into it.
  */
 async function payload(userId) {
-    const config = getConfig();
-    const servers = serverChoices(config);
+    const servers = serverChoices(getConfig());
     const member = await Promise.all(servers.map((s) => discord.guildMembership(s.guildId, userId)));
+    const config = getConfig();
+    let unknown = false;
     const lines = servers.flatMap((server, i) => {
         const record = requestOf(server.guildId, userId);
         const status = statusOf(record, config);
-        if (member[i] === false && status === "none") return [];
+        if (member[i] !== true && status === "none") {
+            if (member[i] !== false) unknown = true;
+            return [];
+        }
         const shown = status === "none" ? null : record;
         return [{
             guildId: server.guildId,
@@ -46,7 +51,7 @@ async function payload(userId) {
         }];
     });
     const last = requestsOfUser(userId).sort((a, b) => b.requestedAt - a.requestedAt)[0];
-    return { servers: lines, lastLogin: last ? last.login : "" };
+    return { servers: lines, lastLogin: last ? last.login : "", unknown };
 }
 
 /** GET /api/profile/twitch - the caller's requests, one line per server. */

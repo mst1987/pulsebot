@@ -1,6 +1,6 @@
 import { useState } from "react";
 import {
-    removeOwnTwitch, requestTwitch, withdrawTwitch,
+    getProfileTwitch, removeOwnTwitch, requestTwitch, withdrawTwitch,
     type ApiError, type ProfileTwitch, type ProfileTwitchServer, type ProfileTwitchStatus,
 } from "../../api";
 import { Button, DataTable, useConfirm, type Column } from "../../components/ui";
@@ -18,6 +18,9 @@ type SortKey = "server" | "status";
 
 const STATUS_RANK: Record<ProfileTwitchStatus, number> = { pending: 0, rejected: 1, approved: 2, none: 3 };
 
+/** The refusals (404 and 409) that mean the rows on screen are out of date. */
+const STALE_CODES = new Set(["not_found", "already_open", "already_approved", "already_listed"]);
+
 function serverKey(s: ProfileTwitchServer): string {
     return s.name || s.guildId;
 }
@@ -33,7 +36,7 @@ export function TwitchPart({ data, onChange }: {
     const [busy, setBusy] = useState("");
     const sort = useTableSort<SortKey>("profile-twitch-sort", { server: "asc", status: "asc" }, "server");
 
-    /** One action on one server at a time; a stale list reloads through the answer of the next one. */
+    /** One action on one server at a time; a refusal that shows the rows are stale reloads them. */
     const run = async (guildId: string, action: () => Promise<ProfileTwitch>, done: string) => {
         setBusy(guildId);
         try {
@@ -44,6 +47,7 @@ export function TwitchPart({ data, onChange }: {
         } catch (e) {
             const err = e as ApiError;
             toast(tOr(`profile.twitch.error.${err.code}`, err.message), "err");
+            if (STALE_CODES.has(err.code)) await getProfileTwitch().then(onChange).catch(() => undefined);
         } finally {
             setBusy("");
         }
@@ -91,6 +95,7 @@ export function TwitchPart({ data, onChange }: {
     return (
         <div className="pf-cal">
             <p className="pf-muted">{t("profile.twitch.intro")}</p>
+            {data.unknown && <p className="pf-muted" role="status">{t("profile.twitch.unknown")}</p>}
             <div className="pf-sync-new">
                 <input
                     type="text"
@@ -108,7 +113,7 @@ export function TwitchPart({ data, onChange }: {
                 sort={sort}
                 sortValue={sortValue}
                 wrapClassName="pf-sync-wrap"
-                empty={<p className="pf-muted">{t("profile.twitch.empty")}</p>}
+                empty={data.unknown ? null : <p className="pf-muted">{t("profile.twitch.empty")}</p>}
             />
         </div>
     );

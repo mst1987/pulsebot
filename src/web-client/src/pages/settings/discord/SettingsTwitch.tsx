@@ -109,13 +109,13 @@ export default function SettingsTwitch({ guildId, channels, roles, onRequestsCha
         });
         if (!sure) return;
         try {
-            page.setData(await rejectTwitchRequest(guildId, request.userId));
+            page.setData(await rejectTwitchRequest(guildId, request.userId, request.login));
             toast(t("settings.twitch.requests.rejected", { login: request.login }));
         } catch (e) {
             const err = e as ApiError;
             if (err.code === "server_switched") setSwitched(true);
-            // withdrawn in the meantime: the list on screen is out of date
-            if (err.code === "not_found") void page.reload();
+            // withdrawn or asked anew in the meantime: the list on screen is out of date
+            if (err.code === "not_found" || err.code === "request_changed") void page.reload();
             toast(twitchRequestErrorText(err), "err");
         }
     }
@@ -290,6 +290,7 @@ export default function SettingsTwitch({ guildId, channels, roles, onRequestsCha
                         setApproving(null);
                         void page.reload();
                     }}
+                    onStale={() => void page.reload()}
                     onSwitched={() => {
                         setSwitched(true);
                         setApproving(null);
@@ -304,7 +305,7 @@ export default function SettingsTwitch({ guildId, channels, roles, onRequestsCha
  * Adding or editing one streamer, or approving a raider's request: the name stays fixed once
  * saved, it identifies the entry, and on a request it is what the raider asked for.
  */
-function StreamerDialog({ guildId, streamer, request = null, limits, mention, channels, roles, onClose, onSaved, onGone, onSwitched }: {
+function StreamerDialog({ guildId, streamer, request = null, limits, mention, channels, roles, onClose, onSaved, onGone, onStale, onSwitched }: {
     guildId: string;
     streamer: TwitchStreamer | null;
     request?: TwitchRequest | null;
@@ -314,8 +315,10 @@ function StreamerDialog({ guildId, streamer, request = null, limits, mention, ch
     roles: Role[];
     onClose: () => void;
     onSaved: (view: TwitchView, login: string) => void;
-    /** The request does not exist any more. */
+    /** The request does not exist any more, or is not the one the orga saw. */
     onGone?: () => void;
+    /** The list behind the dialog is out of date; the request itself still stands, the dialog stays. */
+    onStale?: () => void;
     onSwitched: () => void;
 }) {
     const t = useT();
@@ -348,14 +351,15 @@ function StreamerDialog({ guildId, streamer, request = null, limits, mention, ch
         try {
             const input = { login: login.trim(), channelId, roleId, text, games: pending.games };
             let view: TwitchView;
-            if (request) view = await approveTwitchRequest(guildId, { userId: request.userId, channelId, roleId, text, games: pending.games });
+            if (request) view = await approveTwitchRequest(guildId, { userId: request.userId, login: request.login, channelId, roleId, text, games: pending.games });
             else if (streamer) view = await updateTwitchStreamer(guildId, input);
             else view = await addTwitchStreamer(guildId, input);
             onSaved(view, login.trim());
         } catch (e) {
             const err = e as ApiError;
             if (err.code === "server_switched") onSwitched();
-            if (request && err.code === "not_found") onGone?.();
+            if (request && (err.code === "not_found" || err.code === "request_changed")) onGone?.();
+            if (request && (err.code === "duplicate_streamer" || err.code === "too_many")) onStale?.();
             toast(request ? twitchRequestErrorText(err) : twitchErrorText(err), "err");
         } finally {
             setBusy(false);
@@ -370,7 +374,7 @@ function StreamerDialog({ guildId, streamer, request = null, limits, mention, ch
             tone="settings"
             title={request ? t("settings.twitch.modal.approveTitle") : streamer ? t("settings.twitch.modal.editTitle") : t("settings.twitch.modal.addTitle")}
             width={480}
-            initialFocus="input"
+            initialFocus={request ? "#tws-channel" : "input"}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
@@ -386,7 +390,7 @@ function StreamerDialog({ guildId, streamer, request = null, limits, mention, ch
             )}
         >
             <Field
-                label={t("settings.twitch.modal.login")}
+                label={request ? t("settings.twitch.modal.requestLogin") : t("settings.twitch.modal.login")}
                 htmlFor="tws-login"
                 className="dlg-field tws-field"
                 hint={request ? t("settings.twitch.modal.requestedBy", { name: request.userName || request.userId }) : undefined}
@@ -399,7 +403,12 @@ function StreamerDialog({ guildId, streamer, request = null, limits, mention, ch
                     onChange={(e) => setLogin(e.target.value)}
                 />
             </Field>
-            <Field label={t("settings.twitch.modal.channel")} htmlFor="tws-channel" className="dlg-field tws-field">
+            <Field
+                label={t("settings.twitch.modal.channel")}
+                htmlFor="tws-channel"
+                className="dlg-field tws-field"
+                hint={request && !channelId ? t("settings.twitch.modal.approveNeedsChannel") : undefined}
+            >
                 <ChannelPicker id="tws-channel" value={channelId} channels={channels} onChange={setChannelId} placeholder={t("settings.twitch.modal.channelPlaceholder")} />
             </Field>
             <Field label={t("settings.twitch.modal.role")} htmlFor="tws-role" className="dlg-field tws-field">

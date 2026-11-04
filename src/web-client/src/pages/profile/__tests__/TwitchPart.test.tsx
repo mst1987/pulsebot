@@ -9,6 +9,7 @@ const api = vi.hoisted(() => ({
     requestTwitch: vi.fn(),
     withdrawTwitch: vi.fn(),
     removeOwnTwitch: vi.fn(),
+    getProfileTwitch: vi.fn(),
 }));
 const toast = vi.hoisted(() => vi.fn());
 const confirm = vi.hoisted(() => vi.fn());
@@ -71,16 +72,59 @@ describe("asking", () => {
         ["invalid_login", "kein gültiger"],
         ["not_member", "kein Mitglied"],
         ["member_unknown", "nicht prüfen"],
-        ["already_open", "wartet schon"],
-        ["already_approved", "schon in der Liste"],
-        ["already_listed", "schon in der Liste"],
-        ["not_found", "keinen Eintrag"],
-    ])("words the refusal %s", async (code, words) => {
+    ])("words the refusal %s and leaves the rows alone", async (code, words) => {
         api.requestTwitch.mockRejectedValue(apiError(code));
         const onChange = show(data({}, "annastream"));
         fireEvent.click(button(/Anfragen/));
         await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining(words), "err"));
+        expect(api.getProfileTwitch).not.toHaveBeenCalled();
         expect(onChange).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ["already_open", "wartet schon"],
+        ["already_approved", "schon in der Liste"],
+        ["already_listed", "schon in der Liste"],
+        ["not_found", "keinen Eintrag"],
+    ])("words the refusal %s and reloads the stale rows", async (code, words) => {
+        const fresh = data({ status: "pending", login: "annastream" }, "annastream");
+        api.requestTwitch.mockRejectedValue(apiError(code));
+        api.getProfileTwitch.mockResolvedValue(fresh);
+        const onChange = show(data({}, "annastream"));
+        fireEvent.click(button(/Anfragen/));
+        await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining(words), "err"));
+        await waitFor(() => expect(onChange).toHaveBeenCalledWith(fresh));
+    });
+
+    it("keeps the refusal on screen when the reload fails as well", async () => {
+        api.requestTwitch.mockRejectedValue(apiError("already_open"));
+        api.getProfileTwitch.mockRejectedValue(apiError("offline"));
+        const onChange = show(data({}, "annastream"));
+        fireEvent.click(button(/Anfragen/));
+        await waitFor(() => expect(api.getProfileTwitch).toHaveBeenCalled());
+        await waitFor(() => expect(button(/Anfragen/).disabled).toBe(false));
+        expect(toast).toHaveBeenCalledTimes(1);
+        expect(onChange).not.toHaveBeenCalled();
+    });
+});
+
+describe("when Discord cannot answer", () => {
+    it("says so above the rows that are safe to show", () => {
+        show({ ...data({ status: "pending", login: "annastream" }), unknown: true });
+        expect(screen.getByRole("status").textContent).toContain("Discord antwortet gerade nicht");
+        expect(screen.getByText("Pulse")).toBeTruthy();
+    });
+
+    it("does not claim there is no server when it cannot know", () => {
+        show({ servers: [], lastLogin: "", unknown: true });
+        expect(screen.getByRole("status").textContent).toContain("Discord antwortet gerade nicht");
+        expect(screen.queryByText(/auf keinem Server/)).toBeNull();
+    });
+
+    it("has no such sentence when Discord answered", () => {
+        show({ servers: [], lastLogin: "", unknown: false });
+        expect(screen.queryByRole("status")).toBeNull();
+        expect(screen.getByText(/auf keinem Server/)).toBeTruthy();
     });
 });
 
