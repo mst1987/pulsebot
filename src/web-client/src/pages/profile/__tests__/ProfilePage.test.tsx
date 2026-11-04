@@ -31,6 +31,7 @@ vi.mock("../../../api", async (orig) => ({
     getRaiderAttendance: vi.fn(),
     getProfileRaiding: vi.fn(),
     saveOwnLeads: vi.fn(),
+    getProfileTwitch: vi.fn(),
 }));
 
 // ---- fixtures ----
@@ -128,6 +129,7 @@ function setup(p: RaiderProfile = profile(), calendar: CalendarTokens = NO_TOKEN
     vi.mocked(api.getProfile).mockResolvedValue(profileData(p));
     vi.mocked(api.getCalendarTokens).mockResolvedValue(calendar);
     vi.mocked(api.getSyncKeys).mockResolvedValue(NO_SYNC);
+    vi.mocked(api.getProfileTwitch).mockResolvedValue({ servers: [], lastLogin: "" });
     vi.mocked(api.saveProfile).mockImplementation(async (patch) => {
         current = applyPatch(current, patch);
         return { profile: current };
@@ -315,16 +317,16 @@ describe("ProfilePage – loading", () => {
 });
 
 describe("Meine Infos – folded parts", () => {
-    it("has the seven parts in their groups, the attendance and „Wann ich kann“ open at first, and opening one closes the others", async () => {
+    it("has the eight parts in their groups, the attendance and „Wann ich kann“ open at first, and opening one closes the others", async () => {
         const { user } = setup();
         await renderProfile();
 
         for (const g of ["groupRaiding", "groupLinks", "groupPrefs"]) expect(screen.getByText(t(`profile.info.${g}`))).toBeInTheDocument();
         const toggles = expandButtons();
         expect(toggles.map((b) => b.getAttribute("aria-label"))).toEqual(
-            ["attendance", "calendar", "days", "raids", "wishes", "avoid", "note"].map((k) => t(`profile.fold.${k}`)),
+            ["attendance", "calendar", "twitch", "days", "raids", "wishes", "avoid", "note"].map((k) => t(`profile.fold.${k}`)),
         );
-        expect(toggles.filter((b) => b.getAttribute("aria-expanded") === "true")).toEqual([toggles[0], toggles[2]]);
+        expect(toggles.filter((b) => b.getAttribute("aria-expanded") === "true")).toEqual([toggles[0], toggles[3]]);
         expect(screen.getByRole("button", { name: t("profile.weekday.mo"), pressed: false })).toBeInTheDocument();
         // closed parts show their one-line summary
         expect(screen.getByText(t("profile.fold.raidsNone"))).toBeInTheDocument();

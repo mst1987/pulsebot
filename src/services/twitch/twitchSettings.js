@@ -3,8 +3,8 @@
 //
 // A stored list is normalised when read (like wclGuilds); what comes from the page
 // goes through twitchStreamersFromBody(), which refuses instead of dropping silently.
-// `source` says who keeps an entry; only "orga" exists so far (a later part lets
-// raiders sign up themselves), and a stored value survives every save.
+// `source` says how an entry came: "orga" from the page, "raider" from an approved request
+// (twitchRequests.js). No request body can set it, and a stored value survives every save.
 
 const { serverSetting } = require("../discord/servers/serverSettings");
 
@@ -16,7 +16,7 @@ const MAX_GAME_NAME_LENGTH = 60;
 
 const LOGIN_RE = /^[a-z0-9_]{2,25}$/;
 const DISCORD_ID_RE = /^\d{5,25}$/;
-const SOURCES = new Set(["orga"]);
+const SOURCES = new Set(["orga", "raider"]);
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 

@@ -48,7 +48,17 @@ export type TwitchView = {
     limits: TwitchLimits;
     mention: TwitchMention;
     streamers: TwitchStreamer[];
+    /** Raiders' waiting requests, oldest first; they do not count against the limit. */
+    requests: TwitchRequest[];
 };
+
+export type TwitchRequest = { userId: string; userName: string; login: string; requestedAt: number };
+
+/**
+ * What the orga decides on approval. `login` is the name they saw: the server only compares it
+ * (409 request_changed), the entry takes the name from the request, never from here.
+ */
+export type TwitchApproval = { userId: string; login: string; channelId: string; roleId: string; text: string; games: string[] };
 
 export type TwitchCheckResult =
     | { checked: number; live: number; skipped?: undefined }
@@ -72,6 +82,14 @@ export function updateTwitchStreamer(guildId: string, input: TwitchStreamerInput
 
 export function removeTwitchStreamer(guildId: string, login: string): Promise<TwitchView> {
     return send("DELETE", PATH, { serverSettingsGuildId: guildId, login });
+}
+
+export function approveTwitchRequest(guildId: string, input: TwitchApproval): Promise<TwitchView> {
+    return send("POST", `${PATH}/requests/approve`, { serverSettingsGuildId: guildId, ...input });
+}
+
+export function rejectTwitchRequest(guildId: string, userId: string, login: string): Promise<TwitchView> {
+    return send("POST", `${PATH}/requests/reject`, { serverSettingsGuildId: guildId, userId, login });
 }
 
 export function checkTwitchStreamers(guildId: string): Promise<TwitchView & { result: TwitchCheckResult }> {
