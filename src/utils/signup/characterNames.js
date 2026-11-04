@@ -1,12 +1,13 @@
 // The rule for a character name a raider types in (profile, Discord signup):
 // letters only, 2–12 per name, first letter upper case — and in WoW Forever a
-// first *and* a last name ("Vorname Nachname", 12 letters each), which the
-// rule set switches on with `characterNames.lastName` (gameVersions/forever.js).
-// Every name also passes the profanity filter (config/data/profanity.js), because
-// it ends up in public Discord messages.
+// first *and* a last name ("Vorname Nachname", 12 letters each), both required,
+// which the rule set switches on with `characterNames.lastName`
+// (gameVersions/forever.js). Every name also passes the profanity filter
+// (config/data/profanity.js), because it ends up in public Discord messages.
 //
 // Pure. Names read from logs or the armory are the game's own and never come
-// through here — only what somebody typed.
+// through here — only what somebody typed. A character already in a profile is
+// not checked again, so one stored with a single name keeps working.
 
 const { rulesFor } = require("../../config/gameVersions");
 const { CONTAINS, PREFIX, EXACT } = require("../../config/data/profanity");
@@ -24,6 +25,16 @@ function allowsLastName(versionId) {
     if (!versionId) return true;
     const rules = rulesFor(versionId);
     return !rules || !!(rules.characterNames && rules.characterNames.lastName);
+}
+
+/**
+ * Whether a typed name of this version must carry a last name: only a known
+ * version whose rule set says so. Without a version nothing can be demanded.
+ */
+function requiresLastName(versionId) {
+    if (!versionId) return false;
+    const rules = rulesFor(versionId);
+    return !!(rules && rules.characterNames && rules.characterNames.lastName);
 }
 
 /** Lower case, accents stripped (ä → a, ß → ss), letters a–z only. */
@@ -64,7 +75,8 @@ function capitalize(part) {
 
 /**
  * Check a typed character name. `versionId` decides whether a last name is
- * allowed (see allowsLastName); `lastName` overrides it.
+ * allowed and required (allowsLastName, requiresLastName); `lastName` overrides
+ * both: true demands one, false refuses one.
  * @returns {{ name: string } | { error: string }}  the name as the game writes it, or why not
  */
 function validateCharacterName(raw, { versionId = "", lastName } = {}) {
@@ -78,6 +90,10 @@ function validateCharacterName(raw, { versionId = "", lastName } = {}) {
                 ? "Höchstens Vor- und Nachname – ein Leerzeichen dazwischen."
                 : "Der Name darf kein Leerzeichen haben – Vor- und Nachname gibt es nur in WoW Forever.",
         };
+    }
+    const needsLastName = lastName === undefined ? requiresLastName(versionId) : !!lastName;
+    if (needsLastName && parts.length < 2) {
+        return { error: "In WoW Forever braucht der Charakter Vor- und Nachname – ein Leerzeichen dazwischen." };
     }
     for (const [i, part] of parts.entries()) {
         const label = parts.length === 1 ? "Der Name" : (i === 0 ? "Der Vorname" : "Der Nachname");
@@ -93,5 +109,5 @@ function validateCharacterName(raw, { versionId = "", lastName } = {}) {
 
 module.exports = {
     NAME_PART_MIN, NAME_PART_MAX, NAME_MAX,
-    allowsLastName, normalizeForCheck, isProfane, validateCharacterName,
+    allowsLastName, requiresLastName, normalizeForCheck, isProfane, validateCharacterName,
 };

@@ -162,6 +162,7 @@ export default function SignupsPage() {
                 row={openRow}
                 profile={profileForRows(data.profile, openRow ? [openRow] : [])}
                 missingVersion={missingVersionLabel(data.profile, openRow ? [openRow] : [], data.versions)}
+                lastName={!!data.versions?.find((v) => v.id === openRow?.versionId)?.lastName}
                 classes={classesForRows(data, openRow ? [openRow] : [])}
                 onClose={() => open("")}
                 onSaved={onSaved}

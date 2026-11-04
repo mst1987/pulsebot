@@ -282,6 +282,8 @@
         "class": "Class",
         "spec": "Spec",
         "name": "In-game name",
-        "nameHint": "Prefilled with your Discord name – change it if your character is named differently."
+        "nameHint": "Prefilled with your Discord name – change it if your character is named differently.",
+        "fullName": "In-game first and last name",
+        "fullNameHint": "Exactly as in the game, at most 12 letters each, e.g. Aldric Sturmwind."
     }
 }

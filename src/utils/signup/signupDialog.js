@@ -334,24 +334,30 @@ function savedNotice(signup, profile, versionId = "", lang = "de") {
 
 /**
  * Modal asking for the character name — the path without a profile character.
- * In a version with last names (WoW Forever) it asks for "Vorname Nachname";
- * utils/signup/characterNames.js checks the answer either way.
+ * In a version with last names (WoW Forever) it asks for "Vorname Nachname":
+ * the label says so, because a prefilled field hides the placeholder, and a
+ * default that is not such a name (a one-word Discord name) stays out, so that
+ * nobody just sends it. utils/signup/characterNames.js checks the answer either way.
  */
 function buildCharacterModal(customId, { defaultName = "", classText = "", versionId = "", lang = "de" } = {}) {
     // No version handed in: the main version's name rule (#541).
     const lastName = allowsLastName(versionOfEvent({ versionId }));
     const max = lastName ? NAME_MAX : NAME_PART_MAX;
+    const label = lastName
+        ? (classText ? tr(lang, "First and last name ({class})", { class: classText }) : tr(lang, "First and last name"))
+        : (classText ? tr(lang, "Your character's name ({class})", { class: classText }) : tr(lang, "Your character's name"));
     const input = new TextInputBuilder()
         .setCustomId("character")
-        .setLabel((classText ? tr(lang, "Your character's name ({class})", { class: classText }) : tr(lang, "Your character's name")).slice(0, 45))
+        .setLabel(label.slice(0, 45))
         .setPlaceholder(lastName
             ? tr(lang, "First name Last name – at most {max} letters each", { max: NAME_PART_MAX })
             : tr(lang, "At most {max} letters", { max: NAME_PART_MAX }))
         .setStyle(TextInputStyle.Short)
-        .setMinLength(NAME_PART_MIN)
+        .setMinLength(lastName ? NAME_PART_MIN * 2 + 1 : NAME_PART_MIN)
         .setMaxLength(max)
         .setRequired(true);
-    if (defaultName) input.setValue(String(defaultName).slice(0, max));
+    const prefill = String(defaultName).slice(0, max);
+    if (prefill && (!lastName || /^\p{L}+ \p{L}+$/u.test(prefill))) input.setValue(prefill);
     return new ModalBuilder()
         .setCustomId(customId)
         .setTitle(tr(lang, "Add a character"))

@@ -103,7 +103,7 @@ export default function EditCharacterDialog({ character, classes, lastName = fal
             footer={way === "log" ? <Button variant="ghost" onClick={onClose}>{t("common.close")}</Button> : (
                 <>
                     <Button variant="ghost" onClick={onClose}>{t("common.cancel")}</Button>
-                    <Button variant="go" icon={<SaveIcon />} running={busy} disabled={!changed || !first.trim() || !className} onClick={() => save(input)}>{t("profile.edit.save")}</Button>
+                    <Button variant="go" icon={<SaveIcon />} running={busy} disabled={!changed || !first.trim() || !className || (lastName && nameChanged && !last.trim())} onClick={() => save(input)}>{t("profile.edit.save")}</Button>
                 </>
             )}
         >
