@@ -9,6 +9,7 @@ const staticClient = require("./staticClient");
 const { findPageRoute, send } = require("./pageRoutes");
 const compression = require("./compression");
 const auth = require("./auth");
+const { canonicalRedirect } = require("./canonicalHost");
 
 /**
  * One request: the first entry of pageRoutes.js that fits method and path
@@ -18,6 +19,11 @@ const auth = require("./auth");
  * client's own "not found" page.
  */
 async function handle(req, res) {
+    const target = canonicalRedirect(req);
+    if (target) {
+        res.writeHead(301, { Location: target });
+        return res.end();
+    }
     const url = new URL(req.url, "http://localhost");
     let pathname;
     try { pathname = decodeURIComponent(url.pathname); } catch { pathname = "/"; }
@@ -25,6 +31,8 @@ async function handle(req, res) {
     compression.install(req, res, pathname);
     // a session from before #925 gets its per-server rights before a page reads them
     if (typeof auth.ensureAccess === "function") await auth.ensureAccess(req);
+    // only on /api/*: the client calls it on every page, and a built file can be cached with its headers
+    if (pathname.startsWith("/api/")) auth.renewSession(req, res);
     const hit = findPageRoute(req.method, pathname);
     if (hit) return hit.route.handler({ req, res, url, pathname, params: hit.params, rest: hit.rest });
     if (req.method !== "GET" && req.method !== "HEAD") return send(res, 405, renderNotFound());

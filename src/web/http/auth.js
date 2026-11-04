@@ -18,15 +18,15 @@ const {
 const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
 const { effectiveUser, viewAsActive, normalizeRoleIds } = require("./viewAs");
+const { SESSION_TTL, SESSION_RENEW_MS, sessionCookie } = require("./sessionCookie");
 
 // Sessions are persisted to disk so a bot/PM2 restart does not log everyone out.
-// sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, adminCheckedAt, activeGuildId? }
+// sid -> { id, name, isAdmin, guildAccess, csrf, createdAt, renewedAt?, adminCheckedAt, activeGuildId? }
 // `guildAccess` is userAccess.computeGuildAccess(): `{ isAdmin, guilds: { [guildId]:
 // { access, isOrga? } } }` — the rights per Discord server (#925). The session
 // never carries one "global" access map: getUser() hands out the rights of the
 // request's active server (activeGuildOf) only.
 const SESSIONS_FILE = dataPath("sessions.json");
-const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 // How long a session's isAdmin flag and area access are trusted before they are
 // re-checked against the current role config — so admin roles and role
 // permissions changed in the settings take effect for already-logged-in users
@@ -35,12 +35,17 @@ const ADMIN_REFRESH_MS = 300000; // 5 minutes
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
 
+/** A session counts from its last renewal (from its login until the first one). */
+function isLive(s, now = Date.now()) {
+    return now - (s.renewedAt || s.createdAt || 0) < SESSION_TTL;
+}
+
 function loadSessions() {
     try {
         const raw = JSON.parse(fs.readFileSync(SESSIONS_FILE, "utf8"));
         const now = Date.now();
         for (const [sid, s] of Object.entries(raw)) {
-            if (s && (now - (s.createdAt || 0)) < SESSION_TTL) sessions.set(sid, s);
+            if (s && isLive(s, now)) sessions.set(sid, s);
         }
     } catch {
         // no file yet or unreadable — start empty
@@ -97,7 +102,7 @@ function devSession() {
 function sessionFor(req) {
     const sid = parseCookies(req).sid;
     const s = sid && sessions.get(sid);
-    if (s && (Date.now() - (s.createdAt || 0)) < SESSION_TTL) {
+    if (s && isLive(s)) {
         maybeRefreshAdmin(sid, s);
         return s;
     }
@@ -172,10 +177,25 @@ async function ensureAccess(req) {
     const sid = parseCookies(req).sid;
     const s = sid && sessions.get(sid);
     if (!s || s.guildAccess || sid === DEV_SID) return;
-    if ((Date.now() - (s.createdAt || 0)) >= SESSION_TTL) return;
+    if (!isLive(s)) return;
     applyGuildAccess(s, await resolveGuildAccess(s.id));
     s.adminCheckedAt = Date.now();
     saveSessions();
+}
+
+/**
+ * Keep a login alive while it is used: at most once a day the expiry moves on, on
+ * the server and in the browser cookie. A session past its expiry stays over.
+ */
+function renewSession(req, res) {
+    const sid = parseCookies(req).sid;
+    const s = sid && sessions.get(sid);
+    if (!s || sid === DEV_SID || !isLive(s)) return;
+    const now = Date.now();
+    if (now - (s.renewedAt || s.createdAt || 0) < SESSION_RENEW_MS) return;
+    s.renewedAt = now;
+    saveSessions();
+    res.setHeader("Set-Cookie", sessionCookie(sid));
 }
 
 /**
@@ -349,7 +369,7 @@ function destroy(sid) {
 
 module.exports = {
     configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
-    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, sessionGuildAccess,
+    csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, renewSession, sessionGuildAccess,
     // services/discord/members/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,
 };

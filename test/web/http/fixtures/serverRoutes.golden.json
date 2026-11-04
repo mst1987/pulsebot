@@ -92,7 +92,7 @@
     "status": 302,
     "headers": {
       "Location": "/p/abcdefghij",
-      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000"
     },
     "body": null
   },
@@ -109,7 +109,7 @@
     "status": 302,
     "headers": {
       "Location": "/",
-      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000"
     },
     "body": null
   },
@@ -118,7 +118,7 @@
     "status": 302,
     "headers": {
       "Location": "/",
-      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000"
     },
     "body": null
   },
@@ -127,7 +127,7 @@
     "status": 302,
     "headers": {
       "Location": "/",
-      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=604800"
+      "Set-Cookie": "sid=sid-1; HttpOnly; Path=/; SameSite=Lax; Max-Age=2592000"
     },
     "body": null
   },
