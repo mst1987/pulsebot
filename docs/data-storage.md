@@ -16,8 +16,8 @@ Die großen, ständig gelesenen Dateien hält ihr Store im Speicher (`createJson
 sie nur neu, wenn sich mtime, Größe oder Inode ändern (auch eine Änderung von Hand zählt). Das gilt für
 `signups.json`, `events.json`, `raider-profiles.json`, `raid-events.json`, `rosters.json`, `characters.json`,
 `logs.json` und `loot.json`, außerdem für `config.json`, `attendance-overrides.json`,
-`availability-sessions.json`, `dungeon-runs.json`, `guild-bank-stock.json`, `raidhelper-budget.json`, `raidhelper-events.json` und
-`user-prefs.json`.
+`availability-sessions.json`, `dungeon-runs.json`, `guild-bank-stock.json`, `raidhelper-budget.json`, `raidhelper-events.json`,
+`server-plans.json` und `user-prefs.json`.
 
 - `read()` gibt eine Kopie heraus (structuredClone der ganzen Datei), die der Aufrufer ändern und zurückschreiben
   darf.
@@ -181,6 +181,7 @@ Zugangsdaten, Token oder Sitzungen.
 | `settings/user-notes.json` | `userNotesStore.js` | Vermerke je Discord-Server und Discord-Konto (#979): `guilds[server][userId] = { name, entries }`, je Eintrag Stufe (Hinweis, Warnung, Shadowban), Grund, Notiz (höchstens 1000 Zeichen), Raids, Ablauf (`null` = nie), geteilt ja/nein, Autor, Archiv-Marke und Verlauf; höchstens 50 Einträge je Person und Server. `hidden[server][entryId]` hält fest, welche geteilten Einträge anderer Server ein Server für sich ausblendet. Nur für den Bereich `vermerke`, nie für die Person, nie im Log; siehe [vermerke.md](vermerke.md) | **ja** (Notizen über Personen) |
 | `settings/user-signals.json` | `userSignalsStore.js` | Hinweise aus den Daten für die Vermerke (#982): `guilds[server][userId] = { name, events }`, je Ereignis Art (Abmeldung nach Setzung, kurzfristige Abmeldung, Server verlassen), Raid, Zeitpunkt, Stunden vor dem Start; `ignored[server][userId][kind]` = Ausblenden der Orga. 180 Tage aufbewahrt, höchstens 60 je Person und Server; No-Shows werden nicht gespeichert, sondern aus den Anwesenheits-Korrekturen berechnet. Nur für den Bereich `vermerke`, nie für die Person; siehe [vermerke.md](vermerke.md) | **ja** (Verhalten von Personen) |
 | `settings/calendar-tokens.json` | `calendarTokenStore.js` | Abo-Token des Raider-Kalenders, nur als sha256-Hash | **ja** (Hashes) |
+| `settings/server-plans.json` | `serverPlanStore.js` | Tarif je Discord-Server (#1080): `{ [guildId]: { plan, until, note } }`; nur Voll-Admins ändern ihn; siehe [server-plans.md](server-plans.md) | nein |
 | `settings/recruitment.json` | `settingsStore.js` | Recruitment-Vorlagen: `{ templates: [...] }`, je Vorlage `versionId` (#553) | nein |
 | `settings/recruitment-posts.json` | `settingsStore.js` | Gepostete Recruitment-Nachrichten (zum späteren Bearbeiten), je Nachricht `versionId` des Bewerben-Knopfs (#553) | nein |
 | `settings/raid-templates.json` | `settingsStore.js` | Raid-Vorlagen (Instanz, Größe, Rollen, Zeiten) | nein |

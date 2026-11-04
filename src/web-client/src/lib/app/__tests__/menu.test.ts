@@ -43,6 +43,29 @@ describe("adminOnly menu entries", () => {
     });
 });
 
+describe("menu entries behind a plan feature (#1080)", () => {
+    const planned = { ...MENU.find((e) => e.id === "roster")!, feature: "test" };
+    const admin: SessionUser = { id: "1", name: "A", isAdmin: true, access: {} };
+
+    it("hides the entry when the active server's plan lacks the feature, from a full admin too", () => {
+        expect(mayOpen({ ...everyArea, planFeatures: [] }, planned)).toBe(false);
+        expect(mayOpen({ ...admin, planFeatures: ["other"] }, planned)).toBe(false);
+    });
+
+    it("shows it when the plan has the feature, and the rights still decide", () => {
+        expect(mayOpen({ ...everyArea, planFeatures: ["test"] }, planned)).toBe(true);
+        expect(mayOpen({ id: "2", name: "B", isAdmin: false, access: {}, planFeatures: ["test"] }, planned)).toBe(false);
+    });
+
+    it("hides nothing while the session names no features", () => {
+        expect(mayOpen(everyArea, planned)).toBe(true);
+    });
+
+    it("leaves an entry without a feature alone", () => {
+        expect(mayOpen({ ...everyArea, planFeatures: [] }, MENU.find((e) => e.id === "roster")!)).toBe(true);
+    });
+});
+
 describe("Alle Server › Einstellungen (#957)", () => {
     const settingsAll = MENU.find((e) => e.id === "settingsAll")!;
 
