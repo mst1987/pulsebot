@@ -47,6 +47,7 @@ export function TwitchPart({ data, onChange }: {
         } catch (e) {
             const err = e as ApiError;
             toast(tOr(`profile.twitch.error.${err.code}`, err.message), "err");
+            // The refusal is already on screen; a failed reload only leaves the old rows until the next visit.
             if (STALE_CODES.has(err.code)) await getProfileTwitch().then(onChange).catch(() => undefined);
         } finally {
             setBusy("");
