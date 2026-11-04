@@ -9,10 +9,13 @@
 //   entry = { id, level, reason, text, eventIds, expiresAt, shared, by, byName, at,
 //             archived?, archivedAt?, archivedBy?, history: [{ by, byName, at, action, changes }] }
 //
-// A shared entry is readable on every server; only its server of origin
-// changes it. Another server may hide it for itself (`hidden`, nothing is
-// deleted). Archiving keeps the entry; removing it for good is for full admins
-// (the route checks that). Expired, archived and hidden entries do not count.
+// A shared entry is readable on the servers linked with its server of origin,
+// in either direction (#1078, `sharedFrom`, the one rule every reader goes
+// through); a removed link hides it there at once, the data stays at the origin.
+// Only its server of origin changes it. A linked server may hide it for itself
+// (`hidden`, nothing is deleted). Archiving keeps the entry; removing it for good
+// is for full admins (the route checks that). Expired, archived and hidden
+// entries do not count.
 //
 // Nothing here ever reaches the person it is about: only the Vermerke routes
 // and the short form (services/vermerke/vermerkeShort.js - level and reason
@@ -21,6 +24,7 @@
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 const { newId } = require("../../utils/ids");
+const { linkedServerIds } = require("../../services/discord/roles/guildRoles");
 
 const LEVELS = ["hint", "warning", "shadowban"];
 const REASONS = ["left_early", "no_show", "late_signoff", "left_server", "behavior", "loot", "other"];
@@ -258,11 +262,17 @@ function removeEntry(guildId, userId, entryId) {
     return true;
 }
 
-/** The shared entry `entryId` of another server than `guildId`: `{ originGuildId, userId, entry }` or null. */
+/**
+ * The one rule for reading another server's entries (#1078): the servers `guildId` is linked with, each
+ * with its people. Every other server is not there at all, whatever it stored.
+ */
+function sharedFrom(doc, guildId) {
+    return [...linkedServerIds(guildId)].filter((g) => doc.guilds[g]).map((g) => [g, doc.guilds[g]]);
+}
+
+/** The shared entry `entryId` of a server linked with `guildId`: `{ originGuildId, userId, entry }` or null. */
 function findShared(doc, guildId, entryId) {
-    const own = keyOf(guildId);
-    for (const [g, people] of Object.entries(doc.guilds)) {
-        if (g === own) continue;
+    for (const [g, people] of sharedFrom(doc, guildId)) {
         for (const [uid, p] of Object.entries(people)) {
             const entry = p.entries.find((e) => e.id === str(entryId));
             if (entry) return entry.shared ? { originGuildId: g, userId: uid, entry } : null;
@@ -271,7 +281,7 @@ function findShared(doc, guildId, entryId) {
     return null;
 }
 
-/** Hides (`hidden: true`) or shows again a shared entry of another server on `guildId`. */
+/** Hides (`hidden: true`) or shows again a shared entry of a linked server on `guildId`. */
 function hideShared(guildId, entryId, { hidden = true, by, now = Date.now() } = {}) {
     const doc = store.read();
     if (!findShared(doc, guildId, entryId)) throw new NoteError(404, "not_found", "Vermerk nicht gefunden.");
@@ -285,7 +295,7 @@ function hideShared(guildId, entryId, { hidden = true, by, now = Date.now() } = 
 
 /**
  * Every entry `guildId` sees, grouped per person: its own (`own: true`) and the
- * shared ones of other servers (`originGuildId`, `hidden` when it hid them).
+ * shared ones of linked servers (`originGuildId`, `hidden` when it hid them).
  * `{ [userId]: { name, entries } }` - copies, the store keeps its own.
  */
 function visibleOn(doc, guildId) {
@@ -301,8 +311,7 @@ function visibleOn(doc, guildId) {
         out[uid] = { name: p.name, entries: [] };
         for (const e of p.entries) add(uid, p.name, { ...e, own: true, originGuildId: own, hidden: false });
     }
-    for (const [g, people] of Object.entries(doc.guilds)) {
-        if (g === own) continue;
+    for (const [g, people] of sharedFrom(doc, guildId)) {
         for (const [uid, p] of Object.entries(people)) {
             for (const e of p.entries) {
                 if (e.shared) add(uid, p.name, { ...e, own: false, originGuildId: g, hidden: !!hiddenHere[e.id] });

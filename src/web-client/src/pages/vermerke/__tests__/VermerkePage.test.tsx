@@ -201,7 +201,7 @@ describe("Vermerke: dialog", () => {
         await user.click(within(dlg).getByRole("button", { name: "Nicht erschienen" }));
         await user.click(await within(dlg).findByRole("button", { name: /Karazhan/ }));
         expect(within(dlg).getByRole("button", { name: /Karazhan/ })).toHaveAttribute("aria-pressed", "true");
-        await user.click(within(dlg).getByRole("switch", { name: /Auf allen Servern zeigen/ }));
+        await user.click(within(dlg).getByRole("switch", { name: /Mit verknüpften Servern teilen/ }));
         await user.click(save);
         expect(api.createVermerk).toHaveBeenCalledWith("g1", "t", "Thrall", {
             level: "hint", reason: "no_show", text: "", eventIds: ["r1"], expiresAt: null, shared: true,
@@ -281,6 +281,53 @@ describe("Vermerke: dialog", () => {
         await user.type(within(dlg).getByRole("searchbox"), "Thr");
         await user.click(within(dlg).getByRole("button", { name: "Suche leeren" }));
         expect(within(dlg).getByRole("searchbox")).toHaveValue("");
+    });
+});
+
+describe("Vermerke: sharing means with linked servers (#1078)", () => {
+    const NO_LINK = "Dieser Server ist mit keinem anderen verknüpft";
+    const list = (hasLinkedServers?: boolean) => ({ guildId: "g1", guildName: "Testgilde", people: [THRALL], hasLinkedServers });
+
+    async function openDialog(user: ReturnType<typeof userEvent.setup>) {
+        renderPage(<VermerkePage />, { route: "/vermerke" });
+        await screen.findByText("Thrall");
+        await user.click(screen.getByRole("button", { name: "Vermerk anlegen" }));
+        return screen.findByRole("dialog");
+    }
+    const share = (dlg: HTMLElement) => within(dlg).getByRole("switch", { name: /Mit verknüpften Servern teilen/ });
+
+    it("says what sharing means once the switch is on and the server has no link", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getVermerke).mockResolvedValue(list(false));
+        const dlg = await openDialog(user);
+        expect(within(dlg).queryByText(new RegExp(NO_LINK))).not.toBeInTheDocument();
+        await user.click(share(dlg));
+        expect(within(dlg).getByText(new RegExp(NO_LINK))).toBeInTheDocument();
+        await user.click(share(dlg));
+        expect(within(dlg).queryByText(new RegExp(NO_LINK))).not.toBeInTheDocument();
+    });
+
+    it.each([["has a link", true], ["does not say", undefined]])("adds nothing when the server %s", async (_label, value) => {
+        const user = userEvent.setup();
+        vi.mocked(api.getVermerke).mockResolvedValue(list(value));
+        const dlg = await openDialog(user);
+        await user.click(share(dlg));
+        expect(within(dlg).queryByText(new RegExp(NO_LINK))).not.toBeInTheDocument();
+    });
+
+    it.each([
+        ["without a link", false, /nur hier sichtbar/],
+        ["with a link", true, /Verknüpfte Server sehen/],
+    ])("the lock of an own shared entry says where it shows, %s", async (_label, hasLinkedServers, tip) => {
+        vi.mocked(api.getVermerkPerson).mockResolvedValue({
+            ...JAINA_DETAIL, hasLinkedServers,
+            entries: [entry({ id: "mine", text: "Eigener geteilter Eintrag.", shared: true })],
+        });
+        renderPage(<VermerkePage />, { route: "/vermerke?user=j" });
+        const drawer = await screen.findByRole("complementary", { name: "Jaina" });
+        await within(drawer).findByText("Eigener geteilter Eintrag.");
+        const lock = drawer.querySelector('[data-entry="mine"] .vmk-lock') as HTMLElement;
+        expect(lock.getAttribute("data-tip-sub")).toMatch(tip);
     });
 });
 

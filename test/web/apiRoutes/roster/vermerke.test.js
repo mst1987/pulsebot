@@ -1,11 +1,28 @@
 // The Vermerke routes (docs/vermerke.md, #979), driven through the real router:
 // the area gate (no base access; read sees, write changes, removing for good is
 // for full admins), the rights per server (B does not see what A did not share,
-// a shared entry is read on B and changed on A alone, B may hide it), and the
-// short form for every orga that plans - without the area only the short form.
+// a shared entry is read on a linked B and changed on A alone, B may hide it; a
+// server without a link sees nothing of it, #1078), and the short form for every
+// orga that plans - without the area only the short form.
 const fs = require("fs");
 const { status, body, routerClient } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
+
+const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions });
+let mockLinks = [];
+jest.mock("../../../../src/stores/settings/settingsStore", () => {
+    const actual = jest.requireActual("../../../../src/stores/settings/settingsStore");
+    return {
+        ...actual,
+        getConfig: jest.fn(() => ({
+            ...actual.getConfig(),
+            discordServers: {
+                servers: [{ guildId: "A", label: "" }, { guildId: "B", label: "" }, { guildId: "C", label: "" }],
+                links: mockLinks,
+            },
+        })),
+    };
+});
 
 let mockUser = null;
 let mockActive = "A";
@@ -70,6 +87,7 @@ beforeEach(() => {
     mockActive = "A";
     mockManager = false;
     mockMembers = null;
+    mockLinks = [link("A", "B")];
     categoryOrga.isAnyCategoryManager.mockClear();
 });
 afterAll(() => notes.useFile(null));
@@ -179,6 +197,78 @@ describe("web/apiRoutes/vermerke", () => {
                 expect([status(res), body(res).error.code]).toEqual([409, "server_switched"]);
             }
             expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ level: "warning" })]);
+        });
+    });
+
+    // #1078: the rule of the store as the routes hand it on
+    describe("sharing means with linked servers", () => {
+        const nothingOnActive = async (id) => {
+            const list = body(await get("/api/vermerke"));
+            expect(list.people).toEqual([]);
+            expect(body(await get("/api/vermerke/person", { userId: U }))).toMatchObject({ level: null, entries: [] });
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short).toEqual({});
+            const hide = await post("/api/vermerke/hide", { id });
+            expect([status(hide), body(hide).error.code]).toEqual([404, "not_found"]);
+            // nothing of the entry in any answer, the name of the person included
+            for (const res of [await get("/api/vermerke"), await get("/api/vermerke/person", { userId: U }), await get("/api/vermerke/short", { userIds: U })]) {
+                expect(JSON.stringify(body(res))).not.toContain("MARKER-TEXT");
+                expect(JSON.stringify(body(res))).not.toContain("Zed");
+            }
+        };
+
+        it("linked: list, person and short form show it, in both directions of the link", async () => {
+            const { entry } = body(await add({ shared: true }));
+            for (const links of [[link("A", "B")], [link("B", "A")]]) {
+                mockLinks = links;
+                mockActive = "B";
+                expect(body(await get("/api/vermerke")).people).toEqual([expect.objectContaining({ userId: U, sharedCount: 1 })]);
+                expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ id: entry.id, own: false })]);
+                expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+            }
+        });
+
+        it("not linked: nothing shows, the short form does not give away that an entry exists", async () => {
+            const { entry } = body(await add({ shared: true }));
+            mockActive = "C";
+            await nothingOnActive(entry.id);
+        });
+
+        it("a removed link takes it away at once, the entry stays on its origin", async () => {
+            const { entry } = body(await add({ shared: true }));
+            mockActive = "B";
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+            mockLinks = [];
+            await nothingOnActive(entry.id);
+            mockActive = "A";
+            expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ id: entry.id, own: true, shared: true, active: true })]);
+            expect(body(await get("/api/vermerke/short", { userIds: U })).short[U].level).toBe("warning");
+        });
+
+        it("counts a link whatever its versions say", async () => {
+            mockLinks = [link("A", "B", ["forever"])];
+            const { entry } = body(await add({ shared: true }));
+            mockActive = "B";
+            expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ id: entry.id })]);
+        });
+
+        it("a full admin on a server without a link sees no more than the server does", async () => {
+            const { entry } = body(await add({ shared: true }));
+            mockUser = ADMIN;
+            mockActive = "C";
+            await nothingOnActive(entry.id);
+            expect(status(await post("/api/vermerke/delete", { userId: U, id: entry.id }))).toBe(404);
+            mockActive = "A";
+            expect(body(await post("/api/vermerke/delete", { userId: U, id: entry.id }))).toEqual({ removed: true });
+        });
+
+        it("says whether the server has a link at all, without naming one", async () => {
+            const list = body(await get("/api/vermerke"));
+            expect(list.hasLinkedServers).toBe(true);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasLinkedServers).toBe(true);
+            mockActive = "C";
+            expect(body(await get("/api/vermerke")).hasLinkedServers).toBe(false);
+            expect(body(await get("/api/vermerke/person", { userId: U })).hasLinkedServers).toBe(false);
+            expect(JSON.stringify(list)).not.toContain("\"B\"");
         });
     });
 

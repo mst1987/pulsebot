@@ -120,6 +120,21 @@ describe("services/discord/roles/guildRoles links", () => {
         expect(guildRoles.linkedTargets(T, config)).toEqual([]);
         expect(guildRoles.linkedSources("", config)).toEqual([]);
     });
+
+    // who may read a shared Vermerk (#1078): both directions, the versions of a link do not narrow it
+    it("names the other servers linked with a server, in both directions", () => {
+        expect([...guildRoles.linkedServerIds(E1, config)]).toEqual([T]);
+        expect([...guildRoles.linkedServerIds(T, config)].sort()).toEqual([E1, E2].sort());
+        expect([...guildRoles.linkedServerIds(X, config)]).toEqual([]);
+        expect([...guildRoles.linkedServerIds("", config)]).toEqual([]);
+        expect([...guildRoles.linkedServerIds(E1, { discordServers: block() })]).toEqual([]);
+    });
+
+    it("counts a link limited to a version like any other", () => {
+        const limited = { discordServers: block({ servers: [server(E1), server(T)], links: [{ from: E1, to: T, channelId: C1, versions: ["forever"] }] }) };
+        expect([...guildRoles.linkedServerIds(T, limited)]).toEqual([E1]);
+        expect([...guildRoles.linkedServerIds(E1, limited)]).toEqual([T]);
+    });
 });
 
 

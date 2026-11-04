@@ -1,10 +1,24 @@
 // The Vermerke store (docs/vermerke.md, #979): notes per server and Discord
 // account, normalised, limited, with expiry and history; a shared entry is read
-// on every server and changed on its server of origin alone - and the store is
-// read by the Vermerke routes and the short form only, never logged.
+// on the servers linked with its origin (#1078) and changed on its server of
+// origin alone - and the store is read by the Vermerke routes and the short form
+// only, never logged.
 const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
+
+const link = (from, to, versions = []) => ({ from, to, channelId: "1400000000000000011", lang: "", versions });
+let mockLinks = [];
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
+    getConfig: jest.fn(() => ({
+        discordServers: {
+            servers: [{ guildId: "A", label: "" }, { guildId: "B", label: "" }, { guildId: "C", label: "" }],
+            links: mockLinks,
+        },
+    })),
+}));
+
 const notes = require("../../../src/stores/roster/userNotesStore");
 
 const U = "111111111111111111";
@@ -17,6 +31,7 @@ beforeEach(() => {
     file = tempStoreFile("user-notes.json");
     if (fs.existsSync(file)) fs.unlinkSync(file);
     notes.useFile(file);
+    mockLinks = [link("A", "B")];
 });
 afterAll(() => notes.useFile(null));
 
@@ -117,7 +132,7 @@ describe("stores/roster/userNotesStore", () => {
         expect(notes.activeLevelFor("B", U)).toBe(null);
     });
 
-    it("shows a shared entry on another server, which reads it but cannot change it", () => {
+    it("shows a shared entry on a linked server, which reads it but cannot change it", () => {
         const e = notes.addEntry("A", U, { ...base, shared: true }, { ...by, name: "Zed" });
         const seen = notes.personFor("B", U);
         expect(seen.name).toBe("Zed");
@@ -129,7 +144,7 @@ describe("stores/roster/userNotesStore", () => {
         expect(notes.personFor("A", U).entries[0]).toMatchObject({ own: true, level: "warning" });
     });
 
-    it("lets another server hide a shared entry for itself without deleting it", () => {
+    it("lets a linked server hide a shared entry for itself without deleting it", () => {
         const e = notes.addEntry("A", U, { ...base, shared: true }, by);
         notes.hideShared("B", e.id, { by: "5", now: 9 });
         expect(notes.personFor("B", U).entries[0].hidden).toBe(true);
@@ -152,6 +167,104 @@ describe("stores/roster/userNotesStore", () => {
         expect(doc.guilds.A[U]).toBeUndefined();
         expect(doc.hidden.B[e.id]).toBeUndefined();
         expect(code(() => notes.removeEntry("A", U, e.id))).toBe("404 not_found");
+    });
+
+    // #1078: the one rule behind every reader - sharing reaches linked servers only
+    describe("only linked servers read a shared entry", () => {
+        const nothingOn = (guildId, userId = U) => {
+            expect(notes.listFor(guildId)).toEqual({});
+            expect(notes.personFor(guildId, userId).entries).toEqual([]);
+            expect(notes.activeEntries(guildId, userId)).toEqual([]);
+            expect(notes.activeEntriesMany(guildId, [userId])).toEqual({});
+            expect(notes.activeLevelFor(guildId, userId)).toBe(null);
+        };
+        const seenOn = (guildId, id) => {
+            expect(Object.keys(notes.listFor(guildId))).toEqual([U]);
+            expect(notes.personFor(guildId, U).entries.map((e) => e.id)).toEqual([id]);
+            expect(notes.activeEntries(guildId, U).map((e) => e.id)).toEqual([id]);
+            expect(notes.activeEntriesMany(guildId, [U])[U].map((e) => e.id)).toEqual([id]);
+            expect(notes.activeLevelFor(guildId, U)).toBe("warning");
+        };
+
+        it("reads it in both directions of a link", () => {
+            const fromA = notes.addEntry("A", U, { ...base, shared: true }, by);
+            seenOn("B", fromA.id);
+            mockLinks = [link("B", "A")];
+            seenOn("B", fromA.id);
+        });
+
+        it("a server without a link sees nothing, and cannot hide what it cannot see", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            nothingOn("C");
+            expect(code(() => notes.hideShared("C", e.id))).toBe("404 not_found");
+            // a link of A with another server tells C nothing either
+            mockLinks = [link("A", "B"), link("B", "A")];
+            nothingOn("C");
+        });
+
+        it("no link at all: the entry stays on its origin alone", () => {
+            mockLinks = [];
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            nothingOn("B");
+            expect(notes.personFor("A", U).entries).toEqual([expect.objectContaining({ id: e.id, own: true, shared: true })]);
+        });
+
+        it("a removed link hides it at once, the data stay on the origin, a new link brings it back", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            seenOn("B", e.id);
+            mockLinks = [];
+            nothingOn("B");
+            expect(code(() => notes.hideShared("B", e.id))).toBe("404 not_found");
+            expect(notes.personFor("A", U).entries).toEqual([expect.objectContaining({ id: e.id, shared: true })]);
+            expect(notes.activeLevelFor("A", U)).toBe("warning");
+            mockLinks = [link("B", "A")];
+            seenOn("B", e.id);
+        });
+
+        it("keeps a server's hide mark while the link is gone", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            notes.hideShared("B", e.id, { by: "5", now: 9 });
+            mockLinks = [];
+            expect(notes.personFor("B", U).entries).toEqual([]);
+            mockLinks = [link("A", "B")];
+            expect(notes.personFor("B", U).entries[0].hidden).toBe(true);
+            expect(notes.activeLevelFor("B", U)).toBe(null);
+        });
+
+        // decision of #1078: `versions` filters the raid list a link posts, never what it shares
+        it("counts a link whatever its versions say", () => {
+            mockLinks = [link("A", "B", ["forever"])];
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            seenOn("B", e.id);
+        });
+
+        it("a self link links nothing and a link does not change an unshared entry", () => {
+            mockLinks = [link("A", "A")];
+            notes.addEntry("A", U, { ...base, shared: true }, by);
+            nothingOn("B");
+            mockLinks = [link("A", "B")];
+            notes.addEntry("A", V, base, by);
+            expect(notes.personFor("B", V).entries).toEqual([]);
+        });
+
+        it("the origin keeps every right without a link: change, archive, expiry, remove", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true, expiresAt: 5000 }, by);
+            mockLinks = [];
+            expect(notes.updateEntry("A", U, e.id, { text: "neu" }, by).text).toBe("neu");
+            expect(notes.isActive(notes.personFor("A", U).entries[0], 6000)).toBe(false);
+            expect(notes.activeLevelFor("A", U, { now: 6000 })).toBe(null);
+            expect(notes.archiveEntry("A", U, e.id, by).archived).toBe(true);
+            expect(notes.removeEntry("A", U, e.id)).toBe(true);
+            expect(notes.personFor("A", U).entries).toEqual([]);
+        });
+
+        it("removing for good also takes the hide marks of a server that is no longer linked", () => {
+            const e = notes.addEntry("A", U, { ...base, shared: true }, by);
+            notes.hideShared("B", e.id);
+            mockLinks = [];
+            expect(notes.removeEntry("A", U, e.id)).toBe(true);
+            expect(JSON.parse(fs.readFileSync(file, "utf8")).hidden.B[e.id]).toBeUndefined();
+        });
     });
 
     describe("who reads it", () => {

@@ -3,6 +3,20 @@
 const fs = require("fs");
 const path = require("path");
 const { tempStoreFile } = require("../../helpers/tempStore");
+
+// A and B are linked, C stands alone (#1078)
+const link = (from, to) => ({ from, to, channelId: "1400000000000000011", lang: "", versions: [] });
+let mockLinks = [];
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
+    getConfig: jest.fn(() => ({
+        discordServers: {
+            servers: [{ guildId: "A", label: "" }, { guildId: "B", label: "" }, { guildId: "C", label: "" }],
+            links: mockLinks,
+        },
+    })),
+}));
+
 const notes = require("../../../src/stores/roster/userNotesStore");
 const { shortOf, shortFor, activeLevelFor, shadowbannedAmong } = require("../../../src/services/vermerke/vermerkeShort");
 
@@ -15,6 +29,7 @@ beforeEach(() => {
     const file = tempStoreFile("user-notes.json");
     if (fs.existsSync(file)) fs.unlinkSync(file);
     notes.useFile(file);
+    mockLinks = [link("A", "B")];
 });
 afterAll(() => notes.useFile(null));
 
@@ -37,7 +52,7 @@ describe("services/vermerke/vermerkeShort", () => {
             [U]: { level: "warning", reasons: { behavior: 1 } },
             [W]: { level: "hint", reasons: { loot: 1 } },
         });
-        // server B sees the shared entry of A only
+        // the linked server B sees the shared entry of A only
         expect(shortFor("B", [U, V, W], { now: 3000 })).toEqual({ [W]: { level: "hint", reasons: { loot: 1 } } });
         expect(shortOf("B", U)).toBe(null);
         expect(shortFor("A", "nope")).toEqual({});
@@ -75,5 +90,27 @@ describe("services/vermerke/vermerkeShort", () => {
         // A's own unshared one does not reach B; hiding on A does not hide it on B
         expect(shadowbannedAmong("B", [U, Y, Z], { now: 3000 }).sort()).toEqual([Y, Z].sort());
         expect(shadowbannedAmong("A", [], { now: 3000 })).toEqual([]);
+    });
+
+    // #1078: the short form must not give away that an entry exists elsewhere
+    describe("on a server without a link to the origin", () => {
+        beforeEach(() => {
+            notes.addEntry("A", U, { level: "shadowban", reason: "behavior", shared: true }, by);
+        });
+
+        it("gives nothing: no level, no reasons, no shadowban", () => {
+            expect(shortFor("C", [U], { now: 3000 })).toEqual({});
+            expect(shortOf("C", U)).toBe(null);
+            expect(activeLevelFor("C", U)).toBe(null);
+            expect(shadowbannedAmong("C", [U], { now: 3000 })).toEqual([]);
+        });
+
+        it("a link that is removed takes it away at once, and the origin keeps it", () => {
+            expect(shadowbannedAmong("B", [U], { now: 3000 })).toEqual([U]);
+            mockLinks = [];
+            expect(shortFor("B", [U], { now: 3000 })).toEqual({});
+            expect(shadowbannedAmong("B", [U], { now: 3000 })).toEqual([]);
+            expect(shadowbannedAmong("A", [U], { now: 3000 })).toEqual([U]);
+        });
     });
 });

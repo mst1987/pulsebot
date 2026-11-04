@@ -16,7 +16,8 @@ import { useT } from "../../i18n";
 // The one window to add or change a note (Dialog A, #980): the person (members
 // and who left, found over earlier signups), the level, the reason, the expiry
 // (default "Nie"), the text, the raids of the last four weeks as toggle chips and
-// "Auf allen Servern zeigen". Changing an entry keeps the person fixed. The
+// "Mit verknüpften Servern teilen" (without a link it says that this reaches
+// nobody yet, #1078). Changing an entry keeps the person fixed. The
 // store keeps 50 notes per person and server, the archive included: the refusal
 // `too_many` is said in plain words.
 
@@ -45,9 +46,11 @@ function expiryOf(choice: Expiry, date: string): number | null {
     return null;
 }
 
-export default function VermerkDialog({ guildId, preset, onClose, onSaved }: {
+export default function VermerkDialog({ guildId, hasLinkedServers, preset, onClose, onSaved }: {
     /** the server the page was loaded for: a write from another one is refused (409 server_switched) */
     guildId: string;
+    /** false: the server is linked with none, sharing is said to reach nobody yet (unknown: no word) */
+    hasLinkedServers?: boolean;
     preset: VermerkDialogPreset;
     onClose: () => void;
     /** after a save, with the person's id */
@@ -166,6 +169,7 @@ export default function VermerkDialog({ guildId, preset, onClose, onSaved }: {
                 {person ? <RaidChips userId={person.userId} picked={eventIds} titles={preset.eventTitles} onChange={setEventIds} /> : <p className="vmk-muted">{t("vermerke.dialog.raidsPick")}</p>}
             </Field>
             <Switch checked={shared} onChange={setShared} label={t("vermerke.dialog.shared")} tip={t("vermerke.dialog.sharedTip")} />
+            {shared && hasLinkedServers === false && <p className="vmk-muted">{t("vermerke.dialog.sharedNoLink")}</p>}
         </Modal>
     );
 }

@@ -3,7 +3,8 @@
 //   servers — every server, as equals (`discordServers.servers`). Each may hold
 //             raids (event channels, Raid-Helper, the admin-role check).
 //   links   — directed: `{ from, to, channelId }` posts the raid list of `from`
-//             to channelId on `to` (from = to is allowed).
+//             to channelId on `to` (from = to is allowed). Two servers with a link
+//             between them also read each other's shared Vermerke (#1078).
 // All come from settingsStore's `discordServers`; no server at all falls back
 // to the old single `guildId`. Since #897 there is one kind of server:
 // each is an ordinary server of the list. The web
@@ -62,6 +63,22 @@ function linkedSources(guildId, config = getConfig()) {
 function linkedTargets(guildId, config = getConfig()) {
     const id = String(guildId || "");
     return id ? links(config).filter((l) => l.from === id) : [];
+}
+
+/**
+ * The other servers `guildId` is linked with, in either direction, whatever the link's
+ * `versions` say: those only filter the raid list a link posts (#1078). A Set of ids, never `guildId`.
+ */
+function linkedServerIds(guildId, config = getConfig()) {
+    const id = String(guildId || "");
+    const out = new Set();
+    if (!id) return out;
+    for (const link of links(config)) {
+        if (link.from === id) out.add(link.to);
+        if (link.to === id) out.add(link.from);
+    }
+    out.delete(id);
+    return out;
 }
 
 /** Every server that may hold raids — since #890 simply every server. */
@@ -203,6 +220,6 @@ function roleMessageGuild(entry, config = getConfig()) {
 
 module.exports = {
     serverIds, listedServerIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
-    eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
+    linkedServerIds, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
     eventGuildCards, describeGuild, guildOverlap,
 };

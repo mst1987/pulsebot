@@ -15,6 +15,17 @@ let mockHub = null;
 jest.mock("../../../src/stores/discord/orgaHubStore", () => ({
     getHub: jest.fn(() => mockHub),
 }));
+// A and B are linked, C stands alone (#1078)
+let mockLinks = [];
+jest.mock("../../../src/stores/settings/settingsStore", () => ({
+    ...jest.requireActual("../../../src/stores/settings/settingsStore"),
+    getConfig: jest.fn(() => ({
+        discordServers: {
+            servers: [{ guildId: "A", label: "" }, { guildId: "B", label: "" }, { guildId: "C", label: "" }],
+            links: mockLinks,
+        },
+    })),
+}));
 
 const discord = require("../../../src/services/discord/discord");
 const notes = require("../../../src/stores/roster/userNotesStore");
@@ -46,6 +57,7 @@ beforeEach(() => {
     mockVisible.add(HUB).add(ORGA).add(OWN);
     mockHub = null;
     mockChannelGuild.clear();
+    mockLinks = [{ from: "A", to: "B", channelId: "900000000000000009", lang: "", versions: [] }];
 });
 afterAll(() => notes.useFile(null));
 
@@ -111,6 +123,14 @@ describe("services/vermerke/orgaSignupNotice", () => {
         expect(res.lines).toBe(1);
         expect(postedText()).toContain(`<@${V}>`);
         expect(postedText()).not.toContain(`<@${U}>`);
+    });
+
+    it("says nothing about a shared Vermerk of a server that is not linked (#1078)", async () => {
+        notes.addEntry("B", V, { level: "shadowban", reason: "behavior", shared: true }, by);
+        mockLinks = [];
+        const res = await notice.postBatch("A", [item(V)], { config: config(), base: BASE });
+        expect(res).toEqual({ posted: 0, lines: 0, noChannel: 0 });
+        expect(discord.postPayload).not.toHaveBeenCalled();
     });
 
     it("prefers the Orga-Zentrale of the category, but only on the raid's server and when reachable", async () => {
