@@ -195,4 +195,4 @@ function withUser(opts, fn) {
     return handler;
 }
 
-module.exports = { withUser, ORGA_ONLY, NOT_CATEGORY_ORGA };
+module.exports = { withUser, categoryOrgaOfAll, ORGA_ONLY, NOT_CATEGORY_ORGA };

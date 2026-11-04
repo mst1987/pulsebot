@@ -86,6 +86,22 @@ describe("web/logcheck/manualLog — linkLogByUrl", () => {
         expect(logStore.getLog(tracked.id).eventId).toBe("other"); // untouched
     });
 
+    it("refuses another server's log before it names that server's raid", () => {
+        const tracked = logStore.saveLog({ guildId: "g2", reportId: "RPT9", link: "https://classic.warcraftlogs.com/reports/RPT9" });
+        logStore.linkEvent(tracked.id, { eventId: "other", eventLabel: "Fremder Raid", eventStartTime: 1, source: "auto" });
+        const result = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT9", EVENT, "g1", (log) => log.guildId === "g1");
+        expect(result.error).toBe("Dieses Log gehört zu einem anderen Server.");
+        expect(logStore.getLog(tracked.id).eventId).toBe("other");
+    });
+
+    it("lets the caller's check pass an own log and a new one", () => {
+        const mayTouch = jest.fn((log) => log.guildId === "g1");
+        logStore.saveLog({ guildId: "g1", reportId: "RPT10", link: "https://classic.warcraftlogs.com/reports/RPT10" });
+        expect(linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT10", EVENT, "g1", mayTouch).created).toBe(false);
+        expect(linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT11", EVENT, "g1", mayTouch).created).toBe(true);
+        expect(mayTouch).toHaveBeenCalledTimes(1);
+    });
+
     it("allows re-linking to the same event", () => {
         const first = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT3", EVENT, "g1");
         const again = linkLogByUrl("https://classic.warcraftlogs.com/reports/RPT3", EVENT, "g1");

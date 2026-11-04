@@ -27,12 +27,15 @@ const { guildOfEvent } = require("../../services/discord/servers/serverOf");
  * @param {string} url     text containing a warcraftlogs.com/reports/<id> link
  * @param {object} event   resolved event ({ id, title, startTime, ... })
  * @param {string} guildId active server, used when the raid's server is unknown
+ * @param {function(object): boolean} [mayTouch] whether the caller may change an already tracked log.
+ *   The log store is keyed by report id across all servers, so a pasted link can hit another server's log.
  * @returns {{log: object, created: boolean}|{error: string}}
  */
-function linkLogByUrl(url, event, guildId) {
+function linkLogByUrl(url, event, guildId, mayTouch) {
     const [found] = extractWclLinks(url);
     if (!found) return { error: "Kein gültiger Warcraft-Logs-Link (erwartet: …warcraftlogs.com/reports/<ID>)." };
     const existing = logStore.getByReportId(found.reportId);
+    if (existing && mayTouch && !mayTouch(existing)) return { error: "Dieses Log gehört zu einem anderen Server." };
     if (existing && existing.eventId && existing.eventId !== event.id) {
         const label = existing.eventLabel || existing.eventId;
         return { error: `Dieses Log ist bereits dem Event „${label}" zugeordnet. Dort zuerst die Zuordnung entfernen.` };

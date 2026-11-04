@@ -51,6 +51,17 @@ describe("web/characters/charGearIssues", () => {
         expect(byKey.keslight.className).toBe("Mage");
     });
 
+    it("narrows the reports with accept, before the limit counts them (#1072)", () => {
+        mockListReports.mockReturnValue([meta("f1", 400, { guildId: "other" }), meta("f2", 300, { guildId: "other" }), meta("o1", 200, { guildId: "own" })]);
+        mockGetReport.mockImplementation((id) => ({ roster: [{ name: "Anna", type: "Priest", issues: id === "o1" ? [issue()] : [] }] }));
+
+        const byKey = load().latestIssuesByCharacter({ maxReports: 1, accept: (r) => r.guildId === "own" });
+
+        expect(byKey.anna.reportRefId).toBe("o1");
+        expect(byKey.anna.issueCount).toBe(1);
+        expect(load().issuesForCharacter("Anna", { accept: () => false })).toBeNull();
+    });
+
     it("keeps the newest report per character and carries its metadata", () => {
         // listReports() is sorted newest first, so a1 must win over a2.
         mockListReports.mockReturnValue([meta("a1", 300), meta("a2", 100)]);

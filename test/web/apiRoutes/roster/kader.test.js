@@ -266,6 +266,52 @@ describe("web/apiRoutes/kader", () => {
         });
     });
 
+    // The profile store is global: its entries are read by Discord account, and
+    // a rank holder can put any account into the planner by hand (#1072).
+    describe("the rank Server-Admin only sees profiles of its own server (#1072)", () => {
+        const RANK = {
+            id: "777777777777777777", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true,
+            access: { ...emptyAccess(), kader: { read: true, write: true } },
+        };
+        const onlyBea = () => discord.listHumanMembers.mockResolvedValue({ members: [
+            { id: U2, displayName: "Bea", avatarUrl: null, roleIds: [] },
+        ], error: null });
+
+        it("reveals nothing of an account that is not on the active server", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(RANK);
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+        });
+
+        it("reveals nothing of an account typed into the planner by hand", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(RANK);
+            const { kaderId } = body(await post("/api/kader/kaders", { name: "Fremd", version: "forever" }));
+            const res = await post("/api/kader/players/add", { kaderId, players: [{ userId: U1 }] });
+            expect(status(res)).toBe(200);
+            expect(JSON.stringify(body(res))).not.toContain("Aldric Sturmwind");
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+        });
+
+        it("reveals nothing when Discord cannot list the members", async () => {
+            discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
+            auth.getUser.mockReturnValue(RANK);
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+        });
+
+        it("still shows the characters of a member of the active server", async () => {
+            auth.getUser.mockReturnValue(RANK);
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+        });
+
+        it("leaves a real role or a full admin as before", async () => {
+            onlyBea();
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+        });
+    });
+
     describe("one game version per Kader (#741: Forever = Forever characters)", () => {
         const configStore = require("../../../../src/stores/settings/configStore");
         const devi = { id: "d1", name: "Devi", nameStyle: "nick", className: "Priest", specs: [{ spec: "Priest-Holy", main: true }], onlineKey: "devi" };

@@ -642,7 +642,8 @@ const routes = [
     { method: "PUT", path: "/api/raids/setup/signup", handler: putSignupEdit, area: "raids" },
     { method: "POST", path: "/api/raids/setup/search/text", handler: postSearchText, area: "raids" },
     { method: "POST", path: "/api/raids/setup/search", handler: postSearchMessage, area: "raids" },
-    { method: "POST", path: "/api/raids/setup/explain", handler: postExplain, area: "raids" },
+    // Spends the bot's one Anthropic key, shared by all servers (#1072).
+    { method: "POST", path: "/api/raids/setup/explain", handler: postExplain, area: "raids", sharedData: true },
     { method: "GET", path: "/api/raids/setup/explain", handler: getExplain, area: "raids" },
     { method: "POST", path: "/api/raids/setup/move-raid", handler: postMoveRaid, area: "raids" },
     { method: "POST", path: "/api/raids/setup/raid-add", handler: postRaidAdd, area: "raids" },

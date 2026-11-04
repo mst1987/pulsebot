@@ -23,7 +23,7 @@ const { listStoredEvents } = require("../../../src/services/events/eventSources"
 const { listKnownCategories } = require("../../../src/services/categories/categoryNames");
 const { getConfig } = require("../../../src/stores/settings/configStore");
 const { logIndex } = require("../../../src/web/characters/profileLogs");
-const { loadKaderSource, loadKaderRules, listRaidCategories, groupByVersion, plannerVersion } = require("../../../src/web/kader/kaderSource");
+const { loadKaderSource, loadKaderRules, limitSourceToServer, listRaidCategories, groupByVersion, plannerVersion } = require("../../../src/web/kader/kaderSource");
 
 const loadSource = (opts) => loadKaderSource({ guildId: "g1", ...opts });
 
@@ -400,5 +400,27 @@ describe("web/kader/kaderSource", () => {
     it("refuses an unknown version", async () => {
         await expect(loadSource({ versionId: "wotlk", now: NOW })).rejects.toThrow(/unknown version/);
         expect(() => loadKaderRules("wotlk")).toThrow(/unknown version/);
+    });
+
+    describe("limitSourceToServer (#1072)", () => {
+        const source = {
+            members: [{ userId: U1 }],
+            profiles: [{ userId: U1 }, { userId: U2 }],
+            logChars: { [U1]: [{ name: "Eigen" }], [U2]: [{ name: "Fremd" }] },
+            classes: ["Warrior"],
+        };
+
+        it("keeps profiles and log characters of the server's members only", () => {
+            const out = limitSourceToServer(source);
+            expect(out.profiles).toEqual([{ userId: U1 }]);
+            expect(out.logChars).toEqual({ [U1]: [{ name: "Eigen" }] });
+            expect(out.classes).toEqual(["Warrior"]);
+        });
+
+        it("keeps nothing when the member list is empty (Discord offline)", () => {
+            const out = limitSourceToServer({ ...source, members: [] });
+            expect(out.profiles).toEqual([]);
+            expect(out.logChars).toEqual({});
+        });
     });
 });

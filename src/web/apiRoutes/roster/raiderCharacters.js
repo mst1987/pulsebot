@@ -39,14 +39,19 @@ const getRaiderCharacters = withUser({}, async ({ req, res, url, user }) => {
     // the version the category plays now - the roster a save writes into (#739)
     const versionId = mainVersionFor({ categoryId, config });
     const versions = buildVersionContext({ config });
+    const assignments = getCategoryAssignments(categoryId, { versionId });
     ok(res, {
         members,
         membersError,
         roleIds,
-        assignments: getCategoryAssignments(categoryId, { versionId }),
-        knownCharacters: listCharacters()
-            .filter((c) => versionsOfCharacter(versions, { name: c.character, categoryIds: [categoryId] }).includes(versionId))
-            .map((c) => c.character),
+        assignments,
+        // the character list holds the names of every server: the server-admin rank (#1072) gets
+        // the names this answer shows anyway, nothing a role gave it
+        knownCharacters: user.isServerAdmin
+            ? [...new Set(Object.values(assignments))].sort((a, b) => String(a).localeCompare(String(b)))
+            : listCharacters()
+                .filter((c) => versionsOfCharacter(versions, { name: c.character, categoryIds: [categoryId] }).includes(versionId))
+                .map((c) => c.character),
     });
 });
 

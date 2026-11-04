@@ -238,7 +238,10 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     aktiven Server. Eine Route, die `categoryId`, `userId` oder eine Listen-`id` aus der Anfrage nimmt,
     braucht eine eigene Serverprüfung (`mayUseServer`, 403 `other_server`). Eine Route auf einem globalen
     Store braucht die Marke `sharedData: true`, sonst öffnet sie der Rang Server-Admin jedem
-    Discord-Administrator (docs/permissions.md).
+    Discord-Administrator (docs/permissions.md). Die Marke greift nur, wenn die ganze Route global ist:
+    Routen, deren Schlüssel zwischen Server- und globalen Daten wechselt (Raidplan-Karten), oder die einen
+    Serverkontext prüfen, aber global schreiben (`PUT /api/leads`), brauchen eine Prüfung im Handler
+    (`auth.getUserWithoutRank`). Maßstab ist der Store, nicht die Rechteprüfung davor.
 
 ## Fach-Agenten
 

@@ -156,6 +156,22 @@ describe("web/apiRoutes/raiderCharacters", () => {
             });
         });
 
+        it("gives the server-admin rank only the names of the category's own assignments (#1072)", async () => {
+            auth.getUser.mockReturnValue({ id: "1", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: { settings: { read: true, write: true } } });
+            activeGuildFor.mockReturnValue("guild-1");
+            guildOfCategory.mockReturnValueOnce("guild-1");
+            settingsStore.getConfig.mockReturnValue({ categoryRoles: {} });
+            raiderCharactersStore.getCategoryAssignments.mockReturnValue({ u1: "Zul", u2: "Elesham", u3: "Elesham" });
+            // the character list holds the names of every server
+            characterStore.listCharacters.mockReturnValue([{ character: "Elesham" }, { character: "FremderServer" }]);
+
+            const data = json(await get("/api/raider-characters", { category: "cat1" })).data;
+
+            expect(data.knownCharacters).toEqual(["Elesham", "Zul"]);
+            expect(data.assignments).toEqual({ u1: "Zul", u2: "Elesham", u3: "Elesham" });
+            expect(characterStore.listCharacters).not.toHaveBeenCalled();
+        });
+
         it("offers only the known characters of the version the category plays (#741)", async () => {
             auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
             settingsStore.getConfig.mockReturnValue({ categoryRoles: {}, categoryVersion: { cat2: "forever" } });

@@ -9,6 +9,15 @@ jest.mock("../../../../src/web/http/auth", () => ({
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => mockGuild),
+    getUserWithoutRank: jest.fn(),
+}));
+jest.mock("../../../../src/services/characters/characterInfo", () => ({
+    ...jest.requireActual("../../../../src/services/characters/characterInfo"),
+    rememberFromLoot: jest.fn(),
+}));
+jest.mock("../../../../src/web/characters/charGearIssues", () => ({
+    ...jest.requireActual("../../../../src/web/characters/charGearIssues"),
+    issuesForCharacter: jest.fn(() => null),
 }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
@@ -53,7 +62,11 @@ const mockConfig = {
 };
 
 const { json, status, routerClient } = require("../../../helpers/http");
-const { getUser } = require("../../../../src/web/http/auth");
+const { getUser, getUserWithoutRank } = require("../../../../src/web/http/auth");
+const { rememberFromLoot } = require("../../../../src/services/characters/characterInfo");
+const { issuesForCharacter } = require("../../../../src/web/characters/charGearIssues");
+const characterStore = require("../../../../src/stores/roster/characterStore");
+const inbox = require("../../../../src/stores/loot/lootInboxStore");
 const lootStore = require("../../../../src/stores/loot/lootStore");
 const eventStore = require("../../../../src/stores/events/eventStore");
 const { tempStoreFile } = require("../../../helpers/tempStore");
@@ -151,5 +164,129 @@ describe("writing", () => {
         expect(status(res)).toBe(201);
         expect(json(res).data.eventId).toBe("manual-pug-sgB");
         expect(lootStore.listByEvent("manual-pug-sgB")[0].guildId).toBe("gB");
+    });
+});
+
+describe("the rank Server-Admin (#1072): the store decides, not the right", () => {
+    const WRITE = { history: { read: true, write: true } };
+    const RANK = { id: "9", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true, access: WRITE };
+    const ORGA = { id: "8", name: "Orga", isAdmin: false, isOrga: true, access: WRITE };
+    const HISTORY_ROLE = { id: "9", isAdmin: false, access: { history: { read: true, write: true } } };
+    const NO_ROLE = { id: "9", isAdmin: false, access: {} };
+
+    const upload = (sessionId, extra) => inbox.upsertPending({
+        sessionId, startedAt: 1790000000000,
+        items: [{ source: "gargul", rawId: sessionId, itemId: 30095, itemName: "Ring", character: "Arthas", characterKey: "arthas", awardedAt: 1790000000000 }],
+    }, { realm: "Thunderstrike", gameVersion: "tbc", ...extra }).entry;
+    const waitingIds = async () => json(await get("/api/history/inbox")).data.waiting.map((s) => s.id);
+    const sessionIds = async () => json(await get("/api/history/inbox")).data.sessions.map((s) => s.id);
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        inbox.useFile(tempStoreFile("srv-inbox.json"));
+        characterStore.useFile(tempStoreFile("srv-chars.json"));
+        getUser.mockReturnValue(RANK);
+        getUserWithoutRank.mockReturnValue(NO_ROLE);
+    });
+    afterAll(() => {
+        inbox.useFile(null);
+        characterStore.useFile(null);
+    });
+
+    describe("inbox cards no server is tied to", () => {
+        it("hides a waiting card without servers from the rank, regular orga keeps seeing it", async () => {
+            const free = upload("free", { waiting: true, servers: [], match: { candidates: [], suggested: null } });
+            const bound = upload("bound", { waiting: true, servers: ["gA"], match: { candidates: [], suggested: null } });
+            expect(await waitingIds()).toEqual([bound.id]);
+            getUser.mockReturnValue(ORGA);
+            expect((await waitingIds()).sort()).toEqual([free.id, bound.id].sort());
+        });
+
+        it("hides a card of an upload key without server, shows one with the own server", async () => {
+            const free = upload("free", { match: null });
+            const own = upload("own", { guildId: "gA", match: null });
+            upload("foreign", { guildId: "gB", match: null });
+            expect(await sessionIds()).toEqual([own.id]);
+            getUser.mockReturnValue(ORGA);
+            expect((await sessionIds()).sort()).toEqual([free.id, own.id].sort());
+        });
+
+        it.each(["/api/history/inbox-accept", "/api/history/inbox-dismiss"])("refuses %s on such a card", async (path) => {
+            const free = upload("free", { match: null });
+            const res = await post(path, { id: free.id, event: "__manual__", manualLabel: "Kara" });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+            expect(inbox.getPending(free.id)).toBeTruthy();
+        });
+
+        it("refuses bringing such a card back from the dismissed ones", async () => {
+            getUser.mockReturnValue(ORGA);
+            const free = upload("free", { match: null });
+            expect(status(await post("/api/history/inbox-dismiss", { id: free.id }))).toBe(200);
+            getUser.mockReturnValue(RANK);
+            const res = await post("/api/history/inbox-restore", { id: free.id });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("other_server");
+        });
+
+        it("still lets the rank dismiss a card of its own server", async () => {
+            const own = upload("own", { guildId: "gA", match: null });
+            expect(status(await post("/api/history/inbox-dismiss", { id: own.id }))).toBe(200);
+        });
+    });
+
+    describe("classes learned from an import, a store of every server", () => {
+        it("saves the loot but learns no class when only the rank gives the right", async () => {
+            expect(status(await post("/api/history/import", { data: "x", event: eventA.id }))).toBe(201);
+            expect(lootStore.listByEvent(eventA.id)).toHaveLength(2);
+            expect(rememberFromLoot).not.toHaveBeenCalled();
+        });
+
+        it("learns it when a role of its own gives the right", async () => {
+            getUserWithoutRank.mockReturnValue(HISTORY_ROLE);
+            expect(status(await post("/api/history/import", { data: "x", event: eventA.id }))).toBe(201);
+            expect(rememberFromLoot).toHaveBeenCalledTimes(1);
+        });
+
+        it("learns it for regular orga, without asking for the role view", async () => {
+            getUser.mockReturnValue(ORGA);
+            expect(status(await post("/api/history/import", { data: "x", event: eventA.id }))).toBe(201);
+            expect(rememberFromLoot).toHaveBeenCalledTimes(1);
+            expect(getUserWithoutRank).not.toHaveBeenCalled();
+        });
+
+        it("skips it when an inbox card is filed by the rank alone", async () => {
+            const own = upload("own", { guildId: "gA", match: null });
+            const res = await post("/api/history/inbox-accept", { id: own.id, event: "__manual__", manualLabel: "Kara" });
+            expect(status(res)).toBeLessThan(300);
+            expect(rememberFromLoot).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("GET /api/history/char", () => {
+        const charData = async (name) => json(await get("/api/history/char", { name })).data;
+
+        it("gives the rank the store entry only for a name its server has loot for", async () => {
+            characterStore.saveCharacter("Anna", { className: "Mage", source: "manual" });
+            characterStore.saveCharacter("Bert", { className: "Rogue", source: "manual" });
+            expect((await charData("Anna")).info).toEqual(expect.objectContaining({ className: "Mage" }));
+            expect((await charData("Bert")).info).toBeNull();
+            getUser.mockReturnValue(ORGA);
+            expect((await charData("Bert")).info).toEqual(expect.objectContaining({ className: "Rogue" }));
+        });
+
+        it("narrows the gear findings of the rank to evaluations of the active server", async () => {
+            await charData("Anna");
+            const { accept } = issuesForCharacter.mock.calls[0][1];
+            expect(accept({ id: "r1", guildId: "gA" })).toBe(true);
+            expect(accept({ id: "r2", guildId: "gB" })).toBe(false);
+            expect(accept({ id: "r3" })).toBe(false);
+        });
+
+        it("leaves regular orga without a filter", async () => {
+            getUser.mockReturnValue(ORGA);
+            await charData("Anna");
+            expect(issuesForCharacter).toHaveBeenCalledWith("Anna");
+        });
     });
 });

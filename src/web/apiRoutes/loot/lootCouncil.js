@@ -713,7 +713,7 @@ const routes = [
     { method: "POST", path: "/api/lootcouncil/profiles/update", handler: postProfileUpdate, area: "lootcouncil", sharedData: true },
     { method: "POST", path: "/api/lootcouncil/profiles/delete", handler: postProfileDelete, area: "lootcouncil", sharedData: true },
     { method: "POST", path: "/api/lootcouncil/armory", handler: postArmoryRefresh, area: "lootcouncil" },
-    { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil" },
+    { method: "POST", path: "/api/lootcouncil/loggear", handler: postLogGear, area: "lootcouncil", sharedData: true },
     { method: "GET", path: "/api/lootcouncil/bislists", handler: getBisLists, area: "lootcouncil" },
     { method: "GET", path: "/api/lootcouncil/sim", handler: getLootCouncilSim, area: "lootcouncil" },
     { method: "POST", path: "/api/lootcouncil/sim", handler: postLootCouncilSim, area: "lootcouncil" },

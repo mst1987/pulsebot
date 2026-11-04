@@ -42,7 +42,7 @@ const CONFIG = {
     serverSettings: {
         "guild-1": {
             orgaRoleIds: ["role-orga"],
-            rolePermissions: { "role-orga": ROSTER_WRITE, "role-area": ROSTER_WRITE },
+            rolePermissions: { "role-orga": ROSTER_WRITE, "role-area": ROSTER_WRITE, "role-plan": { raidplan: { read: true, write: true } } },
         },
     },
 };
@@ -123,5 +123,55 @@ describe("web/http/apiRouter: routes marked sharedData (#1072)", () => {
         // and the mark of one request does not stick to the session
         expect(status(await send(session, "POST", HIDE, { body: HIDE_BODY }))).toBe(403);
         expect(status(await send(session, "GET", "/api/raider-characters", { query: "?category=cat-1" }))).toBe(200);
+    });
+
+    it("refuses the rank on the log gear of a character, a store of every server", async () => {
+        const session = await login("907", [], true);
+        const res = await send(session, "POST", "/api/lootcouncil/loggear", { body: { character: "Elesham", clear: true } });
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("forbidden");
+    });
+
+    it.each([
+        ["/api/cla/recommendations/phrase", { reportId: "r1" }],
+        ["/api/raids/setup/explain", { eventId: "e1" }],
+    ])("refuses the rank on %s, which spends the one Anthropic key of all servers", async (pathname, payload) => {
+        const session = await login(pathname.includes("cla") ? "911" : "912", [], true);
+        const res = await send(session, "POST", pathname, { body: payload });
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("forbidden");
+    });
+
+    describe("a route whose key decides (raid plan maps)", () => {
+        const DELETE = "/api/raidplan/map/delete";
+        const deleteMap = (session, key) => send(session, "POST", DELETE, { body: { key, libraryGuildId: "guild-1" } });
+
+        it("refuses the rank alone on a default map, through the real session", async () => {
+            const res = await deleteMap(await login("908", [], true), "bt/supremus");
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("forbidden");
+        });
+
+        it("lets a Discord admin holding a raidplan role through", async () => {
+            const res = await deleteMap(await login("909", ["role-plan"], true), "bt/supremus");
+            expect(status(res)).toBe(200);
+        });
+    });
+
+    describe("a session back after a pause (the rank is checked on the way in)", () => {
+        const SESSION = "/api/session";
+
+        it("carries the confirmed rank on its first request", async () => {
+            const session = await login("910", [], true);
+            const now = Date.now();
+            const clock = jest.spyOn(Date, "now").mockReturnValue(now + 11 * 60 * 1000);
+            try {
+                const res = await send(session, "GET", SESSION);
+                expect(status(res)).toBe(200);
+                expect(json(res).data.user.isServerAdmin).toBe(true);
+            } finally {
+                clock.mockRestore();
+            }
+        });
     });
 });

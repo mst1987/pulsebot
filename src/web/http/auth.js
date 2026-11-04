@@ -34,8 +34,12 @@ const SESSION_TTL = 604800000; // 7 days, matches the cookie Max-Age
 const ADMIN_REFRESH_MS = 300000; // 5 minutes
 // A stored server-admin rank (#1072) is not answered from an older re-check. The
 // re-check runs in the background, so a session waking up (or one whose lookup hangs)
-// would otherwise get a rank Discord may have taken back long ago.
+// would otherwise get a rank Discord may have taken back long ago. ensureAccess waits
+// for the re-check of such a session, so its first request knows the answer.
 const RANK_MAX_AGE_MS = 2 * ADMIN_REFRESH_MS;
+// How long one re-check may take. Past it the lookup counts as failed: a hanging call
+// holds neither a waiting request nor the next re-check of the session.
+const RECHECK_TIMEOUT_MS = 5000;
 const sessions = new Map();
 const REDIRECT_URI = `${publicBaseUrl}/auth/callback`;
 
@@ -109,9 +113,9 @@ function sessionFor(req) {
     return devSession();
 }
 
-// Sids with a role re-check currently in flight (kept out of the session
-// objects so the flag is never persisted to disk).
-const refreshingSids = new Set();
+// Sid -> the promise of the role re-check in flight (kept out of the session
+// objects so it is never persisted to disk).
+const refreshingSids = new Map();
 
 /** Store a computeGuildAccess() result on a session; the old global fields go. */
 function applyGuildAccess(s, guildAccess) {
@@ -184,36 +188,54 @@ function userView(s, guildId, { rankFree = false } = {}) {
     };
 }
 
+/** Whether a session holds a server-admin rank too old to answer from (see RANK_MAX_AGE_MS). */
+function rankIsStale(s) {
+    const holdsRank = Object.values((s.guildAccess && s.guildAccess.guilds) || {}).some((g) => g && g.isServerAdmin);
+    return holdsRank && Date.now() - (s.adminCheckedAt || s.createdAt || 0) > RANK_MAX_AGE_MS;
+}
+
 /**
- * Compute the per-server rights of a session that has none yet (logged in
- * before #925) before the request goes on, so its first request after the
- * update is answered with the right rights instead of the base access. A no-op
- * for every other request.
+ * Settle what the request's session is missing before the request goes on. A session
+ * without per-server rights yet (logged in before #925) gets them computed, so its first
+ * request after the update is answered with the right rights instead of the base access.
+ * A session with a stale server-admin rank waits for its re-check (at most
+ * RECHECK_TIMEOUT_MS): the first request after a pause answers with the rank Discord
+ * confirms now, a lookup without an answer leaves the rank away. A no-op for every other
+ * request.
  */
 async function ensureAccess(req) {
     const sid = parseCookies(req).sid;
     const s = sid && sessions.get(sid);
-    if (!s || s.guildAccess || sid === DEV_SID) return;
+    if (!s || sid === DEV_SID) return;
     if ((Date.now() - (s.createdAt || 0)) >= SESSION_TTL) return;
+    if (s.guildAccess) {
+        if (rankIsStale(s)) await refreshAdmin(sid, s);
+        return;
+    }
     applyGuildAccess(s, await resolveGuildAccess(s.id));
     s.adminCheckedAt = Date.now();
     saveSessions();
 }
 
+/** computeGuildAccess() that gives up after RECHECK_TIMEOUT_MS; a later answer is dropped. */
+function lookupWithTimeout(id) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`no answer within ${RECHECK_TIMEOUT_MS} ms`)), RECHECK_TIMEOUT_MS);
+        if (timer.unref) timer.unref();
+    });
+    return Promise.race([computeGuildAccess(id), timeout]).finally(() => clearTimeout(timer));
+}
+
 /**
- * Re-check a session's admin status and area access against the current role
- * config once its cached value is older than ADMIN_REFRESH_MS. Runs in the
- * background — the current request keeps the cached status, the next one sees
- * the result. A failed lookup (bot offline, Discord unreachable) keeps the last
- * known status instead of demoting a working session — except a server-admin
- * rank (#1072), which never outlives an unanswered lookup.
+ * Re-check a session's rights now, or join the re-check in flight. Never rejects and always
+ * ends within RECHECK_TIMEOUT_MS. A failed lookup (bot offline, Discord unreachable, no answer
+ * in time) keeps the last known status instead of demoting a working session - except a
+ * server-admin rank (#1072), which never outlives an unanswered lookup.
  */
-function maybeRefreshAdmin(sid, s) {
-    if (sid === DEV_SID) return; // dev auto-login session is always admin
-    const checkedAt = s.adminCheckedAt || s.createdAt || 0;
-    if (Date.now() - checkedAt < ADMIN_REFRESH_MS || refreshingSids.has(sid)) return;
-    refreshingSids.add(sid);
-    computeGuildAccess(s.id)
+function refreshAdmin(sid, s) {
+    if (refreshingSids.has(sid)) return refreshingSids.get(sid);
+    const running = lookupWithTimeout(s.id)
         .then((guildAccess) => applyGuildAccess(s, guildAccess))
         .catch((e) => {
             console.warn(`Admin re-check failed for ${s.id}:`, e.message);
@@ -224,6 +246,21 @@ function maybeRefreshAdmin(sid, s) {
             refreshingSids.delete(sid);
             saveSessions();
         });
+    refreshingSids.set(sid, running);
+    return running;
+}
+
+/**
+ * Re-check a session's admin status and area access against the current role
+ * config once its cached value is older than ADMIN_REFRESH_MS. Runs in the
+ * background — the current request keeps the cached status, the next one sees
+ * the result (refreshAdmin).
+ */
+function maybeRefreshAdmin(sid, s) {
+    if (sid === DEV_SID) return; // dev auto-login session is always admin
+    const checkedAt = s.adminCheckedAt || s.createdAt || 0;
+    if (Date.now() - checkedAt < ADMIN_REFRESH_MS || refreshingSids.has(sid)) return;
+    refreshAdmin(sid, s);
 }
 
 /**
@@ -267,6 +304,16 @@ function sessionGuildAccess(req) {
 function getRealUser(req) {
     const s = sessionFor(req);
     return s ? userView(s, activeGuildOf(req), { rankFree: rankFreeRequest(req) }) : null;
+}
+
+/**
+ * The logged-in user with the rights of their roles alone, whatever the route: for a
+ * handler that lets the server-admin rank through except on data of every server, where a
+ * route mark (`sharedData`) cannot say that.
+ */
+function getUserWithoutRank(req) {
+    const s = sessionFor(req);
+    return s ? userView(s, activeGuildOf(req), { rankFree: true }) : null;
 }
 
 /**
@@ -375,7 +422,7 @@ function destroy(sid) {
 }
 
 module.exports = {
-    configured, parseCookies, getUser, getRealUser, setViewAs, loginUrl, completeLogin, destroy,
+    configured, parseCookies, getUser, getRealUser, getUserWithoutRank, RECHECK_TIMEOUT_MS, setViewAs, loginUrl, completeLogin, destroy,
     csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, ensureAccess, sessionGuildAccess,
     // services/discord/members/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,

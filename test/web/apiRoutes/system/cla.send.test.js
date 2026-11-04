@@ -27,6 +27,10 @@ jest.mock("../../../../src/stores/settings/settingsStore.js", () => ({ getConfig
 jest.mock("../../../../src/utils/logcheck/report.js", () => ({ buildReport: jest.fn(), stripSection: jest.fn(), ReportError: class extends Error {} }));
 jest.mock("../../../../src/services/logcheck/matchableEvents.js", () => ({ loadMatchableEvents: jest.fn(), eventLinkFields: jest.fn() }));
 jest.mock("../../../../src/web/logcheck/manualLog.js", () => ({ linkLogByUrl: jest.fn() }));
+jest.mock("../../../../src/services/events/eventServer.js", () => ({
+    ...jest.requireActual("../../../../src/services/events/eventServer.js"),
+    guildOfCategory: (categoryId) => ({ c1: "g1", c2: "g2" })[categoryId] || "",
+}));
 
 const { recommendationSendStatus, sendRecommendations } = require("../../../../src/web/apiRoutes/system/cla.js");
 
@@ -56,6 +60,33 @@ describe("GET /api/cla/recommendations/send", () => {
         const r = mockRes();
         await recommendationSendStatus({}, r, new URL("http://x/api/cla/recommendations/send?id=nope"));
         expect(status(r)).toBe(404);
+    });
+});
+
+// The store holds the assignments of every server (#1072).
+describe("assignments of the rank Server-Admin", () => {
+    const RANK = { id: "u9", name: "Rang", isAdmin: false, isServerAdmin: true, isOrga: true };
+    const bothServers = { c1: { u1: "Farin" }, c2: { u2: "Fremd" }, unknown: { u3: "Alt" } };
+
+    beforeEach(() => {
+        mockAssignments.mockReturnValue(bothServers);
+        mockGetReport.mockImplementation((id) => (id === "abc123" ? { id: "abc123", guildId: "g1", recommendations: { raid: [], players: [] } } : null));
+    });
+    afterEach(() => mockAssignments.mockReturnValue({ c1: { u1: "Farin" } }));
+
+    it("only match against the active server", async () => {
+        mockUser = RANK;
+        mockBody = { reportId: "abc123" };
+        await sendRecommendations({}, mockRes());
+        expect(mockSendApproved.mock.calls[0][1].assignments).toEqual({ c1: { u1: "Farin" } });
+        await recommendationSendStatus({}, mockRes(), new URL("http://x/api/cla/recommendations/send?id=abc123"));
+        expect(mockSendStatus.mock.calls[0][1]).toEqual({ c1: { u1: "Farin" } });
+    });
+
+    it("stay whole for everyone else", async () => {
+        mockBody = { reportId: "abc123" };
+        await sendRecommendations({}, mockRes());
+        expect(mockSendApproved.mock.calls[0][1].assignments).toEqual(bothServers);
     });
 });
 

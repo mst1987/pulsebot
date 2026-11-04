@@ -1064,7 +1064,10 @@ describe("web/apiRoutes/cla", () => {
                 "https://classic.warcraftlogs.com/reports/AAA",
                 expect.objectContaining({ id: "e2", title: "Other" }),
                 "guild-1",
+                expect.any(Function),
             );
+            // Full admin: the guard handed along lets every log through.
+            expect(manualLog.linkLogByUrl.mock.calls[0][3]({ guildId: "other" })).toBe(true);
             expect(logChannel.backfillLogTitles).toHaveBeenCalledWith([log]);
             expect(json(res)).toEqual({
                 data: { logId: "l9", eventId: "e2", eventLabel: "Other", message: "WCL-Link „Other\" zugeordnet." },
