@@ -35,6 +35,7 @@ export * from "./loot/guildbank";
 export * from "./system/dungeons";
 export * from "./system/addons";
 export * from "./system/addonCenter";
+export * from "./system/serverPlans";
 export * from "./roster/profile";
 export * from "./events/signups";
 export * from "./events/availability";

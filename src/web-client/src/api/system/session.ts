@@ -37,6 +37,8 @@ export type SessionUser = {
      * raids - the pages show it their orga parts there (each raid's buttons still follow the server's answer).
      */
     orgaCategories?: string[];
+    /** The features the plan of the active server unlocks (docs/server-plans.md); a menu entry's `feature` asks them. */
+    planFeatures?: string[];
     /** The names of the orga roles (admin roles left out) — the orga zones name them. */
     orgaRoles?: string[];
 };

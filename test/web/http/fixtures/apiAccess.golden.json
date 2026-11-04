@@ -352,6 +352,8 @@
     "/api/addon-center",
     "/api/addon-center",
     "/api/addon-center",
+    "/api/settings/server-plans",
+    "/api/settings/server-plans",
     "/api/system/backup",
     "/api/system/backup/snapshot",
     "/api/system/status"

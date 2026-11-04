@@ -5,7 +5,8 @@
 //                  raid categories, raid defaults, logs, recruitment, raid
 //                  sheets, top items
 //   Alle Server  — what the whole bot shares: the server list and its links,
-//                  the external connections, game versions, dungeons, addons
+//                  the external connections, game versions, dungeons, addons,
+//                  the plan of each server
 //
 // Each section carries an icon of the app's set (#951), and the two that can be incomplete a count.
 
@@ -63,6 +64,8 @@ export const SETTINGS_SECTIONS: SettingsSection[] = [
     { id: "dungeons", group: "global", icon: "bestTimes" },
     // #818: the addons of the page "Addons" - saved on its own, full admins only (ADDON_KEYS)
     { id: "addons", group: "global", icon: "addons", adminOnly: true, standalone: true },
+    // #1080: which plan each server is on - saved on its own, full admins only
+    { id: "serverplans", group: "global", icon: "settings", adminOnly: true, standalone: true },
 ];
 
 /** Sidebar entry and the part head's title, in the active language. */

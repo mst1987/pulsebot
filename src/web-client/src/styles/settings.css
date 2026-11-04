@@ -143,6 +143,10 @@
 .set-card > table.idx tr:last-child td { border-bottom: 0; }
 table.idx td.cell-act { text-align: right; white-space: nowrap; width: 1%; }
 table.idx td.cell-act > * + * { margin-left: 6px; }
+/* Tarife (ServerPlansSection): the note takes what the table leaves; a narrow screen scrolls the table, not the page */
+.plan-wrap { overflow-x: auto; }
+.plan-note { width: 100%; min-width: 180px; }
+.plan-expired { margin-left: 8px; }
 /* the sync keys (Tokens verwalten): seven columns in a 720 px dialog, so tighter cells,
    the hint on one line and long names cut with the full one in the tooltip */
 .conn-tok table.idx th, .conn-tok table.idx td { padding: 7px 8px; }

@@ -8,7 +8,8 @@
 const { error } = require("./apiResponse");
 const { AppError } = require("./apiResult");
 const auth = require("./auth");
-const { gate } = require("./apiAccess");
+const { gate, planRefusal } = require("./apiAccess");
+const { activeGuildFor } = require("./activeGuild");
 const { find, methodsFor } = require("./routeTable");
 
 /**
@@ -43,6 +44,11 @@ async function handle(pathname, req, res, url) {
             } else {
                 error(res, 404, "not_found", "Unbekannter API-Endpunkt.");
             }
+            return true;
+        }
+        const refused = planRefusal(route, () => activeGuildFor(req));
+        if (refused) {
+            error(res, refused.status, refused.code, refused.message);
             return true;
         }
         await route.handler(req, res, url);

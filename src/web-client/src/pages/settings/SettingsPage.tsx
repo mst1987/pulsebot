@@ -14,6 +14,7 @@ import SectionRail, { RailLayout } from "../../components/ui/layout/SectionRail"
 import CategoryMatrix from "./categories/CategoryMatrix";
 import ConnectionsSection from "./connections/SettingsConnections";
 import AddonsSection from "./connections/AddonsSection";
+import ServerPlansSection from "./connections/ServerPlansSection";
 import DiscordServersSection from "./discord/SettingsDiscordServers";
 import RaidhelperServerSection from "./connections/SettingsRaidhelperServer";
 import WclGuildsSection from "./connections/SettingsWclGuilds";
@@ -702,6 +703,13 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("addon.settings.sectionSub"))}
                     <AddonsSection data={data} onConfig={(config) => setData({ ...data, config })} />
+                </>
+            );
+
+            case "serverplans": return (
+                <>
+                    {head(activeSection, undefined, sectionLabel(activeSection), t("settings.serverPlans.sectionSub"))}
+                    <ServerPlansSection />
                 </>
             );
 
