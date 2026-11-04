@@ -245,7 +245,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Discord-Administrator (docs/permissions.md). Die Marke greift nur, wenn die ganze Route global ist:
     Routen, deren Schlüssel zwischen Server- und globalen Daten wechselt (Raidplan-Karten), oder die einen
     Serverkontext prüfen, aber global schreiben (`PUT /api/leads`), brauchen eine Prüfung im Handler
-    (`auth.getUserWithoutRank`). Maßstab ist der Store, nicht die Rechteprüfung davor.
+    (`auth.getUserWithoutRank`). Maßstab ist der Store, nicht die Rechteprüfung davor. Baustein im Handler
+    ist `onlyByRank(user, req, rolesMay)` (`web/http/serverQuery.js`): Das Konto bekommt, was es ohne Rang
+    bekäme. Beim Review alle Wege prüfen, auch GET und `auth: "token"`, und auch die, die ein Zielkonto erst
+    in eine Liste bringen (fremde ID als Raider eintragen, danach ihr Profil lesen).
+    `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
 
 ## Fach-Agenten
 
