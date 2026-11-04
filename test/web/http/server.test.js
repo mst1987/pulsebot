@@ -24,6 +24,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     destroy: jest.fn(),
     getUser: jest.fn(() => null),
     parseCookies: jest.fn(() => ({})),
+    renewSession: jest.fn(),
 }));
 jest.mock("../../../src/web/http/apiRouter", () => ({ handle: jest.fn(() => true) }));
 // #424: the server is HTTP only; the jobs start in jobs.js.
@@ -103,6 +104,31 @@ describe("web/http/server", () => {
             expect(startWebServer()).toBe(http.__fakeServer);
             // no new server was created by the repeat call
             expect(http.createServer).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("one public address", () => {
+        it("sends another name of the public domain to the public address, path included", async () => {
+            const res = await request({ url: "/raids?event=1", method: "GET", headers: { host: "logcheck.localhost" } });
+            expect(res.writeHead).toHaveBeenCalledWith(301, { Location: expect.stringMatching(/^http:\/\/localhost:\d+\/raids\?event=1$/) });
+            expect(staticClient.serve).not.toHaveBeenCalled();
+        });
+
+        it("answers an API call under another name as before", async () => {
+            await request({ url: "/api/session", method: "GET", headers: { host: "logcheck.localhost" } });
+            expect(apiRouter.handle).toHaveBeenCalled();
+        });
+    });
+
+    describe("keeping a login alive", () => {
+        it("renews the session on API calls", async () => {
+            await request({ url: "/api/session", method: "GET", headers: {} });
+            expect(auth.renewSession).toHaveBeenCalledTimes(1);
+        });
+
+        it("leaves built files out: they can be cached with their headers", async () => {
+            await request({ url: "/assets/app.js", method: "GET", headers: {} });
+            expect(auth.renewSession).not.toHaveBeenCalled();
         });
     });
 

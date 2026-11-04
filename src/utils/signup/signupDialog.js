@@ -343,12 +343,9 @@ function buildCharacterModal(customId, { defaultName = "", classText = "", versi
     // No version handed in: the main version's name rule (#541).
     const lastName = allowsLastName(versionOfEvent({ versionId }));
     const max = lastName ? NAME_MAX : NAME_PART_MAX;
-    const label = lastName
-        ? (classText ? tr(lang, "First and last name ({class})", { class: classText }) : tr(lang, "First and last name"))
-        : (classText ? tr(lang, "Your character's name ({class})", { class: classText }) : tr(lang, "Your character's name"));
     const input = new TextInputBuilder()
         .setCustomId("character")
-        .setLabel(label.slice(0, 45))
+        .setLabel(tr(lang, lastName ? "First and last name" : "Your character's name"))
         .setPlaceholder(lastName
             ? tr(lang, "First name Last name – at most {max} letters each", { max: NAME_PART_MAX })
             : tr(lang, "At most {max} letters", { max: NAME_PART_MAX }))
@@ -360,7 +357,8 @@ function buildCharacterModal(customId, { defaultName = "", classText = "", versi
     if (prefill && (!lastName || /^\p{L}+ \p{L}+$/u.test(prefill))) input.setValue(prefill);
     return new ModalBuilder()
         .setCustomId(customId)
-        .setTitle(tr(lang, "Add a character"))
+        // Class and spec go in the title: next to the name in the label, "Schamane · Wiederherstellung" passed Discord's 45 characters.
+        .setTitle(classText ? String(classText).slice(0, 45) : tr(lang, "Add a character"))
         .addComponents(new ActionRowBuilder().addComponents(input));
 }
 

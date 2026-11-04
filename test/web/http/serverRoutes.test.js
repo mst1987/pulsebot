@@ -52,6 +52,7 @@ jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn((req) => mockUsers[req.headers.cookie] || null),
     getRealUser: jest.fn((req) => (req.headers.cookie === "viewas" ? mockUsers.admin : mockUsers[req.headers.cookie] || null)),
     parseCookies: jest.fn((req) => ({ sid: req.headers.cookie || "" })),
+    renewSession: jest.fn(),
 }));
 jest.mock("../../../src/web/http/apiRouter", () => ({
     handle: jest.fn(async (pathname, req, res) => {

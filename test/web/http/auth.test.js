@@ -1126,6 +1126,107 @@ describe("web/http/auth", () => {
         });
     });
 
+    describe("session lifetime", () => {
+        const DAY = 86400000;
+        const cookieOf = (sid) => ({ headers: { cookie: `sid=${sid}` } });
+        const fakeRes = () => ({ setHeader: jest.fn() });
+        let now;
+
+        async function login(code) {
+            axios.post.mockResolvedValue({ data: { access_token: "t" } });
+            axios.get.mockResolvedValue({ data: { id: code, username: code } });
+            return auth.completeLogin(code);
+        }
+
+        beforeEach(() => {
+            now = Date.now();
+            jest.spyOn(Date, "now").mockImplementation(() => now);
+        });
+
+        afterEach(() => jest.restoreAllMocks());
+
+        it("keeps a session for 30 days from the login", async () => {
+            const sid = await login("life-1");
+            now += 29 * DAY;
+            expect(auth.getUser(cookieOf(sid))).toMatchObject({ id: "life-1" });
+            await flush();
+        });
+
+        it("ends a session that was not used for 30 days and forgets it", async () => {
+            const sid = await login("life-2");
+            now += 31 * DAY;
+            expect(auth.getUser(cookieOf(sid))).toBeNull();
+            expect(storedSessions()).not.toHaveProperty(sid);
+        });
+
+        it("does not renew during the first day", async () => {
+            const sid = await login("life-3");
+            now += DAY - 1000;
+            const res = fakeRes();
+            auth.renewSession(cookieOf(sid), res);
+            expect(res.setHeader).not.toHaveBeenCalled();
+            expect(storedSessions()[sid].renewedAt).toBeUndefined();
+        });
+
+        it("moves the expiry on in the store and the cookie while the session is used", async () => {
+            const sid = await login("life-4");
+            now += 2 * DAY;
+            const res = fakeRes();
+            auth.renewSession(cookieOf(sid), res);
+            expect(res.setHeader).toHaveBeenCalledWith("Set-Cookie", expect.stringContaining(`sid=${sid};`));
+            expect(res.setHeader.mock.calls[0][1]).toContain("Max-Age=2592000");
+            expect(storedSessions()[sid].renewedAt).toBe(now);
+
+            // 31 days after the login, 29 after the renewal: still there
+            now += 29 * DAY;
+            expect(auth.getUser(cookieOf(sid))).toMatchObject({ id: "life-4" });
+            await flush();
+        });
+
+        it("renews at most once a day", async () => {
+            const sid = await login("life-5");
+            now += 2 * DAY;
+            auth.renewSession(cookieOf(sid), fakeRes());
+            now += 1000;
+            const res = fakeRes();
+            auth.renewSession(cookieOf(sid), res);
+            expect(res.setHeader).not.toHaveBeenCalled();
+        });
+
+        it("does not bring an expired session back", async () => {
+            const sid = await login("life-6");
+            now += 31 * DAY;
+            const res = fakeRes();
+            auth.renewSession(cookieOf(sid), res);
+            expect(res.setHeader).not.toHaveBeenCalled();
+            expect(auth.getUser(cookieOf(sid))).toBeNull();
+        });
+
+        it("ignores a request without a session and an unknown sid", () => {
+            const res = fakeRes();
+            auth.renewSession({ headers: {} }, res);
+            auth.renewSession(cookieOf("gibt-es-nicht"), res);
+            expect(res.setHeader).not.toHaveBeenCalled();
+        });
+
+        it("after a restart the renewal counts, not the login", async () => {
+            const renewed = await login("life-7");
+            now += 2 * DAY;
+            auth.renewSession(cookieOf(renewed), fakeRes());
+            const plain = await login("life-8");
+            now += 29 * DAY;
+            let fresh;
+            jest.isolateModules(() => { fresh = require("../../../src/web/http/auth.js"); });
+            expect(fresh.getUser(cookieOf(renewed))).toMatchObject({ id: "life-7" });
+            expect(fresh.getUser(cookieOf(plain))).toMatchObject({ id: "life-8" });
+            await flush();
+            now += 2 * DAY;
+            let later;
+            jest.isolateModules(() => { later = require("../../../src/web/http/auth.js"); });
+            expect(later.getUser(cookieOf(plain))).toBeNull();
+        });
+    });
+
     describe("destroy", () => {
         it("removes a session so getUser no longer resolves it", async () => {
             axios.post.mockResolvedValue({ data: { access_token: "t" } });
