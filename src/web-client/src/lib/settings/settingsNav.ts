@@ -8,7 +8,7 @@ import { t } from "../../i18n";
 import { missingConnections, serverIssues } from "./settingsLogic";
 
 /** The counts behind the section badges. */
-export type SettingsNavCounts = { verbindungen: number; discordserver: number; kategorien: number };
+export type SettingsNavCounts = { verbindungen: number; discordserver: number; kategorien: number; twitch: number };
 
 type CountSource = {
     data: SettingsData;
@@ -23,6 +23,7 @@ export function settingsNavCounts({ data, tokens, canManageAccess, activeCategor
         verbindungen: missingConnections(data, tokens, canManageAccess),
         discordserver: serverIssues(data.servers),
         kategorien: activeCategories,
+        twitch: data.twitchRequestsOpen || 0,
     };
 }
 
@@ -32,5 +33,6 @@ export function sectionBadge(id: string, counts: SettingsNavCounts | null): NavB
     if (id === "verbindungen") return { count: counts.verbindungen, tone: "mid", tip: t("settings.page.badgeConnections", { count: counts.verbindungen }) };
     if (id === "discordserver") return { count: counts.discordserver, tone: "mid", tip: t("settings.page.badgeServers", { count: counts.discordserver }) };
     if (id === "kategorien") return { count: counts.kategorien, tip: t("settings.page.badgeCategories", { count: counts.kategorien }) };
+    if (id === "twitch") return { count: counts.twitch, tone: "mid", tip: t("settings.page.badgeTwitch", { count: counts.twitch }) };
     return null;
 }

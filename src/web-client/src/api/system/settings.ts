@@ -381,6 +381,8 @@ export type SettingsData = {
     /** #744: configured categories Discord no longer has (only known while the bot sees every server). */
     missingCategories?: MissingCategory[];
     activeGuildId: string;
+    /** Raiders' waiting Twitch requests of the active server, the section's badge (docs/twitch.md). */
+    twitchRequestsOpen?: number;
     /** Full admins only (#925): the roles of every server, for Alle Server › Voll-Admins; [] for anyone else. */
     adminRoles?: AdminRole[];
     /** Full admins only (#925): the server a listed role lives on, resolved over every server of the bot. */

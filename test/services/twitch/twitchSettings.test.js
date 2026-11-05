@@ -73,11 +73,16 @@ describe("normalizeTwitchStreamers", () => {
 
     it("drops an impossible role, cuts the text and an unknown source falls back to orga", () => {
         const [entry] = normalizeTwitchStreamers([{
-            login: "foo", channelId: CHANNEL, roleId: "x", text: "y".repeat(MAX_TEXT_LENGTH + 9), source: "raider",
+            login: "foo", channelId: CHANNEL, roleId: "x", text: "y".repeat(MAX_TEXT_LENGTH + 9), source: "wer-auch-immer",
         }]);
         expect(entry.roleId).toBe("");
         expect(entry.text).toHaveLength(MAX_TEXT_LENGTH);
         expect(entry.source).toBe("orga");
+    });
+
+    it("keeps the source of an approved request", () => {
+        const [entry] = normalizeTwitchStreamers([{ login: "foo", channelId: CHANNEL, source: "raider" }]);
+        expect(entry.source).toBe("raider");
     });
 
     it("takes no list as empty", () => {

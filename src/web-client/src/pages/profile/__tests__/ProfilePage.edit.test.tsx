@@ -14,6 +14,7 @@ vi.mock("../../../api", async (orig) => ({
     getProfile: vi.fn(),
     getCalendarTokens: vi.fn(),
     getSyncKeys: vi.fn(),
+    getProfileTwitch: vi.fn(),
     getLogCharacters: vi.fn(),
     editProfileCharacter: vi.fn(),
     getAllCharacters: vi.fn(),
@@ -53,6 +54,7 @@ beforeEach(() => {
     vi.mocked(api.getProfile).mockResolvedValue(data([GENTLE]));
     vi.mocked(api.getCalendarTokens).mockResolvedValue({ tokens: [], max: 3, configured: true });
     vi.mocked(api.getSyncKeys).mockResolvedValue({ allowed: false, servers: [], keys: [], max: 10 });
+    vi.mocked(api.getProfileTwitch).mockResolvedValue({ servers: [], lastLogin: "" });
     vi.mocked(api.getLogCharacters).mockResolvedValue({ characters: [] });
     vi.mocked(api.getAllCharacters).mockResolvedValue({ raiders: [] });
     vi.mocked(api.getRaiderAttendance).mockResolvedValue({ userId: "u1", name: "Anna", own: true, orga: false, categories: [] });

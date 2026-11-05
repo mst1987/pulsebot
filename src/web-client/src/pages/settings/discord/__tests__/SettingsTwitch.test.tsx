@@ -12,6 +12,8 @@ const api = vi.hoisted(() => ({
     updateTwitchStreamer: vi.fn(),
     removeTwitchStreamer: vi.fn(),
     checkTwitchStreamers: vi.fn(),
+    approveTwitchRequest: vi.fn(),
+    rejectTwitchRequest: vi.fn(),
 }));
 const toast = vi.hoisted(() => vi.fn());
 const confirm = vi.hoisted(() => vi.fn());
@@ -37,15 +39,16 @@ const view = (over: Partial<TwitchView> = {}): TwitchView => ({
     limits: { streamers: 25, textLength: 500, games: 5, gameNameLength: 60 },
     mention: { botCanMentionAll: true, unmentionableRoleIds: [] },
     streamers: [streamer()],
+    requests: [],
     ...over,
 });
 const NO_PING = { botCanMentionAll: false, unmentionableRoleIds: ["r1"] };
 const apiError = (code: string) => Object.assign(new Error(code), { code });
 
-function show() {
+function show(props: Partial<Parameters<typeof SettingsTwitch>[0]> = {}) {
     return render(
         <MemoryRouter>
-            <SettingsTwitch guildId={GUILD} channels={channels} roles={roles} />
+            <SettingsTwitch guildId={GUILD} channels={channels} roles={roles} {...props} />
         </MemoryRouter>,
     );
 }
@@ -375,6 +378,199 @@ describe("the dialog", () => {
         expect(screen.getByRole("alert")).toBeTruthy();
         expect(screen.queryByRole("button", { name: /Hinzufügen/ })).toBeNull();
         expect(document.querySelector(".tws-actions")).toBeNull();
+    });
+});
+
+describe("open requests", () => {
+    const REQUEST = { userId: "u7", userName: "Anna", login: "annastream", requestedAt: new Date("2026-11-03T20:14:00").getTime() };
+    const requestsBlock = () => document.querySelector(".tws-requests") as HTMLElement | null;
+    const approveButton = () => within(requestsBlock() as HTMLElement).getByRole("button", { name: /Freigeben/ }) as HTMLButtonElement;
+    const rejectButton = () => within(requestsBlock() as HTMLElement).getByRole("button", { name: /Ablehnen/ }) as HTMLButtonElement;
+
+    it("shows no block without a request", async () => {
+        show();
+        await screen.findByRole("link", { name: "somebody" });
+        expect(requestsBlock()).toBeNull();
+    });
+
+    it("counts them with a word and names raider and login", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        const block = requestsBlock() as HTMLElement;
+        expect(block.textContent).toContain("Anna");
+        expect(block.textContent).toContain("annastream");
+    });
+
+    it("approves through the dialog with the name fixed and sends the raider's id", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockResolvedValue(view({ streamers: [streamer({ login: "annastream", source: "raider" })] }));
+        const onRequestsChange = vi.fn();
+        show({ onRequestsChange });
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        const login = document.getElementById("tws-login") as HTMLInputElement;
+        expect(login.value).toBe("annastream");
+        expect(login.readOnly).toBe(true);
+        expect(d.getByText(/Angefragt von Anna/)).toBeTruthy();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(api.approveTwitchRequest).toHaveBeenCalledWith(GUILD, {
+            userId: "u7", login: "annastream", channelId: "c1", roleId: "", text: "", games: [],
+        }));
+        await waitFor(() => expect(toast).toHaveBeenCalledWith(expect.stringContaining("annastream")));
+        expect(screen.queryByRole("dialog")).toBeNull();
+        expect(requestsBlock()).toBeNull();
+        expect(onRequestsChange).toHaveBeenLastCalledWith(0);
+    });
+
+    it("rejects only after asking", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        confirm.mockResolvedValue(false);
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(rejectButton());
+        await waitFor(() => expect(confirm).toHaveBeenCalled());
+        expect(api.rejectTwitchRequest).not.toHaveBeenCalled();
+
+        confirm.mockResolvedValue(true);
+        api.rejectTwitchRequest.mockResolvedValue(view());
+        fireEvent.click(rejectButton());
+        await waitFor(() => expect(api.rejectTwitchRequest).toHaveBeenCalledWith(GUILD, "u7", "annastream"));
+        await waitFor(() => expect(requestsBlock()).toBeNull());
+    });
+
+    it("stops approving at the limit and says why, but rejecting still works", async () => {
+        const many = Array.from({ length: 25 }, (_, i) => streamer({ login: `streamer_${i}` }));
+        api.getTwitchSettings.mockResolvedValue(view({ streamers: many, requests: [REQUEST] }));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        expect(approveButton().disabled).toBe(true);
+        expect(rejectButton().disabled).toBe(false);
+        expect((requestsBlock() as HTMLElement).textContent).toContain("Die Liste ist voll");
+    });
+
+    it.each(["too_many", "duplicate_streamer"])("words %s in a toast, keeps the dialog and reloads list and counter", async (code) => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError(code));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalled());
+        expect(toast.mock.calls[0][1]).toBe("err");
+        expect(toast.mock.calls[0][0]).not.toContain(code);
+        await waitFor(() => expect(api.getTwitchSettings).toHaveBeenCalledTimes(2));
+        expect(screen.getByRole("dialog")).toBeTruthy();
+        expect(requestsBlock()).not.toBeNull();
+    });
+
+    it("does not reload on a refusal about the dialog's own input", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError("invalid_channel"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(toast).toHaveBeenCalled());
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(1);
+        expect(screen.getByRole("dialog")).toBeTruthy();
+    });
+
+    it("closes the dialog, reloads and says so when the name was changed in the meantime", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError("request_changed"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [{ ...REQUEST, login: "othername" }] }));
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect((requestsBlock() as HTMLElement).textContent).toContain("othername"));
+        expect(toast).toHaveBeenCalledWith(expect.stringContaining("geändert"), "err");
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it("reloads and says so when rejecting a name that was changed in the meantime", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        confirm.mockResolvedValue(true);
+        api.rejectTwitchRequest.mockRejectedValue(apiError("request_changed"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [{ ...REQUEST, login: "othername" }] }));
+        fireEvent.click(rejectButton());
+        await waitFor(() => expect((requestsBlock() as HTMLElement).textContent).toContain("othername"));
+        expect(toast).toHaveBeenCalledWith(expect.stringContaining("geändert"), "err");
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it("names the field after what it holds, focuses the channel and says why approving is locked", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        expect(d.getByLabelText("Twitch-Name")).toBe(document.getElementById("tws-login"));
+        expect(d.queryByLabelText("Name oder Link")).toBeNull();
+        await waitFor(() => expect(document.activeElement).toBe(document.getElementById("tws-channel")));
+        expect((d.getByRole("button", { name: /Freigeben/ }) as HTMLButtonElement).disabled).toBe(true);
+        expect(d.getByText("Erst einen Kanal wählen.")).toBeTruthy();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        expect(d.queryByText("Erst einen Kanal wählen.")).toBeNull();
+        expect((d.getByRole("button", { name: /Freigeben/ }) as HTMLButtonElement).disabled).toBe(false);
+    });
+
+    it("leaves editing an entry as it was", async () => {
+        show();
+        await screen.findByRole("link", { name: "somebody" });
+        fireEvent.click(document.querySelector(".tws-actions button") as HTMLElement);
+        const d = await dialog();
+        expect(d.getByLabelText("Name oder Link")).toBe(document.getElementById("tws-login"));
+        expect(d.queryByText("Erst einen Kanal wählen.")).toBeNull();
+    });
+
+    it("reloads when the request is gone, from the dialog and from rejecting", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        api.approveTwitchRequest.mockRejectedValue(apiError("not_found"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(approveButton());
+        const d = await dialog();
+        fireEvent.change(document.getElementById("tws-channel") as HTMLElement, { target: { value: "c1" } });
+        api.getTwitchSettings.mockResolvedValue(view());
+        fireEvent.click(d.getByRole("button", { name: /Freigeben/ }));
+        await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+        await waitFor(() => expect(requestsBlock()).toBeNull());
+        expect(api.getTwitchSettings).toHaveBeenCalledTimes(2);
+    });
+
+    it("stops writes on 409 after a server switch", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        confirm.mockResolvedValue(true);
+        api.rejectTwitchRequest.mockRejectedValue(apiError("server_switched"));
+        show();
+        await screen.findByText("1 offene Anfrage");
+        fireEvent.click(rejectButton());
+        expect(await screen.findByRole("alert")).toBeTruthy();
+        // the block stays readable, its buttons are gone
+        expect(requestsBlock()).not.toBeNull();
+        expect(screen.queryByRole("button", { name: /Freigeben/ })).toBeNull();
+        expect(screen.queryByRole("button", { name: /Ablehnen/ })).toBeNull();
+    });
+
+    it("reports the number to the page, so the counter at the section stays true", async () => {
+        api.getTwitchSettings.mockResolvedValue(view({ requests: [REQUEST] }));
+        const onRequestsChange = vi.fn();
+        show({ onRequestsChange });
+        await screen.findByText("1 offene Anfrage");
+        expect(onRequestsChange).toHaveBeenCalledWith(1);
     });
 });
 
