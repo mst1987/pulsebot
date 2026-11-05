@@ -14,6 +14,11 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => mockTrusted),
+}));
 jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
     applyMemberAdded: jest.fn(async () => ({ ok: true, results: [] })),
     applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
@@ -83,6 +88,7 @@ afterAll(() => {
 });
 beforeEach(() => {
     jest.clearAllMocks();
+    mockTrusted = true;
     auth.checkCsrf.mockReturnValue(true);
     activeGuildFor.mockReturnValue("g1");
     discord.isOnline.mockReturnValue(true);
@@ -317,6 +323,33 @@ describe("POST /api/rosters/update - loot system and Loot-Council profile (#676)
         expect(configStore.getConfig().categoryLootSystem[CAT]).toBe("lootcouncil");
         const detail = await post("/api/rosters/update", { rosterId: roster.id, lootSystem: "nope" });
         expect([status(detail), code(detail)]).toEqual([400, "invalid_loot_system"]);
+    });
+
+    it("offers and accepts on a server without the mark only the default and what its rosters use (#1073)", async () => {
+        const foreign = councilProfilesStore.createProfile({ name: "Fremdes Profil" });
+        const own = councilProfilesStore.createProfile({ name: "Eigenes Profil" });
+        const other = rosterStore.createRoster({ guildId: "g1", name: "Zweites", categoryId: "", roleIds: [] });
+        expect(status(await post("/api/rosters/update", { rosterId: other.roster ? other.roster.id : other.id, lootProfileId: own.id }))).toBe(200);
+        const defaultId = councilProfilesStore.defaultProfileId();
+
+        mockTrusted = false;
+        mockUser = { ...MANAGER, guildId: "g1", isServerAdmin: true };
+        const names = (res) => data(res).lootProfiles.map((p) => p.id).sort();
+        expect(names(await get("/api/rosters/options"))).toEqual([defaultId, own.id].sort());
+        let res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: foreign.id });
+        expect([status(res), code(res)]).toEqual([400, "unknown_profile"]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: own.id });
+        expect(status(res)).toBe(200);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: "" });
+        expect(status(res)).toBe(200);
+
+        mockUser = ADMIN;
+        expect(names(await get("/api/rosters/options"))).toContain(foreign.id);
+        expect(status(await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: foreign.id }))).toBe(200);
+
+        mockTrusted = true;
+        mockUser = { ...MANAGER, guildId: "g1", isServerAdmin: true };
+        expect(names(await get("/api/rosters/options"))).toContain(foreign.id);
     });
 
     it("lets a manager pick the profile but not the loot system", async () => {

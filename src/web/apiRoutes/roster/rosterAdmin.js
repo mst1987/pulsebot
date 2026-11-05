@@ -27,6 +27,8 @@ const { updateRosterSettings } = require("../../../services/roster/rosterSetting
 const { rosterOptions, serverRoles } = require("../../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../../services/roster/rosterComposition");
 const { activeRoster } = require("../../roster/activeRoster");
+const { rolesCountForSharedData } = require("../../http/serverQuery");
+const { defaultProfileId } = require("../../../stores/loot/councilProfilesStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
@@ -72,6 +74,18 @@ function rankRefusal(user, guildId, body, keepCategoryId) {
 }
 
 /**
+ * The Loot-Council profiles are one list for every server (#1073). On a server without the mark, nobody
+ * but a full admin sees or picks more of it than the default profile and what the server's rosters
+ * already use: a picked id would open that profile's weights in the council. Null means no limit.
+ * @returns {Set<string> | null}
+ */
+function ownLootProfiles(user, req, guildId) {
+    if (user.isAdmin === true || rolesCountForSharedData(req)) return null;
+    const used = rosterStore.listRosters(guildId).map((r) => str(r.lootProfileId)).filter(Boolean);
+    return new Set([defaultProfileId(), ...used]);
+}
+
+/**
  * GET /api/rosters/options — what the create dialog and the settings offer for
  * the active server: { guildId, categories: [{ id, name, versionId, rosterId, rosterName }],
  * versions: [{ id, label, short, icon }], defaultVersion, roles: [{ id, name, color, position, manageable }],
@@ -83,7 +97,10 @@ function rankRefusal(user, guildId, body, keepCategoryId) {
 const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(query && query.get("version"), { config });
-    const options = rosterOptions({ guildId: activeGuildFor(req), config, canSeeKader: userCan(user, "kader", "read"), versionId });
+    const guildId = activeGuildFor(req);
+    const options = rosterOptions({ guildId, config, canSeeKader: userCan(user, "kader", "read"), versionId });
+    const ownProfiles = ownLootProfiles(user, req, guildId);
+    if (ownProfiles) options.lootProfiles = options.lootProfiles.filter((p) => ownProfiles.has(p.id));
     // #676: the Loot-Council profiles to pick from (names only) and whether "Profile verwalten" may link to the council
     return ok(res, { ...options, isAdmin: mayCreateRosters(user), canOpenCouncil: userCan(user, "lootcouncil", "read") });
 });
@@ -123,6 +140,10 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
     if (!isAdmin && !(await canManageRosterLive(user, roster))) return refuse(res, "not_manager");
     const refusal = isAdmin ? rankRefusal(user, roster.guildId, body, roster.categoryId) : null;
     if (refusal) return refuse(res, refusal);
+    // The same answer as for a profile that does not exist, so the id tells nothing about the list.
+    const ownProfiles = ownLootProfiles(user, req, roster.guildId);
+    const profileId = str(body.lootProfileId);
+    if (ownProfiles && profileId && !ownProfiles.has(profileId)) return refuse(res, "unknown_profile");
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
