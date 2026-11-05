@@ -681,6 +681,31 @@ describe("the server-admin rank alone", () => {
             expect(await ids(ORGA, `userId=${MEMBER}`)).toEqual(["e1", "e2"]);
         });
 
+        it("leaves a category of unknown server out of the dialog's list for the rank alone (#1077)", async () => {
+            const HERE = "400000000000000001";
+            const NOWHERE = "400000000000000002";
+            const server = jest.spyOn(require("../../../../src/services/events/eventServer"), "guildOfCategory").mockImplementation((id) => (id === HERE ? "g" : ""));
+            try {
+                availability.activeEntries.mockReturnValue([
+                    older({ id: "unknown", scope: [{ guildId: "", categoryIds: [NOWHERE] }] }),
+                    older({ id: "older-unknown", categoryId: NOWHERE }),
+                    older({ id: "proven", scope: [{ guildId: "", categoryIds: [HERE] }] }),
+                    older({ ...SCOPED, id: "named" }),
+                ]);
+                const ids = async (user, query) => json(await call("GET", "/api/availability", user, { query })).data.entries.map((e) => e.id);
+                expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(["proven", "named"]);
+                const all = ["unknown", "older-unknown", "proven", "named"];
+                // the rank holder's own stay, as a raider needs a page to see and delete them on
+                expect(await ids(RANK, `userId=${RANK.id}`)).toEqual(all);
+                expect(await ids({ ...ANNA, id: MEMBER }, "")).toEqual(all);
+                expect(await ids({ id: "1", name: "Admin", isAdmin: true, access: {} }, `userId=${MEMBER}`)).toEqual(all);
+                withoutRank.mockReturnValue({ ...NO_ROLES, access });
+                expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(all);
+            } finally {
+                server.mockRestore();
+            }
+        });
+
         it("is left out of the overviews for the rank, its own stay", async () => {
             await call("GET", "/api/availability/overview", RANK);
             await call("GET", "/api/availability/overview/raider", RANK, { query: `userId=${MEMBER}` });

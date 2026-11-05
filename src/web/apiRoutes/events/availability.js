@@ -190,10 +190,11 @@ const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const profile = profiles.getProfile(target.userId);
     // only what concerns the server the web shows - another server's entries are edited there
     const activeGuildId = activeGuildFor(req);
-    const hideUnscoped = foreignByRank(user, req, target.userId);
+    // the rank alone reads somebody else's entry only when it is proven to be on this server (#1072, #1077)
+    const provenOnly = foreignByRank(user, req, target.userId);
     const entries = availability.activeEntries(target.userId)
         .filter((e) => entryOnServer(e, activeGuildId))
-        .filter((e) => !hideUnscoped || scopeOf(e));
+        .filter((e) => !provenOnly || entryProvenOnServer(e, activeGuildId));
     const names = viewNames(config, entries);
     // the servers of the raider the entry is for (their memberships), each with its categories;
     // for somebody else only the servers the caller may use (#925) - a save elsewhere is refused anyway
