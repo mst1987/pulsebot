@@ -252,6 +252,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
     Welche Server jemand sehen und betreten darf, entscheidet nur `mayEnterGuild` (`web/http/guildChoice.js`,
     #1074); ein aktiver Server ist für Nicht-Voll-Admins nie fremd, er kann aber fehlen (`""`).
+    Eine `sharedData`-Marke an der Verwaltungsroute reicht nicht: Sammel-Antworten liefern denselben Store mit,
+    also alle Leser von `listX`/`getX` suchen. Eine Route, die globale und eigene Daten mischt, wird nicht als
+    Ganzes markiert, der Handler filtert. `rolesMay` an `onlyByRank` muss alle Rollenwege abdecken, auch den
+    Kategorie-Manager; `onlyByRank` ist synchron, eine async-Funktion öffnet die Sperre. `canOrgaEvent` prüft
+    die Marke nicht.
 29. `discordServers.links` steuert mit dem Schalter `shareNotes` die Sicht auf geteilte Vermerke (#1078),
     in beiden Richtungen und unabhängig von `versions` (`guildRoles.noteSharingServerIds`). Wer Links
     schreibt, anlegt oder ihre Rechte ändert (#1075, Selbst-Aktivierung), prüft beide Seiten, auch beim
