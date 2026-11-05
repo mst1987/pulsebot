@@ -468,13 +468,14 @@ describe("the bulk ways into a roster", () => {
     const createLinked = (session) => send(session, "POST", "/api/rosters/create", { name: "Verknuepft", source: "none", versionId: ownRoster.versionId, kaderId: "k1" });
     const createFromRaids = (session) => send(session, "POST", "/api/rosters/create", { categoryId: CAT_FREE, name: "Aus Raids", source: "raids", versionId: ownRoster.versionId });
 
-    // each way: what the answer says, the roster it wrote and the whole answer
+    // each way: what the answer says, the roster it wrote and the whole answer; `refused` is what the
+    // rank alone is told of the other account (the raids count nothing, it would tell a log's name has a profile)
     const WAYS = [
         ["a new roster from a Kader", async (session) => {
             await putOnKader(session);
             const res = await createFromKader(session);
             expect(status(res)).toBe(200);
-            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id };
+            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id, refused: 1 };
         }],
         ["the sync of a linked Kader", async (session) => {
             const made = await createLinked(session);
@@ -482,13 +483,13 @@ describe("the bulk ways into a roster", () => {
             await putOnKader(session);
             const res = await send(session, "POST", "/api/kader/roster/sync", { kaderId: "k1" });
             expect(status(res)).toBe(200);
-            return { res, counts: dataOf(res), rosterId: dataOf(made).roster.id };
+            return { res, counts: dataOf(res), rosterId: dataOf(made).roster.id, refused: 1 };
         }],
         ["a new roster from the last raids", async (session) => {
             nightsWithBoth();
             const res = await createFromRaids(session);
             expect(status(res)).toBe(200);
-            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id };
+            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id, refused: 0 };
         }],
     ];
 
@@ -501,12 +502,12 @@ describe("the bulk ways into a roster", () => {
     describe.each([["without the mark", false], ["with the mark", true]])("the rank alone on a server %s", (_label, trusted) => {
         beforeEach(() => getConfig.mockReturnValue(config(trusted)));
 
-        it.each(WAYS)("%s takes the member and counts the other account", async (_way, run) => {
-            const { res, counts, rosterId } = await run(await rank());
+        it.each(WAYS)("%s takes the member and leaves out the other account", async (_way, run) => {
+            const { res, counts, rosterId, refused } = await run(await rank());
             const { members } = rosterStore.getRoster(rosterId);
             expect(Object.keys(members)).toEqual([MEMBER]);
             expect(members[MEMBER].chars).toEqual([raiderProfileStore.nameKey(MEMBER_CHAR)]);
-            expect(counts).toEqual(expect.objectContaining({ added: 1, skipped: 1, outsideServer: 1 }));
+            expect(counts).toEqual(expect.objectContaining({ added: 1, skipped: refused, outsideServer: refused }));
             const answer = JSON.stringify(json(res));
             expect(answer).not.toContain(VICTIM);
             expect(answer.toLowerCase()).not.toContain(SECRET_CHAR.toLowerCase());

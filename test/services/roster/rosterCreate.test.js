@@ -101,8 +101,13 @@ describe("services/roster/rosterCreate settings", () => {
         const made = await createRosterWithSource(asked, { guildId: "g1" });
         expect(made.roster.kaderId).toBe("k1");
         saveTakeover("g1", "k1", { rosterId: made.roster.id, roleId: ROLE, roleName: "Raider", categoryId: "", channelIds: [] });
-        rosterStore.deleteRoster(made.roster.id);
+        const fromKader = { ...asked, source: "kader" };
         expect((await createRosterWithSource(asked, { guildId: "g1" })).code).toBe("kader_taken_over");
+        expect((await createRosterWithSource(fromKader, { guildId: "g1" })).code).toBe("kader_taken_over");
+        rosterStore.deleteRoster(made.roster.id);
+        const again = await createRosterWithSource(fromKader, { guildId: "g1" });
+        expect(again.ok).toBe(true);
+        expect(again.roster.kaderId).toBe("k1");
     });
 
     it("refuses a role of the PuG onboarding as a roster role (#930)", async () => {
@@ -248,13 +253,25 @@ describe("services/roster/rosterCreate source raids", () => {
         expect(presentInRaids("g1", "other", "tbc", { ctx })).toEqual([]);
     });
 
-    it("names only accounts in reach: a refused one stays unnamed, and is a count", async () => {
+    it("names only accounts in reach: a refused one stays unnamed and uncounted", async () => {
         const mayTakeIn = (id) => id === U.b;
         expect(presentInRaids("g1", CAT, "tbc", { ctx, mayTakeIn })).toEqual([U.b]);
         buildAttendanceContext.mockReturnValueOnce(ctx);
         const res = await createRosterWithSource({ categoryId: CAT, source: "raids" }, { guildId: "g1", mayTakeIn });
         expect(Object.keys(res.roster.members)).toEqual([U.b]);
-        expect(res.initial).toEqual(expect.objectContaining({ added: 1, skipped: 3, outsideServer: 3 }));
+        expect(res.initial).toEqual(expect.objectContaining({ added: 1, skipped: 0, outsideServer: 0 }));
+    });
+
+    it("answers a log's name with a foreign profile like a name nobody has", async () => {
+        const answerFor = async (key) => {
+            const logs = { allRaidsByCategory: new Map([[CAT, [night("e1", 10, { keys: [key] })]]]) };
+            const res = await createRosterWithSource({ categoryId: CAT, source: "raids" }, { guildId: "g1", ctx: logs, mayTakeIn: () => false });
+            rosterStore.deleteRoster(res.roster.id);
+            return res.initial;
+        };
+        const foreign = await answerFor("keslight");
+        expect(foreign).toEqual(expect.objectContaining({ added: 0, skipped: 0, outsideServer: 0 }));
+        expect(foreign).toEqual(await answerFor("nobody"));
     });
 
     it("gives a character name two profiles share to the account in reach", () => {

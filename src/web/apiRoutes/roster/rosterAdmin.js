@@ -110,8 +110,8 @@ const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
  * Body: { name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?: { roleIds, userIds },
  *   slots?: { total, tank, healer, bench }, allowMultipleChars?, signupOnly?,
  *   source?: "role" | "kader" | "raids" | "none", kaderId? }.
- * By the rank alone "kader" and "raids" take members of the server only (`outsideServer` of `skipped` are
- * the others); 503 members_unavailable while their list cannot be read, nothing is created.
+ * By the rank alone "kader" and "raids" take members of the server only ("kader": `outsideServer` of `skipped`
+ * are the others; "raids" counts none); 503 members_unavailable while their list cannot be read, nothing is created.
  * Answer: { roster, initial: { source, added, skipped, outsideServer, roleFailures: [{ userId, roleId, code }], error } }.
  */
 const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {

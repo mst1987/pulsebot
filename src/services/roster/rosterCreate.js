@@ -28,9 +28,10 @@
 // Creating is for full admins and the server-admin rank - the route checks that, not this
 // module. The rank may not reach beyond its server: rosterMembers.addMember checks no server and
 // copies the first profile character, so its route passes `mayTakeIn`, and "kader", "raids" and
-// syncRosterFromKader leave out and count (`outsideServer`) every account it refuses, like the hand
-// way refuses it (web/apiRoutes/roster/rosterMembers.js). "role" needs no limit: whoever holds a
-// role of the server is a member of it.
+// syncRosterFromKader leave out every account it refuses, like the hand way refuses it
+// (web/apiRoutes/roster/rosterMembers.js). "kader" and the sync count them (`outsideServer`), the
+// caller knows those ids anyway; "raids" does not, a count would tell that a log's name has a foreign
+// profile. "role" needs no limit: whoever holds a role of the server is a member of it.
 //
 // Later (#658, the Kaderplaner's "Ins Roster übernehmen"): syncRosterFromKader
 // takes the Kader's players of those three states who are no member yet into
@@ -46,7 +47,7 @@ const { listKnownCategories } = require("../categories/categoryNames");
 const { mainVersionFor, knownVersion, isVersionVisible } = require("../versions/mainVersion");
 const { buildAttendanceContext } = require("../characters/rosterAttendance");
 const { nameKeyOf } = require("../../utils/loot/lootImport");
-const { rosterPlayers, kaderSummaries } = require("../kader/kaderRoster");
+const { rosterPlayers, kaderSummaries, takeoverPlayers } = require("../kader/kaderRoster");
 const { cleanSettings, grantsPugRole, takesRosterRole } = require("./rosterSettings");
 const { mirrorCategoryRoles } = require("./categoryRoles");
 const rosterMembers = require("./rosterMembers");
@@ -89,12 +90,12 @@ function kaderCharacter(player, versionId) {
 }
 
 /**
- * The accounts present in the category's last RAIDS_BACK counted nights (see the head comment):
- * `inReach` the ones `mayTakeIn` allows (all without one), `outside` how many it refuses. It goes over
- * every profile to name a log's character, the caller only ever gets the accounts in reach: a refused
- * one is a count, and an account in reach wins a character name it shares with a foreign profile.
+ * The accounts present in the category's last RAIDS_BACK counted nights (see the head comment), only
+ * the ones `mayTakeIn` allows (all without one). It goes over every profile to name a log's character,
+ * the caller only ever gets the accounts in reach: a refused one looks like a name nobody has, and an
+ * account in reach wins a character name it shares with a foreign profile.
  */
-function raidAccounts(guildId, categoryId, versionId, { ctx, mayTakeIn = null } = {}) {
+function presentInRaids(guildId, categoryId, versionId, { ctx, mayTakeIn = null } = {}) {
     const allowed = (id) => !mayTakeIn || mayTakeIn(id);
     const context = ctx || buildAttendanceContext(guildId, { versionId });
     const nights = ((context.allRaidsByCategory || context.raidsByCategory).get(categoryId) || []).slice(0, RAIDS_BACK);
@@ -115,14 +116,7 @@ function raidAccounts(guildId, categoryId, versionId, { ctx, mayTakeIn = null } 
             if (s && s.userId && PRESENT.includes(String(s.status || "signed"))) present.add(String(s.userId));
         }
     }
-    const accounts = [...present].filter((id) => /^\d{5,25}$/.test(id));
-    const inReach = accounts.filter(allowed);
-    return { inReach, outside: accounts.length - inReach.length };
-}
-
-/** The accounts of raidAccounts in reach of `mayTakeIn` (without one: all of them). */
-function presentInRaids(guildId, categoryId, versionId, opts = {}) {
-    return raidAccounts(guildId, categoryId, versionId, opts).inReach;
+    return [...present].filter((id) => /^\d{5,25}$/.test(id) && allowed(id));
 }
 
 /** Everyone holding one of the roster's roles: `{ userIds }` or `{ error }` ("offline", "members_unavailable"). */
@@ -206,7 +200,7 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     // a link to a Kader holds what changing the link holds (rosterSettings.updateRosterSettings)
     if (fields.kaderId) {
         if (!kaderExists(guildId, fields.kaderId)) return { code: "kader_not_found" };
-        if (kaderTakenOver(guildId, fields.kaderId)) return { code: "kader_taken_over" };
+        if (takeoverRosterExists(guildId, fields.kaderId)) return { code: "kader_taken_over" };
         if (!kaderFitsVersion(guildId, fields.kaderId, versionId)) return { code: "version_mismatch" };
     }
     const data = {
@@ -233,7 +227,7 @@ function prepare(input, { guildId, config, knownRoleIds }) {
  * @param {{ guildId: string, actor?: string, config?: object, knownRoleIds?: Set<string>|null, ctx?: object, mayTakeIn?: ((userId: string) => boolean)|null }} opts
  *   `mayTakeIn`: whom the caller may take in from "kader" and "raids" (null: everybody)
  * @returns {Promise<{ ok: true, roster: object, initial: { source, added, skipped, outsideServer, roleFailures, error } } | { ok: false, code: string }>}
- *   `outsideServer` of `skipped` were refused by `mayTakeIn`
+ *   `outsideServer` of `skipped` were refused by `mayTakeIn` ("kader" only; "raids" counts none, head comment)
  */
 async function createRosterWithSource(input, { guildId = "", actor = "", config, knownRoleIds = null, ctx, mayTakeIn = null } = {}) {
     const prepared = prepare(input, { guildId: str(guildId), config, knownRoleIds });
@@ -258,10 +252,8 @@ async function createRosterWithSource(input, { guildId = "", actor = "", config,
         }));
         await takeIn(roster, entries, actor, initial, mayTakeIn);
     } else if (prepared.source === "raids") {
-        const { inReach, outside } = raidAccounts(roster.guildId, roster.categoryId, roster.versionId, { ctx, mayTakeIn });
-        initial.skipped += outside;
-        initial.outsideServer += outside;
-        await takeIn(roster, inReach.map((userId) => ({ userId, patch: { status: "core" } })), actor, initial);
+        const present = presentInRaids(roster.guildId, roster.categoryId, roster.versionId, { ctx, mayTakeIn });
+        await takeIn(roster, present.map((userId) => ({ userId, patch: { status: "core" } })), actor, initial);
     }
     return { ok: true, roster: rosterStore.getRoster(roster.id), initial };
 }
@@ -281,6 +273,13 @@ function rosterFitsKader(roster, kader) {
 function kaderTakenOver(guildId, kaderId) {
     const id = str(kaderId);
     return !!id && kaderSummaries(str(guildId)).some((k) => k.id === id && k.takenOver);
+}
+
+/** Whether the roster a Kader's takeover wrote into still exists; a new roster may link once it is deleted. */
+function takeoverRosterExists(guildId, kaderId) {
+    const kader = takeoverPlayers(str(guildId), str(kaderId));
+    const rosterId = kader && kader.takeover && kader.takeover.rosterId;
+    return !!rosterId && !!rosterStore.getRoster(rosterId);
 }
 
 /** Whether the server's planner has this Kader (names only, through kaderRoster.js). */
