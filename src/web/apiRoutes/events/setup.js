@@ -56,7 +56,7 @@ const { refreshEventMessage } = require("../../../services/events/eventMessage")
 const setupMessage = require("../../../services/setup/setupMessage");
 const { saveSetupPingText, setupPingPlan } = require("../../../services/setup/setupPing");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayWriteSharedData } = require("../../http/serverQuery");
+const { mayOfferLeads } = require("../roster/leaderFlags");
 const { setupAttendance } = require("../../setup/setupAttendance");
 const { postSearch, textForNeeds } = require("../../../services/setup/raidSearch");
 const { startJob, getJob } = require("../../logcheck/evalJobs");
@@ -137,7 +137,7 @@ async function view(event, user, { names = true, req = null } = {}) {
         out.publish = setupMessage.publishView(fresh, { config: getConfig(), channelName: channelNameOf(fresh) });
         // the short form only through the one rule (vermerkeAccess.js) - the setup's own write right is not enough
         if (await maySeeShort(user, fresh.guildId, { req })) Object.assign(out, await vermerkeOf(fresh, signups, out.setup));
-        out.leaders = leadersOf(fresh, signups, out.setup, mayWriteSharedData(user, req, "raids"));
+        out.leaders = leadersOf(fresh, signups, out.setup, await mayOfferLeads(user, req, fresh.id));
         out.loot = lootStatusOf(fresh);
     }
     // "Mehr → Raidgröße" changes the event itself (PATCH /api/raids): `orgaScoped` by the event since
@@ -180,7 +180,7 @@ function lootStatusOf(event) {
  * orga may switch here (`editable`, the raid's context - PUT /api/leads refuses
  * the rest) and for whom (`switchable`: signed up for the raid or a member of its
  * roster - somebody only on the bench or in the pool is not). `open`: PUT /api/leads
- * lets the caller through on this server at all; else nothing is offered to switch (#1105).
+ * lets the caller through at all (mayOfferLeads); else nothing is offered to switch (#1105).
  */
 function leadersOf(event, signups, setup, open) {
     const config = getConfig();

@@ -24,6 +24,12 @@ const { normalizeBackupSettings } = require("../../services/backup/backupConfig"
 
 const FILE = settingsPath("config.json");
 
+// #1073: the start-up migration that marks the servers of before has run. It lives in the file it
+// changes, so both are written at once. Only that migration sets it on a file with content, and any
+// write that creates the file: it has nothing of before to mark. No save can otherwise set or clear it,
+// clearing it would run the migration again and hand the mark to every server listed then.
+const TRUSTED_SERVERS_MIGRATED = "trustedServersMigrated";
+
 // What a missing file reads as. Computed once: it only depends on the env
 // defaults, which do not change while the process runs.
 let freshConfig = null;
@@ -46,9 +52,26 @@ function readStored() {
     return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
 }
 
-/** Replace config.json with `value` as it is; the kept config is dropped. */
+/**
+ * config.json as stored, for who must tell a missing file from a broken one (readStored cannot):
+ * {} when there is none, null when it cannot be read or holds no object.
+ */
+function readStoredChecked() {
+    let stored;
+    try {
+        stored = rawStore.readStrict(rawStore.file);
+    } catch (error) {
+        return error && error.code === "ENOENT" ? {} : null;
+    }
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : null;
+}
+
+// A file born from this write (none yet, or an unreadable one replaced) has no server of before to mark.
+const bornFromThisWrite = () => !Object.keys(readStored()).length;
+
+/** Replace config.json with `value` as it is (a new file: plus the note); the kept config is dropped. */
 function writeStored(value) {
-    store.write(value);
+    store.write(bornFromThisWrite() ? { ...value, [TRUSTED_SERVERS_MIGRATED]: true } : value);
 }
 
 /**
@@ -217,6 +240,8 @@ function mergeDiscordServers(next, current, sent) {
 function saveConfig(partial) {
     const current = getConfig();
     const next = { ...current, ...partial };
+    if (current[TRUSTED_SERVERS_MIGRATED] === true || bornFromThisWrite()) next[TRUSTED_SERVERS_MIGRATED] = true;
+    else delete next[TRUSTED_SERVERS_MIGRATED];
     // The addon list (#818) is replaced only by an edit of it, which says so with
     // `addonDownloadsCustomized`; a save that just carries a list along (an
     // unrelated one) leaves the stored list as it is - it can never wipe the page.
@@ -306,4 +331,4 @@ function dropCategoryEntries(categoryId, keys = []) {
     return { config: getConfig(), removed };
 }
 
-module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, writeStored, useFile };
+module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, readStoredChecked, writeStored, useFile, TRUSTED_SERVERS_MIGRATED };

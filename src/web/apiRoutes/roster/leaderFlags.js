@@ -94,11 +94,21 @@ const REFUSALS = {
     outside_context: "Diese Instanz gehört nicht zu diesem Raid oder dieser Kategorie.",
 };
 
-/** Whether the caller may set flags without the server-admin rank: the global orga by roles, or the orga of the named category. */
-async function rolesMaySetLeads(body, query, req) {
+/** Whether the caller may set flags without the server-admin rank: the global orga by roles, or the orga of `scope` (see scopeOf). */
+async function rolesMaySetLeads(scope, req) {
     const roleUser = auth.getUserWithoutRank(req);
     if (userCan(roleUser, "raids", "write") && userIsOrga(roleUser)) return true;
-    return categoryOrgaOfAll(roleUser, scopeOf(body, query, req), req);
+    return categoryOrgaOfAll(roleUser, scope, req);
+}
+
+/**
+ * Whether a view of the raid or category `scope` offers the flags to the caller: the two checks of
+ * PUT /api/leads below, so no switch shows that the route would refuse. Only the view asks this;
+ * the category path of the route's gate has already let the caller into that view.
+ */
+async function mayOfferLeads(user, req, scope) {
+    if (!mayWriteSharedData(user, req, "raids")) return false;
+    return !user.isServerAdmin || rolesMaySetLeads(scope, req);
 }
 
 /** PUT /api/leads — the orga sets (or with an empty list removes) somebody's flags inside its context. */
@@ -106,7 +116,7 @@ const putLeads = withUser({ orgaScoped: scopeOf, write: "raids", csrf: true, bod
     if (!mayWriteSharedData(user, req, "raids")) {
         return apiError(res, 403, "forbidden", "Raidleiter-Marken gelten auf allen Servern: Das geht nur auf einem vertrauenswürdigen Server.");
     }
-    if (user.isServerAdmin && !(await rolesMaySetLeads(body, query, req))) {
+    if (user.isServerAdmin && !(await rolesMaySetLeads(scopeOf(body, query, req), req))) {
         return apiError(res, 403, "forbidden", "Raidleiter-Marken gelten auf allen Servern: Dafür reicht der Server-Admin-Rang nicht.");
     }
     const userId = str(body.userId);
@@ -131,4 +141,4 @@ const routes = [
     { method: "PUT", path: "/api/leads", handler: putLeads, area: "raids" },
 ];
 
-module.exports = { putOwnLeads, putLeads, ownLeads, scopeOf, routes };
+module.exports = { putOwnLeads, putLeads, ownLeads, scopeOf, mayOfferLeads, routes };

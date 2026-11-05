@@ -602,6 +602,14 @@ describe("leader flags in the editor (#1034)", () => {
         }
     });
 
+    // #1072: PUT /api/leads wants a role or the raid's category on top of the rank, so no switch for the rank alone
+    it("offers the server-admin rank without a role no switch, on a server with the mark", async () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), instanceIds: ["kara"] });
+        const rank = { ...ORGA, isServerAdmin: true };
+        expect(body(await call(route.getSetup, rank, null, `event=${ID}`)).leaders.editable).toEqual([]);
+        expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).leaders.editable).toEqual(["kara"]);
+    });
+
     it("a raid without instance and without known category raids switches nothing (fail closed)", async () => {
         const view = body(await call(route.getSetup, ORGA, null, `event=${ID}`));
         expect(view.leaders.editable).toEqual([]);

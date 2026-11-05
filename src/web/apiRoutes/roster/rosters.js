@@ -6,7 +6,6 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayWriteSharedData } = require("../../http/serverQuery");
 const { q } = require("../../http/apiParams");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { buildRosterOverview, buildRosterDetail } = require("../../roster/rosterView");
@@ -14,6 +13,7 @@ const { buildRosterHistory } = require("../../roster/rosterHistoryView");
 const { activeRoster } = require("../../roster/activeRoster");
 const { isRosterOrga } = require("../../../services/roster/rosterAccess");
 const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
+const { mayOfferLeads, scopeOf } = require("./leaderFlags");
 
 /**
  * GET /api/rosters[?version=<id>] — one card per roster of the active server, the categories
@@ -37,7 +37,8 @@ const getRosters = withUser({}, async ({ req, res, user, query }) => {
 const getRosterDetail = withUser({}, async ({ req, res, user, query }) => {
     const id = q.str(query, "id", { max: 64 });
     if (!id) return apiError(res, 400, "bad_request", "Kein Roster angegeben.");
-    const view = await buildRosterDetail({ guildId: activeGuildFor(req), id, user, config: getConfig(), leadsOpen: mayWriteSharedData(user, req, "raids") });
+    const leadsOpen = await mayOfferLeads(user, req, scopeOf({ rosterId: id }, null, req));
+    const view = await buildRosterDetail({ guildId: activeGuildFor(req), id, user, config: getConfig(), leadsOpen });
     if (!view) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     return ok(res, view);
 });

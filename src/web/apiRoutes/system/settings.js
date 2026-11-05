@@ -870,6 +870,8 @@ function publicConfig(config) {
     if (config.serverSettings !== undefined) out.serverSettings = publicServerSettings(config.serverSettings);
     // #952: the old global list is kept for the server only, the browser reads the lists per server
     delete out.topItemsLegacy;
+    // #1073: a note of the start-up migration, nothing a browser reads or sends back
+    delete out.trustedServersMigrated;
     return out;
 }
 

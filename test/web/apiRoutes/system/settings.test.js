@@ -2918,6 +2918,16 @@ describe("web/apiRoutes/settings", () => {
                         });
                     });
 
+                    it.each([[true], [false], [null]])("does not hand a sent note of the one-time migration on: %s", async (value) => {
+                        const res = await saveMark({ trustedServersMigrated: value, adminRoleIds: ["1"] });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(settingsStore.saveConfig).toHaveBeenCalledWith({ adminRoleIds: ["1"] });
+                    });
+
+                    it("does not show the note of the one-time migration to the browser", () => {
+                        expect(publicConfig({ trustedServersMigrated: true })).toEqual({});
+                    });
+
                     it("goes along with the links of the same save", async () => {
                         await saveMark({ discordServers: { links: [link] }, trustedServers: { "20000": true } });
                         expect(settingsStore.saveConfig).toHaveBeenCalledWith({

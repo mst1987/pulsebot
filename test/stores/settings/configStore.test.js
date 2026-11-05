@@ -67,11 +67,26 @@ describe("stores/settings/configStore getConfig cache (#420)", () => {
 describe("stores/settings/configStore stored file", () => {
     it("readStored returns the file as it is, writeStored replaces it", () => {
         expect(configStore.readStored()).toEqual({});
+        // the write that creates the file notes #1073 as done: it has no server of before
+        configStore.writeStored({ extra: 0 });
+        expect(configStore.readStored()).toEqual({ extra: 0, trustedServersMigrated: true });
         configStore.writeStored({ raidDefaults: { templateId: "3" }, extra: 1 });
         expect(configStore.readStored()).toEqual({ raidDefaults: { templateId: "3" }, extra: 1 });
         expect(configStore.getConfig().extra).toBe(1);
         fs.__store.set(FILE, "[1]");
         expect(configStore.readStored()).toEqual({});
+    });
+
+    it("readStoredChecked tells a missing file from a broken one", () => {
+        expect(configStore.readStoredChecked()).toEqual({});
+        fs.__store.set(FILE, "{ not json");
+        expect(configStore.readStoredChecked()).toBeNull();
+        fs.__store.set(FILE, "[1]");
+        expect(configStore.readStoredChecked()).toBeNull();
+        fs.__store.set(FILE, "null");
+        expect(configStore.readStoredChecked()).toBeNull();
+        writeFile({ extra: 1 });
+        expect(configStore.readStoredChecked()).toEqual({ extra: 1 });
     });
 
     it("useFile points both reads and writes at another file", () => {

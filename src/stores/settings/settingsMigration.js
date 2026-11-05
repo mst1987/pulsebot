@@ -580,7 +580,6 @@ function repointTemplateReferences() {
 
 const TEMPLATE_REFERENCES_MARK = "raidTemplateReferences";
 const LINK_SHARE_NOTES_MARK = "linkShareNotes";
-const TRUSTED_SERVERS_MARK = "trustedServers";
 
 /**
  * The raid templates per server (#1076): after migrateRaidplanServers (same server list). A single
@@ -1125,22 +1124,34 @@ function migrateLinkShareNotes() {
 /**
  * Every server listed now becomes trusted, once (#1073): the mark is new, and for the servers of
  * before it nothing is to change. Afterwards only a full admin sets it, so a later start must not
- * touch it: a server entered in the meantime stays without. Servers first, the mark after, like
- * migrateLinkShareNotes. An empty list (the implicit main server) marks nothing and is done as well.
+ * touch it: a server entered in the meantime stays without. It grants rights, so it fails closed: the
+ * note that it ran is written with the marks, in one write of config.json (TRUSTED_SERVERS_MIGRATED),
+ * never in another file that can get lost on its own. A file with an empty list marks nothing and is
+ * done as well. A new install has no file and gets none from here (no migration writes one): the first
+ * write carries the note. A file it cannot read or write stays as it is and without the note, the other
+ * migrations go on, the next start tries again.
+ * @param {(line: string) => void} [warn]
  * @returns {string[]} one line, or none
  */
-function migrateTrustedServers() {
-    if (migrationMarkStore.isDone(TRUSTED_SERVERS_MARK)) return [];
-    const stored = configStore.readStored();
+function migrateTrustedServers(warn = console.error) {
+    const stored = configStore.readStoredChecked();
+    if (!stored) {
+        warn("[settings] Migration #1073: config.json nicht lesbar, Server nicht markiert - nächster Start versucht es erneut");
+        return [];
+    }
+    if (!Object.keys(stored).length || stored[configStore.TRUSTED_SERVERS_MIGRATED] === true) return [];
+    const next ={ ...stored, [configStore.TRUSTED_SERVERS_MIGRATED]: true };
     const block = stored.discordServers;
     const raw = block && Array.isArray(block.servers) ? block.servers : [];
     const turnsOn = (server) => server && typeof server === "object" && server.guildId && server.trusted !== true;
     const count = raw.filter(turnsOn).length;
-    if (count) {
-        const servers = raw.map((server) => (turnsOn(server) ? { ...server, trusted: true } : server));
-        configStore.writeStored({ ...stored, discordServers: { ...block, servers } });
+    if (count) next.discordServers = { ...block, servers: raw.map((server) => (turnsOn(server) ? { ...server, trusted: true } : server)) };
+    try {
+        configStore.writeStored(next);
+    } catch (error) {
+        warn(`[settings] Migration #1073: config.json nicht geschrieben (${error.message}), Server nicht markiert - nächster Start versucht es erneut`);
+        return [];
     }
-    migrationMarkStore.markDone(TRUSTED_SERVERS_MARK);
     return count ? [`config.json: ${count} bestehende/r Server als vertrauenswürdig markiert (#1073)`] : [];
 }
 
@@ -1167,7 +1178,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateDiscordFederation());
         // #1078: after the federation step, which turns an old `eventGuilds` block into links.
         changes.push(...migrateLinkShareNotes());
-        changes.push(...migrateTrustedServers());
+        changes.push(...migrateTrustedServers(warn));
         // #925: after the federation step, which settles the server list the rights are copied onto.
         changes.push(...migrateServerPermissions());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });

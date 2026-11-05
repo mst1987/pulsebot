@@ -273,13 +273,15 @@ function after1078(config) {
     const links = block.links.map((link) => (link.from !== link.to && listed.has(link.from) && listed.has(link.to) ? { ...link, shareNotes: true } : link));
     return { ...config, discordServers: { ...block, links } };
 }
-// #1073: only on a server a full admin marked do roles count for shared data - the start marks every server listed then, once.
-function after1073(config) {
+// #1073: only on a server a full admin marked do roles count for shared data - the start marks every server listed
+// then, once, and notes that in the file; no file or an empty one stays as it is.
+function after1073(config, stored) {
+    const out = Object.keys(stored || {}).length ? { ...config, trustedServersMigrated: true } : config;
     const block = config.discordServers;
-    if (!block || !Array.isArray(block.servers)) return config;
-    return { ...config, discordServers: { ...block, servers: block.servers.map((server) => ({ ...server, trusted: true })) } };
+    if (!block || !Array.isArray(block.servers)) return out;
+    return { ...out, discordServers: { ...block, servers: block.servers.map((server) => ({ ...server, trusted: true })) } };
 }
-const golden = schemaOnly.map((g, i) => ({ ...g, config: after1073(after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config))) }));
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after1073(after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config)), cases[i].config) }));
 // Read without the start migration: a global #924 field no server block carries yet stays visible (a save
 // in between must not lose it, the next start moves it).
 function unmoved924(config, stored) {

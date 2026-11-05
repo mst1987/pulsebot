@@ -485,7 +485,7 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
 /**
  * GET /api/rosters/roster?id=: one roster with its members, or null when it
  * does not exist or belongs to another server.
- * `leadsOpen`: the caller may set leader flags on this server at all (serverQuery.mayWriteSharedData);
+ * `leadsOpen`: PUT /api/leads lets the caller through at all (apiRoutes/roster/leaderFlags.mayOfferLeads);
  * this module has no request to ask, so the route says.
  * @param {{ guildId: string, id: string, user: object, config: object, background?: boolean, leadsOpen?: boolean }} opts
  */

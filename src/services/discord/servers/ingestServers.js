@@ -86,7 +86,8 @@ async function serversOfToken(token, opts = {}) {
  * may not when only the server-admin rank (#1072) or a role on a server without the mark (#1073) makes
  * them the orga there. The measure is orgaServersOf with `rolesOnly`, the rule a key's upload had
  * before. A server key and an old key go on as before. A raid without a known server asks every server
- * the owner is orga of, and a lookup that fails teaches nothing (both fail closed).
+ * the owner is orga of, except that a server without the mark neither opens nor blocks there: a role on
+ * one must not cost the owner what a role on a marked server gives. A lookup that fails teaches nothing.
  * @param {object} token
  * @param {string} guildId the server of the raid, "" when unknown
  * @param {{ config?: object }} [opts] as orgaServersOf
@@ -105,7 +106,9 @@ async function tokenMayLearnClasses(token, guildId, opts = {}) {
         const limited = works.filter((g) => accessForGuild(known, uid, g).isServerAdmin || !serverIsTrusted(g, cfg));
         if (!limited.length) return true;
         const byRoles = (await orgaServersOf(uid, { ...opts, guildAccess: known, rolesOnly: true })).map((s) => s.guildId);
-        return limited.every((g) => byRoles.includes(g));
+        // Without a named server, one without the mark says nothing: it neither opens nor blocks.
+        const counted = gid ? limited : limited.filter((g) => serverIsTrusted(g, cfg));
+        return counted.length ? counted.every((g) => byRoles.includes(g)) : byRoles.length > 0;
     } catch (e) {
         logger.warn(`Class learning refused for ${uid}, lookup failed: ${e && e.message}`);
         return false;

@@ -64,6 +64,7 @@ const leaderFlagsStore = require("../../../../src/stores/roster/leaderFlagsStore
 const { userCanLead } = require("../../../../src/services/roster/leaderFlags");
 const { emptyAccess } = require("../../../../src/config/permissions");
 const route = require("../../../../src/web/apiRoutes/roster/leaderFlags");
+const auth = require("../../../../src/web/http/auth");
 const { routerClient, status, body } = require("../../../helpers/http");
 
 const api = routerClient(route);
@@ -249,6 +250,44 @@ describe("PUT /api/leads (Orga für andere)", () => {
             expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
             expect(status(await put("/api/leads", { event: foreign.id, userId: "s1", instances: ["kara"] }))).toBe(403);
             expect(userCanLead("s1", "tbc", ["kara"])).toBe(false);
+        });
+    });
+
+    // Der Schalter in Roster und Setup zeigt nur, was PUT /api/leads durchlässt.
+    describe("mayOfferLeads", () => {
+        const RANG = { ...ORGA, id: "rang", isServerAdmin: true };
+        const req = { headers: {} };
+        const SCOPE = { categoryId: "cat1" };
+        afterEach(() => {
+            mockUntrusted = new Set();
+            mockRoleUser = null;
+        });
+
+        it("bietet dem Rang ohne Rolle nichts an, auf einem Server mit Marke", async () => {
+            mockRoleUser = { id: RANG.id, isAdmin: false, access: emptyAccess() };
+            expect(await route.mayOfferLeads(RANG, req, SCOPE)).toBe(false);
+        });
+
+        it("bietet dem Rang mit Orga-Rolle und dem Rang als Manager den Schalter an", async () => {
+            mockRoleUser = { ...ORGA, id: RANG.id };
+            expect(await route.mayOfferLeads(RANG, req, SCOPE)).toBe(true);
+            mockRoleUser = { ...MANAGER };
+            expect(await route.mayOfferLeads({ ...RANG, id: MANAGER.id }, req, SCOPE)).toBe(true);
+        });
+
+        it("bietet der Orga ohne Rang den Schalter an, ohne nach den Rollen zu fragen", async () => {
+            auth.getUserWithoutRank.mockClear();
+            expect(await route.mayOfferLeads(ORGA, req, SCOPE)).toBe(true);
+            expect(auth.getUserWithoutRank.mock.calls.filter(([r]) => r === req).length).toBeLessThanOrEqual(1);
+        });
+
+        it("bietet auf einem Server ohne Marke nur dem Voll-Admin etwas an", async () => {
+            mockUntrusted = new Set(["g1"]);
+            // there the roles count for nothing, also in the account without the rank
+            mockRoleUser = { id: ORGA.id, isAdmin: false, access: emptyAccess() };
+            expect(await route.mayOfferLeads(ORGA, req, SCOPE)).toBe(false);
+            expect(await route.mayOfferLeads(RANG, req, SCOPE)).toBe(false);
+            expect(await route.mayOfferLeads(ADMIN, req, SCOPE)).toBe(true);
         });
     });
 

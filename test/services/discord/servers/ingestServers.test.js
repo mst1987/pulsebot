@@ -194,9 +194,37 @@ describe("tokenMayLearnClasses on a server without the mark (#1073)", () => {
         expect(await mayLearn("g2")).toBe(true);
     });
 
-    it("refuses a raid without a known server when one of the owner's servers has no mark", async () => {
-        computeGuildAccess.mockResolvedValue(orgaOn("g1", "g2"));
-        expect(await mayLearn("")).toBe(false);
+    describe("for a raid without a known server", () => {
+        // g1 without the mark, g2 and g3 with it
+        const THREE = { ...CONFIG, discordServers: { servers: [{ guildId: "g1", label: "" }, { guildId: "g2", label: "", trusted: true }, { guildId: "g3", label: "", trusted: true }] } };
+        const rankOnly = { access: {}, isOrga: true, isServerAdmin: true, roleAccess: {} };
+        const mayLearnAnywhere = () => ingestServers.tokenMayLearnClasses(PERSON, "", { config: THREE });
+
+        it("does not let a role on the unmarked server take away what the marked one gives", async () => {
+            computeGuildAccess.mockResolvedValue(orgaOn("g1", "g2"));
+            expect(await mayLearnAnywhere()).toBe(true);
+        });
+
+        it("does not let a role on the unmarked server open anything", async () => {
+            computeGuildAccess.mockResolvedValue(orgaOn("g1"));
+            expect(await mayLearnAnywhere()).toBe(false);
+        });
+
+        // Orga only comes from a role or the rank: such a grant limits nothing, as before.
+        it("lets a right of the account's own on the unmarked server through", async () => {
+            computeGuildAccess.mockResolvedValue(access({ g1: { access: { history: { read: true, write: true } } } }));
+            expect(await mayLearnAnywhere()).toBe(true);
+        });
+
+        it("refuses the rank without a role next to a role on the unmarked server", async () => {
+            computeGuildAccess.mockResolvedValue(access({ g2: rankOnly, g1: { access: {}, isOrga: true } }));
+            expect(await mayLearnAnywhere()).toBe(false);
+        });
+
+        it("refuses the rank without a role next to a role on another marked server, as #1072 does", async () => {
+            computeGuildAccess.mockResolvedValue(access({ g2: rankOnly, g3: { access: {}, isOrga: true } }));
+            expect(await mayLearnAnywhere()).toBe(false);
+        });
     });
 
     it("lets a full admin learn", async () => {
