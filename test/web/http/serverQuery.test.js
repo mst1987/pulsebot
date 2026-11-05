@@ -122,7 +122,6 @@ describe("mayUseLink", () => {
         rankOn(FROM, TO);
         expect(mayUseLink(orga, req, FROM, TO)).toBe(false);
         expect(mayUseLink(null, req, FROM, TO)).toBe(false);
-        userForGuild.mockReturnValue(null);
         userForGuild.mockImplementation(() => null);
         expect(mayUseLink(rank, req, FROM, TO)).toBe(false);
     });
