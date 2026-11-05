@@ -112,6 +112,11 @@ describe("services/discord/discord memberRoleIds", () => {
             await expect(discord.memberRoleIds("g1", "u1", { waitMs: 1 })).resolves.toBeNull();
         });
 
+        it("answers null on running out even with absentAs: no answer is no \"not a member\"", async () => {
+            discord.setClient(makeClient({ guilds: [answeringGuild(jest.fn(() => new Promise(() => {})))] }));
+            await expect(discord.memberRoleIds("g1", "u1", { absentAs: [], waitMs: 1 })).resolves.toBeNull();
+        });
+
         it("answers the roles when they arrive in time", async () => {
             const member = makeMember({ id: "u1", roleIds: ["r1"] });
             discord.setClient(makeClient({ guilds: [answeringGuild(jest.fn(async () => member))] }));

@@ -580,6 +580,15 @@ describe("the one raid behind a signup link (#1074)", () => {
             expect(body(res).error.code).toBe("raid_unavailable");
         });
 
+        it("refuses saving for a raid long past as started, for a member, and saves nothing", async () => {
+            const raid = raidOn(OWN, { startTime: Math.floor(Date.now() / 1000) - 7 * 3600 });
+            const sid = await login(MEMBER);
+            const res = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(res)).toBe(409);
+            expect(body(res).error.code).toBe("started");
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+
         it("counts a grant of one's own on a server without base access", async () => {
             configStore.writeStored({
                 ...CONFIG,
@@ -783,8 +792,56 @@ describe("the one raid behind a signup link (#1074)", () => {
             const sid = await login(STRANGER);
             const read = jest.spyOn(discord, "memberRoleIds").mockResolvedValue(null);
             await expectHidden(sid, raid);
-            expect(read).toHaveBeenCalledWith(FOREIGN, STRANGER, { waitMs: discord.NAME_FETCH_MS });
+            expect(read).toHaveBeenCalledWith(FOREIGN, STRANGER, { absentAs: [], waitMs: discord.NAME_FETCH_MS });
             read.mockRestore();
+        });
+
+        describe("an account with a grant of its own on the raid's server, no member there", () => {
+            /** May enter the server by its grant alone; only `failing` or the 10007 of botOnline differ. */
+            async function grantedStranger(memberFetch) {
+                withRoles({ serverSettings: { ...CONFIG.serverSettings, [FOREIGN]: { userPermissions: { [STRANGER]: SIGNUP } } } });
+                const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+                const sid = await login(STRANGER);
+                _resetRoleMemory();
+                botOnline(memberFetch);
+                return { raid, sid };
+            }
+
+            async function expectRolesUnknown(sid, raid) {
+                const read = await openRaid(sid, raid.id);
+                expect(status(read)).toBe(503);
+                expect(body(read).error.code).toBe("raid_roles_unknown");
+                const saved = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+                expect(status(saved)).toBe(503);
+                expect(body(saved).error.code).toBe("raid_roles_unknown");
+                expect(signupStore.listSignups(raid.id)).toEqual([]);
+            }
+
+            it("gets the one refusal when Discord says surely no member: trying again would not help", async () => {
+                const { raid, sid } = await grantedStranger();
+                await expectHidden(sid, raid);
+                expect(status(await openRaid(sid, raid.id))).toBe(403);
+            });
+
+            it("still hears that the roles are unknown when Discord fails", async () => {
+                const { raid, sid } = await grantedStranger(failing());
+                await expectRolesUnknown(sid, raid);
+            });
+
+            it("still hears that the roles are unknown when the time limit runs out", async () => {
+                const { raid, sid } = await grantedStranger();
+                // what discord.memberRoleIds answers on running out; its own test holds the timer
+                const read = jest.spyOn(discord, "memberRoleIds").mockResolvedValue(null);
+                await expectRolesUnknown(sid, raid);
+                read.mockRestore();
+            });
+
+            it("leaves nothing in the memory: an outage after a refusal is unknown again", async () => {
+                const { raid, sid } = await grantedStranger();
+                await expectHidden(sid, raid);
+                botOnline(failing());
+                await expectRolesUnknown(sid, raid);
+            });
         });
 
         it("shows it to a holder of the role, who may save", async () => {

@@ -213,13 +213,14 @@ function raidUnavailable(res) {
  * for. Roles that cannot be read count as not held, within a time limit, because this route also
  * serves people who are no members. That is stricter than checkRaiderRole on the ordinary route,
  * which lets them through and so is only safe for callers known to belong to the server.
+ * Discord saying "no member" is an answer, not an unknown: no role held, trying again changes nothing.
  * @returns {Promise<{ visible: boolean, roleIds: string[]|null, rolesUnknown: boolean }>}
  */
 async function raidVisibility({ event, eventId, guildId, view }, config) {
     const versionId = versionOfEvent(event, { config });
     const { rule } = accessRule(event.categoryId, { config, versionId });
     const roles = rule === "roles"
-        ? await viewerRoles(guildId, { id: view.id }, { waitMs: NAME_FETCH_MS })
+        ? await viewerRoles(guildId, { id: view.id }, { absentAs: [], waitMs: NAME_FETCH_MS })
         : { roleIds: null, unknown: false };
     const visible = !!getSignup(eventId, view.id)
         || userIsOrga(view)

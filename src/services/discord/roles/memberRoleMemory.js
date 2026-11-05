@@ -8,6 +8,9 @@
 // roles read for a member are kept for KEEP_MS and stand in when a read fails;
 // only without them the roles are unknown (`roleIds: null`) and the caller
 // says so. A member who left the server reads as unknown once the memory ends.
+// A caller that must tell "surely no member" from "unknown" passes `absentAs`;
+// that answer is for this one call and never enters the memory, or the lists
+// would read an outage as "holds no role" instead of "unknown".
 //
 // discord.memberRoleIds itself stays uncached: the save (checkRaiderRole) reads
 // the live roles.
@@ -28,21 +31,25 @@ function prune(now) {
  * KEEP_MS (`stale: true`), else unknown (`roleIds: null`).
  * @param {string} guildId
  * @param {string} userId
- * @param {{ now?: number, waitMs?: number }} [opts] `waitMs`: see discord.memberRoleIds
+ * @param {{ now?: number, waitMs?: number, absentAs?: string[] }} [opts] `waitMs`, `absentAs`:
+ *   see discord.memberRoleIds; the array handed in comes back as is, and only that tells it from
+ *   a member who really holds no role
  * @returns {Promise<{ roleIds: string[]|null, stale: boolean }>}
  */
-async function memberRolesRemembered(guildId, userId, { now = Date.now(), waitMs } = {}) {
+async function memberRolesRemembered(guildId, userId, { now = Date.now(), waitMs, absentAs } = {}) {
     const gid = str(guildId);
     const uid = str(userId);
     const key = `${gid}:${uid}`;
+    const opts = { ...(absentAs && { absentAs }), ...(waitMs !== undefined && { waitMs }) };
     let ids = null;
     if (gid && uid) {
         try {
-            ids = await (waitMs === undefined ? discord.memberRoleIds(gid, uid) : discord.memberRoleIds(gid, uid, { waitMs }));
+            ids = await (Object.keys(opts).length ? discord.memberRoleIds(gid, uid, opts) : discord.memberRoleIds(gid, uid));
         } catch {
             ids = null;
         }
     }
+    if (ids && ids === absentAs) return { roleIds: ids.slice(), stale: false };
     if (Array.isArray(ids)) {
         prune(now);
         const roleIds = ids.map(String);
