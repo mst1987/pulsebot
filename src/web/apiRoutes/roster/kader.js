@@ -332,7 +332,7 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
 
 // ------------------------------------------------ the raid roster (#658)
 // A Kader can create a raid roster (POST /api/rosters/create with source
-// "kader", full admins) or, once it has one, take its newly decided players
+// "kader", full admins and the server-admin rank) or, once it has one, take its newly decided players
 // over. Only status and character cross (services/kader/kaderRoster.js);
 // nothing flows back into the Kader.
 
@@ -341,8 +341,8 @@ const resetAssignment = fullWrite((p, body) => model.resetAssignment(p, str(body
  * candidates, pending, canCreate, canSync, canLink, rosters }`: the roster
  * LINKED to the Kader (`roster.kaderId`), how many of its players a roster
  * takes and how many of them are not in it yet (counts only). `canCreate` =
- * full admin and no roster yet, `canSync` = `kader` write and manager of that
- * roster, `canLink` = full admin with `kader` write; `rosters` (only with
+ * full admin or rank and no roster yet, `canSync` = `kader` write and manager of that
+ * roster, `canLink` = full admin or rank with `kader` write; `rosters` (only with
  * canLink, else []) = the server's rosters of the Kader's version to link to (#741), the one whose category
  * the Kader counts attendance in first (`suggested`); `lootCouncil` (#676) = the
  * linked roster runs as Loot-Council and the caller may open the council (the
@@ -371,7 +371,7 @@ const LINK_MESSAGE = {
  * POST /api/kader/roster/link — body: { kaderId, rosterId }: link the Kader to
  * an existing roster of the active server ("Mit bestehendem Roster
  * verknüpfen"), or unlink it with rosterId "". Area `kader` write + CSRF and a
- * full admin (403 `admin_only`); a roster another Kader holds is 409
+ * full admin or the rank (403 `admin_only`); a roster another Kader holds is 409
  * `kader_taken`, a roster of another game version than the Kader's 400
  * `version_mismatch` (#741). Nothing of the Kader is copied - "Ins Roster übernehmen" does
  * that afterwards. Answer: the state of GET /api/kader/roster.
@@ -416,7 +416,7 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
  * roster it writes into - the one a recorded takeover names, else the one
  * linked to the Kader (full admins always). Without a roster (and no takeover
  * yet) the takeover creates one (`createsRoster`): like creating a roster by
- * hand (rosterAdmin.js) that is for full admins only, plus `kader` write - a
+ * hand (rosterAdmin.js) that is for full admins and the rank only, plus `kader` write - a
  * roster manager cannot exist yet, and a Kader lead alone may not open a roster.
  * Answers the roster too.
  */
@@ -475,7 +475,7 @@ const getTakeover = withUser({}, async ({ req, res, query, user }) => {
  * the takeover (`emojiId`: a server emoji as role icon, 400 `invalid_emoji` for
  * a foreign one or together with `unicodeEmoji`). Area `kader` write + CSRF, then manager of the linked roster,
  * else 403 `not_manager`. Without a linked roster the takeover creates one
- * from `roster` - full admins only, else 403 `admin_only`; 404 `not_found`
+ * from `roster` - full admins and the rank only, else 403 `admin_only`; 404 `not_found`
  * for an unknown Kader. 400 confirm_required / base_rev_required / invalid_*,
  * 409 stale / already_taken / running / role_too_high / category_taken /
  * version_hidden, 503 offline. The checked path goes to the service

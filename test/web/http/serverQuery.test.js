@@ -11,10 +11,10 @@ jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(
 let mockClient = null;
 jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => mockClient }));
 
-jest.mock("../../../src/web/http/auth", () => ({ getUserWithoutRank: jest.fn(() => null) }));
+jest.mock("../../../src/web/http/auth", () => ({ getUserWithoutRank: jest.fn(() => null), userForGuild: jest.fn(() => null) }));
 
-const { getUserWithoutRank } = require("../../../src/web/http/auth");
-const { serverFromQuery, mayUseServer, onlyByRank, rolesCountForSharedData, mayWriteSharedData, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
+const { getUserWithoutRank, userForGuild } = require("../../../src/web/http/auth");
+const { serverFromQuery, mayUseServer, mayUseLink, onlyByRank, rolesCountForSharedData, mayWriteSharedData, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
 jest.mock("../../../src/services/characters/profileVisibility", () => ({ raiderVisibility: jest.fn() }));
@@ -94,6 +94,42 @@ describe("mayUseServer", () => {
         mockActive = "";
         expect(mayUseServer(orga, req, "")).toBe(false);
         expect(mayUseServer(null, req, "900000000000000002")).toBe(false);
+    });
+});
+
+describe("mayUseLink", () => {
+    const FROM = "900000000000000001";
+    const TO = "900000000000000002";
+    const rank = { id: "7", isAdmin: false, isServerAdmin: true };
+    const rankOn = (...guildIds) => userForGuild.mockImplementation((_req, guildId) => (guildIds.includes(guildId) ? { isServerAdmin: true } : { isServerAdmin: false }));
+    afterEach(() => userForGuild.mockReset().mockReturnValue(null));
+
+    it("lets a full admin use every link, without asking for the rank", () => {
+        expect(mayUseLink(admin, req, FROM, TO)).toBe(true);
+        expect(userForGuild).not.toHaveBeenCalled();
+    });
+
+    it("needs the rank on both servers", () => {
+        rankOn(FROM, TO);
+        expect(mayUseLink(rank, req, FROM, TO)).toBe(true);
+        rankOn(FROM);
+        expect(mayUseLink(rank, req, FROM, TO)).toBe(false);
+        rankOn(TO);
+        expect(mayUseLink(rank, req, FROM, TO)).toBe(false);
+    });
+
+    it("refuses without the rank, without a user and for an unknown member", () => {
+        rankOn(FROM, TO);
+        expect(mayUseLink(orga, req, FROM, TO)).toBe(false);
+        expect(mayUseLink(null, req, FROM, TO)).toBe(false);
+        userForGuild.mockReturnValue(null);
+        userForGuild.mockImplementation(() => null);
+        expect(mayUseLink(rank, req, FROM, TO)).toBe(false);
+    });
+
+    it("the flag of the server must be true itself", () => {
+        userForGuild.mockImplementation(() => ({ isServerAdmin: "yes" }));
+        expect(mayUseLink(rank, req, FROM, TO)).toBe(false);
     });
 });
 
