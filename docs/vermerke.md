@@ -16,13 +16,13 @@ notes when he switches characters).
 | `text` | the note, at most 1000 characters (longer is refused on write, cut on read) |
 | `eventIds` | the raids it is about (unique, may be empty) |
 | `expiresAt` | ms timestamp, or `null` = **never** expires |
-| `shared` | `true`: every server reads it (named with the server of origin), only that server changes it |
+| `shared` | `true`: every server **linked** with the server of origin reads it (named with that server), only the origin changes it |
 | `by`, `byName`, `at` | who wrote it, when |
 | `archived` | `true` when archived, with `archivedAt`, `archivedBy`; archived notes stay but no longer count |
 | `history` | every change: `{ by, byName, at, action: create/update/archive/restore, changes: [field…] }` |
 
 At most **50 notes per person and server** (`400 too_many`). A note **counts** (is active) while it is not
-archived, not expired and — for a shared one of another server — not hidden there. Expired and archived notes stay
+archived, not expired and — for a shared one of a linked server — not hidden there. Expired and archived notes stay
 in the archive of the person. `activeLevelFor(server, user)` is the highest active level, or `null`.
 Archived notes count towards the limit of 50 too — a full archive refuses a new note with `too_many` until a full
 admin removes one for good. The `history` of a note keeps its last 100 changes, older ones are cut.
@@ -35,6 +35,31 @@ settings, else its Discord name) and cannot be changed there (404). B can **hide
 (`POST /api/vermerke/hide`) — it then no longer counts on B, A is not touched. B sees **everything** of a shared
 note — text, author, history, `eventIds` — just as A does (a decision of the user: sharing means sharing all).
 When A takes `shared` back, B's hide mark stays in the store; should A share the note again, it stays hidden on B.
+
+**Sharing needs a link with the switch (#1078).** B reads a shared note of A only while a link between A and B in the
+server network (docs/discord-servers.md) has `shareNotes` on, whichever direction the link runs and with both servers
+in `servers`: `guildRoles.noteSharingServerIds(id)`, applied in one place, `sharedFrom` in the store. Everything that
+reads notes goes through it: the list, the person, the short form, the hints, the setup proposal's shadowban. Any other
+server gets the same answer as for a person without notes, nothing says that a note exists elsewhere; `hide` answers
+404. A link that only posts the raid list shares nothing: the switch is off by default.
+
+- `versions` of a link does **not** limit sharing: it filters the raid list of that link and nothing else. A note
+  belongs to an account, not to a game version.
+- **The switch off or the link removed:** the notes of the other side are gone at once on the next read (the rule is
+  checked on every read, nothing is copied). The data stays with A, B's hide marks stay too; on again, everything is
+  back as it was.
+- **The switch on** shows the existing shared notes of both sides, and shared shadowbans then count in the other
+  server's setup proposal. The switch asks before it goes on and says so.
+- **Links of before:** `settingsMigration.migrateLinkShareNotes` turned the switch on once for every link that existed
+  then between two listed servers, so nothing got lost; the mark `linkShareNotes` in `migrations.json` keeps a switch
+  turned off later from coming back on.
+- **No switch** on a link onto its own server or with a partner off the list: neither would share anything, and
+  `normalizeLinks` drops the field there. Removing a server therefore takes the switch off its links, and listing it
+  again shares nothing until someone turns the switch on and answers its question.
+- **Sharing without such a link** is allowed: the note stays `shared` and only A sees it until a link has the switch.
+  The answers of `GET /api/vermerke` and `/person` carry `hasSharingServers` for the text in the dialog and the drawer.
+- Expiry, archive and removing for good work on the store of A and do not ask the rule. A full admin has no way
+  around it: everything works on the active server, so he reads another server's notes by switching to that server.
 
 ## Store
 
@@ -54,20 +79,20 @@ Only three modules read it: the routes (`src/web/apiRoutes/roster/vermerke.js`),
 Area `vermerke` (docs/permissions.md): **in no base access**, like `kader` — full admins and named people (an
 account grant under "Einzelne Konten" or a role grant). `read` = the list and the notes, `write` = add, change,
 archive, hide. Everything works on the **active server**; an entry of another server answers 404 `not_found`
-unless it is shared (then read only). Without an active server: 400 `no_server`.
+unless it is shared and a link with the switch joins the two servers (then read only). Without an active server: 400 `no_server`.
 
 ## API
 
 | Route | Right | What |
 |---|---|---|
-| `GET /api/vermerke` | read | `{ people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
-| `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, entries: [note + own, originGuildId, originName?, hidden, active] }` |
+| `GET /api/vermerke` | read | `{ hasSharingServers, people: [{ userId, name, level, reasons: {reason: n}, activeCount, totalCount, lastAt, lastByName, sharedCount, left }] }`, newest first, no text; `left` = no longer on the server (`null` without a member list) |
+| `GET /api/vermerke/person?userId=` | read | `{ userId, name, level, hasSharingServers, entries: [note + own, originGuildId, originName?, hidden, active] }` |
 | `GET /api/vermerke/people?q=` | read | person search of the dialog: `{ results: [{ userId, name, gone }] }` — members first, then who left (found through earlier signups), at most 25 |
 | `GET /api/vermerke/raids?userId=` | read | `{ raids: [{ eventId, title, startTime, signed }] }` — the raids of the last four weeks on the server, newest first |
 | `POST /api/vermerke` | write | `{ userId, name, level, reason, text?, eventIds?, expiresAt?, shared? }` → 201 `{ entry }` |
 | `POST /api/vermerke/update` | write | `{ userId, id, …fields }` → `{ entry }`; archived: 409 `archived` |
 | `POST /api/vermerke/archive` | write | `{ userId, id, archived = true }` → `{ entry }` |
-| `POST /api/vermerke/hide` | write | `{ id, hidden = true }` → `{ id, hidden }` (shared notes of other servers only) |
+| `POST /api/vermerke/hide` | write | `{ id, hidden = true }` → `{ id, hidden }` (shared notes of servers sharing with this one only) |
 | `POST /api/vermerke/delete` | full admin | `{ userId, id }` → `{ removed: true }` |
 | `GET /api/vermerke/short?userIds=a,b` | see below | `{ short: { [userId]: { level, reasons } } }`, at most 200 ids |
 
@@ -81,7 +106,8 @@ client `src/web-client/src/pages/vermerke/`. One compact, sortable list (a perso
 reasons with their count, "Zuletzt"), a level filter and an archive tab; the drawer opens by link (`?user=<id>`) with
 the entries, a shared entry of another server read only (it may only be hidden here). The dialog adds a note: person
 search, level, reason as chips (all seven, `left_server` = "Server verlassen" with a door icon), recent raids, expiry,
-shared. Below the list the section "Hinweise aus den Daten": five hints, then "Alle zeigen"; "Vermerk anlegen"
+the sharing switch (on a server no link shares with, a line below the switch says that the note stays only here for
+now). Below the list the section "Hinweise aus den Daten": five hints, then "Alle zeigen"; "Vermerk anlegen"
 prefills the reason (`reasonOfSignal`: both sign-off kinds → `late_signoff`, the others their own), "Ignorieren"
 hides one. Without the hints route (404) the section is gone; with no hints it keeps its head, so the sliders
 button stays reachable: it opens the **thresholds dialog** — one line per key with −/+ and the number with its word
@@ -125,7 +151,7 @@ Discord name from the member cache (`resolveUserNames(…, { waitMs: 0 })`, the 
 character, else the id.
 It is computed live per answer and **never stored** in the setup (`saveSetupDraft` keeps the rest of the view).
 The proposal itself skips shadowbans (docs/setup.md "Shadowban"); placing by hand stays allowed. A roster manager
-gets the short form for every person of the server, a shared note shows everything on every server.
+gets the short form for every person of the server, a shared note shows everything on every linked server.
 
 ## Hints from the data (#982)
 
@@ -189,7 +215,7 @@ the matching reason** (`late_signoff` for both sign-off kinds, `no_show`, `left_
 event of that kind (`at` after the Ausblenden / the note). Then it comes back and counts **every** event inside the
 window, the older ones too — the threshold is about the person, not about what came since. A no-show of an old raid
 entered only after the Ausblenden does not bring it back (its `at` is the start of the raid). A **shared Vermerk of
-another server** with the matching reason holds the hint back as well (it counts on this server — wanted). No-shows cost one
+a linked server** with the matching reason holds the hint back as well (it counts on this server — wanted). No-shows cost one
 `listEvents(server, { siblings, sinceSeconds })` and one read of the overrides per request — no scan over all signups.
 
 **Thresholds per server** in `serverSettings[guildId].vermerkeSignals` (`DEFAULT_THRESHOLDS` / `THRESHOLD_LIMITS`
@@ -226,7 +252,7 @@ for **2 minutes** (`BUFFER_MS`), then hands the batch to `orgaSignupNotice.postB
 in `src/web/http/jobs.js` (`setFlushHandler`). The queue lives in memory; a restart inside the two minutes loses
 the batch (best-effort, the signup is saved anyway).
 
-**What counts.** The Vermerke **of the raid's server** at flush time (`vermerkeShort.shortFor`: own and shared ones,
+**What counts.** The Vermerke **of the raid's server** at flush time (`vermerkeShort.shortFor`: own ones and shared ones of linked servers,
 not hidden, not archived, not expired). Below the chosen level: no line. Nobody left: no message.
 
 **The message** (`card()`, kind `warn`, kicker "Vermerke", German like every orga text):

@@ -8,6 +8,9 @@
 //     becomes a template without size (raidTemplateStore.migrateLegacyTemplates).
 //   - role-messages.json (#895), then config.json, discordServers + roleSync
 //     (#897) - in this order, see the last two entries below.
+//   - config.json, discordServers.links (#1078): sharing Vermerke became a switch per
+//     link, off by default. The links of before the switch shared, so they get it on,
+//     once; the mark in migrations.json keeps a switch turned off later off.
 //   - config.json, rights (#925): the global role/base/account/orga/bot-command
 //     rights are copied onto every server block, then dropped from the top level.
 //   - config.json, raidDefaults.templateId: the old global default (a Raid-Helper
@@ -573,6 +576,7 @@ function repointTemplateReferences() {
 }
 
 const TEMPLATE_REFERENCES_MARK = "raidTemplateReferences";
+const LINK_SHARE_NOTES_MARK = "linkShareNotes";
 
 /**
  * The raid templates per server (#1076): after migrateRaidplanServers (same server list). A single
@@ -1087,6 +1091,34 @@ function migrateReportGuilds() {
 }
 
 /**
+ * config.json, links (#1078): sharing Vermerke became a switch per link, off by default.
+ * A link of before the switch shared when both servers were listed, so every one between
+ * two different servers of the list gets it on, once (noteSharingServerIds() ignored the
+ * others, and they must not start sharing the day the target is listed). Unlike
+ * migrateReportGuilds() the mark is set without any link too: a link created later with
+ * the switch off must not be turned on by a later start.
+ *
+ * The links go first, the mark after: a crash between them repeats the run on the next
+ * start, which only finds links that are on already (no web save happens in between).
+ * @returns {string[]} one line, or none
+ */
+function migrateLinkShareNotes() {
+    if (migrationMarkStore.isDone(LINK_SHARE_NOTES_MARK)) return [];
+    const stored = configStore.readStored();
+    const block = stored.discordServers;
+    const raw = block && Array.isArray(block.links) ? block.links : [];
+    const listed = new Set((block && Array.isArray(block.servers) ? block.servers : []).map((server) => server && String(server.guildId)));
+    const turnsOn = (link) => link && typeof link === "object" && link.from !== link.to && listed.has(link.from) && listed.has(link.to) && link.shareNotes !== true;
+    const count = raw.filter(turnsOn).length;
+    if (count) {
+        const links = raw.map((link) => (turnsOn(link) ? { ...link, shareNotes: true } : link));
+        configStore.writeStored({ ...stored, discordServers: { ...block, links } });
+    }
+    migrationMarkStore.markDone(LINK_SHARE_NOTES_MARK);
+    return count ? [`config.json: Vermerke teilen an ${count} bestehender/n Verknüpfung(en) eingeschaltet (#1078)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
@@ -1107,6 +1139,8 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateConfig());
         changes.push(...migrateServerDefaultsLogged(warn));
         changes.push(...migrateDiscordFederation());
+        // #1078: after the federation step, which turns an old `eventGuilds` block into links.
+        changes.push(...migrateLinkShareNotes());
         // #925: after the federation step, which settles the server list the rights are copied onto.
         changes.push(...migrateServerPermissions());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
@@ -1140,6 +1174,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateRaidTemplateServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
+    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateRaidTemplateServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateLinkShareNotes, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

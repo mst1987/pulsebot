@@ -80,6 +80,39 @@ describe("web/apiRoutes/vermerke - hints", () => {
         expect(res.thresholds).toMatchObject({ windowDays: 60, signoffAfterSetup: 2, lateHours: 12 });
     });
 
+    // A shared Vermerk with the matching reason hides a hint like an own one - only over a link that shares (#1078).
+    describe("a shared Vermerk of another server", () => {
+        const linked = (extra) => ({
+            discordServers: {
+                servers: [{ guildId: "A", label: "" }, { guildId: "B", label: "" }],
+                links: [{ from: "B", to: "A", channelId: "1400000000000000011", lang: "", versions: [], ...extra }],
+            },
+        });
+        const twoSignoffs = () => {
+            signoff("A", "e1");
+            signoff("A", "e2");
+        };
+        // newer than every event in the store, so it would hide the hint if it counted
+        const sharedNote = () => notes.addEntry("B", U, { level: "warning", reason: "late_signoff", text: "MARKER-TEXT", shared: true }, { by: "9", byName: "Orga-B", now: Date.now() + 1000 });
+
+        it("counts over a link with the switch on: the hint is covered", async () => {
+            twoSignoffs();
+            mockConfig = linked({ shareNotes: true });
+            expect(body(await get("/api/vermerke/signals")).signals).toHaveLength(1);
+            sharedNote();
+            expect(body(await get("/api/vermerke/signals")).signals).toEqual([]);
+        });
+
+        it("does not count over a link without it: the hint stays and gives nothing away", async () => {
+            twoSignoffs();
+            mockConfig = linked({});
+            sharedNote();
+            const res = body(await get("/api/vermerke/signals"));
+            expect(res.signals).toEqual([expect.objectContaining({ userId: U, kind: "signoff_after_setup", count: 2 })]);
+            expect(JSON.stringify(res)).not.toMatch(/MARKER-TEXT|Orga-B|"B"/);
+        });
+    });
+
     it("hides a hint until something new, with checked input", async () => {
         signoff("A", "e1");
         signoff("A", "e2");

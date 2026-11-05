@@ -17,7 +17,7 @@ import "../../styles/vermerke.css";
 import { useT } from "../../i18n";
 
 // The drawer of one person (A): the entries that count, newest first, with the
-// text right there and the history to fold out. A shared entry of another server
+// text right there and the history to fold out. A shared entry of a linked server
 // carries a lock and that server's name and is read only — this server may only
 // hide it for itself (write). Below, folded: what was hidden here and the archive.
 
@@ -80,6 +80,7 @@ export default function VermerkDrawer({ userId, guildId, guildName, fallbackName
     const actions: EntryActions = {
         busy,
         canWrite,
+        noLink: !!data && data.hasSharingServers === false,
         edit: (e) => onEdit(person, e),
         archive: async (e) => {
             const yes = await ask({ title: t("vermerke.drawer.archiveIt"), text: t("vermerke.drawer.archiveSub"), action: t("vermerke.drawer.archiveIt"), tone: "danger" });
@@ -143,6 +144,8 @@ export default function VermerkDrawer({ userId, guildId, guildName, fallbackName
 type EntryActions = {
     busy: string;
     canWrite: boolean;
+    /** no link shares Vermerke with this server: its shared entries reach nobody yet */
+    noLink: boolean;
     edit: (e: VermerkEntry) => void;
     archive: (e: VermerkEntry) => void;
     restore: (e: VermerkEntry) => void;
@@ -192,7 +195,7 @@ function Entry({ entry: e, actions, off = false }: { entry: VermerkEntry; action
                     </span>
                 )}
                 {e.own && e.shared && (
-                    <span className="vmk-lock" data-tip={t("vermerke.drawer.shared")} data-tip-sub={t("vermerke.drawer.sharedOwnSub")}>
+                    <span className="vmk-lock" data-tip={t("vermerke.drawer.shared")} data-tip-sub={t(actions.noLink ? "vermerke.drawer.sharedOwnNoLink" : "vermerke.drawer.sharedOwnSub")}>
                         <LockIcon />{t("vermerke.drawer.shared")}
                     </span>
                 )}

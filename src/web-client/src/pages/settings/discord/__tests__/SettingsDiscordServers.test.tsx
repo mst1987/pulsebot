@@ -29,20 +29,23 @@ function row(id: string, name: string, raidCategories: number): ServerRow {
     } as ServerRow;
 }
 
-function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "", pug = false }: {
+function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "", pug = false, listTarget = false }: {
     links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string; pug?: boolean;
+    /** Lists the link target too: Vermerke are shared between two listed servers only (#1078). */
+    listTarget?: boolean;
 } = {}): DiscordServersData {
     return {
         discordServers: {
-            servers: [{ guildId: "10001", label: "", ...(pug ? { pug: true } : {}) }],
+            servers: [{ guildId: "10001", label: "", ...(pug ? { pug: true } : {}) }, ...(listTarget ? [{ guildId: "20002", label: "" }] : [])],
             links,
         },
         // #924: the two signup channels belong to each server
         channels: { "10001": { signupNoteChannelId, guildBankChannelId } },
-        servers: [row("10001", "Pulse", raidCategories)],
+        servers: [row("10001", "Pulse", raidCategories), ...(listTarget ? [row("20002", "Eventserver", 0)] : [])],
         guilds: [
             { id: "10001", name: "Pulse", lang: "de", channels: [{ id: "c1", name: "orga-gildenbank", category: "Orga" }] },
             { id: "20002", name: "Eventserver", lang: "en", channels: [{ id: "c2", name: "raids", category: "Events" }] },
+            { id: "30003", name: "Nur die Liste", lang: "en", channels: [{ id: "c3", name: "raidliste", category: "Events" }] },
         ],
         versions: [{ id: "tbc", label: "TBC Anniversary", short: "TBC" }, { id: "forever", label: "WoW Forever", short: "Forever" }],
     };
@@ -231,6 +234,133 @@ describe("Discord-Server: Verknüpfungen", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [] } });
     });
 
+    describe("Schalter Vermerke teilen (#1078)", () => {
+        const SHARED: ServerLink = { ...LINK, shareNotes: true };
+
+        /** The dialog with the source picked: two listed servers, so none is preselected. */
+        async function openDialog() {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ listTarget: true }));
+            render("links");
+            fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung anlegen" }));
+            const dialog = await screen.findByRole("dialog");
+            fireEvent.change(dialog.querySelector("#srv-link-from") as HTMLSelectElement, { target: { value: "10001" } });
+            return dialog;
+        }
+        async function openFilledDialog() {
+            const dialog = await openDialog();
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "20002" } });
+            fireEvent.change(dialog.querySelector("#srv-link-channel") as HTMLSelectElement, { target: { value: "c2" } });
+            return dialog;
+        }
+        const shareNotesCell = () => document.querySelector("td[data-label='Vermerke']") as HTMLElement;
+        const sentLinks = () => (vi.mocked(api.updateSettings).mock.calls[0][0] as { discordServers: { links: ServerLink[] } }).discordServers.links;
+
+        it("starts off and leaves the field out of a new link", async () => {
+            const dialog = await openFilledDialog();
+            expect(within(dialog).getByRole("switch", { name: "Vermerke teilen" })).not.toBeChecked();
+            expect(within(dialog).queryByRole("note")).toBeNull();
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0]).not.toHaveProperty("shareNotes");
+        });
+
+        it("says what sharing means once it is on and saves the field", async () => {
+            const dialog = await openFilledDialog();
+            fireEvent.click(within(dialog).getByRole("switch", { name: "Vermerke teilen" }));
+            expect(within(dialog).getByRole("note")).toHaveTextContent(/beide Richtungen.*schon geteilte Einträge.*Setup-Vorschlag/);
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0].shareNotes).toBe(true);
+        });
+
+        it("offers no switch for a link onto the source itself and never sends the field", async () => {
+            const dialog = await openDialog();
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "20002" } });
+            fireEvent.click(within(dialog).getByRole("switch", { name: "Vermerke teilen" }));
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "10001" } });
+            expect(within(dialog).queryByRole("switch", { name: "Vermerke teilen" })).toBeNull();
+            fireEvent.change(dialog.querySelector("#srv-link-channel") as HTMLSelectElement, { target: { value: "c1" } });
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0]).not.toHaveProperty("shareNotes");
+        });
+
+        // The switch only means something between two listed servers: anything else would promise sharing that does not happen.
+        it("offers no switch for a target off the list and never sends the field, even if it was on before", async () => {
+            const dialog = await openDialog();
+            expect(within(dialog).queryByRole("switch", { name: "Vermerke teilen" })).toBeNull();
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "20002" } });
+            fireEvent.click(within(dialog).getByRole("switch", { name: "Vermerke teilen" }));
+            fireEvent.change(dialog.querySelector("#srv-link-to") as HTMLSelectElement, { target: { value: "30003" } });
+            expect(within(dialog).queryByRole("switch", { name: "Vermerke teilen" })).toBeNull();
+            expect(within(dialog).queryByRole("note")).toBeNull();
+            fireEvent.change(dialog.querySelector("#srv-link-channel") as HTMLSelectElement, { target: { value: "c3" } });
+            fireEvent.click(within(dialog).getByRole("button", { name: "Anlegen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(sentLinks()[0]).not.toHaveProperty("shareNotes");
+        });
+
+        it("shows a dash instead of a switch for a link onto a server off the list", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED] }));
+            render("links");
+            await screen.findByText("#raids");
+            expect(screen.queryByRole("switch", { name: /Teilt/ })).toBeNull();
+            expect(shareNotesCell()).toHaveTextContent("—");
+        });
+
+        it("takes the switch off a link onto a server that is removed, and keeps the link", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED], listTarget: true }));
+            render();
+            const removes = await screen.findAllByRole("button", { name: "Server entfernen" });
+            fireEvent.click(removes.find((b) => b.closest("tr")?.textContent?.includes("Eventserver")) as HTMLElement);
+            fireEvent.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Server entfernen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+                discordServers: { servers: [{ guildId: "10001", label: "" }], links: [LINK] },
+            });
+        });
+
+        it("turns an existing link off at once and leaves the field out", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED], listTarget: true }));
+            render("links");
+            fireEvent.click(await screen.findByRole("switch", { name: "Teilt Vermerke" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [LINK] } });
+        });
+
+        it("asks before an existing link starts sharing, and saves nothing when declined", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [LINK], listTarget: true }));
+            render("links");
+            fireEvent.click(await screen.findByRole("switch", { name: "Teilt nicht" }));
+            let dialog = await screen.findByRole("dialog");
+            expect(within(dialog).getByText(/beide Richtungen/)).toBeInTheDocument();
+            fireEvent.click(within(dialog).getByRole("button", { name: "Abbrechen" }));
+            await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+            expect(api.updateSettings).not.toHaveBeenCalled();
+
+            fireEvent.click(screen.getByRole("switch", { name: "Teilt nicht" }));
+            dialog = await screen.findByRole("dialog");
+            fireEvent.click(within(dialog).getByRole("button", { name: "Vermerke teilen" }));
+            await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+            expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({ discordServers: { links: [SHARED] } });
+        });
+
+        it("shows a dash instead of a switch for a link onto its own server", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [{ from: "10001", to: "10001", channelId: "c1", lang: "", versions: [] }] }));
+            render("links");
+            await screen.findByText("#orga-gildenbank");
+            expect(screen.queryByRole("switch", { name: /Teilt/ })).toBeNull();
+            expect(shareNotesCell()).toHaveTextContent("—");
+        });
+
+        it("says in the remove dialog that sharing ends, only when the link shares", async () => {
+            vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ links: [SHARED] }));
+            render("links");
+            fireEvent.click(await screen.findByRole("button", { name: "Verknüpfung entfernen" }));
+            expect(within(await screen.findByRole("dialog")).getByText(/geteilten Vermerke des anderen nicht mehr/)).toBeInTheDocument();
+        });
+    });
+
     it("hints that a source without a raid category gives an empty list", async () => {
         vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ raidCategories: 0 }));
         render();
@@ -305,9 +435,9 @@ describe("Discord-Server: Einladungen (#905)", () => {
         expect(within(td).getByRole("button", { name: "Einladung kopieren" })).toBeInTheDocument();
         expect(within(td).getByText("3 beigetreten")).toBeInTheDocument();
         expect(within(td).getByText("1 angemeldet")).toBeInTheDocument();
-        // six columns, every value cell labelled for the stacked narrow layout
+        // seven columns, every value cell labelled for the stacked narrow layout
         const table = td.closest("table") as HTMLElement;
-        expect(table.querySelectorAll("thead th")).toHaveLength(6);
+        expect(table.querySelectorAll("thead th")).toHaveLength(7);
         expect(td).toHaveAttribute("data-label", "Einladung");
     });
 
