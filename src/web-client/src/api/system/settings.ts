@@ -251,7 +251,8 @@ export type RemindersData = {
     categoryReminders: Record<string, ReminderRule>;
     /** `active: false`: a deactivated category (#744) — its rule stays but reminds nobody. */
     categories: { id: string; name: string; roleCount: number; active?: boolean }[];
-    lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
+    /** The server-admin rank gets `at` alone: the counts and the error span every server (#1073 part B). */
+    lastRun: { at: number; sent?: number; failed?: number; skipped?: number; error?: string | null } | null;
 };
 
 export function getRoleSync(): Promise<RoleSyncData> {

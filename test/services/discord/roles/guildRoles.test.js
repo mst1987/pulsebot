@@ -72,6 +72,36 @@ describe("services/discord/roles/guildRoles serverIsTrusted", () => {
     });
 });
 
+// The other direction (#1073 part B): what only an unmarked server may do needs the server surely
+// without the mark, so every doubt answers false here too.
+describe("services/discord/roles/guildRoles serverIsSurelyUnmarked", () => {
+    const config = (...servers) => ({ guildId: "", discordServers: block({ servers }) });
+
+    it("is true for a listed server without the mark", () => {
+        expect(guildRoles.serverIsSurelyUnmarked(E2, config({ ...server(E1), trusted: true }, server(E2)))).toBe(true);
+    });
+
+    it("is false for a marked server, off the list and without an id", () => {
+        const cfg = config({ ...server(E1), trusted: true }, server(E2));
+        expect(guildRoles.serverIsSurelyUnmarked(E1, cfg)).toBe(false);
+        expect(guildRoles.serverIsSurelyUnmarked(X, cfg)).toBe(false);
+        expect(guildRoles.serverIsSurelyUnmarked("", cfg)).toBe(false);
+        expect(guildRoles.serverIsSurelyUnmarked(null, cfg)).toBe(false);
+    });
+
+    it("is false for settings that cannot be read and for the old single guildId", () => {
+        getConfig.mockImplementation(() => { throw new Error("broken file"); });
+        expect(guildRoles.serverIsSurelyUnmarked(E1)).toBe(false);
+        expect(guildRoles.serverIsSurelyUnmarked(E1, null)).toBe(false);
+        expect(guildRoles.serverIsSurelyUnmarked(HOME, { guildId: HOME, discordServers: block() })).toBe(false);
+    });
+
+    it("reads the settings itself without a config", () => {
+        getConfig.mockReturnValue(config(server(E1)));
+        expect(guildRoles.serverIsSurelyUnmarked(E1)).toBe(true);
+    });
+});
+
 describe("services/discord/roles/guildRoles ids", () => {
     it("falls back to the old guildId when no server is set", () => {
         getConfig.mockReturnValue({ guildId: HOME, discordServers: block() });

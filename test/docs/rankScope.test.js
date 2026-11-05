@@ -47,8 +47,6 @@ const ALLOWED = {
     "loot/lootCouncil.js:getExport": "characterMap gives only class and spec of the asked name (the gear behind it: see the follow-up in #1072)",
     "roster/profile.js:putProfile": "writes the caller's own profile (user.id); the list only drops unknown wish ids",
     "roster/profile.js:postProfileCharacter": "writes the caller's own profile (user.id)",
-    "system/settings.js:updateSettings": "versionSettingsPatch only checks that a sheet id exists, it hands no template out",
-    "system/settings.js:getCategoryDeactivate": "reads no template: the text check follows the word updateSettings out of a helper's comment",
 };
 
 function jsFiles(dir) {

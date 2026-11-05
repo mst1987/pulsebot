@@ -69,6 +69,26 @@ function serverIsTrusted(guildId, config) {
     }
 }
 
+/**
+ * Whether the server is surely without the mark: on the list, and its entry has no `trusted`. The
+ * other direction of serverIsTrusted, for what only an unmarked server may do (the rank granting
+ * rights, #1073 part B): off the list, no id or settings that cannot be read all answer false.
+ * @param {string} guildId
+ * @param {object} [config]
+ * @returns {boolean}
+ */
+function serverIsSurelyUnmarked(guildId, config) {
+    try {
+        const id = String(guildId || "").trim();
+        if (!id) return false;
+        // blockOf() always hands over a list; anything else throws below and answers false.
+        const entry = blockOf(config === undefined ? getConfig() : config).servers.find((s) => s && String(s.guildId) === id);
+        return !!entry && entry.trusted !== true;
+    } catch {
+        return false;
+    }
+}
+
 /** Every stored link `{ from, to, channelId, lang, versions, shareNotes? }` (normalised by configSchema). */
 function links(config = getConfig()) {
     const list = blockOf(config).links;
@@ -247,6 +267,6 @@ function roleMessageGuild(entry, config = getConfig()) {
 
 module.exports = {
     serverIds, listedServerIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
-    noteSharingServerIds, serverIsTrusted, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
+    noteSharingServerIds, serverIsTrusted, serverIsSurelyUnmarked, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
     eventGuildCards, describeGuild, guildOverlap,
 };

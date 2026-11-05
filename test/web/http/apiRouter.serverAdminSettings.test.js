@@ -8,6 +8,8 @@ const fs = require("fs");
 const { ChannelType } = require("discord.js");
 const axios = require("axios");
 const configStore = require("../../../src/stores/settings/configStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const { SERVER_RANK_KEYS, SERVER_RIGHTS_KEYS } = require("../../../src/web/apiRoutes/system/settings");
 const auth = require("../../../src/web/http/auth");
 const { handle } = require("../../../src/web/http/apiRouter");
 const discord = require("../../../src/services/discord/discord");
@@ -36,7 +38,7 @@ const baseConfig = (over = {}) => ({
     categoryLanguage: { [CAT_OWN]: "de", [CAT_FOREIGN]: "en" },
     categoryRoles: { [CAT_OWN]: [ROLE_OWN], [CAT_FOREIGN]: [ROLE_FOREIGN] },
     categoryPlanning: { [CAT_FOREIGN]: "sheet" },
-    categoryReminders: { [CAT_FOREIGN]: [] },
+    categoryReminders: { [CAT_FOREIGN]: { missingHours: 24, signedHours: 0 } },
     anthropic: { apiKey: "anthropic-key" },
     warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-secret" },
     blizzard: { clientId: "blizzard-id", clientSecret: "blizzard-secret" },
@@ -109,15 +111,44 @@ const stored = () => JSON.parse(onDisk());
 const seed = (config) => fs.writeFileSync(file, JSON.stringify(config));
 const patch = (session, body) => send(session, "PATCH", "/api/settings", { serverSettingsGuildId: OWN, ...body });
 
+const current = () => configStore.getConfig();
+
+let ownRoster;
+let foreignRoster;
+
+beforeAll(() => rosterStore.useFile(tempStoreFile("rosters.json")));
+
 beforeEach(() => {
     jest.clearAllMocks();
     file = tempStoreFile("config.json");
     seed(baseConfig());
     configStore.useFile(file);
+    for (const roster of rosterStore.listRosters("")) rosterStore.deleteRoster(roster.id);
+    const made = (input) => { const out = rosterStore.createRoster(input); return out.roster || out; };
+    ownRoster = made({ guildId: OWN, name: "Eigen", categoryId: CAT_OWN, roleIds: [ROLE_OWN] });
+    foreignRoster = made({ guildId: FOREIGN, name: "Fremd", categoryId: CAT_FOREIGN, roleIds: [ROLE_FOREIGN] });
 });
 
 afterEach(() => discord.setClient(null));
-afterAll(() => configStore.useFile(null));
+afterAll(() => {
+    configStore.useFile(null);
+    rosterStore.useFile(null);
+});
+
+describe("the rank's list", () => {
+    it("is exactly this list: a new key is a decision, not a side effect", () => {
+        expect([...SERVER_RIGHTS_KEYS]).toEqual(["baseAccess", "userPermissions", "rolePermissions", "botCommandAccess", "orgaRoleIds"]);
+        expect([...SERVER_RANK_KEYS].sort()).toEqual([
+            "baseAccess", "userPermissions", "rolePermissions", "botCommandAccess", "orgaRoleIds",
+            "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "discordVisuals", "logChannels", "versionOverrides",
+            "categoryIds", "categoryRoles", "categoryLootTool", "categoryLootSystem", "categorySignupSource", "categorySetupDms",
+            "categoryLanguage", "categoryAttendance", "categoryDiscordEvent", "categoryServerOverview", "categoryVoiceChannel",
+            "categoryTempVoice", "categoryMessageLook", "categoryAnnounce", "categorySignupNotes", "categorySignupNoteChannel",
+            "categorySignupCharacters", "categorySheets", "categoryPlanning", "categoryRaidTemplate", "categoryVersion",
+            "categoryReminders", "categorySwitchFixes", "serverSettingsGuildId",
+        ].sort());
+    });
+});
 
 describe("PATCH /api/settings as the server-admin rank: its rights, on the active server", () => {
     it.each([
@@ -207,7 +238,6 @@ describe("PATCH /api/settings as the rank: what stays with full admins", () => {
         ["roleSync", []],
         ["addonDownloads", []],
         ["addonDownloadsReset", true],
-        ["categoryReminders", {}],
         ["categoryEras", {}],
         ["aKeyNobodyHasDecidedYet", 1],
     ];
@@ -226,10 +256,34 @@ describe("PATCH /api/settings as the rank: what stays with full admins", () => {
         expect(onDisk()).toBe(before);
     });
 
-    it.each(["botLanguage", "discordVisuals"])("refuses %s as null: that is a global default's way", async (key) => {
-        const before = onDisk();
+    it.each([
+        ["botLanguage", "en", "de"],
+        ["discordVisuals", { setupImage: false }, { setupImage: true }],
+    ])("takes %s as null back to the default for its own server only", async (key, own, global) => {
+        seed(baseConfig({
+            [key]: global,
+            serverSettings: {
+                ...baseConfig().serverSettings,
+                [OWN]: { ...baseConfig().serverSettings[OWN], [key]: own },
+                [FOREIGN]: { ...baseConfig().serverSettings[FOREIGN], [key]: own },
+            },
+        }));
+        const globalBefore = current()[key];
+        expect(globalBefore).toEqual(typeof global === "object" ? expect.objectContaining(global) : global);
         const res = await patch(await rank(), { [key]: null });
-        expect(status(res)).toBe(403);
+        expect(status(res)).toBe(200);
+        const after = stored();
+        expect(after.serverSettings[OWN][key]).toBeUndefined();
+        expect(after.serverSettings[FOREIGN][key]).toEqual(own);
+        expect(current()[key]).toEqual(globalBefore);
+    });
+
+    it("refuses null without an active server", async () => {
+        const session = await rank();
+        auth.setActiveGuild({ headers: session.headers }, "");
+        const before = onDisk();
+        const res = await send(session, "PATCH", "/api/settings", { botLanguage: null });
+        expect(status(res)).toBeGreaterThanOrEqual(400);
         expect(onDisk()).toBe(before);
     });
 });
@@ -261,11 +315,59 @@ describe("PATCH /api/settings as the rank: no other server", () => {
         expect(onDisk()).toBe(before);
     });
 
-    it("writes to the other server once the session is on it and it is admin there", async () => {
-        const res = await send(await rank({ adminOn: [OWN, FOREIGN], active: FOREIGN }), "PATCH", "/api/settings", { serverSettingsGuildId: FOREIGN, baseAccess: { raids: ALL, kader: ALL } });
+    it("writes a setting to the other server once the session is on it and it is admin there", async () => {
+        const res = await send(await rank({ adminOn: [OWN, FOREIGN], active: FOREIGN }), "PATCH", "/api/settings", { serverSettingsGuildId: FOREIGN, botLanguage: "en" });
         expect(status(res)).toBe(200);
-        expect(stored().serverSettings[FOREIGN].baseAccess.kader).toEqual(ALL);
-        expect(stored().serverSettings[OWN].baseAccess).toBeUndefined();
+        expect(stored().serverSettings[FOREIGN].botLanguage).toBe("en");
+        expect(stored().serverSettings[OWN].botLanguage).toBeUndefined();
+    });
+
+    describe("on a marked server: rights stay with full admins (decision A)", () => {
+        const onForeign = () => rank({ adminOn: [OWN, FOREIGN], active: FOREIGN });
+        const write = (session, body) => send(session, "PATCH", "/api/settings", { serverSettingsGuildId: FOREIGN, ...body });
+
+        it.each([
+            ["baseAccess", { raids: ALL, kader: ALL }],
+            ["userPermissions", { [ACCOUNT]: { settings: ALL } }],
+            ["rolePermissions", { [ROLE_FOREIGN]: { raids: ALL } }],
+            ["botCommandAccess", { setup: { mode: "everyone" } }],
+            ["orgaRoleIds", [ROLE_FOREIGN]],
+        ])("refuses %s alone and mixed, saving nothing", async (key, value) => {
+            const before = onDisk();
+            const session = await onForeign();
+            expect(status(await write(session, { [key]: value }))).toBe(403);
+            expect(status(await write(session, { botLanguage: "en", [key]: value }))).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+
+        it("keeps the other keys of its list there", async () => {
+            const res = await write(await onForeign(), { botLanguage: "en", categoryLanguage: { [CAT_FOREIGN]: "de" } });
+            expect(status(res)).toBe(200);
+            expect(stored().categoryLanguage[CAT_FOREIGN]).toBe("de");
+        });
+
+        it("does not show the rights there and says it may not manage them", async () => {
+            const data = dataOf(await send(await onForeign(), "GET", "/api/settings"));
+            expect(data.canManageServerAccess).toBe(false);
+            for (const key of SERVER_RIGHTS_KEYS) expect(data.config[key]).toBeUndefined();
+            expect(JSON.stringify(data)).not.toContain(ACCOUNT);
+        });
+
+        it("refuses the rights on a server missing from the list: only a surely unmarked server opens them", async () => {
+            seed(baseConfig({ discordServers: { servers: [{ guildId: FOREIGN, label: "Fremd", trusted: true }], links: [] } }));
+            const before = onDisk();
+            const res = await patch(await rank(), { baseAccess: { raids: ALL } });
+            expect(status(res)).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+
+        it("refuses the rights when the server list cannot be read", async () => {
+            seed(baseConfig({ discordServers: "broken" }));
+            const before = onDisk();
+            const res = await patch(await rank(), { baseAccess: { raids: ALL } });
+            expect(status(res)).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
     });
 
     it("answers 409 to a tab without a server: a rank without a choice lands on a server it may enter", async () => {
@@ -371,7 +473,7 @@ describe("GET /api/settings as the rank", () => {
     it("sees nothing global and nothing of the other server", async () => {
         const data = dataOf(await send(await rank(), "GET", "/api/settings"));
         for (const key of ["servers", "adminRoles", "roleOrigins", "raidhelper"]) expect(Object.keys(data[key] || {})).toEqual([]);
-        for (const key of ["adminRoleIds", "anthropic", "warcraftlogsV2", "github", "twitch", "discordServers", "wclGuilds", "roleSync", "categoryReminders", "raidhelperServerId", "addonDownloads", "versionLaunch", "dungeonRecords", "guildId"]) {
+        for (const key of ["adminRoleIds", "anthropic", "warcraftlogsV2", "github", "twitch", "discordServers", "wclGuilds", "roleSync", "raidhelperServerId", "addonDownloads", "versionLaunch", "dungeonRecords", "guildId"]) {
             expect(data.config[key]).toBeUndefined();
         }
         expect(data.config.blizzard).toEqual({});
@@ -490,10 +592,275 @@ describe("the others stay as they were", () => {
             expect(onDisk()).toBe(before);
         });
 
-        it("still saves a server setting, without the rank's limits on what it names", async () => {
+        it("still saves a server setting of its own server", async () => {
             const res = await patch(await roleUser(), { botLanguage: "en" });
             expect(status(res)).toBe(200);
             expect(stored().serverSettings[OWN].botLanguage).toBe("en");
         });
+    });
+});
+
+// H: every category map of the list keeps the other server's entry, whatever the rank sends.
+const CATEGORY_VALUES = [
+    ["categoryRoles", [ROLE_FOREIGN], [ROLE_FREE]],
+    ["categoryLootTool", "rclc", "gargul"],
+    ["categoryLootSystem", "gdkp", "softres"],
+    ["categorySignupSource", "eventhelper", "eventhelper"],
+    ["categorySetupDms", true, true],
+    ["categoryLanguage", "en", "en"],
+    ["categoryAttendance", { show: false }, { show: false }],
+    ["categoryDiscordEvent", true, true],
+    ["categoryServerOverview", false, false],
+    ["categoryTempVoice", { mode: "temp", leadMinutes: 15 }, { mode: "temp", leadMinutes: 15 }],
+    ["categoryAnnounce", { enabled: true, target: "event" }, { enabled: true, target: "event" }],
+    ["categorySignupNotes", "required", "none"],
+    ["categorySignupNoteChannel", TEXT_FOREIGN, TEXT_OWN],
+    ["categorySheets", { url: "https://docs.google.com/spreadsheets/d/fremd", name: "Fremd" }, { url: "https://docs.google.com/spreadsheets/d/eigen", name: "Eigen" }],
+    ["categoryPlanning", "sheet", "sheet"],
+    ["categoryReminders", { missingHours: 24, signedHours: 0 }, { missingHours: 12, signedHours: 0 }],
+];
+const CATEGORY_MAP_KEYS = [...SERVER_RANK_KEYS].filter((key) => key.startsWith("category") && key !== "categoryIds");
+
+describe("PATCH /api/settings as the rank: each category map keeps the other server's entry", () => {
+    it.each(CATEGORY_VALUES)("%s: an empty map keeps it", async (key, foreign) => {
+        seed(baseConfig({ [key]: { [CAT_FOREIGN]: foreign } }));
+        const before = current()[key][CAT_FOREIGN];
+        const res = await patch(await rank(), { [key]: {} });
+        expect(status(res)).toBe(200);
+        expect(current()[key][CAT_FOREIGN]).toEqual(before);
+    });
+
+    it.each(CATEGORY_VALUES)("%s: a map of its own category keeps it", async (key, foreign, own) => {
+        seed(baseConfig({ [key]: { [CAT_FOREIGN]: foreign } }));
+        const before = current()[key][CAT_FOREIGN];
+        const res = await patch(await rank(), { [key]: { [CAT_OWN]: own } });
+        expect(status(res)).toBe(200);
+        expect(current()[key][CAT_FOREIGN]).toEqual(before);
+        expect(current()[key][CAT_OWN]).toBeDefined();
+    });
+
+    it("categoryVersion: an empty map is refused, a map of its own keeps the other entry", async () => {
+        seed(baseConfig({ categoryVersion: { [CAT_OWN]: "tbc", [CAT_FOREIGN]: "tbc" } }));
+        const session = await rank();
+        expect(status(await patch(session, { categoryVersion: {} }))).toBe(400);
+        expect(status(await patch(session, { categoryVersion: { [CAT_OWN]: "tbc" } }))).toBe(200);
+        expect(current().categoryVersion[CAT_FOREIGN]).toBe("tbc");
+    });
+
+    it("lists every category map of the rank in the tables above", () => {
+        const covered = new Set([...CATEGORY_VALUES.map(([key]) => key), "categoryVersion", "categorySwitchFixes", "categoryVoiceChannel", "categoryMessageLook", "categorySignupCharacters", "categoryRaidTemplate"]);
+        expect(CATEGORY_MAP_KEYS.filter((key) => !covered.has(key))).toEqual([]);
+    });
+});
+
+describe("PATCH /api/settings: a category map must be a map (B)", () => {
+    it.each(CATEGORY_MAP_KEYS.flatMap((key) => [[key, null], [key, []]]))("%s as %p: 400 for the rank, nothing saved", async (key, value) => {
+        const before = onDisk();
+        const res = await patch(await rank(), { [key]: value });
+        expect(status(res)).toBe(400);
+        expect(dataOf(res).error.code).toBe("invalid_category_map");
+        expect(onDisk()).toBe(before);
+    });
+
+    it.each([["categoryRoles", null], ["categoryRoles", []], ["categoryLanguage", null], ["categoryReminders", null]])("%s as %p: 400 for a full admin too", async (key, value) => {
+        const before = onDisk();
+        const res = await patch(await fullAdmin(), { [key]: value });
+        expect(status(res)).toBe(400);
+        expect(dataOf(res).error.code).toBe("invalid_category_map");
+        expect(onDisk()).toBe(before);
+    });
+
+    it("categoryRoles null leaves every roster's roles alone", async () => {
+        await patch(await rank(), { categoryRoles: null });
+        await patch(await fullAdmin(), { categoryRoles: null });
+        expect(rosterStore.getRoster(ownRoster.id).roleIds).toEqual([ROLE_OWN]);
+        expect(rosterStore.getRoster(foreignRoster.id).roleIds).toEqual([ROLE_FOREIGN]);
+    });
+
+    it("a rank's roles reach only the roster of its own category", async () => {
+        const res = await patch(await rank(), { categoryRoles: { [CAT_OWN]: [ROLE_FREE] } });
+        expect(status(res)).toBe(200);
+        expect(rosterStore.getRoster(ownRoster.id).roleIds).toEqual([ROLE_FREE]);
+        expect(rosterStore.getRoster(foreignRoster.id).roleIds).toEqual([ROLE_FOREIGN]);
+    });
+
+    it("__proto__ inside a map neither crashes nor pollutes, at the top it is refused", async () => {
+        const session = await rank();
+        const inner = await patch(session, { categoryLanguage: JSON.parse("{\"__proto__\": {\"polluted\": 1}}") });
+        expect(status(inner)).not.toBe(500);
+        expect({}.polluted).toBeUndefined();
+        const before = onDisk();
+        const top = await send(session, "PATCH", "/api/settings", JSON.parse(`{"serverSettingsGuildId": "${OWN}", "__proto__": {"adminRoleIds": ["x"]}}`));
+        expect(status(top)).toBe(403);
+        expect(onDisk()).toBe(before);
+        expect({}.adminRoleIds).toBeUndefined();
+    });
+});
+
+describe("the category gates as the rank", () => {
+    it("category-switch: a category of the other server is not found", async () => {
+        const session = await rank();
+        for (const version of ["tbc", "forever"]) {
+            const res = await send(session, "GET", `/api/settings/category-switch?categoryId=${CAT_FOREIGN}&versionId=${version}`);
+            expect(status(res)).toBe(404);
+        }
+    });
+
+    it("category-close: the other server's category is not found, its own still there is a conflict", async () => {
+        const session = await rank();
+        expect(status(await send(session, "POST", "/api/settings/category-close", { categoryId: CAT_FOREIGN }))).toBe(404);
+        expect(status(await send(session, "POST", "/api/settings/category-close", { categoryId: CAT_OWN }))).toBe(409);
+        expect(current().categoryIds).toEqual(expect.arrayContaining([CAT_OWN, CAT_FOREIGN]));
+    });
+
+    it("category-deactivate: names nothing of the other server", async () => {
+        const session = await rank();
+        for (const guild of [OWN, FOREIGN]) {
+            const res = await send(session, "GET", `/api/settings/category-deactivate?next=${CAT_OWN}&guild=${guild}`);
+            expect(JSON.stringify(dataOf(res) || {})).not.toContain(CAT_FOREIGN);
+        }
+    });
+});
+
+describe("an account with settings through its server, without the rank (C)", () => {
+    const viaRole = () => {
+        seed(baseConfig({ serverSettings: { ...baseConfig().serverSettings, [OWN]: { rolePermissions: { [ROLE_FREE]: { settings: ALL } } } } }));
+        return login("600000000000000003", { ownRoleIds: [ROLE_FREE] });
+    };
+    const viaBase = () => {
+        seed(baseConfig({ serverSettings: { ...baseConfig().serverSettings, [OWN]: { baseAccess: { settings: ALL } } } }));
+        return login("600000000000000004");
+    };
+
+    describe.each([["through rolePermissions", viaRole], ["through baseAccess", viaBase]])("%s on an unmarked server", (_label, enter) => {
+        it("reads nothing of the other server and no rights", async () => {
+            const data = dataOf(await send(await enter(), "GET", "/api/settings"));
+            expect(data.canManageServerAccess).toBe(false);
+            for (const key of ["baseAccess", "userPermissions", "rolePermissions", "botCommandAccess", "orgaRoleIds", "adminRoleIds", "wclGuilds", "raidhelperServerId", "discordServers"]) {
+                expect(data.config[key]).toBeUndefined();
+            }
+            const text = JSON.stringify(data);
+            for (const secret of [ROLE_FOREIGN, CAT_FOREIGN, TEXT_FOREIGN, ACCOUNT, "other-guild", "blizzard-secret", "wcl-secret"]) expect(text).not.toContain(secret);
+        });
+
+        it("keeps the other server's entry and roster when it saves its category roles", async () => {
+            const session = await enter();
+            expect(status(await patch(session, { categoryRoles: {} }))).toBe(200);
+            expect(status(await patch(session, { categoryRoles: { [CAT_OWN]: [ROLE_FREE] } }))).toBe(200);
+            expect(current().categoryRoles[CAT_FOREIGN]).toEqual([ROLE_FOREIGN]);
+            expect(rosterStore.getRoster(foreignRoster.id).roleIds).toEqual([ROLE_FOREIGN]);
+        });
+
+        it.each([
+            ["raidhelperServerId", OWN],
+            ["wclGuilds", { [OWN]: "mine" }],
+            ["baseAccess", { raids: ALL }],
+            ["rolePermissions", { [ROLE_FREE]: { settings: ALL } }],
+            ["categoryReminders", { [CAT_OWN]: { missingHours: 12, signedHours: 0 } }],
+        ])("may not set %s", async (key, value) => {
+            const session = await enter();
+            const before = onDisk();
+            expect(status(await patch(session, { [key]: value }))).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+
+        it("may not name a category of the other server", async () => {
+            const session = await enter();
+            const before = onDisk();
+            expect(status(await patch(session, { categoryLanguage: { [CAT_FOREIGN]: "de" } }))).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+    });
+
+    describe("the rank with a settings role on a marked server", () => {
+        const both = () => rank({ adminOn: [FOREIGN], roleIds: [ROLE_FOREIGN], active: FOREIGN });
+        const write = (session, body) => send(session, "PATCH", "/api/settings", { serverSettingsGuildId: FOREIGN, ...body });
+
+        it("keeps what the role gave it before the rank existed", async () => {
+            const res = await write(await both(), { wclGuilds: [{ versionId: "tbc", guildName: "Mine", realm: "Thunderstrike", region: "eu" }] });
+            expect(status(res)).toBe(200);
+            expect(stored().serverSettings[FOREIGN].wclGuilds).toEqual([expect.objectContaining({ guildName: "Mine" })]);
+        });
+
+        it("still does not reach the rights keys there", async () => {
+            const before = onDisk();
+            expect(status(await write(await both(), { baseAccess: { raids: ALL } }))).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+
+        it("the rank alone there does not get the role's reach", async () => {
+            const before = onDisk();
+            const res = await write(await rank({ adminOn: [FOREIGN], active: FOREIGN }), { wclGuilds: { [FOREIGN]: "mine" } });
+            expect(status(res)).toBe(403);
+            expect(onDisk()).toBe(before);
+        });
+    });
+});
+
+describe("reminders of the rank's own server (D)", () => {
+    it("GET /api/settings/reminders shows the rank only its own categories", async () => {
+        seed(baseConfig({ categoryReminders: { [CAT_OWN]: { missingHours: 12, signedHours: 0 }, [CAT_FOREIGN]: { missingHours: 24, signedHours: 0 } } }));
+        const res = await send(await rank(), "GET", "/api/settings/reminders");
+        expect(status(res)).toBe(200);
+        const data = dataOf(res);
+        expect(Object.keys(data.categoryReminders)).toEqual([CAT_OWN]);
+        expect(data.categories.map((c) => c.id)).toEqual([CAT_OWN]);
+        expect(data.lastRun === null || Object.keys(data.lastRun).join() === "at").toBe(true);
+        expect(JSON.stringify(data)).not.toContain(CAT_FOREIGN);
+    });
+
+    it("a full admin still sees every rule", async () => {
+        seed(baseConfig({ categoryReminders: { [CAT_OWN]: { missingHours: 12, signedHours: 0 }, [CAT_FOREIGN]: { missingHours: 24, signedHours: 0 } } }));
+        const data = dataOf(await send(await fullAdmin(), "GET", "/api/settings/reminders"));
+        expect(Object.keys(data.categoryReminders).sort()).toEqual([CAT_OWN, CAT_FOREIGN].sort());
+    });
+
+    it("the rank sets its own rule and cannot touch the other server's", async () => {
+        const session = await rank();
+        expect(status(await patch(session, { categoryReminders: { [CAT_OWN]: { missingHours: 12, signedHours: 0 } } }))).toBe(200);
+        expect(current().categoryReminders[CAT_OWN]).toBeDefined();
+        expect(current().categoryReminders[CAT_FOREIGN]).toEqual({ missingHours: 24, signedHours: 0 });
+        const before = onDisk();
+        expect(status(await patch(session, { categoryReminders: { [CAT_FOREIGN]: { missingHours: 1, signedHours: 0 } } }))).toBe(403);
+        expect(onDisk()).toBe(before);
+    });
+});
+
+describe("other server's roles hidden in the switch fixes (F)", () => {
+    it("refuses a role of the other server in categorySwitchFixes", async () => {
+        const before = onDisk();
+        const res = await patch(await rank(), { categorySwitchFixes: { [CAT_OWN]: { roster: { roleIds: [ROLE_FOREIGN] } } } });
+        expect(status(res)).toBe(400);
+        expect(dataOf(res).error.code).toBe("unknown_role");
+        expect(onDisk()).toBe(before);
+    });
+});
+
+describe("base access of an unmarked server counts only for its members (G)", () => {
+    it("a stranger gets nothing through the base access the rank opened", async () => {
+        expect(status(await patch(await rank(), { baseAccess: { signup: ALL, history: ALL } }))).toBe(200);
+        const stranger = await login("600000000000000080", { stranger: true });
+        for (const target of ["/api/addons", "/api/profile/sync-keys"]) {
+            expect(status(await send(stranger, "GET", target))).not.toBe(200);
+        }
+    });
+});
+
+describe("small edges (I)", () => {
+    it("answers 400 to a server id that is no string", async () => {
+        const before = onDisk();
+        const res = await send(await rank(), "PATCH", "/api/settings", { serverSettingsGuildId: 123, botLanguage: "en" });
+        expect(status(res)).toBe(400);
+        expect(dataOf(res).error.code).toBe("invalid_server");
+        expect(onDisk()).toBe(before);
+    });
+
+    it("does not name the other server's categories when a version is missing", async () => {
+        seed(baseConfig({ categoryVersion: { [CAT_OWN]: "tbc" } }));
+        const res = await patch(await rank(), { categoryVersion: { [CAT_OWN]: "tbc" } });
+        expect(status(res)).toBe(400);
+        const message = dataOf(res).error.message;
+        expect(message).toContain("eines anderen Servers");
+        expect(message).not.toContain(CAT_FOREIGN);
     });
 });

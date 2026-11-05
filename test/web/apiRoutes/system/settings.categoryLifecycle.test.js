@@ -94,16 +94,23 @@ describe("web/apiRoutes/settings: categories per server (#925)", () => {
             { categoryPlanning: { far: "sheet" } },
             { categoryIds: ["mon", "gone"], serverSettingsGuildId: "g1" },
             { categoryIds: ["mon", "gone", "far", "unknown"], categoryVersion: { ...FOREIGN.categoryVersion, unknown: "tbc" }, serverSettingsGuildId: "g1" },
-            { categoryVersion: { mon: "tbc", gone: "tbc" } },
         ];
+        const seen = [];
         for (const body of tries) {
             const res = await patch("/api/settings", body);
-            expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([403, "other_server"]);
+            seen.push([res.writeHead.mock.calls[0][0], json(res).error && json(res).error.code]);
         }
+        expect(seen).toEqual(tries.map(() => [403, "other_server"]));
         // #957: the reminder rules are full admins' only - even its own server's
         const reminders = await patch("/api/settings", { categoryReminders: FOREIGN.categoryReminders });
         expect([reminders.writeHead.mock.calls[0][0], json(reminders).error.code]).toEqual([403, "forbidden"]);
         expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+        // #1073 part B: bound to the server like the rank - a map without "far" keeps "far", it removes nothing
+        settingsStore.saveConfig.mockImplementation((cfg) => cfg);
+        const shorter = await patch("/api/settings", { categoryVersion: { mon: "tbc", gone: "tbc" } });
+        expect(shorter.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+        expect(settingsStore.saveConfig.mock.calls[0][0].categoryVersion.far).toBe("tbc");
+        settingsStore.saveConfig.mockClear();
         // its own server's categories - and the whole maps sent back unchanged - are fine
         settingsStore.saveConfig.mockReturnValue(FOREIGN);
         const own = await patch("/api/settings", { categoryPlanning: { mon: "sheet" }, categoryVersion: FOREIGN.categoryVersion });

@@ -68,9 +68,10 @@ function rosterToAdopt(map, categoryId, { config, skip, guildOf }) {
 }
 
 /** Every category without roster takes its roster (rosterToAdopt). Returns the ids of the rosters that moved. */
-function adoptRosters(map, { actor, ...opts }) {
+function adoptRosters(map, { actor, only, ...opts }) {
     const moved = [];
     for (const categoryId of Object.keys(map)) {
+        if (only && !only.has(categoryId)) continue;
         const home = rosterToAdopt(map, categoryId, opts);
         if (!home) continue;
         rosterStore.updateRoster(home.id, { categoryId }, { actor });
@@ -120,18 +121,20 @@ function rolesOfOtherRosters(categoryRoles, { before = {}, config, skip = new Se
  * roles); a roster of another version or a closed one keeps its own (#739).
  * Returns the ids of the rosters that changed.
  * @param {Record<string, string[]>} categoryRoles  the saved, normalised map
- * @param {{ actor?: string, config?: object, skip?: Set<string>, guildOf?: (categoryId: string) => string }} [opts]
+ * @param {{ actor?: string, config?: object, skip?: Set<string>, guildOf?: (categoryId: string) => string, only?: Set<string>|null }} [opts]
  *   `config`: the saved config (which version a category plays); `skip`: categories left alone (switched to
- *   another version in this save, #739); `guildOf`: the server of a category ("" = unknown), without it no roster moves
+ *   another version in this save, #739); `guildOf`: the server of a category ("" = unknown), without it no roster moves;
+ *   `only`: the categories the save named (#1073 part B) - every other roster stays as it is, whatever the map holds
  * @returns {string[]}
  */
-function syncRosterRoleIds(categoryRoles, { actor = "", config, skip = new Set(), guildOf = () => "" } = {}) {
+function syncRosterRoleIds(categoryRoles, { actor = "", config, skip = new Set(), guildOf = () => "", only = null } = {}) {
     // no map at all is no save of the roles - nothing to carry over
     if (!categoryRoles || typeof categoryRoles !== "object" || Array.isArray(categoryRoles)) return [];
     const map = categoryRoles;
-    const changed = adoptRosters(map, { actor, config, skip, guildOf });
+    const changed = adoptRosters(map, { actor, config, skip, guildOf, only });
     for (const roster of rosterStore.listRosters("")) {
         if (!isCurrentRoster(roster, { config }) || skip.has(roster.categoryId)) continue;
+        if (only && !only.has(roster.categoryId)) continue;
         const next = rolesIn(map, roster.categoryId);
         if (next.join(",") === roster.roleIds.join(",")) continue;
         rosterStore.updateRoster(roster.id, { roleIds: next }, { actor });

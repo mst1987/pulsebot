@@ -55,6 +55,24 @@ describe("services/roster/categoryRoles syncRosterRoleIds", () => {
         expect(rosterStore.getRoster(a.id).roleIds).toEqual(["10", "11"]);
     });
 
+    it("touches only the categories named in `only` (#1073 part B)", () => {
+        const a = rosterStore.createRoster({ name: "A", categoryId: "c1", roleIds: ["10"] });
+        const b = rosterStore.createRoster({ name: "B", categoryId: "c2", roleIds: ["20"] });
+        const changed = syncRosterRoleIds({ c1: ["12"] }, { actor: "u1", only: new Set(["c1"]) });
+        expect(changed).toEqual([a.id]);
+        expect(rosterStore.getRoster(a.id).roleIds).toEqual(["12"]);
+        expect(rosterStore.getRoster(b.id).roleIds).toEqual(["20"]);
+        expect(syncRosterRoleIds({}, { only: new Set() })).toEqual([]);
+        expect(rosterStore.getRoster(a.id).roleIds).toEqual(["12"]);
+    });
+
+    it("adopts a roster only for a category named in `only`", () => {
+        const FOREVER = { categoryVersion: { c5: "forever", c6: "forever" }, categoryIds: ["c5", "c6"] };
+        const roster = rosterStore.createRoster({ guildId: "g1", name: "Kader", versionId: "forever", roleIds: ["50"] });
+        expect(syncRosterRoleIds({ c5: ["50"] }, { config: FOREVER, guildOf: () => "g1", only: new Set(["c6"]) })).toEqual([]);
+        expect(rosterStore.getRoster(roster.id).categoryId || "").toBe("");
+    });
+
     describe("a category without roster that gets the role of a roster without category", () => {
         const FOREVER = { categoryVersion: { c5: "forever" }, categoryIds: ["c5"] };
         const guildOf = () => "g1";

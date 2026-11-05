@@ -537,6 +537,66 @@ describe("web/http/auth", () => {
                 expect(user.guildId).toBe("");
             });
 
+            // #1073 part B: an unmarked server's own admin sets its base access, so in the union over
+            // every server it counts for the members of that server only - an unknown membership counts
+            // as none. The account's own grant there still counts; a trusted server stays as it was.
+            describe("of a server without the mark", () => {
+                beforeEach(() => guildRoles.serverIsTrusted.mockReturnValue(false));
+                afterEach(() => guildRoles.serverIsTrusted.mockReturnValue(true));
+
+                it("does not reach someone who is not a member of it", async () => {
+                    getConfig.mockImplementation(() => onServer({
+                        adminRoleIds: ["role-admin"],
+                        baseAccess: { loot: { read: true, write: false }, signup: { read: true, write: true } },
+                    }));
+                    discord.setClient(fakeClient(jest.fn().mockRejectedValue(NOT_A_MEMBER)).client);
+
+                    const { req } = await loginAs("651");
+                    const user = auth.getUser(req);
+
+                    expect(user.allAccess.loot).toEqual(NOTHING);
+                    expect(user.allAccess.signup).toEqual(NOTHING);
+                    expect(guildRoles.serverIsTrusted).toHaveBeenCalledWith("guild-1", undefined);
+                });
+
+                it("still reaches its members", async () => {
+                    getConfig.mockImplementation(() => onServer({
+                        adminRoleIds: ["role-admin"], baseAccess: { loot: { read: true, write: false } },
+                    }, ["guild-1"]));
+                    discord.setClient(fakeClient(jest.fn().mockResolvedValue(memberWithRoles())).client);
+
+                    const { req } = await loginAs("652");
+
+                    expect(auth.getUser(req).allAccess.loot).toEqual(BASE_LOOT);
+                });
+
+                it("fails closed when Discord gave no answer about the membership", async () => {
+                    getConfig.mockImplementation(() => onServer({
+                        adminRoleIds: ["role-admin"], baseAccess: { loot: { read: true, write: false } },
+                    }));
+                    discord.setClient(fakeClient(jest.fn().mockRejectedValue(new Error("Discord down"))).client);
+
+                    const { req } = await loginAs("653");
+
+                    expect(auth.getUser(req).allAccess.loot).toEqual(NOTHING);
+                });
+
+                it("keeps the account's own grant there", async () => {
+                    getConfig.mockImplementation(() => onServer({
+                        adminRoleIds: ["role-admin"],
+                        baseAccess: { signup: { read: true, write: true } },
+                        userPermissions: { "654": { loot: { read: true, write: false } } },
+                    }));
+                    discord.setClient(fakeClient(jest.fn().mockRejectedValue(NOT_A_MEMBER)).client);
+
+                    const { req } = await loginAs("654");
+                    const user = auth.getUser(req);
+
+                    expect(user.allAccess.loot).toEqual(BASE_LOOT);
+                    expect(user.allAccess.signup).toEqual(NOTHING);
+                });
+            });
+
             it("leaves an unconfigured base access closed", async () => {
                 getConfig.mockImplementation(() => onServer({ adminRoleIds: [], rolePermissions: {} }));
                 const { req } = await loginAs("610");
@@ -1333,6 +1393,22 @@ describe("web/http/auth", () => {
             expect(auth.destroy("")).toBeUndefined();
             expect(storedSessions()).toEqual(before);
             expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toMatchObject({ id: "2" });
+        });
+
+        it("still drops the session when the file cannot be written", async () => {
+            axios.post.mockResolvedValue({ data: { access_token: "t" } });
+            axios.get.mockResolvedValue({ data: { id: "3", username: "w" } });
+            const sid = await auth.completeLogin("e");
+            const write = jest.spyOn(fs, "writeFileSync").mockImplementation(() => { throw new Error("disk full"); });
+            const err = jest.spyOn(console, "error").mockImplementation(() => {});
+            try {
+                auth.destroy(sid);
+                expect(auth.getUser({ headers: { cookie: `sid=${sid}` } })).toBeNull();
+                expect(err).toHaveBeenCalledWith("Failed to persist sessions:", "disk full");
+            } finally {
+                write.mockRestore();
+                err.mockRestore();
+            }
         });
     });
 });
