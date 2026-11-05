@@ -18,6 +18,11 @@ jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCa
 jest.mock("../../../src/stores/loot/lootStore", () => ({ listByCharacter: () => [{ eventId: "t1" }], listAll: () => [] }));
 jest.mock("../../../src/services/characters/userCharacters", () => ({ myCharacters: () => [{ character: "Elesham", categoryIds: ["fcat"] }] }));
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ serverIds: () => ["g1"] }));
+// the category belongs to the asked server (#1073: only its categories count)
+jest.mock("../../../src/services/events/eventServer", () => ({
+    ...jest.requireActual("../../../src/services/events/eventServer"),
+    guildOfCategory: (id) => (id === "fcat" ? "g1" : ""),
+}));
 
 const configStore = require("../../../src/stores/settings/configStore");
 const own = require("../../../src/commands/lookup/anwesenheit");

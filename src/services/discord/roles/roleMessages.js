@@ -24,7 +24,7 @@ const { ButtonBuilder, ButtonStyle, MessageFlags, PermissionsBitField, TextDispl
 const discord = require("../discord");
 const { resolveServer, roleMessageGuild } = require("./guildRoles");
 const { privilegedReason, roleProblem, changeSelfRole } = require("./selfRole");
-const { ruleFor, resolveBotAccess, eventMemberRoles, serverAdminPasses } = require("../botAccess");
+const { ruleFor, resolveBotAccess, eventMemberRoles, serverAdminPasses, withTimeout, ADMIN_LOOKUP_MS } = require("../botAccess");
 const { configForGuild } = require("../servers/serverAccess");
 const { langOfInteraction } = require("../botLanguage");
 const store = require("../../../stores/discord/roleMessageStore");
@@ -429,11 +429,12 @@ async function mayUse(user, guild, { commands, config: stored }) {
     if (resolveBotAccess(BUTTON_PREFIX, { id: str(user.id), roleIds }, { commands, config }).allowed) return true;
     // The rank Server-Admin passes as it passes the router for the button (#1073): the
     // reaction is on this server, so the member's own permissions there decide (the role
-    // lookup above usually has filled the cache; a reaction has no 3-second limit, so a
-    // missing member is fetched once; without a member only the owner counts).
+    // lookup above usually has filled the cache; a missing member is fetched once, at most
+    // ADMIN_LOOKUP_MS like the DM path - a hanging fetch counts as "no member", and without
+    // a member only the owner counts).
     const cached = member || (guild.members && guild.members.cache ? guild.members.cache.get(str(user.id)) : null);
     const known = cached || (guild.members && typeof guild.members.fetch === "function"
-        ? await guild.members.fetch(str(user.id)).catch(() => null)
+        ? await withTimeout(Promise.resolve().then(() => guild.members.fetch(str(user.id))).catch(() => null), ADMIN_LOOKUP_MS, null)
         : null);
     const asInteraction = { user, guild, guildId, memberPermissions: known ? known.permissions : null };
     return serverAdminPasses(BUTTON_PREFIX, asInteraction, guildId, { commands, stored });

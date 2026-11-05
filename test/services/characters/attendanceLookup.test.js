@@ -5,6 +5,8 @@ jest.mock("../../../src/services/categories/categoryNames", () => ({ listKnownCa
 jest.mock("../../../src/services/categories/categoryLifecycle", () => ({ isCategoryActive: jest.fn(() => true) }));
 jest.mock("../../../src/stores/loot/lootStore", () => ({ listAll: jest.fn(() => []) }));
 jest.mock("../../../src/services/loot/lootServer", () => ({ lootOfGuild: jest.fn((rows) => rows) }));
+// #1073: the categories "far" and "farloot" belong to server g2, every other one to g1
+jest.mock("../../../src/services/events/eventServer", () => ({ guildOfCategory: jest.fn((id) => (String(id).startsWith("far") ? "g2" : "g1")) }));
 
 const { buildAttendanceContext, attendanceFor } = require("../../../src/services/characters/rosterAttendance");
 const { listAllAssignments } = require("../../../src/stores/roster/raiderCharactersStore");
@@ -30,13 +32,13 @@ beforeEach(() => {
 
 describe("services/characters/attendanceLookup", () => {
     it("knows every character from loot and assignments once, sorted", () => {
-        expect(knownCharacterNames()).toEqual(["Brokk", "Dorn", "Elesham"]);
+        expect(knownCharacterNames({ guildId: "g1" })).toEqual(["Brokk", "Dorn", "Elesham"]);
     });
 
     it("lists only the characters that play the version when one is asked (#741), each name judged once", () => {
         listAllAssignments.mockReturnValue({ mon: { u1: "Elesham", u2: "Dorn" }, fcat: { u3: "Neu", u4: "Brokk" } });
-        expect(knownCharacterNames({ versionId: "forever" })).toEqual(["Brokk", "Neu"]);
-        expect(knownCharacterNames({ versionId: "tbc" })).toEqual(["Dorn", "Elesham"]);
+        expect(knownCharacterNames({ versionId: "forever", guildId: "g1" })).toEqual(["Brokk", "Neu"]);
+        expect(knownCharacterNames({ versionId: "tbc", guildId: "g1" })).toEqual(["Dorn", "Elesham"]);
     });
 
     it("counts a character in every category it is assigned to or got loot in", () => {
@@ -73,9 +75,48 @@ describe("services/characters/attendanceLookup", () => {
         knownCharacterNames({ guildId: "g2" });
         expect(lootOfGuild).toHaveBeenCalledWith([{ id: "r1" }], "g2");
         lootOfGuild.mockClear();
-        knownCharacterNames();
+        annotatedCharacters.mockClear();
+        listAllAssignments.mockClear();
+        // #1073: no server, nothing at all - neither loot nor assignments
+        expect(knownCharacterNames()).toEqual([]);
+        expect(characterAttendance("", "elesham", { versionId: "tbc" }).categories).toEqual([]);
         expect(lootOfGuild).not.toHaveBeenCalled();
-        expect(annotatedCharacters).toHaveBeenLastCalledWith();
+        expect(annotatedCharacters).not.toHaveBeenCalled();
+        expect(listAllAssignments).not.toHaveBeenCalled();
+    });
+
+    // #1073: two servers - the roster of the other one is neither a name nor a category
+    describe("two servers (#1073)", () => {
+        beforeEach(() => {
+            listAllAssignments.mockReturnValue({ mon: { u1: "Elesham" }, far: { u9: "Fremdling", u1: "Elesham" } });
+            annotatedCharacters.mockReturnValue([{ character: "Elesham", categoryIds: ["mon", "farloot"] }]);
+        });
+
+        it("autocomplete offers only the names of the asked server's categories", () => {
+            expect(knownCharacterNames({ guildId: "g1" })).toEqual(["Elesham"]);
+            expect(knownCharacterNames({ guildId: "g2" })).toEqual(["Elesham", "Fremdling"]);
+        });
+
+        it("the query counts only the asked server's categories, from assignments and loot", () => {
+            const mine = characterAttendance("g1", "elesham", { versionId: "tbc" });
+            expect(mine.categories.map((c) => c.id)).toEqual(["mon"]);
+            expect(attendanceFor).not.toHaveBeenCalledWith(expect.anything(), "far", expect.anything(), expect.anything());
+            expect(attendanceFor).not.toHaveBeenCalledWith(expect.anything(), "farloot", expect.anything(), expect.anything());
+
+            attendanceFor.mockClear();
+            const theirs = characterAttendance("g2", "fremdling", { versionId: "tbc" });
+            expect(theirs.categories.map((c) => c.id)).toEqual(["far"]);
+            expect(characterAttendance("g1", "fremdling", { versionId: "tbc" }).categories).toEqual([]);
+        });
+
+        it("stays empty and calm on missing data (no store, loot without categories, null server)", () => {
+            listAllAssignments.mockReturnValue(null);
+            annotatedCharacters.mockReturnValue([{ character: "Elesham" }, { character: "" }]);
+            expect(knownCharacterNames({ guildId: "g1" })).toEqual(["Elesham"]);
+            expect(characterAttendance("g1", "elesham", { versionId: "tbc" }).categories).toEqual([]);
+            expect(knownCharacterNames({ guildId: null })).toEqual([]);
+            expect(characterAttendance(null, undefined).categories).toEqual([]);
+        });
     });
 
     it("reuses a given context and answers nothing for no name", () => {

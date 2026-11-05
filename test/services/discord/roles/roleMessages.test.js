@@ -456,6 +456,23 @@ describe("reactions", () => {
         }
     });
 
+    // #1073: the rank lookup waits ADMIN_LOOKUP_MS at most, like the DM path
+    it("gives no rank when the member lookup hangs, within the lookup time limit", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const rule = { [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } } };
+        mockConfig = { serverSettings: rule, discordServers: { servers: [{ guildId: EVENT_GUILD }], links: [] } };
+        const fetch = guild.members.fetch;
+        guild.members.fetch = jest.fn(() => new Promise(() => {}));
+        const started = Date.now();
+        try {
+            expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), { id: "500000000000000078" }, true, { commands: mockClient.commands })).toBe("denied");
+            expect(guild.members.fetch).toHaveBeenCalled();
+            expect(Date.now() - started).toBeLessThan(4000);
+        } finally {
+            guild.members.fetch = fetch;
+        }
+    }, 8000);
+
     // #925: the rule of the server the message is on counts - a rule of another
     // server neither opens nor closes anything here
     it("judges a reaction by the rule of its own server, never by another server's", async () => {

@@ -138,7 +138,8 @@ async function eventMemberRoles(interaction, guildId) {
         console.warn("botAccess: member list unavailable:", e.message);
     }
     try {
-        return roleIdsOf(await guild.members.fetch(userId));
+        // at most ADMIN_LOOKUP_MS: a hanging fetch means no roles (fail closed), never a hung check
+        return roleIdsOf(await withTimeout(Promise.resolve().then(() => guild.members.fetch(userId)), ADMIN_LOOKUP_MS, null));
     } catch {
         return [];
     }
@@ -365,5 +366,5 @@ function resetAdminCache() {
 module.exports = {
     isFullAdminAnywhere, isServerAdminOf, serverAdminPasses, resetAdminCache, recordGuildOf,
     accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
-    eventMemberRoles, denyMessage, guardInteraction,
+    eventMemberRoles, denyMessage, guardInteraction, withTimeout, ADMIN_LOOKUP_MS,
 };

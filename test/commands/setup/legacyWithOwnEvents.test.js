@@ -36,7 +36,8 @@ const signup = require("../../../src/commands/setup/signup.js");
 const fillSetup = require("../../../src/commands/setup/fillSetup.js");
 const showAllSetups = require("../../../src/commands/setup/showAllSetups.js");
 
-const OWN = { id: "eh-7", title: "SSC Mittwoch", channelId: "channel-1", startTime: 2000000000 };
+// guildId = mockInteraction's guild: /fillsetup only reaches raids of its own server (#1073)
+const OWN = { id: "eh-7", guildId: "guild-1", title: "SSC Mittwoch", channelId: "channel-1", startTime: 2000000000 };
 const SLOTS = [{ id: "u1", name: "Zibbo", specName: "Shadow", className: "Priest", groupNumber: 1 }];
 
 describe("legacy setup commands with own events (#291)", () => {
@@ -103,6 +104,33 @@ describe("legacy setup commands with own events (#291)", () => {
             await fillSetup.execute(mockInteraction({ options: { setup_id: "12345" } }), {});
             expect(rh.getSetup).toHaveBeenCalledWith("12345");
             expect(fillSetupSheet).toHaveBeenCalled();
+        });
+
+        // #1073: only raids of the interaction's own server
+        it("asks only the Raid-Helper of the interaction's server", async () => {
+            rh.getSetup.mockResolvedValue({ setup: SLOTS });
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "12345" } }), {});
+            expect(Raidhelper).toHaveBeenCalledTimes(1);
+            expect(Raidhelper.mock.calls[0][0].serverId).toBe("guild-1");
+        });
+
+        it("treats an eh- event of another server as unknown and never fills the sheet", async () => {
+            eventStore.getEvent.mockReturnValue({ ...OWN, guildId: "guild-2" });
+            raidHelperSlots.mockReturnValue(SLOTS);
+            await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-7" } }), {});
+            expect(reply.botEditReply.mock.calls[0][2]).toMatch(/Event nicht gefunden/);
+            expect(fillSetupSheet).not.toHaveBeenCalled();
+        });
+
+        it("refuses outside a server (DM) before any lookup", async () => {
+            const interaction = mockInteraction({ options: { setup_id: "12345" } });
+            interaction.guild = null;
+            interaction.guildId = null;
+            await fillSetup.execute(interaction, {});
+            expect(interaction.deferReply).toHaveBeenCalled();
+            expect(reply.botEditReply.mock.calls[0][2]).toMatch(/Nur auf einem Discord-Server/);
+            expect(Raidhelper).not.toHaveBeenCalled();
+            expect(fillSetupSheet).not.toHaveBeenCalled();
         });
     });
 

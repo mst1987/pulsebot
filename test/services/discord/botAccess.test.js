@@ -430,6 +430,43 @@ describe("guardInteraction", () => {
             expect(await serverAdminPasses("forRole", onServer(), GUILD, { commands: RANKED, stored: unreadable })).toBe(false);
         });
 
+        it("gives no rank in the router when the server list is unreadable (fail closed)", async () => {
+            const base = { guildId: GUILD, botLanguage: "en", serverSettings: { [GUILD]: { botLanguage: "en" } } };
+            // a list that is no list, and an entry that cannot be read: no listed server, no rank
+            const broken = { get guildId() { throw new Error("broken entry"); } };
+            for (const servers of ["garbage", null, [broken]]) {
+                settingsStore.getConfig.mockReturnValue({ ...base, discordServers: { servers, links: [] } });
+                expect(await guardInteraction(onServer(), RANKED.get("adminsOnly"), RANKED)).toBe(false);
+                expect(await guardInteraction(onServer({ perms: plain, userId: OWNER }), RANKED.get("forRole-button"), RANKED)).toBe(false);
+            }
+        });
+
+        describe("on the real command registry", () => {
+            const { loadCommandModules } = require("../../../src/commands/loader");
+            const modules = loadCommandModules();
+            beforeEach(() => listed());
+
+            it("refuses /fillsetup (the one global setup sheet) and opens /kanal", async () => {
+                const refused = onServer();
+                expect(await guardInteraction(refused, modules.get("fillsetup"), modules)).toBe(false);
+                expect(cardText(refused.reply.mock.calls[0][0])).toContain(SHARED_REFUSED);
+                expect(await guardInteraction(onServer(), modules.get("kanal"), modules)).toBe(true);
+            });
+
+            it("refuses a component that follows a command on shared data (accessOf)", async () => {
+                const withButton = new Map(modules);
+                for (const owner of ["fillsetup", "recruitment"]) {
+                    const button = { name: `${owner}-probe`, accessOf: owner };
+                    withButton.set(button.name, button);
+                    expect(await guardInteraction(onServer(), button, withButton)).toBe(false);
+                }
+                // and one that follows an own-server admins command passes
+                const eventButton = { name: "event-probe", accessOf: "event" };
+                withButton.set(eventButton.name, eventButton);
+                expect(await guardInteraction(onServer(), eventButton, withButton)).toBe(true);
+            });
+        });
+
         describe("in a DM", () => {
             beforeEach(() => listed());
 

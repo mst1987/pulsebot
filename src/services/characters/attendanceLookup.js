@@ -13,34 +13,51 @@ const { lootOfGuild } = require("../loot/lootServer");
 const { buildVersionContext, versionsOfCharacter } = require("./characterVersions");
 const { listKnownCategories } = require("../categories/categoryNames");
 const { splitPlayer, characterKeyOf } = require("../../utils/loot/lootImport");
+const { guildOfCategory } = require("../events/eventServer");
+
+const str = (value) => String(value === undefined || value === null ? "" : value).trim();
 
 /**
- * The characters of the loot of one server (#919) - `undefined` for all of it.
- * Loot of another server is no evidence here: neither a name nor a category.
+ * The characters of the loot of one server (#919). Loot of another server is no
+ * evidence here: neither a name nor a category. Callers pass a non-empty server id
+ * (no server, no loot - #1073).
  */
-function lootCharacters(guildId) {
-    return guildId === undefined ? annotatedCharacters() : annotatedCharacters({ rows: lootOfGuild(listAll(), guildId) });
+function lootCharacters(gid) {
+    return annotatedCharacters({ rows: lootOfGuild(listAll(), gid) });
 }
 
 /**
- * Every character name the roster knows (loot and assignments), for autocomplete -
- * with `versionId` only those that play that game version (#741), with
- * `guildId` only the loot of that server (#919).
+ * The roster assignments of the categories of one server, as [categoryId, {userId: name}]
+ * pairs (#1073): a category of another server is neither a name nor a category here,
+ * so a server's orga (or the rank Server-Admin) never reads another server's roster.
+ * Callers pass a non-empty server id (no server, nothing).
+ */
+function assignmentsOf(gid) {
+    return Object.entries(listAllAssignments() || {}).filter(([categoryId]) => guildOfCategory(categoryId) === gid);
+}
+
+/**
+ * Every character name the roster of one server knows (its loot and its categories'
+ * assignments), for autocomplete - with `versionId` only those that play that game
+ * version (#741). Without `guildId` none (#919, #1073).
  * @param {{ versionId?: string, guildId?: string }} [opts]
  * @returns {string[]}
  */
 function knownCharacterNames({ versionId = "", guildId } = {}) {
+    const gid = str(guildId);
+    if (!gid) return [];
     const names = new Map();
     const seen = new Set(); // a name is judged once, by the strongest evidence (its loot), not again by its category
     const ctx = versionId ? buildVersionContext() : null;
     const plays = (name, items, categoryIds) => !ctx || versionsOfCharacter(ctx, { name, items, categoryIds }).includes(versionId);
-    for (const c of lootCharacters(guildId)) {
+    const ofServer = (ids) => (ids || []).filter((id) => guildOfCategory(id) === gid);
+    for (const c of lootCharacters(gid)) {
         const key = characterKeyOf(c.character);
         if (!key || seen.has(key)) continue;
         seen.add(key);
-        if (plays(c.character, c.items, c.categoryIds)) names.set(key, c.character);
+        if (plays(c.character, c.items, ofServer(c.categoryIds))) names.set(key, c.character);
     }
-    for (const [categoryId, map] of Object.entries(listAllAssignments())) {
+    for (const [categoryId, map] of assignmentsOf(gid)) {
         for (const name of Object.values(map)) {
             const key = characterKeyOf(name);
             if (!key || seen.has(key)) continue;
@@ -66,10 +83,12 @@ function characterAttendance(guildId, name, { ctx, versionId } = {}) {
     const character = splitPlayer(String(name || "").trim()).character;
     const context = ctx || buildAttendanceContext(guildId, { versionId });
     const version = context.versionId || versionId;
-    if (!key) return { character, versionId: version, categories: [] };
+    const gid = str(guildId);
+    if (!key || !gid) return { character, versionId: version, categories: [] };
 
+    // only the categories of this server (#1073): its assignments, its loot's categories
     const userIdsByCategory = new Map();
-    for (const [categoryId, map] of Object.entries(listAllAssignments())) {
+    for (const [categoryId, map] of assignmentsOf(gid)) {
         for (const [userId, charName] of Object.entries(map)) {
             if (characterKeyOf(charName) !== key) continue;
             const list = userIdsByCategory.get(categoryId) || [];
@@ -78,8 +97,10 @@ function characterAttendance(guildId, name, { ctx, versionId } = {}) {
         }
     }
     const categoryIds = new Set(userIdsByCategory.keys());
-    const loot = lootCharacters(guildId).find((c) => characterKeyOf(c.character) === key);
-    for (const id of (loot && loot.categoryIds) || []) categoryIds.add(id);
+    const loot = lootCharacters(gid).find((c) => characterKeyOf(c.character) === key);
+    for (const id of (loot && loot.categoryIds) || []) {
+        if (guildOfCategory(id) === gid) categoryIds.add(id);
+    }
 
     const names = new Map(listKnownCategories(guildId).map((c) => [c.id, c.name]));
     // only categories of this version: nights of it, or playing it today

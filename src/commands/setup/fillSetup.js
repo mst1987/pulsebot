@@ -5,6 +5,7 @@ const { fillSetupSheet } = require("../../utils/setup/fillSetup");
 const { botEditReply } = require("../../utils/discord/reply");
 const { isOwnEventId, getEvent } = require("../../stores/events/eventStore");
 const { ownEventInChannel } = require("../../services/events/eventSources");
+const { guildOfRaid } = require("../../services/events/eventServer");
 const { raidHelperSlots } = require("../../services/setup/setupEditor");
 const { sheetVersionRefusal } = require("../../services/versions/versionCapabilities");
 const { versionOfEvent } = require("../../services/versions/mainVersion");
@@ -20,11 +21,19 @@ function ownTarget(setupId, channelId) {
     return null;
 }
 
+// The server the command runs on: only its raids and its Raid-Helper count.
+function guildOf(interaction) {
+    return String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
+}
+
 module.exports = {
     name: "fillsetup",
     description: "Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan",
     group: "raids",
     defaultAccess: "admins",
+    // #1073: writes the one global sheet (GOOGLE_SPREADSHEET_ID) with the
+    // operator's Google account - a server admin's rank never opens it.
+    sharedData: true,
     data: new SlashCommandBuilder()
         .setName("fillsetup")
         .setDescription("Befüllt das Setup-Sheet aus dem freigegebenen Setup oder einem Raidhelper-Raidplan")
@@ -36,11 +45,15 @@ module.exports = {
         const setupId = String(interaction.options.getString("setup_id") || "").trim();
         const tank3   = interaction.options.getString("tank3") || "";
 
+        const guildId = guildOf(interaction);
+        if (!guildId) return botEditReply(interaction, "Fehler", "Nur auf einem Discord-Server nutzbar.");
+
         let slots;
         const own = ownTarget(setupId, interaction.channel && interaction.channel.id);
         if (own) {
             // ---- An own event: only its APPROVED setup fills a sheet ----
-            if (own.missing) return botEditReply(interaction, "Fehler", "Event nicht gefunden. ID prüfen.");
+            // A raid of another server counts as unknown (#1073, like the web's 404).
+            if (own.missing || guildOfRaid(own) !== guildId) return botEditReply(interaction, "Fehler", "Event nicht gefunden. ID prüfen.");
             // The sheet is laid out for TBC only (#751): no wrongly filled TBC sheet for another version.
             const noLayout = sheetVersionRefusal(versionOfEvent(own));
             if (noLayout) return botEditReply(interaction, "Fehler", noLayout.message);
@@ -55,7 +68,8 @@ module.exports = {
         // ---- Fetch Raidhelper setup ----
         if (!slots) {
             try {
-                const rh = createRaidhelperClient();
+                // only this server's Raid-Helper: a raidplan of another server is not found
+                const rh = createRaidhelperClient({ guildId });
                 const result = await rh.getSetup(setupId);
                 if (!result?.setup?.length) {
                     return botEditReply(interaction, "Fehler", "Setup nicht gefunden oder leer. Setup-ID prüfen.");
