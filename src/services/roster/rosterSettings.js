@@ -2,7 +2,8 @@
 // anlegen und einstellen"): the checks of every field and who may change which.
 //
 // Permission split:
-//   full admin           everything - name, category, game version, Discord
+//   full admin, the      everything - name, category, game version, Discord
+//   server-admin rank
 //                        roles (roleIds, trialRoleId), managers, slots,
 //                        allowMultipleChars, signupOnly, publicRaids, the linked Kader
 //                        (kaderId); creating and deleting
@@ -21,7 +22,7 @@
 // removals once, as for any changed role list). A roster's roles are mirrored
 // into config.categoryRoles of its category (categoryRoles.mirrorCategoryRoles).
 //
-// The loot system (#676, full admins) has ONE truth: a roster with category
+// The loot system (#676, full admins, the rank) has ONE truth: a roster with category
 // writes config.categoryLootSystem (what Einstellungen → Kategorien shows), a
 // roster without category its own `lootSystem` (services/loot/lootSystem.js
 // rosterLootSystem). The profile (`lootProfileId`, "" = the default profile)
@@ -208,8 +209,8 @@ function takesRosterRole(current, fields) {
 }
 
 /**
- * Change a roster's settings (POST /api/rosters/update). `isAdmin`: a full
- * admin; anyone else must already be known as a manager of this roster (the
+ * Change a roster's settings (POST /api/rosters/update). `isAdmin`: a full admin
+ * or the rank (rosterAccess.mayAdminRoster); anyone else must already be known as a manager of this roster (the
  * route asks rosterAccess.canManageRosterLive before). `kaderFits(kaderId,
  * versionId)`: whether a Kader plays that game version - a link (new, or kept
  * while the version changes) to a Kader of another one is `version_mismatch`
@@ -221,7 +222,7 @@ function takesRosterRole(current, fields) {
 function updateRosterSettings(rosterId, raw, { isAdmin = false, actor = "", knownRoleIds = null, kaderKnown = null, kaderFits = null, kaderLocked = null, config = null, saveConfig = null } = {}) {
     const current = rosterStore.getRoster(rosterId);
     if (!current) return { ok: false, code: "not_found" };
-    // a closed roster (#739) is read only - only a full admin may still delete it
+    // a closed roster (#739) is read only - only a full admin or the rank may still delete it
     if (current.closedAt) return { ok: false, code: "roster_closed" };
     const clean = cleanSettings(raw, { current, knownRoleIds });
     if (clean.code) return { ok: false, code: clean.code };

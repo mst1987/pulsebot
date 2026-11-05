@@ -2,8 +2,9 @@
 // Discord-Rollen"): give or take one roster role, and the "Abgleich" tab's lists.
 //
 // Area `roster` (write for the POST, read for the GET) is the gate; on top a
-// role change needs the right to manage that one roster - a full admin or one
-// of its managers (rosterAccess.canManageRosterLive), else 403 "not_manager".
+// role change needs the right to manage that one roster - a full admin, the
+// server-admin rank or one of its managers (rosterAccess.canManageRosterLive), else
+// 403 "not_manager".
 // A roster of another server than the active one is 404 "not_found"
 // (web/roster/activeRoster.js). Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../../http/apiResponse");
