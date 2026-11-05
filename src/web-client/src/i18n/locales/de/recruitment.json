@@ -98,6 +98,7 @@
         "removeSub": "Nur aus der Verwaltung; die Discord-Nachricht bleibt.",
         "empty": "Noch keine Nachrichten",
         "emptyText": "Poste eine Vorlage oder durchsuche den Server nach Bot-Nachrichten.",
+    "emptyTextNoTemplates": "Durchsuche den Server nach Bot-Nachrichten.",
         "inForum": "Forum {forum}",
         "linkKind": "Link-Knopf",
         "linkKindSub": "Diese Nachricht hat einen Link statt des Bewerben-Knopfs."

@@ -154,6 +154,14 @@ describe("on a server without the templates (#1073, until #1097)", () => {
         expect(screen.getByRole("tab", { name: /Bewerbungen/ })).toBeInTheDocument();
     });
 
+    it("does not offer posting a template when there are no messages yet", async () => {
+        vi.mocked(api.getRecruitmentData).mockResolvedValue({ ...closed(), posts: [] });
+        renderPage(<RecruitmentPage />, { route: "/recruitment" });
+
+        expect(await screen.findByText("Durchsuche den Server nach Bot-Nachrichten.")).toBeInTheDocument();
+        expect(screen.queryByText(/Poste eine Vorlage/)).not.toBeInTheDocument();
+    });
+
     it("lands a stored or linked template tab and editor on the posts, without a dialog", async () => {
         vi.mocked(api.getRecruitmentData).mockResolvedValue(closed());
         renderPage(<RecruitmentPage />, { route: "/recruitment?view=templates&edit=new&editpost=new" });

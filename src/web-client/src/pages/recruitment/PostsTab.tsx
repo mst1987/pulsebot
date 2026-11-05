@@ -146,7 +146,7 @@ export function PostsTab({ data, editor, onChanged, reload }: {
                 : (
                     <div className="rc-empty rc-empty-panel">
                         <Badge>{t("recruitment.posts.empty")}</Badge>
-                        <span>{t("recruitment.posts.emptyText")}</span>
+                        <span>{t(data.templatesAvailable ? "recruitment.posts.emptyText" : "recruitment.posts.emptyTextNoTemplates")}</span>
                     </div>
                 )}
         </>

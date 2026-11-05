@@ -98,6 +98,7 @@
         "removeSub": "Only from the list; the Discord message stays.",
         "empty": "No messages yet",
         "emptyText": "Post a template or scan the server for bot messages.",
+    "emptyTextNoTemplates": "Scan the server for bot messages.",
         "inForum": "Forum {forum}",
         "linkKind": "Link button",
         "linkKindSub": "This message has a link instead of the apply button."
