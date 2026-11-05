@@ -15,9 +15,11 @@ jest.mock("../../../../src/services/roster/rosterSyncView", () => ({
 }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ roleSync: [] })) }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
-jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
 
 const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
+const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const { requireCsrf } = require("../../../../src/web/http/apiMiddleware");
@@ -151,6 +153,35 @@ describe("apiRoutes/rosterRoles GET /api/rosters/sync", () => {
         await get("r1");
         expect([...rosterSyncView.mock.calls[0][1].visibleIds].sort()).toEqual(["200001", "300001"]);
         expect(visibleRaiderIds).toHaveBeenCalledWith("g1");
+    });
+
+    describe("the rank alone (#1077)", () => {
+        const RANK = { id: "400001", isAdmin: false, isServerAdmin: true, isOrga: true, access: {} };
+        let withoutRank;
+        const seen = () => [...rosterSyncView.mock.lastCall[1].visibleIds].sort();
+
+        beforeEach(() => {
+            mockUser = RANK;
+            withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue({ id: RANK.id, isAdmin: false, access: {} });
+            serverMemberIds.mockResolvedValue(new Set(["300001"]));
+            visibleRaiderIds.mockResolvedValue(new Set(["300001", "300002"]));
+        });
+        afterEach(() => withoutRank.mockRestore());
+
+        it("reaches the members only, unless it manages this roster", async () => {
+            canManageRosterLive.mockResolvedValueOnce(false);
+            await get("r1");
+            expect(seen()).toEqual(["300001"]);
+            await get("r1");
+            expect(seen()).toEqual(["300001", "300002", "400001"]);
+        });
+
+        it("still answers with an empty reach when the member list cannot be read", async () => {
+            canManageRosterLive.mockResolvedValueOnce(false);
+            serverMemberIds.mockResolvedValue(null);
+            expect(status(await get("r1"))).toBe(200);
+            expect(seen()).toEqual([]);
+        });
     });
 
     it("leaves the view without a limit for a full admin, who loads no member list (#1077)", async () => {

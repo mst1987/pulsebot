@@ -19,9 +19,9 @@ jest.mock("../../../../src/services/discord/discord", () => ({
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({ guildId: "g1", discordServers: { eventGuilds: [{ guildId: "g1" }] }, serverSettings: { g1: { guildBankChannelId: "900000" } } })),
 }));
-jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
 
-const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
 const discord = require("../../../../src/services/discord/discord");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
@@ -295,6 +295,19 @@ describe("apiRoutes/guildBank — linking and the hand-out history", () => {
 
             res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u8", characterKey: "skerra", itemId: SPINAL, amount: 1 } });
             expect(status(res)).toBe(200);
+        });
+
+        it("answers 503 when only the member list is missing, and links or adds nothing", async () => {
+            const entry = imported();
+            const before = requests.listRequests().length;
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            let res = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u7", characterKey: "whapap" } });
+            expect([status(res), body(res).error.code]).toEqual([503, "members_unavailable"]);
+            expect(requests.listRequests().find((r) => r.id === entry.id).userId).toBe("");
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u7", characterKey: "whapap", itemId: SPINAL, amount: 1 } });
+            expect([status(res), body(res).error.code]).toEqual([503, "members_unavailable"]);
+            expect(requests.listRequests()).toHaveLength(before);
         });
 
         it("drops an import's pick of a raider out of reach and matches names among the visible ones only", async () => {

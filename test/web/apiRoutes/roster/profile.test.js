@@ -278,9 +278,10 @@ describe("Wünsche bleiben bei der Orga", () => {
             expect(status(await profileOf(orgaRole, BERT.id))).toBe(200);
         });
 
-        it("zeigt nur die Anmeldungen, wenn die Mitgliederliste nicht lesbar ist, nie alle Profile", async () => {
+        it("zeigt nur die Anmeldungen, wenn die Mitgliederliste nicht lesbar ist, nie alle Profile, und nennt den Grund", async () => {
             mockMembers = {};
-            expect(status(await profileOf(orgaRole, BERT.id))).toBe(404);
+            const refused = await profileOf(orgaRole, BERT.id);
+            expect([status(refused), json(refused).error.code]).toEqual([503, "members_unavailable"]);
             mockSignups.g1 = [BERT.id];
             expect(status(await profileOf(orgaRole, BERT.id))).toBe(200);
         });

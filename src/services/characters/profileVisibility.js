@@ -14,16 +14,22 @@ function signedUpIds(guildId) {
 }
 
 /**
- * The accounts whose profiles the orga of `guildId` may see: members plus signups, always a set.
+ * The accounts whose profiles the orga of `guildId` may see, and whether the member list could be read:
+ * without it `ids` holds the signups only, so "not in ids" says nothing about being foreign.
  * @param {string} guildId
  * @param {{ waitMs?: number }} [opts]  how long to wait for the member list
- * @returns {Promise<Set<string>>}
+ * @returns {Promise<{ ids: Set<string>, membersKnown: boolean }>}
  */
-async function visibleRaiderIds(guildId, opts = {}) {
-    const visible = signedUpIds(guildId);
+async function raiderVisibility(guildId, opts = {}) {
+    const ids = signedUpIds(guildId);
     const members = await serverMemberIds(guildId, opts);
-    for (const id of members || []) visible.add(id);
-    return visible;
+    for (const id of members || []) ids.add(id);
+    return { ids, membersKnown: !!members };
+}
+
+/** The accounts of `raiderVisibility`, for a list that fails closed without saying so. */
+async function visibleRaiderIds(guildId, opts = {}) {
+    return (await raiderVisibility(guildId, opts)).ids;
 }
 
 /** The profiles out of `list` a limit lets through; `visible` null (a full admin) means no limit. */
@@ -31,4 +37,4 @@ function withinVisible(list, visible) {
     return visible ? list.filter((p) => visible.has(String(p.userId))) : list;
 }
 
-module.exports = { signedUpIds, visibleRaiderIds, withinVisible };
+module.exports = { signedUpIds, raiderVisibility, visibleRaiderIds, withinVisible };

@@ -17,6 +17,9 @@ const { getUserWithoutRank } = require("../../../src/web/http/auth");
 const { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
+jest.mock("../../../src/services/characters/profileVisibility", () => ({ raiderVisibility: jest.fn() }));
+jest.mock("../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
+
 const admin = { id: "1", isAdmin: true };
 const orga = { id: "7", isAdmin: false, isOrga: true };
 const req = {};
@@ -161,5 +164,78 @@ describe("mayUseChannel / guildOfChannel (#925)", () => {
         expect(channelOnCategoryServer("cat9", "c2")).toBe(true);
         mockClient = null;
         expect(channelOnCategoryServer("cat1", "c2")).toBe(true);
+    });
+});
+
+describe("the raiders a caller reaches (#1077)", () => {
+    const { raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER } = require("../../../src/web/http/serverQuery");
+    const { raiderVisibility } = require("../../../src/services/characters/profileVisibility");
+    const { serverMemberIds } = require("../../../src/services/discord/members/serverMembers");
+    const readable = (...ids) => ({ ids: new Set(ids), membersKnown: true });
+
+    beforeEach(() => {
+        raiderVisibility.mockReset();
+        serverMemberIds.mockReset();
+    });
+
+    it("sets no limit for a full admin and reads no list for them", async () => {
+        expect(await raiderReachFor(admin, req)).toEqual({ visible: null, membersKnown: true });
+        expect(await raiderReachFor(admin, req, { membersOnly: true })).toEqual({ visible: null, membersKnown: true });
+        expect(await visibleRaidersFor(admin, req)).toBeNull();
+        expect(raiderVisibility).not.toHaveBeenCalled();
+        expect(serverMemberIds).not.toHaveBeenCalled();
+    });
+
+    it("gives the active server's raiders and the caller", async () => {
+        raiderVisibility.mockResolvedValue(readable("m1"));
+        const reach = await raiderReachFor(orga, req);
+        expect(raiderVisibility).toHaveBeenCalledWith(mockActive);
+        expect([...reach.visible].sort()).toEqual(["7", "m1"]);
+        expect(reach.membersKnown).toBe(true);
+    });
+
+    it("says when the member list could not be read, and only the signups count", async () => {
+        raiderVisibility.mockResolvedValue({ ids: new Set(["signed"]), membersKnown: false });
+        const reach = await raiderReachFor(orga, req);
+        expect([...reach.visible].sort()).toEqual(["7", "signed"]);
+        expect(reach.membersKnown).toBe(false);
+    });
+
+    it("gives only the members with membersOnly, the caller not added", async () => {
+        serverMemberIds.mockResolvedValue(new Set(["m1"]));
+        const reach = await raiderReachFor(orga, req, { membersOnly: true });
+        expect(serverMemberIds).toHaveBeenCalledWith(mockActive);
+        expect([...reach.visible]).toEqual(["m1"]);
+        expect(reach.membersKnown).toBe(true);
+        expect(raiderVisibility).not.toHaveBeenCalled();
+
+        serverMemberIds.mockResolvedValue(null);
+        const unread = await raiderReachFor(orga, req, { membersOnly: true });
+        expect([...unread.visible]).toEqual([]);
+        expect(unread.membersKnown).toBe(false);
+    });
+
+    it("hands a list only the set, also a shortened one", async () => {
+        raiderVisibility.mockResolvedValue({ ids: new Set(["signed"]), membersKnown: false });
+        expect([...(await visibleRaidersFor(orga, req))].sort()).toEqual(["7", "signed"]);
+    });
+
+    it("tells an account out of reach from a member list that is missing", () => {
+        const known = { visible: new Set(["m1"]), membersKnown: true };
+        const unknown = { visible: new Set(["m1"]), membersKnown: false };
+        expect(outsideReach({ visible: null, membersKnown: true }, "x")).toBe("");
+        expect(outsideReach(known, "m1")).toBe("");
+        expect(outsideReach(unknown, "m1")).toBe("");
+        expect(outsideReach(known, "x")).toBe(OUTSIDE_SERVER);
+        expect(outsideReach(unknown, "x")).toBe(MEMBERS_UNAVAILABLE);
+        // no account named: nothing a member list could answer
+        expect(outsideReach(unknown, "")).toBe(OUTSIDE_SERVER);
+    });
+
+    it("answers 503 for a missing member list", () => {
+        const res = mockRes();
+        membersUnavailable(res);
+        expect(res.writeHead.mock.calls[0][0]).toBe(503);
+        expect(JSON.parse(res.end.mock.calls[0][0]).error.code).toBe(MEMBERS_UNAVAILABLE);
     });
 });

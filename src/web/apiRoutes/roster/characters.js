@@ -21,10 +21,28 @@ const { withinVisible } = require("../../../services/characters/profileVisibilit
 const { userIsOrga } = require("../../../config/permissions");
 const { editInput, nearOf } = require("./profile");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { visibleRaidersFor } = require("../../http/serverQuery");
+const { visibleRaidersFor, raiderReachFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE } = require("../../http/serverQuery");
 
 const notOrga = (res) => apiError(res, 403, "orga_only", "Nur die Orga darf das.");
 const noProfile = (res) => apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+
+/**
+ * The caller's reach when it holds this account's profile (#1077), else null after the refusal was
+ * sent: 503 when only the unreadable member list keeps it out, otherwise like no profile.
+ */
+async function reachedProfile(user, req, res, userId) {
+    const reach = await raiderReachFor(user, req);
+    const refusal = userId ? outsideReach(reach, userId) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) {
+        membersUnavailable(res);
+        return null;
+    }
+    if (!userId || !profiles.hasProfile(userId) || refusal) {
+        noProfile(res);
+        return null;
+    }
+    return reach;
+}
 
 /** One raider as the list shows them: the account and its characters (profileView's shape). */
 function raiderView(profile, ctx) {
@@ -36,8 +54,9 @@ function raiderView(profile, ctx) {
 async function targetOf(body, res, user, req) {
     const userId = String(body.userId || "").trim();
     const key = String(body.key || "").trim();
-    const visible = await visibleRaidersFor(user, req);
-    if (!userId || !profiles.hasProfile(userId) || (visible && !visible.has(userId))) return noProfile(res);
+    const reach = await reachedProfile(user, req, res, userId);
+    if (!reach) return undefined;
+    const { visible } = reach;
     if (!profiles.findCharacter(profiles.getProfile(userId), key)) return apiError(res, 404, "not_found", "Diesen Charakter gibt es im Profil nicht.");
     return { userId, key, visible };
 }
@@ -66,8 +85,9 @@ const getCharacters = withUser({}, async ({ user, req, res }) => {
 const getLogSuggestions = withUser({}, async ({ user, req, res, url }) => {
     if (!userIsOrga(user)) return notOrga(res);
     const userId = String(url.searchParams.get("userId") || "").trim();
-    const visible = await visibleRaidersFor(user, req);
-    if (!userId || !profiles.hasProfile(userId) || (visible && !visible.has(userId))) return noProfile(res);
+    const reach = await reachedProfile(user, req, res, userId);
+    if (!reach) return undefined;
+    const { visible } = reach;
     const profile = profiles.getProfile(userId);
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
     const near = nearOf(userId, String(url.searchParams.get("key") || "").slice(0, 80));

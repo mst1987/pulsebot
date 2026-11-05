@@ -302,7 +302,7 @@ function hintsFor({ now, config, entries, categoryNames, signups: lookup, versio
  * @param {object} opts { weeks, categoryId, versionId, guildId, now, config, withReasons, names: { userId: name }, categoryNames: { id: name } }
  *   `versionId`: only raids of this game version (#740); the main version when none is named
  *   `guildId`: only raids and entries of this server (the web's active one); none = every server
- *   `showEntry`: which entries the caller may see (#1072: the server-admin rank alone sees fewer); none = all
+ *   `showEntry`: which entries the caller may see (#1072, #1077: an entry without a scope is on every server, the route decides); none = all
  */
 function buildOverview({ weeks = 8, categoryId = "", versionId = "", guildId = "", now = Date.now(), config, withReasons = false, names = {}, categoryNames = {}, eventUrl = () => "", showEntry = () => true } = {}) {
     const cfg = config || settingsStore.getConfig();

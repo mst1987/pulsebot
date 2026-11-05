@@ -60,9 +60,8 @@ const { withUser } = require("../../http/apiHandler");
 const { sendFailure, HTTP_BY_CODE } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer, onlyByRank, visibleRaidersFor, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, onlyByRank, raiderReachFor, outsideReach, MEMBERS_UNAVAILABLE, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan } = require("../../../config/permissions");
-const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 const { resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const stockStore = require("../../../stores/loot/guildBankStockStore");
@@ -88,7 +87,7 @@ const VERSION_HIDDEN = {
 
 /** A bank failure with its status: a hidden version's bank is a conflict (409), the rest as usual. */
 function sendBankFailure(res, failure) {
-    return sendFailure(res, failure, { ...HTTP_BY_CODE, version_hidden: 409 });
+    return sendFailure(res, failure, { ...HTTP_BY_CODE, version_hidden: 409, [MEMBERS_UNAVAILABLE]: 503 });
 }
 
 /**
@@ -109,12 +108,12 @@ const raidsOnlyByRank = (user, req) => onlyByRank(user, req, (roles) => userCan(
 /**
  * Raider profiles are global, so a caller reaches a part of them: a holder of only the rank those of
  * the active server's members (an unknown member list counts as empty), other orga also the raiders
- * signed up there (#1077). Their ids, or null for a full admin, who keeps every profile.
+ * signed up there (#1077), a full admin every profile.
  */
-async function raidersInReach(user, req) {
-    if (raidsOnlyByRank(user, req)) return (await serverMemberIds(activeGuildFor(req))) || new Set();
-    return visibleRaidersFor(user, req);
-}
+const reachOf = (user, req) => raiderReachFor(user, req, { membersOnly: raidsOnlyByRank(user, req) });
+
+/** The ids in reach for a list, or null for a full admin. */
+const raidersInReach = async (user, req) => (await reachOf(user, req)).visible;
 
 /** The profiles a service may search for this caller: `{ list }` for a limited one, else nothing (every profile). */
 function profilesWithin(reach) {
@@ -238,21 +237,22 @@ const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ user, re
 });
 
 const NO_CHARACTER = { code: "not_found", error: "Diesen Charakter gibt es im Profil nicht." };
+const NO_MEMBER_LIST = { code: MEMBERS_UNAVAILABLE, error: "Die Mitgliederliste von Discord ist gerade nicht erreichbar." };
 
 /**
  * The profile character a body names, for a check of the bank `key` of the
  * active server: `{ bank, character, userId, characterKey }`, or `{ failure }`
  * — another server's bank and an unknown character 404, a character of another
  * version than the bank's 400 (#741), a character out of the caller's reach 404
- * (raidersInReach).
+ * (reachOf), 503 when only the unreadable member list keeps it out.
  */
 async function characterToCheck(body, req, user) {
     const { bank, failure } = writableBank(q.str(body, "key", { max: 200 }), req);
     if (failure) return { failure };
     const userId = q.str(body, "userId", { max: 40 });
     const characterKey = q.str(body, "characterKey", { max: 80 });
-    const reach = await raidersInReach(user, req);
-    if (reach && !reach.has(userId)) return { failure: NO_CHARACTER };
+    const refusal = outsideReach(await reachOf(user, req), userId);
+    if (refusal) return { failure: refusal === MEMBERS_UNAVAILABLE ? NO_MEMBER_LIST : NO_CHARACTER };
     const profile = userId ? profiles.getProfile(userId) : null;
     const character = profile && profile.characters.find((c) => c.key === characterKey);
     if (!character) return { failure: NO_CHARACTER };
@@ -298,8 +298,9 @@ const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }
     if (failure) return sendBankFailure(res, failure);
     const userId = q.str(body, "userId", { max: 40 });
     const characterKey = q.str(body, "characterKey", { max: 80 });
-    const reach = await raidersInReach(user, req);
-    if (reach && !reach.has(userId)) return sendFailure(res, { code: "invalid", error: NO_CHARACTER.error });
+    const refusal = outsideReach(await reachOf(user, req), userId);
+    if (refusal === MEMBERS_UNAVAILABLE) return sendBankFailure(res, NO_MEMBER_LIST);
+    if (refusal) return sendFailure(res, { code: "invalid", error: NO_CHARACTER.error });
     // only a confirmed character of the bank's version (#741): Forever bank = Forever characters
     const refused = linking.pickError(userId, characterKey, bank.gameVersion);
     if (refused) return sendFailure(res, { code: "invalid", error: refused });
@@ -395,7 +396,7 @@ function waitlistWrite(fn) {
         const { bank, failure } = writableBank(key, req);
         if (failure) return sendBankFailure(res, failure);
         const result = await fn({ bank, body, user, req, by: String(user.id || ""), byName: String(user.name || user.username || "") });
-        if (result && result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
+        if (result && result.error) return sendBankFailure(res, { code: result.code || "invalid", error: result.error });
         moveUp(bank.key);
         ok(res, { ...(result || {}), entries: waitlistOf(view.bankOfServer(key, activeGuildFor(req))) });
     });
@@ -412,8 +413,11 @@ const GONE = { code: "not_found", error: "Dieser Eintrag wartet nicht mehr." };
 /** POST /api/guildbank/waitlist/add — body: { key, name, itemId, amount }. */
 const addGuildBankWaiting = waitlistWrite(async ({ bank, body, user, req, by, byName }) => {
     const userId = q.str(body, "userId", { max: 40 });
-    const reach = await raidersInReach(user, req);
-    if (reach && userId && !reach.has(userId)) return { error: NO_CHARACTER.error };
+    const reachInfo = await reachOf(user, req);
+    const refusal = userId ? outsideReach(reachInfo, userId) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) return NO_MEMBER_LIST;
+    if (refusal) return { error: NO_CHARACTER.error };
+    const reach = reachInfo.visible;
     const result = waitlist.addEntry(bank.key, {
         name: q.str(body, "name", { max: 40 }), userId, characterKey: q.str(body, "characterKey", { max: 80 }),
         itemId: q.int(body, "itemId", { fallback: 0 }), amount: body.amount, by, byName,

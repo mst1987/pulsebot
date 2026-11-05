@@ -13,12 +13,11 @@ const mockEdit = jest.fn();
 jest.mock("../../../../src/services/characters/characterEdit", () => ({ editProfileCharacter: (...a) => mockEdit(...a) }));
 // the rule itself has its own suite (services/characters/profileVisibility.test.js)
 jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
-jest.mock("../../../../src/services/characters/profileVisibility", () => ({
-    ...jest.requireActual("../../../../src/services/characters/profileVisibility"),
-    visibleRaiderIds: jest.fn(),
-}));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock(
+    jest.requireActual("../../../../src/services/characters/profileVisibility"),
+));
 
-const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const store = require("../../../../src/stores/roster/raiderProfileStore");
 const route = require("../../../../src/web/apiRoutes/roster/characters");
@@ -128,6 +127,14 @@ describe("/api/characters (Orga)", () => {
             visibleRaiderIds.mockResolvedValue(new Set([ANNA.id, BERT.id]));
             const data = json(await call(route.getCharacters, ORGA)).data;
             expect(data.raiders.map((r) => r.name)).toEqual(["Anna", "Bert"]);
+        });
+
+        it("antwortet 503, wenn nur die Mitgliederliste fehlt, und ändert nichts", async () => {
+            store.addCharacter(BERT.id, { name: "Brando", className: "Shaman", source: "manual" }, { name: "Bert" });
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            const res = await call(route.postEdit, ORGA, { userId: BERT.id, key: "brando", name: "Anders", className: "Shaman" });
+            expect([status(res), json(res).error.code]).toEqual([503, "members_unavailable"]);
+            expect(store.getProfile(BERT.id).characters.map((c) => c.name)).toEqual(["Brando"]);
         });
 
         it("antwortet auf jedem Weg wie für ein Konto ohne Profil und ändert nichts", async () => {

@@ -83,7 +83,11 @@ function kaderCharacter(player, versionId) {
     return undefined;
 }
 
-/** The accounts present in the category's last RAIDS_BACK counted nights (see the head comment). */
+/**
+ * The accounts present in the category's last RAIDS_BACK counted nights (see the head comment).
+ * Goes over every profile without the view limit of #1077: only a full admin creates a roster
+ * (web/apiRoutes/roster/rosterAdmin.js postRosterCreate), and a full admin has no such limit.
+ */
 function presentInRaids(guildId, categoryId, versionId, { ctx } = {}) {
     const context = ctx || buildAttendanceContext(guildId, { versionId });
     const nights = ((context.allRaidsByCategory || context.raidsByCategory).get(categoryId) || []).slice(0, RAIDS_BACK);

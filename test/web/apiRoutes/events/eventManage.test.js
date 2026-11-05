@@ -28,9 +28,9 @@ jest.mock("../../../../src/stores/events/signupStore", () => ({
     ...jest.requireActual("../../../../src/stores/events/signupStore"),
     getSignup: jest.fn(),
 }));
-jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
 
-const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
 const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 const { getSignup } = require("../../../../src/stores/events/signupStore");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
@@ -159,7 +159,7 @@ describe("handlers", () => {
         it("refuses every other account while the member list is unknown, except a signup of this raid", async () => {
             serverMemberIds.mockResolvedValue(null);
             const refused = await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
-            expect(body(refused).error.code).toBe("other_server");
+            expect([status(refused), body(refused).error.code]).toEqual([503, "members_unavailable"]);
             expect(manage.addRaider).not.toHaveBeenCalled();
             getSignup.mockImplementation((eventId, userId) => (eventId === "eh-a" && userId === "2" ? { userId } : null));
             await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
@@ -209,6 +209,13 @@ describe("handlers", () => {
             const refused = await call(route.postRaider, ORGA, { event: "eh-a", userId: "2", character: "A", spec: "" });
             expect(status(refused)).toBe(403);
             expect(body(refused).error.code).toBe("other_server");
+            expect(manage.addRaider).not.toHaveBeenCalled();
+        });
+
+        it("answers 503 when only the member list is missing", async () => {
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            const refused = await call(route.postRaider, ORGA, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect([status(refused), body(refused).error.code]).toEqual([503, "members_unavailable"]);
             expect(manage.addRaider).not.toHaveBeenCalled();
         });
 

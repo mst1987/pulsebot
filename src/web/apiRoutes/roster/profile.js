@@ -25,7 +25,7 @@ const { ROLE_LABELS } = require("../../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../../services/characters/characterEdit");
 const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 const { withinVisible } = require("../../../services/characters/profileVisibility");
-const { visibleRaidersFor } = require("../../http/serverQuery");
+const { visibleRaidersFor, raiderReachFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE } = require("../../http/serverQuery");
 const { ownLeads } = require("./leaderFlags");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
@@ -303,8 +303,11 @@ const getRaiderSearch = withUser({}, async ({ user, req, res, url }) => {
 const getUserProfile = withUser({}, async ({ user, req, res, url }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const id = String(url.searchParams.get("id") || "").trim();
-    const visible = await visibleRaidersFor(user, req);
-    if (!id || !profiles.hasProfile(id) || (visible && !visible.has(id))) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+    const reach = await raiderReachFor(user, req);
+    const refusal = id ? outsideReach(reach, id) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) return membersUnavailable(res);
+    if (!id || !profiles.hasProfile(id) || refusal) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+    const { visible } = reach;
     const all = withinVisible(profiles.listProfiles(), visible);
     const view = profileView(profiles.getProfile(id), { forOrga: true, all, guildId: guildOfRequest(req) });
     ok(res, { profile: { ...view, wishes: withinVisible(view.wishes, visible), avoid: withinVisible(view.avoid, visible) } });

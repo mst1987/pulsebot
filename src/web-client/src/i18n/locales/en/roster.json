@@ -455,6 +455,7 @@
         "unknown": "That did not work ({code}).",
         "not_found": "This roster does not exist (any more).",
         "not_member": "This person is not in the roster (any more).",
+        "not_on_server": "This account is neither on this server nor signed up to a raid here.",
         "not_manager": "Only admins and this roster's managers may do that.",
         "admin_only": "Only admins may do that.",
         "forbidden": "You lack the permission for that.",

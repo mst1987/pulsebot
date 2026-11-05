@@ -10,7 +10,7 @@ jest.mock("../../../src/stores/events/signupStore", () => ({
 }));
 
 const { serverMemberIds } = require("../../../src/services/discord/members/serverMembers");
-const { signedUpIds, visibleRaiderIds, withinVisible } = require("../../../src/services/characters/profileVisibility");
+const { signedUpIds, visibleRaiderIds, raiderVisibility, withinVisible } = require("../../../src/services/characters/profileVisibility");
 
 describe("profileVisibility (#1077)", () => {
     beforeEach(() => {
@@ -20,6 +20,18 @@ describe("profileVisibility (#1077)", () => {
         mockEvents.push({ id: "a1", guildId: "A" }, { id: "b1", guildId: "B" });
         mockSignups.a1 = ["signedOnA"];
         mockSignups.b1 = ["signedOnB"];
+    });
+
+    test("raiderVisibility says whether the member list could be read", async () => {
+        serverMemberIds.mockResolvedValue(new Set(["memberOfA"]));
+        let seen = await raiderVisibility("A");
+        expect(seen.membersKnown).toBe(true);
+        expect([...seen.ids].sort()).toEqual(["memberOfA", "signedOnA"]);
+
+        serverMemberIds.mockResolvedValue(null);
+        seen = await raiderVisibility("A");
+        expect(seen.membersKnown).toBe(false);
+        expect([...seen.ids]).toEqual(["signedOnA"]);
     });
 
     test("members of the server and raiders signed up there", async () => {

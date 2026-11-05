@@ -8,7 +8,8 @@
 // (web/roster/activeRoster.js). Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { visibleRaidersFor } = require("../../http/serverQuery");
+const { onlyByRank, raiderReachFor } = require("../../http/serverQuery");
+const { userIsOrga } = require("../../../config/permissions");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { activeRoster } = require("../../roster/activeRoster");
 const { canManageRosterLive, isRosterOrga } = require("../../../services/roster/rosterAccess");
@@ -57,11 +58,11 @@ const getRosterSync = withUser({}, async ({ user, req, query, res }) => {
     const roster = activeRoster(req, query.get("id"));
     if (!roster) return apiError(res, 404, "not_found", "Roster nicht gefunden.");
     if (!(await isRosterOrga(user, roster))) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
-    const visibleIds = await visibleRaidersFor(user, req);
-    const [view, canManage] = await Promise.all([
-        rosterSyncView(roster, { config: getConfig(), visibleIds }),
-        canManageRosterLive(user, roster),
-    ]);
+    const canManage = await canManageRosterLive(user, roster);
+    // profile characters of non-members are global: the rank alone reaches the members only, a manager of the roster stays as is (#1077)
+    const membersOnly = !canManage && onlyByRank(user, req, userIsOrga);
+    const { visible: visibleIds } = await raiderReachFor(user, req, { membersOnly });
+    const view = await rosterSyncView(roster, { config: getConfig(), visibleIds });
     return ok(res, { ...view, canManage: canManage && !roster.closedAt });
 });
 

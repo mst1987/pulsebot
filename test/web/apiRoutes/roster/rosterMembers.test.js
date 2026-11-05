@@ -12,6 +12,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
+    getUserWithoutRank: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
@@ -30,9 +31,11 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => null),
     listGuilds: jest.fn(() => []),
 }));
-jest.mock("../../../../src/services/characters/profileVisibility", () => ({ visibleRaiderIds: jest.fn() }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
 
-const { visibleRaiderIds } = require("../../../../src/services/characters/profileVisibility");
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
+const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const rosterStore = require("../../../../src/stores/roster/rosterStore");
@@ -99,13 +102,34 @@ describe("POST /api/rosters/members", () => {
     describe("taking in only a raider this server may see (#1077)", () => {
         const taken = () => rosterStore.getRoster(roster.id).members;
 
-        it("answers 404 for a raider of another server and writes nothing, not even their first character", async () => {
+        it("answers 403 not_on_server for a raider of another server and writes nothing, not even their first character", async () => {
             visibleRaiderIds.mockResolvedValue(new Set());
             const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
-            expect(status(res)).toBe(404);
-            expect(code(res)).toBe("not_found");
+            expect(status(res)).toBe(403);
+            expect(code(res)).toBe("not_on_server");
             expect(taken()["100001"]).toBeUndefined();
             expect(rosterRoleSync.applyMemberAdded).not.toHaveBeenCalled();
+        });
+
+        it("answers 503 members_unavailable when only the member list is missing", async () => {
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect(status(res)).toBe(503);
+            expect(code(res)).toBe("members_unavailable");
+            expect(taken()["100001"]).toBeUndefined();
+            expect(rosterRoleSync.applyMemberAdded).not.toHaveBeenCalled();
+        });
+
+        it("takes in only a member for the rank alone, a raider signed up here as well for a role", async () => {
+            mockUser = { ...MANAGER, isServerAdmin: true };
+            auth.getUserWithoutRank.mockReturnValue({ ...MANAGER, access: {} });
+            serverMemberIds.mockResolvedValue(new Set(["100002"]));
+            const refused = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect([status(refused), code(refused)]).toEqual([403, "not_on_server"]);
+            expect(taken()["100001"]).toBeUndefined();
+            expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100002" }))).toBe(200);
+            auth.getUserWithoutRank.mockReturnValue(MANAGER);
+            expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" }))).toBe(200);
         });
 
         it("still changes somebody already on the roster, who may have left the server since", async () => {

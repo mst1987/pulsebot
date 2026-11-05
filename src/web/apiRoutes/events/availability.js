@@ -49,9 +49,8 @@ const { entryCategoryIds, eventCategoryNames } = require("../../availability/ent
 const { entryServers, serverNames } = require("../../availability/entryServers");
 const { scopeOf, entryOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
-const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, onlyByRank, visibleRaidersFor, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const isOrga = (user) => userCanAny(user, ["raids"], "write");
@@ -79,25 +78,31 @@ function targetOf(user, requested) {
 const foreignByRank = (user, req, userId, rolesMay = isOrga) => userId !== str(user.id) && onlyByRank(user, req, rolesMay);
 
 /**
- * Whether somebody else's account is out of the caller's reach: profiles and attendance are global.
+ * Refuses somebody else's account out of the caller's reach: profiles and attendance are global.
  * By the rank alone only the active server's members are in reach, for other orga also the raiders
- * signed up there (#1077), for a full admin everybody.
+ * signed up there (#1077), for a full admin everybody. True once the refusal was sent: 403 for a
+ * foreign account, 503 when only the unreadable member list keeps it out.
  */
-async function outOfReach(user, req, userId, rolesMay = isOrga) {
+async function refusedOutOfReach(res, user, req, userId, rolesMay = isOrga) {
     if (userId === str(user.id)) return false;
-    const reach = onlyByRank(user, req, rolesMay)
-        ? (await serverMemberIds(activeGuildFor(req))) || new Set()
-        : await visibleRaidersFor(user, req);
-    return !!reach && !reach.has(userId);
+    const reach = await raiderReachFor(user, req, { membersOnly: onlyByRank(user, req, rolesMay) });
+    const refusal = outsideReach(reach, userId);
+    if (!refusal) return false;
+    if (refusal === MEMBERS_UNAVAILABLE) membersUnavailable(res);
+    else otherServer(res);
+    return true;
 }
 
 /**
- * What the orga's overview may list for the rank alone (#1072): an entry without a scope concerns
- * every server, so it is nobody's own server's to read; the caller's own stay.
+ * What the orga's overview may list: an entry without a scope concerns every server, so it says
+ * nothing about this one. The rank alone (#1072) reads none of them but the caller's own; other orga
+ * those of raiders it may see anyway (#1077); a full admin all. An entry with a scope was already
+ * matched to the active server by the overview.
  */
-function rankEntryFilter(user, req) {
-    if (!onlyByRank(user, req, userIsOrga)) return {};
-    return { showEntry: (e) => !!scopeOf(e) || str(e.userId) === str(user.id) };
+async function entryFilter(user, req) {
+    if (onlyByRank(user, req, userIsOrga)) return { showEntry: (e) => !!scopeOf(e) || str(e.userId) === str(user.id) };
+    const visible = await visibleRaidersFor(user, req);
+    return visible ? { showEntry: (e) => !!scopeOf(e) || visible.has(str(e.userId)) } : {};
 }
 
 /**
@@ -177,7 +182,7 @@ function resultView(r) {
 const getAvailability = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
-    if (await outOfReach(user, req, target.userId)) return otherServer(res);
+    if (await refusedOutOfReach(res, user, req, target.userId)) return undefined;
     const config = getConfig();
     const profile = profiles.getProfile(target.userId);
     // only what concerns the server the web shows - another server's entries are edited there
@@ -234,7 +239,7 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, req, bod
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
     // the preview names raids and the raider's status in them: only for a raider in reach
-    if (await outOfReach(user, req, target.userId)) return otherServer(res);
+    if (await refusedOutOfReach(res, user, req, target.userId)) return undefined;
     if (foreignByRank(user, req, target.userId) && !mayUseScope(user, req, body)) return otherServer(res);
     const config = getConfig();
     const id = str(body.id);
@@ -267,7 +272,7 @@ const postPreview = withUser({ csrf: true, body: true }, async ({ user, req, bod
 const postEntry = withUser({ csrf: true, body: true }, async ({ user, req, body, res }) => {
     const target = targetOf(user, body.userId);
     if (target.error) return apiError(res, 403, "forbidden", target.error);
-    if (await outOfReach(user, req, target.userId)) return otherServer(res);
+    if (await refusedOutOfReach(res, user, req, target.userId)) return undefined;
     const config = getConfig();
     if (!knownCategory(body, config)) return apiError(res, 400, "bad_request", UNKNOWN_CATEGORY);
     // for somebody else only on servers the caller may use (#925)
@@ -431,7 +436,7 @@ const getOverview = withUser({}, async ({ user, req, query, res }) => {
         withReasons: isOrga(user),
         categoryNames: categoryNamesOf(config),
         eventUrl: (e) => linkCheck.eventLink(e),
-        ...rankEntryFilter(user, req),
+        ...(await entryFilter(user, req)),
     });
     const named = await namerFor([...new Set([...view.raiders.map((r) => r.userId), ...view.hints.map((h) => h.userId)])], config);
     ok(res, { ...view, raiders: view.raiders.map(named), hints: view.hints.map(named), canEdit: isOrga(user), withReasons: isOrga(user) });
@@ -443,10 +448,10 @@ const getOverviewRaider = withUser({}, async ({ user, req, query, res }) => {
     const userId = str(query.get("userId"));
     if (!userId) return apiError(res, 400, "bad_request", "Kein Raider angegeben.");
     // the gate here is the orga, not `raids` write: a role that passes it keeps this view
-    if (await outOfReach(user, req, userId, userIsOrga)) return otherServer(res);
+    if (await refusedOutOfReach(res, user, req, userId, userIsOrga)) return undefined;
     const config = getConfig();
     const names = viewNames(config);
-    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), guildId: activeGuildFor(req), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers, ...rankEntryFilter(user, req) });
+    const view = absenceOverview.raiderDetail(userId, { versionId: versionOf(query, config), guildId: activeGuildFor(req), config, withReasons: isOrga(user), categoryNames: names.categories, servers: names.servers, ...(await entryFilter(user, req)) });
     const named = await namerFor([userId], config);
     ok(res, { ...named(view), canEdit: isOrga(user) });
 });
@@ -459,7 +464,7 @@ const getOverviewRaider = withUser({}, async ({ user, req, query, res }) => {
 const getAttendance = withUser({}, async ({ user, req, query, res }) => {
     const target = targetOf(user, query.get("userId"));
     if (target.error) return apiError(res, 403, "forbidden", target.error);
-    if (await outOfReach(user, req, target.userId)) return otherServer(res);
+    if (await refusedOutOfReach(res, user, req, target.userId)) return undefined;
     const config = getConfig();
     const counted = raiderAttendance(target.userId, {
         versionId: versionOf(query, config), config, categoryNames: categoryNamesOf(config), eventUrl: (e) => linkCheck.eventLink(e),
