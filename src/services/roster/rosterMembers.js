@@ -213,4 +213,4 @@ async function setStatus(rosterId, userId, status, { actor = "" } = {}) {
     return { ok: true, member, roles };
 }
 
-module.exports = { addMember, updateMember, removeMember, setStatus, cleanPatch, defaultChars, NO_ROLES };
+module.exports = { addMember, updateMember, removeMember, setStatus, cleanPatch, defaultChars, validUserId, NO_ROLES };

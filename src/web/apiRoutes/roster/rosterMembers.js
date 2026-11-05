@@ -12,6 +12,8 @@
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { onlyByRank, raiderReachFor, outsideReach, MEMBERS_UNAVAILABLE } = require("../../http/serverQuery");
+const { userCan } = require("../../../config/permissions");
 const { canManageRosterLive } = require("../../../services/roster/rosterAccess");
 const rosterMembers = require("../../../services/roster/rosterMembers");
 const { searchMembers } = require("../../../services/roster/rosterMemberSearch");
@@ -22,7 +24,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 
 // A refusal's HTTP status; everything not listed is the caller's input (400).
 const STATUS_OF_CODE = {
-    not_found: 404, not_member: 404, not_manager: 403,
+    not_found: 404, not_member: 404, not_manager: 403, not_on_server: 403,
     already_member: 409, member_limit: 409, roster_closed: 409,
     offline: 503, members_unavailable: 503,
 };
@@ -64,6 +66,13 @@ const postRosterMember = withUser({ write: "roster", csrf: true, body: true }, a
     if (mode && mode !== "add" && mode !== "update") return refuse(res, "bad_request");
     const userId = str(body.userId);
     const create = mode === "add" || (!mode && !roster.members[userId]);
+    // taking in copies the first profile character into the answer: only a raider this server may see (#1077),
+    // for the rank alone only a member; a malformed id stays with the service's own refusal
+    const reach = create && rosterMembers.validUserId(userId)
+        ? await raiderReachFor(user, req, { membersOnly: onlyByRank(user, req, (roles) => userCan(roles, "roster", "write")) })
+        : null;
+    const refusal = reach ? outsideReach(reach, userId) : "";
+    if (refusal) return refuse(res, refusal === MEMBERS_UNAVAILABLE ? refusal : "not_on_server");
     const patch = {};
     for (const key of MEMBER_FIELDS) if (body[key] !== undefined) patch[key] = body[key];
     const actor = { actor: str(user.id) };

@@ -133,6 +133,16 @@ describe("services/roster/rosterSyncView logCharsList", () => {
         expect(raiderProfileStore.claimsFor).toHaveBeenCalledWith("lia", "", "tbc");
     });
 
+    it("names only the accounts the caller may see as claimants, a full admin (no limit) all (#1077)", () => {
+        raiderProfileStore.claimsFor.mockImplementation((key) => (key === "lia"
+            ? [{ userId: "100009", name: "Lia" }, { userId: "100010", name: "Fremd" }]
+            : []));
+        const claimsOfLia = (list) => list.find((e) => e.key === "lia").claimedBy;
+        expect(claimsOfLia(logCharsList(roster, { ctx: ctx(), visibleIds: new Set(["100009"]) }))).toEqual([{ userId: "100009", name: "Lia" }]);
+        expect(claimsOfLia(logCharsList(roster, { ctx: ctx(), visibleIds: new Set() }))).toEqual([]);
+        expect(claimsOfLia(logCharsList(roster, { ctx: ctx(), visibleIds: null }))).toHaveLength(2);
+    });
+
     it("leaves out hidden characters, and is empty without category", () => {
         rosterHidden.isHidden.mockImplementation((key) => key === "kael");
         expect(logCharsList(roster, { ctx: ctx() }).map((e) => e.key)).toEqual(["zed", "lia"]);

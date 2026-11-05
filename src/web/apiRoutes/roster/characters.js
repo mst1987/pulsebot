@@ -1,8 +1,11 @@
 // "Alle Charaktere" — the orga's tab on the profile page: every character of
-// every raider profile in one list, and editing any of them (name, realm,
-// class, specs, gear, the two switches) or taking one out. Area `roster`
-// (reading lists, writing edits) and the orga besides (config/permissions.js
-// userIsOrga), the same as the orga's read-only view of one profile.
+// the raider profiles this server may see (#1077) in one list, and editing any
+// of them (name, realm, class, specs, gear, the two switches) or taking one out.
+// Area `roster` (reading lists, writing edits) and the orga besides (config/
+// permissions.js userIsOrga), the same as the orga's read-only view of one profile.
+//
+// A raider this server may not see answers like one without a profile, on every
+// path. A full admin has no limit (http/serverQuery.js visibleRaidersFor).
 //
 // The raider's own edits go through POST /api/profile/characters (apiRoutes/
 // profile.js); both end in services/characters/characterEdit.js, which moves
@@ -14,11 +17,32 @@ const { profileView } = require("../../characters/profileView");
 const { logIndex, logSuggestions } = require("../../characters/profileLogs");
 const { seenIndex } = require("../../../services/characters/characterEvidence");
 const { editProfileCharacter } = require("../../../services/characters/characterEdit");
+const { withinVisible } = require("../../../services/characters/profileVisibility");
 const { userIsOrga } = require("../../../config/permissions");
 const { editInput, nearOf } = require("./profile");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { visibleRaidersFor, raiderReachFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE } = require("../../http/serverQuery");
 
 const notOrga = (res) => apiError(res, 403, "orga_only", "Nur die Orga darf das.");
+const noProfile = (res) => apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+
+/**
+ * The caller's reach when it holds this account's profile (#1077), else null after the refusal was
+ * sent: 503 when only the unreadable member list keeps it out, otherwise like no profile.
+ */
+async function reachedProfile(user, req, res, userId) {
+    const reach = await raiderReachFor(user, req);
+    const refusal = userId ? outsideReach(reach, userId) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) {
+        membersUnavailable(res);
+        return null;
+    }
+    if (!userId || !profiles.hasProfile(userId) || refusal) {
+        noProfile(res);
+        return null;
+    }
+    return reach;
+}
 
 /** One raider as the list shows them: the account and its characters (profileView's shape). */
 function raiderView(profile, ctx) {
@@ -26,22 +50,24 @@ function raiderView(profile, ctx) {
     return { userId: view.userId, name: view.name, characters: view.characters };
 }
 
-/** The target of a write: `{ userId, key }` of an existing character, else the error already sent. */
-function targetOf(body, res) {
+/** The target of a write: `{ userId, key, visible }` of an existing character, else the error already sent. */
+async function targetOf(body, res, user, req) {
     const userId = String(body.userId || "").trim();
     const key = String(body.key || "").trim();
-    if (!userId || !profiles.hasProfile(userId)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+    const reach = await reachedProfile(user, req, res, userId);
+    if (!reach) return undefined;
+    const { visible } = reach;
     if (!profiles.findCharacter(profiles.getProfile(userId), key)) return apiError(res, 404, "not_found", "Diesen Charakter gibt es im Profil nicht.");
-    return { userId, key };
+    return { userId, key, visible };
 }
 
-/** The raider after a write, fresh. */
-const raiderAfter = (userId) => raiderView(profiles.getProfile(userId), {});
+/** The raider after a write, fresh; the accounts sharing a character within the same limit. */
+const raiderAfter = ({ userId, visible }) => raiderView(profiles.getProfile(userId), { all: withinVisible(profiles.listProfiles(), visible) });
 
-/** GET /api/characters — every raider with at least one character, by name. */
+/** GET /api/characters — every raider this server may see with at least one character, by name. */
 const getCharacters = withUser({}, async ({ user, req, res }) => {
     if (!userIsOrga(user)) return notOrga(res);
-    const all = profiles.listProfiles();
+    const all = withinVisible(profiles.listProfiles(), await visibleRaidersFor(user, req));
     // guildId (#923): armory links of the server the page is shown for
     const ctx = { all, index: logIndex(), seen: seenIndex(), guildId: activeGuildFor(req) };
     const raiders = all
@@ -56,32 +82,34 @@ const getCharacters = withUser({}, async ({ user, req, res }) => {
  * that raider could be (as the raider's own "aus den Logs" sees them), the
  * names that look like a typo of character `key` first.
  */
-const getLogSuggestions = withUser({}, async ({ user, res, url }) => {
+const getLogSuggestions = withUser({}, async ({ user, req, res, url }) => {
     if (!userIsOrga(user)) return notOrga(res);
     const userId = String(url.searchParams.get("userId") || "").trim();
-    if (!userId || !profiles.hasProfile(userId)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+    const reach = await reachedProfile(user, req, res, userId);
+    if (!reach) return undefined;
+    const { visible } = reach;
     const profile = profiles.getProfile(userId);
     const q = String(url.searchParams.get("q") || "").slice(0, 32);
     const near = nearOf(userId, String(url.searchParams.get("key") || "").slice(0, 80));
-    ok(res, { characters: logSuggestions({ id: userId, name: profile.name }, { query: q, near }) });
+    ok(res, { characters: logSuggestions({ id: userId, name: profile.name }, { query: q, near, all: withinVisible(profiles.listProfiles(), visible) }) });
 });
 
 /** POST /api/characters/edit — { userId, key, name?, realm?, className?, specs? } | { userId, key, fromLog }: who the character is. */
-const postEdit = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postEdit = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     if (!userIsOrga(user)) return notOrga(res);
-    const target = targetOf(body, res);
+    const target = await targetOf(body, res, user, req);
     if (!target) return;
     const asked = editInput(body, profiles.findCharacter(profiles.getProfile(target.userId), target.key));
     if (asked.error) return apiError(res, asked.status, asked.code, asked.error);
     const edited = editProfileCharacter(target.userId, target.key, asked.input, { actor: String(user.id || "") });
     if (edited.error) return apiError(res, edited.code === "not_found" ? 404 : 400, edited.code, edited.error);
-    ok(res, { key: edited.character.key, renamed: edited.renamed, moved: edited.moved, raider: raiderAfter(target.userId) });
+    ok(res, { key: edited.character.key, renamed: edited.renamed, moved: edited.moved, raider: raiderAfter(target) });
 });
 
 /** POST /api/characters/save — { userId, key, specs?, canOfftank?, canHeal? }: gear per spec and the two switches. */
-const postSave = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postSave = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     if (!userIsOrga(user)) return notOrga(res);
-    const target = targetOf(body, res);
+    const target = await targetOf(body, res, user, req);
     if (!target) return;
     const edit = { key: profiles.findCharacter(profiles.getProfile(target.userId), target.key).key };
     if (Array.isArray(body.specs)) edit.specs = body.specs;
@@ -89,16 +117,16 @@ const postSave = withUser({ csrf: true, body: true }, async ({ user, body, res }
         if (body[field] !== undefined) edit[field] = body[field] === null ? null : body[field] === true;
     }
     profiles.saveProfile(target.userId, { characters: [edit] });
-    ok(res, { raider: raiderAfter(target.userId) });
+    ok(res, { raider: raiderAfter(target) });
 });
 
 /** POST /api/characters/remove — { userId, key }: take the character out of that profile. */
-const postRemove = withUser({ csrf: true, body: true }, async ({ user, body, res }) => {
+const postRemove = withUser({ csrf: true, body: true }, async ({ user, body, req, res }) => {
     if (!userIsOrga(user)) return notOrga(res);
-    const target = targetOf(body, res);
+    const target = await targetOf(body, res, user, req);
     if (!target) return;
     const removed = profiles.removeCharacter(target.userId, profiles.findCharacter(profiles.getProfile(target.userId), target.key).key);
-    ok(res, { removed, raider: raiderAfter(target.userId) });
+    ok(res, { removed, raider: raiderAfter(target) });
 });
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */

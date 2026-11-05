@@ -455,6 +455,7 @@
         "unknown": "Das hat nicht geklappt ({code}).",
         "not_found": "Dieses Roster gibt es nicht (mehr).",
         "not_member": "Diese Person ist nicht (mehr) im Roster.",
+        "not_on_server": "Dieses Konto ist weder auf diesem Server noch hier zu einem Raid angemeldet.",
         "not_manager": "Nur Admins und die Manager dieses Rosters dürfen das.",
         "admin_only": "Das dürfen nur Admins.",
         "forbidden": "Dafür fehlt dir das Recht.",

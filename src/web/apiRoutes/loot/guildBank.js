@@ -60,9 +60,8 @@ const { withUser } = require("../../http/apiHandler");
 const { sendFailure, HTTP_BY_CODE } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer, onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, onlyByRank, raiderReachFor, outsideReach, MEMBERS_UNAVAILABLE, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan } = require("../../../config/permissions");
-const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 const { resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const stockStore = require("../../../stores/loot/guildBankStockStore");
@@ -88,7 +87,7 @@ const VERSION_HIDDEN = {
 
 /** A bank failure with its status: a hidden version's bank is a conflict (409), the rest as usual. */
 function sendBankFailure(res, failure) {
-    return sendFailure(res, failure, { ...HTTP_BY_CODE, version_hidden: 409 });
+    return sendFailure(res, failure, { ...HTTP_BY_CODE, version_hidden: 409, [MEMBERS_UNAVAILABLE]: 503 });
 }
 
 /**
@@ -103,19 +102,22 @@ function writableBank(key, req) {
     return isVersionVisible(bank.gameVersion, getConfig()) ? { bank } : { failure: VERSION_HIDDEN };
 }
 
+/** Whether only the server-admin rank (#1072) gives this caller the bank's writes. */
+const raidsOnlyByRank = (user, req) => onlyByRank(user, req, (roles) => userCan(roles, "raids", "write"));
+
 /**
- * Raider profiles are global: a holder of only the server-admin rank (#1072) reaches those of the active
- * server's members. Their ids for such a caller (an unknown member list counts as empty), null for
- * everybody else, who keeps every profile.
+ * Raider profiles are global, so a caller reaches a part of them: a holder of only the rank those of
+ * the active server's members (an unknown member list counts as empty), other orga also the raiders
+ * signed up there (#1077), a full admin every profile.
  */
-async function rankMembers(user, req) {
-    if (!onlyByRank(user, req, (roles) => userCan(roles, "raids", "write"))) return null;
-    return (await serverMemberIds(activeGuildFor(req))) || new Set();
-}
+const reachOf = (user, req) => raiderReachFor(user, req, { membersOnly: raidsOnlyByRank(user, req) });
+
+/** The ids in reach for a list, or null for a full admin. */
+const raidersInReach = async (user, req) => (await reachOf(user, req)).visible;
 
 /** The profiles a service may search for this caller: `{ list }` for a limited one, else nothing (every profile). */
-function profilesWithin(members) {
-    return members ? { list: profiles.listProfiles().filter((p) => members.has(String(p.userId))) } : {};
+function profilesWithin(reach) {
+    return reach ? { list: profiles.listProfiles().filter((p) => reach.has(String(p.userId))) } : {};
 }
 
 /**
@@ -225,32 +227,32 @@ const searchGuildBankCharacters = withUser({ write: "raids" }, async ({ user, re
     const bank = view.bankOfServer(q.str(query, "key", { max: 200 }), activeGuildFor(req));
     if (!bank) return sendFailure(res, NOT_FOUND);
     const text = q.str(query, "q", { max: 60 });
-    const members = await rankMembers(user, req);
-    const within = profilesWithin(members);
+    const within = profilesWithin(await raidersInReach(user, req));
     ok(res, {
         characters: linking.characterChoices({ query: text, gameVersion: bank.gameVersion, ...within }),
         // #809: names the bank knows without a profile (earlier hand-outs, logs, loot); the logs and
-        // loot behind the index are every server's, so a limited caller gets this bank's names only
-        names: knownNames(bank.key, { query: text, gameVersion: bank.gameVersion, ...within, ...(members ? { index: new Map() } : {}) }),
+        // loot behind the index are every server's, so a holder of only the rank gets this bank's names only
+        names: knownNames(bank.key, { query: text, gameVersion: bank.gameVersion, ...within, ...(raidsOnlyByRank(user, req) ? { index: new Map() } : {}) }),
     });
 });
 
 const NO_CHARACTER = { code: "not_found", error: "Diesen Charakter gibt es im Profil nicht." };
+const NO_MEMBER_LIST = { code: MEMBERS_UNAVAILABLE, error: "Die Mitgliederliste von Discord ist gerade nicht erreichbar." };
 
 /**
  * The profile character a body names, for a check of the bank `key` of the
  * active server: `{ bank, character, userId, characterKey }`, or `{ failure }`
  * — another server's bank and an unknown character 404, a character of another
- * version than the bank's 400 (#741), a character outside the server for a
- * holder of only the rank 404 (rankMembers).
+ * version than the bank's 400 (#741), a character out of the caller's reach 404
+ * (reachOf), 503 when only the unreadable member list keeps it out.
  */
 async function characterToCheck(body, req, user) {
     const { bank, failure } = writableBank(q.str(body, "key", { max: 200 }), req);
     if (failure) return { failure };
     const userId = q.str(body, "userId", { max: 40 });
     const characterKey = q.str(body, "characterKey", { max: 80 });
-    const members = await rankMembers(user, req);
-    if (members && !members.has(userId)) return { failure: NO_CHARACTER };
+    const refusal = outsideReach(await reachOf(user, req), userId);
+    if (refusal) return { failure: refusal === MEMBERS_UNAVAILABLE ? NO_MEMBER_LIST : NO_CHARACTER };
     const profile = userId ? profiles.getProfile(userId) : null;
     const character = profile && profile.characters.find((c) => c.key === characterKey);
     if (!character) return { failure: NO_CHARACTER };
@@ -296,8 +298,9 @@ const linkGuildBankRequest = withUser({ write: "raids", csrf: true, body: true }
     if (failure) return sendBankFailure(res, failure);
     const userId = q.str(body, "userId", { max: 40 });
     const characterKey = q.str(body, "characterKey", { max: 80 });
-    const members = await rankMembers(user, req);
-    if (members && !members.has(userId)) return sendFailure(res, { code: "invalid", error: NO_CHARACTER.error });
+    const refusal = outsideReach(await reachOf(user, req), userId);
+    if (refusal === MEMBERS_UNAVAILABLE) return sendBankFailure(res, NO_MEMBER_LIST);
+    if (refusal) return sendFailure(res, { code: "invalid", error: NO_CHARACTER.error });
     // only a confirmed character of the bank's version (#741): Forever bank = Forever characters
     const refused = linking.pickError(userId, characterKey, bank.gameVersion);
     if (refused) return sendFailure(res, { code: "invalid", error: refused });
@@ -327,7 +330,7 @@ const NOT_YOUR_PROFILE = "Ins Profil eines anderen Kontos darf nur die Orga eint
 
 /** "Ins Profil übernehmen" writes to the raider's global profile: a holder of only the rank has their own request's only. */
 function mayChangeProfileOf(user, req, requestId) {
-    if (!onlyByRank(user, req, (roles) => userCan(roles, "raids", "write"))) return true;
+    if (!raidsOnlyByRank(user, req)) return true;
     const request = requestStore.getRequest(requestId);
     return !!request && String(request.userId) === String(user.id);
 }
@@ -393,7 +396,7 @@ function waitlistWrite(fn) {
         const { bank, failure } = writableBank(key, req);
         if (failure) return sendBankFailure(res, failure);
         const result = await fn({ bank, body, user, req, by: String(user.id || ""), byName: String(user.name || user.username || "") });
-        if (result && result.error) return sendFailure(res, { code: result.code || "invalid", error: result.error });
+        if (result && result.error) return sendBankFailure(res, { code: result.code || "invalid", error: result.error });
         moveUp(bank.key);
         ok(res, { ...(result || {}), entries: waitlistOf(view.bankOfServer(key, activeGuildFor(req))) });
     });
@@ -410,12 +413,15 @@ const GONE = { code: "not_found", error: "Dieser Eintrag wartet nicht mehr." };
 /** POST /api/guildbank/waitlist/add — body: { key, name, itemId, amount }. */
 const addGuildBankWaiting = waitlistWrite(async ({ bank, body, user, req, by, byName }) => {
     const userId = q.str(body, "userId", { max: 40 });
-    const members = await rankMembers(user, req);
-    if (members && userId && !members.has(userId)) return { error: NO_CHARACTER.error };
+    const reachInfo = await reachOf(user, req);
+    const refusal = userId ? outsideReach(reachInfo, userId) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) return NO_MEMBER_LIST;
+    if (refusal) return { error: NO_CHARACTER.error };
+    const reach = reachInfo.visible;
     const result = waitlist.addEntry(bank.key, {
         name: q.str(body, "name", { max: 40 }), userId, characterKey: q.str(body, "characterKey", { max: 80 }),
         itemId: q.int(body, "itemId", { fallback: 0 }), amount: body.amount, by, byName,
-    }, profilesWithin(members));
+    }, profilesWithin(reach));
     return result.error ? result : { added: 1 };
 });
 
@@ -438,15 +444,15 @@ const removeGuildBankWaiting = waitlistWrite(({ bank, body }) => {
 /** The longest text an import takes (200 lines of a sheet). */
 const IMPORT_TEXT_MAX = 20000;
 
-/** The import's picks: `{ [line]: { userId, characterKey } }` (at most one per line of the text), anything else ignored; `members` (rankMembers) limits them. */
-function linksOf(body, members = null) {
+/** The import's picks: `{ [line]: { userId, characterKey } }` (at most one per line of the text), anything else ignored; `reach` (raidersInReach) limits them. */
+function linksOf(body, reach = null) {
     const raw = body && body.links;
     if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
     const out = {};
     for (const [line, pick] of Object.entries(raw).slice(0, waitlist.IMPORT_MAX_LINES)) {
         if (!/^\d{1,3}$/.test(line) || !pick || typeof pick !== "object") continue;
         const userId = q.str(pick, "userId", { max: 40 });
-        if (members && !members.has(userId)) continue;
+        if (reach && !reach.has(userId)) continue;
         out[line] = { userId, characterKey: q.str(pick, "characterKey", { max: 80 }) };
     }
     return out;
@@ -457,16 +463,16 @@ const previewGuildBankWaitlist = withUser({ write: "raids", csrf: true, body: tr
     const key = q.str(body, "key", { max: 200 });
     const { failure } = writableBank(key, req);
     if (failure) return sendBankFailure(res, failure);
-    const members = await rankMembers(user, req);
-    const preview = waitlist.previewImport(key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { links: linksOf(body, members), ...profilesWithin(members) });
+    const reach = await raidersInReach(user, req);
+    const preview = waitlist.previewImport(key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { links: linksOf(body, reach), ...profilesWithin(reach) });
     if (preview.error) return sendFailure(res, { code: "invalid", error: preview.error });
     ok(res, preview);
 });
 
 /** POST /api/guildbank/waitlist/import — body: { key, text, links? }; the lines the preview marks ok, at the end of their lists. */
 const importGuildBankWaitlist = waitlistWrite(async ({ bank, body, user, req, by, byName }) => {
-    const members = await rankMembers(user, req);
-    const result = waitlist.importLines(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { by, byName, links: linksOf(body, members), ...profilesWithin(members) });
+    const reach = await raidersInReach(user, req);
+    const result = waitlist.importLines(bank.key, q.str(body, "text", { max: IMPORT_TEXT_MAX }), { by, byName, links: linksOf(body, reach), ...profilesWithin(reach) });
     return result.error ? result : { added: result.added.length, skipped: result.skipped, unlinked: result.unlinked };
 });
 

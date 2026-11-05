@@ -5,7 +5,7 @@ let mockConfig = {};
 jest.mock("../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig }));
 jest.mock("../../../src/services/events/eventServer", () => ({ guildOfCategory: (id) => ({ catA: "g1", catB: "g2" })[id] || "" }));
 
-const { covers, scopeOf, scopeCovers, entryOnServer, charactersOf, charactersFor, eventServer, specLabel, scopeView, charactersView } = require("../../../src/services/signups/availabilityScope");
+const { covers, scopeOf, scopeCovers, entryOnServer, entryProvenOnServer, charactersOf, charactersFor, eventServer, specLabel, scopeView, charactersView } = require("../../../src/services/signups/availabilityScope");
 
 const START = Math.floor(Date.UTC(2030, 2, 20, 18) / 1000); // 2030-03-20 19:00 server time
 const event = (over = {}) => ({ id: "eh-1", startTime: START, categoryId: "cat1", ...over });
@@ -41,6 +41,25 @@ describe("eventServer / scopeCovers", () => {
         // older entries: one category anywhere, or everything
         expect(scopeCovers({ categoryId: "cat1" }, event({ guildId: "g2" }))).toBe(true);
         expect(scopeCovers({ categoryId: "" }, event({ guildId: "g2", categoryId: "x" }))).toBe(true);
+    });
+});
+
+describe("entryProvenOnServer (nur ein nachgewiesener Server zählt)", () => {
+    it("zählt einen genannten Server und eine Kategorie, die nachweislich dort liegt", () => {
+        expect(entryProvenOnServer({ scope: [{ guildId: "g1", categoryIds: [] }] }, "g1")).toBe(true);
+        expect(entryProvenOnServer({ scope: [{ guildId: "g1", categoryIds: [] }, { guildId: "g2", categoryIds: ["catB"] }] }, "g2")).toBe(true);
+        expect(entryProvenOnServer({ categoryId: "x" }, "g2", { guildOfCategory: () => "g2" })).toBe(true);
+    });
+
+    it("zählt keine unbekannte Kategorie, keinen fremden Server, keinen Eintrag ohne Scope", () => {
+        expect(entryProvenOnServer({ categoryId: "x" }, "g2", { guildOfCategory: () => "" })).toBe(false);
+        expect(entryProvenOnServer({ categoryId: "x" }, "g2", { guildOfCategory: () => "g1" })).toBe(false);
+        expect(entryProvenOnServer({ scope: [{ guildId: "g1", categoryIds: [] }] }, "g2")).toBe(false);
+        expect(entryProvenOnServer({ categoryId: "" }, "g2")).toBe(false);
+    });
+
+    it("ohne Server zählt nichts", () => {
+        expect(entryProvenOnServer({ scope: [{ guildId: "g1", categoryIds: [] }] }, "")).toBe(false);
     });
 });
 

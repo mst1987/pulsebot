@@ -16,6 +16,8 @@ const { getConfig } = require("../../stores/settings/configStore");
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const OTHER_SERVER = "Für diesen Server hast du hier keine Rechte.";
 const CHANNEL_OTHER_SERVER = "Der Kanal liegt auf einem anderen Server als die Kategorie.";
+const MEMBERS_UNAVAILABLE = "members_unavailable";
+const OUTSIDE_SERVER = "outside_server";
 
 /**
  * Whether `user` may act on `guildId` from this request: a full admin on every
@@ -37,6 +39,47 @@ function onlyByRank(user, req, rolesMay) {
     // required here, not at the top: tests of the callers mock auth without this export
     return !rolesMay(require("./auth").getUserWithoutRank(req));
 }
+
+/**
+ * The raiders `user` reaches from this request (#1077, services/characters/profileVisibility.js).
+ * `visible`: null for a full admin (no limit), otherwise a set: members of the active server, raiders
+ * signed up there, and the caller. `membersKnown`: false when the member list could not be read, so
+ * a missing account may be just unknown. `membersOnly`: the stricter limit of the rank alone
+ * (`onlyByRank`), the members and nobody else. Routes with such a limit ask `onlyByRank` first; the
+ * routes that show lists a rank may read anyway (a roster's members, its Abgleich) do too.
+ * @returns {Promise<{ visible: Set<string>|null, membersKnown: boolean }>}
+ */
+async function raiderReachFor(user, req, { membersOnly = false } = {}) {
+    if (user && user.isAdmin) return { visible: null, membersKnown: true };
+    if (membersOnly) {
+        // required here, not at the top: it pulls in the bot's discord module, see guildOfChannel
+        const { serverMemberIds } = require("../../services/discord/members/serverMembers");
+        const members = await serverMemberIds(activeGuildFor(req));
+        return { visible: members || new Set(), membersKnown: !!members };
+    }
+    const { raiderVisibility } = require("../../services/characters/profileVisibility");
+    const { ids, membersKnown } = await raiderVisibility(activeGuildFor(req));
+    if (user && user.id) ids.add(str(user.id));
+    return { visible: ids, membersKnown };
+}
+
+/** The set of `raiderReachFor`, for a list: it fails closed, an unreadable member list only shortens it. */
+async function visibleRaidersFor(user, req) {
+    return (await raiderReachFor(user, req)).visible;
+}
+
+/**
+ * Why an account is out of a reach: "" when it is in, MEMBERS_UNAVAILABLE when the member list could
+ * not be read, else OUTSIDE_SERVER. Either way the caller refuses (fail closed); only the answer differs.
+ */
+function outsideReach(reach, userId) {
+    const id = str(userId);
+    if (!reach.visible || reach.visible.has(id)) return "";
+    return id && !reach.membersKnown ? MEMBERS_UNAVAILABLE : OUTSIDE_SERVER;
+}
+
+/** The 503 for a refusal that only an unreadable member list caused. */
+const membersUnavailable = (res) => apiError(res, 503, MEMBERS_UNAVAILABLE, "Die Mitgliederliste von Discord ist gerade nicht erreichbar.");
 
 /**
  * The server a channel (or thread) of the bot belongs to, from the bot's cache: "" for a
@@ -99,4 +142,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

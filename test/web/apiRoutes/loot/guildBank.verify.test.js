@@ -33,6 +33,8 @@ const { lookupArmory } = require("../../../../src/web/characters/profileView");
 const stockStore = require("../../../../src/stores/loot/guildBankStockStore");
 const requests = require("../../../../src/stores/loot/guildBankStore");
 const profiles = require("../../../../src/stores/roster/raiderProfileStore");
+const eventStore = require("../../../../src/stores/events/eventStore");
+const signupStore = require("../../../../src/stores/events/signupStore");
 const { parseGuildBankScan, GB_FORMAT } = require("../../../../src/utils/guildbank/guildBankScan");
 const {
     searchGuildBankCharacters, checkGuildBankCharacterArmory, verifyGuildBankCharacter, linkGuildBankRequest, getGuildBankWaitlist, getGuildBankRequests,
@@ -216,10 +218,46 @@ describe("apiRoutes/guildBank — a holder of only the server-admin rank", () =>
         expect(charactersFound(await search())).toEqual(expect.arrayContaining(["Gentleowl", "Gentletwowl"]));
     });
 
-    it("treats nobody as a member when the member list cannot be read", async () => {
+    it("treats nobody as a member when the member list cannot be read, and says that is the reason", async () => {
         discord.listHumanMembers.mockResolvedValue({ members: [], error: "unavailable" });
         expect(charactersFound(await search())).toEqual([]);
-        expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u4", characterKey: "gentlehere" } }))).toBe(404);
+        const refused = await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u4", characterKey: "gentlehere" } });
+        expect([status(refused), body(refused).error.code]).toEqual([503, "members_unavailable"]);
+        expect(profiles.getProfile("u4").characters.find((c) => c.key === "gentlehere").verifiedAt).toBeUndefined();
+        const entry = gentleEntry();
+        requests.promoteWaiting(entry.id, 1);
+        const link = await call(linkGuildBankRequest, { payload: { key: KEY, id: entry.id, userId: "u4", characterKey: "gentlehere" } });
+        expect([status(link), body(link).error.code]).toEqual([503, "members_unavailable"]);
+        expect(requests.getRequest(entry.id).characterName).toBe("Gentle");
+    });
+
+    describe("a raider only signed up here, no member", () => {
+        beforeAll(() => {
+            eventStore.useFile(tempStoreFile("guild-bank-events.json"));
+            signupStore.useFile(tempStoreFile("guild-bank-signups.json"));
+        });
+        afterAll(() => {
+            eventStore.useFile(null);
+            signupStore.useFile(null);
+        });
+        beforeEach(() => {
+            const { event } = eventStore.createEvent({ guildId: "g1", channelId: "c1", title: "Kara", startTime: 2000000000, createdBy: "1" });
+            signupStore.saveSignup(event.id, "u5", { character: "Gentlesigned", spec: "Mage-Arcane", status: "signed" });
+            profiles.addCharacter("u5", { source: "log", name: "Gentlesigned", className: "Mage" }, { name: "Anmelder" });
+        });
+        const verify = () => call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u5", characterKey: "gentlesigned" } });
+
+        it("is out of reach of the rank alone: neither found nor confirmed", async () => {
+            expect(charactersFound(await search())).not.toContain("Gentlesigned");
+            const res = await verify();
+            expect([status(res), body(res).error.message]).toEqual([404, NOT_THERE]);
+        });
+
+        it("is in reach of an orga by role", async () => {
+            withoutRank.mockReturnValue(RAID_ROLES);
+            expect(charactersFound(await search())).toContain("Gentlesigned");
+            expect(status(await verify())).toBe(200);
+        });
     });
 
     it.each([
@@ -300,33 +338,50 @@ describe("apiRoutes/guildBank — a holder of only the server-admin rank", () =>
         expect(entries.find((e) => e.characterName === "Gentlehere").userId).toBe("u4");
     });
 
+    const worksOnTheProfileOfU3 = async () => {
+        expect(charactersFound(await search())).toEqual(expect.arrayContaining(["Gentleowl", "Gentlehere"]));
+        expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u3", characterKey: "gentle" } }))).toBe(200);
+        const entry = gentleEntry();
+        requests.promoteWaiting(entry.id, 1);
+        const res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuname", checked: true, addToProfile: true, className: "Druid" } });
+        expect(status(res)).toBe(200);
+        expect(namesOfProfile("u3")).toContain("Neuname");
+    };
+
+    const linksAddsAndImportsForU3 = async () => {
+        const preview = body(await call(previewGuildBankWaitlist, { payload: { key: KEY, text: "Gentleowl\tCrimson Spinal\t1" } }));
+        expect(preview.rows[0]).toMatchObject({ linked: true, match: expect.objectContaining({ userId: "u3" }) });
+        const res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u3", characterKey: "gentleowl", itemId: SPINAL, amount: 1 } });
+        expect(status(res)).toBe(200);
+        expect(requests.listRequests().find((e) => e.characterName === "Gentleowl").userId).toBe("u3");
+    };
+
+    // #1077: the orga by role is limited as well, to the raiders this server may see
     describe.each([
         ["somebody whose role writes raids", RANK, RAID_ROLES],
         ["an orga without the rank", { id: "o1", name: "Orga", isAdmin: false, access: { raids: { read: true, write: true } } }, null],
-        ["a full admin", { id: "1", name: "Admin", isAdmin: true }, null],
     ])("%s", (_who, user, roles) => {
         beforeEach(() => {
             mockUser = user;
             if (roles) withoutRank.mockReturnValue(roles);
+            discord.listHumanMembers.mockResolvedValue({ members: [{ id: "u3" }, { id: "u4" }], error: null });
         });
+
+        it("works on the profile of a raider of this server", worksOnTheProfileOfU3);
+        it("links, adds and imports for a raider of this server", linksAddsAndImportsForU3);
+
+        it("does not reach a raider of only another server", async () => {
+            discord.listHumanMembers.mockResolvedValue({ members: [{ id: "u4" }], error: null });
+            expect(charactersFound(await search())).toEqual(["Gentlehere"]);
+            expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u3", characterKey: "gentle" } }))).toBe(404);
+        });
+    });
+
+    describe("a full admin", () => {
+        beforeEach(() => { mockUser = { id: "1", name: "Admin", isAdmin: true }; });
         afterEach(() => expect(discord.listHumanMembers).not.toHaveBeenCalled());
 
-        it("works on every profile as on main", async () => {
-            expect(charactersFound(await search())).toEqual(expect.arrayContaining(["Gentleowl", "Gentlehere"]));
-            expect(status(await call(verifyGuildBankCharacter, { payload: { key: KEY, userId: "u3", characterKey: "gentle" } }))).toBe(200);
-            const entry = gentleEntry();
-            requests.promoteWaiting(entry.id, 1);
-            const res = await call(reassignGuildBankRequest, { payload: { key: KEY, id: entry.id, characterName: "Neuname", checked: true, addToProfile: true, className: "Druid" } });
-            expect(status(res)).toBe(200);
-            expect(namesOfProfile("u3")).toContain("Neuname");
-        });
-
-        it("links, adds and imports for every account as on main", async () => {
-            const preview = body(await call(previewGuildBankWaitlist, { payload: { key: KEY, text: "Gentleowl\tCrimson Spinal\t1" } }));
-            expect(preview.rows[0]).toMatchObject({ linked: true, match: expect.objectContaining({ userId: "u3" }) });
-            const res = await call(addGuildBankWaiting, { payload: { key: KEY, userId: "u3", characterKey: "gentleowl", itemId: SPINAL, amount: 1 } });
-            expect(status(res)).toBe(200);
-            expect(requests.listRequests().find((e) => e.characterName === "Gentleowl").userId).toBe("u3");
-        });
+        it("works on every profile as on main", worksOnTheProfileOfU3);
+        it("links, adds and imports for every account as on main", linksAddsAndImportsForU3);
     });
 });

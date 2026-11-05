@@ -39,7 +39,13 @@ jest.mock("../../../../src/web/characters/profileLogs", () => ({
     ...jest.requireActual("../../../../src/web/characters/profileLogs"),
     logIndex: jest.fn(() => new Map()),
 }));
+// the rule itself has its own suite (services/characters/profileVisibility.test.js)
+jest.mock("../../../../src/services/characters/profileVisibility", () => ({
+    ...jest.requireActual("../../../../src/services/characters/profileVisibility"),
+    signedUpIds: jest.fn(() => new Set()),
+}));
 
+const { signedUpIds } = require("../../../../src/services/characters/profileVisibility");
 const auth = require("../../../../src/web/http/auth");
 const discord = require("../../../../src/services/discord/discord");
 const { listStoredEvents } = require("../../../../src/services/events/eventSources");
@@ -92,6 +98,7 @@ afterAll(() => {
 let storeCount = 0;
 beforeEach(() => {
     jest.clearAllMocks();
+    signedUpIds.mockReturnValue(new Set());
     storeCount += 1;
     kaderStore.useFile(tempStoreFile(`kader-${storeCount}.json`));
     rosterStore.useFile(tempStoreFile(`rosters-${storeCount}.json`));
@@ -280,8 +287,9 @@ describe("web/apiRoutes/kader", () => {
 
         afterEach(() => auth.getUserWithoutRank.mockReturnValue(null));
 
-        it("leaves the rank plus a role with the right as before, reading and writing", async () => {
+        it("gives the rank plus a role with the right what the role reaches, reading and writing", async () => {
             onlyBea();
+            signedUpIds.mockReturnValue(new Set([U1]));
             auth.getUser.mockReturnValue(RANK);
             auth.getUserWithoutRank.mockReturnValue(granted("write"));
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
@@ -326,10 +334,48 @@ describe("web/apiRoutes/kader", () => {
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
         });
 
-        it("leaves a real role or a full admin as before", async () => {
+        it("leaves a full admin as before", async () => {
             onlyBea();
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+        });
+
+        it("counts a signup for a real role, not for the rank", async () => {
+            onlyBea();
+            signedUpIds.mockReturnValue(new Set([U1]));
             auth.getUser.mockReturnValue(granted("read"));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+            auth.getUser.mockReturnValue(RANK);
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+        });
+    });
+
+    describe("a real role sees the raiders of its own server (#1077)", () => {
+        const onlyBea = () => discord.listHumanMembers.mockResolvedValue({ members: [
+            { id: U2, displayName: "Bea", avatarUrl: null, roleIds: [] },
+        ], error: null });
+
+        it("reveals nothing of a raider neither on the server nor signed up there, also typed in by hand", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(granted("write"));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+            const { kaderId } = body(await post("/api/kader/kaders", { name: "Fremd", version: "forever" }));
+            const res = await post("/api/kader/players/add", { kaderId, players: [{ userId: U1 }] });
+            expect(JSON.stringify(body(res))).not.toContain("Aldric Sturmwind");
+        });
+
+        it("shows him once he signs up on this server", async () => {
+            onlyBea();
+            auth.getUser.mockReturnValue(granted("read"));
+            signedUpIds.mockReturnValue(new Set([U1]));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
+            expect(signedUpIds).toHaveBeenCalledWith("g1");
+        });
+
+        it("keeps to the signups when Discord cannot list the members", async () => {
+            discord.listHumanMembers.mockResolvedValue({ members: [], error: "offline" });
+            auth.getUser.mockReturnValue(granted("read"));
+            expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+            signedUpIds.mockReturnValue(new Set([U1]));
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
         });
     });

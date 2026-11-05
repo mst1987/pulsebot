@@ -769,8 +769,12 @@ async function manageInfo({ guildId, eventId, now = Date.now() }) {
  * `ownServerOnly` (#1072, a holder of only the server-admin rank): the profiles of
  * the server's members and of whoever is signed up, not of every account. Without
  * a provable member list only those signed up.
+ *
+ * `visibleIds` (#1077, the orga of a server): the profiles of only these accounts; the
+ * route gets the set from services/characters/profileVisibility.js. Without either
+ * option (a full admin) every profile is offered.
  */
-async function raiderCandidates({ guildId, eventId, ownServerOnly = false }) {
+async function raiderCandidates({ guildId, eventId, ownServerOnly = false, visibleIds = null }) {
     const found = ownEvent(guildId, eventId, { allowCancelled: true });
     if (found.error) return found;
     const { event } = found;
@@ -789,7 +793,7 @@ async function raiderCandidates({ guildId, eventId, ownServerOnly = false }) {
         return row;
     };
     const signups = signupStore.listSignups(event.id);
-    let shown = null;
+    let shown = visibleIds;
     if (ownServerOnly) {
         const members = await serverMemberIds(event.guildId || guildId);
         shown = new Set([...(members || []), ...signups.map((s) => str(s.userId))]);

@@ -146,7 +146,7 @@ function withoutCharList(roster, nameOf) {
  * not hidden: `[{ character, key, className, nights, lastSeen, claimedBy }]`,
  * most nights first. `claimedBy` = accounts whose profile has that character.
  */
-function logCharsList(roster, { ctx } = {}) {
+function logCharsList(roster, { ctx, visibleIds = null } = {}) {
     if (!roster.categoryId) return [];
     const context = ctx || buildAttendanceContext(roster.guildId, { versionId: roster.versionId });
     const played = new Set(Object.values(roster.members).flatMap((m) => m.chars.map(nameKeyOf)));
@@ -170,7 +170,12 @@ function logCharsList(roster, { ctx } = {}) {
         .filter((e) => !rosterHidden.isHidden(e.key))
         .sort((a, b) => b.nights - a.nights || b.lastSeen - a.lastSeen || a.key.localeCompare(b.key))
         .slice(0, MAX_LOG_CHARS)
-        .map((e) => ({ ...e, claimedBy: raiderProfileStore.claimsFor(e.key, "", roster.versionId) }));
+        .map((e) => ({ ...e, claimedBy: claimsWithin(raiderProfileStore.claimsFor(e.key, "", roster.versionId), visibleIds) }));
+}
+
+/** The accounts claiming a log name, without those the caller's server may not see (#1077; null = no limit). */
+function claimsWithin(claims, visibleIds) {
+    return visibleIds ? claims.filter((c) => visibleIds.has(String(c.userId))) : claims;
 }
 
 /**
@@ -178,7 +183,7 @@ function logCharsList(roster, { ctx } = {}) {
  * lists stay empty and `membersError` carries the code ("offline",
  * "members_unavailable").
  */
-async function rosterSyncView(roster, { config = {}, ctx } = {}) {
+async function rosterSyncView(roster, { config = {}, ctx, visibleIds = null } = {}) {
     const members = await membersOf(roster);
     const byId = new Map((members.list || []).map((m) => [String(m.id), m]));
     const nameOf = namer(byId);
@@ -191,7 +196,7 @@ async function rosterSyncView(roster, { config = {}, ctx } = {}) {
         membersError: members.error || null,
         ...lists,
         withoutChar: withoutCharList(roster, nameOf),
-        logCharsWithoutPerson: logCharsList(roster, { ctx }),
+        logCharsWithoutPerson: logCharsList(roster, { ctx, visibleIds }),
         mirrored: mirroredRoles(roster, config),
     };
 }
