@@ -280,7 +280,10 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     etwas zählt, das alle Server teilen, fragt die Marke über `serverIsTrusted` oder die Bausteine darauf
     (`sharedDataAccess`, `rolesCountForSharedData`, `mayWriteSharedData`), nie `roleAccess` direkt. Wer die Serverliste
     für den Rang öffnet, öffnet damit nicht die Marke: `trustedServers` bleibt in `FULL_ADMIN_KEYS`. Ein Recht, das der
-    Rang vergeben kann, zählt bei gemeinsamen Daten nicht. Einmal-Migrationen, die Rechte vergeben, tragen ihren Merker
+    Rang vergeben kann, zählt bei gemeinsamen Daten nicht. Umgekehrt vergibt der Rang Rechte nur, wenn der Server
+    sicher keine Marke trägt (`serverIsSurelyUnmarked`): `serverIsTrusted` meldet im Zweifel „nicht markiert“, das wäre
+    hier die offene Richtung. Grenzen für den Rang an den Server binden (`onlyByRank`, `settingsBound`), nicht an
+    `isServerAdmin`, sonst umgeht ein vergebenes Recht sie. Einmal-Migrationen, die Rechte vergeben, tragen ihren Merker
     im selben atomaren Schreibvorgang wie die Änderung. Teil-Mocks von `guildRoles`, `userAccess` und `auth` ohne die
     neuen Exporte brechen die Tests der Aufrufer.
 

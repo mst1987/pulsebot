@@ -188,6 +188,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => {
     return {
         requireAdmin: jest.fn(actual.requireAdmin),
         requireFullAdmin: jest.fn(actual.requireFullAdmin),
+        // GET /api/settings/reminders also lets the server-admin rank in (#1073 part B)
+        requireServerAdmin: jest.fn(actual.requireServerAdmin),
         requireCsrf: jest.fn(actual.requireCsrf),
     };
 });
@@ -210,7 +212,7 @@ const discord = require("../../../../src/services/discord/discord");
 const wowhead = require("../../../../src/utils/loot/wowhead");
 const { AREA_IDS, emptyAccess } = require("../../../../src/config/permissions");
 const { post, patch, get, handle } = routerClient(require("../../../../src/web/apiRoutes/system/settings"));
-const { requireAdmin, requireFullAdmin } = require("../../../../src/web/http/apiMiddleware");
+const { requireAdmin, requireFullAdmin, requireServerAdmin } = require("../../../../src/web/http/apiMiddleware");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const {
     getSettings, updateSettings, getDiscordServers, getRoleSync, getReminders, FULL_ADMIN_KEYS, publicConfig,
@@ -231,6 +233,12 @@ function noActiveServer() {
     activeGuildFor.mockReturnValue("");
     discord.getClient.mockReturnValue(null);
 }
+// #1073 part B: a settings user's roles count for what every server shares (a server with the mark),
+// so the limits of a bound writer (settingsBound) do not apply - the way before part B
+function rolesCount() {
+    auth.getUserWithoutRank.mockImplementation((req) => auth.getUser(req));
+}
+afterEach(() => auth.getUserWithoutRank.mockReset().mockReturnValue(null));
 
 describe("web/apiRoutes/settings", () => {
     describe("through the router", () => {
@@ -470,6 +478,7 @@ describe("web/apiRoutes/settings", () => {
                     adminRoleIds: ["r1"], rolePermissions: { role1: { raids: { read: true, write: false } } },
                     baseAccess: { loot: { read: true, write: false } }, guildId: "g1",
                 });
+                rolesCount();
 
                 const res = mockRes();
                 await handle("/api/settings", { method: "GET" }, res);
@@ -492,6 +501,7 @@ describe("web/apiRoutes/settings", () => {
                     warcraftlogsV2: { clientId: "wcl-id", clientSecret: "wcl-secret" },
                     blizzard: { clientId: "bz-id", clientSecret: "bz-secret", region: "eu" },
                 });
+                rolesCount();
 
                 const res = mockRes();
                 await handle("/api/settings", { method: "GET" }, res);
@@ -499,6 +509,13 @@ describe("web/apiRoutes/settings", () => {
                 const data = json(res).data;
                 expect(data.config).toEqual({ guildId: "g1", blizzard: { clientId: "bz-id", region: "eu", hasClientSecret: true }, ...NO_SERVER_VALUES });
                 expect(JSON.stringify(json(res))).not.toContain("secret");
+                // #1073 part B: on a server without the mark the same user is bound - not even the Blizzard client id
+                auth.getUserWithoutRank.mockReturnValue(null);
+                const bound = mockRes();
+                await handle("/api/settings", { method: "GET" }, bound);
+                expect(json(bound).data.config).not.toHaveProperty("blizzard.clientId");
+                expect(json(bound).data.config).not.toHaveProperty("guildId");
+                expect(JSON.stringify(json(bound))).not.toContain("secret");
             });
 
             // The Battle.net secret follows the same contract as the other two: the
@@ -615,8 +632,10 @@ describe("web/apiRoutes/settings", () => {
                 auth.checkCsrf.mockReturnValue(true);
                 await patch("/api/settings", { mainVersion: " forever ", categoryVersion: { cat1: "tbc" } });
                 expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ mainVersion: "forever", categoryVersion: { cat1: "tbc" } });
-                await patch("/api/settings", { categoryVersion: null });
-                expect(settingsStore.saveConfig).toHaveBeenLastCalledWith({ categoryVersion: {} });
+                // #1073 part B: no map is no map, for a full admin too - nothing is emptied
+                const res = await patch("/api/settings", { categoryVersion: null });
+                expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([400, "invalid_category_map"]);
+                expect(settingsStore.saveConfig).toHaveBeenCalledTimes(1);
             });
 
             describe("the log channels of the active server (#921)", () => {
@@ -1068,6 +1087,8 @@ describe("web/apiRoutes/settings", () => {
                 settingsStore.saveConfig.mockReturnValueOnce({
                     guildId: "g1", twitch: { clientId: "x" }, serverSettings: { g2: { twitchStreamers: [{ login: "foo", channelId: "111111" }] } },
                 });
+                // "title" is no key a bound writer may send (#1073 part B) - here the roles count
+                rolesCount();
                 const res = await patch("/api/settings", { title: "x" });
                 expect(json(res).data.config.twitch).toBeUndefined();
             });
@@ -1242,11 +1263,12 @@ describe("web/apiRoutes/settings", () => {
                 expect(publicConfig({ topItemsLegacy: [] })).toEqual({});
             });
 
-            it("ignores a malformed categoryLootTool instead of storing it", async () => {
+            it("refuses a malformed categoryLootTool instead of storing it (#1073 part B)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-                await patch("/api/settings", { categoryLootTool: "nope" });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categoryLootTool: {} });
+                const res = await patch("/api/settings", { categoryLootTool: "nope" });
+                expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([400, "invalid_category_map"]);
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
             // A category sheet is rendered as an <a href> and posted to Discord, so
@@ -1274,11 +1296,12 @@ describe("web/apiRoutes/settings", () => {
                 });
             });
 
-            it("ignores a malformed categorySheets instead of storing it", async () => {
+            it("refuses a malformed categorySheets instead of storing it (#1073 part B)", async () => {
                 auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
                 auth.checkCsrf.mockReturnValue(true);
-                await patch("/api/settings", { categorySheets: "nope" });
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySheets: {} });
+                const res = await patch("/api/settings", { categorySheets: "nope" });
+                expect([res.writeHead.mock.calls[0][0], json(res).error.code]).toEqual([400, "invalid_category_map"]);
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
             it("omits blizzard entirely when not present in the body, keeping the stored secret", async () => {
@@ -2221,6 +2244,9 @@ describe("web/apiRoutes/settings", () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 requireFullAdmin.mockReturnValue(null);
                 categoriesOnActiveServer("c1");
+                // the channel is no channel of the active server's list here; a bound writer (#1073 part B) may only
+                // name one of those, so the roles count like on a server with the mark
+                auth.getUserWithoutRank.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 readJsonBody.mockResolvedValue({ categorySignupNoteChannel: { c1: "123456789012345678" } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(settingsStore.saveConfig).toHaveBeenCalledWith({ categorySignupNoteChannel: { c1: "123456789012345678" } });
@@ -2236,6 +2262,15 @@ describe("web/apiRoutes/settings", () => {
                 discord.listGuilds.mockReturnValue([{ id: "20000", name: "Pulse Events" }, { id: "30000", name: "Pulse Talk" }, { id: "40000", name: "Andere" }]);
                 discord.listTextChannels.mockImplementation((id) => [{ id: `${id}1`, name: "abmeldungen", category: id === "20000" ? "Raids" : "" }]);
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
+                // #1073 part B: a bound reader sees the active server's channels only
+                const bound = mockRes();
+                await getSettings({}, bound);
+                expect(body(bound).noteChannels).toEqual({
+                    defaultId: "200001",
+                    channels: [{ id: "200001", name: "abmeldungen", category: "Raids" }],
+                });
+                // the roles count (a server with the mark): both servers, named with their server
+                auth.getUserWithoutRank.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true } } });
                 const res = mockRes();
                 await getSettings({}, res);
                 expect(body(res).noteChannels).toEqual({
@@ -2385,6 +2420,13 @@ describe("web/apiRoutes/settings", () => {
                 requireAdmin.mockReturnValue({ id: "7", isAdmin: false });
                 requireFullAdmin.mockReturnValue(null);
                 readJsonBody.mockResolvedValue({ botCommandAccess: { fillsetup: { mode: "everyone" } } });
+                // #1073 part B: a bound writer gets the refusal of the whitelist
+                const bound = mockRes();
+                await updateSettings({ headers: {} }, bound);
+                expect(bound.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                // where the roles count, the full-admin check refuses
+                auth.getUserWithoutRank.mockReturnValue({ id: "7", isAdmin: false, access: { settings: { read: true, write: true } } });
                 await updateSettings({ headers: {} }, mockRes());
                 expect(requireFullAdmin).toHaveBeenCalled();
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -2523,6 +2565,12 @@ describe("web/apiRoutes/settings", () => {
                 requireAdmin.mockReturnValue(LIMITED);
                 requireFullAdmin.mockReturnValue(null);
                 readJsonBody.mockResolvedValue({ serverSettings: { g1: { rolePermissions: { "r-me": { settings: { write: true } } } } } });
+                // #1073 part B: a bound writer gets the refusal of the whitelist
+                const bound = mockRes();
+                await updateSettings({ headers: {} }, bound);
+                expect(bound.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                // where the roles count, the full-admin check refuses
+                auth.getUserWithoutRank.mockReturnValue(LIMITED);
                 await updateSettings({ headers: {} }, mockRes());
                 expect(requireFullAdmin).toHaveBeenCalled();
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
@@ -3068,8 +3116,8 @@ describe("web/apiRoutes/settings", () => {
                 noActiveServer();
             });
 
-            it("serves the reminder view to full admins only (#957)", async () => {
-                requireFullAdmin.mockReturnValue(null);
+            it("serves the reminder view to full admins and the rank only (#957, #1073 part B)", async () => {
+                requireServerAdmin.mockReturnValueOnce(null);
                 const res = mockRes();
                 await getReminders({}, res);
                 expect(res.end).not.toHaveBeenCalled();
@@ -3077,9 +3125,17 @@ describe("web/apiRoutes/settings", () => {
             });
 
             it("passes a full admin's mapping on and reads a non-list as empty", async () => {
-                readJsonBody.mockResolvedValue({ roleSync: "kaputt", categoryReminders: null });
+                readJsonBody.mockResolvedValue({ roleSync: "kaputt" });
                 await updateSettings({ headers: {} }, mockRes());
-                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ roleSync: [], categoryReminders: {} });
+                expect(settingsStore.saveConfig).toHaveBeenCalledWith({ roleSync: [] });
+            });
+
+            it("refuses a reminder map that is no map, even from a full admin (#1073 part B)", async () => {
+                readJsonBody.mockResolvedValue({ categoryReminders: null });
+                const res = mockRes();
+                await updateSettings({ headers: {} }, res);
+                expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
             it("serves the role sync view to full admins only", async () => {

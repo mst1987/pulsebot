@@ -8,12 +8,13 @@ const {
     adminRoleIds: envAdminRoleIds, devAutoLogin,
 } = require("../../config/variables");
 const { getConfig } = require("../../stores/settings/settingsStore");
-const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissions");
+const { fullAccess } = require("../../config/permissions");
 // What an account may do (its roles on the configured servers, the base access) is
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const {
     computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank, sharedDataAccess,
+    allServersAccess,
 } = require("../../services/discord/members/userAccess");
 const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
@@ -158,18 +159,6 @@ function guildViewerOf(req) {
 }
 
 /**
- * The union of a session's rights over every server — what the pages under
- * "Alle Server" (Mein Profil, Addons) and the question "may this account open
- * the menu at all" go by. Never used for a route of one server.
- */
-function allServersAccessOf(guildAccess) {
-    if (guildAccess.isAdmin) return fullAccess();
-    let all = emptyAccess();
-    for (const entry of Object.values(guildAccess.guilds || {})) all = mergeAccess(all, entry.access);
-    return all;
-}
-
-/**
  * The rights of a session that count right now. On a route over data of every server (`rankFree`,
  * the route mark `sharedData`) the rank goes and roles count on a trusted server only (#1073).
  * Otherwise the rank goes after too long without a re-check and on a server no longer entered; the
@@ -207,7 +196,9 @@ function userView(s, guildId, { rankFree = false } = {}) {
         access,
         ...(isOrga ? { isOrga: true } : {}),
         ...(isServerAdmin ? { isServerAdmin: true } : {}),
-        allAccess: isAdmin ? fullAccess() : mergeAccess(allServersAccessOf(ga), access),
+        // The union over every server (pages under "Alle Server", the menu question; never a route of
+        // one server): an unmarked server's base access counts for its members only (#1073 part B).
+        allAccess: isAdmin ? fullAccess() : allServersAccess(ga, s.id, { guildId, access }),
         guildId: guildId || "",
     };
 }

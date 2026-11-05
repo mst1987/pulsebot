@@ -247,6 +247,41 @@ function sharedDataAccess(guildAccess, userId, config) {
     return { ...roles, guilds, trustedOnly: true };
 }
 
+/** What the account grants of a server give this account itself, never its base access; nothing when unreadable. */
+function ownGrantOf(userId, guildId, config) {
+    const gid = gidOf(guildId);
+    if (!gid) return emptyAccess();
+    try {
+        return accessForUser(accessSettings(gid, config === undefined ? getConfig() : config).userPermissions, userId);
+    } catch {
+        return emptyAccess();
+    }
+}
+
+/**
+ * The union of a session's rights over every server (`allAccess`: the pages under "Alle Server",
+ * the question "may this account open the menu at all"). A server's rights count there in full
+ * for a member of it and on a trusted server (#1073 part B): the base access of an unmarked
+ * server is set by its own server admin, so for anybody else only their own account grant of it
+ * counts - an unknown membership counts as none (fail closed). `guildId`/`access` add the active
+ * server's rights under the same rule. A full admin gets everything.
+ * @param {object} guildAccess  a computeGuildAccess() result
+ * @param {string} userId
+ * @param {{ guildId?: string, access?: object|null, config?: object }} [opts]
+ */
+function allServersAccess(guildAccess, userId, { guildId = "", access = null, config } = {}) {
+    if (guildAccess && guildAccess.isAdmin) return fullAccess();
+    const guilds = (guildAccess && guildAccess.guilds) || {};
+    const countsInFull = (gid) => !!(guilds[gid] && guilds[gid].isMember) || guildRoles.serverIsTrusted(gid, config);
+    let all = emptyAccess();
+    for (const [gid, entry] of Object.entries(guilds)) {
+        all = mergeAccess(all, countsInFull(gid) ? entry.access : ownGrantOf(userId, gid, config));
+    }
+    const active = gidOf(guildId);
+    if (active && access) all = mergeAccess(all, countsInFull(active) ? access : ownGrantOf(userId, active, config));
+    return all;
+}
+
 /** computeGuildAccess(), falling back to the base access of every server when the lookup fails. */
 async function resolveGuildAccess(userId) {
     try {
@@ -302,5 +337,5 @@ async function userMayAny(userId, areas, level = "read", { guildId } = {}) {
 module.exports = {
     BASE_ACCESS, NO_ACCESS, ALL_ACCESS, UNKNOWN_MEMBER, UNKNOWN_USER,
     computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank, sharedDataAccess,
-    computeAccess, resolveAccess, memberRoleIds, userMayAny,
+    allServersAccess, computeAccess, resolveAccess, memberRoleIds, userMayAny,
 };

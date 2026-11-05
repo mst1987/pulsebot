@@ -251,7 +251,8 @@ export type RemindersData = {
     categoryReminders: Record<string, ReminderRule>;
     /** `active: false`: a deactivated category (#744) — its rule stays but reminds nobody. */
     categories: { id: string; name: string; roleCount: number; active?: boolean }[];
-    lastRun: { at: number; sent: number; failed: number; skipped: number; error: string | null } | null;
+    /** The server-admin rank gets `at` alone: the counts and the error span every server (#1073 part B). */
+    lastRun: { at: number; sent?: number; failed?: number; skipped?: number; error?: string | null } | null;
 };
 
 export function getRoleSync(): Promise<RoleSyncData> {
@@ -338,6 +339,8 @@ export type SettingsData = {
     // False for a non-admin who only holds write access to "Einstellungen":
     // the "Zugang"/"Berechtigungen" tabs stay hidden and the server rejects them.
     canManageAccess: boolean;
+    // A full admin or the server-admin rank: the rights of the active server, nothing beyond it.
+    canManageServerAccess?: boolean;
     areas: Area[];
     // Display names for the accounts holding a per-user grant, so the
     // permissions tab shows people instead of 18-digit ids. Best-effort: an id

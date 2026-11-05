@@ -371,6 +371,7 @@
     "GET /api/settings/pug-invites",
     "POST /api/settings/pug-invites",
     "POST /api/settings/pug-invites/channel",
+    "GET /api/settings/reminders",
     "GET /api/settings/talk-overview",
     "POST /api/settings/talk-overview",
     "POST /api/vermerke/delete"

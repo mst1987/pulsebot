@@ -213,12 +213,21 @@ describe("no rights slide onto a foreign server (#1074)", () => {
     });
 });
 
+/** CONFIG with OWN marked as trusted: its base access counts for everybody under "Alle Server". */
+const withOwnTrusted = () => ({
+    ...CONFIG,
+    discordServers: { ...CONFIG.discordServers, servers: CONFIG.discordServers.servers.map((s) => (s.guildId === OWN ? { ...s, trusted: true } : s)) },
+});
+
 describe("the ways that need no server stay open (#1074)", () => {
     describe.each([["a member", MEMBER], ["someone without a server", STRANGER]])("for %s", (_name, id) => {
         it.each([
             ["/api/profile", undefined],
             ["/api/addons", undefined],
         ])("%s (under \"Alle Server\")", async (path, query) => {
+            // #1073 part B: a server without the mark lends its base access to its members only -
+            // the base access of a marked server still opens these pages for someone without a server
+            if (id === STRANGER) configStore.writeStored(withOwnTrusted());
             const sid = await login(id);
             expect(status(await call(sid, "GET", path, { query }))).toBe(200);
         });
@@ -230,6 +239,11 @@ describe("the ways that need no server stay open (#1074)", () => {
             const sid = await login(id);
             expect([401, 403]).not.toContain(status(await call(sid, "GET", path, { query })));
         });
+    });
+
+    it.each([["/api/profile"], ["/api/addons"]])("keeps %s shut for someone without a server on base access of unmarked servers only (#1073 part B)", async (path) => {
+        const sid = await login(STRANGER);
+        expect(status(await call(sid, "GET", path))).toBe(403);
     });
 
     describe("direct links through the real web server", () => {

@@ -148,6 +148,62 @@ describe("services/discord/members/userAccess", () => {
         });
     });
 
+    // #1073 part B: the union over every server (allAccess). An unmarked server's base access is set
+    // by its own server admin, so it reaches its members only; the own grant counts for anybody.
+    describe("allServersAccess", () => {
+        const BASE = { loot: { read: true, write: false } };
+        const GRANT = { history: { read: true, write: false } };
+        const NONE = { read: false, write: false };
+        const { emptyAccess } = require("../../../../src/config/permissions");
+        const known = (guilds) => ({ isAdmin: false, guilds });
+        const asBase = (over = {}) => ({ access: { ...emptyAccess(), ...BASE }, ...over });
+        beforeEach(() => {
+            getConfig.mockReturnValue(onGuild1({ baseAccess: BASE, userPermissions: { u1: GRANT } }));
+            guildRoles.serverIsTrusted.mockReturnValue(false);
+        });
+
+        it("counts an unmarked server in full for a member", () => {
+            expect(userAccess.allServersAccess(known({ "guild-1": asBase({ isMember: true }) }), "u1").loot.read).toBe(true);
+        });
+
+        it("counts only the own grant of an unmarked server for anybody else, an unknown membership too", () => {
+            for (const entry of [asBase(), asBase({ membershipUnknown: true })]) {
+                const all = userAccess.allServersAccess(known({ "guild-1": entry }), "u1");
+                expect(all.loot).toEqual(NONE);
+                expect(all.history.read).toBe(true);
+            }
+        });
+
+        it("counts a marked server as it was", () => {
+            guildRoles.serverIsTrusted.mockReturnValue(true);
+            expect(userAccess.allServersAccess(known({ "guild-1": asBase() }), "u1").loot.read).toBe(true);
+        });
+
+        it("adds the active server under the same rule", () => {
+            const active = { ...emptyAccess(), ...BASE };
+            expect(userAccess.allServersAccess(known({}), "u1", { guildId: "guild-1", access: active }).loot).toEqual(NONE);
+            guildRoles.serverIsTrusted.mockReturnValue(true);
+            expect(userAccess.allServersAccess(known({}), "u1", { guildId: "guild-1", access: active }).loot.read).toBe(true);
+        });
+
+        it("gives a full admin everything and fails closed on unreadable grants", () => {
+            expect(userAccess.allServersAccess({ isAdmin: true, guilds: {} }, "u1").settings.write).toBe(true);
+            getConfig.mockImplementation(() => { throw new Error("broken"); });
+            expect(userAccess.allServersAccess(known({ "guild-1": asBase() }), "u1", { config: undefined }).history).toEqual(NONE);
+        });
+
+        it("gives nothing without a lookup and for an entry without a server id", () => {
+            expect(userAccess.allServersAccess(null, "u1").loot).toEqual(NONE);
+            expect(userAccess.allServersAccess(known({ "": asBase() }), "u1").history).toEqual(NONE);
+        });
+
+        it("reads the grants from a config handed in", () => {
+            getConfig.mockImplementation(() => { throw new Error("not to be read"); });
+            const config = onGuild1({ baseAccess: BASE, userPermissions: { u1: GRANT } });
+            expect(userAccess.allServersAccess(known({ "guild-1": asBase() }), "u1", { config }).history.read).toBe(true);
+        });
+    });
+
     // #1074: "not a member" and "nobody knows" must stay two answers, the second is asked again.
     describe("a membership that could not be asked", () => {
         const flagOf = async () => (await userAccess.computeGuildAccess("u1")).guilds["guild-1"];
