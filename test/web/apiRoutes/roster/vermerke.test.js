@@ -196,6 +196,8 @@ describe("web/apiRoutes/vermerke", () => {
             ]) {
                 expect([status(res), body(res).error.code]).toEqual([409, "server_switched"]);
             }
+            const removal = await post("/api/vermerke/delete", { userId: U, id: entry.id, ...stale });
+            expect([status(removal), body(removal).error.code]).toEqual([409, "server_switched"]);
             expect(body(await get("/api/vermerke/person", { userId: U })).entries).toEqual([expect.objectContaining({ level: "warning" })]);
         });
     });

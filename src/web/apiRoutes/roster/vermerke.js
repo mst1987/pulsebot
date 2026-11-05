@@ -211,9 +211,9 @@ const postHide = withUser(WRITE, async ({ user, body, req, res }) => {
     }
 });
 
-/** POST /api/vermerke/delete { userId, id } - removes an entry of the active server for good (full admins, the server-admin rank). */
+/** POST /api/vermerke/delete { userId, id, serverSettingsGuildId } - removes an entry of the active server for good (full admins, the server-admin rank). */
 const postDelete = withUser({ serverAdmin: true, csrf: true, body: true }, async ({ body, req, res }) => {
-    const guildId = guildOf(req, res);
+    const guildId = writeGuildOf(req, res, body);
     if (!guildId) return undefined;
     try {
         notes.removeEntry(guildId, q.str(body, "userId"), q.str(body, "id"));
