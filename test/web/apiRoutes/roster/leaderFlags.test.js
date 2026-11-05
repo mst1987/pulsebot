@@ -310,16 +310,17 @@ describe("PUT /api/leads (Orga für andere)", () => {
             expect(leaderFlagsStore.allLeads()).toEqual({});
         });
 
-        // Ein eigenes Recht vergibt nur ein Voll-Admin: das ist keine selbst gegebene Rolle.
-        it("lässt ein eigenes Recht auf raids durch, ohne eigenes Recht nicht", async () => {
+        // Auch ein eigenes Recht zählt dort nicht: niemand sieht, wer es gab.
+        it("gibt auch mit eigenem Recht auf raids 403", async () => {
             mockUser = MANAGER;
             mockRoleUser = { id: MANAGER.id, isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true } } };
             try {
-                expect(status(await put("/api/leads", { rosterId: "r1", userId: "m2", instances: ["kara"] }))).toBe(200);
-                expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
+                const r = await put("/api/leads", { rosterId: "r1", userId: "m2", instances: ["kara"] });
+                expect(status(r)).toBe(403);
+                expect(code(r)).toBe("forbidden");
+                expect(userCanLead("m2", "tbc", ["kara"])).toBe(false);
             } finally {
                 mockRoleUser = null;
-                leaderFlagsStore.setLeads("m2", "tbc", []);
             }
         });
 

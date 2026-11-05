@@ -69,15 +69,51 @@ describe("services/discord/members/userAccess", () => {
             expect(out.guilds["guild-1"].isOrga).toBe(true);
         });
 
-        it("leaves only what a full admin gave on a server without the mark", () => {
+        it("leaves nothing of a server without the mark, not its base access nor an own grant", () => {
             getConfig.mockReturnValue(onGuild1({ baseAccess: { loot: { read: true } }, userPermissions: { u1: { history: { read: true } } } }));
             guildRoles.serverIsTrusted.mockReturnValue(false);
             const { access, isOrga, isMember } = userAccess.sharedDataAccess(known({ "guild-1": entry() }), "u1").guilds["guild-1"];
             expect(isOrga).toBeUndefined();
             expect(isMember).toBe(true);
             expect(access.raids).toEqual({ read: false, write: false });
-            expect(access.loot.read).toBe(true);
-            expect(access.history.read).toBe(true);
+            expect(access.loot).toEqual({ read: false, write: false });
+            expect(access.history).toEqual({ read: false, write: false });
+        });
+
+        describe("a server the access holds no entry for", () => {
+            const SELF_GIVEN = { baseAccess: { loot: { read: true } }, userPermissions: { u1: { history: { read: true } } } };
+            const shared = () => userAccess.sharedDataAccess(known({}), "u1");
+
+            it("answers nothing without the mark, whatever the server gave", () => {
+                getConfig.mockReturnValue(onGuild1(SELF_GIVEN));
+                guildRoles.serverIsTrusted.mockReturnValue(false);
+                const out = userAccess.accessForGuild(shared(), "u1", "guild-1");
+                expect(out.access.loot).toEqual({ read: false, write: false });
+                expect(out.access.history).toEqual({ read: false, write: false });
+            });
+
+            it("answers the base access and the grant with the mark", () => {
+                getConfig.mockReturnValue(onGuild1(SELF_GIVEN));
+                guildRoles.serverIsTrusted.mockReturnValue(true);
+                const out = userAccess.accessForGuild(shared(), "u1", "guild-1");
+                expect(out.access.loot.read).toBe(true);
+                expect(out.access.history.read).toBe(true);
+            });
+
+            it("stays as it was outside the view for shared data", () => {
+                getConfig.mockReturnValue(onGuild1(SELF_GIVEN));
+                guildRoles.serverIsTrusted.mockReturnValue(false);
+                const out = userAccess.accessForGuild(known({}), "u1", "guild-1");
+                expect(out.access.loot.read).toBe(true);
+                expect(out.access.history.read).toBe(true);
+            });
+
+            it("hands the given config on to the question", () => {
+                const config = { marker: true };
+                guildRoles.serverIsTrusted.mockReturnValue(false);
+                userAccess.accessForGuild(shared(), "u1", "guild-1", config);
+                expect(guildRoles.serverIsTrusted).toHaveBeenLastCalledWith("guild-1", config);
+            });
         });
 
         it("keeps the unknown membership and adds no membership of its own", () => {
@@ -100,11 +136,11 @@ describe("services/discord/members/userAccess", () => {
             expect(guildRoles.serverIsTrusted).toHaveBeenLastCalledWith("guild-1", config);
         });
 
-        it("leaves a full admin and a missing access as they are", () => {
+        it("leaves a full admin as it is and closes a missing access", () => {
             guildRoles.serverIsTrusted.mockReturnValue(false);
             const admin = { isAdmin: true, guilds: {} };
             expect(userAccess.sharedDataAccess(admin, "u1")).toBe(admin);
-            expect(userAccess.sharedDataAccess(null, "u1")).toBeNull();
+            expect(userAccess.sharedDataAccess(null, "u1")).toEqual({ isAdmin: false, guilds: {}, trustedOnly: true });
         });
 
         it("answers with no servers when the access names none", () => {
