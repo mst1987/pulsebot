@@ -208,6 +208,38 @@ describe("web/http/apiRouter: routes marked sharedData (#1072)", () => {
             expect(status(await send(session, "POST", HIDE, { body: HIDE_BODY }))).toBe(200);
         });
 
+        // Set by the server's own admin soon (#1073 part B): nothing says who gave them, so they count alike.
+        describe.each([
+            ["the base access", { baseAccess: { raidplan: { read: true, write: true } } }],
+            ["a grant for the account", { userPermissions: { 921: { raidplan: { read: true, write: true } } } }],
+            ["a role", { rolePermissions: { "role-plan": { raidplan: { read: true, write: true } } } }],
+        ])("%s", (_name, rights) => {
+            const DELETE_MAP = { body: { key: "bt/supremus", libraryGuildId: "guild-1" } };
+            const withRights = (servers) => ({
+                ...CONFIG,
+                discordServers: servers,
+                serverSettings: { "guild-1": { orgaRoleIds: [], rolePermissions: {}, ...rights } },
+            });
+
+            it("opens no shared data on a server without the mark", async () => {
+                getConfig.mockReturnValue(withRights({ servers: [{ guildId: "guild-1", label: "" }], links: [] }));
+                const res = await send(await login("921", ["role-plan"], false), "POST", "/api/raidplan/map/delete", DELETE_MAP);
+                expect(status(res)).toBe(403);
+            });
+
+            it("stays closed when the mark cannot be read", async () => {
+                const session = await login("921", ["role-plan"], false);
+                getConfig.mockReturnValue(withRights({}));
+                expect(status(await send(session, "POST", "/api/raidplan/map/delete", DELETE_MAP))).toBe(403);
+            });
+
+            it("opens it on a marked server", async () => {
+                getConfig.mockReturnValue(withRights({ servers: [{ guildId: "guild-1", label: "", trusted: true }], links: [] }));
+                const res = await send(await login("921", ["role-plan"], false), "POST", "/api/raidplan/map/delete", DELETE_MAP);
+                expect(status(res)).toBe(200);
+            });
+        });
+
         it("counts no role when the list is gone", async () => {
             const session = await login("920", ["role-orga"], false);
             getConfig.mockReturnValue({ ...CONFIG, discordServers: {} });

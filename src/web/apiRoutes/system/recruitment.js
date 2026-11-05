@@ -1,7 +1,8 @@
 const { ok, error } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
+const { userCan } = require("../../../config/permissions");
 const {
     listRecruitment, getRecruitment, saveRecruitment, deleteRecruitment,
     listRecruitmentPosts, getRecruitmentPost, saveRecruitmentPost, deleteRecruitmentPost,
@@ -61,12 +62,20 @@ const defaultLinkLabel = (guildId) => tr(serverLang(getConfig(), guildId), "Join
  * GET /api/recruitment?view=posts|templates|applications&edit=<id>&editpost=<id>
  * Applications are only fetched (a Discord API call) when the applications tab
  * is actually open, mirroring the SSR page's loadRecruitmentOpts().
+ *
+ * Posts, channels and applications are the active server's own, so the route carries no `sharedData`
+ * mark. The templates are global (until per server, #1097): the answer holds them only where the marked
+ * write routes of the templates would count the caller too (`templatesAvailable`).
  */
 const getRecruitmentData = withUser({}, async ({ user, req, res, url }) => {
     const guildId = activeGuildFor(req);
     const editId = (url.searchParams.get("edit") || "").trim();
     const editPostId = (url.searchParams.get("editpost") || "").trim();
     const view = url.searchParams.get("view") || "";
+    const templatesAvailable = !onlyByRank(user, req, (roles) => userCan(roles, "recruitment", "read"));
+    // a post of another server does not exist here (#925), its id opens nothing
+    const editingPost = ownPost(editPostId, user, req);
+    if (editPostId && !editingPost) return error(res, 404, "not_found", "Nachricht nicht gefunden.");
     // The application channel of the active server (#924): "" lists nothing.
     const applicationChannelId = serverDefaults.applicationChannelId(guildId);
     // One game version (#741): `?version=` narrows the three lists to it (nothing asked = every shown version);
@@ -88,10 +97,12 @@ const getRecruitmentData = withUser({}, async ({ user, req, res, url }) => {
         view,
         guildName: guild ? guild.name : "",
         // Other versions hidden (#563): their templates, posts and applications stay out.
-        templates: ofPage(visibleRows(listRecruitment(), (r) => r.versionId), editId),
-        editing: editId ? getRecruitment(editId) : null,
-        editingPost: editPostId ? getRecruitmentPost(editPostId) : null,
-        posts: ofPage(visibleRows(guildId ? listRecruitmentPosts().filter((p) => p.guildId === guildId) : listRecruitmentPosts(), (p) => p.versionId), editPostId),
+        templatesAvailable,
+        templates: templatesAvailable ? ofPage(visibleRows(listRecruitment(), (r) => r.versionId), editId) : [],
+        editing: templatesAvailable && editId ? getRecruitment(editId) : null,
+        editingPost,
+        // only a full admin without an active server sees every server's posts
+        posts: ofPage(visibleRows(listRecruitmentPosts().filter((p) => (guildId ? p.guildId === guildId : user.isAdmin)), (p) => p.versionId), editPostId),
         channels: discord.listTextChannels(guildId),
         // Where a post may go: the text channels plus the forums (kind "forum": a post with a title).
         targets: discord.listRecruitmentTargets(guildId),
@@ -249,7 +260,7 @@ const scanRecruitmentPosts = withUser({ csrf: true }, async ({ req, res }) => {
 
 /** The routes of this module: the router dispatches on them, apiAccess.js gates on their area (docs/web-admin.md). */
 const routes = [
-    { method: "GET", path: "/api/recruitment", handler: getRecruitmentData, area: "recruitment", sharedData: true },
+    { method: "GET", path: "/api/recruitment", handler: getRecruitmentData, area: "recruitment" },
     { method: "POST", path: "/api/recruitment", handler: saveRecruitmentTemplate, area: "recruitment", sharedData: true },
     { method: "POST", path: "/api/recruitment/delete", handler: deleteRecruitmentTemplate, area: "recruitment", sharedData: true },
     { method: "POST", path: "/api/recruitment/post", handler: postRecruitmentTemplate, area: "recruitment", sharedData: true },

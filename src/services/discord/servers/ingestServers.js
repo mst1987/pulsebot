@@ -49,7 +49,7 @@ async function orgaServersOf(userId, { config, guildAccess, cache, memberRoleIds
             out.push({ guildId: gid, role: "admin" });
             continue;
         }
-        const rights = accessForGuild(access, uid, gid);
+        const rights = accessForGuild(access, uid, gid, cfg);
         if (rights.isOrga) {
             out.push({ guildId: gid, role: "orga" });
             continue;

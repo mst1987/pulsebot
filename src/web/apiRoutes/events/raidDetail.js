@@ -6,7 +6,7 @@
 // Both are faithful JSON ports of the SSR routes in server.js, minus the HTML
 // rendering/redirects.
 const { ok, error } = require("../../http/apiResponse");
-const { withUser } = require("../../http/apiHandler");
+const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { AppError, sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -45,10 +45,10 @@ const { canWriteLibrary, managesRaid } = require("../../raidplan/raidplanAccess"
 const { raidViewer } = require("../../../services/signups/eventVisibility");
 const { isGlobalRaidOrga, canOrgaRaid } = require("../../events/raidOrgaAccess");
 const { requestCache } = require("../../../services/roster/categoryOrga");
-const { userCan } = require("../../../config/permissions");
+const { userCan, userIsOrga } = require("../../../config/permissions");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
 const { expectedRoleIds } = require("../../../services/roster/categoryRoles");
-const { mayUseChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseChannel, onlyByRank, rolesCountForSharedData, OTHER_SERVER } = require("../../http/serverQuery");
 
 // Every action of this file is the orga's (permissions.userIsOrga) as well as its area's write right:
 // raider roles may hold `raids` write and are still no orga. Posting the raid plan's link is the
@@ -60,6 +60,20 @@ const { mayUseChannel, OTHER_SERVER } = require("../../http/serverQuery");
 // (docs/permissions.md "Kategorie-Orga"). The channel a post goes to is always the server's record.
 const ORGA = { orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT };
 const { embedColor } = require("../../../services/events/embedLook");
+
+// Aufruf and sheet templates are global records until #1097 builds them per server. On a server
+// without the mark (#1073) only a full admin reaches them. The server-admin rank (#1072) needs what its
+// roles give on a marked server: the orga with `raids` write, or a manager of this raid's category. One
+// rule for reading and using: the lists stay empty and using one answers 403, never one without the other.
+// The mark is checked here as well because `categoryOrgaOfAll` does not know it.
+async function templatesClosed(user, req, eventId) {
+    if (!onlyByRank(user, req, (roles) => userIsOrga(roles) && userCan(roles, "raids", "write"))) return false;
+    if (!rolesCountForSharedData(req)) return true;
+    // required here, not at the top: tests of this route mock auth without this export
+    const { getUserWithoutRank } = require("../../http/auth");
+    return !(await categoryOrgaOfAll(getUserWithoutRank(req), eventId, req));
+}
+const TEMPLATES_CLOSED = "Vorlagen gelten für alle Server: Dafür reichen die Rechte dieses Servers nicht.";
 
 /**
  * The raid part of a raidsheet / softres link card (discord.buildLinkMessage): the raid's name small over the heading, the
@@ -113,6 +127,7 @@ const getRaidDetail = withUser({ onServer: (body, query) => query.get("event") }
             canLogs: userCan(user, "cla", "write"),
             // the Vermerke short form (#981): the one rule of every short form, never `viewer.orga`
             canSeeShort: await maySeeShort(user, guildId, { req }),
+            templatesClosed: await templatesClosed(user, req, eventId),
         },
     }));
 });
@@ -156,6 +171,7 @@ async function planningBlock(req, eventId, action, categoryId) {
  * raider roles of the raid's category (categoryRoles.expectedRoleIds), any other role id is 400 "role_not_allowed".
  */
 const postNotify = withUser(ORGA, async ({ user, body, req, res }) => {
+    if (await templatesClosed(user, req, q.str(body, "event"))) return error(res, 403, "forbidden", TEMPLATES_CLOSED); // until #1097
     const template = getNotify(q.str(body, "templateId"));
     const eventId = q.str(body, "event");
     let channelId = q.str(body, "channelId");
@@ -231,7 +247,8 @@ const postInviteCall = withUser(ORGA, async ({ user, body, req, res }) => {
  * days after the raid. The source raidsheet is never written to or deleted.
  * Body: { event, sheetId, tank3, eventTitle, eventStartTime }.
  */
-const postFill = withUser(ORGA, async ({ body, req, res }) => {
+const postFill = withUser(ORGA, async ({ user, body, req, res }) => {
+    if (await templatesClosed(user, req, q.str(body, "event"))) return error(res, 403, "forbidden", TEMPLATES_CLOSED); // until #1097
     const eventId = q.str(body, "event");
     const sheet = getRaidsheet(q.str(body, "sheetId"));
     if (!sheet) return error(res, 400, "sheet_not_found", "Raidsheet nicht gefunden.");

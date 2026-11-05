@@ -4,7 +4,9 @@
         "loadError": "Fehler beim Laden: {message}",
         "serverFallback": "Discord-Server",
         "title": "Recruitment",
-        "postMessage": "Nachricht posten"
+        "postMessage": "Nachricht posten",
+        "templatesClosedBadge": "Ohne Vorlagen",
+        "templatesClosed": "Vorlagen und neue Nachrichten stehen auf diesem Server noch nicht zur Verfügung: Vorlagen gelten bisher für alle Server."
     },
     "tabs": {
         "posts": "Nachrichten",
@@ -96,6 +98,7 @@
         "removeSub": "Nur aus der Verwaltung; die Discord-Nachricht bleibt.",
         "empty": "Noch keine Nachrichten",
         "emptyText": "Poste eine Vorlage oder durchsuche den Server nach Bot-Nachrichten.",
+    "emptyTextNoTemplates": "Durchsuche den Server nach Bot-Nachrichten.",
         "inForum": "Forum {forum}",
         "linkKind": "Link-Knopf",
         "linkKindSub": "Diese Nachricht hat einen Link statt des Bewerben-Knopfs."

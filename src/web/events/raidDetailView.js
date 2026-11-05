@@ -395,7 +395,8 @@ function forRaider(payload, userId) {
  *   "raidplan" write) leaves out the raid plan's link state and with it the "Einteilungen" step; `viewer`
  *   (services/signups/eventVisibility.raidViewer, none = the orga): a raider gets only a raid they may see
  *   (else the same 404 as an unknown one) and only their parts of it (forRaider); `rights` (the route's, #729):
- *   `{ canOrga, canPlan, canSwitchPlan, categoryRolesOnly }` - see viewerRights and notifyRoles
+ *   `{ canOrga, canPlan, canSwitchPlan, categoryRolesOnly, templatesClosed }` - see viewerRights and notifyRoles;
+ *   `templatesClosed` leaves out the Aufruf and sheet templates, global until #1097 (raidDetail.js says when)
  * @returns {Promise<{ body: object } | { error: { status, code, message } }>} for apiResult.sendResult
  */
 async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = null, rights = null }) {
@@ -416,7 +417,9 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
     // Softres only where the version has an edition and it is not switched off (#761).
     const softresState = featureState(version.versionId, "softres", { config });
     const softresEdition = softresState.on ? version.softresEdition : "";
-    const raidsheets = listRaidsheets();
+    // global records until #1097: the route closes them on a server without the mark
+    const templatesClosed = !!(rights && rights.templatesClosed);
+    const raidsheets = templatesClosed ? [] : listRaidsheets();
     const matched = pickRaidsheet(raidsheets, found.e.title, { ownId: version.raidsheetId, otherIds: version.otherSheetIds });
     // A raid that is over and whose signups Raid-Helper no longer returns (and
     // that was never snapshotted) has an UNKNOWN roster — not an empty one.
@@ -448,7 +451,7 @@ async function buildRaidDetail({ guildId, eventId, planPost = true, viewer = nul
         openToAll: openToAll(found.g.categoryId, { config, versionId: version.versionId }),
         guildId,
         eventsWarning: stale ? (groupsError || "Raid-Helper aktuell nicht erreichbar — zeige zwischengespeicherte Event-Daten.") : null,
-        notifyTemplates: listNotify(),
+        notifyTemplates: templatesClosed ? [] : listNotify(),
         // the Anmelde-Aufruf's roles: the category's raider roles only for whom POST /api/raids/notify allows no more (#727, #729)
         roles: notifyRoles(guildId, found.g.categoryId, version.versionId, config, !!(rights && rights.categoryRolesOnly)),
         raidsheets,

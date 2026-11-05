@@ -109,20 +109,21 @@ describe("mayWriteSharedData (#1105)", () => {
 
     it("opens for a full admin everywhere, and for nobody without a session", () => {
         trust(false);
-        expect(mayWriteSharedData({ id: "1", isAdmin: true }, req, "raids")).toBe(true);
-        expect(mayWriteSharedData(null, req, "raids")).toBe(false);
+        expect(mayWriteSharedData({ id: "1", isAdmin: true }, req)).toBe(true);
+        expect(mayWriteSharedData(null, req)).toBe(false);
     });
 
     it("opens on a server with the mark", () => {
         trust(true);
-        expect(mayWriteSharedData({ id: "1", access: write }, req, "raids")).toBe(true);
+        expect(mayWriteSharedData({ id: "1", access: write }, req)).toBe(true);
     });
 
-    it("counts only an own grant on a server without the mark, not the rights of the session", () => {
+    it("counts no right on a server without the mark, an own grant neither", () => {
         trust(false);
-        expect(mayWriteSharedData({ id: "1", isServerAdmin: true, access: write }, req, "raids")).toBe(false);
         getUserWithoutRank.mockReturnValue({ id: "1", isAdmin: false, access: write });
-        expect(mayWriteSharedData({ id: "1", access: write }, req, "raids")).toBe(true);
+        expect(mayWriteSharedData({ id: "1", isServerAdmin: true, access: write }, req)).toBe(false);
+        expect(mayWriteSharedData({ id: "1", access: write }, req)).toBe(false);
+        expect(getUserWithoutRank).not.toHaveBeenCalled();
     });
 });
 

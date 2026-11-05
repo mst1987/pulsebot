@@ -46,7 +46,7 @@ function application(over: Partial<Application> = {}): Application {
 
 function data(over: Partial<RecruitmentData> = {}): RecruitmentData {
     return {
-        view: "", guildName: "Pulse", editing: null, editingPost: null,
+        view: "", guildName: "Pulse", editing: null, editingPost: null, templatesAvailable: true,
         templates: [template()],
         posts: [post(), post({ id: "p2", channelId: "c2", channelName: "gesucht", messageId: "m2", source: "scan", templateId: "" })],
         channels: [{ id: "c1", name: CHANNEL_NAME, category: CATEGORY }, { id: "c2", name: "gesucht", category: "" }],
@@ -136,6 +136,39 @@ describe("the three tabs", () => {
             expect(within(partHead).getByText(t.head)).toBeInTheDocument();
             expect(wowIcon(partHead, t.icon)).not.toBeNull();
         }
+    });
+});
+
+describe("on a server without the templates (#1073, until #1097)", () => {
+    const closed = () => data({ templatesAvailable: false, templates: [], editing: null });
+
+    it("leaves out the template tab and the posting action, says why and keeps the server's own tabs", async () => {
+        vi.mocked(api.getRecruitmentData).mockResolvedValue(closed());
+        renderPage(<RecruitmentPage />, { route: "/recruitment" });
+
+        await screen.findByRole("tablist");
+        expect(screen.queryByRole("tab", { name: /Vorlagen/ })).not.toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Nachricht posten" })).not.toBeInTheDocument();
+        expect(screen.getByText("Ohne Vorlagen")).toHaveAttribute("data-tip", expect.stringMatching(/stehen auf diesem Server noch nicht zur Verfügung/));
+        expect(screen.getByRole("tab", { name: /Nachrichten/ })).toHaveAttribute("aria-selected", "true");
+        expect(screen.getByRole("tab", { name: /Bewerbungen/ })).toBeInTheDocument();
+    });
+
+    it("does not offer posting a template when there are no messages yet", async () => {
+        vi.mocked(api.getRecruitmentData).mockResolvedValue({ ...closed(), posts: [] });
+        renderPage(<RecruitmentPage />, { route: "/recruitment" });
+
+        expect(await screen.findByText("Durchsuche den Server nach Bot-Nachrichten.")).toBeInTheDocument();
+        expect(screen.queryByText(/Poste eine Vorlage/)).not.toBeInTheDocument();
+    });
+
+    it("lands a stored or linked template tab and editor on the posts, without a dialog", async () => {
+        vi.mocked(api.getRecruitmentData).mockResolvedValue(closed());
+        renderPage(<RecruitmentPage />, { route: "/recruitment?view=templates&edit=new&editpost=new" });
+
+        await screen.findByRole("tablist");
+        expect(screen.getByRole("tab", { name: /Nachrichten/ })).toHaveAttribute("aria-selected", "true");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 });
 

@@ -413,6 +413,9 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
     });
 });
 
+// the templates are global records until #1097: a role reaches them on a server with the mark only (#1073)
+const TRUSTED_G1 = { servers: [{ guildId: "g1", label: "", trusted: true }] };
+
 describe("a raider's read (Oct 2026: raids of foreign categories and the orga's parts are the orga's)", () => {
     const RAIDER = { id: "u7", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } };
     const ORGA_ROLE = { id: "o1", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
@@ -498,7 +501,9 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
         getEvent.mockReturnValue({ status: "active", setup: null });
         signupStore.listSignups.mockReturnValue(signups);
+        settingsStore.getConfig.mockReturnValue({ discordServers: TRUSTED_G1 });
         const d = (await read(ORGA_ROLE, "eh-1")).body.data;
+        settingsStore.getConfig.mockReturnValue({});
         expect(d.orga).toBe(true);
         expect(d.ownSignups.find((s) => s.userId === "u8")).toMatchObject({ comment: "secret", canAlso: ["healer"] });
         expect(d.steps).not.toBeNull();
@@ -506,6 +511,23 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         // the global orga with raids write: every raid's actions, every role of the server for the Aufruf
         expect(d.viewer).toEqual({ canOrga: true, canPlan: false, canSwitchPlan: false });
         expect(d.roles).toEqual([{ id: "r1", name: "Raider" }]);
+    });
+
+    it("hands the templates to a role on a server with the mark, to a full admin everywhere, else none (#1073, until #1097)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        const lists = async (user) => {
+            const { notifyTemplates, raidsheets } = (await read(user, "eh-1")).body.data;
+            return { notifyTemplates, raidsheets: raidsheets.map((s) => s.id) };
+        };
+        const FILLED = { notifyTemplates: [{ id: "n1" }], raidsheets: ["sheet-kara"] };
+        const EMPTY = { notifyTemplates: [], raidsheets: [] };
+
+        settingsStore.getConfig.mockReturnValue({ discordServers: TRUSTED_G1 });
+        expect(await lists(ORGA_ROLE)).toEqual(FILLED);
+        settingsStore.getConfig.mockReturnValue({});
+        expect(await lists(ORGA_ROLE)).toEqual(EMPTY);
+        expect(await lists(ADMIN)).toEqual(FILLED);
     });
 });
 
@@ -525,7 +547,7 @@ describe("the orga of the raid's category", () => {
 
     beforeEach(() => {
         // cat1 is no category they may sign up for: only the roster makes the raid theirs
-        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"], discordServers: TRUSTED_G1 });
         rosterStore.listRosters.mockReturnValue([ROSTER]);
         rosterStore.rosterForCategory.mockImplementation((cat, version) => (cat === "cat1" && (!version || version === "tbc") ? ROSTER : null));
         signupStore.listSignups.mockReturnValue([]);

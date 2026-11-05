@@ -12,7 +12,6 @@ const { error: apiError } = require("./apiResponse");
 const { activeGuildFor } = require("./activeGuild");
 const { resolveServer, serverIsTrusted } = require("../../services/discord/roles/guildRoles");
 const { getConfig } = require("../../stores/settings/configStore");
-const { userCan } = require("../../config/permissions");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const OTHER_SERVER = "Für diesen Server hast du hier keine Rechte.";
@@ -38,22 +37,20 @@ function mayUseServer(user, req, guildId) {
 const rolesCountForSharedData = (req) => serverIsTrusted(activeGuildFor(req));
 
 /**
- * Whether the server lets `user` write what every server shares, a global record behind a route of
- * `area`, at all (#1105): a full admin, a server with the mark, or an own grant of a full admin, which
- * is no self-given role. The rank still answers for itself on a marked server (onlyByRank).
+ * Whether the server lets `user` write what every server shares, a global record, at all (#1105):
+ * a full admin or a server with the mark. A grant on a server without it counts for nothing: nothing
+ * says who gave it. The rank still answers for itself on a marked server (onlyByRank).
  */
-function mayWriteSharedData(user, req, area) {
-    if (!user) return false;
-    if (user.isAdmin || rolesCountForSharedData(req)) return true;
-    // required here, not at the top: tests of the callers mock auth without this export
-    return userCan(require("./auth").getUserWithoutRank(req), area, "write");
+function mayWriteSharedData(user, req) {
+    return !!user && (user.isAdmin === true || rolesCountForSharedData(req));
 }
 
 /**
  * Whether what `user` may do here does not reach data of every server: it holds the server-admin
  * rank (#1072) or stands on a server without the mark (#1073), and what counts there
  * (`rolesMay(auth.getUserWithoutRank)`) would not allow it. A full admin never, somebody on a trusted
- * server without the rank neither, and neither who has it from the base access or an own grant.
+ * server without the rank neither. Without the mark nothing of the server counts there, not its base
+ * access nor an own grant either (userAccess.sharedDataAccess).
  */
 function onlyByRank(user, req, rolesMay) {
     if (!user || user.isAdmin) return false;

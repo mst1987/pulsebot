@@ -22,8 +22,9 @@
 // store, another account's data by id). The server-admin rank does not count there:
 // the gate and the handler read the user with their role rights only (apiRouter.js,
 // auth.getUser). The rank comes from Discord, and anyone can create a Discord server.
-// The same goes for roles (#1073): an administrator gives themselves any role, so they
-// count there only on a server a full admin marked as trusted (userAccess.sharedDataAccess).
+// The same goes for a server's rights (#1073): an administrator gives themselves any role and is to
+// set its base access and grants, so they count there only on a server a full admin marked as trusted
+// (userAccess.sharedDataAccess).
 //
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.

@@ -107,13 +107,13 @@ async function rolesMaySetLeads(scope, req) {
  * the category path of the route's gate has already let the caller into that view.
  */
 async function mayOfferLeads(user, req, scope) {
-    if (!mayWriteSharedData(user, req, "raids")) return false;
+    if (!mayWriteSharedData(user, req)) return false;
     return !user.isServerAdmin || rolesMaySetLeads(scope, req);
 }
 
 /** PUT /api/leads — the orga sets (or with an empty list removes) somebody's flags inside its context. */
 const putLeads = withUser({ orgaScoped: scopeOf, write: "raids", csrf: true, body: true, archived: (body) => str(body.event) }, async ({ user, body, query, req, res }) => {
-    if (!mayWriteSharedData(user, req, "raids")) {
+    if (!mayWriteSharedData(user, req)) {
         return apiError(res, 403, "forbidden", "Raidleiter-Marken gelten auf allen Servern: Das geht nur auf einem vertrauenswürdigen Server.");
     }
     if (user.isServerAdmin && !(await rolesMaySetLeads(scopeOf(body, query, req), req))) {

@@ -44,6 +44,13 @@ beforeEach(() => {
 });
 
 describe("resolveBotAccess", () => {
+    it("lets only a full admin pass with fullAdminOnly, whatever the rule says", () => {
+        const ctx = { commands: COMMANDS, config: {}, fullAdminOnly: true };
+        expect(resolveBotAccess("signup", member(), ctx).allowed).toBe(false);
+        expect(resolveBotAccess("event", member([ORGA]), ctx).allowed).toBe(false);
+        expect(resolveBotAccess("signup", member([], logcheckAdminIds[0]), ctx).reason).toBe("admin");
+    });
+
     it("always lets an admin through, by user id or by admin role", () => {
         const config = { adminRoleIds: [ADMIN_ROLE] };
         expect(resolveBotAccess("fillsetup", member([], logcheckAdminIds[0]), { commands: COMMANDS, config }))
@@ -179,6 +186,115 @@ describe("guardInteraction", () => {
         const sent = interaction.reply.mock.calls[0][0];
         expect(cardText(sent)).toContain("This is reserved for admins.");
         expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+    });
+
+    describe("a command on data every server shares (#1073)", () => {
+        const SHARED = new Map([
+            ["open", { name: "open", group: "signup", defaultAccess: "everyone", sharedData: true }],
+            ["forRole", { name: "forRole", group: "raids", defaultAccess: { roles: [ORGA] }, sharedData: true }],
+            ["forRole-button", { name: "forRole-button", accessOf: "forRole" }],
+            ["own", { name: "own", group: "signup", defaultAccess: "everyone" }],
+            ["ownRole", { name: "ownRole", group: "raids", defaultAccess: { roles: [ORGA] } }],
+        ]);
+        const REFUSED = "This command reaches data every server shares, and this server is not cleared for that.";
+        const withMark = (trusted) => settingsStore.getConfig.mockReturnValue({
+            guildId: GUILD,
+            botLanguage: "en",
+            serverSettings: { [GUILD]: { botLanguage: "en" } },
+            discordServers: { servers: [{ guildId: GUILD, label: "", trusted }], links: [] },
+        });
+        const onGuild = (id = "555") => {
+            const interaction = mockInteraction({ userId: id });
+            interaction.guildId = GUILD;
+            interaction.guild = { id: GUILD };
+            return interaction;
+        };
+        const holding = (roleIds) => {
+            const interaction = onGuild();
+            interaction.member = { roles: roleIds };
+            return interaction;
+        };
+
+        describe("on a server without the mark", () => {
+            beforeEach(() => withMark(false));
+
+            it("refuses a rule of everyone, with a message only the user sees", async () => {
+                const interaction = onGuild();
+                expect(await guardInteraction(interaction, SHARED.get("open"), SHARED)).toBe(false);
+                const sent = interaction.reply.mock.calls[0][0];
+                expect(cardText(sent)).toContain(REFUSED);
+                expect(sent.flags & MessageFlags.Ephemeral).toBe(MessageFlags.Ephemeral);
+            });
+
+            it("refuses somebody holding the role of the rule", async () => {
+                const interaction = holding([ORGA]);
+                expect(await eventMemberRoles(interaction, GUILD)).toEqual([ORGA]);
+                expect(await guardInteraction(interaction, SHARED.get("forRole"), SHARED)).toBe(false);
+                expect(cardText(interaction.reply.mock.calls[0][0])).toContain(REFUSED);
+            });
+
+            it("judges a button by the command it belongs to", async () => {
+                const interaction = holding([ORGA]);
+                expect(await guardInteraction(interaction, SHARED.get("forRole-button"), SHARED)).toBe(false);
+            });
+
+            it("lets a full admin through", async () => {
+                const interaction = onGuild(logcheckAdminIds[0]);
+                expect(await guardInteraction(interaction, SHARED.get("open"), SHARED)).toBe(true);
+            });
+
+            it("leaves a command on the server's own data as it is", async () => {
+                expect(await guardInteraction(onGuild(), SHARED.get("own"), SHARED)).toBe(true);
+                expect(await guardInteraction(holding([ORGA]), SHARED.get("ownRole"), SHARED)).toBe(true);
+            });
+
+            it("closes /recruitment for a role the server gave itself the command with", async () => {
+                const recruitment = require("../../../src/commands/apply/recruitment");
+                const commands = new Map([["recruitment", recruitment]]);
+                settingsStore.getConfig.mockReturnValue({
+                    guildId: GUILD,
+                    botLanguage: "en",
+                    serverSettings: { [GUILD]: { botLanguage: "en", botCommandAccess: { recruitment: { mode: "roles", roleIds: [ORGA] } } } },
+                    discordServers: { servers: [{ guildId: GUILD, label: "" }], links: [] },
+                });
+                expect(await guardInteraction(holding([ORGA]), recruitment, commands)).toBe(false);
+            });
+        });
+
+        it("stays closed when the mark cannot be read", async () => {
+            settingsStore.getConfig.mockReturnValue({ guildId: GUILD, botLanguage: "en", serverSettings: { [GUILD]: { botLanguage: "en" } } });
+            expect(await guardInteraction(onGuild(), SHARED.get("open"), SHARED)).toBe(false);
+        });
+
+        it("stays closed without a server", async () => {
+            withMark(true);
+            const interaction = mockInteraction({ userId: "555" });
+            interaction.guildId = null;
+            interaction.guild = null;
+            expect(await guardInteraction(interaction, SHARED.get("open"), SHARED)).toBe(false);
+        });
+
+        describe("on a marked server", () => {
+            beforeEach(() => withMark(true));
+
+            it("follows the rule of the server", async () => {
+                expect(await guardInteraction(onGuild(), SHARED.get("open"), SHARED)).toBe(true);
+                expect(await guardInteraction(holding([ORGA]), SHARED.get("forRole"), SHARED)).toBe(true);
+                expect(await guardInteraction(holding([RAIDLEAD]), SHARED.get("forRole"), SHARED)).toBe(false);
+            });
+
+            it("opens /recruitment for a role the rule names", async () => {
+                const recruitment = require("../../../src/commands/apply/recruitment");
+                const commands = new Map([["recruitment", recruitment]]);
+                settingsStore.getConfig.mockReturnValue({
+                    guildId: GUILD,
+                    botLanguage: "en",
+                    serverSettings: { [GUILD]: { botLanguage: "en", botCommandAccess: { recruitment: { mode: "roles", roleIds: [ORGA] } } } },
+                    discordServers: { servers: [{ guildId: GUILD, label: "", trusted: true }], links: [] },
+                });
+                expect(await guardInteraction(holding([ORGA]), recruitment, commands)).toBe(true);
+            });
+        });
     });
 
     describe("a command behind a plan feature (#1080)", () => {

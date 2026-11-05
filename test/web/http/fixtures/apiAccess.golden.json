@@ -443,7 +443,6 @@
     "GET /api/notify-templates",
     "GET /api/profile/user",
     "GET /api/raidplan/catalog",
-    "GET /api/recruitment",
     "GET /api/roster/character-claims",
     "GET /api/settings/version-launch",
     "PATCH /api/raidplan/catalog/mobs",

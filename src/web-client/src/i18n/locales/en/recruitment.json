@@ -4,7 +4,9 @@
         "loadError": "Error while loading: {message}",
         "serverFallback": "Discord server",
         "title": "Recruitment",
-        "postMessage": "Post message"
+        "postMessage": "Post message",
+        "templatesClosedBadge": "No templates",
+        "templatesClosed": "Templates and new messages are not available on this server yet: templates still apply to all servers."
     },
     "tabs": {
         "posts": "Messages",
@@ -96,6 +98,7 @@
         "removeSub": "Only from the list; the Discord message stays.",
         "empty": "No messages yet",
         "emptyText": "Post a template or scan the server for bot messages.",
+    "emptyTextNoTemplates": "Scan the server for bot messages.",
         "inForum": "Forum {forum}",
         "linkKind": "Link button",
         "linkKindSub": "This message has a link instead of the apply button."

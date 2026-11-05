@@ -19,8 +19,9 @@
 // where the rank does not (a route on data of every server, an unanswered re-check).
 //
 // That alone protects nothing on data every server shares: an administrator gives
-// themselves any role. So there roles count only on a server a full admin marked as
-// trusted (#1073, sharedDataAccess, guildRoles.serverIsTrusted).
+// themselves any role, and sets the base access and the grants of their server. So
+// there a server's rights count only when a full admin marked it as trusted (#1073,
+// sharedDataAccess, guildRoles.serverIsTrusted).
 //
 //   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, membershipUnknown?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`
 //                                for every server; throws when a configured role
@@ -225,23 +226,25 @@ function withoutDelistedRank(guildAccess, userId, config = getConfig()) {
 }
 
 /**
- * What a session may do on data every server shares (#1073): the server-admin rank is gone, and the
- * roles of a server count only when a full admin marked it as trusted. Elsewhere its base access and
- * the grants for the account itself are left: both come from a full admin, a role can be self-given.
- * A full admin stays as is. The one measure behind `sharedData`, onlyByRank and getUserWithoutRank.
+ * What a session may do on data every server shares (#1073): the server-admin rank is gone, and a
+ * server's rights count only when a full admin marked it as trusted. Elsewhere nothing is left: its
+ * roles, base access and account grants are stored alike, with nothing saying who gave them, and its
+ * server admin is to set them all. `trustedOnly` carries the rule to a server without an entry
+ * (accessForGuild). A full admin stays as is. The one measure behind `sharedData`, onlyByRank and
+ * getUserWithoutRank.
  */
 function sharedDataAccess(guildAccess, userId, config) {
-    if (!guildAccess || guildAccess.isAdmin) return guildAccess;
-    const roles = withoutServerAdminRank(guildAccess, userId);
+    if (guildAccess && guildAccess.isAdmin) return guildAccess;
+    const roles = withoutServerAdminRank(guildAccess || { isAdmin: false, guilds: {} }, userId);
     const guilds = {};
     for (const [gid, entry] of Object.entries(roles.guilds || {})) {
         guilds[gid] = guildRoles.serverIsTrusted(gid, config) ? entry : {
-            access: BASE_ACCESS(userId, gid).access,
+            access: emptyAccess(),
             ...(entry.isMember ? { isMember: true } : {}),
             ...(entry.membershipUnknown ? { membershipUnknown: true } : {}),
         };
     }
-    return { ...roles, guilds };
+    return { ...roles, guilds, trustedOnly: true };
 }
 
 /** computeGuildAccess(), falling back to the base access of every server when the lookup fails. */
@@ -261,14 +264,18 @@ async function resolveGuildAccess(userId) {
 /**
  * The rights of one server out of a computeGuildAccess() result:
  * `{ isAdmin, access, isOrga?, isServerAdmin? }`. A full admin gets everything; a
- * server without an entry gets its base access; no guild id gets nothing (fail closed).
+ * server without an entry gets its base access, in the view of sharedDataAccess only with
+ * the mark; no guild id gets nothing (fail closed).
  */
-function accessForGuild(guildAccess, userId, guildId) {
+function accessForGuild(guildAccess, userId, guildId, config) {
     if (guildAccess && guildAccess.isAdmin) return ALL_ACCESS();
     const gid = gidOf(guildId);
     if (!gid) return NO_ACCESS();
     const entry = guildAccess && guildAccess.guilds && guildAccess.guilds[gid];
-    if (!entry) return BASE_ACCESS(userId, gid);
+    if (!entry) {
+        if (guildAccess && guildAccess.trustedOnly && !guildRoles.serverIsTrusted(gid, config)) return NO_ACCESS();
+        return BASE_ACCESS(userId, gid);
+    }
     return {
         isAdmin: false,
         access: entry.access,
