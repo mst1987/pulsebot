@@ -201,6 +201,14 @@ describe("the raiders a caller reaches (#1077)", () => {
         expect(reach.membersKnown).toBe(false);
     });
 
+    it("adds nobody to the set for a caller without an id", async () => {
+        for (const caller of [null, { isAdmin: false }]) {
+            raiderVisibility.mockResolvedValue(readable("m1"));
+            const reach = await raiderReachFor(caller, req);
+            expect([...reach.visible]).toEqual(["m1"]);
+        }
+    });
+
     it("gives only the members with membersOnly, the caller not added", async () => {
         serverMemberIds.mockResolvedValue(new Set(["m1"]));
         const reach = await raiderReachFor(orga, req, { membersOnly: true });

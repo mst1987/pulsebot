@@ -264,6 +264,9 @@ describe("apiRoutes/guildBank", () => {
 
         res = await call(assignGuildBank, { payload: { key: "nope", guildId: "g1" } });
         expect(status(res)).toBe(404);
+
+        res = await call(assignGuildBank, { payload: { guildId: "g1" } });
+        expect(status(res)).toBe(404);
     });
 
     describe("rights per server (#925)", () => {
@@ -389,6 +392,9 @@ describe("apiRoutes/guildBank", () => {
         expect(queueItemEmojiSync).toHaveBeenCalledTimes(1);
 
         res = await call(deleteGuildBank, { payload: { key: bank.key } });
+        expect(status(res)).toBe(404);
+
+        res = await call(deleteGuildBank, { payload: {} });
         expect(status(res)).toBe(404);
     });
 });

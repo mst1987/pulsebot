@@ -17,6 +17,17 @@ describe("stores/events/signupStore", () => {
         expect(ids).toBeInstanceOf(Set);
         expect([...ids].sort()).toEqual(["u1", "u2"]);
         expect(userIdsOfEvents([]).size).toBe(0);
+        expect(userIdsOfEvents(null).size).toBe(0);
+    });
+
+    it("leaves out a stored row that names no account when collecting (#1077)", () => {
+        const { SIGNUPS_FILE } = require("../../../src/stores/events/signupStore");
+        saveSignup("eh-1", "u1", { character: "Eins", spec: "Priest-Holy", status: "signed" });
+        const data = JSON.parse(fs.__store.get(SIGNUPS_FILE));
+        data.signups["eh-1"].broken = { character: "Niemand" };
+        data.signups["eh-1"].empty = null;
+        fs.__store.set(SIGNUPS_FILE, JSON.stringify(data));
+        expect([...userIdsOfEvents(["eh-1"])]).toEqual(["u1"]);
     });
 
     it("stores a signup with the role taken from the rule set", () => {
