@@ -286,12 +286,13 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `isServerAdmin`, sonst umgeht ein vergebenes Recht sie. Einmal-Migrationen, die Rechte vergeben, tragen ihren Merker
     im selben atomaren Schreibvorgang wie die Änderung. Teil-Mocks von `guildRoles`, `userAccess` und `auth` ohne die
     neuen Exporte brechen die Tests der Aufrufer.
-33. **Bot-Befehle mit globalem Ziel** (#1073 Teil B): Der Rang Server-Admin öffnet im Bot jede Regel „Nur Admins“.
+33. **Bot-Befehle mit globalem Ziel** (#1073 Teil B): Der Rang Server-Admin öffnet im Bot jede Regel außer „Jeder“,
+    also „Nur Admins“ und Rollen-Regeln.
     Ein Befehl mit globalem Konto oder Ziel (`SheetsClient`/`GOOGLE_SPREADSHEET_ID`, `createRaidhelperClient()` ohne
     `guildId`, Stores über alle Kategorien, WCL/Softres/GitHub mit dem Schlüssel des Betreibers) braucht
     `sharedData: true`, Knöpfe und Formulare erben es über `accessOf`. Sonst erreicht ein Server-Admin die Daten aller
     Server. `test/services/discord/botAccess.guard.test.js` prüft die echte Befehlsliste gegen eine geprüfte Liste:
-    ein neuer Admin-Befehl ohne Marke braucht dort einen Eintrag mit Begründung oder die Marke.
+    ein neuer Befehl, dessen Regel nicht „Jeder“ ist, braucht ohne Marke dort einen Eintrag mit Begründung oder die Marke.
 
 ## Fach-Agenten
 

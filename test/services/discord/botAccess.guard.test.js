@@ -28,11 +28,12 @@ const RANK_OPENS = {
 
 const modules = loadCommandModules();
 
-/** The rule owner of every entry the rank opens: effectively "admins", no shared data. */
+/** The rule owner of every entry the rank opens: any rule but "everyone", no shared data. */
 function rankOpenedOwners(commands) {
     const owners = new Map();
     for (const command of commands.values()) {
-        if (ruleFor(command.name, { commands, config: {} }).mode !== "admins") continue;
+        // the rank passes every rule but "everyone" (role rules too), so all of them count here
+        if (ruleFor(command.name, { commands, config: {} }).mode === "everyone") continue;
         const owner = accessOwner(command.name, commands) || command;
         if (command.sharedData === true || owner.sharedData === true) continue;
         const list = owners.get(owner.name) || [];
