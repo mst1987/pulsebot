@@ -336,7 +336,8 @@
     "/api/session/view-as",
     "/api/raidplan/public",
     "/api/raidplan/progress",
-    "/api/addons/name"
+    "/api/addons/name",
+    "/api/signups/raid"
   ],
   "anyArea": [
     "/api/session/guild",

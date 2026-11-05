@@ -60,6 +60,9 @@ const pathsWith = (auth) => new Set(ROUTES.filter((r) => r.auth === auth).map((r
 // (/p/<token>): no session needed, and its handler answers only for the token of
 // a published plan. "/api/addons/name" names one addon (id, name, icon) for the
 // login notice on /addon/<id>: enabled and not orga-only, nothing else.
+// "/api/signups/raid" is the signup link of one raid (`/signups?event=`): it needs no
+// active server, so its handler asks for the session and for the rights on the raid's
+// own server - and answers with that one raid and the caller's own signup, nothing else.
 const UNGATED = pathsWith("none");
 // Needs a menu user, but belongs to no single area (the guild switcher, the
 // account's own menu language).

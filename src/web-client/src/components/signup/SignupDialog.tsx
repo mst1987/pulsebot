@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import {
     PUG_MEMBERS_ONLY, saveSignup,
-    type SignupError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupProfile, type SignupStatus,
+    type SaveSignupResult, type SignupError, type GameRole, type OwnSignup, type OwnSignupRow, type SignupClass, type SignupCounts, type SignupInput, type SignupProfile, type SignupStatus,
 } from "../../api";
 import { Badge, Button, Modal, WowIcon, buttonClass } from "../ui";
 import { CheckIcon } from "../ui/icons/icons";
@@ -34,7 +34,7 @@ import { useT } from "../../i18n";
 // segment option is marked and one small line says so, instead of pretending
 // one status held for everybody.
 
-export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "", accountName = "", lastName = false }: {
+export default function SignupDialog({ row, profile, classes, onClose, onSaved, missingVersion = "", accountName = "", lastName = false, save = saveSignup }: {
     row: OwnSignupRow | null;
     /** Only the characters of the event's game version (#543, lib/signups/status profileForRows). */
     profile: SignupProfile;
@@ -48,6 +48,8 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     accountName?: string;
     /** The event's version wants "Vorname Nachname" (WoW Forever): a Discord name is no start for that. */
     lastName?: boolean;
+    /** Where the signup goes: the raid of a link saves through its own route (#1074). */
+    save?: (input: SignupInput) => Promise<SaveSignupResult>;
 }) {
     const t = useT();
     const toast = useToast();
@@ -128,7 +130,7 @@ export default function SignupDialog({ row, profile, classes, onClose, onSaved, 
     const submit = async () => {
         setBusy(true);
         try {
-            const res = await saveSignup({
+            const res = await save({
                 eventId: row.id,
                 characters: creating ? [] : picksToInput(profile, picks),
                 ...(creating ? { newCharacter: { name: newChar.name.trim(), spec: newChar.spec } } : {}),

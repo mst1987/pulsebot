@@ -1,5 +1,5 @@
 import { Suspense, useEffect, useState, type ReactNode } from "react";
-import { Routes, Route, Navigate, Link, useLocation } from "react-router-dom";
+import { Routes, Route, Navigate, Link, useLocation, useSearchParams } from "react-router-dom";
 import { JobsProvider } from "./components/shell/Jobs";
 import { ConfirmProvider } from "./components/ui/overlay/Modal";
 import { canAccessAny, canAccessAnywhere, getAddonName, getSession, type AddonName, type ApiError, type Session, type SessionUser } from "./api";
@@ -48,6 +48,7 @@ const DungeonsPage = lazyWithReload(() => import("./pages/dungeons/DungeonsPage"
 const AbsencesPage = lazyWithReload(() => import("./pages/absences/AbsencesPage"));
 const ProfilePage = lazyWithReload(() => import("./pages/profile/ProfilePage"));
 const SignupsPage = lazyWithReload(() => import("./pages/SignupsPage"));
+const SignupRaidPage = lazyWithReload(() => import("./pages/SignupRaidPage"));
 const ClaPage = lazyWithReload(() => import("./pages/cla/ClaPage"));
 const LootCouncilPage = lazyWithReload(() => import("./pages/lootcouncil/LootCouncilPage"));
 const DropCheckPage = lazyWithReload(() => import("./pages/lootcouncil/DropCheckPage"));
@@ -97,13 +98,28 @@ function MovedTo({ path }: { path: string }) {
     return <Navigate to={`${path}${search}`} replace />;
 }
 
-/** Start page for an account no area is open to — it still gets the shell. */
-function NoAreaNotice() {
+/**
+ * The member's signups (area "signup", #256). A link to one raid (`?event=`, from the
+ * raid's public page and the bot's messages) also opens without that area on the active
+ * server: only that raid, under its own server's rules (#1074, pages/SignupRaidPage).
+ */
+function SignupsRoute({ user }: { user: SessionUser }) {
+    const [params] = useSearchParams();
+    const eventId = params.get("event") || "";
+    if (eventId && !canAccessAny(user, ["signup"], "read")) return <SignupRaidPage eventId={eventId} accountName={user.name} />;
+    return <Guard user={user} areas={["signup"]}><SignupsPage /></Guard>;
+}
+
+/**
+ * Start page for an account no area is open to — it still gets the shell. Without any
+ * server (#1074) it says why: on a phone the server head sits in the closed drawer.
+ */
+function NoAreaNotice({ noServer }: { noServer: boolean }) {
     const t = useT();
     return (
         <div className="empty app-notice">
             <p>{t("shell.app.noAccess")}</p>
-            <p className="hint">{t("shell.app.noAccessHint")}</p>
+            <p className="hint">{noServer ? t("shell.guild.noneSub") : t("shell.app.noAccessHint")}</p>
         </div>
     );
 }
@@ -264,7 +280,7 @@ function MenuApp() {
                                         ? <DashboardPage />
                                         : home
                                             ? <Navigate to={entryHref(user, home)} replace />
-                                            : <NoAreaNotice />
+                                            : <NoAreaNotice noServer={!guilds.length} />
                                 } />
                                 <Route path="channels" element={<Guard user={user} areas={["channels"]}><ChannelsPage /></Guard>} />
                                 {/* Rollen-Nachrichten: a page of the Kanaele family (docs/role-messages.md) */}
@@ -295,8 +311,8 @@ function MenuApp() {
                                 <Route path="history/char" element={<Guard user={user} areas={["history", "loot"]}><HistoryCharPage /></Guard>} />
                                 {/* The member self-service page: always the own account (area "signup"). */}
                                 <Route path="profile" element={<Guard user={user} areas={["signup"]} scope="all"><ProfilePage /></Guard>} />
-                                {/* The member's coming raids and their own signup (area "signup", #256). */}
-                                <Route path="signups" element={<Guard user={user} areas={["signup"]}><SignupsPage /></Guard>} />
+                                {/* The member's coming raids and their own signup; a raid link opens without the area (#1074). */}
+                                <Route path="signups" element={<SignupsRoute user={user} />} />
                                 {/* Abwesenheiten: a raider's own attendance ("signup"), the orga's overview with "roster" on top. */}
                                 <Route path="absences" element={<Guard user={user} areas={["signup", "roster"]}><AbsencesPage /></Guard>} />
                                 {/* its first address, under the roster (PR #646) */}

@@ -13,6 +13,7 @@ import * as api from "../api";
 import type { SessionUser } from "../api";
 import { t } from "../i18n";
 import { MENU, firstAllowedTab } from "../lib/app/menu";
+import { ownRow, signupsData } from "../test/signupFixtures";
 import App from "../App";
 
 vi.mock("../api", async (orig) => ({
@@ -20,6 +21,7 @@ vi.mock("../api", async (orig) => ({
     getSession: vi.fn(),
     getDashboard: vi.fn(),
     getAddonName: vi.fn(),
+    getSignupRaid: vi.fn(),
 }));
 
 // Pages load their data through fetch; nothing answers in a test, so each
@@ -28,6 +30,7 @@ beforeEach(() => {
     vi.stubGlobal("fetch", vi.fn(() => new Promise(() => undefined)));
     vi.mocked(api.getDashboard).mockReturnValue(new Promise(() => undefined));
     vi.mocked(api.getAddonName).mockRejectedValue({ code: "unknown_addon", message: "" });
+    vi.mocked(api.getSignupRaid).mockReset();
 });
 
 afterEach(() => {
@@ -161,6 +164,39 @@ describe("menu access", () => {
     it("keeps the addon inbox closed to the read-only loot area", async () => {
         showApp(lootOnly, "/history/inbox");
         expect(await screen.findByText(t("shell.app.noRead"), {}, SLOW)).toBeInTheDocument();
+    });
+
+    it("says why without a server, in plain text and without a way into a page (#1074)", async () => {
+        showApp(nobody);
+        // the notice on the page and the line in the sidebar, neither behind a tooltip
+        expect((await screen.findAllByText(t("shell.guild.noneSub"), {}, SLOW)).length).toBeGreaterThan(0);
+    });
+});
+
+// A signup link needs no matching server (#1074): the guard lets exactly this address
+// through, to the dialog of that one raid. Everything else stays behind it.
+describe("a signup link without any area", () => {
+    it("opens the dialog of that raid and no list", async () => {
+        vi.mocked(api.getSignupRaid).mockResolvedValue(signupsData({ events: [ownRow({ id: "eh-1", title: "Fremder Raid" })] }));
+        showApp(nobody, "/signups?event=eh-1");
+        const dialog = await screen.findByRole("dialog", {}, SLOW);
+        expect(within(dialog).getByText(/Fremder Raid/)).toBeInTheDocument();
+        expect(api.getSignupRaid).toHaveBeenCalledWith("eh-1");
+        expect(screen.queryByText(t("shell.app.noRead"))).not.toBeInTheDocument();
+    });
+
+    it("keeps the guard's refusal on the same page without a raid", async () => {
+        showApp(nobody, "/signups");
+        expect(await screen.findByText(t("shell.app.noRead"), {}, SLOW)).toBeInTheDocument();
+        expect(api.getSignupRaid).not.toHaveBeenCalled();
+    });
+
+    it("explains a raid that does not open and leads back home", async () => {
+        vi.mocked(api.getSignupRaid).mockRejectedValue({ code: api.RAID_UNAVAILABLE, message: "" });
+        showApp(nobody, "/signups?event=eh-gone");
+        expect(await screen.findByText(t("signups.raidLink.unavailable"), {}, SLOW)).toBeInTheDocument();
+        expect(screen.getByRole("link", { name: t("shell.app.backHome") })).toHaveAttribute("href", "/");
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     });
 });
 

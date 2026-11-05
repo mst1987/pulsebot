@@ -37,6 +37,12 @@
     },
     "bulkTitle": "Für alle gewählten anmelden",
     "statusForAll": "Status für alle",
+    "raidLink": {
+        "unavailable": "Dieser Raid ist für dich nicht verfügbar. Der Link kann veraltet sein, oder der Server des Raids lässt deine Anmeldung nicht zu.",
+        "backToList": "Zurück zu deinen Anmeldungen",
+        "notSignedUp": "Du bist für diesen Raid noch nicht angemeldet.",
+        "yours": "Deine Anmeldung: {status}"
+    },
     "page": {
         "title": "Anmeldungen",
         "loadError": "Anmeldungen konnten nicht geladen werden: {message}",

@@ -31,8 +31,9 @@ function options(list: HTMLElement): HTMLElement[] {
  * - no server: a quiet note, nothing to pick
  * - one server: its name (and the orga's label, Einstellungen → Discord-Server), no button
  * - two and more: a button with the name, the label and "Server wechseln" that opens
- *   the list of every server the bot is on (never filtered, #895); a pick switches
- *   the session's server and reloads, so every page loads the new server's data
+ *   the list of the servers this person may enter (the API filters it, #1074: membership
+ *   or a right of their own, full admins every server of the bot); a pick switches the
+ *   session's server and reloads, so every page loads the new server's data
  *   (activeGuildFor(req) on the server side is the one source of truth).
  */
 export default function ServerHeader({ guilds, activeGuildId }: {
@@ -69,9 +70,10 @@ export default function ServerHeader({ guilds, activeGuildId }: {
     if (!guilds.length) {
         return (
             <div className="srv-head is-none">
-                <Badge tone="mid" icon={GUILD_ICON} tip={t("shell.guild.noneTip")} tipSub={t("shell.guild.noneSub")}>
+                <Badge tone="mid" icon={GUILD_ICON} tip={t("shell.guild.noneTip")}>
                     {t("shell.guild.none")}
                 </Badge>
+                <p className="srv-head-note">{t("shell.guild.noneSub")}</p>
             </div>
         );
     }

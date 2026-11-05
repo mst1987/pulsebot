@@ -25,8 +25,10 @@ Onboarding, Einladungen), [signups.md](signups.md) (Anmeldung aus der Partner-Li
 - **Anmelden im Partnerkanal** geht auch ohne Mitgliedschaft auf dem PuG-Server. Wer nicht Mitglied ist, bekommt
   danach einen Hinweis mit Einladungsknopf, denn Pings und Infos gibt es nur auf dem PuG-Server (#904). „Für alle Raids
   anmelden“ gibt es nicht mehr, „Mehrere Raids wählen …“ bleibt.
-- **Web-Anmeldung zu PuGs nur für Mitglieder** des PuG-Servers (kein Basiszugang für Fremde); Nicht-Mitglieder sehen
-  die allgemeine Einladung. Ohne Charakter fragt das Web Klasse → Spec → Name wie der Bot (#907).
+- **Web-Anmeldung zu PuGs nur für Mitglieder** des PuG-Servers; Nicht-Mitglieder sehen die allgemeine Einladung. Der
+  Basiszugang des PuG-Servers öffnet Fremden nur diesen einen Raid über den Link `/signups?event=<id>`, weder den
+  Server noch dessen Raid-Liste (#1074, docs/signups.md). Ohne Charakter fragt das Web Klasse → Spec → Name wie der
+  Bot (#907).
 - **Einladungen erzeugt der Bot** – je Verknüpfung eine dauerhafte, dazu eine allgemeine je Server, beides **nur auf
   Knopfdruck**. Die Herkunft neuer Mitglieder wird je Verknüpfung gezählt (#905).
 - **Rollen und Onboarding schreibt der Bot nur auf Knopfdruck** im Web, nach einer Vorschau „Das ändert sich in
@@ -97,10 +99,12 @@ Eine Verknüpfung teilt keine Vermerke, außer ihr Schalter „Vermerke teilen�
 1. **Im Partnerkanal:** „Einzelnen Raid wählen …“ oder „Mehrere Raids wählen …“ unter der Raid-Liste öffnet den
    Anmeldedialog direkt dort. Nicht-Mitglieder des PuG-Servers bekommen nach „Gespeichert“ den Hinweis „Tritt dem
    Server … bei“ und den Knopf mit der Einladung der Verknüpfung.
-2. **Im Web** über den Titel in der Liste (`/e/<id>`, öffentliche Event-Seite mit Kategorie in der Brotkrume): nur
-   für Mitglieder des PuG-Servers; Nicht-Mitglieder sehen „Nur für Mitglieder des PuG-Servers“ und „PuG-Server
-   beitreten“ mit der allgemeinen Einladung (`pugMembership.pugInviteUrl` → `generalInviteUrl`; ohne erzeugte
-   Einladung kein Knopf).
+2. **Im Web** über den Titel in der Liste (`/e/<id>`, öffentliche Event-Seite mit Kategorie in der Brotkrume) und von
+   dort `/signups?event=<id>`: Der Link öffnet den Dialog dieses einen Raids auch ohne passenden aktiven Server und
+   wechselt keinen Server (#1074, docs/signups.md). Anmelden können sich nur Mitglieder des PuG-Servers;
+   Nicht-Mitglieder sehen „Nur für Mitglieder des PuG-Servers“ und „PuG-Server beitreten“ mit der allgemeinen
+   Einladung (`pugMembership.pugInviteUrl` → `generalInviteUrl`; ohne erzeugte Einladung kein Knopf). Hat der
+   PuG-Server keinen Basiszugang `signup`, sagt die Seite, dass der Raid nicht offen ist, und führt zurück.
 3. **Auf dem PuG-Server** an der Anmelde-Nachricht im Raid-Kanal, wie auf jedem Raid-Server.
 
 ## Recruitment der Partnergilden als Forum

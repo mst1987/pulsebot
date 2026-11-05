@@ -18,7 +18,10 @@ const css = read("styles", "signups.css");
 
 describe("SignupsPage", () => {
     it("is routed under /signups for the signup area and listed in the menu near the profile (Abwesenheiten between them)", () => {
-        expect(read("App.tsx")).toMatch(/<Route path="signups" element=\{<Guard user=\{user\} areas=\{\["signup"\]\}><SignupsPage \/><\/Guard>\} \/>/);
+        expect(read("App.tsx")).toMatch(/<Route path="signups" element=\{<SignupsRoute user=\{user\} \/>\} \/>/);
+        // only a link to one raid passes without the area (#1074)
+        expect(read("App.tsx")).toMatch(/if \(eventId && !canAccessAny\(user, \["signup"\], "read"\)\) return <SignupRaidPage /);
+        expect(read("App.tsx")).toMatch(/return <Guard user=\{user\} areas=\{\["signup"\]\}><SignupsPage \/><\/Guard>;/);
         const { MENU } = require("../../../../src/config/menu");
         const ids = MENU.map((e) => e.id);
         expect(MENU.find((e) => e.id === "signups")).toMatchObject({ href: "/signups", areas: ["signup"], icon: "signups" });

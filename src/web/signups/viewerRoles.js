@@ -12,14 +12,15 @@ const { memberRolesRemembered } = require("../../services/discord/roles/memberRo
 /**
  * @param {string} guildId  the server the raids are on
  * @param {{ id: string, viewAs?: { roleIds: string[] } }} user  auth.getUser()'s user
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, waitMs?: number, absentAs?: string[] }} [opts] `waitMs`, `absentAs`:
+ *   see discord.memberRoleIds and memberRoleMemory
  * @returns {Promise<{ roleIds: string[]|null, viewAs: boolean, unknown: boolean }>}
  */
-async function viewerRoles(guildId, user, { now = Date.now() } = {}) {
+async function viewerRoles(guildId, user, { now = Date.now(), waitMs, absentAs } = {}) {
     if (user && user.viewAs && Array.isArray(user.viewAs.roleIds)) {
         return { roleIds: user.viewAs.roleIds.map(String), viewAs: true, unknown: false };
     }
-    const { roleIds } = await memberRolesRemembered(guildId, user && user.id, { now });
+    const { roleIds } = await memberRolesRemembered(guildId, user && user.id, { now, waitMs, absentAs });
     return { roleIds, viewAs: false, unknown: roleIds === null };
 }
 

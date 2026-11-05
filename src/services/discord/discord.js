@@ -1642,18 +1642,39 @@ function _resetAbsentNamesForTests() {
  * `absentAs` is what to answer when Discord says the member is surely not on
  * the server (Unknown Member/User) — a signup check passes [] so "not a member"
  * needs no second fetch (#904); by default that stays null like every failure.
+ * `waitMs` bounds the wait for a caller on a page request (no limit without it):
+ * running out answers null, the fetch is not awaited any further.
+ * @param {{ absentAs?: string[]|null, waitMs?: number }} [opts]
  * @returns {Promise<string[]|null>}
  */
-async function memberRoleIds(guildId, userId, { absentAs = null } = {}) {
+async function memberRoleIds(guildId, userId, { absentAs = null, waitMs } = {}) {
     const guild = getGuild(guildId);
     if (!guild || !userId) return null;
+    const uid = String(userId);
+    const lookup = Promise.resolve()
+        .then(() => guild.members.cache.get(uid) || guild.members.fetch(uid))
+        .then((member) => {
+            const cache = member && member.roles && member.roles.cache;
+            return cache && typeof cache.keys === "function" ? [...cache.keys()] : null;
+        })
+        .catch((e) => {
+            const code = e && (e.code || (e.rawError && e.rawError.code));
+            return code === 10007 || code === 10013 ? absentAs : null;
+        });
+    return waitMs === undefined ? lookup : answerWithin(lookup, waitMs);
+}
+
+/** A lookup's answer, or null once `waitMs` ran out; a page request never waits longer. */
+async function answerWithin(lookup, waitMs) {
+    let timer = null;
+    const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(null), Math.max(0, waitMs));
+        if (timer.unref) timer.unref();
+    });
     try {
-        const member = guild.members.cache.get(String(userId)) || await guild.members.fetch(String(userId));
-        const cache = member && member.roles && member.roles.cache;
-        return cache && typeof cache.keys === "function" ? [...cache.keys()] : null;
-    } catch (e) {
-        const code = e && (e.code || (e.rawError && e.rawError.code));
-        return code === 10007 || code === 10013 ? absentAs : null;
+        return await Promise.race([lookup, timeout]);
+    } finally {
+        clearTimeout(timer);
     }
 }
 
@@ -1680,16 +1701,7 @@ async function guildMembership(guildId, userId, { waitMs = NAME_FETCH_MS } = {})
             logger.warn(`membership lookup of ${uid} on ${guildId} failed:`, (e && e.message) || e);
             return null;
         });
-    let timer = null;
-    const timeout = new Promise((resolve) => {
-        timer = setTimeout(() => resolve(null), Math.max(0, waitMs));
-        if (timer.unref) timer.unref();
-    });
-    try {
-        return await Promise.race([lookup, timeout]);
-    } finally {
-        clearTimeout(timer);
-    }
+    return answerWithin(lookup, waitMs);
 }
 
 /**

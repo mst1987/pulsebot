@@ -15,7 +15,7 @@ const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const guildRoles = require("../../../../src/services/discord/roles/guildRoles");
 const discord = require("../../../../src/services/discord/discord");
 const userAccess = require("../../../../src/services/discord/members/userAccess");
-const { makeClient, makeGuild, makeMember } = require("../../../helpers/discordClient");
+const { makeClient, makeGuild, makeMember, discordError } = require("../../../helpers/discordClient");
 
 const RAIDS_WRITE = { raids: { read: true, write: true } };
 const G1 = { guildId: "guild-1" };
@@ -53,6 +53,70 @@ describe("services/discord/members/userAccess", () => {
         expect(result.isAdmin).toBe(false);
         expect(result.access.loot).toEqual({ read: true, write: false });
         expect(result.access.raids).toEqual({ read: true, write: true });
+    });
+
+    // #1074: "not a member" and "nobody knows" must stay two answers, the second is asked again.
+    describe("a membership that could not be asked", () => {
+        const flagOf = async () => (await userAccess.computeGuildAccess("u1")).guilds["guild-1"];
+
+        it("marks the server without a bot", async () => {
+            expect((await flagOf()).membershipUnknown).toBe(true);
+        });
+
+        it("marks the server when Discord gives no answer", async () => {
+            const guild = makeGuild({ id: "guild-1" });
+            guild.members.fetch = jest.fn().mockRejectedValue(new Error("gateway timeout"));
+            clientWith(guild);
+            const entry = await flagOf();
+            expect(entry.membershipUnknown).toBe(true);
+            expect(entry.isMember).toBeUndefined();
+        });
+
+        it("does not mark someone Discord says is no member", async () => {
+            const guild = makeGuild({ id: "guild-1" });
+            guild.members.fetch = jest.fn().mockRejectedValue(discordError("member"));
+            clientWith(guild);
+            const entry = await flagOf();
+            expect(entry.membershipUnknown).toBeUndefined();
+            expect(entry.isMember).toBeUndefined();
+        });
+
+        it("does not mark a member", async () => {
+            clientWith(makeGuild({ id: "guild-1", members: [makeMember({ id: "u1" })] }));
+            const entry = await flagOf();
+            expect(entry.membershipUnknown).toBeUndefined();
+            expect(entry.isMember).toBe(true);
+        });
+
+        it("marks the server when fetching it fails for a passing reason, without taking a stored membership", async () => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(new Error("temporary 503"));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBe(true);
+        });
+
+        // 10004 and 50001 are what Discord answers for a server the bot is not on
+        it.each([10004, 50001])("does not mark the server when fetching it says %i", async (code) => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("definite"), { code }));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBeUndefined();
+        });
+
+        // 50013 is a permission of the moment, the member codes do not come from a guild route
+        it.each([50013, 10007, 10013])("marks the server when fetching it says %i", async (code) => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("passing"), { code }));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBe(true);
+        });
+
+        it("marks every server when a lookup that had to answer fails", async () => {
+            getConfig.mockReturnValue(onGuild1({ rolePermissions: { "r-lead": RAIDS_WRITE } }));
+            const result = await userAccess.resolveGuildAccess("u1");
+            expect(result.isAdmin).toBe(false);
+            expect(result.guilds["guild-1"].membershipUnknown).toBe(true);
+        });
     });
 
     it("fails closed without a guild id: no server, no rights", async () => {

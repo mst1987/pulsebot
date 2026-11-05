@@ -21,7 +21,9 @@ import SignupsPage from "../SignupsPage";
 vi.mock("../../api", async (orig) => ({
     ...(await orig<typeof import("../../api")>()),
     getSignups: vi.fn(),
+    getSignupRaid: vi.fn(),
     saveSignup: vi.fn(),
+    saveSignupRaid: vi.fn(),
     saveSignupsBulk: vi.fn(),
     getAvailability: vi.fn(),
 }));
@@ -67,6 +69,7 @@ afterAll(() => {
 
 beforeEach(() => {
     vi.mocked(api.getSignups).mockReset();
+    vi.mocked(api.getSignupRaid).mockReset();
     vi.mocked(api.saveSignup).mockReset();
     vi.mocked(api.saveSignupsBulk).mockReset();
     // the section above the raids (components/signup/__tests__/AvailabilitySection.test.tsx)
@@ -175,8 +178,58 @@ describe("SignupsPage", () => {
     });
 
     it("never opens the dialog for a Raid-Helper event, even when the url names it", async () => {
-        await show(undefined, "/signups?event=rh-1");
+        await show(signupsData({ events: [KARA, raidHelperRow({ id: "rh-1" })] }), "/signups?event=rh-1");
         expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+        expect(api.getSignupRaid).not.toHaveBeenCalled();
+    });
+
+    it("opens a raid of another server without leaving the own list for good (#1074)", async () => {
+        const user = userEvent.setup();
+        const foreign = ownRow({ id: "eh-foreign", title: "Fremder Raid" });
+        vi.mocked(api.getSignups).mockResolvedValue(signupsData({ events: [KARA] }));
+        vi.mocked(api.getSignupRaid).mockResolvedValue(signupsData({ events: [foreign] }));
+        renderPage(<><SignupsPage /><Where /></>, { route: "/signups?event=eh-foreign", user: adminUser({ name: "Zibbo" }) });
+
+        const dialog = await screen.findByRole("dialog", {}, { timeout: 8000 });
+        expect(within(dialog).getByText(/Fremder Raid/)).toBeInTheDocument();
+        expect(api.getSignupRaid).toHaveBeenCalledWith("eh-foreign");
+        expect(screen.queryByText("Kara Freitag")).not.toBeInTheDocument();
+
+        // closing keeps the raid reachable, the way back leads to the own list on the same server
+        await user.click(within(dialog).getByRole("button", { name: t("common.close") }));
+        expect(await screen.findByText("Fremder Raid")).toBeInTheDocument();
+        expect(screen.queryByText("Kara Freitag")).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("signups.raidLink.backToList") }));
+        expect(await screen.findByRole("heading", { name: t("signups.page.title") })).toBeInTheDocument();
+        expect(where()).toBe("/signups");
+    });
+
+    it("says it plainly and offers the list when the link's raid does not open (#1074)", async () => {
+        const user = userEvent.setup();
+        vi.mocked(api.getSignups).mockResolvedValue(signupsData({ events: [KARA] }));
+        vi.mocked(api.getSignupRaid).mockRejectedValue({ code: api.RAID_UNAVAILABLE, message: "raw" });
+        renderPage(<><SignupsPage /><Where /></>, { route: "/signups?event=eh-gone", user: adminUser({ name: "Zibbo" }) });
+
+        expect(await screen.findByText(t("signups.raidLink.unavailable"), {}, { timeout: 8000 })).toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("signups.raidLink.backToList") }));
+        expect(await screen.findByRole("heading", { name: t("signups.page.title") })).toBeInTheDocument();
+        expect(where()).toBe("/signups");
+    });
+
+    it("stays out of the way while the list follows a raid to its game version (#1074)", async () => {
+        localStorage.clear();
+        vi.mocked(api.getSignups).mockResolvedValue(signupsData({ events: [], eventVersion: "forever" }));
+        renderPage(<SignupsPage />, { route: "/signups?event=eh-kara", user: adminUser({ name: "Zibbo" }) });
+        expect(await screen.findByRole("heading", { name: t("signups.page.title") })).toBeInTheDocument();
+        expect(api.getSignupRaid).not.toHaveBeenCalled();
+    });
+
+    it("still opens the raid of a link when the list itself is refused (#1074)", async () => {
+        vi.mocked(api.getSignups).mockRejectedValue({ code: "forbidden", message: "Keine Berechtigung" });
+        vi.mocked(api.getSignupRaid).mockResolvedValue(signupsData({ events: [ownRow({ id: "eh-foreign", title: "Fremder Raid" })] }));
+        renderPage(<SignupsPage />, { route: "/signups?event=eh-foreign", user: adminUser({ name: "Zibbo" }) });
+        expect(await screen.findByRole("dialog", {}, { timeout: 8000 })).toBeInTheDocument();
+        expect(screen.queryByText("Keine Berechtigung", { exact: false })).not.toBeInTheDocument();
     });
 
     it("groups the raids by raid ID, Wednesday to Tuesday", async () => {

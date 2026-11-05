@@ -394,7 +394,8 @@ function resultLine(result, profile, lang = "de") {
  */
 function buildResults(token, session, { nextPage = null, profile = null, lang = "de", joinHint = null } = {}) {
     const results = session.results;
-    const saved = results.filter((r) => r.ok).length;
+    const savedRaids = results.filter((r) => r.ok);
+    const saved = savedRaids.length;
     const lines = results.map((r) => resultLine(r, profile, lang));
     const counts = { saved, total: results.length };
     const title = nextPage === null
@@ -409,7 +410,11 @@ function buildResults(token, session, { nextPage = null, profile = null, lang = 
     if (nextPage !== null) {
         buttons.push({ type: 2, style: 1, custom_id: multiId(token, "go", nextPage), label: tr(lang, "Next: {range}", { range: pageRange(session, nextPage, lang) }) });
     }
-    if (/^https?:\/\//.test(publicBaseUrl())) buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}/signups` });
+    if (/^https?:\/\//.test(publicBaseUrl())) {
+        // One saved raid: straight to it, it may not be on the list of the member's active server (#1074).
+        const target = saved === 1 ? `/signups?event=${encodeURIComponent(savedRaids[0].eventId)}` : "/signups";
+        buttons.push({ type: 2, style: 5, label: tr(lang, "My signups"), url: `${publicBaseUrl()}${target}` });
+    }
     for (const button of (joinHint && joinHint.buttons) || []) if (buttons.length < 5) buttons.push(button);
     if (buttons.length) components.push({ type: 1, components: buttons });
     return {

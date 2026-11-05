@@ -18,10 +18,11 @@
 // keeps what the roles alone give (`roleAccess`, `roleIsOrga`): that is what counts
 // where the rank does not (a route on data of every server, an unanswered re-check).
 //
-//   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`
+//   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, membershipUnknown?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`
 //                                for every server; throws when a configured role
 //                                lookup could not reach a single server
 //   resolveGuildAccess(userId)   the same, the base access of each server when it fails
+//                                (`membershipUnknown`: Discord gave no answer about it)
 //   computeAccess(userId, { guildId })   the rights on that one server (fail closed
 //                                without a guild id: only a full admin gets anything)
 //   resolveAccess(userId, { guildId })   the same, the base access when the lookup fails
@@ -41,6 +42,10 @@ const logger = require("../../../logger");
 // member" (as opposed to a transient lookup failure).
 const UNKNOWN_MEMBER = 10007;
 const UNKNOWN_USER = 10013;
+// "The bot is not on this server", as Discord answers it for a guild it does not exist on and
+// for one the bot has no access to - any other error says nothing about the server.
+const UNKNOWN_GUILD = 10004;
+const MISSING_ACCESS = 50001;
 
 const NO_ACCESS = () => ({ isAdmin: false, access: emptyAccess() });
 const ALL_ACCESS = () => ({ isAdmin: true, access: fullAccess() });
@@ -102,15 +107,22 @@ function baseGuilds(userId, config) {
     return guilds;
 }
 
+/** The same servers, marked: Discord was not asked, so nothing is known about the membership there. */
+function withUnknownMembership(guilds) {
+    return Object.fromEntries(Object.entries(guilds).map(([gid, entry]) => [gid, { ...entry, membershipUnknown: true }]));
+}
+
 /**
  * What the given Discord user id may do on each server:
- * `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`.
+ * `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, membershipUnknown?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`.
  *
  * Full admin (on every server) if the id is a .env admin, or a member of ANY
  * known server holding one of the full-admin roles. Otherwise, per server, that
  * server's base access merged with the role grants of the roles held on that
  * server; `isOrga` when one of that server's orga roles is held there. `isMember`
- * when Discord answered with a member. `isServerAdmin` (every area, `isOrga`) for
+ * when Discord answered with a member; `membershipUnknown` when it gave no answer
+ * about the member, so that "not a member" is not read into it (#1074).
+ * `isServerAdmin` (every area, `isOrga`) for
  * a Discord administrator or the owner of a server of `discordServers.servers`;
  * a pure overview target or the home guild outside that list never gives it. Such
  * an entry also carries what the roles alone give: `roleAccess`, `roleIsOrga`.
@@ -136,7 +148,7 @@ async function computeGuildAccess(userId) {
     const botClient = discord.getClient();
     if (!botClient || !guildIds.length) {
         if (answerRequired) throw new Error("bot client or guild id not available");
-        return { isAdmin: false, guilds };
+        return { isAdmin: false, guilds: withUnknownMembership(guilds) };
     }
     let reachedAnyGuild = false;
     let lastGuildError = null;
@@ -145,7 +157,11 @@ async function computeGuildAccess(userId) {
         try {
             guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
         } catch (e) {
-            lastGuildError = e; // bot not on this server — it keeps its base access
+            lastGuildError = e; // not reachable — it keeps its base access
+            // A passing failure (not "the bot is not on it") must not cost a member their server.
+            if (!e || ![UNKNOWN_GUILD, MISSING_ACCESS].includes(e.code)) {
+                guilds[guildId] = { ...guilds[guildId], membershipUnknown: true };
+            }
             continue;
         }
         reachedAnyGuild = true;
@@ -155,7 +171,10 @@ async function computeGuildAccess(userId) {
         } catch (e) {
             // Not a member of this server — it keeps its base access; try the next.
             if (e && (e.code === UNKNOWN_MEMBER || e.code === UNKNOWN_USER)) continue;
-            if (!answerRequired) continue; // only a rank was at stake — no answer, no rank
+            if (!answerRequired) { // only a rank was at stake — no answer, no rank
+                guilds[guildId] = { ...guilds[guildId], membershipUnknown: true };
+                continue;
+            }
             throw e;
         }
         const roleIds = memberRoleIds(member).map(String);
@@ -208,7 +227,7 @@ async function resolveGuildAccess(userId) {
     } catch (e) {
         logger.warn(`Role lookup failed for ${userId}: ${e && e.message}`);
         try {
-            return { isAdmin: false, guilds: baseGuilds(userId, getConfig()) };
+            return { isAdmin: false, guilds: withUnknownMembership(baseGuilds(userId, getConfig())) };
         } catch {
             return { isAdmin: false, guilds: {} };
         }

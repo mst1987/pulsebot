@@ -24,4 +24,16 @@ describe("viewerRoles", () => {
         discord.memberRoleIds.mockResolvedValueOnce(null);
         expect(await viewerRoles("g1", { id: "u2" })).toEqual({ roleIds: null, viewAs: false, unknown: true });
     });
+
+    it("hands a time limit on to the read", async () => {
+        discord.memberRoleIds.mockResolvedValueOnce(["r1"]);
+        await viewerRoles("g1", { id: "u1" }, { waitMs: 250 });
+        expect(discord.memberRoleIds).toHaveBeenCalledWith("g1", "u1", { waitMs: 250 });
+    });
+
+    it("reads \"surely no member\" as no roles only for the caller asking so", async () => {
+        discord.memberRoleIds.mockImplementation(async (_guildId, _userId, { absentAs = null } = {}) => absentAs);
+        expect(await viewerRoles("g1", { id: "u1" }, { absentAs: [] })).toEqual({ roleIds: [], viewAs: false, unknown: false });
+        expect(await viewerRoles("g1", { id: "u1" })).toEqual({ roleIds: null, viewAs: false, unknown: true });
+    });
 });
