@@ -5,7 +5,7 @@ jest.mock("../../../src/classes/githubReleases", () => ({ fetchLatestRelease: je
 
 const { fetchLatestRelease } = require("../../../src/classes/githubReleases");
 const {
-    releaseFor, addonCards, addonCard, addonDetail, publicAddon, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
+    releaseFor, mayOpenOrgaOnly, addonCards, addonCard, addonDetail, publicAddon, resolveDownload, enabledAddons, addonVersions, kindOf, downloadPath, tokenFingerprint,
     resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 } = require("../../../src/services/addons/addonReleases");
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
@@ -187,6 +187,19 @@ describe("publicAddon", () => {
         expect(publicAddon(config(), "")).toBeNull();
         expect(publicAddon(off, "levelhelper")).toBeNull();
         expect(publicAddon(config(), "eventhelper-sync")).toBeNull();
+    });
+});
+
+describe("mayOpenOrgaOnly", () => {
+    const servers = (trusted) => ({ discordServers: { servers: [{ guildId: "g1", trusted }], links: [] } });
+
+    it("opens for a full admin anywhere, for an orga role only on a marked server", () => {
+        expect(mayOpenOrgaOnly({ isAdmin: true }, "", servers(false))).toBe(true);
+        expect(mayOpenOrgaOnly({ isOrga: true }, "g1", servers(true))).toBe(true);
+        expect(mayOpenOrgaOnly({ isOrga: true }, "g1", servers(false))).toBe(false);
+        expect(mayOpenOrgaOnly({ isOrga: true }, "g2", servers(true))).toBe(false);
+        expect(mayOpenOrgaOnly({ isOrga: false }, "g1", servers(true))).toBe(false);
+        expect(mayOpenOrgaOnly(null, "g1", servers(true))).toBe(false);
     });
 });
 

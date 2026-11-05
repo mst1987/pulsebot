@@ -67,7 +67,7 @@ beforeEach(() => {
     resetDownloadLimit();
     mockBase = "https://eh.example";
     mockAccess = { isAdmin: false, access: member };
-    mockConfig = { addonDownloads: defaultAddons(), github: { token: TOKEN } };
+    mockConfig = { addonDownloads: defaultAddons(), github: { token: TOKEN }, discordServers: { servers: [{ guildId: "g1", trusted: true }], links: [] } };
     github.fetchLatestRelease.mockResolvedValue(release([zip]));
     github.openAssetStream.mockImplementation(async () => ({ stream: Readable.from([Buffer.from("PK-zip-bytes")]), size: 12 }));
 });
@@ -111,9 +111,24 @@ describe("addonCenterBot download", () => {
 
         mockAccess = { isAdmin: false, isOrga: true, access: member };
         github.fetchLatestRelease.mockResolvedValue(release([{ id: 21, name: "EventHelperSync-1.0.zip", size: 10 }]));
-        const orga = click("addonhub:dl:eventhelper-sync");
+        const orga = click("addonhub:dl:eventhelper-sync", { guildId: "g1" });
         await bot.handleCenter(orga);
         expect(answer(orga).files[0].name).toBe("EventHelperSync-1.0.zip");
+    });
+
+    it("an orga role on an unmarked server opens no orga-only addon, a full admin does", async () => {
+        mockConfig.discordServers.servers[0].trusted = false;
+        github.fetchLatestRelease.mockResolvedValue(release([{ id: 21, name: "EventHelperSync-1.0.zip", size: 10 }]));
+        mockAccess = { isAdmin: false, isOrga: true, isServerAdmin: true, access: member };
+        const orga = click("addonhub:dl:eventhelper-sync", { guildId: "g1" });
+        await bot.handleCenter(orga);
+        expect(textOf(answer(orga))).toMatch(/^🔒 /);
+        expect(github.fetchLatestRelease).not.toHaveBeenCalled();
+
+        mockAccess = { isAdmin: true, access: member };
+        const admin = click("addonhub:dl:eventhelper-sync", { guildId: "g1" });
+        await bot.handleCenter(admin);
+        expect(answer(admin).files[0].name).toBe("EventHelperSync-1.0.zip");
     });
 
     it("says when the next download works after the limit, in the server's time", async () => {

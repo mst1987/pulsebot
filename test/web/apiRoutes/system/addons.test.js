@@ -23,7 +23,7 @@ const { get, handle, urlFor } = routerClient(route);
 
 const TOKEN = "github_pat_SECRET_TOKEN";
 const ADMIN = { id: "1", name: "Admin", isAdmin: true };
-const orga = { id: "8", name: "Orga", isAdmin: false, isOrga: true, access: { ...emptyAccess(), signup: { read: true, write: false } } };
+const orga = { id: "8", name: "Orga", guildId: "g1", isAdmin: false, isOrga: true, access: { ...emptyAccess(), signup: { read: true, write: false } } };
 const member = (area = "signup") => ({ id: "7", name: "Bob", isAdmin: false, access: { ...emptyAccess(), [area]: { read: true, write: false } } });
 const release = (version, names) => ({
     version, tag: `v${version}`, name: "", publishedAt: "2026-10-12T10:00:00Z", notes: "",
@@ -67,7 +67,7 @@ beforeEach(() => {
     resetAddonReleaseCache();
     resetDownloadLimit();
     mockUser = ADMIN;
-    mockConfig = { addonDownloads: defaultAddons(), github: { token: TOKEN }, mainVersion: "forever" };
+    mockConfig = { addonDownloads: defaultAddons(), github: { token: TOKEN }, discordServers: { servers: [{ guildId: "g1", trusted: true }], links: [] }, mainVersion: "forever" };
     githubWith({
         "mst1987/levelhelper": release("0.3.0", ["LevelHelper-0.3.0.zip"]),
         "mst1987/eventhelper-addon": release("1.14.0", ["EventHelperSync.exe", "EventHelperSync-1.14.0.zip"]),
@@ -339,6 +339,18 @@ describe("orga-only addons", () => {
         for (let i = 0; i < LIMIT; i++) {
             expect(statusOf(await download({ addon: "levelhelper", asset: "LevelHelper-0.3.0.zip" }))).toBe(200);
         }
+    });
+
+    it("stay closed for an orga role on an unmarked server, on all three ways; a full admin keeps them", async () => {
+        mockConfig.discordServers.servers[0].trusted = false;
+        mockUser = { ...orga, isServerAdmin: true };
+        expect(body(await get("/api/addons", { version: "tbc" })).addons).toHaveLength(0);
+        expect(status(await get("/api/addons/detail", { addon: "eventhelper-sync" }))).toBe(404);
+        expect(statusOf(await download({ addon: "eventhelper-sync", asset: "EventHelperSync.exe" }))).toBe(403);
+        mockUser = ADMIN;
+        expect(body(await get("/api/addons", { version: "tbc" })).addons).toHaveLength(1);
+        expect(status(await get("/api/addons/detail", { addon: "eventhelper-sync" }))).toBe(200);
+        expect(statusOf(await download({ addon: "eventhelper-sync", asset: "EventHelperSync.exe" }))).toBe(200);
     });
 
     it("let the orga and an admin download", async () => {
