@@ -120,6 +120,47 @@ describe("services/discord/roles/guildRoles links", () => {
         expect(guildRoles.linkedTargets(T, config)).toEqual([]);
         expect(guildRoles.linkedSources("", config)).toEqual([]);
     });
+
+    // who may read a shared Vermerk (#1078): the switch on the link, both directions, versions do not narrow it
+    describe("noteSharingServerIds", () => {
+        const shared = (from, to, extra = {}) => ({ from, to, channelId: C1, shareNotes: true, ...extra });
+        const sharing = (links, servers = [E1, E2, T]) => ({ discordServers: block({ servers: servers.map(server), links }) });
+
+        it("names the servers a link with the switch shares with, in both directions", () => {
+            const on = sharing([shared(E1, T), shared(E2, T)]);
+            expect([...guildRoles.noteSharingServerIds(E1, on)]).toEqual([T]);
+            expect([...guildRoles.noteSharingServerIds(T, on)].sort()).toEqual([E1, E2].sort());
+            expect([...guildRoles.noteSharingServerIds(X, on)]).toEqual([]);
+            expect([...guildRoles.noteSharingServerIds("", on)]).toEqual([]);
+            expect([...guildRoles.noteSharingServerIds(E1, { discordServers: block() })]).toEqual([]);
+        });
+
+        it("does not count a link without the switch, whichever side asks", () => {
+            expect([...guildRoles.noteSharingServerIds(E1, config)]).toEqual([]);
+            expect([...guildRoles.noteSharingServerIds(T, config)]).toEqual([]);
+            const mixed = sharing([shared(E1, T), { from: E2, to: T, channelId: C1 }]);
+            expect([...guildRoles.noteSharingServerIds(T, mixed)]).toEqual([E1]);
+            expect([...guildRoles.noteSharingServerIds(E2, mixed)]).toEqual([]);
+        });
+
+        it("counts a link limited to a version like any other", () => {
+            const limited = sharing([shared(E1, T, { versions: ["forever"] })], [E1, T]);
+            expect([...guildRoles.noteSharingServerIds(T, limited)]).toEqual([E1]);
+            expect([...guildRoles.noteSharingServerIds(E1, limited)]).toEqual([T]);
+        });
+
+        it("no longer counts a partner taken off the server list, from either side", () => {
+            const gone = sharing([shared(E1, T), shared(T, E1)], [E1]);
+            expect([...guildRoles.noteSharingServerIds(E1, gone)]).toEqual([]);
+            // the one taken off the list sees nothing any more either
+            expect([...guildRoles.noteSharingServerIds(T, gone)]).toEqual([]);
+        });
+
+        it("never names the server itself for a link onto itself", () => {
+            const self = sharing([shared(E1, E1)]);
+            expect([...guildRoles.noteSharingServerIds(E1, self)]).toEqual([]);
+        });
+    });
 });
 
 

@@ -252,7 +252,14 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
     Welche Server jemand sehen und betreten darf, entscheidet nur `mayEnterGuild` (`web/http/guildChoice.js`,
     #1074); ein aktiver Server ist für Nicht-Voll-Admins nie fremd, er kann aber fehlen (`""`).
-29. **Links in bereichsgebundene SPA-Seiten:** `/signups?event=…` aus Bot-Nachrichten und `/e/<id>` zeigen auf eine
+29. `discordServers.links` steuert mit dem Schalter `shareNotes` die Sicht auf geteilte Vermerke (#1078),
+    in beiden Richtungen und unabhängig von `versions` (`guildRoles.noteSharingServerIds`). Wer Links
+    schreibt, anlegt oder ihre Rechte ändert (#1075, Selbst-Aktivierung), prüft beide Seiten, auch beim
+    Ändern von `to`, und testet die Vermerke-Sicht mit. Das Feld fehlt, wenn es aus ist: Wer einen Link
+    neu aufbaut, muss es mitnehmen (`normalizeLinks`). `shareNotes` gilt nur zwischen zwei gelisteten Servern:
+    `normalizeLinks` verwirft es sonst und am Selbstlink, Entfernen und Wiederaufnehmen eines Servers teilt
+    also nicht still. Wer die Serverliste öffnet (#1073, #1075, Selbst-Aktivierung), muss das erhalten.
+30. **Links in bereichsgebundene SPA-Seiten:** `/signups?event=…` aus Bot-Nachrichten und `/e/<id>` zeigen auf eine
     Seite, die einen passenden aktiven Server voraussetzt oder die raidgebundene Ausnahme braucht (`/api/signups/raid`,
     #1074). Wer den Eintritt oder den aktiven Server ändert, prüft alle Linkquellen und was das Ziel dann zeigt: Grün
     im Router-Test heißt nicht, dass der Link aus dem Discord noch etwas öffnet.

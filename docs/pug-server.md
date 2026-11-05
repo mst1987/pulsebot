@@ -92,6 +92,7 @@ erbt nichts von ihr – Raid-, Orga- und interne Kanäle sind danach für alle s
 
 Schritt 11 setzt voraus, dass der Bot auch auf dem Partnerserver ist (ein Partner ohne EventHelper ist nicht
 vorgesehen). Der Partner muss nicht in der Serverliste stehen: ein reines Ziel bekommt keine Raid-Server-Rechte.
+Eine Verknüpfung teilt keine Vermerke, außer ihr Schalter „Vermerke teilen“ ist an (docs/vermerke.md); für die Raid-Liste bleibt er aus.
 
 ## Wege zur Anmeldung
 

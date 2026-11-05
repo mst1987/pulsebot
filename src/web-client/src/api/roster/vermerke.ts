@@ -35,7 +35,7 @@ export type VermerkPerson = {
     totalCount: number;
     lastAt: number;
     lastByName: string;
-    /** active entries that come shared from another server */
+    /** active entries that come shared from a linked server */
     sharedCount: number;
     /** no longer on the server; null without a member list */
     left: boolean | null;
@@ -58,16 +58,23 @@ export type VermerkEntry = {
     archivedAt?: number;
     archivedBy?: string;
     history: VermerkHistory[];
-    /** written on the active server (else: shared from another, read only) */
+    /** written on the active server (else: shared from a linked server, read only) */
     own: boolean;
     originGuildId: string;
     originName?: string;
-    /** a shared entry of another server this server hid for itself */
+    /** a shared entry of a linked server this server hid for itself */
     hidden: boolean;
     active: boolean;
 };
 
-export type VermerkPersonDetail = { userId: string; name: string; level: NoteLevel | null; entries: VermerkEntry[] };
+export type VermerkPersonDetail = {
+    userId: string;
+    name: string;
+    level: NoteLevel | null;
+    /** false: no link shares Vermerke with this server, so its shared entries reach nobody yet */
+    hasSharingServers?: boolean;
+    entries: VermerkEntry[];
+};
 
 export type VermerkFields = {
     level: NoteLevel;
@@ -81,7 +88,13 @@ export type VermerkFields = {
 export type PersonHit = { userId: string; name: string; gone: boolean | null };
 export type RecentRaid = { eventId: string; title: string; startTime: number; signed: boolean };
 
-export type VermerkList = { guildId: string; guildName: string; people: VermerkPerson[] };
+export type VermerkList = {
+    guildId: string;
+    guildName: string;
+    /** false: no link shares Vermerke with this server, so its shared entries reach nobody yet */
+    hasSharingServers?: boolean;
+    people: VermerkPerson[];
+};
 
 export function getVermerke(): Promise<VermerkList> {
     return get("/api/vermerke");
@@ -106,7 +119,7 @@ export function archiveVermerk(guildId: string, userId: string, id: string, arch
     return send("POST", "/api/vermerke/archive", { userId, id, archived, serverSettingsGuildId: guildId });
 }
 
-/** Hides (or shows again) a shared entry of another server on the active one. */
+/** Hides (or shows again) a shared entry of a linked server on the active one. */
 export function hideVermerk(guildId: string, id: string, hidden = true): Promise<{ id: string; hidden: boolean }> {
     return send("POST", "/api/vermerke/hide", { id, hidden, serverSettingsGuildId: guildId });
 }
