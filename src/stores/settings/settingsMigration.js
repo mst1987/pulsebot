@@ -1140,7 +1140,7 @@ function migrateTrustedServers(warn = console.error) {
         return [];
     }
     if (!Object.keys(stored).length || stored[configStore.TRUSTED_SERVERS_MIGRATED] === true) return [];
-    const next ={ ...stored, [configStore.TRUSTED_SERVERS_MIGRATED]: true };
+    const next = { ...stored, [configStore.TRUSTED_SERVERS_MIGRATED]: true };
     const block = stored.discordServers;
     const raw = block && Array.isArray(block.servers) ? block.servers : [];
     const turnsOn = (server) => server && typeof server === "object" && server.guildId && server.trusted !== true;
