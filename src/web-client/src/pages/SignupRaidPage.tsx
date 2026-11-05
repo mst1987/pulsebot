@@ -14,8 +14,8 @@ import "../styles/signups.css";
 // One raid behind a signup link (#1074), for whoever cannot reach it through the
 // list of the active server: no active server, or another one. It shows this raid's
 // dialog and nothing else, under the rules of the raid's own server, and it switches
-// no server (GET and PUT /api/signups/raid). `onClose`: the way back to the list a
-// member came from; without it, the raid's own page stays behind the dialog.
+// no server (GET and PUT /api/signups/raid). Closing the dialog leaves the raid's name
+// and a way to reopen it. `onClose`: the way back to the list a member came from.
 
 export default function SignupRaidPage({ eventId, accountName, onClose }: {
     eventId: string;
@@ -32,23 +32,22 @@ export default function SignupRaidPage({ eventId, accountName, onClose }: {
 
     if (!data && !error) return <RaidLoader text={t("signups.page.loading")} />;
 
+    const back = onClose
+        ? <Button variant="ghost" onClick={onClose}>{t("signups.raidLink.backToList")}</Button>
+        : <Link className="mlink" to="/">{t("shell.app.backHome")}</Link>;
+
     if (!data || !row) {
         // The server gives an unknown raid and a closed one the same answer: so does this page.
         const failed = error && error.code !== RAID_UNAVAILABLE;
         return (
             <div className="empty app-notice">
                 <p>{failed ? t("signups.page.loadError", { message: error.message }) : t("signups.raidLink.unavailable")}</p>
-                {onClose
-                    ? <Button variant="ghost" onClick={onClose}>{t("signups.raidLink.backToList")}</Button>
-                    : <Link className="mlink" to="/">{t("shell.app.backHome")}</Link>}
+                {back}
             </div>
         );
     }
 
-    const close = () => {
-        if (onClose) onClose();
-        else setDialogOpen(false);
-    };
+    const close = () => setDialogOpen(false);
 
     const onSaved = (savedId: string, signup: OwnSignup, counts: SignupCounts, created?: boolean) => {
         setData((d) => d && ({
@@ -69,7 +68,7 @@ export default function SignupRaidPage({ eventId, accountName, onClose }: {
                     <p>{mine ? t("signups.raidLink.yours", { status: statusBadgeLabel(mine.status) }) : t("signups.raidLink.notSignedUp")}</p>
                     <Button onClick={() => setDialogOpen(true)}>{mine ? t("signups.dialog.change") : t("signups.signUp")}</Button>
                     <a className="mlink" href={`/e/${encodeURIComponent(row.id)}`} target="_blank" rel="noreferrer">{t("signups.dialog.publicPage")}</a>
-                    <Link className="mlink" to="/">{t("shell.app.backHome")}</Link>
+                    {back}
                 </div>
             )}
             <SignupDialog

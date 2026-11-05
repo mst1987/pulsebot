@@ -195,8 +195,11 @@ describe("SignupsPage", () => {
         expect(api.getSignupRaid).toHaveBeenCalledWith("eh-foreign");
         expect(screen.queryByText("Kara Freitag")).not.toBeInTheDocument();
 
-        // closing it leads back to the member's own list, on the same server
+        // closing keeps the raid reachable, the way back leads to the own list on the same server
         await user.click(within(dialog).getByRole("button", { name: t("common.close") }));
+        expect(await screen.findByText("Fremder Raid")).toBeInTheDocument();
+        expect(screen.queryByText("Kara Freitag")).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("signups.raidLink.backToList") }));
         expect(await screen.findByRole("heading", { name: t("signups.page.title") })).toBeInTheDocument();
         expect(where()).toBe("/signups");
     });

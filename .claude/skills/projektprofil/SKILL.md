@@ -263,6 +263,11 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     Seite, die einen passenden aktiven Server voraussetzt oder die raidgebundene Ausnahme braucht (`/api/signups/raid`,
     #1074). Wer den Eintritt oder den aktiven Server ändert, prüft alle Linkquellen und was das Ziel dann zeigt: Grün
     im Router-Test heißt nicht, dass der Link aus dem Discord noch etwas öffnet.
+31. **Raidgebundene Ausnahmen ohne aktiven Server** (`/api/signups/raid`, #1074): `GET` und `PUT` fragen denselben
+    Sichtbarkeits-Baustein (`raidVisibility`), und unbekannte Rollen heißen dort Ablehnung. `checkRaiderRole` und
+    `checkPugMember` lassen bei `null` durch; das geht nur, wenn der Aufrufer nachweislich Mitglied ist oder eigene
+    Rechte hat. Wer eine weitere solche Route baut, testet Nichtmitglied, Discord-Ausfall, fehlenden Bot und fehlende
+    Guild auf beiden Methoden.
 
 ## Fach-Agenten
 

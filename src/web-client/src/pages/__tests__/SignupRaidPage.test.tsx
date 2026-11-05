@@ -74,14 +74,37 @@ describe("SignupRaidPage", () => {
         expect(screen.getByRole("button", { name: t("signups.signUp") })).toBeInTheDocument();
     });
 
-    it("hands the way back to the list a member came from", async () => {
+    it("keeps the raid reachable after closing, for a member who came from a list", async () => {
         const user = userEvent.setup();
         const onClose = vi.fn();
         vi.mocked(api.getSignupRaid).mockResolvedValue(signupsData({ events: [RAID] }));
         show(onClose);
         const dialog = await screen.findByRole("dialog");
         await user.click(within(dialog).getByRole("button", { name: t("common.close") }));
-        expect(onClose).toHaveBeenCalled();
+
+        // closing does not drop them on a list that does not hold this raid
+        expect(onClose).not.toHaveBeenCalled();
+        expect(await screen.findByText("Fremder Raid")).toBeInTheDocument();
+        expect(screen.queryByRole("link", { name: t("shell.app.backHome") })).not.toBeInTheDocument();
+        await user.click(screen.getByRole("button", { name: t("signups.signUp") }));
+        const again = await screen.findByRole("dialog");
+        await user.click(within(again).getByRole("button", { name: t("common.close") }));
+
+        await user.click(await screen.findByRole("button", { name: t("signups.raidLink.backToList") }));
+        expect(onClose).toHaveBeenCalledTimes(1);
+    });
+
+    it("stays on the raid after saving, for a member who came from a list", async () => {
+        const user = userEvent.setup();
+        const onClose = vi.fn();
+        vi.mocked(api.getSignupRaid).mockResolvedValue(signupsData({ events: [RAID] }));
+        show(onClose);
+        const dialog = await screen.findByRole("dialog");
+        await user.click(within(dialog).getByRole("button", { name: t("signups.signUp") }));
+
+        expect(await screen.findByText(t("signups.raidLink.yours", { status: statusBadgeLabel("signed") }))).toBeInTheDocument();
+        expect(screen.getByText("Fremder Raid")).toBeInTheDocument();
+        expect(onClose).not.toHaveBeenCalled();
     });
 
     it("explains a refused raid and leads back home instead of an empty page", async () => {

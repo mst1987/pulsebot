@@ -244,7 +244,19 @@ describe("Mehrere Raids wählen … (#293)", () => {
         const done = last.editReply.mock.calls[0][0];
         expect(done.embeds[0].title).toBe("Signup: 3 of 6 raids saved");
         expect(done.components[0].components.map((b) => b.label)).toEqual(["My signups"]);
+        expect(done.components[0].components[0].url).toBe("https://eh.example/signups");
         expect(mocks.signups.has(`eh-r7/${ANNA}`)).toBe(false);
+    });
+
+    it("leads straight to the raid when exactly one was saved (#1074)", async () => {
+        characters();
+        raids(2);
+        const token = shownSession(["eh-r1", "eh-r2"]);
+        const submit = modalSubmit(`signup-multi:${token}:m:0`, { r0: ["zibbo|Priest-Holy"], r1: [] }, { message: { id: "step1" } });
+        await step.execute(submit);
+        const done = submit.editReply.mock.calls[0][0];
+        expect(done.embeds[0].title).toBe("Signup: 1 of 2 raids saved");
+        expect(done.components[0].components[0].url).toBe("https://eh.example/signups?event=eh-r1");
     });
 
     it("refuses an expired or foreign token without saving anything", async () => {
