@@ -17,7 +17,7 @@ vi.mock("../../../api", async (orig) => ({
 
 function data(over: Partial<RecruitmentData> = {}): RecruitmentData {
     return {
-        view: "", guildName: "Pulse", editing: null, editingPost: null,
+        view: "", guildName: "Pulse", editing: null, editingPost: null, templatesAvailable: true,
         templates: [{ id: "t1", name: "Partnergilde Nachtwache", content: "Komm zu uns!", title: "", body: "", buttonLabel: "", versionId: "tbc" }],
         posts: [],
         channels: [{ id: "c1", name: "recruitment", category: "Allgemein" }],

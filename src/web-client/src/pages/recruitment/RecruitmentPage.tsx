@@ -57,7 +57,7 @@ function SubNav({ view, data, onChange }: { view: View; data: RecruitmentData; o
     ];
     return (
         <div className="subnav rc-subnav" role="tablist">
-            {tabs.map((tab) => (
+            {tabs.filter((tab) => tab.id !== "templates" || data.templatesAvailable).map((tab) => (
                 <button
                     key={tab.id} type="button" role="tab" aria-selected={view === tab.id}
                     className={`subnav-item${view === tab.id ? " active" : ""}`}
@@ -117,23 +117,27 @@ export default function RecruitmentPage() {
                 const editingTemplate = templateEditor.editId ? data.templates.find((tpl) => tpl.id === templateEditor.editId) || null : null;
                 const editingPost = postEditor.editId ? data.posts.find((p) => p.id === postEditor.editId) || null : null;
                 const shown = filterRecruitment(data, contentVersion || data.mainVersion || "");
+                // Without the templates (#1073, until #1097) a stored or linked template tab lands on the posts;
+                // posting needs a template too, so only the server's own posts and applications remain.
+                const shownView: View = view === "templates" && !data.templatesAvailable ? "posts" : view;
 
                 return (
                     <div className="rc-page">
                         <PageHead
                             icon={ICONS.page} tone="recruitment" kicker={data.guildName || t("recruitment.page.serverFallback")} title={t("recruitment.page.title")}
-                            action={<Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button>}
+                            action={data.templatesAvailable ? <Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button> : undefined}
                         />
-                        <SubNav view={view} data={shown} onChange={switchView} />
-                        {view === "applications" && <ApplicationsTab data={shown} />}
-                        {view === "templates" && (
+                        <SubNav view={shownView} data={shown} onChange={switchView} />
+                        {!data.templatesAvailable && <p className="hint">{t("recruitment.page.templatesClosed")}</p>}
+                        {shownView === "applications" && <ApplicationsTab data={shown} />}
+                        {shownView === "templates" && (
                             <TemplatesTab data={shown} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
                         )}
-                        {view === "posts" && (
+                        {shownView === "posts" && (
                             <PostsTab data={shown} editor={postEditor} onChanged={afterChange} reload={recruitment.reload} />
                         )}
 
-                        {templateEditor.open && (
+                        {templateEditor.open && data.templatesAvailable && (
                             <TemplateEditor
                                 key={editingTemplate?.id ?? "new"} data={data} template={editingTemplate}
                                 postedIn={editingTemplate ? data.posts.filter((p) => p.templateId === editingTemplate.id).length : 0}
@@ -147,7 +151,7 @@ export default function RecruitmentPage() {
                                 onSaved={afterChange} onClose={postEditor.close}
                             />
                         )}
-                        {postEditor.open && !editingPost && (
+                        {postEditor.open && !editingPost && data.templatesAvailable && (
                             <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
                         )}
                     </div>

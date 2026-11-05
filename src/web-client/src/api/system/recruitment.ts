@@ -85,6 +85,8 @@ export type RecruitmentData = {
     view: RecruitmentView | "";
     /** The active Discord server's name, "" without one. */
     guildName: string;
+    /** False on a server without the mark (#1073): templates are global until #1097, so the list stays empty. */
+    templatesAvailable: boolean;
     templates: RecruitmentTemplate[];
     editing: RecruitmentTemplate | null;
     editingPost: RecruitmentPost | null;

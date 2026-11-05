@@ -4,7 +4,8 @@
         "loadError": "Error while loading: {message}",
         "serverFallback": "Discord server",
         "title": "Recruitment",
-        "postMessage": "Post message"
+        "postMessage": "Post message",
+        "templatesClosed": "Templates and new messages are not available on this server yet: templates still apply to all servers."
     },
     "tabs": {
         "posts": "Messages",
