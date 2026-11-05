@@ -98,7 +98,7 @@ function buildBotCommandList(commands, config) {
 }
 
 /** GET /api/bot-commands */
-const getBotCommands = withUser({ full: true }, async ({ req, res }) => {
+const getBotCommands = withUser({ serverAdmin: true }, async ({ req, res }) => {
     // the rules of the active server (#925): a command is judged by the rules and
     // the member roles of the server it is used on (botAccess.guardInteraction)
     const guildId = activeGuildFor(req) || "";

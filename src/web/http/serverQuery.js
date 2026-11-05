@@ -30,6 +30,23 @@ function mayUseServer(user, req, guildId) {
 }
 
 /**
+ * Whether `user` may act on a link between two servers (#1073): a full admin, the server-admin rank
+ * only with the rank on both ends, whichever server is active. What one end's admin decides alone
+ * must not reach the other server.
+ */
+function mayUseLink(user, req, from, to) {
+    if (!user) return false;
+    if (user.isAdmin) return true;
+    if (!user.isServerAdmin) return false;
+    // required here, not at the top: tests of the callers mock auth without this export
+    const { userForGuild } = require("./auth");
+    return [from, to].every((guildId) => {
+        const view = userForGuild(req, str(guildId));
+        return !!view && view.isServerAdmin === true;
+    });
+}
+
+/**
  * Whether roles count for data of every server from this request: the active server carries the mark
  * of a full admin (#1073, guildRoles.serverIsTrusted). A way that does not go through onlyByRank or
  * `sharedData` (a category's managers, say) asks this itself; a full admin does not need to.
@@ -161,4 +178,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, onlyByRank, rolesCountForSharedData, mayWriteSharedData, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, mayUseLink, onlyByRank, rolesCountForSharedData, mayWriteSharedData, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

@@ -1,4 +1,4 @@
-jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: { id: "1" } }));
+jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: { id: "1", isAdmin: true } }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/services/talk/talkOverview", () => ({
     overviewStatus: jest.fn(() => [{ guildId: "111", label: "PvE", configured: true, messageId: "m1" }]),
@@ -6,7 +6,7 @@ jest.mock("../../../../src/services/talk/talkOverview", () => ({
     syncOverview: jest.fn(async () => ({ guildId: "111", label: "PvE", status: "posted", messageId: "m2" })),
 }));
 
-const { requireFullAdmin, requireCsrf } = require("../../../../src/web/http/apiMiddleware");
+const { requireServerAdmin, requireCsrf } = require("../../../../src/web/http/apiMiddleware");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const talkOverview = require("../../../../src/services/talk/talkOverview");
 const { getTalkOverview, postTalkOverview } = require("../../../../src/web/apiRoutes/discord/talkOverview");
@@ -104,8 +104,8 @@ describe("apiRoutes/talkOverview", () => {
         expect(status(res)).toBe(400);
     });
 
-    it("needs a full admin and the CSRF token", async () => {
-        requireFullAdmin.mockReturnValueOnce(null);
+    it("needs a full admin or the rank, and the CSRF token", async () => {
+        requireServerAdmin.mockReturnValueOnce(null);
         await postTalkOverview({}, mockRes());
         requireCsrf.mockReturnValueOnce(false);
         await postTalkOverview({}, mockRes());

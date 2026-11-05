@@ -43,8 +43,8 @@ beforeEach(() => {
     mockCsrf = true;
 });
 
-describe("access (full admins only)", () => {
-    it("keeps out a settings writer who is no full admin, and anonymous callers", async () => {
+describe("access (full admins and the rank)", () => {
+    it("keeps out a settings writer without full admin or rank, and anonymous callers", async () => {
         mockUser = settingsWriter;
         expect(status(await get("/api/discord/pug-onboarding"))).toBe(403);
         expect(status(await post("/api/discord/pug-onboarding", { guildId: PUG }))).toBe(403);

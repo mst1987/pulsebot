@@ -19,7 +19,7 @@ const { AREA_BY_PATH } = require("../../../../src/web/http/apiAccess");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { mockRes, status, body } = require("../../../helpers/http");
 
-let mockFullAdmin = { id: "1" };
+let mockFullAdmin = { id: "1", isAdmin: true };
 
 const PUG = "900000000000000001";
 const PARTNER = "900000000000000002";
@@ -27,7 +27,7 @@ const KEY = `${PUG}:${PARTNER}`;
 
 beforeEach(() => {
     jest.clearAllMocks();
-    mockFullAdmin = { id: "1" };
+    mockFullAdmin = { id: "1", isAdmin: true };
     inviteStore.useFile(tempStoreFile("discord-invites.json"));
     originStore.useFile(tempStoreFile("member-origins.json"));
     pugInvites.resetForTests();
@@ -130,7 +130,7 @@ describe("apiRoutes/pugInvites", () => {
         jest.useRealTimers();
     });
 
-    it("refuses an account that is no full admin on GET and POST", async () => {
+    it("refuses an account without full admin or rank on GET and POST", async () => {
         mockFullAdmin = null;
         const ensure = jest.spyOn(pugInvites, "ensureLinkInvite");
         expect(status(await call(getPugInvites, "/api/settings/pug-invites"))).toBe(401);
