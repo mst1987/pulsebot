@@ -5,7 +5,7 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { maskedRaidhelper, raidhelperSettingOf, raidhelperActive } = require("../../../utils/raidhelper/servers");
 const { firstServerId, storedCategoryGuilds } = require("../../../services/discord/servers/serverOf");
 const { guildOfCategory } = require("../../../services/events/eventServer");
-const { mayUseServer, mayUseChannel, guildOfChannel, OTHER_SERVER } = require("../../http/serverQuery");
+const { mayUseServer, mayUseChannel, guildOfChannel, onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
 const {
     getConfig, saveConfig, listRaidsheets, saveRaidsheet, deleteRaidsheet, listRaidTemplates, getRaidTemplate,
 } = require("../../../stores/settings/settingsStore");
@@ -40,7 +40,7 @@ const { normalizeCategoryMessageLook } = require("../../../services/events/embed
 const { lastReminderRun } = require("../../events/reminders");
 const wowhead = require("../../../utils/loot/wowhead");
 const {
-    AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess,
+    AREAS, normalizeRolePermissions, normalizeUserPermissions, normalizeAreaAccess, userCan,
 } = require("../../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../../config/botCommands");
 const { normalizeAddonList, defaultAddons } = require("../../../services/addons/addonConfig");
@@ -458,7 +458,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         areas: AREAS,
         userNames,
         userAvatars,
-        raidsheets: listRaidsheets(),
+        // a global record until #1097: empty on a server without the mark (#1073), its save routes are `sharedData`
+        raidsheets: onlyByRank(user, req, (roles) => userCan(roles, "settings", "read")) ? [] : listRaidsheets(),
         // For the default-template select per category — names only, so a
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates(guildId).map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),

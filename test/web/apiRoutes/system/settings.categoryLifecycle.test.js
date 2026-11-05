@@ -4,7 +4,7 @@
 const { json, routerClient } = require("../../../helpers/http");
 
 jest.mock("../../../../src/web/http/auth", () => ({
-    getUser: jest.fn(), getRealUser: jest.fn(), setViewAs: jest.fn(() => true), csrfToken: jest.fn(), checkCsrf: jest.fn(), setActiveGuild: jest.fn(),
+    getUser: jest.fn(), getRealUser: jest.fn(), setViewAs: jest.fn(() => true), csrfToken: jest.fn(), checkCsrf: jest.fn(), setActiveGuild: jest.fn(), getUserWithoutRank: jest.fn(() => null),
 }));
 jest.mock("../../../../src/services/discord/languageChange", () => ({ afterServerLangChange: jest.fn(async () => ({})) }));
 jest.mock("../../../../src/services/signups/availabilityPanel", () => ({ refreshPanels: jest.fn(() => Promise.resolve({})) }));

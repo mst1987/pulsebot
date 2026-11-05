@@ -834,11 +834,14 @@ describe("web/apiRoutes/raidDetail", () => {
             activeGuildFor.mockReturnValue("g1");
             discord.getClient.mockReturnValue({ channels: { cache: new Map([["c1", { id: "c1", guildId: "g1" }]]) } });
             raidEventStore.getRaidEvent.mockImplementation((id) => (id === "e1" ? { id: "e1", guildId: "g1" } : null));
+            // the template is a global record until #1097: g1 carries the mark (#1073)
+            settingsStore.getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "g1", label: "", trusted: true }] } });
             try {
                 const res = await post("/api/raids/notify", { event: "e1", templateId: "t1", channelId: "c1" });
                 expect(json(res)).toEqual({ data: { message: "Anmelde-Aufruf gepostet." } });
             } finally {
                 raidEventStore.getRaidEvent.mockImplementation(() => null);
+                settingsStore.getConfig.mockReturnValue({});
             }
         });
     });

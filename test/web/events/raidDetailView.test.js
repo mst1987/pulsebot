@@ -413,6 +413,9 @@ describe("GET /api/raids/detail (the route only speaks HTTP)", () => {
     });
 });
 
+// the templates are global records until #1097: a role reaches them on a server with the mark only (#1073)
+const TRUSTED_G1 = { servers: [{ guildId: "g1", label: "", trusted: true }] };
+
 describe("a raider's read (Oct 2026: raids of foreign categories and the orga's parts are the orga's)", () => {
     const RAIDER = { id: "u7", name: "Rai", isAdmin: false, access: { raids: { read: true, write: true } } };
     const ORGA_ROLE = { id: "o1", name: "Lead", isAdmin: false, isOrga: true, access: { raids: { read: true, write: true } } };
@@ -498,7 +501,9 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
         getEvent.mockReturnValue({ status: "active", setup: null });
         signupStore.listSignups.mockReturnValue(signups);
+        settingsStore.getConfig.mockReturnValue({ discordServers: TRUSTED_G1 });
         const d = (await read(ORGA_ROLE, "eh-1")).body.data;
+        settingsStore.getConfig.mockReturnValue({});
         expect(d.orga).toBe(true);
         expect(d.ownSignups.find((s) => s.userId === "u8")).toMatchObject({ comment: "secret", canAlso: ["healer"] });
         expect(d.steps).not.toBeNull();
@@ -525,7 +530,7 @@ describe("the orga of the raid's category", () => {
 
     beforeEach(() => {
         // cat1 is no category they may sign up for: only the roster makes the raid theirs
-        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"] });
+        settingsStore.getConfig.mockReturnValue({ categoryIds: ["other"], discordServers: TRUSTED_G1 });
         rosterStore.listRosters.mockReturnValue([ROSTER]);
         rosterStore.rosterForCategory.mockImplementation((cat, version) => (cat === "cat1" && (!version || version === "tbc") ? ROSTER : null));
         signupStore.listSignups.mockReturnValue([]);

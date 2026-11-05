@@ -8,6 +8,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
+    // no server here carries the mark unless a test says so (#1073): nothing of the roles counts for the templates
+    getUserWithoutRank: jest.fn(() => null),
 }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     getConfig: jest.fn(() => ({})),

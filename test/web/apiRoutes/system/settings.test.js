@@ -14,6 +14,8 @@ jest.mock("../../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(),
     setActiveGuild: jest.fn(),
+    // no server here carries the mark (#1073): nothing of the roles counts for what every server shares
+    getUserWithoutRank: jest.fn(() => null),
 }));
 // A new language (the server's or a category's) redraws the public messages; never for real here.
 jest.mock("../../../../src/services/discord/languageChange", () => ({ afterServerLangChange: jest.fn(async () => ({})) }));
