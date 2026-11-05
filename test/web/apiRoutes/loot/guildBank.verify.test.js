@@ -4,6 +4,9 @@
 // server's bank, only with raids write; requests and waiting entries say why
 // they are not linked ("none" / "unverified").
 let mockUser = { id: "1", name: "Orga", isAdmin: true };
+// #1073: roles count for data of every server on a server with the mark only
+const mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));

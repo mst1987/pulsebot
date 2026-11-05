@@ -2,6 +2,9 @@
 // character search behind the link dialog, and the "Ausgegeben" tab's list —
 // only on the active server's bank; linking and searching need raids write.
 let mockUser = { id: "1", name: "Orga", isAdmin: true };
+// #1073: roles count for data of every server on a server with the mark only
+const mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));

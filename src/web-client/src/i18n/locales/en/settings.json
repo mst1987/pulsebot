@@ -668,6 +668,8 @@
         "labelPlaceholder": "PvE, PvP, Alliance …",
         "pugServer": "PuG server",
         "pugServerSub": "Only on PuG servers the bot sets up version and class roles and the onboarding (part “Roles & onboarding”). Open categories for signups work without it.",
+        "trustedServer": "Trusted server",
+        "trustedServerSub": "Only here Discord roles also count for what all servers share, such as lead flags and characters. Without the mark, roles only apply to the server's own data. Only full admins can switch this.",
         "editServer": "Edit server",
         "editServerSub": "Label and switch “PuG server”",
         "source": "Source",

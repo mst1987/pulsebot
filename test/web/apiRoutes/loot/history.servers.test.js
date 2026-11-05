@@ -2,6 +2,9 @@
 // on the real loot/event stores: server A never sees, imports into or changes
 // the loot of server B's raids - not even when the two servers are linked
 // (user decision: only the active server counts).
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     getRealUser: jest.fn(),
@@ -203,6 +206,18 @@ describe("the rank Server-Admin (#1072): the store decides, not the right", () =
             expect((await waitingIds()).sort()).toEqual([free.id, bound.id].sort());
         });
 
+        it("hides it from an orga by role on a server without the mark too (#1073)", async () => {
+            upload("free", { waiting: true, servers: [], match: { candidates: [], suggested: null } });
+            const bound = upload("bound", { waiting: true, servers: ["gA"], match: { candidates: [], suggested: null } });
+            getUser.mockReturnValue(ORGA);
+            mockTrusted = false;
+            try {
+                expect(await waitingIds()).toEqual([bound.id]);
+            } finally {
+                mockTrusted = true;
+            }
+        });
+
         it("hides a card of an upload key without server, shows one with the own server", async () => {
             const free = upload("free", { match: null });
             const own = upload("own", { guildId: "gA", match: null });
@@ -321,6 +336,17 @@ describe("the rank Server-Admin (#1072): the store decides, not the right", () =
             expect((await charData("Bert")).info).toBeNull();
             getUser.mockReturnValue(ORGA);
             expect((await charData("Bert")).info).toEqual(expect.objectContaining({ className: "Rogue" }));
+        });
+
+        it("gives an orga by role on a server without the mark no more than the rank (#1073)", async () => {
+            characterStore.saveCharacter("Bert", { className: "Rogue", source: "manual" });
+            getUser.mockReturnValue(ORGA);
+            mockTrusted = false;
+            try {
+                expect((await charData("Bert")).info).toBeNull();
+            } finally {
+                mockTrusted = true;
+            }
         });
 
         it("narrows the gear findings of the rank to evaluations of the active server", async () => {

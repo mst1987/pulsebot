@@ -10,8 +10,9 @@
 // server and say nothing about another).
 const { error: apiError } = require("./apiResponse");
 const { activeGuildFor } = require("./activeGuild");
-const { resolveServer } = require("../../services/discord/roles/guildRoles");
+const { resolveServer, serverIsTrusted } = require("../../services/discord/roles/guildRoles");
 const { getConfig } = require("../../stores/settings/configStore");
+const { userCan } = require("../../config/permissions");
 
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 const OTHER_SERVER = "Für diesen Server hast du hier keine Rechte.";
@@ -30,12 +31,33 @@ function mayUseServer(user, req, guildId) {
 }
 
 /**
- * Whether only the server-admin rank (#1072) lets `user` do this: it holds the rank, and what its
- * roles alone give (`rolesMay(userWithoutRank)`) would not allow it. Everybody else keeps what they
- * had before the rank, so a limit of the rank goes behind this check and never touches them.
+ * Whether roles count for data of every server from this request: the active server carries the mark
+ * of a full admin (#1073, guildRoles.serverIsTrusted). A way that does not go through onlyByRank or
+ * `sharedData` (a category's managers, say) asks this itself; a full admin does not need to.
+ */
+const rolesCountForSharedData = (req) => serverIsTrusted(activeGuildFor(req));
+
+/**
+ * Whether the server lets `user` write what every server shares, a global record behind a route of
+ * `area`, at all (#1105): a full admin, a server with the mark, or an own grant of a full admin, which
+ * is no self-given role. The rank still answers for itself on a marked server (onlyByRank).
+ */
+function mayWriteSharedData(user, req, area) {
+    if (!user) return false;
+    if (user.isAdmin || rolesCountForSharedData(req)) return true;
+    // required here, not at the top: tests of the callers mock auth without this export
+    return userCan(require("./auth").getUserWithoutRank(req), area, "write");
+}
+
+/**
+ * Whether what `user` may do here does not reach data of every server: it holds the server-admin
+ * rank (#1072) or stands on a server without the mark (#1073), and what counts there
+ * (`rolesMay(auth.getUserWithoutRank)`) would not allow it. A full admin never, somebody on a trusted
+ * server without the rank neither, and neither who has it from the base access or an own grant.
  */
 function onlyByRank(user, req, rolesMay) {
-    if (!user || !user.isServerAdmin) return false;
+    if (!user || user.isAdmin) return false;
+    if (!user.isServerAdmin && rolesCountForSharedData(req)) return false;
     // required here, not at the top: tests of the callers mock auth without this export
     return !rolesMay(require("./auth").getUserWithoutRank(req));
 }
@@ -142,4 +164,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, onlyByRank, rolesCountForSharedData, mayWriteSharedData, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

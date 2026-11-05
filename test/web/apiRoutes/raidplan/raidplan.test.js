@@ -3,11 +3,16 @@
 // the public read view. The stores are real, on scratch files.
 let mockUser = null;
 let mockViewer = null;
+let mockTrusted = true;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 let mockRoleUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000"), getUserWithoutRank: jest.fn(() => mockRoleUser) }));
 const mockEvents = {};
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => mockTrusted),
+}));
 jest.mock("../../../../src/stores/events/eventStore", () => ({
     ...jest.requireActual("../../../../src/stores/events/eventStore"),
     getEvent: jest.fn((id) => mockEvents[id] || null),
@@ -271,6 +276,15 @@ describe("room map upload", () => {
         expect(status(await call(route.postMapDelete, ORGA, { key: "nope" }))).toBe(400);
     });
 
+    it("refuses an upload and a removal that name no map at all", async () => {
+        mockUser = ORGA;
+        readRawBody.mockResolvedValue(PNG);
+        const r = mockRes();
+        await route.postMap({ headers: {} }, r, new URL("http://x/api/raidplan/map?libraryGuildId=500000"));
+        expect(status(r)).toBe(400);
+        expect(status(await call(route.postMapDelete, ORGA, {}))).toBe(400);
+    });
+
     // A default map serves every server (store.mapForBoss): the server-admin rank alone may not touch
     // it, the maps of a raid or of a server's template stay open to it.
     describe("with the server-admin rank (#1072)", () => {
@@ -317,6 +331,41 @@ describe("room map upload", () => {
                 expect(status(await call(route.postMapDelete, RANK, { key }))).toBe(200);
                 expect(store.readMap(key)).toBeNull();
             }
+        });
+
+        // #1073: a default map serves every server, so a role on a server without the mark opens none:
+        // getUserWithoutRank leaves the roles out there (auth.test.js), for the holder of no rank as well.
+        describe("on a server without the mark", () => {
+            beforeEach(() => {
+                mockTrusted = false;
+                mockRoleUser = NO_ROLE;
+            });
+            afterEach(() => { mockTrusted = true; });
+
+            it.each([["the rank with a role", RANK], ["a role without the rank", { ...RANK, isServerAdmin: undefined }]])("refuses %s on a default map", async (_who, user) => {
+                const refused = await upload(user, "bt/supremus", PNG);
+                expect(status(refused)).toBe(403);
+                expect(body(refused).code).toBe("forbidden");
+                expect(store.readMap("bt/supremus")).toBeNull();
+                store.saveMap("bt/supremus", PNG);
+                expect(status(await call(route.postMapDelete, user, { key: "bt/supremus" }))).toBe(403);
+                expect(store.readMap("bt/supremus").mime).toBe("image/png");
+                store.deleteMap("bt/supremus");
+            });
+
+            it("leaves the maps of a raid and of a template open", async () => {
+                const template = templates.createTemplate("500000", { name: "Montag", category: "Raid", instanceIds: ["bt"] }).template;
+                mockEvents["eh-map"] = eventWith({ approved: APPROVED });
+                for (const key of ["e/eh-map/bt/supremus", `t/${template.id}/bt/supremus`]) {
+                    expect(status(await upload(RANK, key, PNG))).toBe(200);
+                }
+            });
+
+            it("leaves a full admin untouched", async () => {
+                const admin = { id: "a", name: "A", isAdmin: true, isOrga: true, access: { raidplan: { read: true, write: true } } };
+                expect(status(await upload(admin, "bt/supremus", PNG))).toBe(200);
+                expect(store.readMap("bt/supremus").mime).toBe("image/png");
+            });
         });
 
         it("does not ask anyone without the rank", async () => {

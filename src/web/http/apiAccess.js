@@ -38,6 +38,7 @@ const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissio
 const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead } = require("./routeTable");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const { hasFeature } = require("../../services/plans/serverPlan");
+const { serverIsTrusted } = require("../../services/discord/roles/guildRoles");
 
 /** `{ [path]: area | [areas] }` — every gated path with its area(s), the shape the tests and the docs know. */
 const AREA_BY_PATH = {};
@@ -148,6 +149,8 @@ async function gate(pathname, method, user, req) {
     // an `orgaRead` route only for a read (#729): it never widens a write
     const opens = isOrgaScoped(route) || (isOrgaRead(route) && levelFor(method, route) === "read");
     if (!opens || route.adminOnly || !areasOf(route).length) return denied;
+    // A category's managers can be named by role: on data of every server they count like any role (#1073).
+    if (route.sharedData && !serverIsTrusted(user.guildId)) return denied;
     const cache = categoryOrga.requestCache(req);
     if (!(await categoryOrga.isAnyCategoryManager(user, { cache }))) return denied;
     cache.areaViaCategory = true;

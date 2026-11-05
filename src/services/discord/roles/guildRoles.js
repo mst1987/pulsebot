@@ -6,6 +6,9 @@
 //             to channelId on `to` (from = to is allowed). A link with the switch
 //             `shareNotes` also opens the shared Vermerke of both servers to each
 //             other (#1078); without it a link only posts.
+//   trusted — a mark of a server, only full admins set it (#1073, docs/permissions.md
+//             "Vertrauenswürdige Server"): only there do roles count for data every
+//             server shares. A link says nothing about it: each server has its own.
 // All come from settingsStore's `discordServers`; no server at all falls back
 // to the old single `guildId`. Since #897 there is one kind of server:
 // each is an ordinary server of the list. The web
@@ -46,6 +49,24 @@ function serverLabel(guildId, config = getConfig()) {
     const list = blockOf(config).servers;
     const entry = Array.isArray(list) ? list.find((s) => s && String(s.guildId) === String(guildId)) : null;
     return (entry && entry.label) || "";
+}
+
+/**
+ * Whether a full admin marked this server as trusted (#1073). The one place that reads the mark: a
+ * server off the list, a missing mark and settings that cannot be read all answer false (fail closed).
+ * @param {string} guildId
+ * @param {object} [config]
+ * @returns {boolean}
+ */
+function serverIsTrusted(guildId, config) {
+    try {
+        const id = String(guildId || "").trim();
+        if (!id) return false;
+        const list = blockOf(config === undefined ? getConfig() : config).servers;
+        return Array.isArray(list) && list.some((s) => s && String(s.guildId) === id && s.trusted === true);
+    } catch {
+        return false;
+    }
 }
 
 /** Every stored link `{ from, to, channelId, lang, versions, shareNotes? }` (normalised by configSchema). */
@@ -226,6 +247,6 @@ function roleMessageGuild(entry, config = getConfig()) {
 
 module.exports = {
     serverIds, listedServerIds, serverLabel, resolveServer, serverChoices, roleMessageGuild, links, linkedSources, linkedTargets,
-    noteSharingServerIds, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
+    noteSharingServerIds, serverIsTrusted, eventGuildIds, configuredGuildIds, isEventGuild, guildRole,
     eventGuildCards, describeGuild, guildOverlap,
 };

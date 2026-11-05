@@ -6,12 +6,18 @@ const { status, body, routerClient } = require("../../../helpers/http");
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     getRealUser: jest.fn(() => null),
+    getUserWithoutRank: jest.fn(() => null),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
     getActiveGuild: jest.fn(() => "g1"),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+let mockTrusted = false;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: () => mockTrusted,
+}));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ categoryIds: ["cat1"] })) }));
 jest.mock("../../../../src/web/roster/rosterView", () => ({
     buildRosterOverview: jest.fn(async () => ({ rosters: [{ id: "r1", name: "Raid Mo / Do", versionId: "tbc" }], categoriesWithoutRoster: [], canCreate: true })),
@@ -38,6 +44,7 @@ const MEMBER = { id: "3", name: "Raider", isAdmin: false, access: { ...emptyAcce
 
 beforeEach(() => {
     jest.clearAllMocks();
+    mockTrusted = false;
     auth.getUser.mockReturnValue(ADMIN);
 });
 
@@ -77,7 +84,19 @@ describe("GET /api/rosters/roster", () => {
         const res = await get("/api/rosters/roster", { id: "r1" });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ roster: { id: "r1" }, members: [], canManage: false });
-        expect(view.buildRosterDetail).toHaveBeenCalledWith({ guildId: "g1", id: "r1", user: READER, config: { categoryIds: ["cat1"] } });
+        expect(view.buildRosterDetail).toHaveBeenCalledWith({ guildId: "g1", id: "r1", user: READER, config: { categoryIds: ["cat1"] }, leadsOpen: false });
+    });
+
+    // #1072: PUT /api/leads wants a role or the category on top of the rank, so no switch for the rank alone
+    it("opens the leader flags for the orga, not for the server-admin rank without a role", async () => {
+        mockTrusted = true;
+        const orga = { ...READER, access: { ...READER.access, raids: { read: true, write: true } } };
+        auth.getUser.mockReturnValue(orga);
+        await get("/api/rosters/roster", { id: "r1" });
+        expect(view.buildRosterDetail).toHaveBeenLastCalledWith(expect.objectContaining({ leadsOpen: true }));
+        auth.getUser.mockReturnValue({ ...orga, isServerAdmin: true });
+        await get("/api/rosters/roster", { id: "r1" });
+        expect(view.buildRosterDetail).toHaveBeenLastCalledWith(expect.objectContaining({ leadsOpen: false }));
     });
 
     it("asks for an id and says when the roster does not exist", async () => {

@@ -351,6 +351,7 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .srv-sub > span { white-space: nowrap; }
 .srv-sub > span + span::before { content: " · "; }
 .srv-muted { color: var(--muted); }
+.srv-trust { flex-basis: 100%; font-size: 12px; color: var(--muted); }
 .srv-arrow { color: var(--muted); }
 .srv-name { font-weight: 700; }
 .srv-icon { width: 22px; height: 22px; border-radius: 6px; display: block; flex: 0 0 auto; }

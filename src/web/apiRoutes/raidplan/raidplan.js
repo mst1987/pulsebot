@@ -54,6 +54,7 @@ const catalog = require("../../../stores/raidplan/raidplanCatalogStore");
 const rosterSource = require("../../raidplan/raidplanRosterSource");
 const { instancesFromTitle } = require("../../raidplan/raidplanTitle");
 const { activeGuildFor } = require("../../http/activeGuild");
+const { onlyByRank } = require("../../http/serverQuery");
 const { loadEventGroups, eventLookbackSince } = require("../../../services/events/raidEventGroups");
 const { rulesFor } = require("../../../config/gameVersions");
 const { mainVersionFor, versionOfEvent, knownVersion, visibleRows, visibleVersions } = require("../../../services/versions/mainVersion");
@@ -227,14 +228,14 @@ function mapKeyOk(res, key, libraryServer = "") {
 const MAP_RIGHTS = { globalByWrite: true, write: "raidplan", csrf: true };
 
 /**
- * Refuses the server-admin rank (#1072) on a default map: such a key is the map of every server
- * (store.mapForBoss falls back to it), while the other keys of these routes belong to one server,
- * so the route cannot carry the `sharedData` mark. The right from a role stays. Sends the error.
+ * Refuses the server-admin rank (#1072) and a role of a server without the mark (#1073) on a default
+ * map: such a key is the map of every server (store.mapForBoss falls back to it), while the other keys
+ * of these routes belong to one server, so the route cannot carry the `sharedData` mark. Sends the error.
  */
 function defaultMapRefused(res, user, req, key) {
-    if (!user.isServerAdmin || store.mapScope(key)) return false;
-    if (userCan(auth.getUserWithoutRank(req), "raidplan", "write")) return false;
-    error(res, 403, "forbidden", "Standardkarten gelten für alle Server: Dafür reicht der Server-Admin-Rang nicht.");
+    if (store.mapScope(key)) return false;
+    if (!onlyByRank(user, req, (roles) => userCan(roles, "raidplan", "write"))) return false;
+    error(res, 403, "forbidden", "Standardkarten gelten für alle Server: Dafür reichen Rang und Rollen dieses Servers nicht.");
     return true;
 }
 

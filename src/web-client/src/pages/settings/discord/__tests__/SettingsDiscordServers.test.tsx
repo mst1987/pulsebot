@@ -29,14 +29,14 @@ function row(id: string, name: string, raidCategories: number): ServerRow {
     } as ServerRow;
 }
 
-function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "", pug = false, listTarget = false }: {
-    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string; pug?: boolean;
+function serversData({ links = [], raidCategories = 2, guildBankChannelId = "", signupNoteChannelId = "", pug = false, trusted = false, listTarget = false }: {
+    links?: ServerLink[]; raidCategories?: number; guildBankChannelId?: string; signupNoteChannelId?: string; pug?: boolean; trusted?: boolean;
     /** Lists the link target too: Vermerke are shared between two listed servers only (#1078). */
     listTarget?: boolean;
 } = {}): DiscordServersData {
     return {
         discordServers: {
-            servers: [{ guildId: "10001", label: "", ...(pug ? { pug: true } : {}) }, ...(listTarget ? [{ guildId: "20002", label: "" }] : [])],
+            servers: [{ guildId: "10001", label: "", ...(pug ? { pug: true } : {}), ...(trusted ? { trusted: true } : {}) }, ...(listTarget ? [{ guildId: "20002", label: "" }] : [])],
             links,
         },
         // #924: the two signup channels belong to each server
@@ -141,6 +141,60 @@ describe("Discord-Server: Schalter PuG-Server (#906)", () => {
         expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
             discordServers: { servers: [{ guildId: "10001", label: "", pug: true }] },
         });
+    });
+
+    // #1073: the mark travels under its own key and only when it really changes
+    it("sends the mark of a trusted server under its own key when it is switched on", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server bearbeiten" }));
+        const dialog = await screen.findByRole("dialog");
+        fireEvent.click(within(dialog).getByRole("switch", { name: "Vertrauenswürdiger Server" }));
+        fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { servers: [{ guildId: "10001", label: "" }] },
+            trustedServers: { 10001: true },
+        });
+    });
+
+    it("takes the mark away again and names it in the server row", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ trusted: true }));
+        render();
+        const mark = await screen.findByText("Vertrauenswürdiger Server");
+        // not in the line wide screens hide: jsdom would find it there, a full admin at a desk would not
+        expect(mark.closest(".srv-sub")).toBeNull();
+        fireEvent.click(await screen.findByRole("button", { name: "Server bearbeiten" }));
+        const dialog = await screen.findByRole("dialog");
+        const toggle = within(dialog).getByRole("switch", { name: "Vertrauenswürdiger Server" });
+        expect(toggle).toBeChecked();
+        fireEvent.click(toggle);
+        fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { servers: [{ guildId: "10001", label: "" }] },
+            trustedServers: { 10001: false },
+        });
+    });
+
+    it("sends no mark when it stays as it was", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData({ trusted: true }));
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: "Server bearbeiten" }));
+        const dialog = await screen.findByRole("dialog");
+        fireEvent.click(within(dialog).getByRole("button", { name: "Speichern" }));
+        await waitFor(() => expect(api.updateSettings).toHaveBeenCalled());
+        expect(vi.mocked(api.updateSettings).mock.calls[0][0]).toEqual({
+            discordServers: { servers: [{ guildId: "10001", label: "" }] },
+        });
+    });
+
+    it("offers no mark for a server that is being added", async () => {
+        vi.mocked(api.getDiscordServers).mockResolvedValue(serversData());
+        render();
+        fireEvent.click(await screen.findByRole("button", { name: /Server hinzufügen/ }));
+        const dialog = await screen.findByRole("dialog");
+        expect(within(dialog).queryByRole("switch", { name: "Vertrauenswürdiger Server" })).toBeNull();
     });
 
     it("switches a PuG server off again and leaves the field out", async () => {

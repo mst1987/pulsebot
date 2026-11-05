@@ -7,6 +7,7 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
@@ -15,6 +16,9 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
+// The manager detour of a sharedData route (POST /api/raids/setup/explain) needs a server with the mark (#1073).
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: () => mockTrusted }));
 // Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
 // "role-mgr"; cat1 has a Forever roster prepared already (open, not current yet) managed by "fmgr" and
 // "dual"; "dual" also manages the current roster of cat3. cat2 has no roster.
@@ -175,6 +179,17 @@ describe("the orga of a category (a manager of its roster)", () => {
         expect(eventStore.getEvent(foreign.id)).toEqual(before);
         expect(signupStore.listSignups(foreign.id)).toEqual(signupsBefore);
         expect(before.raidGroupId || "").toBe("");
+    });
+
+    // #1073: the manager is named by role too, so without the mark the shared route stays closed
+    it("refuses a manager the shared explain route on a server without the mark", async () => {
+        mockTrusted = false;
+        try {
+            const r = await api.post("/api/raids/setup/explain", { event: own.id });
+            expect([status(r), code(r)]).toEqual([403, "forbidden"]);
+        } finally {
+            mockTrusted = true;
+        }
     });
 
     it("moves a raider only between raids of their category: a target in another category is refused", async () => {

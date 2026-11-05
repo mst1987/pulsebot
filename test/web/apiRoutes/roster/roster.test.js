@@ -1,5 +1,8 @@
 const { json, routerClient } = require("../../../helpers/http");
 
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
@@ -393,6 +396,19 @@ describe("web/apiRoutes/roster", () => {
                 expect(data.hiddenChars[0].hidden).toMatchObject({ reason: "left the guild", by: "Admin" });
                 expect(latestIssuesByCharacter).toHaveBeenCalledWith(undefined);
                 expect(auth.getUserWithoutRank).not.toHaveBeenCalled();
+            });
+
+            it("treats an orga role on a server without the mark like the rank (#1073)", async () => {
+                mockTrusted = false;
+                try {
+                    auth.getUser.mockReturnValue(ORGA_ROLE);
+                    auth.getUserWithoutRank.mockReturnValue({ ...ORGA_ROLE, access: {} });
+                    const data = json(await get("/api/roster")).data;
+                    expect(data.hiddenChars[0].hidden).toMatchObject({ character: "Bob", reason: "", by: "" });
+                    expect(latestIssuesByCharacter).toHaveBeenCalledWith({ accept: expect.any(Function) });
+                } finally {
+                    mockTrusted = true;
+                }
             });
         });
     });

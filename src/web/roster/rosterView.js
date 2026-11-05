@@ -485,9 +485,11 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
 /**
  * GET /api/rosters/roster?id=: one roster with its members, or null when it
  * does not exist or belongs to another server.
- * @param {{ guildId: string, id: string, user: object, config: object, background?: boolean }} opts
+ * `leadsOpen`: PUT /api/leads lets the caller through at all (apiRoutes/roster/leaderFlags.mayOfferLeads);
+ * this module has no request to ask, so the route says.
+ * @param {{ guildId: string, id: string, user: object, config: object, background?: boolean, leadsOpen?: boolean }} opts
  */
-async function buildRosterDetail({ guildId = "", id = "", user = null, config = {}, background = false } = {}) {
+async function buildRosterDetail({ guildId = "", id = "", user = null, config = {}, background = false, leadsOpen = !!(user && user.isAdmin) } = {}) {
     const roster = rosterStore.getRoster(id);
     if (!roster || (guildId && roster.guildId && roster.guildId !== guildId)) return null;
     const discordData = await loadDiscord(roster.guildId || guildId, { background });
@@ -504,7 +506,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
     });
     // the leader flags (#1034): no notes about a person, every reader of the roster sees them;
     // `editable` - the instances of the category the orga may switch here (PUT /api/leads), else none
-    const mayLead = await mayOrgaRosterLeads(user, roster, { config }).catch(() => false);
+    const mayLead = leadsOpen && await mayOrgaRosterLeads(user, roster, { config }).catch(() => false);
     const leaders = {
         instances: instanceChoices(roster.versionId), byUser: leadsForVersion(rows.map((r) => r.userId), roster.versionId),
         editable: mayLead ? rosterLeadContext(roster, { config }).instances : [],

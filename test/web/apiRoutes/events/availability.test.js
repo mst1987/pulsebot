@@ -3,6 +3,9 @@
 // Die Regeln selbst prüft test/services/signups/availability.test.js.
 
 let mockUser = null;
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
@@ -679,6 +682,18 @@ describe("the server-admin rank alone", () => {
             withoutRank.mockReturnValue(NO_ROLES);
             expect(await ids({ ...ANNA, id: MEMBER }, "")).toEqual(["e1", "e2"]);
             expect(await ids(ORGA, `userId=${MEMBER}`)).toEqual(["e1", "e2"]);
+        });
+
+        it("is left out of the list for a role on a server without the mark, not for the owner (#1073)", async () => {
+            availability.activeEntries.mockReturnValue([older(), entry({ userId: MEMBER, createdBy: MEMBER, ...SCOPED })]);
+            const ids = async (user, query) => json(await call("GET", "/api/availability", user, { query })).data.entries.map((e) => e.id);
+            mockTrusted = false;
+            try {
+                expect(await ids(ORGA, `userId=${MEMBER}`)).toEqual(["e2"]);
+                expect(await ids({ ...ANNA, id: MEMBER }, "")).toEqual(["e1", "e2"]);
+            } finally {
+                mockTrusted = true;
+            }
         });
 
         it("leaves a category of unknown server out of the dialog's list for the rank alone (#1077)", async () => {

@@ -17,6 +17,10 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => ""),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => true),
+}));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({
     ...jest.requireActual("../../../../src/stores/settings/settingsStore"),
     getConfig: () => ({}),

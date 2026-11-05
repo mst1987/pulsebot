@@ -38,7 +38,7 @@ const { json, jsonRequest, mockRes, status } = require("../../helpers/http");
 const ROSTER_WRITE = { roster: { read: true, write: true } };
 const CONFIG = {
     adminRoleIds: ["role-full"],
-    discordServers: { servers: [{ guildId: "guild-1", label: "" }], links: [] },
+    discordServers: { servers: [{ guildId: "guild-1", label: "", trusted: true }], links: [] },
     serverSettings: {
         "guild-1": {
             orgaRoleIds: ["role-orga"],
@@ -155,6 +155,64 @@ describe("web/http/apiRouter: routes marked sharedData (#1072)", () => {
         it("lets a Discord admin holding a raidplan role through", async () => {
             const res = await deleteMap(await login("909", ["role-plan"], true), "bt/supremus");
             expect(status(res)).toBe(200);
+        });
+    });
+
+    // #1073: a role on a server without the mark opens no shared data, with or without the rank:
+    // a server's administrator can give it to themselves.
+    describe("on a server without the mark (#1073)", () => {
+        const UNMARKED = { ...CONFIG, discordServers: { servers: [{ guildId: "guild-1", label: "" }], links: [] } };
+
+        beforeEach(() => getConfig.mockReturnValue(UNMARKED));
+
+        it("refuses a Discord admin holding the orga role at the gate", async () => {
+            const res = await send(await login("913", ["role-orga"], true), "POST", HIDE, { body: HIDE_BODY });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("forbidden");
+            expect(rosterHidden.hide).not.toHaveBeenCalled();
+        });
+
+        it("refuses a member holding the orga role, without the rank", async () => {
+            const res = await send(await login("914", ["role-orga"], false), "POST", HIDE, { body: HIDE_BODY });
+            expect(status(res)).toBe(403);
+            expect(rosterHidden.hide).not.toHaveBeenCalled();
+        });
+
+        it("refuses a route that is orga-scoped next to its mark", async () => {
+            const res = await send(await login("915", ["role-orga"], true), "POST", "/api/raids/setup/explain", { body: { eventId: "e1" } });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("forbidden");
+        });
+
+        it("refuses a raidplan role on a default map", async () => {
+            const res = await send(await login("916", ["role-plan"], true), "POST", "/api/raidplan/map/delete", { body: { key: "bt/supremus", libraryGuildId: "guild-1" } });
+            expect(status(res)).toBe(403);
+            expect(json(res).error.code).toBe("forbidden");
+        });
+
+        it("leaves a full admin untouched", async () => {
+            const res = await send(await login("917", ["role-full"], false), "POST", HIDE, { body: HIDE_BODY });
+            expect(status(res)).toBe(200);
+            expect(rosterHidden.hide).toHaveBeenCalled();
+        });
+
+        it("keeps a route without the mark", async () => {
+            const res = await send(await login("918", ["role-orga"], true), "GET", "/api/raider-characters", { query: "?category=cat-1" });
+            expect(status(res)).toBe(200);
+        });
+
+        it("counts the roles as soon as a full admin sets the mark, for a session already open", async () => {
+            const session = await login("919", ["role-orga"], false);
+            expect(status(await send(session, "POST", HIDE, { body: HIDE_BODY }))).toBe(403);
+            getConfig.mockReturnValue(CONFIG);
+            expect(status(await send(session, "POST", HIDE, { body: HIDE_BODY }))).toBe(200);
+        });
+
+        it("counts no role when the list is gone", async () => {
+            const session = await login("920", ["role-orga"], false);
+            getConfig.mockReturnValue({ ...CONFIG, discordServers: {} });
+            expect(status(await send(session, "POST", HIDE, { body: HIDE_BODY }))).toBe(403);
+            expect(rosterHidden.hide).not.toHaveBeenCalled();
         });
     });
 

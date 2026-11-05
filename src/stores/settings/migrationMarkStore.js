@@ -6,6 +6,8 @@
 // their mark here and are skipped from then on. Deleting the file runs them again -
 // they are idempotent, it only costs the start-up time once more. The exception is
 // `linkShareNotes` (#1078): deleting the file turns every Vermerke switch on again.
+// A one-off migration that grants rights keeps its note in the file it changes, in the
+// same write (#1073, migrateTrustedServers): a note here can get lost on its own.
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 

@@ -6,6 +6,7 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),
+    getUserWithoutRank: jest.fn(() => null),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),

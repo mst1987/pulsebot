@@ -2,9 +2,14 @@
 // path is area `raids`, writes need write by method, the two reads check write
 // in the handler, and each route hands the body to the service as it should.
 let mockUser = null;
+let mockTrusted = true;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: () => "g1" }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => mockTrusted),
+}));
 // #925: the event "eh-a" is one of the active server g1
 jest.mock("../../../../src/stores/events/eventStore", () => ({
     ...jest.requireActual("../../../../src/stores/events/eventStore"),
@@ -184,6 +189,21 @@ describe("handlers", () => {
             await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
             expect(manage.addRaider.mock.lastCall[0]).not.toHaveProperty("keepProfiles");
             expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+
+        // #1073: on a server without the mark getUserWithoutRank leaves the roles out (auth.test.js), and
+        // the manager of a category, named by role too, opens the profiles no more than they do.
+        it("treats the manager of the raid's category like the rank alone on a server without the mark", async () => {
+            mockTrusted = false;
+            try {
+                orgaOfRaid.mockResolvedValue(true);
+                await call(route.getRaiderCandidates, RANK, null, "event=eh-a");
+                expect(manage.raiderCandidates).toHaveBeenLastCalledWith(expect.objectContaining({ ownServerOnly: true }));
+                await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
+                expect(manage.addRaider).toHaveBeenLastCalledWith(expect.objectContaining({ keepProfiles: true }));
+            } finally {
+                mockTrusted = true;
+            }
         });
 
         it("leaves a full admin as on main, with no list asked for", async () => {

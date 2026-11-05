@@ -3,6 +3,9 @@
 // each of its servers, the first assignment wins (the second server gets 409),
 // a dismissed upload comes back within 14 days, and a waiting guild bank goes
 // to one of the servers it waits for.
+// #1073: roles count for data of every server on a server with the mark only
+const mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     getRealUser: jest.fn(),

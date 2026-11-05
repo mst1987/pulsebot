@@ -14,6 +14,8 @@ jest.mock("../../../../src/services/roster/rosterSyncView", () => ({
     rosterSyncView: jest.fn(async (roster) => ({ rosterId: roster.id, inRosterWithoutRole: [], roleWithoutRoster: [], withoutChar: [], logCharsWithoutPerson: [], mirrored: [] })),
 }));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: jest.fn(() => ({ roleSync: [] })) }));
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
 jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
@@ -53,6 +55,7 @@ beforeEach(() => {
     isRosterOrga.mockResolvedValue(true);
     activeGuildFor.mockReturnValue("g1");
     visibleRaiderIds.mockResolvedValue(new Set());
+    mockTrusted = true;
 });
 
 describe("apiRoutes/rosterRoles - a roster of another server", () => {
@@ -176,12 +179,31 @@ describe("apiRoutes/rosterRoles GET /api/rosters/sync", () => {
             expect(seen()).toEqual(["300001", "300002", "400001"]);
         });
 
+        // #1073: a manager is named by role too, and the rank gives itself any role
+        it("reaches the members only on a server without the mark, even as a manager of this roster", async () => {
+            mockTrusted = false;
+            await get("r1");
+            expect(canManageRosterLive).toHaveBeenCalled();
+            expect(seen()).toEqual(["300001"]);
+        });
+
         it("still answers with an empty reach when the member list cannot be read", async () => {
             canManageRosterLive.mockResolvedValueOnce(false);
             serverMemberIds.mockResolvedValue(null);
             expect(status(await get("r1"))).toBe(200);
             expect(seen()).toEqual([]);
         });
+    });
+
+    // #1073: on a server without the mark the roles are gone from getUserWithoutRank, for the holder of no rank as well
+    it("limits a manager by role without the rank to the members on a server without the mark", async () => {
+        mockTrusted = false;
+        const withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue({ id: "200001", isAdmin: false, access: {} });
+        serverMemberIds.mockResolvedValue(new Set(["300001"]));
+        visibleRaiderIds.mockResolvedValue(new Set(["300001", "300002"]));
+        await get("r1");
+        expect([...rosterSyncView.mock.lastCall[1].visibleIds]).toEqual(["300001"]);
+        withoutRank.mockRestore();
     });
 
     it("leaves the view without a limit for a full admin, who loads no member list (#1077)", async () => {

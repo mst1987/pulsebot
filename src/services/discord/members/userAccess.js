@@ -18,6 +18,10 @@
 // keeps what the roles alone give (`roleAccess`, `roleIsOrga`): that is what counts
 // where the rank does not (a route on data of every server, an unanswered re-check).
 //
+// That alone protects nothing on data every server shares: an administrator gives
+// themselves any role. So there roles count only on a server a full admin marked as
+// trusted (#1073, sharedDataAccess, guildRoles.serverIsTrusted).
+//
 //   computeGuildAccess(userId)   `{ isAdmin, guilds: { [guildId]: { access, isOrga?, isMember?, membershipUnknown?, isServerAdmin?, roleAccess?, roleIsOrga? } } }`
 //                                for every server; throws when a configured role
 //                                lookup could not reach a single server
@@ -220,6 +224,26 @@ function withoutDelistedRank(guildAccess, userId, config = getConfig()) {
     return withoutServerAdminRank(guildAccess, userId, { keep: (gid) => listed.has(gid) });
 }
 
+/**
+ * What a session may do on data every server shares (#1073): the server-admin rank is gone, and the
+ * roles of a server count only when a full admin marked it as trusted. Elsewhere its base access and
+ * the grants for the account itself are left: both come from a full admin, a role can be self-given.
+ * A full admin stays as is. The one measure behind `sharedData`, onlyByRank and getUserWithoutRank.
+ */
+function sharedDataAccess(guildAccess, userId, config) {
+    if (!guildAccess || guildAccess.isAdmin) return guildAccess;
+    const roles = withoutServerAdminRank(guildAccess, userId);
+    const guilds = {};
+    for (const [gid, entry] of Object.entries(roles.guilds || {})) {
+        guilds[gid] = guildRoles.serverIsTrusted(gid, config) ? entry : {
+            access: BASE_ACCESS(userId, gid).access,
+            ...(entry.isMember ? { isMember: true } : {}),
+            ...(entry.membershipUnknown ? { membershipUnknown: true } : {}),
+        };
+    }
+    return { ...roles, guilds };
+}
+
 /** computeGuildAccess(), falling back to the base access of every server when the lookup fails. */
 async function resolveGuildAccess(userId) {
     try {
@@ -270,6 +294,6 @@ async function userMayAny(userId, areas, level = "read", { guildId } = {}) {
 
 module.exports = {
     BASE_ACCESS, NO_ACCESS, ALL_ACCESS, UNKNOWN_MEMBER, UNKNOWN_USER,
-    computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank,
+    computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank, sharedDataAccess,
     computeAccess, resolveAccess, memberRoleIds, userMayAny,
 };

@@ -9,6 +9,7 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: j
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
     eventGuildIds: jest.fn(() => ["guild-1"]),
     listedServerIds: jest.fn(() => ["guild-1"]),
+    serverIsTrusted: jest.fn(() => true),
 }));
 
 const { getConfig } = require("../../../../src/stores/settings/settingsStore");
@@ -33,6 +34,7 @@ beforeEach(() => {
     getConfig.mockReturnValue({});
     guildRoles.eventGuildIds.mockReturnValue(["guild-1"]);
     guildRoles.listedServerIds.mockReturnValue(["guild-1"]);
+    guildRoles.serverIsTrusted.mockReturnValue(true);
     discord.setClient(null);
     jest.spyOn(console, "warn").mockImplementation(() => {});
 });
@@ -53,6 +55,61 @@ describe("services/discord/members/userAccess", () => {
         expect(result.isAdmin).toBe(false);
         expect(result.access.loot).toEqual({ read: true, write: false });
         expect(result.access.raids).toEqual({ read: true, write: true });
+    });
+
+    // #1073: what counts for data every server shares, the one rule behind all the ways.
+    describe("sharedDataAccess", () => {
+        const ROLE = { raids: { read: true, write: true } };
+        const entry = (over = {}) => ({ access: ROLE, roleAccess: ROLE, isOrga: true, roleIsOrga: true, isMember: true, ...over });
+        const known = (guilds) => ({ isAdmin: false, guilds });
+
+        it("keeps the roles on a marked server", () => {
+            const out = userAccess.sharedDataAccess(known({ "guild-1": entry() }), "u1");
+            expect(out.guilds["guild-1"].access.raids.write).toBe(true);
+            expect(out.guilds["guild-1"].isOrga).toBe(true);
+        });
+
+        it("leaves only what a full admin gave on a server without the mark", () => {
+            getConfig.mockReturnValue(onGuild1({ baseAccess: { loot: { read: true } }, userPermissions: { u1: { history: { read: true } } } }));
+            guildRoles.serverIsTrusted.mockReturnValue(false);
+            const { access, isOrga, isMember } = userAccess.sharedDataAccess(known({ "guild-1": entry() }), "u1").guilds["guild-1"];
+            expect(isOrga).toBeUndefined();
+            expect(isMember).toBe(true);
+            expect(access.raids).toEqual({ read: false, write: false });
+            expect(access.loot.read).toBe(true);
+            expect(access.history.read).toBe(true);
+        });
+
+        it("keeps the unknown membership and adds no membership of its own", () => {
+            guildRoles.serverIsTrusted.mockReturnValue(false);
+            const out = userAccess.sharedDataAccess(known({ "guild-1": entry({ isMember: false, membershipUnknown: true }) }), "u1");
+            expect(out.guilds["guild-1"].membershipUnknown).toBe(true);
+            expect(out.guilds["guild-1"]).not.toHaveProperty("isMember");
+        });
+
+        it("asks per server, each one answers for itself", () => {
+            guildRoles.serverIsTrusted.mockImplementation((gid) => gid === "guild-2");
+            const out = userAccess.sharedDataAccess(known({ "guild-1": entry(), "guild-2": entry() }), "u1");
+            expect(out.guilds["guild-1"].isOrga).toBeUndefined();
+            expect(out.guilds["guild-2"].isOrga).toBe(true);
+        });
+
+        it("hands the given config on to the question", () => {
+            const config = { marker: true };
+            userAccess.sharedDataAccess(known({ "guild-1": entry() }), "u1", config);
+            expect(guildRoles.serverIsTrusted).toHaveBeenLastCalledWith("guild-1", config);
+        });
+
+        it("leaves a full admin and a missing access as they are", () => {
+            guildRoles.serverIsTrusted.mockReturnValue(false);
+            const admin = { isAdmin: true, guilds: {} };
+            expect(userAccess.sharedDataAccess(admin, "u1")).toBe(admin);
+            expect(userAccess.sharedDataAccess(null, "u1")).toBeNull();
+        });
+
+        it("answers with no servers when the access names none", () => {
+            expect(userAccess.sharedDataAccess({ isAdmin: false }, "u1").guilds).toEqual({});
+        });
     });
 
     // #1074: "not a member" and "nobody knows" must stay two answers, the second is asked again.

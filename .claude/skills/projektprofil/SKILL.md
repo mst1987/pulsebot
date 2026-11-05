@@ -268,6 +268,13 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `checkPugMember` lassen bei `null` durch; das geht nur, wenn der Aufrufer nachweislich Mitglied ist oder eigene
     Rechte hat. Wer eine weitere solche Route baut, testet Nichtmitglied, Discord-Ausfall, fehlenden Bot und fehlende
     Guild auf beiden Methoden.
+32. **Rollen und gemeinsame Daten** (#1073, #1105): Ein Server-Admin kann sich jede Rolle selbst geben. Wer Rollen für
+    etwas zählt, das alle Server teilen, fragt die Marke über `serverIsTrusted` oder die Bausteine darauf
+    (`sharedDataAccess`, `rolesCountForSharedData`, `mayWriteSharedData`), nie `roleAccess` direkt. Wer die Serverliste
+    für den Rang öffnet, öffnet damit nicht die Marke: `trustedServers` bleibt in `FULL_ADMIN_KEYS`. Ein Recht, das der
+    Rang vergeben kann, zählt bei gemeinsamen Daten nicht. Einmal-Migrationen, die Rechte vergeben, tragen ihren Merker
+    im selben atomaren Schreibvorgang wie die Änderung. Teil-Mocks von `guildRoles`, `userAccess` und `auth` ohne die
+    neuen Exporte brechen die Tests der Aufrufer.
 
 ## Fach-Agenten
 

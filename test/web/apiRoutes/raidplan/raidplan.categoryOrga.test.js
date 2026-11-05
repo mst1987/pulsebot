@@ -10,6 +10,7 @@ let mockUser = null;
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),
+    getUserWithoutRank: jest.fn(() => mockUser),
     setViewAs: jest.fn(() => true),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
@@ -17,6 +18,10 @@ jest.mock("../../../../src/web/http/auth", () => ({
     getActiveGuild: jest.fn(() => ""),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "700000") }));
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => true),
+}));
 // Every category plays TBC now. cat1's TBC roster is managed by the account "mgr" and the role
 // "role-mgr"; cat2 has no roster.
 jest.mock("../../../../src/stores/roster/rosterStore", () => {

@@ -5,6 +5,9 @@ const { json, routerClient } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 
 let mockUser = null;
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),
@@ -130,6 +133,20 @@ describe("POST /api/rosters/members", () => {
             expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100002" }))).toBe(200);
             auth.getUserWithoutRank.mockReturnValue(MANAGER);
             expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" }))).toBe(200);
+        });
+
+        it("takes in only a member for a role on a server without the mark (#1073)", async () => {
+            mockUser = MANAGER;
+            auth.getUserWithoutRank.mockReturnValue({ ...MANAGER, access: {} });
+            serverMemberIds.mockResolvedValue(new Set(["100002"]));
+            mockTrusted = false;
+            try {
+                const refused = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+                expect([status(refused), code(refused)]).toEqual([403, "not_on_server"]);
+                expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100002" }))).toBe(200);
+            } finally {
+                mockTrusted = true;
+            }
         });
 
         it("still changes somebody already on the roster, who may have left the server since", async () => {

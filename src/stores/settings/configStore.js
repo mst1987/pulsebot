@@ -24,6 +24,13 @@ const { normalizeBackupSettings } = require("../../services/backup/backupConfig"
 
 const FILE = settingsPath("config.json");
 
+// #1073: the start-up migration that marks the servers of before has run. It lives in the file it
+// changes, so both are written at once. Only that migration sets it on a file with content, and any
+// write that creates the file: it has nothing of before to mark. No save can otherwise set or clear it,
+// clearing it would run the migration again and hand the mark to every server listed then. A failed
+// read says nothing about the file, so no write follows it (readStored).
+const TRUSTED_SERVERS_MIGRATED = "trustedServersMigrated";
+
 // What a missing file reads as. Computed once: it only depends on the env
 // defaults, which do not change while the process runs.
 let freshConfig = null;
@@ -40,15 +47,42 @@ function getConfig() {
     return store.read();
 }
 
-/** config.json as stored, not normalised ({} when missing or unreadable). */
+/**
+ * config.json as stored, not normalised: {} when it is missing, broken or holds no object. A failed
+ * read (EIO, EACCES ...) throws: the file may be whole, and {} would pass for a new one and be written
+ * over it, without the servers and without the note of #1073 - or with a note nothing has earned.
+ */
 function readStored() {
-    const stored = rawStore.read();
+    let stored;
+    try {
+        stored = rawStore.readStrict(rawStore.file);
+    } catch (error) {
+        if (error && (error.code === "ENOENT" || error.name === "SyntaxError")) return {};
+        throw error;
+    }
     return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : {};
 }
 
-/** Replace config.json with `value` as it is; the kept config is dropped. */
+/**
+ * config.json as stored, for who must tell a missing file from a broken one (readStored cannot):
+ * {} when there is none, null when it cannot be read or holds no object.
+ */
+function readStoredChecked() {
+    let stored;
+    try {
+        stored = rawStore.readStrict(rawStore.file);
+    } catch (error) {
+        return error && error.code === "ENOENT" ? {} : null;
+    }
+    return stored && typeof stored === "object" && !Array.isArray(stored) ? stored : null;
+}
+
+// A file born from this write (none yet, or a broken one replaced) has no server of before to mark.
+const bornFromThisWrite = (stored) => !Object.keys(stored).length;
+
+/** Replace config.json with `value` as it is (a new file: plus the note); the kept config is dropped. A failed read throws before the write. */
 function writeStored(value) {
-    store.write(value);
+    store.write(bornFromThisWrite(readStored()) ? { ...value, [TRUSTED_SERVERS_MIGRATED]: true } : value);
 }
 
 /**
@@ -57,19 +91,30 @@ function writeStored(value) {
  * hides it, so a save writes it back from here - a migration that failed or has
  * not run yet still finds it on the next start.
  */
-function pendingTopItems() {
-    const stored = readStored();
+function pendingTopItems(stored) {
     if (Object.prototype.hasOwnProperty.call(stored, "topItemsLegacy")) return undefined;
     return Array.isArray(stored.topItems) ? stored.topItems : undefined;
 }
 
-/** `next` with the stored top items of before kept (pendingTopItems) and no other global list. */
-function withPendingTopItems(next) {
+/**
+ * The file a save starts from, read once and past the cache: getConfig() keeps the defaults of a read
+ * that failed until the file changes, and those must not become the saved config. A failed read or
+ * normalisation throws, nothing is written.
+ */
+function configToChange() {
+    const stored = readStored();
+    return { stored, current: normalizeConfig(stored) };
+}
+
+/** Write a config changed from `stored`: the note and the top items of before as stored, no other global list. */
+function writeChanged(next, stored) {
     const out = { ...next };
+    if (stored[TRUSTED_SERVERS_MIGRATED] === true || bornFromThisWrite(stored)) out[TRUSTED_SERVERS_MIGRATED] = true;
+    else delete out[TRUSTED_SERVERS_MIGRATED];
     delete out.topItems;
-    const pending = pendingTopItems();
+    const pending = pendingTopItems(stored);
     if (pending) out.topItems = pending;
-    return out;
+    store.write(out);
 }
 
 /** Tests: read and write another file; null = config.json again. */
@@ -159,20 +204,49 @@ function mergeBlock(next, current, sent, key, normalize) {
     if (sent && typeof sent === "object") next[key] = normalize({ ...current[key], ...sent });
 }
 
+/** A sent server list with the mark as stored: dropped from what was sent, restored per guildId. */
+function withStoredTrust(servers, stored) {
+    const trusted = new Set(stored.filter((s) => s && s.trusted === true).map((s) => String(s.guildId).trim()));
+    return servers.map((raw) => {
+        if (!raw || typeof raw !== "object") return raw;
+        const entry = { ...raw };
+        delete entry.trusted;
+        if (trusted.has(String(raw.guildId).trim())) entry.trusted = true;
+        return entry;
+    });
+}
+
+/** `{ [guildId]: boolean }`, for servers that were on the stored list already: a server just entered starts without the mark. */
+function applyTrustedChanges(servers, changes, stored) {
+    if (!changes || typeof changes !== "object") return;
+    const known = new Set(stored.map((s) => s && String(s.guildId).trim()));
+    for (const server of servers) {
+        if (!known.has(server.guildId) || typeof changes[server.guildId] !== "boolean") continue;
+        if (changes[server.guildId]) server.trusted = true;
+        else delete server.trusted;
+    }
+}
+
 /** `next.discordServers` (and `next.guildId`) from the stored block with the sent one over it. */
 function mergeDiscordServers(next, current, sent) {
-    const merged = { ...current.discordServers, ...sent };
+    const { trustedChanges, ...block } = sent;
+    const merged = { ...current.discordServers, ...block };
+    const stored = (current.discordServers && current.discordServers.servers) || [];
+    // #1073: the mark of a server is no part of a sent list. Whatever a list says, each server keeps
+    // what it has stored, a new one starts without; only trustedChanges (settings route, full admins
+    // only) changes it.
+    if (Array.isArray(merged.servers)) merged.servers = withStoredTrust(merged.servers, stored);
     // An empty stored list works on the implicit main server (guildId, also one
     // sent in the same save), which the page lists as a server; adding one more
     // must not drop it - that took the main server's rights and loops away on
     // prod (Oct 2026).
-    const stored = (current.discordServers && current.discordServers.servers) || [];
     const main = String(next.guildId || "").trim();
     if (!stored.length && main && Array.isArray(merged.servers) && merged.servers.length
         && !merged.servers.some((s) => s && String(s.guildId).trim() === main)) {
         merged.servers = [{ guildId: main, label: "" }, ...merged.servers];
     }
     next.discordServers = normalizeDiscordServers(merged, { fallbackGuildId: current.guildId });
+    applyTrustedChanges(next.discordServers.servers, trustedChanges, stored);
     // Keep the fallback key in step, so clearing every server later falls
     // back to the server that was last in use, not to an older one.
     const first = next.discordServers.servers[0];
@@ -186,7 +260,7 @@ function mergeDiscordServers(next, current, sent) {
  * admin menu gets back and renders, instead of the raw stored blank.
  */
 function saveConfig(partial) {
-    const current = getConfig();
+    const { stored, current } = configToChange();
     const next = { ...current, ...partial };
     // The addon list (#818) is replaced only by an edit of it, which says so with
     // `addonDownloadsCustomized`; a save that just carries a list along (an
@@ -226,7 +300,7 @@ function saveConfig(partial) {
     // The top items are per server since #952 (serverSettings[guildId].topItems):
     // a global list sent by an old client is never written (the start migration
     // would take it for the list of before); the stored one of before stays
-    // until the migration moved it (withPendingTopItems, at the write below).
+    // until the migration moved it (writeChanged, at the write below).
     // Both replace the stored value as a whole.
     // Role-sync pairs are checked against the servers after this save (#896): a
     // pair whose server was just removed is dropped with it.
@@ -242,7 +316,7 @@ function saveConfig(partial) {
             ...cur, ...partial.backup, retention: part("retention"), restoreTest: part("restoreTest"),
         });
     }
-    store.write(withPendingTopItems(next));
+    writeChanged(next, stored);
     return getConfig();
 }
 
@@ -257,8 +331,8 @@ function saveConfig(partial) {
  */
 function dropCategoryEntries(categoryId, keys = []) {
     const id = String(categoryId || "").trim();
-    const current = getConfig();
-    if (!id) return { config: current, removed: [] };
+    if (!id) return { config: getConfig(), removed: [] };
+    const { stored, current } = configToChange();
     const next = { ...current };
     const removed = [];
     if (Array.isArray(current.categoryIds) && current.categoryIds.map(String).includes(id)) {
@@ -273,8 +347,8 @@ function dropCategoryEntries(categoryId, keys = []) {
         next[key] = rest;
         removed.push(key);
     }
-    if (removed.length) store.write(withPendingTopItems(next));
+    if (removed.length) writeChanged(next, stored);
     return { config: getConfig(), removed };
 }
 
-module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, writeStored, useFile };
+module.exports = { getConfig, saveConfig, dropCategoryEntries, resolveEventSheetLink, readStored, readStoredChecked, writeStored, useFile, TRUSTED_SERVERS_MIGRATED };

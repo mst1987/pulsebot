@@ -97,7 +97,7 @@ describe("POST /api/ingest/levelhelper", () => {
     it("takes the runs of a personal key whose owner holds an orga role next to the rank", async () => {
         const { orgaServersOf } = jest.requireActual("../../../../src/services/discord/servers/ingestServers");
         const guildAccess = { isAdmin: false, guilds: { gA: { access: {}, isOrga: true, isServerAdmin: true, roleAccess: {}, roleIsOrga: true } } };
-        const config = { discordServers: { servers: [{ guildId: "gA" }] } };
+        const config = { discordServers: { servers: [{ guildId: "gA", trusted: true }] } };
         verifyToken.mockReturnValue({ id: "p1", name: "Laptop", ownerId: "u1", guildId: "" });
         serversOfToken.mockImplementationOnce(async (_token, opts) => (await orgaServersOf("u1", { ...opts, guildAccess, config })).map((s) => s.guildId));
         expect(status(await upload(payload()))).toBe(200);

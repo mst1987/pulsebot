@@ -29,7 +29,7 @@ describe("Discord-Server section", () => {
     });
 
     it("patches only the fields a change touches, never the old talk fields", () => {
-        expect(section).toContain("updateSettings({ discordServers: patch } as Partial<AdminConfig>)");
+        expect(section).toContain("updateSettings({ discordServers: patch, ...extra } as Partial<AdminConfig>)");
         expect(section).not.toMatch(/talkGuildId|talkPingChannelId/);
         // #894 drops the ping channel from the backend; the client no longer knows the field at all
         expect(api).not.toMatch(/talkPingChannelId|talkGuildId/);
