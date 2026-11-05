@@ -149,6 +149,7 @@ module.exports = {
     // the access refusal
     "This is reserved for admins.": "Das ist den Admins vorbehalten.",
     "This feature is not part of this server's plan.": "Diese Funktion ist im Tarif dieses Servers nicht enthalten.",
+    "This command reaches data every server shares, and this server is not cleared for that.": "Dieser Befehl greift auf Daten aller Server zu, und dieser Server ist dafür nicht freigegeben.",
     "unknown role": "unbekannte Rolle",
     "{first} or {last}": "{first} oder {last}",
     "You need {roles} for this.": "Dafür brauchst du {roles}.",

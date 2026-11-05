@@ -44,6 +44,7 @@ describe("/recruitment", () => {
     it("is an admin command with the two required options", () => {
         expect(recruitment.name).toBe("recruitment");
         expect(recruitment.defaultAccess).toBe("admins");
+        expect(recruitment.sharedData).toBe(true);
         expect(recruitment.group).toBe("recruitment");
         const json = recruitment.data.toJSON();
         expect(json.options.map((o) => [o.name, o.required])).toEqual([["vorlage", true], ["channel", true]]);

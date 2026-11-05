@@ -10,6 +10,8 @@ module.exports = {
     description: "Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel",
     group: "recruitment",
     defaultAccess: "admins",
+    // the templates are one list for every server (recruitmentStore), see botAccess.guardInteraction
+    sharedData: true,
     data: new SlashCommandBuilder()
         .setName("recruitment")
         .setDescription("Postet eine im Admin-Menü gepflegte Recruitment-Vorlage in einen Channel")

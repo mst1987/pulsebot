@@ -25,6 +25,7 @@ const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCo
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { hasFeature } = require("../plans/serverPlan");
+const { serverIsTrusted } = require("./roles/guildRoles");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 // The "full admin on another server" answer: remembered a short while per user, and never
@@ -88,12 +89,14 @@ function isBotAdmin(member, config = {}) {
  * May this member run the command? Pure: `member` is `{ id, roleIds }` (roleIds
  * of the event guild, [] when unknown), `ctx` carries the loaded commands and
  * the config. Returns `{ allowed, reason, rule }` with reason one of "admin",
- * "everyone", "role", "denied".
+ * "everyone", "role", "denied". `ctx.fullAdminOnly`: the rule of the server does
+ * not count, only a full admin passes (a command on shared data, guardInteraction).
  */
 function resolveBotAccess(commandName, member, ctx = {}) {
     const config = ctx.config || {};
     const rule = ruleFor(commandName, { commands: ctx.commands, config });
     if (isBotAdmin(member, config)) return { allowed: true, reason: "admin", rule };
+    if (ctx.fullAdminOnly) return { allowed: false, reason: "denied", rule };
     if (rule.mode === "everyone") return { allowed: true, reason: "everyone", rule };
     if (rule.mode === "roles" && member) {
         const held = new Set((member.roleIds || []).map(String));
@@ -181,14 +184,19 @@ async function guardInteraction(interaction, command, commands) {
     // "Jeder" needs no Discord lookup at all.
     const rule = ruleFor(name, { commands, config });
     const userId = String(interaction.user && interaction.user.id);
-    if (rule.mode === "everyone") return true;
+    // Data every server shares (#1073): a server's rule counts only with the mark of a full admin,
+    // asked of the stored config. No server (a DM without a record) has no mark either.
+    const fullAdminOnly = commandSharesData(command, commands) && !serverIsTrusted(guildId, stored);
+    if (rule.mode === "everyone" && !fullAdminOnly) return true;
     const roleIds = await eventMemberRoles(interaction, guildId);
-    const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config });
+    const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config, fullAdminOnly });
     if (result.allowed) return true;
     // a full admin through an admin role on another server (#925): asked only on a refusal
     if (await isFullAdminAnywhere(userId)) return true;
     console.log(`Bot access denied: ${name} for ${userId}`);
-    await refuse(interaction, () => denyMessage(result.rule, guildId, lang()));
+    await refuse(interaction, () => (fullAdminOnly
+        ? tr(lang(), "This command reaches data every server shares, and this server is not cleared for that.")
+        : denyMessage(result.rule, guildId, lang())));
     return false;
 }
 
@@ -198,6 +206,14 @@ function commandFeature(command, commands) {
     if (command.feature) return command.feature;
     const owner = accessOwner(command.name, commands);
     return (owner && owner.feature) || "";
+}
+
+/** Whether a command reaches data every server shares: its own `sharedData`, else that of the command whose rule it follows. */
+function commandSharesData(command, commands) {
+    if (!command) return false;
+    if (command.sharedData === true) return true;
+    const owner = accessOwner(command.name, commands);
+    return !!owner && owner.sharedData === true;
 }
 
 /** Answers a refused interaction with a message only the user sees (`title` is asked only when one is sent). */
