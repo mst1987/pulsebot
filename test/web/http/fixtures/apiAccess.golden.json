@@ -364,6 +364,7 @@
     "/api/system/backup/snapshot",
     "/api/system/status"
   ],
+  "serverAdmin": [],
   "orgaRead": [
     "GET /api/raidplan",
     "GET /api/raidplan/link"

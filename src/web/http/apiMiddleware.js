@@ -37,6 +37,20 @@ function requireFullAdmin(req, res) {
 }
 
 /**
+ * Like requireFullAdmin(), but the server-admin rank of the ACTIVE server counts as well (#1073 part B):
+ * for actions that stay on that one server. What the action touches has to be checked to lie on it.
+ */
+function requireServerAdmin(req, res) {
+    const user = auth.getUser(req);
+    if (!user || !(user.isAdmin || user.isServerAdmin)) {
+        error(res, user ? 403 : 401, user ? "forbidden" : "unauthorized",
+            user ? "Nur Server-Admins dürfen das." : "Nicht angemeldet.");
+        return null;
+    }
+    return user;
+}
+
+/**
  * CSRF check for mutating /api/* requests: the SPA sends the token from
  * GET /api/session as an X-CSRF-Token header (the SSR forms use a hidden
  * `_csrf` field instead — see auth.checkCsrf()). Sends a JSON 403 and returns
@@ -50,4 +64,4 @@ function requireCsrf(req, res) {
     return true;
 }
 
-module.exports = { requireAdmin, requireFullAdmin, requireCsrf };
+module.exports = { requireAdmin, requireFullAdmin, requireServerAdmin, requireCsrf };

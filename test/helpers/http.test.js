@@ -65,6 +65,12 @@ describe("test/helpers/http", () => {
         it("defaults to a full admin", () => {
             expect(apiMiddlewareMock().requireFullAdmin({}, mockRes())).toMatchObject({ isAdmin: true });
         });
+
+        it("answers the rank like the full admin unless it is given", () => {
+            expect(apiMiddlewareMock({ fullAdmin: { id: "full" } }).requireServerAdmin({}, mockRes())).toEqual({ id: "full" });
+            expect(apiMiddlewareMock({ fullAdmin: null, serverAdmin: { id: "rank" } }).requireServerAdmin({}, mockRes())).toEqual({ id: "rank" });
+            expect(apiMiddlewareMock().requireServerAdmin({}, mockRes())).toMatchObject({ isAdmin: true });
+        });
     });
 
     it("apiBodyMock resolves the given body, per call when it is a function", async () => {

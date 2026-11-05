@@ -62,12 +62,12 @@ function jsonRequest(method = "GET", path = "/", payload, headers = {}) {
 const resolve = (value) => (typeof value === "function" ? value() : value);
 
 /**
- * Factory mock for src/web/http/apiMiddleware. `user`, `fullAdmin` and `csrf` are a
- * value or a function read on every call (`() => mockUser`). A missing user or
+ * Factory mock for src/web/http/apiMiddleware. `user`, `fullAdmin`, `serverAdmin` (default: like
+ * `fullAdmin`) and `csrf` are a value or a function read on every call (`() => mockUser`). A missing user or
  * a failed CSRF check is refused the way the real middleware does it: a JSON
  * 401 / 403 on `res`, and null / false back.
  */
-function apiMiddlewareMock({ user = { id: "1", name: "Admin", isAdmin: true }, fullAdmin, csrf = true } = {}) {
+function apiMiddlewareMock({ user = { id: "1", name: "Admin", isAdmin: true }, fullAdmin, serverAdmin, csrf = true } = {}) {
     const { error } = jest.requireActual("../../src/web/http/apiResponse");
     const refuse = (res, value) => {
         if (!value && res && typeof res.writeHead === "function") error(res, 401, "unauthorized", "Nicht angemeldet.");
@@ -76,6 +76,7 @@ function apiMiddlewareMock({ user = { id: "1", name: "Admin", isAdmin: true }, f
     return {
         requireAdmin: jest.fn((req, res) => refuse(res, resolve(user))),
         requireFullAdmin: jest.fn((req, res) => refuse(res, resolve(fullAdmin === undefined ? user : fullAdmin))),
+        requireServerAdmin: jest.fn((req, res) => refuse(res, resolve(serverAdmin === undefined ? (fullAdmin === undefined ? user : fullAdmin) : serverAdmin))),
         requireCsrf: jest.fn((req, res) => {
             if (resolve(csrf)) return true;
             if (res && typeof res.writeHead === "function") error(res, 403, "csrf", "Sicherheits-Token ungültig oder abgelaufen.");
