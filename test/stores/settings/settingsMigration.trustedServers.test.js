@@ -242,7 +242,6 @@ describe("stores/settings/settingsMigration migrateTrustedServers (#1073)", () =
         it.each([
             ["an unrelated save", () => configStore.saveConfig({ adminRoleIds: ["1"] })],
             ["a save of the whole list", () => configStore.saveConfig({ discordServers: { servers: [{ guildId: A, label: "x" }, { guildId: C, label: "" }] } })],
-            ["a removed category", () => configStore.dropCategoryEntries("cat1", ["categoryRoles"])],
         ])("%s keeps it, and nothing runs again", (_what, save) => {
             afterTheFirstRun();
             save();
@@ -250,6 +249,158 @@ describe("stores/settings/settingsMigration migrateTrustedServers (#1073)", () =
             expect(configStore.getConfig().trustedServersMigrated).toBe(true);
             expect(migrateTrustedServers()).toEqual([]);
             expect(trustedIds()).toEqual([A]);
+        });
+
+        describe("a removed category", () => {
+            const servers = [{ guildId: A, label: "", trusted: true }, { guildId: B, label: "" }];
+
+            it("keeps it, and nothing runs again", () => {
+                load(servers, { trustedServersMigrated: true, categoryRoles: { cat1: ["1500000000000000001"] } });
+                expect(configStore.dropCategoryEntries("cat1", ["categoryRoles"]).removed).toEqual(["categoryRoles"]);
+                expect(stored().categoryRoles).toEqual({});
+                expect(stored().trustedServersMigrated).toBe(true);
+                expect(migrateTrustedServers()).toEqual([]);
+                expect(trustedIds()).toEqual([A]);
+            });
+
+            it("does not set it on a file that has not run the migration", () => {
+                load(servers.map(({ guildId, label }) => ({ guildId, label })), { categoryRoles: { cat1: ["1500000000000000001"] } });
+                expect(configStore.dropCategoryEntries("cat1", ["categoryRoles"]).removed).toEqual(["categoryRoles"]);
+                expect(stored().trustedServersMigrated).toBeUndefined();
+                expect(migrateTrustedServers()).toHaveLength(1);
+                expect(trustedIds()).toEqual([A, B]);
+            });
+        });
+    });
+
+    // A read that fails (no missing file, no broken content) says nothing about the file: it neither
+    // counts as new, nor does a write of the defaults follow it.
+    describe("when one read of config.json fails", () => {
+        const failRead = (n) => {
+            const real = fs.readFileSync.getMockImplementation();
+            let reads = 0;
+            fs.readFileSync.mockImplementation((file, ...rest) => {
+                if (file === CONFIG) {
+                    reads += 1;
+                    if (reads === n) throw Object.assign(new Error("EIO: read"), { code: "EIO" });
+                }
+                return real(file, ...rest);
+            });
+            return () => {
+                fs.readFileSync.mockImplementation(real);
+                return reads;
+            };
+        };
+        const before = () => load([{ guildId: A, label: "" }, { guildId: B, label: "" }], { adminRoleIds: ["7"], roleSync: [] });
+
+        describe.each([
+            ["saveConfig", () => configStore.saveConfig({ adminRoleIds: ["8"] })],
+            ["a removed category", () => configStore.dropCategoryEntries("cat1", ["categoryRoles"])],
+            ["writeStored", () => configStore.writeStored({ raidsheets: [] })],
+        ])("%s", (_what, write) => {
+            const withCategory = () => ({ trustedServersMigrated: true, categoryRoles: { cat1: ["1500000000000000001"] } });
+
+            it("throws and leaves the file with its note as it is", () => {
+                load([{ guildId: A, label: "", trusted: true }], withCategory());
+                const file = fs.__store.get(CONFIG);
+                const restore = failRead(1);
+                expect(write).toThrow("EIO");
+                restore();
+                expect(fs.__store.get(CONFIG)).toBe(file);
+                expect(stored().trustedServersMigrated).toBe(true);
+            });
+
+            it("does not make a file with content a new one", () => {
+                load([{ guildId: A, label: "" }], { categoryRoles: { cat1: ["1500000000000000001"] } });
+                const file = fs.__store.get(CONFIG);
+                const restore = failRead(1);
+                expect(write).toThrow("EIO");
+                restore();
+                expect(fs.__store.get(CONFIG)).toBe(file);
+                expect(stored().trustedServersMigrated).toBeUndefined();
+            });
+        });
+
+        it("a save after it marks nothing new: servers entered later stay unmarked", () => {
+            afterTheFirstRun();
+            const restore = failRead(1);
+            expect(() => configStore.saveConfig({ adminRoleIds: ["8"] })).toThrow("EIO");
+            restore();
+            configStore.saveConfig({ adminRoleIds: ["8"] });
+            expect(stored().trustedServersMigrated).toBe(true);
+            expect(stored().discordServers.servers).toHaveLength(3);
+            expect(migrateTrustedServers()).toEqual([]);
+            expect(trustedIds()).toEqual([A]);
+        });
+
+        it("a save does not start from the defaults getConfig() kept of that read", () => {
+            afterTheFirstRun();
+            const restore = failRead(1);
+            expect(configStore.getConfig().discordServers.servers).toEqual([]);
+            restore();
+            configStore.saveConfig({ adminRoleIds: ["8"] });
+            expect(stored().trustedServersMigrated).toBe(true);
+            expect(stored().discordServers.servers).toHaveLength(3);
+            expect(trustedIds()).toEqual([A]);
+            expect(stored().adminRoleIds).toEqual(["8"]);
+        });
+
+        it("a removed category does not start from them either", () => {
+            afterTheFirstRun();
+            const file = stored();
+            fs.__store.set(CONFIG, JSON.stringify({ ...file, categoryRoles: { cat1: ["1500000000000000001"] } }));
+            const restore = failRead(1);
+            configStore.getConfig();
+            restore();
+            expect(configStore.dropCategoryEntries("cat1", ["categoryRoles"]).removed).toEqual(["categoryRoles"]);
+            expect(stored().discordServers.servers).toHaveLength(3);
+            expect(stored().trustedServersMigrated).toBe(true);
+        });
+
+        // A config some earlier migration writes to, so that the writes of the first start are in the loop.
+        const legacy = () =>
+            load([{ guildId: A, label: "" }, { guildId: B, label: "" }], {
+                discordServers: {
+                    servers: [{ guildId: A, label: "" }, { guildId: B, label: "" }],
+                    links: [{ from: A, to: C, channelId: "1400000000000000011", lang: "", versions: [] }],
+                    talkGuildId: C,
+                    signupNoteChannelId: "1400000000000000021",
+                },
+                roleSync: [{ eventRoleId: "1500000000000000001", talkRoleId: "1500000000000000002", direction: "toTalk" }],
+            });
+
+        it.each([
+            ["a plain config", before],
+            ["a config of before", legacy],
+        ])("no failed read at the first start leaves the note without the marks, the next start finishes (%s)", (_what, prepare) => {
+            prepare();
+            const count = failRead(0);
+            migrateSettings(quiet);
+            const total = count();
+            expect(total).toBeGreaterThan(1);
+            // what an undisturbed start marks (an old talk server joins the list on the way)
+            const everyServer = trustedIds();
+            expect(everyServer).toEqual(expect.arrayContaining([A, B]));
+            for (let n = 1; n <= total; n += 1) {
+                fs.__store.clear();
+                prepare();
+                const restore = failRead(n);
+                const warn = jest.fn();
+                const { error } = migrateSettings({ ...quiet, warn });
+                restore();
+                expect(stored().discordServers.servers.map((s) => s.guildId)).toEqual(expect.arrayContaining([A, B]));
+                if (stored().trustedServersMigrated === true) expect(trustedIds()).toEqual(everyServer);
+                else {
+                    expect(trustedIds()).toEqual([]);
+                    // nothing decided: this must not pass in silence
+                    expect(error || warn.mock.calls.length).toBeTruthy();
+                }
+                // the next start: the kept defaults of the failed read are gone with the process
+                configStore.useFile(null);
+                migrateSettings(quiet);
+                expect(stored().trustedServersMigrated).toBe(true);
+                expect(trustedIds()).toEqual(everyServer);
+            }
         });
     });
 });

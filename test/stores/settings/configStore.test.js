@@ -48,7 +48,8 @@ describe("stores/settings/configStore getConfig cache (#420)", () => {
         normalizeConfig.mockClear();
         expect(configStore.saveConfig({ adminRoleIds: ["3"] }).adminRoleIds).toEqual(["3"]);
         expect(configStore.getConfig().adminRoleIds).toEqual(["3"]);
-        expect(normalizeConfig).toHaveBeenCalledTimes(1);
+        // the file the save starts from (past the cache) and the one read back; the later read is cached
+        expect(normalizeConfig).toHaveBeenCalledTimes(2);
     });
 
     it("a missing file reads as the defaults, a copy each time", () => {
@@ -75,6 +76,19 @@ describe("stores/settings/configStore stored file", () => {
         expect(configStore.getConfig().extra).toBe(1);
         fs.__store.set(FILE, "[1]");
         expect(configStore.readStored()).toEqual({});
+        fs.__store.set(FILE, "{ not json");
+        expect(configStore.readStored()).toEqual({});
+    });
+
+    it("readStored throws on a failed read: it says nothing about the file", () => {
+        writeFile({ extra: 1 });
+        const real = fs.readFileSync.getMockImplementation();
+        fs.readFileSync.mockImplementationOnce(() => {
+            throw Object.assign(new Error("EIO: read"), { code: "EIO" });
+        });
+        expect(() => configStore.readStored()).toThrow("EIO");
+        expect(fs.readFileSync.getMockImplementation()).toBe(real);
+        expect(configStore.readStored()).toEqual({ extra: 1 });
     });
 
     it("readStoredChecked tells a missing file from a broken one", () => {
