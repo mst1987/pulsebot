@@ -244,6 +244,9 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
 .tws-games .tws-game { max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 .tws-game .badge-x { flex: none; }
 .tws-name:hover { text-decoration: underline; }
+/* raiders' waiting requests above the list; the heading carries the count, no frame around it */
+.tws-requests { margin-bottom: 20px; }
+.tws-requests-title { margin: 0 0 8px; font-size: 15px; font-weight: 600; }
 @media (max-width: 720px) {
     .tws-last { margin-left: 0; flex-basis: 100%; }
     .tws-table thead { display: none; }
@@ -253,6 +256,8 @@ table.idx td.cell-act .ibtn { vertical-align: middle; }
     .tws-table td[data-label]::before { content: attr(data-label) ": "; color: var(--muted); font-size: 12px; font-weight: 400; }
     .tws-table td:first-child::before { content: none; }
     table.idx.tws-table td.cell-act { grid-column: 2; grid-row: 1; width: auto; align-self: start; }
+    /* two buttons with words: their own row, or the raider's name has no room left */
+    table.idx.tws-req-table td.cell-act { grid-column: 1 / -1; grid-row: auto; padding-top: 6px; }
     .tws-name, .tws-cut { max-width: 100%; white-space: normal; overflow-wrap: anywhere; display: inline; }
 }
 /* a phone: the boss choice as one select above the list */

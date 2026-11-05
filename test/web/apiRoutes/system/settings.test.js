@@ -426,6 +426,7 @@ describe("web/apiRoutes/settings", () => {
                     roles: [{ id: "role1", name: "Raider" }],
                     categories: [{ id: "cat1", name: "Raids" }],
                     activeGuildId: "guild-1",
+                    twitchRequestsOpen: 0,
                 });
                 expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
                 // Einstellungen → Spielversion (#541) picks from these

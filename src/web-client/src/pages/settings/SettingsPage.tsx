@@ -636,7 +636,13 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
             case "twitch": return (
                 <>
                     {head(activeSection, undefined, sectionLabel(activeSection), t("settings.twitch.sub"))}
-                    <SettingsTwitch key={data.activeGuildId} guildId={data.activeGuildId || ""} channels={channels} roles={data.roles || []} />
+                    <SettingsTwitch
+                        key={data.activeGuildId}
+                        guildId={data.activeGuildId || ""}
+                        channels={channels}
+                        roles={data.roles || []}
+                        onRequestsChange={(count) => setData((cur) => (cur && cur.twitchRequestsOpen !== count ? { ...cur, twitchRequestsOpen: count } : cur))}
+                    />
                 </>
             );
 

@@ -332,6 +332,8 @@
   "POST /api/settings/talk-overview",
   "POST /api/settings/twitch",
   "POST /api/settings/twitch/check",
+  "POST /api/settings/twitch/requests/approve",
+  "POST /api/settings/twitch/requests/reject",
   "POST /api/settings/version-launch",
   "POST /api/settings/wcl-guilds/fetch",
   "POST /api/signups/bulk",
@@ -390,6 +392,10 @@
   "GET /api/profile/sync-keys",
   "POST /api/profile/sync-keys",
   "POST /api/profile/sync-keys/delete",
+  "GET /api/profile/twitch",
+  "POST /api/profile/twitch",
+  "POST /api/profile/twitch/remove",
+  "POST /api/profile/twitch/withdraw",
   "PUT /api/profile/leads",
   "PUT /api/leads"
 ]
