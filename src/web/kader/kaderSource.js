@@ -366,12 +366,20 @@ async function loadKaderSource({ guildId = "", versionId = plannerVersion(), now
  * stores of every server, so only those of the server's current members stay. Deliberately not
  * "known to the planner": any Discord id can be typed in there, which would reveal that account's
  * profile. No member list (bot offline, no intent): nothing stays.
+ *
+ * `alsoIds` (#1077): accounts that stay besides the members. The orga by role passes the server's
+ * signups, so without a member list only those stay, never everybody; the rank passes nothing.
  */
-function limitSourceToServer(source) {
-    const members = new Set((source.members || []).map((m) => m.userId));
+function limitSourceToServer(source, { alsoIds = [] } = {}) {
+    const stays = new Set([...(source.members || []).map((m) => m.userId), ...alsoIds]);
     const logChars = {};
-    for (const [userId, chars] of Object.entries(source.logChars || {})) if (members.has(userId)) logChars[userId] = chars;
-    return { ...source, profiles: (source.profiles || []).filter((p) => members.has(p.userId)), logChars };
+    for (const [userId, chars] of Object.entries(source.logChars || {})) if (stays.has(userId)) logChars[userId] = chars;
+    return {
+        ...source,
+        profiles: (source.profiles || []).filter((p) => stays.has(p.userId)),
+        logChars,
+        attendance: (source.attendance || []).filter((a) => stays.has(a.userId)),
+    };
 }
 
 /** The rule set's classes alone — enough for a change inside one Kader (no Discord, no profiles). */

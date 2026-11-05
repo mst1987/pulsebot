@@ -28,7 +28,9 @@ jest.mock("../../../../src/stores/events/signupStore", () => ({
     ...jest.requireActual("../../../../src/stores/events/signupStore"),
     getSignup: jest.fn(),
 }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
 
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
 const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 const { getSignup } = require("../../../../src/stores/events/signupStore");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
@@ -55,7 +57,11 @@ async function call(handler, user, payload, query) {
     return r;
 }
 
-beforeEach(() => jest.clearAllMocks());
+beforeEach(() => {
+    jest.clearAllMocks();
+    // #1077: account "1" is one of the server's raiders
+    visibleRaiderIds.mockResolvedValue(new Set(["1"]));
+});
 
 describe("access", () => {
     it("puts every path under raids: a reader may neither act nor read the previews", async () => {
@@ -153,7 +159,7 @@ describe("handlers", () => {
         it("refuses every other account while the member list is unknown, except a signup of this raid", async () => {
             serverMemberIds.mockResolvedValue(null);
             const refused = await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
-            expect(body(refused).error.code).toBe("other_server");
+            expect([status(refused), body(refused).error.code]).toEqual([503, "members_unavailable"]);
             expect(manage.addRaider).not.toHaveBeenCalled();
             getSignup.mockImplementation((eventId, userId) => (eventId === "eh-a" && userId === "2" ? { userId } : null));
             await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
@@ -171,22 +177,59 @@ describe("handlers", () => {
         it.each([
             ["the orga by role", () => withoutRank.mockReturnValue(ORGA_ROLES)],
             ["the manager of the raid's category", () => orgaOfRaid.mockResolvedValue(true)],
-        ])("leaves %s as on main", async (_who, arrange) => {
+        ])("treats %s by the rule of the orga (#1077), and keeps its profile writes", async (_who, arrange) => {
             arrange();
             await call(route.getRaiderCandidates, RANK, null, "event=eh-a");
-            expect(manage.raiderCandidates).toHaveBeenLastCalledWith({ guildId: "g1", eventId: "eh-a" });
-            await call(route.postRaider, RANK, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(manage.raiderCandidates.mock.lastCall[0]).toEqual({ guildId: "g1", eventId: "eh-a", visibleIds: new Set(["1", "rank"]) });
+            await call(route.postRaider, RANK, { event: "eh-a", userId: "1", character: "A", spec: "" });
             expect(manage.addRaider.mock.lastCall[0]).not.toHaveProperty("keepProfiles");
             expect(serverMemberIds).not.toHaveBeenCalled();
         });
 
-        it.each([["a full admin", { id: "a", name: "A", isAdmin: true, access: {} }], ["an orga without the rank", ORGA]])("leaves %s as on main", async (_who, user) => {
-            await call(route.getRaiderCandidates, user, null, "event=eh-a");
-            expect(manage.raiderCandidates).toHaveBeenLastCalledWith({ guildId: "g1", eventId: "eh-a" });
-            await call(route.postRaider, user, { event: "eh-a", userId: "2", character: "A", spec: "" });
+        it("leaves a full admin as on main, with no list asked for", async () => {
+            const admin = { id: "a", name: "A", isAdmin: true, access: {} };
+            await call(route.getRaiderCandidates, admin, null, "event=eh-a");
+            expect(manage.raiderCandidates.mock.lastCall[0]).toEqual({ guildId: "g1", eventId: "eh-a", visibleIds: null });
+            await call(route.postRaider, admin, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(manage.addRaider.mock.lastCall[0]).toMatchObject({ userId: "2" });
             expect(manage.addRaider.mock.lastCall[0]).not.toHaveProperty("keepProfiles");
             expect(withoutRank).not.toHaveBeenCalled();
             expect(serverMemberIds).not.toHaveBeenCalled();
+            expect(visibleRaiderIds).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the orga by role (#1077): only raiders the server may see", () => {
+        it("limits the candidates to them", async () => {
+            await call(route.getRaiderCandidates, ORGA, null, "event=eh-a");
+            expect(manage.raiderCandidates.mock.lastCall[0]).toEqual({ guildId: "g1", eventId: "eh-a", visibleIds: new Set(["1", "orga"]) });
+        });
+
+        it("refuses a raider only of another server, before the service can write a character", async () => {
+            const refused = await call(route.postRaider, ORGA, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(status(refused)).toBe(403);
+            expect(body(refused).error.code).toBe("other_server");
+            expect(manage.addRaider).not.toHaveBeenCalled();
+        });
+
+        it("answers 503 when only the member list is missing", async () => {
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            const refused = await call(route.postRaider, ORGA, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect([status(refused), body(refused).error.code]).toEqual([503, "members_unavailable"]);
+            expect(manage.addRaider).not.toHaveBeenCalled();
+        });
+
+        it("takes him once he counts for this server", async () => {
+            visibleRaiderIds.mockResolvedValue(new Set(["1", "2"]));
+            await call(route.postRaider, ORGA, { event: "eh-a", userId: "2", character: "A", spec: "" });
+            expect(manage.addRaider.mock.lastCall[0]).toMatchObject({ userId: "2" });
+        });
+
+        it("signs up the caller and leaves a missing id to the service, whoever the server may see", async () => {
+            visibleRaiderIds.mockResolvedValue(new Set());
+            await call(route.postRaider, ORGA, { event: "eh-a", userId: "orga", character: "A", spec: "" });
+            await call(route.postRaider, ORGA, { event: "eh-a", character: "A", spec: "" });
+            expect(manage.addRaider).toHaveBeenCalledTimes(2);
         });
     });
 

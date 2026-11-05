@@ -12,6 +12,7 @@ jest.mock("../../../../src/web/http/auth", () => ({
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
+    getUserWithoutRank: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
 jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
@@ -30,7 +31,11 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     getGuild: jest.fn(() => null),
     listGuilds: jest.fn(() => []),
 }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
+jest.mock("../../../../src/services/discord/members/serverMembers", () => ({ serverMemberIds: jest.fn() }));
 
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
+const { serverMemberIds } = require("../../../../src/services/discord/members/serverMembers");
 const auth = require("../../../../src/web/http/auth");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const rosterStore = require("../../../../src/stores/roster/rosterStore");
@@ -63,6 +68,8 @@ beforeEach(() => {
     jest.clearAllMocks();
     auth.checkCsrf.mockReturnValue(true);
     activeGuildFor.mockReturnValue("g1");
+    // #1077: the account the tests take in is one this server may see
+    visibleRaiderIds.mockResolvedValue(new Set(["100001"]));
     for (const r of rosterStore.listRosters("")) rosterStore.deleteRoster(r.id);
     raiderProfileStore.reset();
     roster = rosterStore.createRoster({ name: "Donnerstag", guildId: "g1", roleIds: ["900000000000000001"], managers: { userIds: [MANAGER.id], roleIds: [] } });
@@ -90,6 +97,58 @@ describe("POST /api/rosters/members", () => {
         expect(data(res).roles.results[0]).toEqual(expect.objectContaining({ ok: true, code: "done" }));
         expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledWith(roster.id, "100001", { actor: MANAGER.id });
         expect(rosterStore.getRoster(roster.id).history.slice(-1)[0]).toEqual(expect.objectContaining({ what: "member-added", by: MANAGER.id, userId: "100001" }));
+    });
+
+    describe("taking in only a raider this server may see (#1077)", () => {
+        const taken = () => rosterStore.getRoster(roster.id).members;
+
+        it("answers 403 not_on_server for a raider of another server and writes nothing, not even their first character", async () => {
+            visibleRaiderIds.mockResolvedValue(new Set());
+            const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect(status(res)).toBe(403);
+            expect(code(res)).toBe("not_on_server");
+            expect(taken()["100001"]).toBeUndefined();
+            expect(rosterRoleSync.applyMemberAdded).not.toHaveBeenCalled();
+        });
+
+        it("answers 503 members_unavailable when only the member list is missing", async () => {
+            raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+            const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect(status(res)).toBe(503);
+            expect(code(res)).toBe("members_unavailable");
+            expect(taken()["100001"]).toBeUndefined();
+            expect(rosterRoleSync.applyMemberAdded).not.toHaveBeenCalled();
+        });
+
+        it("takes in only a member for the rank alone, a raider signed up here as well for a role", async () => {
+            mockUser = { ...MANAGER, isServerAdmin: true };
+            auth.getUserWithoutRank.mockReturnValue({ ...MANAGER, access: {} });
+            serverMemberIds.mockResolvedValue(new Set(["100002"]));
+            const refused = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect([status(refused), code(refused)]).toEqual([403, "not_on_server"]);
+            expect(taken()["100001"]).toBeUndefined();
+            expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100002" }))).toBe(200);
+            auth.getUserWithoutRank.mockReturnValue(MANAGER);
+            expect(status(await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" }))).toBe(200);
+        });
+
+        it("still changes somebody already on the roster, who may have left the server since", async () => {
+            await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            visibleRaiderIds.mockClear();
+            visibleRaiderIds.mockResolvedValue(new Set());
+            const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001", status: "bench" });
+            expect(status(res)).toBe(200);
+            expect(data(res).member.status).toBe("bench");
+            expect(visibleRaiderIds).not.toHaveBeenCalled();
+        });
+
+        it("lets a full admin take in anybody without asking for the member list", async () => {
+            mockUser = ADMIN;
+            visibleRaiderIds.mockClear();
+            const res = await post("/api/rosters/members", { rosterId: roster.id, userId: "100001" });
+            expect(status(res)).toBe(200);
+            expect(visibleRaiderIds).not.toHaveBeenCalled();
+        });
     });
 
     it("updates an existing member: status, character, note", async () => {

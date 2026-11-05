@@ -46,6 +46,7 @@ const { buildKaderView, kaderPayload, mutationContext, lightContext } = require(
 const presence = require("../../kader/kaderPresence");
 const { shortFor } = require("../../../services/vermerke/vermerkeShort");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
+const { signedUpIds } = require("../../../services/characters/profileVisibility");
 
 const str = (body, key) => q.str(body, key);
 const WRITE = { write: "kader", csrf: true, body: true };
@@ -61,13 +62,16 @@ function unpack(result) {
  * another version (docs/game-versions.md: attendance is the one deliberate
  * reading across versions), counted only for the versions actually picked.
  * Whoever has the Kader by the server-admin rank alone reads the profiles of the
- * server's members only (#1072).
+ * server's members only (#1072), the orga by role also those signed up to one of
+ * the server's raids (#1077); a full admin reads every profile.
  */
 async function sourceFor(guildId, planner, versionId, { user, req, level }) {
     const picked = new Set();
     for (const k of planner.kaders) if (model.kaderInVersion(k, versionId)) for (const id of k.attendanceCategories || []) picked.add(id);
     const source = await loadKaderSource({ guildId, versionId, attendanceCategoryIds: [...picked] });
-    return onlyByRank(user, req, (roles) => userCan(roles, "kader", level)) ? limitSourceToServer(source) : source;
+    if (user.isAdmin) return source;
+    if (onlyByRank(user, req, (roles) => userCan(roles, "kader", level))) return limitSourceToServer(source);
+    return limitSourceToServer(source, { alsoIds: signedUpIds(guildId) });
 }
 
 /**

@@ -7,6 +7,7 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}) }));
 jest.mock("../../../../src/stores/events/signupStore", () => ({ getSignup: (eventId) => (eventId === "eh-a" ? { status: "tentative" } : null) }));
+jest.mock("../../../../src/services/characters/profileVisibility", () => require("../../../helpers/visibilityMock").visibilityMock());
 jest.mock("../../../../src/services/signups/availability", () => ({
     MAX_DAYS: 180,
     today: () => "2030-03-17",
@@ -56,6 +57,7 @@ jest.mock("../../../../src/web/availability/entryServers", () => ({
     serverNames: () => ({ g: "Pulse", A: "Server A" }),
 }));
 
+const { visibleRaiderIds, raiderVisibility } = require("../../../../src/services/characters/profileVisibility");
 const { readJsonBody } = require("../../../../src/web/http/apiBody");
 const profiles = require("../../../../src/stores/roster/raiderProfileStore");
 const store = require("../../../../src/stores/events/availabilityStore");
@@ -102,6 +104,8 @@ beforeEach(() => {
     profiles.reset();
     profiles.addCharacter(ANNA.id, { name: "Nerathil", className: "Mage", specs: [{ key: "Mage-Arcane", gear: "ready" }, { key: "Mage-Fire", gear: "none" }] }, { name: "Anna" });
     profiles.addCharacter(ANNA.id, { name: "Ohnegear", className: "Priest", specs: [{ key: "Priest-Holy", gear: "none" }] }, { name: "Anna" });
+    // #1077: the raiders these tests act for are ones the active server may see
+    visibleRaiderIds.mockResolvedValue(new Set(["u1", "u2", ANNA.id, "200000000000000002", "999"]));
 });
 
 describe("GET /api/availability", () => {
@@ -547,6 +551,8 @@ describe("the server-admin rank alone", () => {
     beforeEach(() => {
         withoutRank = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue(NO_ROLES);
         serverMemberIds.mockResolvedValue(new Set([MEMBER]));
+        // an orga by role also reaches a raider signed up here (#1077); the rank alone only members
+        visibleRaiderIds.mockResolvedValue(new Set([MEMBER, STRANGER]));
         raiderAttendance.mockReturnValueOnce({ userId: MEMBER, categories: [{ id: "cat1", raids: [], upcoming: [] }, { id: "catA", raids: [], upcoming: [] }] });
     });
     afterEach(() => {
@@ -568,7 +574,8 @@ describe("the server-admin rank alone", () => {
         }
         expect(availability.createEntry).not.toHaveBeenCalled();
         serverMemberIds.mockResolvedValue(null);
-        expect(status(await call("GET", "/api/availability", RANK, { query: `userId=${MEMBER}` }))).toBe(403);
+        const unread = await call("GET", "/api/availability", RANK, { query: `userId=${MEMBER}` });
+        expect([status(unread), json(unread).error.code]).toEqual([503, "members_unavailable"]);
     });
 
     it("shows a member's characters and only the attendance of its own server", async () => {
@@ -608,11 +615,12 @@ describe("the server-admin rank alone", () => {
     describe("one raider in the orga's overview", () => {
         const PATH = "/api/availability/overview/raider";
 
-        it("refuses an account of no member, also when the member list is unknown", async () => {
+        it("refuses an account of no member, and says so when the member list is unknown", async () => {
             const res = await call("GET", PATH, RANK, { query: `userId=${STRANGER}` });
             expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
             serverMemberIds.mockResolvedValue(null);
-            expect(status(await call("GET", PATH, RANK, { query: `userId=${MEMBER}` }))).toBe(403);
+            const unread = await call("GET", PATH, RANK, { query: `userId=${MEMBER}` });
+            expect([status(unread), json(unread).error.code]).toEqual([503, "members_unavailable"]);
             expect(absenceOverview.raiderDetail).not.toHaveBeenCalled();
         });
 
@@ -623,12 +631,13 @@ describe("the server-admin rank alone", () => {
             expect(serverMemberIds).toHaveBeenCalledTimes(1);
         });
 
-        it("leaves an orga role, even without raids write, and a full admin as on main", async () => {
+        it("shows an orga role, even without raids write, every raider it sees, and a full admin everybody", async () => {
             withoutRank.mockReturnValue({ ...NO_ROLES, isOrga: true });
             expect(status(await call("GET", PATH, RANK, { query: `userId=${STRANGER}` }))).toBe(200);
-            expect(absenceOverview.raiderDetail.mock.lastCall[1]).not.toHaveProperty("showEntry");
+            expect(absenceOverview.raiderDetail.mock.lastCall[1].showEntry(entry({ userId: STRANGER }))).toBe(true);
             const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
             expect(status(await call("GET", PATH, ADMIN, { query: `userId=${STRANGER}` }))).toBe(200);
+            expect(absenceOverview.raiderDetail.mock.lastCall[1]).not.toHaveProperty("showEntry");
             expect(serverMemberIds).not.toHaveBeenCalled();
         });
     });
@@ -672,6 +681,31 @@ describe("the server-admin rank alone", () => {
             expect(await ids(ORGA, `userId=${MEMBER}`)).toEqual(["e1", "e2"]);
         });
 
+        it("leaves a category of unknown server out of the dialog's list for the rank alone (#1077)", async () => {
+            const HERE = "400000000000000001";
+            const NOWHERE = "400000000000000002";
+            const server = jest.spyOn(require("../../../../src/services/events/eventServer"), "guildOfCategory").mockImplementation((id) => (id === HERE ? "g" : ""));
+            try {
+                availability.activeEntries.mockReturnValue([
+                    older({ id: "unknown", scope: [{ guildId: "", categoryIds: [NOWHERE] }] }),
+                    older({ id: "older-unknown", categoryId: NOWHERE }),
+                    older({ id: "proven", scope: [{ guildId: "", categoryIds: [HERE] }] }),
+                    older({ ...SCOPED, id: "named" }),
+                ]);
+                const ids = async (user, query) => json(await call("GET", "/api/availability", user, { query })).data.entries.map((e) => e.id);
+                expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(["proven", "named"]);
+                const all = ["unknown", "older-unknown", "proven", "named"];
+                // the rank holder's own stay, as a raider needs a page to see and delete them on
+                expect(await ids(RANK, `userId=${RANK.id}`)).toEqual(all);
+                expect(await ids({ ...ANNA, id: MEMBER }, "")).toEqual(all);
+                expect(await ids({ id: "1", name: "Admin", isAdmin: true, access: {} }, `userId=${MEMBER}`)).toEqual(all);
+                withoutRank.mockReturnValue({ ...NO_ROLES, access });
+                expect(await ids(RANK, `userId=${MEMBER}`)).toEqual(all);
+            } finally {
+                server.mockRestore();
+            }
+        });
+
         it("is left out of the overviews for the rank, its own stay", async () => {
             await call("GET", "/api/availability/overview", RANK);
             await call("GET", "/api/availability/overview/raider", RANK, { query: `userId=${MEMBER}` });
@@ -682,13 +716,22 @@ describe("the server-admin rank alone", () => {
             }
         });
 
-        it("adds no filter to the overviews of a role, a full admin or an orga without the rank", async () => {
-            const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+        it("shows a role or an orga without the rank such an entry only of an account it sees (#1077)", async () => {
+            const FOREIGN = "200000000000000099";
             withoutRank.mockReturnValue({ ...NO_ROLES, isOrga: true });
-            for (const user of [RANK, ADMIN, ORGA]) {
+            for (const user of [RANK, ORGA]) {
                 await call("GET", "/api/availability/overview", user);
-                expect(absenceOverview.buildOverview.mock.lastCall[0]).not.toHaveProperty("showEntry");
+                const { showEntry } = absenceOverview.buildOverview.mock.lastCall[0];
+                expect(showEntry(entry({ userId: MEMBER }))).toBe(true);
+                expect(showEntry(entry({ userId: STRANGER }))).toBe(true);
+                expect(showEntry(entry({ userId: FOREIGN }))).toBe(false);
+                expect(showEntry(entry({ userId: FOREIGN, ...SCOPED }))).toBe(true);
             }
+        });
+
+        it("adds no filter to the overview of a full admin", async () => {
+            await call("GET", "/api/availability/overview", { id: "1", name: "Admin", isAdmin: true, access: {} });
+            expect(absenceOverview.buildOverview.mock.lastCall[0]).not.toHaveProperty("showEntry");
         });
     });
 });
@@ -706,6 +749,52 @@ describe("one game version per view (#740)", () => {
         expect(absenceOverview.buildOverview).toHaveBeenLastCalledWith(expect.objectContaining({ versionId: "forever" }));
         await call("GET", "/api/availability/overview/raider", ORGA, { query: "userId=u1&version=forever" });
         expect(absenceOverview.raiderDetail).toHaveBeenLastCalledWith("u1", expect.objectContaining({ versionId: "forever" }));
+    });
+});
+
+describe("the orga reaches only raiders this server may see (#1077)", () => {
+    const FOREIGN = "200000000000000077";
+    const ADMIN = { id: "1", name: "Admin", isAdmin: true, access: {} };
+    const ways = [
+        ["GET /api/availability", () => call("GET", "/api/availability", ORGA, { query: `userId=${FOREIGN}` })],
+        ["GET /api/availability/attendance", () => call("GET", "/api/availability/attendance", ORGA, { query: `userId=${FOREIGN}` })],
+        ["GET /api/availability/overview/raider", () => call("GET", "/api/availability/overview/raider", ORGA, { query: `userId=${FOREIGN}` })],
+        ["POST /api/availability/preview", () => call("POST", "/api/availability/preview", ORGA, { json: { userId: FOREIGN, from: "2030-03-20", to: "2030-03-25" } })],
+        ["POST /api/availability", () => call("POST", "/api/availability", ORGA, { json: { userId: FOREIGN, kind: "absence", from: "2030-03-20", to: "2030-03-25" } })],
+    ];
+
+    it.each(ways)("%s answers 403 other_server and reads nothing of them", async (_way, send) => {
+        const res = await send();
+        expect([status(res), json(res).error.code]).toEqual([403, "other_server"]);
+        expect(raiderAttendance).not.toHaveBeenCalled();
+        expect(absenceOverview.raiderDetail).not.toHaveBeenCalled();
+        expect(availability.createEntry).not.toHaveBeenCalled();
+    });
+
+    it.each(ways)("%s answers 503 members_unavailable when only the member list is missing", async (_way, send) => {
+        raiderVisibility.mockResolvedValueOnce({ ids: new Set(), membersKnown: false });
+        const res = await send();
+        expect([status(res), json(res).error.code]).toEqual([503, "members_unavailable"]);
+        expect(raiderAttendance).not.toHaveBeenCalled();
+        expect(absenceOverview.raiderDetail).not.toHaveBeenCalled();
+        expect(availability.createEntry).not.toHaveBeenCalled();
+    });
+
+    it("lets them through once they are in reach, as after a signup on this server", async () => {
+        visibleRaiderIds.mockResolvedValue(new Set([FOREIGN]));
+        expect(status(await call("GET", "/api/availability/attendance", ORGA, { query: `userId=${FOREIGN}` }))).toBe(200);
+        expect(raiderAttendance).toHaveBeenCalledWith(FOREIGN, expect.anything());
+    });
+
+    it("keeps the caller's own view, whatever the member list says", async () => {
+        visibleRaiderIds.mockResolvedValue(new Set());
+        expect(status(await call("GET", "/api/availability", ANNA))).toBe(200);
+        expect(status(await call("GET", "/api/availability", ORGA, { query: `userId=${ORGA.id}` }))).toBe(200);
+    });
+
+    it("leaves a full admin without a limit and without a member list", async () => {
+        expect(status(await call("GET", "/api/availability/attendance", ADMIN, { query: `userId=${FOREIGN}` }))).toBe(200);
+        expect(visibleRaiderIds).not.toHaveBeenCalled();
     });
 });
 

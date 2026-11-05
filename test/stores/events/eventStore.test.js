@@ -4,7 +4,7 @@ jest.mock("fs", () => require("../../helpers/memoryFs").memoryFs());
 const fs = require("fs");
 const {
     listEvents, getEvent, createEvent, updateEvent, setEventMessage, deleteEvent, normalizePlan, isOwnEventId, setEventSetupPost,
-    setEventSetupPingText, setEventDiscordEvent, eventEndTime, plannedEndOrDefault, setEventExtraRole,
+    setEventSetupPingText, setEventDiscordEvent, eventEndTime, plannedEndOrDefault, setEventExtraRole, eventIdsOfGuild,
 } = require("../../../src/stores/events/eventStore");
 
 const base = (over = {}) => ({
@@ -14,6 +14,16 @@ const base = (over = {}) => ({
 
 describe("stores/events/eventStore", () => {
     beforeEach(() => fs.__store.clear());
+
+    it("names the ids of one server's events, and none without a server (#1077)", () => {
+        const own = createEvent(base()).event;
+        const second = createEvent(base({ title: "Kara Freitag" })).event;
+        createEvent(base({ guildId: "g2", title: "Fremd" }));
+        expect(eventIdsOfGuild("g1").sort()).toEqual([own.id, second.id].sort());
+        expect(eventIdsOfGuild("g3")).toEqual([]);
+        expect(eventIdsOfGuild("")).toEqual([]);
+        expect(eventIdsOfGuild(undefined)).toEqual([]);
+    });
 
     it("creates an event with an own, recognisable id and the source eventhelper", () => {
         const { event, error } = createEvent(base({ instanceIds: ["kara"] }));

@@ -78,6 +78,19 @@ function entryOnServer(entry, guildId, { guildOfCategory = categoryServer } = {}
     return scope.some((s) => (s.guildId ? s.guildId === gid : s.categoryIds.some((id) => [gid, ""].includes(str(guildOfCategory(id))))));
 }
 
+/**
+ * Whether an entry is proven to belong to a server: a part naming that server, or a category whose
+ * server is known to be that one. Stricter than entryOnServer, which keeps a category of unknown
+ * server on every server for its owner's sake: this one decides what others may read.
+ * @param {(categoryId: string) => string} [guildOfCategory] category -> server ("" = unknown)
+ */
+function entryProvenOnServer(entry, guildId, { guildOfCategory = categoryServer } = {}) {
+    const gid = str(guildId);
+    const scope = scopeOf(entry);
+    if (!gid || !scope) return false;
+    return scope.some((s) => (s.guildId ? s.guildId === gid : s.categoryIds.some((id) => str(guildOfCategory(id)) === gid)));
+}
+
 /** The server of a category (eventServer.guildOfCategory: live, series, snapshot), required lazily - it reads several stores. */
 function categoryServer(categoryId) {
     return require("../events/eventServer").guildOfCategory(categoryId);
@@ -139,4 +152,4 @@ function charactersView(entry) {
     return charactersOf(entry).map((c) => ({ ...c, specLabel: c.spec ? specLabel(c.spec) : "" }));
 }
 
-module.exports = { covers, scopeOf, scopeCovers, entryOnServer, charactersOf, charactersFor, eventServer, dayOf, specLabel, scopeView, charactersView };
+module.exports = { covers, scopeOf, scopeCovers, entryOnServer, entryProvenOnServer, charactersOf, charactersFor, eventServer, dayOf, specLabel, scopeView, charactersView };

@@ -19,11 +19,10 @@ const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { onlyByRank, OTHER_SERVER } = require("../../http/serverQuery");
+const { onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const manage = require("../../../services/events/eventManage");
 const { getSignup } = require("../../../stores/events/signupStore");
-const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
 
 // "Event verwalten" is the orga's (permissions.userIsOrga): a raider role that holds `raids`
 // write is still no orga, so every path here wants the orga as well as its right.
@@ -54,15 +53,24 @@ async function raidOnlyByRank(user, req, eventId) {
 }
 
 /**
- * Whether the rank alone may name this account in a raid: a signup shows its character, class and
- * gear, all global, so only somebody of the active server or already signed up to the raid. An
- * unknown member list counts as no proof.
+ * Why the rank alone may not name this account in a raid, "" when it may: a signup shows its
+ * character, class and gear, all global, so only somebody of the active server or already signed up
+ * to the raid. An unknown member list counts as no proof (serverQuery.outsideReach).
  */
-async function rankReaches(user, req, eventId, userId) {
+async function rankRefusal(user, req, eventId, userId) {
     const uid = String(userId ?? "").trim();
-    if (!uid || uid === String(user.id) || getSignup(eventId, uid)) return true;
-    const members = await serverMemberIds(activeGuildFor(req));
-    return !!members && members.has(uid);
+    if (!uid || uid === String(user.id) || getSignup(eventId, uid)) return "";
+    return outsideReach(await raiderReachFor(user, req, { membersOnly: true }), uid);
+}
+
+/**
+ * Why the orga of this server may not name this account in a raid, "" when it may (#1077): a signup
+ * writes a missing character into the global profile and shows what the profile holds, so only a
+ * raider the server may see. A missing id is left to the service. A full admin reaches everybody.
+ */
+async function orgaRefusal(user, req, userId) {
+    const uid = String(userId ?? "").trim();
+    return uid ? outsideReach(await raiderReachFor(user, req), uid) : "";
 }
 
 const getManage = reader(async ({ req, res, query }) => {
@@ -88,15 +96,15 @@ const postSignups = action(async ({ user, body, req, res }) => {
 
 const getRaiderCandidates = reader(async ({ user, req, res, query }) => {
     const eventId = q.str(query, "event");
-    sendResult(res, await manage.raiderCandidates({
-        guildId: activeGuildFor(req), eventId,
-        ...(await raidOnlyByRank(user, req, eventId) ? { ownServerOnly: true } : {}),
-    }));
+    const limit = await raidOnlyByRank(user, req, eventId) ? { ownServerOnly: true } : { visibleIds: await visibleRaidersFor(user, req) };
+    sendResult(res, await manage.raiderCandidates({ guildId: activeGuildFor(req), eventId, ...limit }));
 });
 
 const postRaider = action(async ({ user, body: b, req, res }) => {
     const onlyRank = await raidOnlyByRank(user, req, b.event);
-    if (onlyRank && !(await rankReaches(user, req, b.event, b.userId))) return apiError(res, 403, "other_server", OTHER_SERVER);
+    const refusal = onlyRank ? await rankRefusal(user, req, b.event, b.userId) : await orgaRefusal(user, req, b.userId);
+    if (refusal === MEMBERS_UNAVAILABLE) return membersUnavailable(res);
+    if (refusal) return apiError(res, 403, "other_server", OTHER_SERVER);
     sendResult(res, await manage.addRaider({
         ...(onlyRank ? { keepProfiles: true } : {}),
         guildId: activeGuildFor(req), eventId: b.event, userId: b.userId, character: b.character, spec: b.spec,

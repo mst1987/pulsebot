@@ -23,7 +23,9 @@ const { activeGuildFor } = require("../../http/activeGuild");
 const { userIsOrga } = require("../../../config/permissions");
 const { ROLE_LABELS } = require("../../../config/gameVersions/classes");
 const { editProfileCharacter } = require("../../../services/characters/characterEdit");
-const discord = require("../../../services/discord/discord");
+const { serverMemberIds } = require("../../../services/discord/members/serverMembers");
+const { withinVisible } = require("../../../services/characters/profileVisibility");
+const { visibleRaidersFor, raiderReachFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE } = require("../../http/serverQuery");
 const { ownLeads } = require("./leaderFlags");
 
 const WEEKDAY_LABELS = { mo: "Mo", di: "Di", mi: "Mi", do: "Do", fr: "Fr", sa: "Sa", so: "So" };
@@ -276,14 +278,11 @@ const getItemSearch = withUser({}, async ({ user, res, url }) => {
 
 /**
  * The account ids of the active server's members (#925, rights per server): null for a full admin
- * (every server), an empty set when the server or its member list is unknown - fail closed.
+ * (every server), an empty set when the server or its member list is unknown or too slow - fail closed.
  */
 async function memberIdsOfActiveServer(user, req) {
     if (user && user.isAdmin) return null;
-    const guildId = String(activeGuildFor(req) || "").trim();
-    if (!guildId) return new Set();
-    const listed = await discord.listHumanMembers(guildId);
-    return new Set(((listed && listed.members) || []).map((m) => String(m.id)));
+    return (await serverMemberIds(activeGuildFor(req))) || new Set();
 }
 
 /**
@@ -296,18 +295,36 @@ const getRaiderSearch = withUser({}, async ({ user, req, res, url }) => {
     ok(res, { raiders: profiles.searchRaiders(q, user.id, 10, { preferVersion: mainVersionFor({ config: getConfig() }), onlyUserIds }) });
 });
 
-/** GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for everybody else (epic #723). */
+/**
+ * GET /api/profile/user?id= — one raider's profile for the orga, read-only, with wishes. 403 "orga_only" for
+ * everybody else (epic #723); a raider this server may not see answers like one without a profile (#1077).
+ * Who wished for them, who shares a character and whom they named stay within the same limit.
+ */
 const getUserProfile = withUser({}, async ({ user, req, res, url }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
     const id = String(url.searchParams.get("id") || "").trim();
-    if (!id || !profiles.hasProfile(id)) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
-    ok(res, { profile: profileView(profiles.getProfile(id), { forOrga: true, guildId: guildOfRequest(req) }) });
+    const reach = await raiderReachFor(user, req);
+    const refusal = id ? outsideReach(reach, id) : "";
+    if (refusal === MEMBERS_UNAVAILABLE) return membersUnavailable(res);
+    if (!id || !profiles.hasProfile(id) || refusal) return apiError(res, 404, "not_found", "Kein Profil für dieses Konto.");
+    const { visible } = reach;
+    const all = withinVisible(profiles.listProfiles(), visible);
+    const view = profileView(profiles.getProfile(id), { forOrga: true, all, guildId: guildOfRequest(req) });
+    ok(res, { profile: { ...view, wishes: withinVisible(view.wishes, visible), avoid: withinVisible(view.avoid, visible) } });
 });
 
+/** The characters more than one account has added, counted among the accounts `visible` lets through (#1077). */
+function claimsWithin(claims, visible) {
+    if (!visible) return claims;
+    return claims
+        .map((entry) => ({ ...entry, claims: withinVisible(entry.claims, visible) }))
+        .filter((entry) => entry.claims.length > 1);
+}
+
 /** GET /api/roster/character-claims — characters more than one account has added (orga only, epic #723). */
-const getCharacterClaims = withUser({}, async ({ user, res }) => {
+const getCharacterClaims = withUser({}, async ({ user, req, res }) => {
     if (!userIsOrga(user)) return apiError(res, 403, "orga_only", "Nur die Orga sieht das.");
-    ok(res, { claims: profiles.characterClaims() });
+    ok(res, { claims: claimsWithin(profiles.characterClaims(), await visibleRaidersFor(user, req)) });
 });
 
 // ---- Kalender-Abo (#312) ----

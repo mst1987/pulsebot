@@ -422,5 +422,18 @@ describe("web/kader/kaderSource", () => {
             expect(out.profiles).toEqual([]);
             expect(out.logChars).toEqual({});
         });
+
+        it("drops the attendance of an account outside the server too (#1077)", () => {
+            const attendance = [{ userId: U1, byCategory: {} }, { userId: U2, byCategory: {} }];
+            expect(limitSourceToServer({ ...source, attendance }).attendance).toEqual([{ userId: U1, byCategory: {} }]);
+            expect(limitSourceToServer({ ...source, members: [], attendance }).attendance).toEqual([]);
+        });
+
+        it("also keeps the accounts passed as signups, even without a member list (#1077)", () => {
+            const out = limitSourceToServer({ ...source, members: [], attendance: [{ userId: U2, byCategory: {} }] }, { alsoIds: [U2] });
+            expect(out.profiles).toEqual([{ userId: U2 }]);
+            expect(out.logChars).toEqual({ [U2]: [{ name: "Fremd" }] });
+            expect(out.attendance).toEqual([{ userId: U2, byCategory: {} }]);
+        });
     });
 });
