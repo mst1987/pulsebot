@@ -266,6 +266,39 @@ const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...T
 // decides which server counts as the home of everything without a server of its own.
 const SHARED_WRITE_KEYS = ["blizzard", "mainVersion", "hideOtherVersions", "versionSettings", "dungeonRecords", "guildId"];
 
+// #1073 part B: what the server-admin rank may send in a PATCH, on the active server only. A
+// list of what is allowed, written out on purpose: a key added to this route later stays closed
+// to the rank until somebody decides otherwise. The rank comes from Discord and anyone can create
+// a Discord server, so it holds nothing here that reaches past that server: every key is stored in
+// that server's block, or per category behind foreignCategoryEdits(). Left out for that reason:
+// categoryReminders (its section is full-admin-only), raidhelperServerId, wclGuilds, roleSync,
+// addonDownloads, every credential and SHARED_WRITE_KEYS. docs/permissions.md has the table.
+const SERVER_RANK_KEYS = new Set([
+    "baseAccess", "userPermissions", "rolePermissions", "botCommandAccess", "orgaRoleIds",
+    "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "discordVisuals", "logChannels", "versionOverrides",
+    "categoryIds", "categoryRoles", "categoryLootTool", "categoryLootSystem", "categorySignupSource", "categorySetupDms",
+    "categoryLanguage", "categoryAttendance", "categoryDiscordEvent", "categoryServerOverview", "categoryVoiceChannel",
+    "categoryTempVoice", "categoryMessageLook", "categoryAnnounce", "categorySignupNotes", "categorySignupNoteChannel",
+    "categorySignupCharacters", "categorySheets", "categoryPlanning", "categoryRaidTemplate", "categoryVersion",
+    "categorySwitchFixes", "serverSettingsGuildId",
+]);
+// What a rank's list may hold: Discord has at most 250 roles per server; the accounts with a grant have no such limit.
+const SERVER_RANK_MAX_ACCOUNTS = 500;
+const SERVER_RANK_MAX_LIST = 250;
+// The top-level fields of the rank's config besides its rights and its own categories: the active
+// server's values (serverDefaultsOf) and the read-only version settings the pages need.
+const SERVER_RANK_VIEW_KEYS = [
+    "applicationChannelId", "officerRoleId", "raidDefaults", "botLanguage", "botLanguageDefault", "botLanguageOwn",
+    "discordVisuals", "discordVisualsDefault", "discordVisualsOwn",
+    "versionSettings", "mainVersion", "hideOtherVersions", "signupSourceDefault", "versionDefaultsApplied",
+];
+
+/** Whether the rank's PATCH holds a key it may not send; `null` on a default key removes the server's own value. */
+function serverRankRefuses(body) {
+    return Object.keys(body).some((key) => body[key] !== undefined && !SERVER_RANK_KEYS.has(key))
+        || GLOBAL_DEFAULT_KEYS.some((key) => body[key] === null);
+}
+
 // #924: the two signup channels of a server ("Vielleicht"/"Absagen" notes, guild bank requests).
 const SERVER_CHANNEL_FIELDS = ["signupNoteChannelId", "guildBankChannelId"];
 
@@ -435,7 +468,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
     // anyone the settings page, since the ids alone still work.
     let userNames = {};
     let userAvatars = {};
-    if (user.isAdmin) {
+    const serverRank = isServerRankOnly(user);
+    if (user.isAdmin || serverRank) {
         // the accounts with a grant on the active server (#925)
         const accountIds = Object.keys(accessSettings(guildId, config).userPermissions);
         try {
@@ -453,8 +487,10 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // settings user never sees (nor can save) them.
         // #924: the per-server fields as the active server holds them, flat like before; #925 the rights
         // of the active server for a full admin only.
-        config: viewWithDefaults(config, { isAdmin: !!user.isAdmin, guildId }),
+        config: viewWithDefaults(config, { isAdmin: !!user.isAdmin, serverRank, guildId }),
         canManageAccess: !!user.isAdmin,
+        // #1073 part B: the rights of the active server only - canManageAccess keeps meaning "full admin" on the page
+        canManageServerAccess: !!user.isAdmin || serverRank,
         areas: AREAS,
         userNames,
         userAvatars,
@@ -471,7 +507,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // "Funktionen je Version" (#761): per version and feature: possible, switched on, why not.
         versionCapabilities: capabilityMatrix({ config }),
         // "Andere Versionen ausblenden" (#563): the coming raids per version, for the warning.
-        upcomingByVersion: upcomingByVersion({ config }),
+        // counted over every server, and the rank cannot hide a version anyway (SHARED_WRITE_KEYS)
+        upcomingByVersion: serverRank ? {} : upcomingByVersion({ config }),
         // The versions with data (#563): the archive export names only those.
         dataVersions: [...versionsWithData(config)],
         roles: discord.listRoles(guildId),
@@ -482,7 +519,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // The voice channel a category's raids meet in (#305); empty = bot offline.
         voiceChannels: typeof discord.listVoiceChannels === "function" ? discord.listVoiceChannels(guildId) : [],
         // The channel picker of "Nachricht bei Vielleicht/Absage" per category (#335).
-        noteChannels: noteChannels(config, guildId),
+        noteChannels: noteChannels(config, guildId, { onlyActive: serverRank }),
         bot: botStatus(guildId),
         // "Sprachkanal je Raid": what the bot lacks for temporary channels, per Discord category
         // they can go under ("" = none); null while the bot cannot tell.
@@ -491,7 +528,7 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // every server), each with what "Kategorie abschließen" would remove.
         // #926: only the active server's part of config.categoryIds, plus those
         // without a proven configured server (shown on the first server, never closable).
-        ...serverCategoriesOf(config, guildId),
+        ...serverCategoriesFor(config, guildId, serverRank),
         // One card per server (cheap: names, member counts, rights). The member
         // overlap needs a full member fetch and loads with the section itself.
         servers: user.isAdmin ? serverCards(config) : null,
@@ -518,10 +555,11 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
  * (#924: one per server) — a limited settings user does not see the server
  * blocks, the card still names it.
  * An empty list means the bot is offline (the card then marks nothing).
+ * `onlyActive` (#1073 part B): the server-admin rank gets its own server's channels only.
  */
-function noteChannels(config, activeGuildId = "") {
+function noteChannels(config, activeGuildId = "", { onlyActive = false } = {}) {
     try {
-        const guildIds = guildRoles.configuredGuildIds(config);
+        const guildIds = onlyActive ? [activeGuildId] : guildRoles.configuredGuildIds(config);
         const list = typeof discord.listTextChannels === "function" ? discord.listTextChannels : () => [];
         const names = new Map((typeof discord.listGuilds === "function" ? discord.listGuilds() || [] : []).map((g) => [g.id, g.name]));
         const channels = guildIds.flatMap((id) => (list(id) || []).map((c) => ({
@@ -817,7 +855,8 @@ function serverSettingsWithoutAccess(serverSettings) {
  * serverSettings: a full admin gets every server's block, anybody else only
  * the active server's - the settings of another server are not theirs (#925).
  */
-function viewConfig(config, { isAdmin, guildId }) {
+function viewConfig(config, { isAdmin, serverRank = false, guildId }) {
+    if (serverRank) return serverRankView(config, guildId);
     const base = { ...config };
     if (base.serverSettings !== undefined) {
         const blocks = serverSettingsWithoutAccess(base.serverSettings);
@@ -826,6 +865,32 @@ function viewConfig(config, { isAdmin, guildId }) {
     }
     const view = isAdmin ? { ...base, ...accessSettings(guildId, config) } : omit(base, FULL_ADMIN_KEYS);
     return publicConfig(view);
+}
+
+/** The server-admin rank (#1073 part B): the rank of the active server, without being a full admin. */
+const isServerRankOnly = (user) => !!(user && user.isServerAdmin && !user.isAdmin);
+
+/**
+ * The config the server-admin rank gets: built from a list instead of cut down from the whole, so a
+ * key added later stays hidden from it. The rights and the settings of the active server, the
+ * category settings of its categories only - nothing of another server and no global value but
+ * the version settings. `blizzard` stays an empty block: the connection card reads it without a
+ * guard, and its clientId is no business of one server's rank.
+ */
+function serverRankView(config, guildId) {
+    const gid = String(guildId || "");
+    const base = {};
+    for (const key of SERVER_RANK_VIEW_KEYS) if (config[key] !== undefined) base[key] = config[key];
+    const blocks = serverSettingsWithoutAccess(config.serverSettings);
+    base.serverSettings = gid && blocks[gid] ? { [gid]: blocks[gid] } : {};
+    const own = serverCategoriesOf(config, gid).serverCategoryIds;
+    const shown = new Set(own);
+    for (const [key, map] of Object.entries(config)) {
+        if (!/^category[A-Z]/.test(key) || key === "categoryReminders" || !map || typeof map !== "object" || Array.isArray(map)) continue;
+        base[key] = Object.fromEntries(Object.entries(map).filter(([id]) => shown.has(id) || categoryGuildOf(id) === gid));
+    }
+    base.categoryIds = own;
+    return { ...publicConfig({ ...base, ...accessSettings(gid, config) }), blizzard: {} };
 }
 
 /** Whether a body's serverSettings touches a rights key of any server (#925). */
@@ -1043,8 +1108,12 @@ function categoryTemplatesOf(sent, config, req) {
 const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, res, user }) => {
     // #952: the top items live per server and version now (PUT /api/top-items) - a stale tab is told so
     if (body.topItems !== undefined) return error(res, 400, "moved", "Die Top-Items stehen jetzt je Server und Version – bitte die Seite neu laden.");
+    const serverRank = isServerRankOnly(user);
     const touchesGuarded = [...FULL_ADMIN_KEYS, ...SHARED_WRITE_KEYS].some((k) => body[k] !== undefined) || touchesServerAccess(body.serverSettings);
-    if (touchesGuarded && !requireFullAdmin(req, res)) return;
+    // #1073 part B: one key the rank may not send refuses the whole request, nothing is saved in part
+    if (serverRank) {
+        if (serverRankRefuses(body)) return error(res, 403, "forbidden", "Nur Voll-Admins dürfen das ändern.");
+    } else if (touchesGuarded && !requireFullAdmin(req, res)) return;
     // checked before anything else, so a stale tab changes nothing at all
     const server = serverSettingsTarget(req, body, getConfig());
     if (server && server.status) return error(res, server.status, server.code, server.message);
@@ -1266,6 +1335,8 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
         partial.categoryReminders = body.categoryReminders && typeof body.categoryReminders === "object" ? body.categoryReminders : {};
     }
     const before = getConfig();
+    // #1073 part B: the rank does not see other servers' entries, so it cannot send them back
+    if (serverRank) keepForeignCategoryEntries(partial, before, { user, req });
     // #926: a save on one server never adds or removes a category of another one.
     // The server is the tab's (checked by serverSettingsTarget()), never the session's alone:
     // a tab on A saving after another tab switched to B would otherwise empty B's part.
@@ -1275,6 +1346,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     if (foreignCategoryEdits(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
     // the parent category of the temporary voice channels: a newly picked one only of the active server
     if (foreignVoiceParents(partial, before, { user, req }).length) return error(res, 403, "other_server", OTHER_SERVER);
+    // #1073 part B: a role, account or channel the rank newly names has to be one of its server
+    if (serverRank) {
+        const problem = serverRankInputProblem(partial, before, { user, req });
+        if (problem) return error(res, problem.status, problem.code, problem.message);
+    }
     // #744: no active category at all would read as "every category" — refused while raids exist.
     if (emptiesActiveCategories(partial, before)) return error(res, 400, "categories_empty", categoryLifecycle.EMPTY_LIST_MESSAGE);
     // #738: every active category plays an explicit version; a changed one starts a new section.
@@ -1319,13 +1395,13 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {
-        config: viewWithDefaults(after, { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }),
+        config: viewWithDefaults(after, { isAdmin: !!(user && user.isAdmin), serverRank, guildId: activeGuildFor(req) }),
         switchedCategories,
         deactivatedCategories: deactivated,
         ...(raidhelperGuild ? { raidhelper: maskedRaidhelper(raidhelperGuild, saved) } : {}),
         ...(body.wclGuilds !== undefined && server ? { wclGuilds: wclGuildsOf(server.guildId, { config: saved }) } : {}),
         // #926: with the active server's part of categoryIds, so the page keeps showing only its own
-        ...serverCategoriesOf(after, server ? server.guildId : activeGuildFor(req)),
+        ...serverCategoriesFor(after, server ? server.guildId : activeGuildFor(req), serverRank),
     });
 });
 
@@ -1401,6 +1477,91 @@ function foreignVoiceParents(partial, before, { user, req }) {
         .map(([id, value]) => [value.parentId, tempVoiceSettings(stored[id]).parentId])
         .filter(([parentId, was]) => parentId && parentId !== was && !mayUseChannel(user, req, parentId))
         .map(([parentId]) => parentId);
+}
+
+/**
+ * The rank's save of a map the store replaces whole: the entries of other servers, which its view
+ * leaves out, stay as stored (#1073 part B). One it does send differently is still refused by
+ * foreignCategoryEdits(). `categoryRoles` goes with these: the store replaces it whole as well.
+ */
+function keepForeignCategoryEntries(partial, before, { user, req }) {
+    for (const key of [...WHOLE_CATEGORY_MAPS, "categoryRoles"]) {
+        const sent = partial[key];
+        if (!sent || typeof sent !== "object") continue;
+        const stored = before[key] && typeof before[key] === "object" ? before[key] : {};
+        const kept = Object.entries(stored).filter(([id]) => !Object.hasOwn(sent, id) && !mayEditCategory(user, req, id));
+        if (kept.length) partial[key] = { ...Object.fromEntries(kept), ...sent };
+    }
+}
+
+/** The ids of `now` that `was` does not hold: only a newly named id is checked. */
+function newIds(now, was) {
+    const known = new Set((was || []).map(String));
+    return (now || []).map(String).filter((id) => id && !known.has(id));
+}
+
+/**
+ * What the server-admin rank may not name in its PATCH (#1073 part B), or null. Rights and channels
+ * of another server would reach past its own: a foreign role counts as "holds rights" there (self
+ * roles), and a foreign channel makes the bot post into, or read logs from, another server. Only a
+ * newly named id is checked, so a role deleted since, or a bot gone offline, does not block saving
+ * what is stored already. A newly named one that cannot be checked is refused.
+ */
+function serverRankInputProblem(partial, before, { user, req }) {
+    const guildId = String(activeGuildFor(req) || "");
+    const block = (partial.serverSettings || {})[guildId] || {};
+    const stored = accessSettings(guildId, before);
+    const defaults = serverDefaultsOf(before, guildId);
+    const asList = (value) => (Array.isArray(value) ? value.map(String) : []);
+    const rolesOfRules = (rules) => Object.values(rules || {}).flatMap((rule) => asList(rule && rule.roleIds));
+
+    const tooMany = { status: 400, code: "too_many", message: "Diese Liste ist zu lang." };
+    const accounts = block.userPermissions ? Object.keys(block.userPermissions) : [];
+    if (accounts.length > SERVER_RANK_MAX_ACCOUNTS) return tooMany;
+    const lists = [
+        asList(block.orgaRoleIds), Object.keys(block.botCommandAccess || {}), asList(block.logChannels),
+        ...Object.values(block.botCommandAccess || {}).map((rule) => asList(rule && rule.roleIds)),
+        ...Object.values(partial.categoryRoles || {}).map(asList),
+    ];
+    if (lists.some((list) => list.length > SERVER_RANK_MAX_LIST)) return tooMany;
+
+    if (newIds(accounts, Object.keys(stored.userPermissions || {})).some((id) => !isSnowflake(id))) {
+        return { status: 400, code: "invalid_account", message: "Das ist keine gültige Discord-Konto-ID." };
+    }
+
+    const storedCategoryRoles = before.categoryRoles || {};
+    const newRoles = [
+        ...newIds(block.orgaRoleIds, stored.orgaRoleIds),
+        ...newIds(Object.keys(block.rolePermissions || {}), Object.keys(stored.rolePermissions || {})),
+        ...newIds(rolesOfRules(block.botCommandAccess), rolesOfRules(stored.botCommandAccess)),
+        ...(block.officerRoleId ? newIds([block.officerRoleId], [defaults.officerRoleId]) : []),
+        ...Object.entries(partial.categoryRoles || {}).flatMap(([id, roles]) => newIds(asList(roles), asList(storedCategoryRoles[id]))),
+    ];
+    if (newRoles.length) {
+        const own = new Set((discord.listRoles(guildId) || []).map((role) => String(role.id)));
+        if (newRoles.some((id) => !own.has(id))) {
+            return { status: 400, code: "unknown_role", message: "Diese Rolle gibt es auf diesem Discord-Server nicht." };
+        }
+    }
+
+    const logChannels = (list) => (Array.isArray(list) ? list : []).map((entry) => (entry && entry.channelId) || "");
+    const storedNotes = before.categorySignupNoteChannel || {};
+    const storedVoice = before.categoryVoiceChannel || {};
+    const newChannels = [
+        ...newIds([block.applicationChannelId], [defaults.applicationChannelId]),
+        ...newIds([block.raidDefaults && block.raidDefaults.channelId], [defaults.raidDefaults && defaults.raidDefaults.channelId]),
+        ...newIds(logChannels(block.logChannels), logChannels(logChannelsOf(guildId, { config: before }))),
+        ...Object.entries(partial.categorySignupNoteChannel || {}).flatMap(([id, channelId]) => newIds([channelId], [storedNotes[id]])),
+        ...Object.entries(partial.categoryVoiceChannel || {}).flatMap(([id, channelId]) => newIds([channelId], [storedVoice[id]])),
+    ].filter((id) => id && id !== "undefined" && id !== "null");
+    if (newChannels.some((id) => !mayUseChannel(user, req, id))) return { status: 403, code: "other_server", message: OTHER_SERVER };
+    return null;
+}
+
+/** The categories of a server for the page; `otherServerCategoryIds` names what another server holds, not for the rank (#1073 part B). */
+function serverCategoriesFor(config, guildId, serverRank) {
+    const categories = serverCategoriesOf(config, guildId);
+    return serverRank ? { ...categories, otherServerCategoryIds: [] } : categories;
 }
 
 /** The categories a PATCH takes out of the active list, with what pauses (#744) — logged once. */
@@ -1534,7 +1695,8 @@ const closeCategoryHandler = withUser({ csrf: true, body: true }, async ({ body,
     const result = categoryLifecycle.closeCategory(categoryId, { config, actor: String((user && user.id) || ""), guildId: activeGuildFor(req) });
     if (result.error) return error(res, result.error.status, result.error.code, result.error.message);
     console.log(`[settings] Kategorie ${name || categoryId} abgeschlossen (#744) von ${(user && (user.name || user.id)) || "?"}`);
-    ok(res, { ...result, name, config: viewConfig(getConfig(), { isAdmin: !!(user && user.isAdmin), guildId: activeGuildFor(req) }), ...serverCategoriesOf(getConfig(), activeGuildFor(req)) });
+    const serverRank = isServerRankOnly(user);
+    ok(res, { ...result, name, config: viewConfig(getConfig(), { isAdmin: !!(user && user.isAdmin), serverRank, guildId: activeGuildFor(req) }), ...serverCategoriesFor(getConfig(), activeGuildFor(req), serverRank) });
 });
 
 /** Category id → name over every server (live list backed by the snapshot); "" when unknown. */
