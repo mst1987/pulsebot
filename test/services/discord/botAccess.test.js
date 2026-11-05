@@ -6,7 +6,7 @@ jest.mock("../../../src/services/discord/discord", () => ({
 }));
 jest.mock("../../../src/services/plans/serverPlan", () => ({ hasFeature: jest.fn(() => true) }));
 
-const { MessageFlags } = require("discord.js");
+const { MessageFlags, PermissionFlagsBits } = require("discord.js");
 const { cardText } = require("../../helpers/cardText");
 const settingsStore = require("../../../src/stores/settings/settingsStore");
 const discord = require("../../../src/services/discord/discord");
@@ -293,6 +293,205 @@ describe("guardInteraction", () => {
                     discordServers: { servers: [{ guildId: GUILD, label: "", trusted: true }], links: [] },
                 });
                 expect(await guardInteraction(holding([ORGA]), recruitment, commands)).toBe(true);
+            });
+        });
+    });
+
+    describe("the rank Server-Admin (#1073)", () => {
+        const OTHER = "900000000000000002";
+        const OWNER = "777000000000000001";
+        const RANKED = new Map([
+            ["adminsOnly", { name: "adminsOnly", group: "raids", defaultAccess: "admins" }],
+            ["forRole", { name: "forRole", group: "raids", defaultAccess: { roles: [ORGA] } }],
+            ["forRole-button", { name: "forRole-button", accessOf: "forRole" }],
+            ["shared", { name: "shared", group: "raids", defaultAccess: { roles: [ORGA] }, sharedData: true }],
+            ["shared-button", { name: "shared-button", accessOf: "shared" }],
+        ]);
+        const SHARED_REFUSED = "This command reaches data every server shares, and this server is not cleared for that.";
+        const admin = { has: (flag) => flag === PermissionFlagsBits.Administrator };
+        const plain = { has: () => false };
+        const listed = ({ trusted = false, list = [GUILD, OTHER] } = {}) => settingsStore.getConfig.mockReturnValue({
+            guildId: GUILD,
+            botLanguage: "en",
+            serverSettings: { [GUILD]: { botLanguage: "en" } },
+            discordServers: { servers: list.map((guildId) => ({ guildId, label: "", trusted })), links: [] },
+        });
+        const onServer = ({ guildId = GUILD, perms = admin, roles = [], userId = "555", ownerId = OWNER } = {}) => {
+            const interaction = mockInteraction({ userId });
+            interaction.guildId = guildId;
+            interaction.guild = { id: guildId, ownerId };
+            interaction.member = { roles };
+            interaction.memberPermissions = perms;
+            return interaction;
+        };
+        const dm = (userId = "555") => {
+            const interaction = mockInteraction({ userId });
+            interaction.guild = null;
+            interaction.guildId = null;
+            interaction.member = null;
+            return interaction;
+        };
+        const recordOn = (guildId, name = "adminsOnly") => ({ ...RANKED.get(name), guildIdOf: () => guildId });
+        const memberOn = (guildId, fetch) => discord.getGuild.mockImplementation((id) => (id === guildId
+            ? { id: guildId, ownerId: OWNER, members: { fetch } }
+            : null));
+
+        describe("on its own listed server", () => {
+            beforeEach(() => listed());
+
+            it("passes a rule of admins only and a rule of roles it does not hold", async () => {
+                expect(await guardInteraction(onServer(), RANKED.get("adminsOnly"), RANKED)).toBe(true);
+                expect(await guardInteraction(onServer(), RANKED.get("forRole"), RANKED)).toBe(true);
+                expect(await guardInteraction(onServer(), RANKED.get("forRole-button"), RANKED)).toBe(true);
+            });
+
+            it("counts the owner of the server as well", async () => {
+                const interaction = onServer({ perms: plain, userId: OWNER });
+                expect(await guardInteraction(interaction, RANKED.get("adminsOnly"), RANKED)).toBe(true);
+            });
+
+            it("gives a member without the Administrator right nothing", async () => {
+                const interaction = onServer({ perms: plain });
+                expect(await guardInteraction(interaction, RANKED.get("adminsOnly"), RANKED)).toBe(false);
+                expect(cardText(interaction.reply.mock.calls[0][0])).toContain("This is reserved for admins.");
+                expect(await guardInteraction(onServer({ perms: null }), RANKED.get("adminsOnly"), RANKED)).toBe(false);
+                const broken = { has: () => { throw new Error("odd"); } };
+                expect(await guardInteraction(onServer({ perms: broken }), RANKED.get("adminsOnly"), RANKED)).toBe(false);
+            });
+
+            it("is no full admin: a command on shared data stays closed", async () => {
+                const interaction = onServer();
+                expect(await guardInteraction(interaction, RANKED.get("shared"), RANKED)).toBe(false);
+                expect(cardText(interaction.reply.mock.calls[0][0])).toContain(SHARED_REFUSED);
+                expect(await guardInteraction(onServer(), RANKED.get("shared-button"), RANKED)).toBe(false);
+                expect(await guardInteraction(onServer({ perms: plain, userId: OWNER }), RANKED.get("shared"), RANKED)).toBe(false);
+            });
+
+            it("asks the interaction only, never Discord", async () => {
+                const spy = jest.spyOn(userAccess, "resolveGuildAccess");
+                expect(await guardInteraction(onServer(), RANKED.get("adminsOnly"), RANKED)).toBe(true);
+                expect(discord.getGuild).not.toHaveBeenCalled();
+                expect(spy).not.toHaveBeenCalled();
+                spy.mockRestore();
+            });
+        });
+
+        it("keeps a command on shared data closed on a marked server too, unless a role of the rule is held", async () => {
+            listed({ trusted: true });
+            expect(await guardInteraction(onServer(), RANKED.get("shared"), RANKED)).toBe(false);
+            expect(await guardInteraction(onServer({ perms: plain, userId: OWNER }), RANKED.get("shared"), RANKED)).toBe(false);
+            // role users there: as before
+            expect(await guardInteraction(onServer({ perms: plain, roles: [ORGA] }), RANKED.get("shared"), RANKED)).toBe(true);
+            expect(await guardInteraction(onServer({ perms: plain, roles: [RAIDLEAD] }), RANKED.get("shared"), RANKED)).toBe(false);
+            // and the rank holding the role passes by the role, not by the rank
+            expect(await guardInteraction(onServer({ roles: [ORGA] }), RANKED.get("shared"), RANKED)).toBe(true);
+        });
+
+        it("lets the full admin through on shared data as before", async () => {
+            listed();
+            const envAdmin = logcheckAdminIds[0];
+            if (envAdmin) {
+                expect(await guardInteraction(onServer({ perms: plain, userId: envAdmin }), RANKED.get("shared"), RANKED)).toBe(true);
+                expect(await guardInteraction(dm(envAdmin), RANKED.get("adminsOnly"), RANKED)).toBe(true);
+            }
+        });
+
+        it("gives nothing on a server outside the list (home guild, overview target)", async () => {
+            listed({ list: [OTHER] });
+            expect(await guardInteraction(onServer({ guildId: GUILD }), RANKED.get("adminsOnly"), RANKED)).toBe(false);
+            expect(await guardInteraction(onServer({ guildId: GUILD, perms: plain, userId: OWNER }), RANKED.get("adminsOnly"), RANKED)).toBe(false);
+        });
+
+        it("counts only for the server of the interaction, never for another one", async () => {
+            listed();
+            const { isServerAdminOf } = require("../../../src/services/discord/botAccess");
+            const stored = settingsStore.getConfig();
+            // admin on GUILD, asked about OTHER: no
+            expect(await isServerAdminOf(onServer({ guildId: GUILD }), OTHER, stored)).toBe(false);
+            expect(await isServerAdminOf(onServer({ guildId: GUILD }), GUILD, stored)).toBe(true);
+            expect(await isServerAdminOf(onServer(), "", stored)).toBe(false);
+            expect(await isServerAdminOf(null, GUILD, stored)).toBe(false);
+            expect(await isServerAdminOf(onServer({ userId: "" }), GUILD, stored)).toBe(false);
+        });
+
+        it("serverAdminPasses: the same answer for a gate by rule name, never for a rule on shared data", async () => {
+            listed();
+            const { serverAdminPasses } = require("../../../src/services/discord/botAccess");
+            const stored = settingsStore.getConfig();
+            expect(await serverAdminPasses("forRole-button", onServer(), GUILD, { commands: RANKED, stored })).toBe(true);
+            expect(await serverAdminPasses("adminsOnly", onServer(), GUILD, { commands: RANKED })).toBe(true);
+            expect(await serverAdminPasses("shared-button", onServer(), GUILD, { commands: RANKED, stored })).toBe(false);
+            expect(await serverAdminPasses("forRole", onServer({ perms: plain }), GUILD, { commands: RANKED, stored })).toBe(false);
+            expect(await serverAdminPasses("forRole", onServer(), OTHER, { commands: RANKED, stored })).toBe(false);
+            const broken = { get user() { throw new Error("odd"); }, guildId: GUILD };
+            expect(await serverAdminPasses("forRole", broken, GUILD, { commands: RANKED, stored })).toBe(false);
+            // an unreadable server list gives no rank (fail closed)
+            const unreadable = { get discordServers() { throw new Error("broken store"); } };
+            expect(await serverAdminPasses("forRole", onServer(), GUILD, { commands: RANKED, stored: unreadable })).toBe(false);
+        });
+
+        describe("in a DM", () => {
+            beforeEach(() => listed());
+
+            it("never counts without a record", async () => {
+                memberOn(GUILD, jest.fn(async () => ({ permissions: admin })));
+                const interaction = dm();
+                expect(await guardInteraction(interaction, RANKED.get("adminsOnly"), RANKED)).toBe(false);
+                expect(discord.getGuild).not.toHaveBeenCalled();
+                expect(interaction.reply).toHaveBeenCalled();
+            });
+
+            it("counts for the record's server when Discord confirms the rank there", async () => {
+                const fetch = jest.fn(async () => ({ permissions: admin }));
+                memberOn(GUILD, fetch);
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(true);
+                expect(fetch).toHaveBeenCalledWith("555");
+                // the owner of the record's server, by the guild's ownerId
+                const ownerFetch = jest.fn(async () => ({ permissions: plain }));
+                memberOn(GUILD, ownerFetch);
+                expect(await guardInteraction(dm(OWNER), recordOn(GUILD), RANKED)).toBe(true);
+            });
+
+            it("stays closed for a command on shared data", async () => {
+                memberOn(GUILD, jest.fn(async () => ({ permissions: admin })));
+                expect(await guardInteraction(dm(), recordOn(GUILD, "shared"), RANKED)).toBe(false);
+            });
+
+            it("stays closed when the rank is on another server than the record's", async () => {
+                memberOn(OTHER, jest.fn(async () => ({ permissions: admin })));
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
+            });
+
+            it("stays closed when Discord does not confirm it (fail closed)", async () => {
+                memberOn(GUILD, jest.fn(async () => ({ permissions: plain })));
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
+                memberOn(GUILD, jest.fn(async () => { throw new Error("Unknown Member"); }));
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
+                memberOn(GUILD, jest.fn(async () => ({})));
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
+                discord.getGuild.mockReturnValue({ id: GUILD });
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
+            });
+
+            it("gives up after a short wait, so the refusal still reaches Discord in time", async () => {
+                jest.useFakeTimers();
+                try {
+                    // the role lookup answers (no roles), the rank lookup never does
+                    memberOn(GUILD, jest.fn()
+                        .mockResolvedValueOnce({ roles: { cache: makeCollection([]) } })
+                        .mockImplementation(() => new Promise(() => {})));
+                    const pending = guardInteraction(dm(), recordOn(GUILD), RANKED);
+                    await jest.advanceTimersByTimeAsync(1600);
+                    expect(await pending).toBe(false);
+                } finally {
+                    jest.useRealTimers();
+                }
+            });
+
+            it("never counts for a record on a server outside the list", async () => {
+                listed({ list: [OTHER] });
+                memberOn(GUILD, jest.fn(async () => ({ permissions: admin })));
+                expect(await guardInteraction(dm(), recordOn(GUILD), RANKED)).toBe(false);
             });
         });
     });

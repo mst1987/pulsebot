@@ -422,6 +422,40 @@ describe("reactions", () => {
         expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("given");
     });
 
+    // #1073: the rank Server-Admin passes the reaction as the router lets its button pass
+    it("lets the rank Server-Admin of a listed server react past the rule, never on a server outside the list", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const member = guild.addMember("500000000000000005");
+        member.permissions = { has: (f) => f === PermissionsBitField.Flags.Administrator };
+        const user = { id: "500000000000000005" };
+        const rule = { [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } } };
+        mockConfig = { serverSettings: rule };
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("denied");
+
+        mockConfig = { serverSettings: rule, discordServers: { servers: [{ guildId: EVENT_GUILD }], links: [] } };
+        svc.resetCooldowns();
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, true, { commands: mockClient.commands })).toBe("given");
+
+        // without Administrator the listed server gives nothing either
+        member.permissions = { has: () => false };
+        svc.resetCooldowns();
+        expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), user, false, { commands: mockClient.commands })).toBe("denied");
+    });
+
+    it("gives no rank when the member cannot be looked up (fail closed)", async () => {
+        const { entry } = await svc.createRoleMessage(INPUT);
+        const rule = { [EVENT_GUILD]: { botCommandAccess: { rolemsg: { mode: "roles", roleIds: [ROLE2] } } } };
+        mockConfig = { serverSettings: rule, discordServers: { servers: [{ guildId: EVENT_GUILD }], links: [] } };
+        const fetch = guild.members.fetch;
+        guild.members.fetch = jest.fn(async () => { throw new Error("Unknown Member"); });
+        try {
+            expect(await svc.handleReaction(reactionOn(entry.messageId, { name: "✅" }), { id: "500000000000000077" }, true, { commands: mockClient.commands })).toBe("denied");
+            expect(guild.members.fetch).toHaveBeenCalled();
+        } finally {
+            guild.members.fetch = fetch;
+        }
+    });
+
     // #925: the rule of the server the message is on counts - a rule of another
     // server neither opens nor closes anything here
     it("judges a reaction by the rule of its own server, never by another server's", async () => {

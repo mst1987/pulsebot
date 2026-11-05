@@ -21,7 +21,7 @@ const discord = require("../discord/discord");
 const { eventLang } = require("../discord/botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { eventVersionTag } = require("../versions/versionTag");
-const { ruleFor, resolveBotAccess, eventMemberRoles } = require("../discord/botAccess");
+const { ruleFor, resolveBotAccess, eventMemberRoles, serverAdminPasses } = require("../discord/botAccess");
 const { configForGuild, interactionGuildId } = require("../discord/servers/serverAccess");
 const { getConfig } = require("../../stores/settings/configStore");
 const { SOFTRES_MISSING_PREFIX, SOFTRES_PING_PREFIX, resolveEvent, readStatus, refreshSoftresCard } = require("./softresStatus");
@@ -90,7 +90,9 @@ async function mayPing(interaction) {
         if (rule.mode === "everyone") return true;
         const userId = String(interaction.user && interaction.user.id);
         const roleIds = await eventMemberRoles(interaction, guildId);
-        return resolveBotAccess(SOFTRES_PING_PREFIX, { id: userId, roleIds }, { commands, config }).allowed;
+        if (resolveBotAccess(SOFTRES_PING_PREFIX, { id: userId, roleIds }, { commands, config }).allowed) return true;
+        // the rank Server-Admin passes the ping as it passes the router (#1073)
+        return await serverAdminPasses(SOFTRES_PING_PREFIX, interaction, guildId, { commands, stored });
     } catch {
         return false;
     }

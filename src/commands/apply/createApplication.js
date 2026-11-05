@@ -27,9 +27,22 @@ module.exports = {
         const targetChannel = interaction.options.getChannel("channel");
         const ref = parseMessageRef(messageInput, interaction.channelId);
 
+        // Source and target stay on the server of the command (#1073): the bot sees the
+        // channels of every server, a link must not copy another server's message here.
+        const ownGuild = String(interaction.guildId || "");
+        const onOwnServer = (channel) => !!ownGuild && !!channel && String(channel.guildId || "") === ownGuild;
+        if (!onOwnServer(targetChannel)) {
+            return interaction.editReply(card({
+                kind: "error",
+                title: "Ziel-Channel nicht auf diesem Server",
+                text: "Der Ziel-Channel muss auf dem Server liegen, auf dem du den Befehl nutzt.",
+            }));
+        }
+
         let sourceMessage;
         try {
             const sourceChannel = await client.channels.fetch(ref.channelId);
+            if (!onOwnServer(sourceChannel)) throw new Error("source channel on another server");
             sourceMessage = await sourceChannel.messages.fetch(ref.messageId);
         } catch {
             return interaction.editReply(card({
