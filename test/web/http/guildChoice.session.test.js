@@ -561,6 +561,25 @@ describe("the one raid behind a signup link (#1074)", () => {
             expect(body(res).error.code).toBe("raid_unavailable");
         });
 
+        it("answers a further raid whose first raid is gone the same way", async () => {
+            const actual = jest.requireActual("../../../src/stores/events/eventStore").getEvent;
+            eventStore.getEvent.mockImplementation((id) => (id === "eh-orphan"
+                ? { id, guildId: FOREIGN, raidGroupId: "eh-gone", startTime: FUTURE }
+                : actual(id)));
+            const sid = await login(MEMBER);
+            const res = await openRaid(sid, "eh-orphan");
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+        });
+
+        it("answers a raid long past the same way: it is in no list any more", async () => {
+            const raid = raidOn(FOREIGN, { startTime: Math.floor(Date.now() / 1000) - 7 * 3600 });
+            const sid = await login(MEMBER);
+            const res = await openRaid(sid, raid.id);
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+        });
+
         it("counts a grant of one's own on a server without base access", async () => {
             configStore.writeStored({
                 ...CONFIG,

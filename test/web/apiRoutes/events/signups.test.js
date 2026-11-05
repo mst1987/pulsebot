@@ -549,6 +549,15 @@ describe("POST /api/signups/bulk (#293)", () => {
         expect([...mockSignups.keys()].some((k) => k.endsWith(BERT.id))).toBe(false);
     });
 
+    it("nimmt höchstens 50 Raids auf einmal", async () => {
+        const eventIds = Array.from({ length: 51 }, (_, i) => `eh-${i}`);
+        for (const id of eventIds) mockEvents.set(id, { ...ownEvent, id });
+        const res = await call(route.postSignupsBulk, ANNA, { json: { eventIds, characters: [{ character: "Nerathil", spec: "Mage-Arcane" }], status: "signed" } });
+        expect(status(res)).toBe(400);
+        expect(json(res).error.code).toBe("bad_request");
+        expect(mockSignups.size).toBe(0);
+    });
+
     it("weist Nicht-Mitglieder je PuG-Raid ab und fragt den Server nur einmal (#907)", async () => {
         const discord = require("../../../../src/services/discord/discord");
         discord.guildMembership.mockClear();
