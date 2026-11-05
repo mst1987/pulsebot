@@ -3,7 +3,7 @@
 // Rights hold per server (#925): only a full admin picks any server; everybody else
 // reaches the server active in their session - another guildId answers 403 other_server.
 jest.mock("../../../src/stores/settings/configStore", () => ({
-    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002" }], links: [] } }),
+    getConfig: () => ({ discordServers: { servers: [{ guildId: "900000000000000001" }, { guildId: "900000000000000002", trusted: true }], links: [] } }),
 }));
 let mockActive = "900000000000000002";
 jest.mock("../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => mockActive) }));
@@ -14,7 +14,7 @@ jest.mock("../../../src/services/discord/discord", () => ({ getClient: () => moc
 jest.mock("../../../src/web/http/auth", () => ({ getUserWithoutRank: jest.fn(() => null) }));
 
 const { getUserWithoutRank } = require("../../../src/web/http/auth");
-const { serverFromQuery, mayUseServer, onlyByRank, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
+const { serverFromQuery, mayUseServer, onlyByRank, rolesCountForSharedData, mayWriteSharedData, mayUseChannel, channelOnCategoryServer, guildOfChannel } = require("../../../src/web/http/serverQuery");
 const { mockRes, status, json } = require("../../helpers/http");
 
 jest.mock("../../../src/services/characters/profileVisibility", () => ({ raiderVisibility: jest.fn() }));
@@ -97,6 +97,35 @@ describe("mayUseServer", () => {
     });
 });
 
+describe("mayWriteSharedData (#1105)", () => {
+    const req = {};
+    const write = { raids: { read: true, write: true } };
+    const trust = (on) => { mockActive = on ? "900000000000000002" : "900000000000000001"; };
+    beforeEach(() => {
+        getUserWithoutRank.mockClear();
+        getUserWithoutRank.mockReturnValue({ id: "1", isAdmin: false, access: {} });
+    });
+    afterEach(() => { mockActive = "900000000000000002"; });
+
+    it("opens for a full admin everywhere, and for nobody without a session", () => {
+        trust(false);
+        expect(mayWriteSharedData({ id: "1", isAdmin: true }, req, "raids")).toBe(true);
+        expect(mayWriteSharedData(null, req, "raids")).toBe(false);
+    });
+
+    it("opens on a server with the mark", () => {
+        trust(true);
+        expect(mayWriteSharedData({ id: "1", access: write }, req, "raids")).toBe(true);
+    });
+
+    it("counts only an own grant on a server without the mark, not the rights of the session", () => {
+        trust(false);
+        expect(mayWriteSharedData({ id: "1", isServerAdmin: true, access: write }, req, "raids")).toBe(false);
+        getUserWithoutRank.mockReturnValue({ id: "1", isAdmin: false, access: write });
+        expect(mayWriteSharedData({ id: "1", access: write }, req, "raids")).toBe(true);
+    });
+});
+
 describe("onlyByRank (#1072)", () => {
     const rank = { id: "9", isAdmin: false, isServerAdmin: true };
     const roles = { id: "9", isAdmin: false };
@@ -106,7 +135,41 @@ describe("onlyByRank (#1072)", () => {
         getUserWithoutRank.mockReturnValue(roles);
     });
 
-    it("never holds for somebody without the rank, and does not look at the roles", () => {
+    // #1073: an administrator gives themselves any role, so without the mark the roles do not vouch for anybody
+    describe("on a server without the mark (#1073)", () => {
+        const UNMARKED = "900000000000000001";
+        afterEach(() => { mockActive = "900000000000000002"; });
+
+        it("holds for somebody without the rank too, whatever the session's roles say", () => {
+            mockActive = UNMARKED;
+            expect(onlyByRank(orga, req, () => false)).toBe(true);
+            expect(rolesCountForSharedData(req)).toBe(false);
+        });
+
+        it("asks what counts without the roles: an own grant or the base access still passes", () => {
+            mockActive = UNMARKED;
+            const rolesMay = jest.fn(() => true);
+            expect(onlyByRank(orga, req, rolesMay)).toBe(false);
+            expect(rolesMay).toHaveBeenCalledWith(roles);
+        });
+
+        it("never holds for a full admin", () => {
+            mockActive = UNMARKED;
+            expect(onlyByRank(admin, req, () => false)).toBe(false);
+        });
+
+        it("counts the roles on the marked server for the same person", () => {
+            expect(rolesCountForSharedData(req)).toBe(true);
+            expect(onlyByRank(orga, req, () => false)).toBe(false);
+        });
+
+        it("fails closed without an active server", () => {
+            mockActive = "";
+            expect(rolesCountForSharedData(req)).toBe(false);
+        });
+    });
+
+    it("never holds on a trusted server for somebody without the rank, and does not look at the roles", () => {
         const rolesMay = jest.fn(() => false);
         expect(onlyByRank(orga, req, rolesMay)).toBe(false);
         expect(onlyByRank(admin, req, rolesMay)).toBe(false);

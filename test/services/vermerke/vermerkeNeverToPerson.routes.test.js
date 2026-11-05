@@ -6,6 +6,9 @@
 // test/web/events/raidDetailView.test.js (#981). Kept apart from vermerkeNeverToPerson.test.js since
 // the setup route needs the event, signup and profile stores and a few service mocks.
 let mockUser = null;
+// #1073: roles count for data of every server on a server with the mark only
+const mockTrusted = true;
+jest.mock("../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => mockUser),
     getRealUser: jest.fn(() => mockUser),

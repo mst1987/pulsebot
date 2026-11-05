@@ -1,4 +1,7 @@
 let mockUser = { id: "1", isAdmin: true };
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
@@ -350,6 +353,20 @@ describe("apiRoutes/guildBank", () => {
                 expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
                 expect(status(await call(deleteGuildBank, { payload: { key: bank.key } }))).toBe(404);
                 expect(store.getBank(bank.key)).toMatchObject({ pending: true });
+            });
+
+            it("stays out of reach for an orga by role on a server without the mark (#1073)", async () => {
+                const bank = record("Beta");
+                mockUser = ORGA;
+                mockTrusted = false;
+                try {
+                    expect(await listed()).toEqual([]);
+                    const res = await take(bank);
+                    expect([status(res), body(res).error.code]).toEqual([404, "not_found"]);
+                    expect(store.getBank(bank.key)).toMatchObject({ pending: true });
+                } finally {
+                    mockTrusted = true;
+                }
             });
 
             it("a bank waiting for this very server stays theirs", async () => {

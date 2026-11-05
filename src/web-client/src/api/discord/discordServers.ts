@@ -8,6 +8,8 @@ export type ServerEntry = {
     label: string;
     /** The switch "PuG-Server" (#906): only then "Rollen & Onboarding" works there; missing = off. */
     pug?: boolean;
+    /** #1073: only here roles count for what every server shares; a full admin switches it, missing = off. */
+    trusted?: boolean;
 };
 
 /** One link (#890): the raid list of `from` is posted to `channelId` on `to`; lang "" = the target's server language, versions [] = all. */

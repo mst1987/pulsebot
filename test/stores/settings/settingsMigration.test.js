@@ -39,14 +39,16 @@ describe("stores/settings/settingsMigration migrateSettings (#420)", () => {
         // and their version pinned to the one they play (#738)
         // and the template per server with the note on its two categories nothing places yet (#1076)
         // and the Vermerke switch on for the link it already had (#1078)
-        expect(changes).toHaveLength(10);
+        // and the mark "trusted" on the servers it had at the takeover (#1073)
+        expect(changes).toHaveLength(11);
         expect(changes[3]).toBe("config.json: Bewerbungen, Raid-Standardwerte und Kan\u00e4le je Server gespeichert (#924) - globale Altfelder entfernt");
         expect(changes[5]).toContain("Vermerke teilen an 1 ");
-        expect(changes[6]).toContain("raid-templates.json: 1 Vorlage(n) je Server");
-        expect(changes[7]).toContain("2 Kategorie(n) ohne belegten Server behalten ihre Vorlagen-ID (#1076) - c1, c2");
-        expect(changes[8]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
-        expect(changes[9]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
-        expect(log).toHaveBeenCalledTimes(10);
+        expect(changes[6]).toContain("als vertrauenswürdig markiert (#1073)");
+        expect(changes[7]).toContain("raid-templates.json: 1 Vorlage(n) je Server");
+        expect(changes[8]).toContain("2 Kategorie(n) ohne belegten Server behalten ihre Vorlagen-ID (#1076) - c1, c2");
+        expect(changes[9]).toBe("config.json: Planung je Raid-Kategorie nach der bisherigen Nutzung festgelegt (Raidplan oder Sheet) - c1 raidplan, c2 raidplan");
+        expect(changes[10]).toBe("config.json: Spielversion je aktiver Kategorie festgeschrieben (#738) - c1 tbc, c2 tbc");
+        expect(log).toHaveBeenCalledTimes(11);
         expect(log.mock.calls.every(([line]) => line.startsWith("[settings] Migration: "))).toBe(true);
 
         expect(stored(TEMPLATES_FILE).templates[0]).toMatchObject({ id: "rh-3", raidhelperTemplateId: "3" });
@@ -54,7 +56,7 @@ describe("stores/settings/settingsMigration migrateSettings (#420)", () => {
         // written as the server federation (#897): the event server, the talk server as a server of its own,
         // the overview target as a link - and no talkGuildId any more
         expect(config.discordServers).toEqual({
-            servers: [{ guildId: "1100000000000000001", label: "" }, { guildId: "1100000000000000002", label: "" }],
+            servers: [{ guildId: "1100000000000000001", label: "", trusted: true }, { guildId: "1100000000000000002", label: "", trusted: true }],
             links: [{ from: "1100000000000000001", to: "1100000000000000002", channelId: "1100000000000000003", lang: "", versions: [], shareNotes: true }],
         });
         expect(config.categoryRaidTemplate).toEqual({ c1: "rh-3", c2: "rh-3" });
@@ -99,7 +101,8 @@ describe("stores/settings/settingsMigration migrateSettings (#420)", () => {
     it("writes nothing for a fresh install but the mark that keeps its later links out of #1078", () => {
         expect(migrateSettings(quiet)).toEqual({ changes: [] });
         const written = fs.writeFileSync.mock.calls.map(([file]) => String(file));
-        expect(written).toEqual([expect.stringContaining("migrations.json")]);
+        expect(written.length).toBeGreaterThan(0);
+        expect(written.every((file) => file.includes("migrations.json"))).toBe(true);
         expect(fs.__store.has(CONFIG_FILE)).toBe(false);
         fs.writeFileSync.mockClear();
         expect(migrateSettings(quiet)).toEqual({ changes: [] });

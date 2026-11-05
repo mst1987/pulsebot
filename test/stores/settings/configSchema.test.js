@@ -273,7 +273,13 @@ function after1078(config) {
     const links = block.links.map((link) => (link.from !== link.to && listed.has(link.from) && listed.has(link.to) ? { ...link, shareNotes: true } : link));
     return { ...config, discordServers: { ...block, links } };
 }
-const golden = schemaOnly.map((g, i) => ({ ...g, config: after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config)) }));
+// #1073: only on a server a full admin marked do roles count for shared data - the start marks every server listed then, once.
+function after1073(config) {
+    const block = config.discordServers;
+    if (!block || !Array.isArray(block.servers)) return config;
+    return { ...config, discordServers: { ...block, servers: block.servers.map((server) => ({ ...server, trusted: true })) } };
+}
+const golden = schemaOnly.map((g, i) => ({ ...g, config: after1073(after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config))) }));
 // Read without the start migration: a global #924 field no server block carries yet stays visible (a save
 // in between must not lose it, the next start moves it).
 function unmoved924(config, stored) {
@@ -285,7 +291,7 @@ function unmoved924(config, stored) {
     }
     return out;
 }
-const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)") && !line.includes("(#1076)") && !line.includes("(#1078)"));
+const without542 = (changes) => changes.filter((line) => !line.includes("(#542)") && !line.includes("(#553)") && !line.includes("Planung je Raid-Kategorie") && !line.includes("(#738)") && !line.includes("(#897)") && !line.includes("(#924)") && !line.includes("(#925)") && !line.includes("(#952)") && !line.includes("(#1076)") && !line.includes("(#1078)") && !line.includes("(#1073)"));
 
 const CONFIG_FILE = settingsPath("config.json");
 const TEMPLATES_FILE = settingsPath("raid-templates.json");
@@ -517,6 +523,18 @@ describe("stores/settings/configSchema server federation (#890)", () => {
             ]);
             expect(out).toEqual([{ guildId: A, label: "", pug: true }, { guildId: B, label: "" }, { guildId: T, label: "" }]);
             expect(schema.normalizeDiscordServers({ servers: [{ guildId: A, label: "x" }] }).servers[0]).not.toHaveProperty("pug");
+        });
+
+        // #1073: the mark "vertrauenswürdig"; off is no field at all, like pug.
+        it("keeps trusted only as true, anything else is off and leaves no field", () => {
+            const out = schema.normalizeServers([
+                { guildId: A, label: "", trusted: true },
+                { guildId: B, label: "", trusted: "true" },
+                { guildId: T, label: "", trusted: false },
+            ]);
+            expect(out).toEqual([{ guildId: A, label: "", trusted: true }, { guildId: B, label: "" }, { guildId: T, label: "" }]);
+            const block = schema.normalizeDiscordServers({ servers: [{ guildId: A, trusted: true }] });
+            expect(schema.normalizeDiscordServers(block).servers).toEqual(block.servers);
         });
 
         // the migration warns about this one (settingsMigration.migrateDiscordFederation)

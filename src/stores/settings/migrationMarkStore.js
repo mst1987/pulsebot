@@ -4,8 +4,10 @@
 // that there is nothing left to do. A few would have to open many large files to
 // find that out on every start (the reports: megabytes each); those run once, write
 // their mark here and are skipped from then on. Deleting the file runs them again -
-// they are idempotent, it only costs the start-up time once more. The exception is
-// `linkShareNotes` (#1078): deleting the file turns every Vermerke switch on again.
+// they are idempotent, it only costs the start-up time once more. The exceptions are
+// `linkShareNotes` (#1078): deleting the file turns every Vermerke switch on again;
+// and `trustedServers` (#1073): it marks every server then listed as trusted, so
+// never delete the file on a server with a list that was not vetted.
 const { settingsPath } = require("../../config/paths");
 const { createJsonStore } = require("../jsonStore");
 

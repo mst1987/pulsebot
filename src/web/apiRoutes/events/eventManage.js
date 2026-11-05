@@ -19,7 +19,7 @@ const { withUser, categoryOrgaOfAll } = require("../../http/apiHandler");
 const { sendResult } = require("../../http/apiResult");
 const { q } = require("../../http/apiParams");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OTHER_SERVER } = require("../../http/serverQuery");
+const { onlyByRank, rolesCountForSharedData, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OTHER_SERVER } = require("../../http/serverQuery");
 const { userCan, userIsOrga } = require("../../../config/permissions");
 const manage = require("../../../services/events/eventManage");
 const { getSignup } = require("../../../stores/events/signupStore");
@@ -41,12 +41,14 @@ const reader = (fn) => withUser({ orgaScoped: BY_QUERY, write: "raids" }, fn);
 const action = (fn) => withUser({ orgaScoped: BY_EVENT, write: "raids", csrf: true, body: true, archived: BY_EVENT }, fn);
 
 /**
- * Whether only the server-admin rank (#1072) makes `user` the orga of this raid: neither its roles
- * (the orga with `raids` write) nor its roster (a manager of the raid's category) would. Profiles are
+ * Whether only the server-admin rank (#1072) or what a server without the mark gives (#1073) makes
+ * `user` the orga of this raid: neither its roles (the orga with `raids` write) nor its roster (a
+ * manager of the raid's category, named by role too, so only on a trusted server) would. Profiles are
  * global, so such a caller sees and changes less of them; everybody else keeps what they had.
  */
 async function raidOnlyByRank(user, req, eventId) {
     if (!onlyByRank(user, req, (roles) => userIsOrga(roles) && userCan(roles, "raids", "write"))) return false;
+    if (!rolesCountForSharedData(req)) return true;
     // required here, not at the top: tests of this route mock auth without this export
     const { getUserWithoutRank } = require("../../http/auth");
     return !(await categoryOrgaOfAll(getUserWithoutRank(req), eventId, req));

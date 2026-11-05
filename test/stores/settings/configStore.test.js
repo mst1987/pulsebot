@@ -223,6 +223,88 @@ describe("stores/settings/configStore saveConfig", () => {
             });
         });
 
+        // The mark goes through trustedChanges only, which only the full-admin key trustedServers
+        // of PATCH /api/settings sends: a whole list can neither set nor lose it (#1073).
+        describe("the mark of a trusted server", () => {
+            const both = [{ guildId: A }, { guildId: B }];
+            const trustedIds = () => configStore.getConfig().discordServers.servers.filter((s) => s.trusted).map((s) => s.guildId);
+            const mark = (changes) => configStore.saveConfig({ discordServers: { trustedChanges: changes } });
+
+            it("cannot be set through a whole list", () => {
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: A, trusted: true }, { guildId: B, trusted: true }] } });
+                expect(ids(configStore.getConfig())).toEqual([A, B]);
+                expect(trustedIds()).toEqual([]);
+            });
+
+            it("is set and taken back through its own changes, and those are not stored", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true });
+                expect(trustedIds()).toEqual([A]);
+                expect(configStore.getConfig().discordServers).not.toHaveProperty("trustedChanges");
+                mark({ [A]: false, [B]: true });
+                expect(trustedIds()).toEqual([B]);
+            });
+
+            it("survives a list sent without the field, and one that sends it as off", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true });
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: B, label: "neu" }, { guildId: A, label: "x" }] } });
+                expect(trustedIds()).toEqual([A]);
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: A, trusted: false }, { guildId: B }] } });
+                expect(trustedIds()).toEqual([A]);
+            });
+
+            it("survives a save of only the links", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true });
+                configStore.saveConfig({ discordServers: { links: [{ from: A, to: B, channelId: CH }] } });
+                expect(trustedIds()).toEqual([A]);
+            });
+
+            it("is not there on a newly listed server, and gone after leaving the list", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true, [B]: true });
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: A }, { guildId: B }, { guildId: X }] } });
+                expect(trustedIds()).toEqual([A, B]);
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: A }] } });
+                configStore.saveConfig({ discordServers: { servers: both } });
+                expect(trustedIds()).toEqual([A]);
+            });
+
+            it("ignores a change for a server off the list", () => {
+                configStore.saveConfig({ discordServers: { servers: [{ guildId: A }] } });
+                mark({ [X]: true });
+                expect(ids(configStore.getConfig())).toEqual([A]);
+                expect(trustedIds()).toEqual([]);
+            });
+
+            it("a change next to a list sets a server that was listed already", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                configStore.saveConfig({ discordServers: { servers: both, trustedChanges: { [B]: true } } });
+                expect(trustedIds()).toEqual([B]);
+            });
+
+            it("a change next to a list leaves a server entered in that save without the mark", () => {
+                configStore.saveConfig({ discordServers: { servers: both, trustedChanges: { [B]: true } } });
+                expect(trustedIds()).toEqual([]);
+            });
+
+            it("a broken entry in a sent list costs the others nothing and gets no mark", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true });
+                configStore.saveConfig({ discordServers: { servers: [null, "kaputt", { guildId: A }, { guildId: B }] } });
+                expect(ids(configStore.getConfig())).toEqual([A, B]);
+                expect(trustedIds()).toEqual([A]);
+            });
+
+            it("a block whose list is none leaves no mark behind", () => {
+                configStore.saveConfig({ discordServers: { servers: both } });
+                mark({ [A]: true });
+                configStore.saveConfig({ discordServers: { servers: "keine Liste" } });
+                expect(trustedIds()).toEqual([]);
+            });
+        });
+
         // an old stored talk field is read as a server once and then gone (#897)
         it("an old stored talk server becomes an ordinary server and can be removed", () => {
             const T = "1100000000000000024";

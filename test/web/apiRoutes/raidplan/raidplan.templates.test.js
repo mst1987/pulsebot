@@ -5,9 +5,10 @@ let mockUser = null;
 let mockViewer = null;
 jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../helpers/http").apiMiddlewareMock({ user: () => mockUser }));
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
-jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000") }));
+jest.mock("../../../../src/web/http/auth", () => ({ getUser: jest.fn(() => mockViewer), getActiveGuild: jest.fn(() => "500000"), getUserWithoutRank: jest.fn(() => mockUser) }));
 jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
     ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => true),
     // the server list of this test: the active one and another (a template filter may only name these)
     resolveServer: jest.fn(({ guildId = "" } = {}) => {
         const id = String(guildId || "");

@@ -13,7 +13,7 @@ const { fullAccess, emptyAccess, mergeAccess } = require("../../config/permissio
 // the bot's question too — the guild bank's orga buttons check the same rights
 // as the menu — so it lives in services/, which commands/ may require.
 const {
-    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank,
+    computeAccess, resolveAccess, computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank, sharedDataAccess,
 } = require("../../services/discord/members/userAccess");
 const { configForGuild } = require("../../services/discord/servers/serverAccess");
 const { pickActiveGuild } = require("./guildChoice");
@@ -170,14 +170,16 @@ function allServersAccessOf(guildAccess) {
 }
 
 /**
- * The rights of a session that count right now. The server-admin rank goes where it does not
- * hold: on a route over data of every server (`rankFree`, the route mark `sharedData`), after
- * too long without a re-check, on a server no longer entered. The roles keep their rights.
+ * The rights of a session that count right now. On a route over data of every server (`rankFree`,
+ * the route mark `sharedData`) the rank goes and roles count on a trusted server only (#1073).
+ * Otherwise the rank goes after too long without a re-check and on a server no longer entered; the
+ * roles keep their rights.
  */
 function currentGuildAccess(s, { rankFree = false } = {}) {
     const ga = s.guildAccess || { isAdmin: !!s.isAdmin, guilds: {} };
     const checkedAt = s.adminCheckedAt || s.createdAt || 0;
-    if (rankFree || Date.now() - checkedAt > RANK_MAX_AGE_MS) return withoutServerAdminRank(ga, s.id);
+    if (rankFree) return sharedDataAccess(ga, s.id);
+    if (Date.now() - checkedAt > RANK_MAX_AGE_MS) return withoutServerAdminRank(ga, s.id);
     return withoutDelistedRank(ga, s.id);
 }
 
@@ -384,9 +386,9 @@ function getRealUser(req) {
 }
 
 /**
- * The logged-in user with the rights of their roles alone, whatever the route: for a
- * handler that lets the server-admin rank through except on data of every server, where a
- * route mark (`sharedData`) cannot say that.
+ * The logged-in user as they count on data of every server, whatever the route: without the
+ * server-admin rank, and with roles only on a trusted server (#1073). For a handler that lets
+ * the rank through except on such data, where a route mark (`sharedData`) cannot say that.
  */
 function getUserWithoutRank(req) {
     const s = sessionFor(req);

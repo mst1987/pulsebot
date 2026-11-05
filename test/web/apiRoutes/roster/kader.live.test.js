@@ -5,6 +5,9 @@
 const { status, body, routerClient } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 
+// #1073: roles count for data of every server on a server with the mark only
+const mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     getRealUser: jest.fn(() => null),

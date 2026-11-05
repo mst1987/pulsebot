@@ -31,6 +31,47 @@ beforeEach(() => {
 });
 
 
+// #1073: the one place that reads the mark. Everything that is not a stored true is "no".
+describe("services/discord/roles/guildRoles serverIsTrusted", () => {
+    const marked = (over = {}) => ({ ...server(E1), trusted: true, ...over });
+    const config = (...servers) => ({ guildId: "", discordServers: block({ servers }) });
+
+    it("answers true for a marked server of the list", () => {
+        expect(guildRoles.serverIsTrusted(E1, config(marked(), server(E2)))).toBe(true);
+    });
+
+    it("reads the settings itself without a config", () => {
+        getConfig.mockReturnValue(config(marked()));
+        expect(guildRoles.serverIsTrusted(E1)).toBe(true);
+        expect(guildRoles.serverIsTrusted(E2)).toBe(false);
+    });
+
+    it("answers false without the mark, off the list and without an id", () => {
+        const cfg = config(marked(), server(E2));
+        expect(guildRoles.serverIsTrusted(E2, cfg)).toBe(false);
+        expect(guildRoles.serverIsTrusted(X, cfg)).toBe(false);
+        expect(guildRoles.serverIsTrusted("", cfg)).toBe(false);
+        expect(guildRoles.serverIsTrusted(null, cfg)).toBe(false);
+    });
+
+    it("takes nothing but a stored true for the mark", () => {
+        for (const trusted of ["true", 1, {}, false, null]) {
+            expect(guildRoles.serverIsTrusted(E1, config(marked({ trusted })))).toBe(false);
+        }
+    });
+
+    it("answers false for settings that cannot be read", () => {
+        getConfig.mockImplementation(() => { throw new Error("broken file"); });
+        expect(guildRoles.serverIsTrusted(E1)).toBe(false);
+        expect(guildRoles.serverIsTrusted(E1, null)).toBe(false);
+        expect(guildRoles.serverIsTrusted(E1, {})).toBe(false);
+    });
+
+    it("does not take the old single guildId for a marked server", () => {
+        expect(guildRoles.serverIsTrusted(HOME, { guildId: HOME, discordServers: block() })).toBe(false);
+    });
+});
+
 describe("services/discord/roles/guildRoles ids", () => {
     it("falls back to the old guildId when no server is set", () => {
         getConfig.mockReturnValue({ guildId: HOME, discordServers: block() });

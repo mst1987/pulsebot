@@ -179,6 +179,9 @@ describe("leader flags (#1034)", () => {
         expect(orga.leaders.editable).toEqual(["kara"]);
         const reader = await buildRosterDetail({ guildId: G, id: rosterId(), user: READER, config: CONFIG });
         expect(reader.leaders.editable).toEqual([]);
+        // #1105: the route says PUT /api/leads would refuse the caller here
+        const closed = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG, leadsOpen: false });
+        expect(closed.leaders.editable).toEqual([]);
         eventStore.useFile(null);
     });
 });

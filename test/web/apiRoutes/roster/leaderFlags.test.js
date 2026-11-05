@@ -16,6 +16,11 @@ jest.mock("../../../../src/web/http/auth", () => ({
 }));
 let mockGuild = "g1";
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => mockGuild) }));
+let mockUntrusted = new Set();
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn((guildId) => !mockUntrusted.has(guildId)),
+}));
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => ({}), getRaidTemplate: () => null }));
 // cat1's TBC roster: managed by "mgr", members "m1" and "m2"; cat2's roster by "mgr2"
 jest.mock("../../../../src/stores/roster/rosterStore", () => {
@@ -244,6 +249,94 @@ describe("PUT /api/leads (Orga für andere)", () => {
             expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
             expect(status(await put("/api/leads", { event: foreign.id, userId: "s1", instances: ["kara"] }))).toBe(403);
             expect(userCanLead("s1", "tbc", ["kara"])).toBe(false);
+        });
+    });
+
+    // Die Flags gelten auf jedem Server: Rollen und Manager eines Servers ohne Marke schreiben sie nicht.
+    describe("auf einem Server ohne Marke (#1105)", () => {
+        const rosterStore = require("../../../../src/stores/roster/rosterStore");
+        const discord = require("../../../../src/services/discord/discord");
+        const RANK = { ...ORGA, id: "rang", isServerAdmin: true };
+
+        beforeEach(() => { mockUntrusted = new Set(["g1"]); });
+        afterEach(() => { mockUntrusted = new Set(); });
+
+        it("gibt dem Manager eines Rosters 403, über das Roster und über den Raid", async () => {
+            mockUser = MANAGER;
+            for (const payload of [{ rosterId: "r1", userId: "m2", instances: ["kara"] }, { event: own.id, userId: "s1", instances: ["kara"] }]) {
+                const r = await put("/api/leads", payload);
+                expect(status(r)).toBe(403);
+                expect(code(r)).toBe("forbidden");
+            }
+            expect(leaderFlagsStore.allLeads()).toEqual({});
+        });
+
+        // Ein eigenes Recht vergibt nur ein Voll-Admin: das ist keine selbst gegebene Rolle.
+        it("lässt ein eigenes Recht auf raids durch, ohne eigenes Recht nicht", async () => {
+            mockUser = MANAGER;
+            mockRoleUser = { id: MANAGER.id, isAdmin: false, access: { ...emptyAccess(), raids: { read: true, write: true } } };
+            try {
+                expect(status(await put("/api/leads", { rosterId: "r1", userId: "m2", instances: ["kara"] }))).toBe(200);
+                expect(userCanLead("m2", "tbc", ["kara"])).toBe(true);
+            } finally {
+                mockRoleUser = null;
+                leaderFlagsStore.setLeads("m2", "tbc", []);
+            }
+        });
+
+        describe("wenn eine Rolle das Roster verwaltet (managers.roleIds)", () => {
+            let managed;
+            beforeEach(() => {
+                managed = rosterStore.getRoster("r2");
+                managed.managers.roleIds = ["role-mgr"];
+                discord.memberRoleIds.mockResolvedValue(["role-mgr"]);
+                mockUser = { ...RAIDER, id: "traeger" };
+            });
+            afterEach(() => {
+                managed.managers.roleIds = [];
+                discord.memberRoleIds.mockResolvedValue([]);
+            });
+
+            it("gibt 403", async () => {
+                const r = await put("/api/leads", { rosterId: "r2", userId: "m3", instances: ["kara"] });
+                expect(status(r)).toBe(403);
+                expect(code(r)).toBe("forbidden");
+                expect(leaderFlagsStore.allLeads()).toEqual({});
+            });
+
+            it("öffnet die Route auf einem Server mit Marke wie bisher", async () => {
+                mockUntrusted = new Set();
+                expect(status(await put("/api/leads", { rosterId: "r2", userId: "m3", instances: ["kara"] }))).toBe(200);
+                expect(userCanLead("m3", "tbc", ["kara"])).toBe(true);
+            });
+        });
+
+        // getUserWithoutRank lässt die Rollen dort weg (auth.test.js), hier also nur der Basiszugang.
+        it("gibt der Orga-Rolle 403, mit und ohne Rang", async () => {
+            mockRoleUser = { id: ORGA.id, isAdmin: false, access: emptyAccess() };
+            for (const user of [ORGA, RANK]) {
+                mockUser = user;
+                expect(status(await put("/api/leads", { event: own.id, userId: "s1", instances: ["kara"] }))).toBe(403);
+            }
+            expect(leaderFlagsStore.allLeads()).toEqual({});
+        });
+
+        it("lässt den Voll-Admin durch", async () => {
+            mockUser = ADMIN;
+            expect(status(await put("/api/leads", { event: own.id, userId: "s1", instances: ["kara"] }))).toBe(200);
+            expect(userCanLead("s1", "tbc", ["kara"])).toBe(true);
+        });
+
+        it("lässt die eigenen Flags in „Mein Profil“ offen", async () => {
+            mockUser = RAIDER;
+            expect(status(await put("/api/profile/leads", { versionId: "tbc", instances: ["kara"] }))).toBe(200);
+            expect(userCanLead("m1", "tbc", ["kara"])).toBe(true);
+        });
+
+        it("gilt je Server: die Marke des aktiven Servers entscheidet", async () => {
+            mockUntrusted = new Set(["g2"]);
+            mockUser = MANAGER;
+            expect(status(await put("/api/leads", { rosterId: "r1", userId: "m2", instances: ["kara"] }))).toBe(200);
         });
     });
 

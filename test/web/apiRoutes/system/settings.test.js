@@ -1425,6 +1425,25 @@ describe("web/apiRoutes/settings", () => {
                 expect(settingsStore.saveConfig).not.toHaveBeenCalled();
             });
 
+            // #1073: the mark decides whether roles count for what all servers share, and a server admin
+            // gives himself any role, so neither a settings role nor the rank may touch it.
+            it.each([
+                ["a settings role", {}],
+                ["the server-admin rank", { isServerAdmin: true, serverAdminOf: ["guild-1"] }],
+            ])("refuses the mark of a trusted server from %s", async (_who, rank) => {
+                auth.getUser.mockReturnValue({
+                    id: "7", name: "Bob", isAdmin: false, ...rank,
+                    access: { ...emptyAccess(), settings: { read: true, write: true } },
+                });
+                auth.checkCsrf.mockReturnValue(true);
+                activeGuildFor.mockReturnValue("guild-1");
+
+                const res = await patch("/api/settings", { trustedServers: { "guild-1": true } });
+
+                expect(res.writeHead).toHaveBeenCalledWith(403, expect.any(Object));
+                expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+            });
+
             // The base access applies to everyone at once, so it is guarded like the
             // rest of the access config.
             it("refuses a baseAccess change from a non-admin settings user", async () => {
@@ -2681,6 +2700,11 @@ describe("web/apiRoutes/settings", () => {
                 expect(FULL_ADMIN_KEYS).toContain("discordServers");
             });
 
+            // #1073: its own key, so what Teil B opens for the rank cannot reach the mark by accident.
+            it("keeps the mark of a trusted server full-admin-only", () => {
+                expect(FULL_ADMIN_KEYS).toContain("trustedServers");
+            });
+
             // #924: the note and guild bank channel are per server, sent as `channels`.
             describe("signup channels per server (#924)", () => {
                 const sendChannels = async (channels, config = stored) => {
@@ -2873,6 +2897,50 @@ describe("web/apiRoutes/settings", () => {
                     await save({ links: [{ ...link, shareNotes: true }, { ...link, to: "30000", channelId: "30001", shareNotes: "yes" }] });
                     expect(settingsStore.saveConfig).toHaveBeenCalledWith({
                         discordServers: { links: [{ ...link, shareNotes: true }, { ...link, to: "30000", channelId: "30001" }] },
+                    });
+                });
+
+                describe("the mark of a trusted server (#1073)", () => {
+                    const saveMark = async (body) => {
+                        settingsStore.getConfig.mockReturnValue(patchStored);
+                        readJsonBody.mockResolvedValue(body);
+                        const res = mockRes();
+                        await updateSettings({ headers: {} }, res);
+                        settingsStore.getConfig.mockReturnValue({});
+                        return res;
+                    };
+
+                    it("hands a full admin's switch on as changes", async () => {
+                        const res = await saveMark({ trustedServers: { "20000": true, "30000": false } });
+                        expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                        expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                            discordServers: { trustedChanges: { "20000": true, "30000": false } },
+                        });
+                    });
+
+                    it("goes along with the links of the same save", async () => {
+                        await saveMark({ discordServers: { links: [link] }, trustedServers: { "20000": true } });
+                        expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                            discordServers: { links: [link], trustedChanges: { "20000": true } },
+                        });
+                    });
+
+                    it.each([
+                        ["an array", ["20000"]],
+                        ["a text", "ja"],
+                        ["no boolean", { "20000": "ja" }],
+                        ["a server off the stored list", { "99999": true }],
+                    ])("refuses %s", async (_what, trustedServers) => {
+                        const res = await saveMark({ trustedServers });
+                        expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                        expect(res.end.mock.calls[0][0]).toContain("invalid_trusted_servers");
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
+                    });
+
+                    it("refuses a server listed only in the same save: new servers start without the mark", async () => {
+                        const res = await saveMark({ discordServers: { servers: [{ guildId: "40000", label: "" }] }, trustedServers: { "40000": true } });
+                        expect(res.writeHead).toHaveBeenCalledWith(400, expect.any(Object));
+                        expect(settingsStore.saveConfig).not.toHaveBeenCalled();
                     });
                 });
 

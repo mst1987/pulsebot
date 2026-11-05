@@ -159,20 +159,49 @@ function mergeBlock(next, current, sent, key, normalize) {
     if (sent && typeof sent === "object") next[key] = normalize({ ...current[key], ...sent });
 }
 
+/** A sent server list with the mark as stored: dropped from what was sent, restored per guildId. */
+function withStoredTrust(servers, stored) {
+    const trusted = new Set(stored.filter((s) => s && s.trusted === true).map((s) => String(s.guildId).trim()));
+    return servers.map((raw) => {
+        if (!raw || typeof raw !== "object") return raw;
+        const entry = { ...raw };
+        delete entry.trusted;
+        if (trusted.has(String(raw.guildId).trim())) entry.trusted = true;
+        return entry;
+    });
+}
+
+/** `{ [guildId]: boolean }`, for servers that were on the stored list already: a server just entered starts without the mark. */
+function applyTrustedChanges(servers, changes, stored) {
+    if (!changes || typeof changes !== "object") return;
+    const known = new Set(stored.map((s) => s && String(s.guildId).trim()));
+    for (const server of servers) {
+        if (!known.has(server.guildId) || typeof changes[server.guildId] !== "boolean") continue;
+        if (changes[server.guildId]) server.trusted = true;
+        else delete server.trusted;
+    }
+}
+
 /** `next.discordServers` (and `next.guildId`) from the stored block with the sent one over it. */
 function mergeDiscordServers(next, current, sent) {
-    const merged = { ...current.discordServers, ...sent };
+    const { trustedChanges, ...block } = sent;
+    const merged = { ...current.discordServers, ...block };
+    const stored = (current.discordServers && current.discordServers.servers) || [];
+    // #1073: the mark of a server is no part of a sent list. Whatever a list says, each server keeps
+    // what it has stored, a new one starts without; only trustedChanges (settings route, full admins
+    // only) changes it.
+    if (Array.isArray(merged.servers)) merged.servers = withStoredTrust(merged.servers, stored);
     // An empty stored list works on the implicit main server (guildId, also one
     // sent in the same save), which the page lists as a server; adding one more
     // must not drop it - that took the main server's rights and loops away on
     // prod (Oct 2026).
-    const stored = (current.discordServers && current.discordServers.servers) || [];
     const main = String(next.guildId || "").trim();
     if (!stored.length && main && Array.isArray(merged.servers) && merged.servers.length
         && !merged.servers.some((s) => s && String(s.guildId).trim() === main)) {
         merged.servers = [{ guildId: main, label: "" }, ...merged.servers];
     }
     next.discordServers = normalizeDiscordServers(merged, { fallbackGuildId: current.guildId });
+    applyTrustedChanges(next.discordServers.servers, trustedChanges, stored);
     // Keep the fallback key in step, so clearing every server later falls
     // back to the server that was last in use, not to an older one.
     const first = next.discordServers.servers[0];

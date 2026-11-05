@@ -479,7 +479,9 @@ function normalizeEventGuilds(list) {
  * null when the id is no snowflake. `pug` (#906): only a server with the switch "PuG-Server" gets
  * the roles & onboarding of a PuG server (services/discord/pug/pugOnboarding.js); missing or anything
  * but `true` = off. Off is stored as no field at all, so existing configs read unchanged and the
- * start migration has nothing to write.
+ * start migration has nothing to write. `trusted` (#1073): a full admin marked the server, so its
+ * roles count for data every server shares (guildRoles.serverIsTrusted). Who may set it is decided
+ * in configStore.mergeDiscordServers, not here: this only keeps the field through a read.
  */
 function normalizeServerEntry(raw) {
     if (!raw || typeof raw !== "object") return null;
@@ -487,6 +489,7 @@ function normalizeServerEntry(raw) {
     if (!isSnowflake(guildId)) return null;
     const entry = { guildId, label: String(raw.label || "").trim().slice(0, EVENT_GUILD_LABEL_MAX) };
     if (raw.pug === true) entry.pug = true;
+    if (raw.trusted === true) entry.trusted = true;
     return entry;
 }
 

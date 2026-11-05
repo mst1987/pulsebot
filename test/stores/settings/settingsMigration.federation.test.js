@@ -76,7 +76,7 @@ describe("stores/settings/settingsMigration migrateDiscordFederation (#897)", ()
 
         const raw = stored(CONFIG_FILE);
         expect(raw.discordServers).toEqual({
-            servers: [{ guildId: EVENT, label: "Raids" }, { guildId: THIRD, label: "" }, { guildId: TALK, label: "" }],
+            servers: [{ guildId: EVENT, label: "Raids", trusted: true }, { guildId: THIRD, label: "", trusted: true }, { guildId: TALK, label: "", trusted: true }],
             links: EXPECTED_LINKS,
         });
         // #924: the note channel is unknown to the stores, so it went to the first server

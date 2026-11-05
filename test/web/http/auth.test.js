@@ -19,6 +19,7 @@ jest.mock("../../../src/stores/settings/settingsStore", () => ({
 jest.mock("../../../src/services/discord/roles/guildRoles", () => ({
     eventGuildIds: jest.fn(() => ["guild-1"]),
     listedServerIds: jest.fn(() => ["guild-1"]),
+    serverIsTrusted: jest.fn(() => true),
 }));
 
 const axios = require("axios");
@@ -1176,6 +1177,21 @@ describe("web/http/auth", () => {
                 expectRoleRightsOnly(auth.getUser(marked));
                 expect(auth.getRealUser(marked).isServerAdmin).toBeUndefined();
                 expect(auth.getUser(req).isServerAdmin).toBe(true);
+            });
+
+            // #1073: the same answer as the rank alone: a role of an unmarked server opens no shared data.
+            it("a role on a server without the mark counts for nothing on a marked route", async () => {
+                const { req } = await adminWithRole("817");
+                guildRoles.serverIsTrusted.mockReturnValue(false);
+                try {
+                    const user = auth.getUser({ ...req, sharedDataRoute: true });
+                    expect(user.isServerAdmin).toBeUndefined();
+                    expect(user.isOrga).toBeUndefined();
+                    expect(user.access.settings).toEqual({ read: false, write: false });
+                    expect(auth.getUser(req).isServerAdmin).toBe(true);
+                } finally {
+                    guildRoles.serverIsTrusted.mockReturnValue(true);
+                }
             });
 
             it("a Discord admin without any role has only the base access on a marked route", async () => {

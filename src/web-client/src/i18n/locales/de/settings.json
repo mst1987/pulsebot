@@ -668,6 +668,8 @@
         "labelPlaceholder": "PvE, PvP, Allianz …",
         "pugServer": "PuG-Server",
         "pugServerSub": "Nur auf PuG-Servern richtet der Bot Versions- und Klassenrollen und das Onboarding ein (Teil „Rollen & Onboarding“). Offene Kategorien für Anmeldungen gehen auch ohne.",
+        "trustedServer": "Vertrauenswürdiger Server",
+        "trustedServerSub": "Nur hier zählen Discord-Rollen auch für das, was alle Server teilen, zum Beispiel Lead-Marken und Charaktere. Ohne die Marke gelten Rollen nur für die eigenen Daten des Servers. Nur Voll-Admins schalten das um.",
         "editServer": "Server bearbeiten",
         "editServerSub": "Label und Schalter „PuG-Server“",
         "source": "Quelle",

@@ -22,7 +22,7 @@ const { listKnownCategories } = require("../../../../src/services/categories/cat
 const ingestServers = require("../../../../src/services/discord/servers/ingestServers");
 
 const CONFIG = {
-    discordServers: { servers: [{ guildId: "g1", label: "Hauptgilde" }, { guildId: "g2", label: "" }, { guildId: "g3" }] },
+    discordServers: { servers: [{ guildId: "g1", label: "Hauptgilde", trusted: true }, { guildId: "g2", label: "", trusted: true }, { guildId: "g3", trusted: true }] },
     mainVersion: "tbc",
 };
 const opts = { config: CONFIG };
@@ -82,6 +82,34 @@ describe("orgaServersOf", () => {
             expect(await ingestServers.orgaServersOf("u1", { ...opts, rolesOnly: true })).toEqual([
                 { guildId: "g2", role: "orga" }, { guildId: "g3", role: "category" },
             ]);
+        });
+
+        // #1073: an upload tied to no server counts nothing that a server's administrator can give.
+        describe("on a server without the mark", () => {
+            const UNMARKED = { ...CONFIG, discordServers: { servers: [{ guildId: "g1", label: "" }, { guildId: "g2", label: "", trusted: true }] } };
+
+            it("drops the role with the rank and the role without it, and keeps the marked server", async () => {
+                resolveGuildAccess.mockResolvedValue(access({ g1: rank({ roleIsOrga: true }), g2: rank({ roleIsOrga: true }) }));
+                expect(await ingestServers.orgaServersOf("u1", { config: UNMARKED, rolesOnly: true })).toEqual([{ guildId: "g2", role: "orga" }]);
+                resolveGuildAccess.mockResolvedValue(orgaOn("g1", "g2"));
+                expect(await ingestServers.orgaServersOf("u1", { config: UNMARKED, rolesOnly: true })).toEqual([{ guildId: "g2", role: "orga" }]);
+            });
+
+            it("drops the manager of a category there: managers.roleIds is a role too", async () => {
+                resolveGuildAccess.mockResolvedValue(access({}));
+                categoryOrga.isAnyCategoryManager.mockResolvedValue(true);
+                expect(await ingestServers.orgaServersOf("u1", { config: UNMARKED, rolesOnly: true })).toEqual([{ guildId: "g2", role: "category" }]);
+            });
+
+            it("keeps the server for the work on its own data, without rolesOnly", async () => {
+                resolveGuildAccess.mockResolvedValue(orgaOn("g1"));
+                expect(await ingestServers.orgaServersOf("u1", { config: UNMARKED })).toEqual([{ guildId: "g1", role: "orga" }]);
+            });
+
+            it("leaves a full admin every server", async () => {
+                resolveGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
+                expect(await ingestServers.orgaServersOf("u1", { config: UNMARKED, rolesOnly: true })).toHaveLength(2);
+            });
         });
 
         it("reaches serversOfToken", async () => {
@@ -146,6 +174,34 @@ describe("tokenMayLearnClasses (#1072)", () => {
         expect(await mayLearn({ id: "s", guildId: "g1" }, "g1")).toBe(true);
         expect(await mayLearn({ id: "o" }, "")).toBe(true);
         expect(computeGuildAccess).not.toHaveBeenCalled();
+    });
+});
+
+describe("tokenMayLearnClasses on a server without the mark (#1073)", () => {
+    const PERSON = { id: "t", ownerId: "u1" };
+    const UNMARKED = { ...CONFIG, discordServers: { servers: [{ guildId: "g1", label: "" }, { guildId: "g2", label: "", trusted: true }] } };
+    const mayLearn = (guildId) => ingestServers.tokenMayLearnClasses(PERSON, guildId, { config: UNMARKED });
+
+    it("refuses an orga role there, with and without the rank", async () => {
+        computeGuildAccess.mockResolvedValue(orgaOn("g1"));
+        expect(await mayLearn("g1")).toBe(false);
+        computeGuildAccess.mockResolvedValue(access({ g1: { access: {}, isOrga: true, roleIsOrga: true, isServerAdmin: true } }));
+        expect(await mayLearn("g1")).toBe(false);
+    });
+
+    it("lets the same role learn on the marked server", async () => {
+        computeGuildAccess.mockResolvedValue(orgaOn("g2"));
+        expect(await mayLearn("g2")).toBe(true);
+    });
+
+    it("refuses a raid without a known server when one of the owner's servers has no mark", async () => {
+        computeGuildAccess.mockResolvedValue(orgaOn("g1", "g2"));
+        expect(await mayLearn("")).toBe(false);
+    });
+
+    it("lets a full admin learn", async () => {
+        computeGuildAccess.mockResolvedValue({ isAdmin: true, guilds: {} });
+        expect(await mayLearn("g1")).toBe(true);
     });
 });
 

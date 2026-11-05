@@ -6,6 +6,7 @@ const { status, body, routerClient } = require("../../../helpers/http");
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     getRealUser: jest.fn(() => null),
+    getUserWithoutRank: jest.fn(() => null),
     csrfToken: jest.fn(),
     checkCsrf: jest.fn(() => true),
     setActiveGuild: jest.fn(),
@@ -77,7 +78,7 @@ describe("GET /api/rosters/roster", () => {
         const res = await get("/api/rosters/roster", { id: "r1" });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ roster: { id: "r1" }, members: [], canManage: false });
-        expect(view.buildRosterDetail).toHaveBeenCalledWith({ guildId: "g1", id: "r1", user: READER, config: { categoryIds: ["cat1"] } });
+        expect(view.buildRosterDetail).toHaveBeenCalledWith({ guildId: "g1", id: "r1", user: READER, config: { categoryIds: ["cat1"] }, leadsOpen: false });
     });
 
     it("asks for an id and says when the roster does not exist", async () => {

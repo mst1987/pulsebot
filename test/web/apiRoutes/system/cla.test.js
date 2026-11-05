@@ -1,6 +1,9 @@
 const { json, jsonRequest, mockRes, routerClient, status } = require("../../../helpers/http");
 
 // #927: Raid-Helper on for every server, as before it was set per server
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/utils/raidhelper/servers", () => require("../../../helpers/raidhelperOn").serversMock());
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
@@ -1113,6 +1116,18 @@ describe("web/apiRoutes/cla", () => {
                 auth.getUser.mockReturnValue(ROLE_ORGA);
                 await link();
                 expect(manualLog.linkLogByUrl.mock.calls[0][3]).toBeUndefined();
+            });
+
+            it("limits an orga by role on a server without the mark like the rank (#1073)", async () => {
+                mockTrusted = false;
+                try {
+                    auth.getUser.mockReturnValue(ROLE_ORGA);
+                    auth.getUserWithoutRank.mockReturnValue({ ...ROLE_ORGA, access: {} });
+                    await link();
+                    expect(manualLog.linkLogByUrl.mock.calls[0][3]).toEqual(expect.any(Function));
+                } finally {
+                    mockTrusted = true;
+                }
             });
         });
     });

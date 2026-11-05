@@ -6,6 +6,8 @@ jest.mock("../../../../src/web/http/apiMiddleware", () => require("../../../help
 jest.mock("../../../../src/web/http/apiBody", () => require("../../../helpers/http").apiBodyMock());
 let mockConfig = {};
 jest.mock("../../../../src/stores/settings/settingsStore", () => ({ getConfig: () => mockConfig, getRaidTemplate: () => null }));
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: () => mockTrusted }));
 const { onSyncedList } = require("../../../helpers/raidhelperList");
 const mockEvents = new Map();
 jest.mock("../../../../src/stores/events/eventStore", () => ({
@@ -585,6 +587,19 @@ describe("leader flags in the editor (#1034)", () => {
         expect(view.leaders.editable).toEqual(["kara"]);
         expect(view.leaders.switchable).toEqual(expect.arrayContaining(mockSignups.map((x) => x.userId)));
         expect(view.leaders.switchable).not.toContain("stranger");
+    });
+
+    // #1105: the flags hold on every server, PUT /api/leads refuses the role here, so no switch is offered
+    it("offers no switch on a server without the mark, for a full admin as before", async () => {
+        mockEvents.set(ID, { ...mockEvents.get(ID), instanceIds: ["kara"] });
+        mockTrusted = false;
+        try {
+            expect(body(await call(route.getSetup, ORGA, null, `event=${ID}`)).leaders.editable).toEqual([]);
+            const admin = { ...ORGA, isAdmin: true };
+            expect(body(await call(route.getSetup, admin, null, `event=${ID}`)).leaders.editable).toEqual(["kara"]);
+        } finally {
+            mockTrusted = true;
+        }
     });
 
     it("a raid without instance and without known category raids switches nothing (fail closed)", async () => {

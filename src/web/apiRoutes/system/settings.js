@@ -249,8 +249,13 @@ const RAIDHELPER_KEYS = ["raidhelper"];
 // those of another.
 const REMINDER_KEYS = ["categoryReminders"];
 
+// The mark "trusted" of a server (#1073): no config key, only the body's `{ [guildId]: boolean }`.
+// A key of its own, not a field of `discordServers`: it stays with full admins even if the server
+// list opens to the server-admin rank one day (#1073 part B), and a sent list never changes the mark.
+const TRUSTED_KEYS = ["trustedServers"];
+
 // Everything a non-admin settings user may neither read nor write.
-const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS, ...REMINDER_KEYS];
+const FULL_ADMIN_KEYS = [...ACCESS_KEYS, ...CREDENTIAL_KEYS, ...GUILD_KEYS, ...TRUSTED_KEYS, ...ROLE_SYNC_KEYS, ...ADDON_KEYS, ...RAIDHELPER_KEYS, ...REMINDER_KEYS];
 
 // #957: what every server shares and only Alle Server › Einstellungen edits - the
 // Battle.net connection, the main version (and hiding the others), the settings
@@ -637,6 +642,21 @@ const getDiscordServers = withUser({ full: true }, ({ res }) => {
         versions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short })),
     });
 });
+
+/**
+ * The body's `trustedServers` (#1073): `{ [guildId]: boolean }` for servers on the stored list. A server
+ * entered in the same save is not one: it starts without the mark.
+ * @returns {{ changes: object } | { error: string }}
+ */
+function checkTrustedServers(sent, stored) {
+    if (!sent || typeof sent !== "object" || Array.isArray(sent)) return { error: "Ungültige Angabe." };
+    const listed = new Set((stored.servers || []).map((server) => String(server.guildId)));
+    for (const [guildId, on] of Object.entries(sent)) {
+        if (typeof on !== "boolean") return { error: "Ungültige Angabe." };
+        if (!listed.has(guildId)) return { error: "Diesen Server gibt es in der Serverliste nicht." };
+    }
+    return { changes: sent };
+}
 
 /**
  * Check the servers/links of a PATCH (#891) and return them cleaned, or
@@ -1074,6 +1094,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
             partial.serverSettings = servers;
         }
         if (!Object.keys(partial.discordServers).length) delete partial.discordServers;
+    }
+    if (body.trustedServers !== undefined) {
+        const trusted = checkTrustedServers(body.trustedServers, getConfig().discordServers || {});
+        if (trusted.error) return error(res, 400, "invalid_trusted_servers", trusted.error);
+        partial.discordServers = { ...(partial.discordServers || {}), trustedChanges: trusted.changes };
     }
     if (body.raidhelperServerId !== undefined) partial.raidhelperServerId = String(body.raidhelperServerId).trim();
     // #924: application channel, officer role, raid defaults and bot language belong to the active

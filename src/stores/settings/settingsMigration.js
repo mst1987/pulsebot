@@ -11,6 +11,9 @@
 //   - config.json, discordServers.links (#1078): sharing Vermerke became a switch per
 //     link, off by default. The links of before the switch shared, so they get it on,
 //     once; the mark in migrations.json keeps a switch turned off later off.
+//   - config.json, discordServers.servers (#1073): only on a server a full admin marked
+//     as trusted do roles count for data every server shares. The servers listed at the
+//     takeover get the mark, once; a server entered later starts without it.
 //   - config.json, rights (#925): the global role/base/account/orga/bot-command
 //     rights are copied onto every server block, then dropped from the top level.
 //   - config.json, raidDefaults.templateId: the old global default (a Raid-Helper
@@ -577,6 +580,7 @@ function repointTemplateReferences() {
 
 const TEMPLATE_REFERENCES_MARK = "raidTemplateReferences";
 const LINK_SHARE_NOTES_MARK = "linkShareNotes";
+const TRUSTED_SERVERS_MARK = "trustedServers";
 
 /**
  * The raid templates per server (#1076): after migrateRaidplanServers (same server list). A single
@@ -1119,6 +1123,28 @@ function migrateLinkShareNotes() {
 }
 
 /**
+ * Every server listed now becomes trusted, once (#1073): the mark is new, and for the servers of
+ * before it nothing is to change. Afterwards only a full admin sets it, so a later start must not
+ * touch it: a server entered in the meantime stays without. Servers first, the mark after, like
+ * migrateLinkShareNotes. An empty list (the implicit main server) marks nothing and is done as well.
+ * @returns {string[]} one line, or none
+ */
+function migrateTrustedServers() {
+    if (migrationMarkStore.isDone(TRUSTED_SERVERS_MARK)) return [];
+    const stored = configStore.readStored();
+    const block = stored.discordServers;
+    const raw = block && Array.isArray(block.servers) ? block.servers : [];
+    const turnsOn = (server) => server && typeof server === "object" && server.guildId && server.trusted !== true;
+    const count = raw.filter(turnsOn).length;
+    if (count) {
+        const servers = raw.map((server) => (turnsOn(server) ? { ...server, trusted: true } : server));
+        configStore.writeStored({ ...stored, discordServers: { ...block, servers } });
+    }
+    migrationMarkStore.markDone(TRUSTED_SERVERS_MARK);
+    return count ? [`config.json: ${count} bestehende/r Server als vertrauenswürdig markiert (#1073)`] : [];
+}
+
+/**
  * Run every upgrade once. Never throws - a start must not fail over an old
  * file; the error is logged and the bot comes up with what it can read.
  * @returns {{ changes: string[], error?: Error }}
@@ -1141,6 +1167,7 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
         changes.push(...migrateDiscordFederation());
         // #1078: after the federation step, which turns an old `eventGuilds` block into links.
         changes.push(...migrateLinkShareNotes());
+        changes.push(...migrateTrustedServers());
         // #925: after the federation step, which settles the server list the rights are copied onto.
         changes.push(...migrateServerPermissions());
         const plans = raidplanStore.migrateEventDefaults({ instanceIdsOf: (plan) => (eventStore.getEvent(plan.eventId) || {}).instanceIds || [] });
@@ -1174,6 +1201,6 @@ function migrateSettings({ log = console.log, warn = console.error } = {}) {
 }
 
 module.exports = {
-    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateRaidTemplateServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateLinkShareNotes, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
+    migrateSettings, migrateRaidplanVersions, migrateRaidplanServers, migrateRaidTemplateServers, migrateCharacterVersions, migrateRecruitmentVersions, migrateKaderPlanner, migrateKaderDecisions, migrateCategoryPlanning, migrateCategoryRosters, migrateStoredVersions, migrateCategoryVersions, migrateCouncilProfiles, migrateRoleMessageGuilds, migrateLogGuilds, migrateReportGuilds, migrateDiscordFederation, migrateLinkShareNotes, migrateTrustedServers, migrateServerDefaults, migrateServerPermissions, raidplanDefaultsLine, migrateRaidhelperServers, migrateTopItems,
     migrateCategoryRaidTemplate, migrateVersionSettings, migrateVersionDefaults,
 };

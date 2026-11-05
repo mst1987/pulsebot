@@ -17,10 +17,12 @@
 //       `instances` replaces the flags inside the context, every other flag of
 //       the person stays (merge). An id outside it: 400 outside_context; no
 //       context at all: 400 no_context.
-//       The flags are per account and version and count on every server, so the
-//       server-admin rank (#1072) alone sets none: 403, the rights from roles and
-//       a category's managers stay. The route cannot be marked `sharedData`: the
-//       mark takes the rank off, which sends the user down the category path too.
+//       The flags are per account and version and count on every server, so they are
+//       set from a trusted server only (#1105, #1073): on any other a role or a
+//       category's managers (by role or by account) open nothing, a full admin all.
+//       The server-admin rank (#1072) alone sets none anywhere: 403, the rights from
+//       roles and a category's managers stay. The route cannot be marked `sharedData`:
+//       the mark takes the rank off, which sends the user down the category path too.
 //
 // Being orga makes nobody a leader: only a flag does (services/roster/leaderFlags.js).
 const { ok, error: apiError } = require("../../http/apiResponse");
@@ -33,6 +35,7 @@ const { listSignups } = require("../../../stores/events/signupStore");
 const { rosterOfEvent } = require("../../../services/roster/categoryRoster");
 const { profileLeadVersions, leadInstances, eventLeadContext, rosterLeadContext, setLeadsInContext } = require("../../../services/roster/leaderFlags");
 const { activeRoster } = require("../../roster/activeRoster");
+const { mayWriteSharedData } = require("../../http/serverQuery");
 const { signupEventIdOf } = require("../../../utils/raidGroup");
 const profiles = require("../../../stores/roster/raiderProfileStore");
 const { getConfig } = require("../../../stores/settings/settingsStore");
@@ -100,6 +103,9 @@ async function rolesMaySetLeads(body, query, req) {
 
 /** PUT /api/leads — the orga sets (or with an empty list removes) somebody's flags inside its context. */
 const putLeads = withUser({ orgaScoped: scopeOf, write: "raids", csrf: true, body: true, archived: (body) => str(body.event) }, async ({ user, body, query, req, res }) => {
+    if (!mayWriteSharedData(user, req, "raids")) {
+        return apiError(res, 403, "forbidden", "Raidleiter-Marken gelten auf allen Servern: Das geht nur auf einem vertrauenswürdigen Server.");
+    }
     if (user.isServerAdmin && !(await rolesMaySetLeads(body, query, req))) {
         return apiError(res, 403, "forbidden", "Raidleiter-Marken gelten auf allen Servern: Dafür reicht der Server-Admin-Rang nicht.");
     }

@@ -126,9 +126,9 @@ export default function DiscordServersSection({ onConfig, crumb }: {
     useEffect(load, []);
 
     /** Saves only the given fields of discordServers; true when it worked. */
-    const save = async (patch: Partial<DiscordServers>, okText: string): Promise<boolean> => {
+    const save = async (patch: Partial<DiscordServers>, okText: string, extra: Record<string, unknown> = {}): Promise<boolean> => {
         try {
-            const { config } = await updateSettings({ discordServers: patch } as Partial<AdminConfig>);
+            const { config } = await updateSettings({ discordServers: patch, ...extra } as Partial<AdminConfig>);
             onConfig(config);
             toast(okText);
             load();
@@ -158,6 +158,8 @@ export default function DiscordServersSection({ onConfig, crumb }: {
     const now = Date.now();
     // #906: the switch "PuG-Server" of a configured server (missing = off).
     const isPug = (guildId: string) => config.servers.some((s) => s.guildId === guildId && s.pug === true);
+    // #1073: the mark of a server. The server list never carries it to the backend, it has its own key.
+    const isTrusted = (guildId: string) => config.servers.some((s) => s.guildId === guildId && s.trusted === true);
 
     const repost = async (link: ServerLink) => {
         const key = linkKey(link);
@@ -374,6 +376,8 @@ export default function DiscordServersSection({ onConfig, crumb }: {
                     <span className="srv-server-text">
                         <b className="srv-name">{s.name || s.id}</b>
                         {s.label && <span className="srv-muted">{s.label}</span>}
+                        {/* #1073: on every width, unlike the line below, which wide screens hide. */}
+                        {isTrusted(s.id) && <span className="srv-trust">{t("settings.discordServers.trustedServer")}</span>}
                         {/* Narrow screens hide the categories and members columns; this line carries them
                             instead, with the noun even for none ("0 Raid-Kategorien" rather than a bare "keine"). */}
                         <span className="srv-sub">
@@ -399,7 +403,7 @@ export default function DiscordServersSection({ onConfig, crumb }: {
             cell: (s) => (
                 <span className="row-actions">
                     <IconButton size="sm" icon={<PenIcon />} tip={t("settings.discordServers.editServer")} tipSub={t("settings.discordServers.editServerSub")}
-                        onClick={() => { setEditServer({ guildId: s.id, label: s.label, ...(isPug(s.id) ? { pug: true } : {}) }); setDialog("server"); }} />
+                        onClick={() => { setEditServer({ guildId: s.id, label: s.label, ...(isPug(s.id) ? { pug: true } : {}), ...(isTrusted(s.id) ? { trusted: true } : {}) }); setDialog("server"); }} />
                     <IconButton size="sm" tone="danger" icon={<TrashIcon />} tip={t("settings.discordServers.removeServer")} onClick={() => removeServer(s)} />
                 </span>
             ),
@@ -561,10 +565,11 @@ export default function DiscordServersSection({ onConfig, crumb }: {
                     onCopy={copyInvite}
                     onInvite={(guildId, regenerate) => runInvite({ guildId }, regenerate, `server:${guildId}`)}
                     onInviteChannel={saveInviteChannel}
-                    onSave={async (entry) => {
+                    onSave={async ({ trusted, ...entry }) => {
                         const editing = config.servers.some((s) => s.guildId === entry.guildId);
                         const servers = editing ? config.servers.map((s) => (s.guildId === entry.guildId ? entry : s)) : [...config.servers, entry];
-                        if (await save({ servers }, editing ? t("settings.discordServers.saved") : t("settings.discordServers.serverAdded"))) setDialog(null);
+                        const mark = editing && !!trusted !== isTrusted(entry.guildId) ? { trustedServers: { [entry.guildId]: !!trusted } } : {};
+                        if (await save({ servers }, editing ? t("settings.discordServers.saved") : t("settings.discordServers.serverAdded"), mark)) setDialog(null);
                     }} />
             )}
             {dialog === "channels" && editChannels && (
@@ -826,7 +831,7 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
                     return;
                 }
             }
-            await onSave({ guildId: fields.guildId, label: fields.label.trim(), ...(fields.pug ? { pug: true } : {}) });
+            await onSave({ guildId: fields.guildId, label: fields.label.trim(), ...(fields.pug ? { pug: true } : {}), ...(fields.trusted ? { trusted: true } : {}) });
         } finally { setBusy(false); }
     };
 
@@ -879,6 +884,14 @@ function ServerModal({ data, entry, invite, inviteBusy, onCopy, onInvite, onInvi
                         onChange={(on) => setFields({ ...fields, pug: on })} />
                     <InfoTip head={t("settings.discordServers.pugServer")} sub={t("settings.discordServers.pugServerSub")} />
                 </div>
+                {/* #1073: a server added just now starts without the mark, so the switch waits until it is listed. */}
+                {entry && (
+                    <div className="srv-pug">
+                        <Switch checked={!!fields.trusted} label={t("settings.discordServers.trustedServer")}
+                            onChange={(on) => setFields({ ...fields, trusted: on })} />
+                        <InfoTip head={t("settings.discordServers.trustedServer")} sub={t("settings.discordServers.trustedServerSub")} />
+                    </div>
+                )}
                 {withInvites && invite && (
                     <>
                         <div className="dlg-field">

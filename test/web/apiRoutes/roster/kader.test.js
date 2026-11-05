@@ -6,6 +6,9 @@ const fs = require("fs");
 const { status, body, routerClient } = require("../../../helpers/http");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(() => null),
     getRealUser: jest.fn(() => null),
@@ -346,6 +349,18 @@ describe("web/apiRoutes/kader", () => {
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).toContain("Aldric Sturmwind");
             auth.getUser.mockReturnValue(RANK);
             expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+        });
+
+        it("does not count a signup for a role on a server without the mark (#1073)", async () => {
+            onlyBea();
+            signedUpIds.mockReturnValue(new Set([U1]));
+            auth.getUser.mockReturnValue(granted("read"));
+            mockTrusted = false;
+            try {
+                expect(JSON.stringify(body(await get("/api/kader", { version: "forever" })))).not.toContain("Aldric Sturmwind");
+            } finally {
+                mockTrusted = true;
+            }
         });
     });
 

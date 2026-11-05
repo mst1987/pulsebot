@@ -1,5 +1,8 @@
 const { json, routerClient } = require("../../../helpers/http");
 
+// #1073: roles count for data of every server on a server with the mark only
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({ ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"), serverIsTrusted: jest.fn(() => mockTrusted) }));
 jest.mock("../../../../src/web/http/auth", () => ({
     getUser: jest.fn(),
     // "Ansicht als Rolle": the caller's own rights, and starting/stopping the view
@@ -277,6 +280,18 @@ describe("web/apiRoutes/raiderCharacters", () => {
             auth.getUserWithoutRank.mockReturnValue({ ...roleUser, access: { settings: { read: true, write: false } } });
             expect((await get("/api/raider-characters", { category: "cat-x" })).writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             expect(json(await post("/api/raider-characters", body)).error.code).toBe("other_server");
+        });
+
+        it("refuses a role another server's category on a server without the mark (#1073)", async () => {
+            auth.getUser.mockReturnValue(roleUser);
+            auth.getUserWithoutRank.mockReturnValue({ ...roleUser, access: {} });
+            mockTrusted = false;
+            try {
+                expect(json(await get("/api/raider-characters", { category: "cat-x" })).error.code).toBe("other_server");
+                expect(json(await post("/api/raider-characters", body)).error.code).toBe("other_server");
+            } finally {
+                mockTrusted = true;
+            }
         });
 
         it("refuses to read a category of another server", async () => {
