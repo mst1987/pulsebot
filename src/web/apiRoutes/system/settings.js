@@ -53,6 +53,7 @@ const { logChannelsOf, logChannelsFromBody } = require("../../../services/logche
 const { wclGuildsOf, wclGuildsFromBody } = require("../../../services/logcheck/wclGuildSettings");
 const { allTwitchStreamers } = require("../../../services/twitch/twitchSettings");
 const { twitchCredentialsRejected } = require("../../../services/twitch/twitchJob");
+const { openRequests: openTwitchRequests } = require("../../../services/twitch/twitchRequests");
 const { normalizeCategoryPlanning } = require("../../../services/events/planning");
 const { normalizeCategorySignupCharacters } = require("../../../services/signups/signupCharacters");
 const { upcomingByVersion, archiveExport, archiveCsv, versionsWithData } = require("../../../services/versions/contentVersions");
@@ -495,6 +496,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // another server reads "role · server" there, not "unknown". Full admins only.
         roleOrigins: user.isAdmin ? roleOriginsOf(config, guildId) : {},
         activeGuildId: guildId,
+        // the mark at the section Twitch: open raider requests of this server, a number only
+        twitchRequestsOpen: openTwitchRequests(guildId).length,
         // Einstellungen → Server → Raid-Helper (#927): the active server's block, masked (never the key).
         raidhelper: user.isAdmin ? maskedRaidhelper(raidhelperGuildOf(req, config), config) : null,
         // whether the active server reads Raid-Helper at all - without it a category offers only EventHelper

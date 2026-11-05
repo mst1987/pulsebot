@@ -3,7 +3,7 @@ import { useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../../components/shell/Shell";
 import {
     canAccess, canAccessAny, editProfileCharacter, getLogCharacters, getProfile, getProfileRaiding, getRaiderAttendance, saveProfile,
-    removeProfileCharacter, getCalendarTokens, getSyncKeys,
+    removeProfileCharacter, getCalendarTokens, getProfileTwitch, getSyncKeys,
     type ApiError, type LeadVersion, type ProfileCharacter, type ProfilePatch, type ProfileWishItem, type RaiderProfile,
 } from "../../api";
 import { useApi } from "../../hooks/useApi";
@@ -64,6 +64,8 @@ export default function ProfilePage() {
     // a failed load hides it, as for a raider.
     const syncKeys = useApi(() => getSyncKeys(), []);
     const sync = syncKeys.error ? null : syncKeys.data;
+    // Own Twitch requests: a failed load hides the part.
+    const twitch = useApi(() => getProfileTwitch(), []);
 
     const profile = data?.profile || null;
     // One version at a time (#741): the page shows the characters of the menu's
@@ -262,6 +264,8 @@ export default function ProfilePage() {
                         onCalendar={setCal}
                         syncKeys={sync}
                         onSyncKeys={syncKeys.setData}
+                        twitch={twitch.error ? null : twitch.data}
+                        onTwitch={twitch.setData}
                         attendance={attendance.data}
                         attendanceFailed={!!attendance.error && !attendance.data}
                         leadVersions={(data.leadVersions || []).filter((v) => !shownVersion || v.id === shownVersion)}

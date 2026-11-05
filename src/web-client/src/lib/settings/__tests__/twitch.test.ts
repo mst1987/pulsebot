@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { inLang } from "../../../test/i18n";
 import type { ApiError, TwitchStreamerStatus } from "../../../api";
 import {
-    addTwitchGame, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText, twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
+    addTwitchGame, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText, twitchRequestErrorText, twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
 } from "../twitch";
 
 describe("twitchRoleWontPing", () => {
@@ -140,6 +140,16 @@ describe("twitchErrorText", () => {
 
     it("falls back to the server's message for anything else", () => {
         expect(twitchErrorText(apiError("no_idea"))).toBe("Server sagt nein");
+    });
+});
+
+describe("twitchRequestErrorText", () => {
+    it("says the request is gone instead of the streamer", () => {
+        expect(twitchRequestErrorText(apiError("not_found"))).toBe("Diese Anfrage gibt es nicht mehr.");
+    });
+
+    it("words the rest like the list", () => {
+        expect(twitchRequestErrorText(apiError("too_many"))).toBe(twitchErrorText(apiError("too_many")));
     });
 });
 

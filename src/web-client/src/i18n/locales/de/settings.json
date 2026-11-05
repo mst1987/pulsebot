@@ -143,6 +143,10 @@
             "one": "{count} aktive Raid-Kategorien",
             "other": "{count} aktive Raid-Kategorien"
         },
+        "badgeTwitch": {
+            "one": "{count} offene Twitch-Anfrage",
+            "other": "{count} offene Twitch-Anfragen"
+        },
         "unsaved": {
             "one": "{count} ungespeicherte Änderung",
             "other": "{count} ungespeicherte Änderungen"
@@ -1831,9 +1835,34 @@
             "bad_credentials": "Nicht geprüft: Twitch lehnt die Zugangsdaten ab. Bitte unter Einstellungen › Verbindungen prüfen.",
             "failed": "Prüfung fehlgeschlagen."
         },
+        "requests": {
+            "aria": "Offene Anfragen von Raidern",
+            "title": {
+                "one": "{count} offene Anfrage",
+                "other": "{count} offene Anfragen"
+            },
+            "full": "Die Liste ist voll. Freigeben geht erst wieder, wenn ein Eintrag entfernt ist.",
+            "col": {
+                "raider": "Raider",
+                "login": "Twitch-Name",
+                "since": "Seit"
+            },
+            "approve": "Freigeben",
+            "reject": "Ablehnen",
+            "rejectTitle": "Anfrage ablehnen?",
+            "rejectText": "{name} sieht im Profil, dass {login} abgelehnt wurde, und kann erneut anfragen.",
+            "approved": "{login} steht jetzt in der Liste.",
+            "rejected": "Anfrage von {login} abgelehnt.",
+            "gone": "Diese Anfrage gibt es nicht mehr."
+        },
         "modal": {
             "addTitle": "Streamer hinzufügen",
             "editTitle": "Streamer bearbeiten",
+            "approveTitle": "Anfrage freigeben",
+            "approveAction": "Freigeben",
+            "requestedBy": "Angefragt von {name}",
+            "requestLogin": "Twitch-Name",
+            "approveNeedsChannel": "Erst einen Kanal wählen.",
             "login": "Name oder Link",
             "loginPlaceholder": "twitch.tv/name",
             "channel": "Kanal",
@@ -1856,6 +1885,7 @@
         },
         "error": {
             "invalid_login": "Das ist kein gültiger Twitch-Name oder -Link.",
+            "request_changed": "Diese Anfrage hat sich geändert. Die Liste ist neu geladen, bitte noch einmal prüfen.",
             "duplicate_streamer": "Dieser Streamer steht schon in der Liste.",
             "missing_channel": "Bitte einen Kanal wählen.",
             "invalid_channel": "In diesen Kanal kann der Bot nichts posten. Bitte einen Textkanal wählen.",

@@ -1,10 +1,10 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useOutletContext } from "react-router-dom";
 import { useT } from "../../../i18n";
 import { useApi } from "../../../hooks/useApi";
 import {
-    addTwitchStreamer, canAccess, checkTwitchStreamers, getTwitchSettings, removeTwitchStreamer, updateTwitchStreamer,
-    type ApiError, type Role, type TextChannel, type TwitchLimits, type TwitchMention, type TwitchStreamer, type TwitchView,
+    addTwitchStreamer, approveTwitchRequest, canAccess, checkTwitchStreamers, getTwitchSettings, rejectTwitchRequest, removeTwitchStreamer, updateTwitchStreamer,
+    type ApiError, type Role, type TextChannel, type TwitchLimits, type TwitchMention, type TwitchRequest, type TwitchStreamer, type TwitchView,
 } from "../../../api";
 import type { ShellContext } from "../../../components/shell/Shell";
 import { useToast } from "../../../components/shell/Jobs";
@@ -14,24 +14,31 @@ import Chip from "../../../components/ui/Chip";
 import Field from "../../../components/ui/form/Field";
 import RaidLoader from "../../../components/ui/layout/RaidLoader";
 import DataTable, { type Column } from "../../../components/ui/table/DataTable";
-import { PenIcon, PlusIcon, SaveIcon, TrashIcon } from "../../../components/ui/icons/icons";
+import { CheckIcon, PenIcon, PlusIcon, SaveIcon, TrashIcon } from "../../../components/ui/icons/icons";
 import AllSettingsLink from "../../../components/settings/AllSettingsLink";
 import { ChannelPicker, RolePicker } from "../../../components/settings/settingsUi";
 import { useTableSort, type Dir } from "../../../lib/ui/tableSort";
 import {
     addTwitchGame, TWITCH_PLACEHOLDERS, twitchCheckText, twitchErrorText, twitchFilterText, twitchLastRunText,
-    twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
+    twitchRequestErrorText, twitchRoleWontPing, twitchStatusRank, twitchStatusWords, twitchUrl,
 } from "../../../lib/settings/twitch";
+import TwitchRequests from "./TwitchRequests";
 
 type SortKey = "login" | "channel" | "role" | "filter" | "status";
 const SORT_DEFAULTS: Record<SortKey, Dir> = { login: "asc", channel: "asc", role: "asc", filter: "asc", status: "asc" };
 
 /**
  * Twitch stream announcements of the active server (Einstellungen › Server › Twitch,
- * docs/twitch.md): one sortable table with the status in words, one dialog for adding and
- * editing. It saves on its own; a tab left open after a server switch gets 409 and stops.
+ * docs/twitch.md): raiders' waiting requests above one sortable table with the status in
+ * words, one dialog for adding, editing and approving. It saves on its own; a tab left open
+ * after a server switch gets 409 and stops. `onRequestsChange` feeds the section's badge.
  */
-export default function SettingsTwitch({ guildId, channels, roles }: { guildId: string; channels: TextChannel[]; roles: Role[] }) {
+export default function SettingsTwitch({ guildId, channels, roles, onRequestsChange }: {
+    guildId: string;
+    channels: TextChannel[];
+    roles: Role[];
+    onRequestsChange?: (count: number) => void;
+}) {
     const t = useT();
     const toast = useToast();
     const ask = useConfirm();
@@ -44,6 +51,13 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
     const [checking, setChecking] = useState(false);
     /** The dialog: null closed, "new" adding, otherwise the entry being edited. */
     const [editing, setEditing] = useState<TwitchStreamer | "new" | null>(null);
+    /** The same dialog for a raider's request: the name is theirs, the rest the orga's. */
+    const [approving, setApproving] = useState<TwitchRequest | null>(null);
+
+    const openRequests = view && view.guildId === guildId ? view.requests.length : null;
+    useEffect(() => {
+        if (openRequests !== null) onRequestsChange?.(openRequests);
+    }, [openRequests, onRequestsChange]);
 
     const sort = useTableSort<SortKey>("twitch-streamers-sort", SORT_DEFAULTS, "status");
     const channelName = useMemo(() => new Map(channels.map((c) => [c.id, c.name])), [channels]);
@@ -83,6 +97,26 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
             toast(t("settings.twitch.removed", { login }));
         } catch (e) {
             failed(e as ApiError);
+        }
+    }
+
+    async function reject(request: TwitchRequest) {
+        const sure = await ask({
+            title: t("settings.twitch.requests.rejectTitle"),
+            text: t("settings.twitch.requests.rejectText", { name: request.userName || request.userId, login: request.login }),
+            action: t("settings.twitch.requests.reject"),
+            tone: "danger",
+        });
+        if (!sure) return;
+        try {
+            page.setData(await rejectTwitchRequest(guildId, request.userId, request.login));
+            toast(t("settings.twitch.requests.rejected", { login: request.login }));
+        } catch (e) {
+            const err = e as ApiError;
+            if (err.code === "server_switched") setSwitched(true);
+            // withdrawn or asked anew in the meantime: the list on screen is out of date
+            if (err.code === "not_found" || err.code === "request_changed") void page.reload();
+            toast(twitchRequestErrorText(err), "err");
         }
     }
 
@@ -192,6 +226,7 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
                     <AllSettingsLink section="verbindungen" inline>{t("settings.twitch.badCredentialsLink")}</AllSettingsLink>
                 </p>
             )}
+            <TwitchRequests requests={view.requests} writable={writable} full={full} onApprove={setApproving} onReject={(r) => void reject(r)} />
             <div className="tws-head">
                 {writable && (
                     <Button variant="go" icon={<PlusIcon />} disabled={full} onClick={() => setEditing("new")}>{t("settings.twitch.add")}</Button>
@@ -236,25 +271,59 @@ export default function SettingsTwitch({ guildId, channels, roles }: { guildId: 
                     }}
                 />
             )}
+            {approving && (
+                <StreamerDialog
+                    guildId={guildId}
+                    streamer={null}
+                    request={approving}
+                    limits={view.limits}
+                    mention={view.mention}
+                    channels={channels}
+                    roles={roles}
+                    onClose={() => setApproving(null)}
+                    onSaved={(next, login) => {
+                        page.setData(next);
+                        setApproving(null);
+                        toast(t("settings.twitch.requests.approved", { login }));
+                    }}
+                    onGone={() => {
+                        setApproving(null);
+                        void page.reload();
+                    }}
+                    onStale={() => void page.reload()}
+                    onSwitched={() => {
+                        setSwitched(true);
+                        setApproving(null);
+                    }}
+                />
+            )}
         </div>
     );
 }
 
-/** Adding or editing one streamer: the name stays fixed once saved, it identifies the entry. */
-function StreamerDialog({ guildId, streamer, limits, mention, channels, roles, onClose, onSaved, onSwitched }: {
+/**
+ * Adding or editing one streamer, or approving a raider's request: the name stays fixed once
+ * saved, it identifies the entry, and on a request it is what the raider asked for.
+ */
+function StreamerDialog({ guildId, streamer, request = null, limits, mention, channels, roles, onClose, onSaved, onGone, onStale, onSwitched }: {
     guildId: string;
     streamer: TwitchStreamer | null;
+    request?: TwitchRequest | null;
     limits: TwitchLimits;
     mention: TwitchMention;
     channels: TextChannel[];
     roles: Role[];
     onClose: () => void;
     onSaved: (view: TwitchView, login: string) => void;
+    /** The request does not exist any more, or is not the one the orga saw. */
+    onGone?: () => void;
+    /** The list behind the dialog is out of date; the request itself still stands, the dialog stays. */
+    onStale?: () => void;
     onSwitched: () => void;
 }) {
     const t = useT();
     const toast = useToast();
-    const [login, setLogin] = useState(streamer?.login || "");
+    const [login, setLogin] = useState(request?.login || streamer?.login || "");
     const [channelId, setChannelId] = useState(streamer?.channelId || "");
     const [roleId, setRoleId] = useState(streamer?.roleId || "");
     const [text, setText] = useState(streamer?.text || "");
@@ -281,12 +350,17 @@ function StreamerDialog({ guildId, streamer, limits, mention, channels, roles, o
         setBusy(true);
         try {
             const input = { login: login.trim(), channelId, roleId, text, games: pending.games };
-            const view = streamer ? await updateTwitchStreamer(guildId, input) : await addTwitchStreamer(guildId, input);
+            let view: TwitchView;
+            if (request) view = await approveTwitchRequest(guildId, { userId: request.userId, login: request.login, channelId, roleId, text, games: pending.games });
+            else if (streamer) view = await updateTwitchStreamer(guildId, input);
+            else view = await addTwitchStreamer(guildId, input);
             onSaved(view, login.trim());
         } catch (e) {
             const err = e as ApiError;
             if (err.code === "server_switched") onSwitched();
-            toast(twitchErrorText(err), "err");
+            if (request && (err.code === "not_found" || err.code === "request_changed")) onGone?.();
+            if (request && (err.code === "duplicate_streamer" || err.code === "too_many")) onStale?.();
+            toast(request ? twitchRequestErrorText(err) : twitchErrorText(err), "err");
         } finally {
             setBusy(false);
         }
@@ -298,28 +372,43 @@ function StreamerDialog({ guildId, streamer, limits, mention, channels, roles, o
             onClose={onClose}
             icon="twitch"
             tone="settings"
-            title={streamer ? t("settings.twitch.modal.editTitle") : t("settings.twitch.modal.addTitle")}
+            title={request ? t("settings.twitch.modal.approveTitle") : streamer ? t("settings.twitch.modal.editTitle") : t("settings.twitch.modal.addTitle")}
             width={480}
-            initialFocus="input"
+            initialFocus={request ? "#tws-channel" : "input"}
             footer={(
                 <>
                     <Button variant="ghost" onClick={onClose} disabled={busy}>{t("common.cancel")}</Button>
-                    <Button variant="go" icon={<SaveIcon />} onClick={() => void save()} disabled={busy || !login.trim() || !channelId || textOver}>
-                        {busy ? t("settings.saving") : t("common.save")}
+                    <Button
+                        variant={request ? "yes" : "go"}
+                        icon={request ? <CheckIcon /> : <SaveIcon />}
+                        onClick={() => void save()}
+                        disabled={busy || !login.trim() || !channelId || textOver}
+                    >
+                        {busy ? t("settings.saving") : request ? t("settings.twitch.modal.approveAction") : t("common.save")}
                     </Button>
                 </>
             )}
         >
-            <Field label={t("settings.twitch.modal.login")} htmlFor="tws-login" className="dlg-field tws-field">
+            <Field
+                label={request ? t("settings.twitch.modal.requestLogin") : t("settings.twitch.modal.login")}
+                htmlFor="tws-login"
+                className="dlg-field tws-field"
+                hint={request ? t("settings.twitch.modal.requestedBy", { name: request.userName || request.userId }) : undefined}
+            >
                 <input
                     id="tws-login"
                     value={login}
-                    readOnly={!!streamer}
+                    readOnly={!!streamer || !!request}
                     placeholder={t("settings.twitch.modal.loginPlaceholder")}
                     onChange={(e) => setLogin(e.target.value)}
                 />
             </Field>
-            <Field label={t("settings.twitch.modal.channel")} htmlFor="tws-channel" className="dlg-field tws-field">
+            <Field
+                label={t("settings.twitch.modal.channel")}
+                htmlFor="tws-channel"
+                className="dlg-field tws-field"
+                hint={request && !channelId ? t("settings.twitch.modal.approveNeedsChannel") : undefined}
+            >
                 <ChannelPicker id="tws-channel" value={channelId} channels={channels} onChange={setChannelId} placeholder={t("settings.twitch.modal.channelPlaceholder")} />
             </Field>
             <Field label={t("settings.twitch.modal.role")} htmlFor="tws-role" className="dlg-field tws-field">

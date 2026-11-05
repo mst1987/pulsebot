@@ -91,6 +91,11 @@ export function twitchErrorText(err: ApiError): string {
     }
 }
 
+/** The same for a raider's request: "not found" there means the request is gone, not a streamer. */
+export function twitchRequestErrorText(err: ApiError): string {
+    return err.code === "not_found" ? t("settings.twitch.requests.gone") : twitchErrorText(err);
+}
+
 /**
  * What adding a game name to the filter would do: the new list, or why not. Compared
  * without case like the server does, so a refused name never disappears silently.
