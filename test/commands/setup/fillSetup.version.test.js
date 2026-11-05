@@ -22,7 +22,7 @@ describe("commands/setup/fillSetup by game version", () => {
     beforeEach(() => jest.clearAllMocks());
 
     it("refuses a Forever event with a hint and does not fill the sheet", async () => {
-        eventStore.getEvent.mockReturnValue({ id: "eh-1", title: "Ony", versionId: "forever" });
+        eventStore.getEvent.mockReturnValue({ id: "eh-1", guildId: "guild-1", title: "Ony", versionId: "forever" });
         await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-1" } }), {});
         expect(reply.botEditReply.mock.calls[0][1]).toBe("Fehler");
         expect(reply.botEditReply.mock.calls[0][2]).toMatch(/keine Raidsheet-Vorlage/);
@@ -30,7 +30,7 @@ describe("commands/setup/fillSetup by game version", () => {
     });
 
     it("fills the sheet of a TBC event as before", async () => {
-        eventStore.getEvent.mockReturnValue({ id: "eh-2", title: "Kara", versionId: "tbc" });
+        eventStore.getEvent.mockReturnValue({ id: "eh-2", guildId: "guild-1", title: "Kara", versionId: "tbc" });
         await fillSetup.execute(mockInteraction({ options: { setup_id: "eh-2" } }), {});
         expect(fillSetupSheet).toHaveBeenCalledTimes(1);
     });

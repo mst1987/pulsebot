@@ -337,5 +337,5 @@ async function userMayAny(userId, areas, level = "read", { guildId } = {}) {
 module.exports = {
     BASE_ACCESS, NO_ACCESS, ALL_ACCESS, UNKNOWN_MEMBER, UNKNOWN_USER,
     computeGuildAccess, resolveGuildAccess, accessForGuild, withoutServerAdminRank, withoutDelistedRank, sharedDataAccess,
-    allServersAccess, computeAccess, resolveAccess, memberRoleIds, userMayAny,
+    allServersAccess, computeAccess, resolveAccess, memberRoleIds, memberIsDiscordAdmin, userMayAny,
 };

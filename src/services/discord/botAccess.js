@@ -25,7 +25,8 @@ const { normalizeRule, normalizeBotCommandAccess } = require("../../config/botCo
 const { langOfInteraction } = require("./botLanguage");
 const { tr } = require("../../utils/i18n/botText");
 const { hasFeature } = require("../plans/serverPlan");
-const { serverIsTrusted } = require("./roles/guildRoles");
+const { serverIsTrusted, listedServerIds } = require("./roles/guildRoles");
+const { PermissionFlagsBits } = require("discord.js");
 
 // accessOf chains are one link deep in practice; the cap only guards a loop.
 // The "full admin on another server" answer: remembered a short while per user, and never
@@ -137,7 +138,8 @@ async function eventMemberRoles(interaction, guildId) {
         console.warn("botAccess: member list unavailable:", e.message);
     }
     try {
-        return roleIdsOf(await guild.members.fetch(userId));
+        // at most ADMIN_LOOKUP_MS: a hanging fetch means no roles (fail closed), never a hung check
+        return roleIdsOf(await withTimeout(Promise.resolve().then(() => guild.members.fetch(userId)), ADMIN_LOOKUP_MS, null));
     } catch {
         return [];
     }
@@ -191,6 +193,13 @@ async function guardInteraction(interaction, command, commands) {
     const roleIds = await eventMemberRoles(interaction, guildId);
     const result = resolveBotAccess(name, { id: userId, roleIds }, { commands, config, fullAdminOnly });
     if (result.allowed) return true;
+    // The rank Server-Admin (#1073): on its own listed server it passes every rule a server
+    // could set there, "Nur Admins" too - never a command on shared data (#1072, Projektfalle 32),
+    // not even on a marked server, and never in a DM without a record (no server, no rank).
+    if (!commandSharesData(command, commands) && await isServerAdminOf(interaction, guildId, stored)) {
+        console.log(`Bot access: ${name} for ${userId} as server admin of ${guildId}`);
+        return true;
+    }
     // a full admin through an admin role on another server (#925): asked only on a refusal
     if (await isFullAdminAnywhere(userId)) return true;
     console.log(`Bot access denied: ${name} for ${userId}`);
@@ -245,6 +254,78 @@ async function recordGuildOf(command, interaction) {
     }
 }
 
+/** A promise that settles with `fallback` after `ms` when `promise` has not settled by then. */
+async function withTimeout(promise, ms, fallback) {
+    let timer;
+    const late = new Promise((resolve) => {
+        timer = setTimeout(() => resolve(fallback), ms);
+        if (timer.unref) timer.unref();
+    });
+    try {
+        return await Promise.race([promise, late]);
+    } finally {
+        clearTimeout(timer);
+    }
+}
+
+/**
+ * Whether the user holds the rank Server-Admin on `guildId` - the definition of the web
+ * (userAccess.computeGuildAccess): Discord's "Administrator" right or the ownership of a
+ * server of `discordServers.servers`; the home guild or an overview target outside that
+ * list never gives it. On the server itself the interaction carries the answer
+ * (`memberPermissions`, resolved by Discord - no fetch, no delay); in a DM about a record
+ * the member is fetched from that server, at most ADMIN_LOOKUP_MS, else "no" (fail closed).
+ * Without a server (a DM without a record) never.
+ */
+async function isServerAdminOf(interaction, guildId, stored) {
+    const gid = String(guildId || "").trim();
+    if (!gid || !interaction) return false;
+    let listed;
+    try {
+        listed = new Set(listedServerIds(stored).map((id) => String(id).trim()));
+    } catch {
+        return false;
+    }
+    if (!listed.has(gid)) return false;
+    const userId = String(interaction.user && interaction.user.id || "");
+    if (!userId) return false;
+    const clickedId = String(interaction.guildId || (interaction.guild && interaction.guild.id) || "");
+    if (clickedId) {
+        if (clickedId !== gid) return false;
+        const guild = interaction.guild;
+        if (guild && guild.ownerId && String(guild.ownerId) === userId) return true;
+        const perms = interaction.memberPermissions;
+        try {
+            return !!perms && typeof perms.has === "function" && perms.has(PermissionFlagsBits.Administrator) === true;
+        } catch {
+            return false;
+        }
+    }
+    const client = interaction.client || discord.getClient();
+    const guild = discord.getGuild(gid)
+        || (client && client.guilds && client.guilds.cache && client.guilds.cache.get(gid));
+    if (!guild || !guild.members || typeof guild.members.fetch !== "function") return false;
+    if (guild.ownerId && String(guild.ownerId) === userId) return true;
+    const lookup = Promise.resolve()
+        .then(() => guild.members.fetch(userId))
+        .then((member) => userAccess.memberIsDiscordAdmin(member), () => false);
+    return withTimeout(lookup, ADMIN_LOOKUP_MS, false);
+}
+
+/**
+ * For a gate outside the router that asks a rule by name (a button prefix, a reaction):
+ * whether the rank Server-Admin passes it, exactly as in guardInteraction - never for a
+ * rule on shared data, only on `guildId` itself. Never throws.
+ */
+async function serverAdminPasses(commandName, interaction, guildId, { commands, stored } = {}) {
+    try {
+        if (commandSharesData({ name: String(commandName || "") }, commands)) return false;
+        return await isServerAdminOf(interaction, guildId, stored || getConfig());
+    } catch {
+        return false;
+    }
+}
+
 /** The role lookup behind isFullAdminAnywhere, shared by every caller while it runs. */
 function adminLookup(userId) {
     const hit = adminAnywhere.get(userId);
@@ -274,16 +355,7 @@ async function isFullAdminAnywhere(userId, { timeoutMs = ADMIN_LOOKUP_MS } = {})
     if (!id) return false;
     const hit = adminAnywhere.get(id);
     if (hit && !hit.pending && Date.now() - hit.at < ADMIN_CACHE_MS) return hit.value;
-    let timer;
-    const late = new Promise((resolve) => {
-        timer = setTimeout(() => resolve(false), timeoutMs);
-        if (timer.unref) timer.unref();
-    });
-    try {
-        return await Promise.race([adminLookup(id), late]);
-    } finally {
-        clearTimeout(timer);
-    }
+    return withTimeout(adminLookup(id), timeoutMs, false);
 }
 
 /** Tests: forget the cached admin answers. */
@@ -292,7 +364,7 @@ function resetAdminCache() {
 }
 
 module.exports = {
-    isFullAdminAnywhere, resetAdminCache, recordGuildOf,
+    isFullAdminAnywhere, isServerAdminOf, serverAdminPasses, resetAdminCache, recordGuildOf,
     accessOwner, ruleFor, isBotAdmin, resolveBotAccess,
-    eventMemberRoles, denyMessage, guardInteraction,
+    eventMemberRoles, denyMessage, guardInteraction, withTimeout, ADMIN_LOOKUP_MS,
 };

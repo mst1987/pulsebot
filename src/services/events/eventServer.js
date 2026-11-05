@@ -106,4 +106,4 @@ function allOnServer(entries, guildId) {
     return list.every((entry) => serverOfEntry(entry) === active);
 }
 
-module.exports = { serverOfEntry, allOnServer, guildOfCategory, liveGuildOf };
+module.exports = { serverOfEntry, allOnServer, guildOfCategory, guildOfRaid, liveGuildOf };

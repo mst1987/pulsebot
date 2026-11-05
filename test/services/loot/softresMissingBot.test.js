@@ -18,6 +18,7 @@ jest.mock("../../../src/services/discord/botAccess", () => ({
     ruleFor: jest.fn(),
     resolveBotAccess: jest.fn(),
     eventMemberRoles: jest.fn(),
+    serverAdminPasses: jest.fn(async () => false),
     serverIds: jest.fn(() => ["g1"]),
 }));
 jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: jest.fn(() => ({})) }));
@@ -47,6 +48,7 @@ beforeEach(() => {
     botAccess.ruleFor.mockReset().mockReturnValue({ mode: "roles", roleIds: ["orga"] });
     botAccess.resolveBotAccess.mockReset().mockReturnValue({ allowed: true });
     botAccess.eventMemberRoles.mockReset().mockResolvedValue(["orga"]);
+    botAccess.serverAdminPasses.mockReset().mockResolvedValue(false);
 });
 
 describe("services/loot/softresMissingBot", () => {
@@ -104,6 +106,22 @@ describe("services/loot/softresMissingBot", () => {
             const payload = i.editReply.mock.calls[0][0];
             expect(cardButtons(payload)).toEqual([]);
             expect(asEmbed(payload).footer.text).toBe("Pingen kann nur die Orga.");
+            expect(botAccess.serverAdminPasses).toHaveBeenCalledWith("softres-ping", i, "home", expect.objectContaining({ stored: {} }));
+        });
+
+        it("shows \"Jetzt pingen\" to the rank Server-Admin of the server, as the router lets the click pass (#1073)", async () => {
+            botAccess.resolveBotAccess.mockReturnValue({ allowed: false });
+            botAccess.serverAdminPasses.mockResolvedValue(true);
+            status.readStatus.mockResolvedValue(okStatus(2));
+            const i = mockInteraction({ customId: "softres-missing:eh-1" });
+            await handleSoftresComponent(i, "g1");
+            expect(cardButtons(i.editReply.mock.calls[0][0])).toHaveLength(1);
+        });
+
+        it("does not ask the rank when the roles already pass", async () => {
+            status.readStatus.mockResolvedValue(okStatus(1));
+            await handleSoftresComponent(mockInteraction({ customId: "softres-missing:eh-1" }), "g1");
+            expect(botAccess.serverAdminPasses).not.toHaveBeenCalled();
         });
 
         it("keeps the button away when the access lookup fails, and skips the lookup for \"everyone\"", async () => {
