@@ -390,6 +390,22 @@ describe("POST /api/rosters/delete", () => {
         expect(status(await post("/api/rosters/delete", { rosterId: roster.id }))).toBe(404);
     });
 
+    it("refuses the rank of another server even when the roster passes as active", async () => {
+        const roster = rosterStore.createRoster({ name: "Fremd", guildId: "g1" });
+        mockUser = { ...MANAGER, guildId: "g2", isServerAdmin: true };
+        const res = await post("/api/rosters/delete", { rosterId: roster.id });
+        expect([status(res), code(res)]).toEqual([403, "admin_only"]);
+        expect(rosterStore.getRoster(roster.id)).not.toBeNull();
+    });
+
+    it("answers 404 when the store no longer finds the roster", async () => {
+        const roster = rosterStore.createRoster({ name: "Weg", guildId: "g1" });
+        const spy = jest.spyOn(rosterStore, "deleteRoster").mockReturnValueOnce(false);
+        const res = await post("/api/rosters/delete", { rosterId: roster.id });
+        spy.mockRestore();
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
+    });
+
     it("a closed roster refuses every change with 409 roster_closed, a full admin may still delete it (#739)", async () => {
         const roster = rosterStore.createRoster({ name: "Alt", guildId: "g1", categoryId: CAT, managers: { userIds: [MANAGER.id] } });
         rosterStore.closeRoster(roster.id, { reason: "version_switch" });

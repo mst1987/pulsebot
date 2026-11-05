@@ -73,6 +73,11 @@ afterAll(() => {
 const rosterId = () => rosterStore.listRosters(G)[0].id;
 
 describe("buildRosterOverview", () => {
+    it("lets the rank create rosters, a plain reader not (#1073)", async () => {
+        expect((await buildRosterOverview({ guildId: G, user: { ...READER, guildId: G, isServerAdmin: true }, config: CONFIG })).canCreate).toBe(true);
+        expect((await buildRosterOverview({ guildId: G, user: READER, config: CONFIG })).canCreate).toBe(false);
+    });
+
     it("answers one card per roster with places, roles, attendance and the open tasks", async () => {
         const view = await buildRosterOverview({ guildId: G, user: ADMIN, config: CONFIG });
         expect(view.canCreate).toBe(true);
@@ -433,6 +438,24 @@ describe("buildRosterDetail", () => {
         // the orga still reads the notes and the attendance
         expect(view.members.find((m) => m.userId === ANNA).note).toBe("Raidlead");
         expect(view.nights.length).toBeGreaterThan(0);
+    });
+
+    it("treats the rank like an admin on the roster of its own server only (#1073)", async () => {
+        const own = await buildRosterDetail({ guildId: G, id: rosterId(), user: { ...READER, guildId: G, isServerAdmin: true }, config: CONFIG });
+        expect(own).toMatchObject({ isAdmin: true, canManage: true });
+        const foreign = await buildRosterDetail({ guildId: G, id: rosterId(), user: { ...READER, guildId: "g2", isServerAdmin: true }, config: CONFIG });
+        expect(foreign).toMatchObject({ isAdmin: false, canManage: false });
+    });
+
+    it.each([
+        ["answers an error", () => discord.listHumanMembers.mockResolvedValue({ error: "no_intent" }), () => discord.listRoles.mockReturnValue(null)],
+        ["fails", () => discord.listHumanMembers.mockRejectedValue(new Error("offline")), () => discord.listRoles.mockImplementation(() => { throw new Error("offline"); })],
+    ])("knows no members and roles when Discord %s", async (_label, members, roles) => {
+        members();
+        roles();
+        const view = await buildRosterDetail({ guildId: G, id: rosterId(), user: ADMIN, config: CONFIG });
+        expect(view.membersKnown).toBe(false);
+        expect(view.roster.mainRole).toEqual({ id: "role-main", name: "", color: "" });
     });
 
     it("gives a roster without category no attendance", async () => {

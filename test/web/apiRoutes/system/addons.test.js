@@ -247,6 +247,19 @@ describe("GET /api/addons/download", () => {
         expect(logs.join("\n")).not.toContain(TOKEN);
     });
 
+    it("stops the response and GitHub's stream when the stream breaks off", async () => {
+        mockUser = member();
+        const stream = new PassThrough();
+        openAssetStream.mockImplementationOnce(async () => {
+            setImmediate(() => stream.emit("error", new Error("reset")));
+            return { stream, size: 8 };
+        });
+        const res = await download({ addon: "levelhelper", asset: "LevelHelper-0.3.0.zip" });
+        expect(res.destroyed).toBe(true);
+        expect(stream.destroyed).toBe(true);
+        expect(logs.some((l) => l.includes("download aborted: levelhelper/LevelHelper-0.3.0.zip: reset"))).toBe(true);
+    });
+
     it("sends an exe as an exe", async () => {
         const res = await download({ addon: "eventhelper-sync", asset: "EventHelperSync.exe" });
         expect(headersOf(res)["Content-Type"]).toBe("application/vnd.microsoft.portable-executable");

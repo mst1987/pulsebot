@@ -8,6 +8,39 @@ const { ROUTES, MODULES, find, methodsFor, areasOf } = require("../../../src/web
 // "METHOD path" per if-block, captured verbatim before the rebuild.
 const golden = require("./fixtures/apiRoutes.golden.json");
 
+describe("web/http/routeTable: a bad table fails at load", () => {
+    const FIRST = "../../../src/web/apiRoutes/system/session";
+    const handler = () => {};
+    const good = { method: "GET", path: "/api/x", handler };
+
+    /** The message of what loading the table throws when the first module exports `mod`. */
+    function loadError(mod) {
+        let message = "";
+        jest.isolateModules(() => {
+            jest.doMock(FIRST, () => mod);
+            try {
+                require("../../../src/web/http/routeTable");
+            } catch (err) {
+                message = err.message;
+            }
+        });
+        jest.dontMock(FIRST);
+        return message;
+    }
+
+    it.each([
+        ["no table", {}, "exports no routes table"],
+        ["a bad method", { routes: [{ ...good, method: "TRACE" }] }, "bad method"],
+        ["no entry", { routes: [null] }, "bad method"],
+        ["a bad path", { routes: [{ ...good, path: "/x" }] }, "bad path"],
+        ["no handler", { routes: [{ ...good, handler: null }] }, "has no handler"],
+        ["a route twice", { routes: [good, good] }, "registered twice"],
+        ["sharedData on a rank route", { routes: [{ ...good, sharedData: true, handler: Object.assign(() => {}, { serverAdmin: true }) }] }, "is sharedData and serverAdmin"],
+    ])("refuses %s", (_label, mod, expected) => {
+        expect(loadError(mod)).toContain(expected);
+    });
+});
+
 describe("web/http/routeTable", () => {
     it("registers exactly the routes the old router dispatched, no more, no fewer", () => {
         const now = ROUTES.map((r) => `${r.method} ${r.path}`).sort();

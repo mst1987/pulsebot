@@ -100,6 +100,13 @@ describe("web/http/apiHandler withUser", () => {
         expect(fn).not.toHaveBeenCalled();
     });
 
+    it("lets a full admin through `full`", async () => {
+        mockUser = { id: "1", name: "Admin", isAdmin: true };
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ full: true }, fn), { json: {} });
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+
     it("lets a limited menu user through without `full`, and refuses them with it", async () => {
         mockUser = limited({ settings: { read: true, write: true } });
         const fn = jest.fn(({ res }) => res.end("{}"));
