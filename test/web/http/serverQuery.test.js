@@ -267,7 +267,7 @@ describe("mayUseChannel / guildOfChannel (#925)", () => {
 });
 
 describe("the raiders a caller reaches (#1077)", () => {
-    const { raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER } = require("../../../src/web/http/serverQuery");
+    const { raiderReachFor, visibleRaidersFor, outsideReach, takeInLimit, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER } = require("../../../src/web/http/serverQuery");
     const { raiderVisibility } = require("../../../src/services/characters/profileVisibility");
     const { serverMemberIds } = require("../../../src/services/discord/members/serverMembers");
     const readable = (...ids) => ({ ids: new Set(ids), membersKnown: true });
@@ -283,6 +283,37 @@ describe("the raiders a caller reaches (#1077)", () => {
         expect(await visibleRaidersFor(admin, req)).toBeNull();
         expect(raiderVisibility).not.toHaveBeenCalled();
         expect(serverMemberIds).not.toHaveBeenCalled();
+    });
+
+    describe("takeInLimit, the bulk ways into a roster", () => {
+        const rank = { id: "9", isAdmin: false, isServerAdmin: true };
+        const rolesMay = (user) => !!user && user.mayBulk === true;
+
+        afterEach(() => getUserWithoutRank.mockReset());
+
+        it("sets no limit for a full admin, or for a rank whose role allows the way anyway", async () => {
+            expect(await takeInLimit(admin, req, rolesMay)).toEqual({ mayTakeIn: null, unavailable: false });
+            getUserWithoutRank.mockReturnValue({ id: "9", mayBulk: true });
+            expect(await takeInLimit(rank, req, rolesMay)).toEqual({ mayTakeIn: null, unavailable: false });
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+
+        it("limits the rank alone to the members of the active server, not even the caller on top", async () => {
+            getUserWithoutRank.mockReturnValue({ id: "9", mayBulk: false });
+            serverMemberIds.mockResolvedValue(new Set(["m1"]));
+            const { mayTakeIn, unavailable } = await takeInLimit(rank, req, rolesMay);
+            expect(serverMemberIds).toHaveBeenCalledWith(mockActive);
+            expect(unavailable).toBe(false);
+            expect(["m1", "9", "other"].map(mayTakeIn)).toEqual([true, false, false]);
+        });
+
+        it("says so when the member list cannot be read, and refuses everybody", async () => {
+            getUserWithoutRank.mockReturnValue(null);
+            serverMemberIds.mockResolvedValue(null);
+            const { mayTakeIn, unavailable } = await takeInLimit(rank, req, rolesMay);
+            expect(unavailable).toBe(true);
+            expect(mayTakeIn("m1")).toBe(false);
+        });
     });
 
     it("gives the active server's raiders and the caller", async () => {

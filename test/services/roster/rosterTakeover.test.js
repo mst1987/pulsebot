@@ -707,6 +707,38 @@ describe("services/roster/rosterTakeover without a linked roster", () => {
 });
 
 describe("services/roster/rosterTakeover Rolle nachziehen", () => {
+    it("the limit of a start keeps a refused player out of the roster, but pending", async () => {
+        const res = await startAndWait(body(), { mayTakeIn: (id) => id !== U.b });
+        expect(res).toMatchObject({ assigning: 2, outsideServer: 1 });
+        const roleId = res.steps[0].id;
+        expect(rosterNow().members[U.b]).toBeUndefined();
+        expect(memberRoles.giveRole.mock.calls.map((c) => c[1])).not.toContain(U.b);
+        expect(kaderNow().takeover.results).toMatchObject({ [U.a]: "ok", [U.b]: "missing", [U.c]: "ok" });
+        expect(kaderRoster.takeoverPlayers("g1", "k1").pending).toEqual([U.b]);
+
+        // pulling with the same limit counts them as away; without one they get the role
+        memberRoles.giveRole.mockClear();
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0, mayTakeIn: (id) => id !== U.b })).toEqual({ count: 0, away: 1 });
+        expect(memberRoles.giveRole).not.toHaveBeenCalled();
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0 })).toEqual({ count: 1, away: 0 });
+        await takeover.whenIdle("g1", "k1");
+        expect(memberRoles.giveRole.mock.calls).toEqual([["g1", U.b, roleId]]);
+    });
+
+    it("a start with no limit counts nobody as outside", async () => {
+        expect(await startAndWait()).toMatchObject({ assigning: 3, outsideServer: 0 });
+    });
+
+    it("a limit does not stop the pull for somebody already in the roster", async () => {
+        const res = await startAndWait(body(), { mayTakeIn: (id) => id !== U.b });
+        rosterStore.upsertMember(roster.id, U.b, { status: "bench" });
+        memberRoles.giveRole.mockClear();
+        expect(await takeover.pullRole("g1", "k1", { gapMs: 0, mayTakeIn: () => false })).toEqual({ count: 1, away: 0 });
+        await takeover.whenIdle("g1", "k1");
+        expect(memberRoles.giveRole.mock.calls).toEqual([["g1", U.b, res.steps[0].id]]);
+        expect(rosterNow().members[U.b].status).toBe("core");
+    });
+
     it("gives the role to every pending player, the count right away", async () => {
         const res = await startAndWait();
         const roleId = res.steps[0].id;

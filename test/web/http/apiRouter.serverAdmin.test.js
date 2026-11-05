@@ -60,7 +60,15 @@ jest.mock("../../../src/services/roster/rosterRoleSync", () => ({
     setRoleGainedHandler: jest.fn(),
     takeFailedPending: jest.fn(() => false),
 }));
-jest.mock("../../../src/services/characters/rosterAttendance", () => ({ buildAttendanceContext: jest.fn() }));
+jest.mock("../../../src/services/characters/rosterAttendance", () => ({
+    ...jest.requireActual("../../../src/services/characters/rosterAttendance"),
+    buildAttendanceContext: jest.fn(),
+}));
+// the rank and one more member (MEMBER below) are on the server; every other id is outside
+jest.mock("../../../src/services/discord/members/serverMembers", () => ({
+    ...jest.requireActual("../../../src/services/discord/members/serverMembers"),
+    serverMemberIds: jest.fn(async () => new Set(["rank", "900000000000000002"])),
+}));
 
 const { ChannelType } = require("discord.js");
 const axios = require("axios");
@@ -80,6 +88,8 @@ const raiderProfileStore = require("../../../src/stores/roster/raiderProfileStor
 const kaderStore = require("../../../src/stores/roster/kaderStore");
 const tokens = require("../../../src/stores/loot/ingestTokenStore");
 const stockStore = require("../../../src/stores/loot/guildBankStockStore");
+const attendance = require("../../../src/services/characters/rosterAttendance");
+const { serverMemberIds } = require("../../../src/services/discord/members/serverMembers");
 const { makeChannel, makeClient, makeGuild } = require("../../helpers/discordClient");
 const { body: dataOf, json, jsonRequest, mockRes, status } = require("../../helpers/http");
 const { tempStoreFile } = require("../../helpers/tempStore");
@@ -198,7 +208,7 @@ const OWN_SERVER_ROUTES = [
     ["GET", `/api/discord/pug-onboarding?guildId=${OWN}`, null],
     ["POST", "/api/discord/pug-onboarding", () => ({ guildId: OWN, fingerprint: "f" })],
     ["GET", "/api/settings/talk-overview", null],
-    ["POST", "/api/vermerke/delete", () => ({ userId: "u1", id: "n1" })],
+    ["POST", "/api/vermerke/delete", () => ({ userId: "u1", id: "n1", serverSettingsGuildId: OWN })],
     ["GET", "/api/rosters/options", null],
     ["POST", "/api/rosters/create", () => ({ name: "Neu", categoryId: CAT_FREE, roleIds: [ROLE_FREE] })],
     ["POST", "/api/rosters/update", () => ({ rosterId: ownRoster.id, name: "Anders" })],
@@ -225,7 +235,7 @@ describe("the rank on its own server", () => {
 
     it("writes where it was asked to: vermerke on the active server, a channel on the named one", async () => {
         const session = await rank();
-        await send(session, "POST", "/api/vermerke/delete", { userId: "u1", id: "n1" });
+        await send(session, "POST", "/api/vermerke/delete", { userId: "u1", id: "n1", serverSettingsGuildId: OWN });
         expect(notes.removeEntry).toHaveBeenCalledWith(OWN, "u1", "n1");
         await send(session, "POST", "/api/settings/pug-invites/channel", { guildId: OWN, channelId: TEXT_OWN });
         expect(inviteStore.setInviteChannel).toHaveBeenCalledWith(OWN, TEXT_OWN);
@@ -412,5 +422,223 @@ describe("the rank lowers nothing", () => {
         const session = await rank();
         expect(auth.getUser({ headers: session.headers }).isAdmin).toBeFalsy();
         expect(auth.getUser({ headers: session.headers }).isServerAdmin).toBe(true);
+    });
+});
+
+// The bulk ways into a roster (docs/permissions.md, "Aufnahme ins Roster"): addMember checks no server and
+// copies the first profile character, so without the limit a rank would learn the characters of any account.
+describe("the bulk ways into a roster", () => {
+    const VICTIM = "900000000000000001";
+    const MEMBER = "900000000000000002";
+    const SECRET_CHAR = "Geheimchar";
+    const MEMBER_CHAR = "Mitgliedchar";
+
+    const trustedWithRole = () => ({
+        ...config(true),
+        serverSettings: { [OWN]: { orgaRoleIds: ["role-orga"], rolePermissions: { "role-orga": { roster: ALL, kader: ALL } } } },
+    });
+    const rankWithRole = () => rank({ roleIds: ["role-orga"] });
+
+    async function putOnKader(session, kaderId = "k1") {
+        const add = await send(session, "POST", "/api/kader/players/add", { kaderId, players: [VICTIM, MEMBER].map((userId) => ({ userId, displayName: "x" })) });
+        expect(status(add)).toBe(200);
+        const answers = [add];
+        for (const to of ["selected", "provisional", "roster"]) {
+            const state = await send(session, "POST", "/api/kader/players/state", { kaderId, userIds: [VICTIM, MEMBER], to });
+            expect(status(state)).toBe(200);
+            answers.push(state);
+        }
+        return answers;
+    }
+
+    function nightsWithBoth() {
+        const { nameKey } = raiderProfileStore;
+        attendance.buildAttendanceContext.mockReturnValue({
+            versionId: ownRoster.versionId,
+            raidsByCategory: new Map(),
+            allRaidsByCategory: new Map([[CAT_FREE, [
+                { id: "e1", startTime: 2, signUps: [], logs: [{ keys: new Set([nameKey(SECRET_CHAR), nameKey(MEMBER_CHAR)]) }] },
+                { id: "e2", startTime: 1, signUps: [{ userId: VICTIM, status: "signed" }], logs: [] },
+            ]]]),
+            roleByKey: {},
+        });
+    }
+
+    const createFromKader = (session) => send(session, "POST", "/api/rosters/create", { name: "Aus Kader", source: "kader", kaderId: "k1" });
+    const createLinked = (session) => send(session, "POST", "/api/rosters/create", { name: "Verknuepft", source: "none", versionId: ownRoster.versionId, kaderId: "k1" });
+    const createFromRaids = (session) => send(session, "POST", "/api/rosters/create", { categoryId: CAT_FREE, name: "Aus Raids", source: "raids", versionId: ownRoster.versionId });
+
+    // each way: what the answer says, the roster it wrote and the whole answer
+    const WAYS = [
+        ["a new roster from a Kader", async (session) => {
+            await putOnKader(session);
+            const res = await createFromKader(session);
+            expect(status(res)).toBe(200);
+            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id };
+        }],
+        ["the sync of a linked Kader", async (session) => {
+            const made = await createLinked(session);
+            expect(status(made)).toBe(200);
+            await putOnKader(session);
+            const res = await send(session, "POST", "/api/kader/roster/sync", { kaderId: "k1" });
+            expect(status(res)).toBe(200);
+            return { res, counts: dataOf(res), rosterId: dataOf(made).roster.id };
+        }],
+        ["a new roster from the last raids", async (session) => {
+            nightsWithBoth();
+            const res = await createFromRaids(session);
+            expect(status(res)).toBe(200);
+            return { res, counts: dataOf(res).initial, rosterId: dataOf(res).roster.id };
+        }],
+    ];
+
+    beforeEach(() => {
+        raiderProfileStore.reset();
+        raiderProfileStore.addCharacter(VICTIM, { name: SECRET_CHAR, className: "Mage", specs: ["Mage-Frost"], versionId: ownRoster.versionId });
+        raiderProfileStore.addCharacter(MEMBER, { name: MEMBER_CHAR, className: "Priest", specs: ["Priest-Holy"], versionId: ownRoster.versionId });
+    });
+
+    describe.each([["without the mark", false], ["with the mark", true]])("the rank alone on a server %s", (_label, trusted) => {
+        beforeEach(() => getConfig.mockReturnValue(config(trusted)));
+
+        it.each(WAYS)("%s takes the member and counts the other account", async (_way, run) => {
+            const { res, counts, rosterId } = await run(await rank());
+            const { members } = rosterStore.getRoster(rosterId);
+            expect(Object.keys(members)).toEqual([MEMBER]);
+            expect(members[MEMBER].chars).toEqual([raiderProfileStore.nameKey(MEMBER_CHAR)]);
+            expect(counts).toEqual(expect.objectContaining({ added: 1, skipped: 1, outsideServer: 1 }));
+            const answer = JSON.stringify(json(res));
+            expect(answer).not.toContain(VICTIM);
+            expect(answer.toLowerCase()).not.toContain(SECRET_CHAR.toLowerCase());
+        });
+    });
+
+    it("the hand way answers the same account with not_on_server", async () => {
+        const session = await rank();
+        const res = await send(session, "POST", "/api/rosters/members", { rosterId: ownRoster.id, userId: VICTIM });
+        expect(status(res)).toBe(403);
+        expect(json(res).error.code).toBe("not_on_server");
+    });
+
+    it("the Kader takes any id but shows nothing of its profile", async () => {
+        const session = await rank();
+        const answers = await putOnKader(session);
+        answers.push(await send(session, "GET", "/api/kader/kader?kader=k1"));
+        for (const res of answers) {
+            expect(status(res)).toBe(200);
+            expect(JSON.stringify(json(res)).toLowerCase()).not.toContain(SECRET_CHAR.toLowerCase());
+        }
+    });
+
+    describe("rank and role on a marked server", () => {
+        beforeEach(() => getConfig.mockReturnValue(trustedWithRole()));
+
+        it.each(WAYS)("%s keeps its way", async (_way, run) => {
+            const { counts, rosterId } = await run(await rankWithRole());
+            expect(Object.keys(rosterStore.getRoster(rosterId).members).sort()).toEqual([VICTIM, MEMBER]);
+            expect(counts).toEqual(expect.objectContaining({ added: 2, skipped: 0, outsideServer: 0 }));
+        });
+
+        it("hands the takeover no limit", async () => {
+            const res = await send(await rankWithRole(), "POST", "/api/kader/takeover", { kaderId: "k1", confirm: true });
+            expect(status(res)).toBe(200);
+            expect(rosterTakeover.start.mock.calls[0][3].mayTakeIn).toBeNull();
+        });
+    });
+
+    describe("a full admin", () => {
+        it.each(WAYS)("%s stays as it was", async (_way, run) => {
+            const { counts, rosterId } = await run(await fullAdmin());
+            expect(Object.keys(rosterStore.getRoster(rosterId).members).sort()).toEqual([VICTIM, MEMBER]);
+            expect(counts).toEqual(expect.objectContaining({ added: 2, skipped: 0, outsideServer: 0 }));
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+
+        it("hands the takeover and the role pull no limit", async () => {
+            const session = await fullAdmin();
+            expect(status(await send(session, "POST", "/api/kader/takeover", { kaderId: "k1", confirm: true }))).toBe(200);
+            expect(rosterTakeover.start.mock.calls[0][3].mayTakeIn).toBeNull();
+            await send(session, "POST", "/api/kader/roster/link", { kaderId: "k1", rosterId: ownRoster.id });
+            expect(status(await send(session, "POST", "/api/kader/takeover/role", { kaderId: "k1" }))).toBe(200);
+            expect(rosterTakeover.pullRole.mock.calls[0][2].mayTakeIn).toBeNull();
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the takeover", () => {
+        const refusesVictim = (mayTakeIn) => {
+            expect(mayTakeIn(VICTIM)).toBe(false);
+            expect(mayTakeIn(MEMBER)).toBe(true);
+        };
+
+        it("hands the limit of the rank alone to the start and the role pull", async () => {
+            const session = await rank();
+            expect(status(await send(session, "POST", "/api/kader/takeover", { kaderId: "k1", confirm: true }))).toBe(200);
+            refusesVictim(rosterTakeover.start.mock.calls[0][3].mayTakeIn);
+            await send(session, "POST", "/api/kader/roster/link", { kaderId: "k1", rosterId: ownRoster.id });
+            expect(status(await send(session, "POST", "/api/kader/takeover/role", { kaderId: "k1" }))).toBe(200);
+            refusesVictim(rosterTakeover.pullRole.mock.calls[0][2].mayTakeIn);
+        });
+
+        it("answers 503 before anything happens while the member list cannot be read", async () => {
+            const session = await rank();
+            serverMemberIds.mockResolvedValueOnce(null);
+            const started = await send(session, "POST", "/api/kader/takeover", { kaderId: "k1", confirm: true });
+            expect(status(started)).toBe(503);
+            expect(json(started).error.code).toBe("members_unavailable");
+            expect(rosterTakeover.start).not.toHaveBeenCalled();
+            await send(session, "POST", "/api/kader/roster/link", { kaderId: "k1", rosterId: ownRoster.id });
+            serverMemberIds.mockResolvedValueOnce(null);
+            const pulled = await send(session, "POST", "/api/kader/takeover/role", { kaderId: "k1" });
+            expect(status(pulled)).toBe(503);
+            expect(rosterTakeover.pullRole).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("while the member list cannot be read", () => {
+        it("creates no roster from a Kader or from raids", async () => {
+            const session = await rank();
+            await putOnKader(session);
+            nightsWithBoth();
+            for (const create of [createFromKader, createFromRaids]) {
+                serverMemberIds.mockResolvedValueOnce(null);
+                const res = await create(session);
+                expect(status(res)).toBe(503);
+                expect(json(res).error.code).toBe("members_unavailable");
+            }
+            expect(rosterStore.listRosters(OWN).map((r) => r.id)).toEqual([ownRoster.id]);
+        });
+
+        it("syncs nobody", async () => {
+            const session = await rank();
+            const made = await createLinked(session);
+            await putOnKader(session);
+            serverMemberIds.mockResolvedValueOnce(null);
+            const res = await send(session, "POST", "/api/kader/roster/sync", { kaderId: "k1" });
+            expect(status(res)).toBe(503);
+            expect(rosterStore.getRoster(dataOf(made).roster.id).members).toEqual({});
+        });
+
+        it("does not matter to a roster without a source of accounts", async () => {
+            const res = await send(await rank(), "POST", "/api/rosters/create", { name: "Leer", source: "none", versionId: ownRoster.versionId });
+            expect(status(res)).toBe(200);
+            expect(serverMemberIds).not.toHaveBeenCalled();
+        });
+    });
+
+    describe("the Kader named on create", () => {
+        it.each([["none", {}], ["kader", {}]])("refuses a Kader of another server (source %s)", async (source) => {
+            kaderStore.writePlanner(FOREIGN, { v: 2, accounts: [], assignments: {}, kaders: [{ id: "kf", name: "Fremd", versionId: ownRoster.versionId, leads: [], questions: [], players: {} }] });
+            const res = await send(await rank(), "POST", "/api/rosters/create", { name: "Fremdkader", source, versionId: ownRoster.versionId, kaderId: "kf" });
+            expect(status(res)).toBe(404);
+            expect(json(res).error.code).toBe("kader_not_found");
+            expect(rosterStore.listRosters(OWN).map((r) => r.id)).toEqual([ownRoster.id]);
+        });
+
+        it("refuses it for a full admin too", async () => {
+            const res = await send(await fullAdmin(), "POST", "/api/rosters/create", { name: "Unbekannt", source: "none", versionId: ownRoster.versionId, kaderId: "nope" });
+            expect(status(res)).toBe(404);
+            expect(json(res).error.code).toBe("kader_not_found");
+        });
     });
 });

@@ -114,6 +114,20 @@ function outsideReach(reach, userId) {
     return id && !reach.membersKnown ? MEMBERS_UNAVAILABLE : OUTSIDE_SERVER;
 }
 
+/**
+ * The limit of a bulk way into a roster (from a Kader, from raid nights, the takeover), which takes
+ * several accounts where the hand way (rosterMembers.js) takes one: who has the way by the rank alone
+ * (`onlyByRank`) takes members of the active server only. `mayTakeIn` is null without a limit; with
+ * `unavailable` the member list could not be read, so the caller answers `membersUnavailable` before
+ * anything happens (fail closed).
+ * @returns {Promise<{ mayTakeIn: ((userId: string) => boolean) | null, unavailable: boolean }>}
+ */
+async function takeInLimit(user, req, rolesMay) {
+    if (!onlyByRank(user, req, rolesMay)) return { mayTakeIn: null, unavailable: false };
+    const reach = await raiderReachFor(user, req, { membersOnly: true });
+    return { mayTakeIn: (userId) => !outsideReach(reach, userId), unavailable: !reach.membersKnown };
+}
+
 /** The 503 for a refusal that only an unreadable member list caused. */
 const membersUnavailable = (res) => apiError(res, 503, MEMBERS_UNAVAILABLE, "Die Mitgliederliste von Discord ist gerade nicht erreichbar.");
 
@@ -178,4 +192,4 @@ function serverFromQuery(query, res, { user, req, config = getConfig() } = {}) {
     return guildId;
 }
 
-module.exports = { serverFromQuery, mayUseServer, mayUseLink, onlyByRank, rolesCountForSharedData, mayWriteSharedData, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };
+module.exports = { serverFromQuery, mayUseServer, mayUseLink, onlyByRank, rolesCountForSharedData, mayWriteSharedData, raiderReachFor, visibleRaidersFor, outsideReach, takeInLimit, membersUnavailable, MEMBERS_UNAVAILABLE, OUTSIDE_SERVER, mayUseChannel, channelOnCategoryServer, guildOfChannel, OTHER_SERVER, CHANNEL_OTHER_SERVER };

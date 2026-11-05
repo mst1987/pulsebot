@@ -25,7 +25,12 @@
 // reconcile adds every holder of the roster's roles within ten minutes anyway
 // (the decision of #659, "Rolle im Discord bekommen = im Roster").
 //
-// Creating is for full admins - the route checks that, not this module.
+// Creating is for full admins and the server-admin rank - the route checks that, not this
+// module. The rank may not reach beyond its server: rosterMembers.addMember checks no server and
+// copies the first profile character, so its route passes `mayTakeIn`, and "kader", "raids" and
+// syncRosterFromKader leave out and count (`outsideServer`) every account it refuses, like the hand
+// way refuses it (web/apiRoutes/roster/rosterMembers.js). "role" needs no limit: whoever holds a
+// role of the server is a member of it.
 //
 // Later (#658, the Kaderplaner's "Ins Roster übernehmen"): syncRosterFromKader
 // takes the Kader's players of those three states who are no member yet into
@@ -84,18 +89,20 @@ function kaderCharacter(player, versionId) {
 }
 
 /**
- * The accounts present in the category's last RAIDS_BACK counted nights (see the head comment).
- * Goes over every profile without the view limit of #1077: only a full admin creates a roster
- * (web/apiRoutes/roster/rosterAdmin.js postRosterCreate), and a full admin has no such limit.
+ * The accounts present in the category's last RAIDS_BACK counted nights (see the head comment):
+ * `inReach` the ones `mayTakeIn` allows (all without one), `outside` how many it refuses. It goes over
+ * every profile to name a log's character, the caller only ever gets the accounts in reach: a refused
+ * one is a count, and an account in reach wins a character name it shares with a foreign profile.
  */
-function presentInRaids(guildId, categoryId, versionId, { ctx } = {}) {
+function raidAccounts(guildId, categoryId, versionId, { ctx, mayTakeIn = null } = {}) {
+    const allowed = (id) => !mayTakeIn || mayTakeIn(id);
     const context = ctx || buildAttendanceContext(guildId, { versionId });
     const nights = ((context.allRaidsByCategory || context.raidsByCategory).get(categoryId) || []).slice(0, RAIDS_BACK);
     const owners = new Map();
     for (const profile of raiderProfileStore.listProfiles()) {
         for (const c of raiderProfileStore.charactersOfVersion(profile, versionId)) {
             const key = nameKeyOf(c.key);
-            if (key && !owners.has(key)) owners.set(key, profile.userId);
+            if (key && (!owners.has(key) || (!allowed(owners.get(key)) && allowed(profile.userId)))) owners.set(key, profile.userId);
         }
     }
     const present = new Set();
@@ -108,7 +115,14 @@ function presentInRaids(guildId, categoryId, versionId, { ctx } = {}) {
             if (s && s.userId && PRESENT.includes(String(s.status || "signed"))) present.add(String(s.userId));
         }
     }
-    return [...present].filter((id) => /^\d{5,25}$/.test(id));
+    const accounts = [...present].filter((id) => /^\d{5,25}$/.test(id));
+    const inReach = accounts.filter(allowed);
+    return { inReach, outside: accounts.length - inReach.length };
+}
+
+/** The accounts of raidAccounts in reach of `mayTakeIn` (without one: all of them). */
+function presentInRaids(guildId, categoryId, versionId, opts = {}) {
+    return raidAccounts(guildId, categoryId, versionId, opts).inReach;
 }
 
 /** Everyone holding one of the roster's roles: `{ userIds }` or `{ error }` ("offline", "members_unavailable"). */
@@ -119,9 +133,14 @@ async function roleHolders(roster) {
     return { userIds: members.map((m) => String(m.id)) };
 }
 
-/** Take members in through rosterMembers (store, then roles); collects what failed. */
-async function takeIn(roster, entries, actor, initial) {
+/** Take members in through rosterMembers (store, then roles); collects what failed and whom `mayTakeIn` refuses. */
+async function takeIn(roster, entries, actor, initial, mayTakeIn = null) {
     for (const { userId, patch } of entries) {
+        if (mayTakeIn && !mayTakeIn(userId)) {
+            initial.skipped += 1;
+            initial.outsideServer += 1;
+            continue;
+        }
         const res = await rosterMembers.addMember(roster.id, userId, patch, { actor });
         if (!res.ok) {
             initial.skipped += 1;
@@ -184,6 +203,12 @@ function prepare(input, { guildId, config, knownRoleIds }) {
     if (kader && !kaderVersionFits(kader, versionId, categoryId, config)) return { code: "version_mismatch" };
     // #563: no new roster for a hidden version
     if (!isVersionVisible(versionId, config)) return { code: "version_hidden" };
+    // a link to a Kader holds what changing the link holds (rosterSettings.updateRosterSettings)
+    if (fields.kaderId) {
+        if (!kaderExists(guildId, fields.kaderId)) return { code: "kader_not_found" };
+        if (kaderTakenOver(guildId, fields.kaderId)) return { code: "kader_taken_over" };
+        if (!kaderFitsVersion(guildId, fields.kaderId, versionId)) return { code: "version_mismatch" };
+    }
     const data = {
         ...fields,
         guildId,
@@ -205,10 +230,12 @@ function prepare(input, { guildId, config, knownRoleIds }) {
  * Create a roster and fill it from its source (head comment).
  * @param {object} input  name, categoryId, versionId, roleIds, trialRoleId, managers, slots,
  *   allowMultipleChars, signupOnly, source ("role" | "kader" | "raids" | "none"), kaderId
- * @param {{ guildId: string, actor?: string, config?: object, knownRoleIds?: Set<string>|null, ctx?: object }} opts
- * @returns {Promise<{ ok: true, roster: object, initial: { source, added, skipped, roleFailures, error } } | { ok: false, code: string }>}
+ * @param {{ guildId: string, actor?: string, config?: object, knownRoleIds?: Set<string>|null, ctx?: object, mayTakeIn?: ((userId: string) => boolean)|null }} opts
+ *   `mayTakeIn`: whom the caller may take in from "kader" and "raids" (null: everybody)
+ * @returns {Promise<{ ok: true, roster: object, initial: { source, added, skipped, outsideServer, roleFailures, error } } | { ok: false, code: string }>}
+ *   `outsideServer` of `skipped` were refused by `mayTakeIn`
  */
-async function createRosterWithSource(input, { guildId = "", actor = "", config, knownRoleIds = null, ctx } = {}) {
+async function createRosterWithSource(input, { guildId = "", actor = "", config, knownRoleIds = null, ctx, mayTakeIn = null } = {}) {
     const prepared = prepare(input, { guildId: str(guildId), config, knownRoleIds });
     if (prepared.code) return { ok: false, code: prepared.code };
     let roster;
@@ -219,7 +246,7 @@ async function createRosterWithSource(input, { guildId = "", actor = "", config,
         throw e;
     }
     mirrorCategoryRoles(roster);
-    const initial = { source: prepared.source, added: 0, skipped: 0, roleFailures: [], error: null };
+    const initial = { source: prepared.source, added: 0, skipped: 0, outsideServer: 0, roleFailures: [], error: null };
     if (prepared.source === "role") {
         const holders = await roleHolders(roster);
         if (holders.error) initial.error = holders.error;
@@ -229,10 +256,12 @@ async function createRosterWithSource(input, { guildId = "", actor = "", config,
             userId: p.userId,
             patch: { status: STATUS_OF_KADER_STATE[p.state], chars: kaderCharacter(p, roster.versionId) },
         }));
-        await takeIn(roster, entries, actor, initial);
+        await takeIn(roster, entries, actor, initial, mayTakeIn);
     } else if (prepared.source === "raids") {
-        const userIds = presentInRaids(roster.guildId, roster.categoryId, roster.versionId, { ctx });
-        await takeIn(roster, userIds.map((userId) => ({ userId, patch: { status: "core" } })), actor, initial);
+        const { inReach, outside } = raidAccounts(roster.guildId, roster.categoryId, roster.versionId, { ctx, mayTakeIn });
+        initial.skipped += outside;
+        initial.outsideServer += outside;
+        await takeIn(roster, inReach.map((userId) => ({ userId, patch: { status: "core" } })), actor, initial);
     }
     return { ok: true, roster: rosterStore.getRoster(roster.id), initial };
 }
@@ -349,12 +378,14 @@ function kaderRosterState(guildId, kaderId) {
  * does it (status by state, the character, the main role through
  * rosterMembers.addMember); members already in the roster are left untouched.
  * @param {string} kaderId
- * @param {{ guildId?: string, actor?: string, rosterId?: string }} [opts]  `rosterId` defaults to the roster linked to the Kader
- * @returns {Promise<{ ok: true, roster: object, added: number, skipped: number, kept: number, roleFailures: object[] } | { ok: false, code: string }>}
+ * @param {{ guildId?: string, actor?: string, rosterId?: string, mayTakeIn?: ((userId: string) => boolean)|null }} [opts]
+ *   `rosterId` defaults to the roster linked to the Kader; `mayTakeIn`: whom the caller may take in (null: everybody)
+ * @returns {Promise<{ ok: true, roster: object, added: number, skipped: number, outsideServer: number, kept: number, roleFailures: object[] } | { ok: false, code: string }>}
+ *   `outsideServer` of `skipped` were refused by `mayTakeIn`;
  *   codes: "not_found" (no roster for that Kader), "not_from_kader" (the roster is not linked to it), "kader_not_found",
  *   "kader_taken_over" (the role follows the Kader from then on, and this path would map status differently)
  */
-async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId = "" } = {}) {
+async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId = "", mayTakeIn = null } = {}) {
     const roster = rosterId ? rosterStore.getRoster(str(rosterId)) : rosterOfKader(guildId, kaderId);
     if (!roster) return { ok: false, code: "not_found" };
     if (roster.kaderId !== str(kaderId)) return { ok: false, code: "not_from_kader" };
@@ -362,12 +393,12 @@ async function syncRosterFromKader(kaderId, { guildId = "", actor = "", rosterId
     if (!kader) return { ok: false, code: "kader_not_found" };
     if (kaderTakenOver(roster.guildId || str(guildId), kaderId)) return { ok: false, code: "kader_taken_over" };
     const pending = pendingPlayers(roster, kader);
-    const result = { added: 0, skipped: 0, roleFailures: [] };
+    const result = { added: 0, skipped: 0, outsideServer: 0, roleFailures: [] };
     const entries = pending.map((p) => ({
         userId: p.userId,
         patch: { status: STATUS_OF_KADER_STATE[p.state], chars: kaderCharacter(p, roster.versionId) },
     }));
-    await takeIn(roster, entries, actor, result);
+    await takeIn(roster, entries, actor, result, mayTakeIn);
     return { ok: true, roster: rosterStore.getRoster(roster.id), ...result, kept: kader.players.length - pending.length };
 }
 

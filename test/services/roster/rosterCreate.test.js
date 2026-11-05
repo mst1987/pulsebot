@@ -72,7 +72,7 @@ describe("services/roster/rosterCreate settings", () => {
         const res = await createRosterWithSource({ categoryId: CAT, roleIds: [ROLE], slots: { total: 25, tank: 3, healer: 6 } }, { guildId: "g1", actor: "1" });
         expect(res.ok).toBe(true);
         expect(res.roster).toEqual(expect.objectContaining({ name: "Donnerstag Raid", guildId: "g1", categoryId: CAT, versionId: "tbc", roleIds: [ROLE], createdBy: "1", source: { kind: "manual" } }));
-        expect(res.initial).toEqual({ source: "none", added: 0, skipped: 0, roleFailures: [], error: null });
+        expect(res.initial).toEqual({ source: "none", added: 0, skipped: 0, outsideServer: 0, roleFailures: [], error: null });
         expect(configStore.getConfig().categoryRoles).toEqual({ [CAT]: [ROLE] });
         expect(rosterStore.normalizeFile(JSON.parse(fs.__store.get(rosterStore.ROSTERS_FILE))).migratedCategories).toContain(CAT);
     });
@@ -89,6 +89,20 @@ describe("services/roster/rosterCreate settings", () => {
             [{ name: "X", versionId: "wotlk" }, "invalid_version"],
         ];
         for (const [input, code] of cases) expect({ input, code: (await createRosterWithSource(input, { guildId: "g1" })).code }).toEqual({ input, code });
+    });
+
+    it("holds a Kader link to what changing the link holds: of this server, not taken over, of the version", async () => {
+        const { saveTakeover } = require("../../../src/services/kader/kaderRoster");
+        const asked = { name: "X", versionId: "forever", kaderId: "k1" };
+        expect((await createRosterWithSource(asked, { guildId: "g2" })).code).toBe("kader_not_found");
+        expect((await createRosterWithSource({ ...asked, kaderId: "nope" }, { guildId: "g1" })).code).toBe("kader_not_found");
+        expect((await createRosterWithSource({ ...asked, versionId: "tbc" }, { guildId: "g1" })).code).toBe("version_mismatch");
+        expect(rosterStore.listRosters("")).toEqual([]);
+        const made = await createRosterWithSource(asked, { guildId: "g1" });
+        expect(made.roster.kaderId).toBe("k1");
+        saveTakeover("g1", "k1", { rosterId: made.roster.id, roleId: ROLE, roleName: "Raider", categoryId: "", channelIds: [] });
+        rosterStore.deleteRoster(made.roster.id);
+        expect((await createRosterWithSource(asked, { guildId: "g1" })).code).toBe("kader_taken_over");
     });
 
     it("refuses a role of the PuG onboarding as a roster role (#930)", async () => {
@@ -201,6 +215,17 @@ describe("services/roster/rosterCreate source kader", () => {
         expect(kaderCharacter({ userId: U.d, characterName: "", decision: null }, "tbc")).toBeUndefined();
     });
 
+    it("leaves out whom the limit refuses: no member, no character, no role, and counts them", async () => {
+        const res = await createRosterWithSource(
+            { name: "X", versionId: "forever", source: "kader", kaderId: "k1", roleIds: [ROLE] },
+            { guildId: "g1", actor: "1", mayTakeIn: (id) => id === U.b },
+        );
+        expect(Object.keys(res.roster.members)).toEqual([U.b]);
+        expect(JSON.stringify(res.roster)).not.toMatch(/keslight|devi|brumm/i);
+        expect(res.initial).toEqual(expect.objectContaining({ added: 1, skipped: 2, outsideServer: 2 }));
+        expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledTimes(1);
+    });
+
     it("kaderChoices hands the create dialog counts only", () => {
         expect(kaderChoices("g1")).toEqual([{ id: "k1", name: "Forever-Kader", versionId: "forever", inRoster: 1, candidates: 3, attendanceCategories: [], takenOver: false }]);
     });
@@ -221,6 +246,22 @@ describe("services/roster/rosterCreate source raids", () => {
     it("takes everyone present in the last four nights: in a log, or signed up where no log exists", () => {
         expect(presentInRaids("g1", CAT, "tbc", { ctx }).sort()).toEqual([U.a, U.b, U.c, U.d].sort());
         expect(presentInRaids("g1", "other", "tbc", { ctx })).toEqual([]);
+    });
+
+    it("names only accounts in reach: a refused one stays unnamed, and is a count", async () => {
+        const mayTakeIn = (id) => id === U.b;
+        expect(presentInRaids("g1", CAT, "tbc", { ctx, mayTakeIn })).toEqual([U.b]);
+        buildAttendanceContext.mockReturnValueOnce(ctx);
+        const res = await createRosterWithSource({ categoryId: CAT, source: "raids" }, { guildId: "g1", mayTakeIn });
+        expect(Object.keys(res.roster.members)).toEqual([U.b]);
+        expect(res.initial).toEqual(expect.objectContaining({ added: 1, skipped: 3, outsideServer: 3 }));
+    });
+
+    it("gives a character name two profiles share to the account in reach", () => {
+        raiderProfileStore.addCharacter(U.d, { name: "Keslight", className: "Mage", specs: ["Mage-Frost"] });
+        const logsOnly = { allRaidsByCategory: new Map([[CAT, [night("e1", 10, { keys: ["keslight"] })]]]) };
+        expect(presentInRaids("g1", CAT, "tbc", { ctx: logsOnly })).toEqual([U.a]);
+        expect(presentInRaids("g1", CAT, "tbc", { ctx: logsOnly, mayTakeIn: (id) => id === U.d })).toEqual([U.d]);
     });
 
     it("builds the context for the roster's version and gives the roles", async () => {
@@ -254,6 +295,18 @@ describe("services/roster/rosterCreate syncRosterFromKader (#658)", () => {
         expect(m[U.b]).toEqual(expect.objectContaining({ status: "bench" }));
         expect(rosterRoleSync.applyMemberAdded).toHaveBeenCalledTimes(1);
         expect(kaderRosterState("g1", "k1").pending).toBe(0);
+    });
+
+    it("takes over only whom the limit allows, counts the others and keeps who is already in", async () => {
+        const created = await createRosterFromKader("k1", { guildId: "g1" });
+        const planner = kaderPlanner();
+        planner.kaders[0].players[U.d].state = "roster";
+        kaderStore.writePlanner("g1", planner);
+        const refused = await syncRosterFromKader("k1", { guildId: "g1", mayTakeIn: () => false });
+        expect(refused).toEqual(expect.objectContaining({ ok: true, added: 0, skipped: 1, outsideServer: 1, kept: 3 }));
+        expect(Object.keys(rosterStore.getRoster(created.roster.id).members).sort()).toEqual([U.a, U.b, U.c]);
+        const allowed = await syncRosterFromKader("k1", { guildId: "g1", mayTakeIn: (id) => id === U.d });
+        expect(allowed).toEqual(expect.objectContaining({ added: 1, skipped: 0, outsideServer: 0 }));
     });
 
     it("copies nothing private of the Kader into the roster file when taking players over", async () => {

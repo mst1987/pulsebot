@@ -27,7 +27,7 @@ const { updateRosterSettings } = require("../../../services/roster/rosterSetting
 const { rosterOptions, serverRoles } = require("../../../services/roster/rosterOptions");
 const { rosterComposition } = require("../../../services/roster/rosterComposition");
 const { activeRoster } = require("../../roster/activeRoster");
-const { rolesCountForSharedData } = require("../../http/serverQuery");
+const { membersUnavailable, rolesCountForSharedData, takeInLimit } = require("../../http/serverQuery");
 const { defaultProfileId } = require("../../../stores/loot/councilProfilesStore");
 
 const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
@@ -110,14 +110,19 @@ const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
  * Body: { name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?: { roleIds, userIds },
  *   slots?: { total, tank, healer, bench }, allowMultipleChars?, signupOnly?,
  *   source?: "role" | "kader" | "raids" | "none", kaderId? }.
- * Answer: { roster, initial: { source, added, skipped, roleFailures: [{ userId, roleId, code }], error } }.
+ * By the rank alone "kader" and "raids" take members of the server only (`outsideServer` of `skipped` are
+ * the others); 503 members_unavailable while their list cannot be read, nothing is created.
+ * Answer: { roster, initial: { source, added, skipped, outsideServer, roleFailures: [{ userId, roleId, code }], error } }.
  */
 const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
     if (!mayCreateRosters(user)) return refuse(res, "admin_only");
     const guildId = activeGuildFor(req);
     const refusal = rankRefusal(user, guildId, body);
     if (refusal) return refuse(res, refusal);
-    const result = await createRosterWithSource(body, { guildId, actor: str(user.id), config: getConfig(), knownRoleIds: knownRoleIds(guildId) });
+    const takesAccounts = ["kader", "raids"].includes(body.source);
+    const { mayTakeIn, unavailable } = takesAccounts ? await takeInLimit(user, req, (roles) => userCan(roles, "roster", "write")) : { mayTakeIn: null, unavailable: false };
+    if (unavailable) return membersUnavailable(res);
+    const result = await createRosterWithSource(body, { guildId, actor: str(user.id), config: getConfig(), knownRoleIds: knownRoleIds(guildId), mayTakeIn });
     if (!result.ok) return refuse(res, result.code);
     return ok(res, { roster: result.roster, initial: result.initial });
 });
@@ -126,9 +131,9 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
  * POST /api/rosters/update — change a roster's settings.
  * Body: { rosterId, name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?, slots?,
  *   allowMultipleChars?, signupOnly?, publicRaids?, kaderId? } (only what is sent changes; slots and managers merge per key).
- * `kaderId` (full admins): the Kader of the Kaderplaner linked 1:1 (null unlinks; 404 kader_not_found,
+ * `kaderId` (full admins, the rank): the Kader of the Kaderplaner linked 1:1 (null unlinks; 404 kader_not_found,
  * 409 kader_taken when another roster holds it).
- * `lootSystem` (full admins, #676): "softres" | "lootcouncil" | "gdkp" | "other" - with a category it is
+ * `lootSystem` (full admins, the rank, #676): "softres" | "lootcouncil" | "gdkp" | "other" - with a category it is
  * written to config.categoryLootSystem; 400 invalid_loot_system. `lootProfileId` (admins and the roster's
  * managers): a Loot-Council profile id, "" = the default profile; 400 unknown_profile.
  * Answer: { roster, trimmedChars } (members cut to one character by switching allowMultipleChars off).

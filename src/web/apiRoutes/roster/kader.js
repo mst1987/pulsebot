@@ -21,7 +21,7 @@
 const { ok, sendJson, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
-const { onlyByRank } = require("../../http/serverQuery");
+const { membersUnavailable, onlyByRank, takeInLimit } = require("../../http/serverQuery");
 const { q } = require("../../http/apiParams");
 const { userCan } = require("../../../config/permissions");
 const kaderStore = require("../../../stores/roster/kaderStore");
@@ -388,6 +388,9 @@ const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     return ok(res, { ...state, canCreate: !roster, canSync, canLink: true, rosters: kaderLinkChoices(guildId, kaderId) });
 });
 
+/** Whom `user` may take into a roster from a Kader: by the rank alone, members of the server only (serverQuery.takeInLimit). */
+const kaderTakeInLimit = (user, req) => takeInLimit(user, req, (roles) => userCan(roles, "kader", "write"));
+
 const SYNC_STATUS = { not_found: 404, kader_not_found: 404, not_manager: 403, not_from_kader: 409, kader_taken_over: 409 };
 const SYNC_MESSAGE = { kader_taken_over: "Dieser Kader wurde schon nach Discord übernommen: neue Spieler kommen über „Rolle nachziehen“ dazu." };
 
@@ -397,8 +400,10 @@ const SYNC_MESSAGE = { kader_taken_over: "Dieser Kader wurde schon nach Discord 
  * (`canManageRosterLive`), else 403 `not_manager`. Players in roster / bench /
  * tentative who are no member yet join (core / bench / trial, the main role
  * given); members already there stay untouched. After the takeover it is refused
- * (409 `kader_taken_over`): the role follows the Kader from then on.
- * Answer: `{ rosterId, added, skipped, kept, roleFailures: [{ userId, roleId, code }] }`.
+ * (409 `kader_taken_over`): the role follows the Kader from then on. By the server-admin rank
+ * alone only members of the server join (`outsideServer` of `skipped` are the others); 503
+ * `members_unavailable` while their list cannot be read.
+ * Answer: `{ rosterId, added, skipped, outsideServer, kept, roleFailures: [{ userId, roleId, code }] }`.
  */
 const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     const guildId = activeGuildFor(req);
@@ -406,9 +411,11 @@ const syncKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
     const roster = rosterOfKader(guildId, kaderId);
     if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
     if (!(await canManageRosterLive(user, roster).catch(() => false))) return apiError(res, SYNC_STATUS.not_manager, "not_manager", "Nur Manager dieses Rosters.");
-    const result = await syncRosterFromKader(kaderId, { guildId, actor: String(user.id || ""), rosterId: roster.id });
+    const { mayTakeIn, unavailable } = await kaderTakeInLimit(user, req);
+    if (unavailable) return membersUnavailable(res);
+    const result = await syncRosterFromKader(kaderId, { guildId, actor: String(user.id || ""), rosterId: roster.id, mayTakeIn });
     if (!result.ok) return apiError(res, SYNC_STATUS[result.code] || 400, result.code, SYNC_MESSAGE[result.code] || `Roster: ${result.code}`);
-    return ok(res, { rosterId: roster.id, added: result.added, skipped: result.skipped, kept: result.kept, roleFailures: result.roleFailures });
+    return ok(res, { rosterId: roster.id, added: result.added, skipped: result.skipped, outsideServer: result.outsideServer, kept: result.kept, roleFailures: result.roleFailures });
 });
 
 /**
@@ -481,7 +488,9 @@ const getTakeover = withUser({}, async ({ req, res, query, user }) => {
  * version_hidden, 503 offline. The checked path goes to the service
  * (`createsRoster`): a roster linked or unlinked during the rights check is
  * 409 `roster_linked` / `no_roster`, never a silent switch.
- * Answer: `{ takeover, steps: [{ step, ok, id?, name, error? }], assigning }` -
+ * By the server-admin rank alone only members of the server join the roster (`outsideServer` counts
+ * the others); 503 `members_unavailable` while their list cannot be read, before anything is made.
+ * Answer: `{ takeover, steps: [{ step, ok, id?, name, error? }], assigning, outsideServer }` -
  * the roles go out in the background, GET shows the results.
  */
 const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
@@ -491,8 +500,10 @@ const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
     if (!roster && !createsRoster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
     if (!may && createsRoster) return apiError(res, 403, "admin_only", "Ein neues Roster legen nur Admins an.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
+    const { mayTakeIn, unavailable } = await kaderTakeInLimit(user, req);
+    if (unavailable) return membersUnavailable(res);
     try {
-        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || ""), createsRoster }));
+        return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || ""), createsRoster, mayTakeIn }));
     } catch (e) {
         return takeoverRefusal(res, e);
     }
@@ -502,7 +513,8 @@ const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
  * POST /api/kader/takeover/role — body: { kaderId }: "Rolle nachziehen", the
  * role for every player still pending. Rights as the takeover; 409 not_taken /
  * running / role_gone. Answer: `{ count, away }` - the roles go out in the background
- * to the players on the server; `away` pending players are not on it.
+ * to the players on the server; `away` pending players are not on it. The takeover's limit of the
+ * server-admin rank holds here too (503 `members_unavailable`, the others count as `away`).
  */
 const pullTakeoverRole = withUser(WRITE, async ({ req, res, body, user }) => {
     const guildId = activeGuildFor(req);
@@ -510,8 +522,10 @@ const pullTakeoverRole = withUser(WRITE, async ({ req, res, body, user }) => {
     const { roster, may } = await takeoverRights(user, guildId, kaderId);
     if (!roster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
+    const { mayTakeIn, unavailable } = await kaderTakeInLimit(user, req);
+    if (unavailable) return membersUnavailable(res);
     try {
-        return ok(res, await rosterTakeover.pullRole(guildId, kaderId, { actor: String(user.id || "") }));
+        return ok(res, await rosterTakeover.pullRole(guildId, kaderId, { actor: String(user.id || ""), mayTakeIn }));
     } catch (e) {
         return takeoverRefusal(res, e);
     }

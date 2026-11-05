@@ -133,7 +133,7 @@ describe("POST /api/rosters/create", () => {
             name: "Donnerstag Raid", guildId: "g1", categoryId: CAT, versionId: "tbc", roleIds: [ROLE], trialRoleId: ROLE2,
             managers: { roleIds: [], userIds: [MANAGER.id] }, slots: { total: 25, tank: 3, healer: 6, bench: 3 }, signupOnly: true, createdBy: "1",
         }));
-        expect(data(res).initial).toEqual({ source: "none", added: 0, skipped: 0, roleFailures: [], error: null });
+        expect(data(res).initial).toEqual({ source: "none", added: 0, skipped: 0, outsideServer: 0, roleFailures: [], error: null });
     });
 
     it("answers 409 category_taken for a second roster of a category", async () => {
