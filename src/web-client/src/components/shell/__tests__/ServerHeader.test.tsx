@@ -45,6 +45,11 @@ describe("ServerHeader", () => {
         expect(screen.queryByRole("button")).not.toBeInTheDocument();
     });
 
+    it("says why as plain text: a tooltip reaches no phone (#1074)", () => {
+        renderPage(<ServerHeader guilds={[]} activeGuildId="" />);
+        expect(screen.getByText(t("shell.guild.noneSub"))).toBeInTheDocument();
+    });
+
     it("shows only the name (and label) with one server, no button and no list", () => {
         renderPage(<ServerHeader guilds={[GUILDS[0]]} activeGuildId="g1" />);
         expect(screen.getByText("Pulse Raids")).toBeInTheDocument();

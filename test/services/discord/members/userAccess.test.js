@@ -88,6 +88,20 @@ describe("services/discord/members/userAccess", () => {
             expect(entry.isMember).toBe(true);
         });
 
+        it("marks the server when fetching it fails for a passing reason, without taking a stored membership", async () => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(new Error("temporary 503"));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBe(true);
+        });
+
+        it.each([10004, 10007, 10013])("does not mark the server when fetching it says %i", async (code) => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("definite"), { code }));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBeUndefined();
+        });
+
         it("marks every server when a lookup that had to answer fails", async () => {
             getConfig.mockReturnValue(onGuild1({ rolePermissions: { "r-lead": RAIDS_WRITE } }));
             const result = await userAccess.resolveGuildAccess("u1");

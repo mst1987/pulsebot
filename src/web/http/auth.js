@@ -394,6 +394,17 @@ function getUserWithoutRank(req) {
 }
 
 /**
+ * The logged-in user with their own rights on one given server, whatever server is active
+ * and whatever role is being looked at: only for a handler bound to one object of that
+ * server (the signup link of one raid, apiRoutes/events/signups.js), never to serve the
+ * server's data. Choosing a server stays activeGuild.js' job.
+ */
+function userForGuild(req, guildId) {
+    const s = sessionFor(req);
+    return s ? userView(s, guildId) : null;
+}
+
+/**
  * Start (`roleIds` an array, [] = only the base access) or stop (`null`) the
  * view as a role for the request's session. Only a real full admin may start
  * one; stopping always works. Returns false when nothing was changed.
@@ -501,7 +512,7 @@ function destroy(sid) {
 }
 
 module.exports = {
-    configured, parseCookies, getUser, getRealUser, getUserWithoutRank, RECHECK_TIMEOUT_MS, setViewAs, loginUrl, completeLogin, destroy,
+    configured, parseCookies, getUser, getRealUser, getUserWithoutRank, userForGuild, RECHECK_TIMEOUT_MS, setViewAs, loginUrl, completeLogin, destroy,
     csrfToken, checkCsrf, getActiveGuild, setActiveGuild, activeGuildOf, guildViewerOf, ensureAccess, renewSession, sessionGuildAccess, MEMBERSHIP_RETRY_MS,
     // services/discord/members/userAccess.js, passed on for the web side
     computeAccess, resolveAccess,

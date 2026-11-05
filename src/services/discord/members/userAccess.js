@@ -42,6 +42,8 @@ const logger = require("../../../logger");
 // member" (as opposed to a transient lookup failure).
 const UNKNOWN_MEMBER = 10007;
 const UNKNOWN_USER = 10013;
+// "The bot is not on this server" - any other error says nothing about the server.
+const UNKNOWN_GUILD = 10004;
 
 const NO_ACCESS = () => ({ isAdmin: false, access: emptyAccess() });
 const ALL_ACCESS = () => ({ isAdmin: true, access: fullAccess() });
@@ -153,7 +155,11 @@ async function computeGuildAccess(userId) {
         try {
             guild = botClient.guilds.cache.get(guildId) || await botClient.guilds.fetch(guildId);
         } catch (e) {
-            lastGuildError = e; // bot not on this server — it keeps its base access
+            lastGuildError = e; // not reachable — it keeps its base access
+            // A passing failure (not "the bot is not on it") must not cost a member their server.
+            if (!e || ![UNKNOWN_GUILD, UNKNOWN_MEMBER, UNKNOWN_USER].includes(e.code)) {
+                guilds[guildId] = { ...guilds[guildId], membershipUnknown: true };
+            }
             continue;
         }
         reachedAnyGuild = true;

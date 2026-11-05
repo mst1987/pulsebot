@@ -1,4 +1,4 @@
-import { useRef, useState, type MouseEvent, type CSSProperties } from "react";
+import { Suspense, useRef, useState, type MouseEvent, type CSSProperties } from "react";
 import { Link, useOutletContext, useSearchParams } from "react-router-dom";
 import type { ShellContext } from "../components/shell/Shell";
 import {
@@ -18,8 +18,12 @@ import { SIGNUP_STATUS, classesForRows, fillTone, missingVersionLabel, profileFo
 import { specLabel } from "../lib/wow/wowNames";
 import { classColorProps } from "../components/character/ClassSpec";
 import { weekBands } from "../lib/raids/raidTime";
+import { lazyWithReload } from "../lib/app/chunkReload";
 import { useT } from "../i18n";
 import "../styles/signups.css";
+
+// The raid of a link that this list does not hold (#1074): its own small page.
+const SignupRaidPage = lazyWithReload(() => import("./SignupRaidPage"));
 
 // "Anmeldungen" (#256): the member's coming raids, one calm row each — the raid
 // icon, the title large, date and deadline small, how full it is as a bar, and
@@ -49,11 +53,22 @@ export default function SignupsPage() {
     const [selected, setSelected] = useState<string[]>([]);
     const [bulkRows, setBulkRows] = useState<OwnSignupRow[]>([]);
 
-    if (signups.error) return <div className="empty">{t("signups.page.loadError", { message: signups.error.message })}</div>;
-    if (!data) return <RaidLoader text={t("signups.page.loading")} />;
-
     // The open dialog is in the url, so the Discord button can link straight to it.
     const openId = params.get("event") || "";
+
+    // A raid link still works when the list does not load (#1074): it needs no active server.
+    if (signups.error) {
+        if (openId) {
+            return (
+                <Suspense fallback={<RaidLoader text={t("signups.page.loading")} />}>
+                    <SignupRaidPage eventId={openId} accountName={user.name} />
+                </Suspense>
+            );
+        }
+        return <div className="empty">{t("signups.page.loadError", { message: signups.error.message })}</div>;
+    }
+    if (!data) return <RaidLoader text={t("signups.page.loading")} />;
+
     const openRow = data.events.find((e): e is OwnSignupRow => e.id === openId && e.source === "eventhelper") || null;
     const open = (id: string) => {
         const next = new URLSearchParams(params);
@@ -61,6 +76,17 @@ export default function SignupsPage() {
         else next.delete("event");
         setParams(next, { replace: true });
     };
+
+    // A raid this list does not hold (#1074): a raid of another server, without switching
+    // to it. `eventVersion` says the raid is in this server's list, under another game
+    // version, and the list is on its way there (useFollowVersion).
+    if (openId && !data.eventVersion && !data.events.some((e) => e.id === openId)) {
+        return (
+            <Suspense fallback={<RaidLoader text={t("signups.page.loading")} />}>
+                <SignupRaidPage eventId={openId} accountName={user.name} onClose={() => open("")} />
+            </Suspense>
+        );
+    }
 
     const onSaved = (eventId: string, signup: OwnSignup, counts: SignupCounts, created?: boolean) => {
         setData((d) => d && ({

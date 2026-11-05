@@ -8,6 +8,7 @@ const { read } = require("../../clientSource");
 
 const FILES = [
     "pages/SignupsPage.tsx",
+    "pages/SignupRaidPage.tsx",
     "components/signup/SignupDialog.tsx",
     "components/signup/BulkSignupDialog.tsx",
     "components/signup/SignupCharacterPicks.tsx",

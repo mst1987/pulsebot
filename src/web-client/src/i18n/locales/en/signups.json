@@ -37,6 +37,12 @@
     },
     "bulkTitle": "Sign up for all selected",
     "statusForAll": "Status for all",
+    "raidLink": {
+        "unavailable": "This raid is not available to you. The link may be out of date, or the raid's server does not accept your signup.",
+        "backToList": "Back to your signups",
+        "notSignedUp": "You have not signed up for this raid yet.",
+        "yours": "Your signup: {status}"
+    },
     "page": {
         "title": "Signups",
         "loadError": "Could not load signups: {message}",

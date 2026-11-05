@@ -52,6 +52,17 @@ describe("SignupDialog", () => {
         expect(await screen.findByRole("radio", { name: "Signed up" })).toBeInTheDocument();
     });
 
+    it("saves through the route it is given: the raid of a link has its own (#1074)", async () => {
+        const user = userEvent.setup();
+        const save = vi.fn().mockResolvedValue({ signup: signup(), counts: counts({ attending: 4 }) });
+        const onSaved = vi.fn();
+        renderPage(<SignupDialog row={ownRow()} profile={PROFILE} classes={CLASSES} onClose={vi.fn()} onSaved={onSaved} save={save} />);
+        await user.click(submitButton());
+        expect(save).toHaveBeenCalledWith(expect.objectContaining({ eventId: "eh-kara", status: "signed" }));
+        expect(api.saveSignup).not.toHaveBeenCalled();
+        expect(onSaved).toHaveBeenCalled();
+    });
+
     it("disables what the deadline no longer allows and says why", () => {
         show(ownRow({ deadlinePassed: true, allowedStatuses: ["late", "absence"] }));
         for (const s of ["signed", "tentative", "bench"]) {

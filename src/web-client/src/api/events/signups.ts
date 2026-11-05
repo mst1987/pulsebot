@@ -161,6 +161,8 @@ export type SignupInput = {
 
 /** The refusal of a PuG raid to a non-member of its server (#907). */
 export const PUG_MEMBERS_ONLY = "pug_members_only";
+/** The refusal of a raid link (#1074): unknown raid, or its server gives no access — the same answer for both. */
+export const RAID_UNAVAILABLE = "raid_unavailable";
 /** `inviteUrl`: the PuG server's invite link, "" while none is known. */
 export type SignupError = ApiError & { inviteUrl?: string };
 
@@ -219,4 +221,17 @@ export type SaveSignupResult = {
 
 export function saveSignup(input: SignupInput): Promise<SaveSignupResult> {
     return send("PUT", "/api/signups", input);
+}
+
+/**
+ * One raid a link names (#1074), whatever server is active: `events` holds that raid
+ * with the own signup and nothing else, under the rules of the raid's own server.
+ */
+export function getSignupRaid(eventId: string): Promise<SignupsData> {
+    return get<SignupsData>(`/api/signups/raid?event=${encodeURIComponent(eventId)}`);
+}
+
+/** The own signup for the raid of a link (#1074); the account is always the session's. */
+export function saveSignupRaid(input: SignupInput): Promise<SaveSignupResult> {
+    return send("PUT", "/api/signups/raid", input);
 }

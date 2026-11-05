@@ -70,9 +70,10 @@ export default function ServerHeader({ guilds, activeGuildId }: {
     if (!guilds.length) {
         return (
             <div className="srv-head is-none">
-                <Badge tone="mid" icon={GUILD_ICON} tip={t("shell.guild.noneTip")} tipSub={t("shell.guild.noneSub")}>
+                <Badge tone="mid" icon={GUILD_ICON} tip={t("shell.guild.noneTip")}>
                     {t("shell.guild.none")}
                 </Badge>
+                <p className="srv-head-note">{t("shell.guild.noneSub")}</p>
             </div>
         );
     }

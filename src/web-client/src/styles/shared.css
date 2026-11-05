@@ -537,6 +537,9 @@ nav.menu::-webkit-scrollbar { display: none; }
 .srv-head-btn > svg { width: 16px; height: 16px; flex: 0 0 auto; }
 .srv-head-btn[aria-expanded="true"] > svg { transform: rotate(180deg); }
 .srv-head > .badge { margin: 6px 8px 0; }
+/* No server: the reason stands as plain text, a tooltip would not reach a phone (#1074). */
+.srv-head.is-none { flex-direction: column; align-items: flex-start; gap: 6px; }
+.srv-head-note { margin: 0; font-size: var(--fs-label); color: var(--muted); line-height: 1.35; }
 .srv-list { position: absolute; left: 10px; right: 10px; top: calc(100% - 4px); z-index: 20; list-style: none; margin: 0; padding: 4px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; box-shadow: 0 8px 24px var(--shade-35); max-height: 60vh; overflow-y: auto; }
 .srv-opt { display: flex; align-items: center; gap: 8px; width: 100%; min-width: 0; padding: 7px 10px; font: inherit; background: none; border: 0; border-radius: 6px; color: var(--text); cursor: pointer; }
 .srv-opt .srv-head-name { font-size: 14.5px; font-weight: 600; }

@@ -30,6 +30,9 @@ const axios = require("axios");
 const discord = require("../../../src/services/discord/discord");
 const configStore = require("../../../src/stores/settings/configStore");
 const eventStore = require("../../../src/stores/events/eventStore");
+const signupStore = require("../../../src/stores/events/signupStore");
+const profiles = require("../../../src/stores/roster/raiderProfileStore");
+const { tempStoreFile } = require("../../helpers/tempStore");
 const eventPublicPage = require("../../../src/web/pages/eventPublicPage");
 const staticClient = require("../../../src/web/http/staticClient");
 const auth = require("../../../src/web/http/auth");
@@ -51,6 +54,7 @@ const SIGNUP = { signup: { read: true, write: true } };
 // base access on both servers, the foreign one with a tempting amount of it. The foreign one
 // comes first: getConfig().guildId reports the first server, so it is the default server.
 const CONFIG = {
+    categoryIds: [], // every category is an event category; the default names real ones
     discordServers: { servers: [{ guildId: FOREIGN, kind: "event" }, { guildId: OWN, kind: "event" }], links: [] },
     serverSettings: {
         [OWN]: { baseAccess: SIGNUP },
@@ -93,6 +97,16 @@ const reqOf = (sid) => ({ headers: { cookie: `sid=${sid}` } });
 const session = async (sid) => body(await call(sid, "GET", "/api/session"));
 const listed = async (sid) => (await session(sid)).guilds.map((g) => g.id);
 const flush = () => new Promise((resolve) => setImmediate(resolve));
+const FIVE_MINUTES = 5 * 60 * 1000 + 1;
+const laterBy = (ms) => {
+    const now = Date.now();
+    jest.spyOn(Date, "now").mockReturnValue(now + ms);
+};
+/** CONFIG with rules for the Discord roles: a login then needs Discord's answer (answerRequired). */
+const withRoleRules = () => ({
+    ...CONFIG,
+    serverSettings: { ...CONFIG.serverSettings, [OWN]: { ...CONFIG.serverSettings[OWN], rolePermissions: { 777: SIGNUP } } },
+});
 
 beforeEach(() => {
     jest.clearAllMocks();
@@ -327,5 +341,321 @@ describe("Discord gives no answer (#1074)", () => {
         await flush();
         expect(await listed(sid)).toEqual([OWN]);
         expect((await session(sid)).activeGuildId).toBe(OWN);
+    });
+
+    it("keeps the known membership when only fetching the server fails, and stays open to a retry", async () => {
+        const sid = await login(MEMBER);
+        expect(await listed(sid)).toEqual([OWN]);
+
+        // the bot's cache lost the server and Discord does not hand it out right now
+        const client = makeClient({ guilds: [makeGuild({ id: FOREIGN, name: "Fremder Server" })] });
+        client.guilds.fetch = jest.fn(async () => { throw new Error("temporary 503"); });
+        discord.setClient(client);
+        laterBy(FIVE_MINUTES);
+        await listed(sid);
+        await flush();
+
+        const entry = auth.guildViewerOf(reqOf(sid)).guildAccess.guilds[OWN];
+        expect(entry.membershipUnknown).toBe(true);
+        expect(entry.isMember).toBe(true);
+    });
+
+    it("answers the same with role rules, where a login needs Discord's answer", async () => {
+        configStore.writeStored(withRoleRules());
+        botOnline(outage());
+        const sid = await login(MEMBER);
+        expect(await listed(sid)).toEqual([]);
+        expect((await session(sid)).activeGuildId).toBe("");
+
+        const granted = await login(GRANTED);
+        expect(await listed(granted)).toEqual([FOREIGN]);
+    });
+
+    it("finds the server with role rules too once Discord answers again", async () => {
+        configStore.writeStored(withRoleRules());
+        botOnline(outage());
+        const sid = await login(MEMBER);
+        expect(await listed(sid)).toEqual([]);
+
+        botOnline();
+        laterBy(auth.MEMBERSHIP_RETRY_MS + 1);
+        expect(await listed(sid)).toEqual([OWN]);
+    });
+});
+
+describe("leaving a server (#1074)", () => {
+    it.each([
+        ["without role rules", () => CONFIG],
+        ["with role rules", withRoleRules],
+    ])("takes it off the list at the next re-check %s", async (_name, config) => {
+        configStore.writeStored(config());
+        const sid = await login(MEMBER);
+        auth.setActiveGuild(reqOf(sid), OWN);
+        expect(await listed(sid)).toEqual([OWN]);
+
+        botOnline(jest.fn(async () => { throw discordError("member"); }));
+        laterBy(FIVE_MINUTES);
+        await listed(sid); // sets off the re-check in the background
+        await flush();
+
+        const after = await session(sid);
+        expect(after.guilds).toEqual([]);
+        expect(after.activeGuildId).toBe("");
+    });
+});
+
+describe("a session from before the per-server rights (#1074)", () => {
+    it("gets its servers on the first request instead of the base access of a foreign one", async () => {
+        const fs = require("fs");
+        const read = fs.readFileSync;
+        // the session file of an older version: logged in, but neither rights nor memberships
+        jest.spyOn(fs, "readFileSync").mockImplementation((file, ...rest) => (String(file).endsWith("sessions.json")
+            ? JSON.stringify({ "old-session": { id: MEMBER, name: "Alt", createdAt: Date.now() } })
+            : read(file, ...rest)));
+        let fresh;
+        let freshDiscord;
+        let freshConfig;
+        jest.isolateModules(() => {
+            fresh = require("../../../src/web/http/auth");
+            freshDiscord = require("../../../src/services/discord/discord");
+            freshConfig = require("../../../src/stores/settings/configStore");
+        });
+        fs.readFileSync.mockRestore();
+        freshConfig.writeStored(CONFIG);
+        freshDiscord.setClient(makeClient({ guilds: [
+            makeGuild({ id: OWN, name: "Eigener Server", members: [makeMember({ id: MEMBER })] }),
+            makeGuild({ id: FOREIGN, name: "Fremder Server" }),
+        ] }));
+
+        const req = reqOf("old-session");
+        expect(fresh.guildViewerOf(req).guildAccess.guilds).toEqual({});
+        await fresh.ensureAccess(req);
+
+        const { guilds } = fresh.guildViewerOf(req).guildAccess;
+        expect(guilds[OWN].isMember).toBe(true);
+        expect(guilds[FOREIGN].isMember).toBeFalsy();
+        // and only once: the next request has nothing left to settle
+        const asked = freshDiscord.getClient().guilds.fetch.mock.calls.length;
+        await fresh.ensureAccess(req);
+        expect(freshDiscord.getClient().guilds.fetch.mock.calls.length).toBe(asked);
+    });
+});
+
+describe("the one raid behind a signup link (#1074)", () => {
+    const BOTH = "1004"; // on both servers, so a signup of theirs can go through
+    const FUTURE = Math.floor(Date.now() / 1000) + 7 * 24 * 3600;
+    const NEW_CHARACTER = { newCharacter: { name: "Nerathil", spec: "Mage-Frost" }, status: "signed" };
+
+    /** The bot on both servers, with `BOTH` on each of them. */
+    function botOnBoth() {
+        discord.setClient(makeClient({ guilds: [
+            makeGuild({ id: OWN, name: "Eigener Server", members: [makeMember({ id: MEMBER }), makeMember({ id: BOTH })] }),
+            makeGuild({ id: FOREIGN, name: "Fremder Server", members: [makeMember({ id: BOTH })] }),
+        ] }));
+    }
+
+    const raidOn = (guildId, over = {}) => eventStore.createEvent({
+        guildId, channelId: "555", channelName: "geheimer-kanal", title: "Karazhan", startTime: FUTURE, ...over,
+    }).event;
+
+    const openRaid = (sid, id) => call(sid, "GET", "/api/signups/raid", { query: { event: id } });
+    const saveRaid = (sid, payload) => call(sid, "PUT", "/api/signups/raid", { payload });
+
+    beforeEach(() => {
+        eventStore.useFile(tempStoreFile("signup-link-events.json"));
+        signupStore.useFile(tempStoreFile("signup-link-signups.json"));
+        profiles.useFile(tempStoreFile("signup-link-profiles.json"));
+        eventStore.getEvent.mockReset();
+        eventStore.getEvent.mockImplementation(jest.requireActual("../../../src/stores/events/eventStore").getEvent);
+    });
+
+    describe("reading", () => {
+        it("opens the raid for someone without an active server, and leaves them without one", async () => {
+            const raid = raidOn(FOREIGN);
+            const sid = await login(STRANGER);
+            const res = await openRaid(sid, raid.id);
+            expect(status(res)).toBe(200);
+            expect(body(res).events.map((e) => e.id)).toEqual([raid.id]);
+            const after = await session(sid);
+            expect(after.activeGuildId).toBe("");
+            expect(after.guilds).toEqual([]);
+        });
+
+        it("opens a raid of server A for a member of server B without switching", async () => {
+            const raid = raidOn(FOREIGN);
+            const sid = await login(MEMBER);
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+            const after = await session(sid);
+            expect(after.activeGuildId).toBe(OWN);
+            expect(after.guilds.map((g) => g.id)).toEqual([OWN]);
+            expect(status(await call(sid, "POST", "/api/session/guild", { payload: { guildId: FOREIGN } }))).toBe(403);
+        });
+
+        it("answers with that raid only, nothing of the server around it", async () => {
+            const raid = raidOn(FOREIGN);
+            raidOn(FOREIGN, { title: "Gruul" });
+            const sid = await login(MEMBER);
+            const data = body(await openRaid(sid, raid.id));
+            expect(data.events).toHaveLength(1);
+            const text = JSON.stringify(data);
+            expect(text).not.toContain("Gruul");
+            expect(text).not.toContain("Fremder Server");
+            expect(text).not.toContain("geheimer-kanal");
+            expect(data.events[0].discordUrl).toBe("");
+            expect(data.events[0].categoryId).toBe("");
+            expect(data.canShowAll).toBe(false);
+        });
+
+        it("still refuses the signup page itself without a server", async () => {
+            const raid = raidOn(FOREIGN);
+            const sid = await login(STRANGER);
+            expect(status(await call(sid, "GET", "/api/signups", { query: { event: raid.id } }))).toBe(403);
+            expect(status(await call(sid, "GET", "/api/signups"))).toBe(403);
+            expect(status(await call(sid, "PUT", "/api/signups", { payload: { eventId: raid.id, ...NEW_CHARACTER } }))).toBe(403);
+        });
+
+        it("wants a login", async () => {
+            const raid = raidOn(FOREIGN);
+            expect(status(await openRaid("no-such-session", raid.id))).toBe(401);
+            expect(status(await saveRaid("no-such-session", { eventId: raid.id, ...NEW_CHARACTER }))).toBe(401);
+        });
+    });
+
+    describe("refusals say nothing about what exists", () => {
+        const withoutBase = () => ({
+            ...CONFIG,
+            serverSettings: { ...CONFIG.serverSettings, [FOREIGN]: { userPermissions: CONFIG.serverSettings[FOREIGN].userPermissions } },
+        });
+
+        it("answers an unknown raid and a raid of a server without base access alike", async () => {
+            configStore.writeStored(withoutBase());
+            const raid = raidOn(FOREIGN);
+            const sid = await login(MEMBER);
+
+            const closed = await openRaid(sid, raid.id);
+            const unknown = await openRaid(sid, "eh-does-not-exist");
+            expect(status(closed)).toBe(403);
+            expect(body(closed).error.code).toBe("raid_unavailable");
+            expect(status(unknown)).toBe(status(closed));
+            expect(body(unknown)).toEqual(body(closed));
+
+            const savedClosed = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            const savedUnknown = await saveRaid(sid, { eventId: "eh-does-not-exist", ...NEW_CHARACTER });
+            expect(status(savedClosed)).toBe(403);
+            expect(body(savedClosed)).toEqual(body(closed));
+            expect(body(savedUnknown)).toEqual(body(closed));
+        });
+
+        it("answers no raid named at all the same way", async () => {
+            const sid = await login(MEMBER);
+            const res = await call(sid, "GET", "/api/signups/raid");
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+        });
+
+        it("answers a Raid-Helper id the same way: only own events have a signup here", async () => {
+            const sid = await login(MEMBER);
+            const res = await openRaid(sid, "1234567890");
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+        });
+
+        it("counts a grant of one's own on a server without base access", async () => {
+            configStore.writeStored({
+                ...CONFIG,
+                serverSettings: { ...CONFIG.serverSettings, [FOREIGN]: { userPermissions: { [STRANGER]: SIGNUP } } },
+            });
+            const raid = raidOn(FOREIGN);
+            const sid = await login(STRANGER);
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+        });
+    });
+
+    describe("the rules of the raid's server", () => {
+        it("hides a raid of a category with raider roles from someone without them", async () => {
+            configStore.writeStored({ ...CONFIG, categoryRoles: { 777: ["888"] } });
+            const raid = raidOn(FOREIGN, { categoryId: "777" });
+            const sid = await login(MEMBER);
+            const res = await openRaid(sid, raid.id);
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+            // the category is what refuses: the same person opens a raid of a category without roles
+            expect(status(await openRaid(sid, raidOn(FOREIGN, { categoryId: "778" }).id))).toBe(200);
+        });
+
+        it("keeps the PuG rule: a non-member gets the hint and no signup", async () => {
+            const raid = raidOn(FOREIGN);
+            const sid = await login(MEMBER);
+
+            const [row] = body(await openRaid(sid, raid.id)).events;
+            expect(row.membersOnly).toBe(true);
+            expect(row).toHaveProperty("inviteUrl");
+
+            const res = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("pug_members_only");
+            expect(body(res).error).toHaveProperty("inviteUrl");
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+
+        it("lets a holder of a signup change it without being a member", async () => {
+            const raid = raidOn(FOREIGN);
+            botOnBoth();
+            const sid = await login(BOTH);
+            expect(status(await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER }))).toBe(200);
+
+            // has left the server since, the signup stays theirs
+            botOnline();
+            expect(status(await saveRaid(sid, { eventId: raid.id, character: "Nerathil", spec: "Mage-Frost", status: "absence" }))).toBe(200);
+            expect(signupStore.listSignups(raid.id).map((s) => s.status)).toEqual(["absence"]);
+        });
+    });
+
+    describe("writing", () => {
+        it("saves the caller's own signup with another server active, and only that", async () => {
+            const raid = raidOn(FOREIGN);
+            raidOn(FOREIGN, { title: "Gruul" });
+            botOnBoth();
+            const sid = await login(BOTH);
+            await call(sid, "POST", "/api/session/guild", { payload: { guildId: OWN } });
+
+            const res = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(res)).toBe(200);
+            expect(signupStore.listSignups(raid.id).map((s) => s.userId)).toEqual([BOTH]);
+            expect(auth.getActiveGuild(reqOf(sid))).toBe(OWN);
+        });
+
+        it("ignores an account named in the body", async () => {
+            const raid = raidOn(FOREIGN);
+            botOnBoth();
+            const sid = await login(BOTH);
+            const res = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER, userId: STRANGER, discordId: STRANGER, user: { id: STRANGER } });
+            expect(status(res)).toBe(200);
+            expect(signupStore.listSignups(raid.id).map((s) => s.userId)).toEqual([BOTH]);
+        });
+
+        it("wants the CSRF token", async () => {
+            const raid = raidOn(FOREIGN);
+            botOnBoth();
+            const sid = await login(BOTH);
+            const req = jsonRequest("PUT", "/api/signups/raid", { eventId: raid.id, ...NEW_CHARACTER }, { cookie: `sid=${sid}` });
+            const res = mockRes();
+            await handle("/api/signups/raid", req, res, new URL("http://localhost/api/signups/raid"));
+            expect(status(res)).toBe(403);
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+
+        it("signs up for the first raid when the link names a further raid of a group", async () => {
+            const first = raidOn(FOREIGN);
+            eventStore.updateEvent(first.id, { raidGroupId: first.id, raidGroupIndex: 1 });
+            const further = raidOn(FOREIGN, { title: "Karazhan 2", raidGroupId: first.id, raidGroupIndex: 2 });
+            botOnBoth();
+            const sid = await login(BOTH);
+
+            expect(body(await openRaid(sid, further.id)).events.map((e) => e.id)).toEqual([first.id]);
+            expect(status(await saveRaid(sid, { eventId: further.id, ...NEW_CHARACTER }))).toBe(200);
+            expect(signupStore.listSignups(first.id).map((s) => s.userId)).toEqual([BOTH]);
+            expect(signupStore.listSignups(further.id)).toEqual([]);
+        });
     });
 });

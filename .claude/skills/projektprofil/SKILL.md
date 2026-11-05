@@ -252,6 +252,10 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
     Welche Server jemand sehen und betreten darf, entscheidet nur `mayEnterGuild` (`web/http/guildChoice.js`,
     #1074); ein aktiver Server ist für Nicht-Voll-Admins nie fremd, er kann aber fehlen (`""`).
+29. **Links in bereichsgebundene SPA-Seiten:** `/signups?event=…` aus Bot-Nachrichten und `/e/<id>` zeigen auf eine
+    Seite, die einen passenden aktiven Server voraussetzt oder die raidgebundene Ausnahme braucht (`/api/signups/raid`,
+    #1074). Wer den Eintritt oder den aktiven Server ändert, prüft alle Linkquellen und was das Ziel dann zeigt: Grün
+    im Router-Test heißt nicht, dass der Link aus dem Discord noch etwas öffnet.
 
 ## Fach-Agenten
 
