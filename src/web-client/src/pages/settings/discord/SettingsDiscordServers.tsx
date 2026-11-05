@@ -88,6 +88,11 @@ function withShareNotes(link: ServerLink, on: boolean): ServerLink {
     return next;
 }
 
+/** Notes are shared between two different servers of the list only (#1078): the server drops the switch on any other link. */
+function canShareNotes(link: ServerLink, servers: ServerEntry[]): boolean {
+    return link.from !== link.to && servers.some((s) => s.guildId === link.from) && servers.some((s) => s.guildId === link.to);
+}
+
 export default function DiscordServersSection({ onConfig, crumb }: {
     onConfig: (config: AdminConfig) => void;
     crumb: string;
@@ -221,9 +226,10 @@ export default function DiscordServersSection({ onConfig, crumb }: {
         });
         if (!ok) return;
         // A link needs its source among the servers (configSchema), so the links from it go with it.
+        // A link onto it stays as a raid list, but loses the switch: listing the server again shares nothing.
         await save({
             servers: config.servers.filter((s) => s.guildId !== row.id),
-            links: config.links.filter((l) => l.from !== row.id),
+            links: config.links.filter((l) => l.from !== row.id).map((l) => (l.to === row.id ? withShareNotes(l, false) : l)),
         }, t("settings.discordServers.serverRemoved"));
     };
 
@@ -301,8 +307,8 @@ export default function DiscordServersSection({ onConfig, crumb }: {
         { id: "summary", label: t("settings.discordServers.colLangVersions"), sortKey: "summary", className: "srv-muted", cell: (l) => linkSummary(l, data.versions) },
         {
             id: "shareNotes", label: t("settings.discordServers.colShareNotes"), sortKey: "shareNotes",
-            // A link onto its own server has nobody to share with.
-            cell: (l) => (l.from === l.to ? <span className="srv-muted">—</span> : (
+            // A link onto its own server has nobody to share with, one onto a server off the list shares nothing.
+            cell: (l) => (!canShareNotes(l, config.servers) ? <span className="srv-muted">—</span> : (
                 <Switch checked={l.shareNotes === true} onChange={(on) => setShareNotes(l, on)}
                     label={t(l.shareNotes ? "settings.discordServers.shareNotesOn" : "settings.discordServers.shareNotesOff")}
                     tipHead={t("settings.discordServers.shareNotes")} tip={t("settings.discordServers.shareNotesSub")} />
@@ -636,8 +642,8 @@ function LinkModal({ data, onClose, onSave }: {
     const sourceRow = data.servers.find((s) => s.id === link.from);
     const exists = data.discordServers.links.some((l) => sameLink(l, link));
     const ready = !!(link.from && link.to && link.channelId) && !exists;
-    // A link onto its own server has nobody to share with, so it has no switch either.
-    const selfLink = !!link.to && link.from === link.to;
+    // A link onto its own server or onto a server off the list shares nothing, so it has no switch either.
+    const shareable = canShareNotes(link, sources);
 
     // The language follows the target's Discord language as a suggestion; "" = server language.
     const pickTarget = (to: string) => {
@@ -649,7 +655,7 @@ function LinkModal({ data, onClose, onSave }: {
     };
     const submit = async () => {
         setBusy(true);
-        try { await onSave(selfLink ? withShareNotes(link, false) : link); } finally { setBusy(false); }
+        try { await onSave(shareable ? link : withShareNotes(link, false)); } finally { setBusy(false); }
     };
 
     return (
@@ -727,11 +733,11 @@ function LinkModal({ data, onClose, onSave }: {
                         </div>
                     </div>
                 )}
-                {!selfLink && (
+                {shareable && (
                     <Switch checked={link.shareNotes === true} onChange={(on) => setLink(withShareNotes(link, on))}
                         label={t("settings.discordServers.shareNotes")} tip={t("settings.discordServers.shareNotesSub")} />
                 )}
-                {!selfLink && link.shareNotes && (
+                {shareable && link.shareNotes && (
                     <div className="conn-status mid srv-hint" role="note"><WarnIcon /><span>{t("settings.discordServers.shareNotesSub")}</span></div>
                 )}
                 {exists && <div className="conn-status mid srv-hint" role="note"><WarnIcon /><span>{t("settings.discordServers.linkExists")}</span></div>}

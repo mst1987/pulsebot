@@ -8,6 +8,7 @@ const { migrateSettings, migrateLinkShareNotes } = require("../../../src/stores/
 
 const A = "1100000000000000001";
 const B = "1100000000000000002";
+const C = "1100000000000000003";
 const CH = "1400000000000000011";
 const servers = [{ guildId: A, label: "" }, { guildId: B, label: "" }];
 const quiet = { log: () => {}, warn: () => {} };
@@ -82,6 +83,21 @@ describe("stores/settings/settingsMigration link switch (#1078)", () => {
         load([link(A, A), link(A, B)]);
         migrateLinkShareNotes();
         expect(stored().discordServers.links).toEqual([link(A, A), link(A, B, { shareNotes: true })]);
+    });
+
+    // Listing C later must not make it share at once, without the question the switch asks.
+    it("gives a link with a server off the list nothing: it never shared", () => {
+        load([link(A, C), link(C, A), link(A, B)]);
+        expect(migrateLinkShareNotes()).toEqual(["config.json: Vermerke teilen an 1 bestehender/n Verknüpfung(en) eingeschaltet (#1078)"]);
+        expect(stored().discordServers.links).toEqual([link(A, C), link(C, A), link(A, B, { shareNotes: true })]);
+    });
+
+    it("marks a server block without a links key and writes nothing", () => {
+        fs.__store.set(settingsPath("config.json"), JSON.stringify({ discordServers: { servers } }));
+        const before = fs.__store.get(settingsPath("config.json"));
+        expect(migrateLinkShareNotes()).toEqual([]);
+        expect(fs.__store.get(settingsPath("config.json"))).toBe(before);
+        expect(marked().done.linkShareNotes).toEqual(expect.any(Number));
     });
 
     it("runs at the start, and the second start changes nothing", () => {

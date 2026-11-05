@@ -1092,9 +1092,11 @@ function migrateReportGuilds() {
 
 /**
  * config.json, links (#1078): sharing Vermerke became a switch per link, off by default.
- * A link of before the switch shared, so every one between two different servers gets
- * it on, once. Unlike migrateReportGuilds() the mark is set without any link too: a link
- * created later with the switch off must not be turned on by a later start.
+ * A link of before the switch shared when both servers were listed, so every one between
+ * two different servers of the list gets it on, once (noteSharingServerIds() ignored the
+ * others, and they must not start sharing the day the target is listed). Unlike
+ * migrateReportGuilds() the mark is set without any link too: a link created later with
+ * the switch off must not be turned on by a later start.
  *
  * The links go first, the mark after: a crash between them repeats the run on the next
  * start, which only finds links that are on already (no web save happens in between).
@@ -1105,7 +1107,8 @@ function migrateLinkShareNotes() {
     const stored = configStore.readStored();
     const block = stored.discordServers;
     const raw = block && Array.isArray(block.links) ? block.links : [];
-    const turnsOn = (link) => link && typeof link === "object" && link.from !== link.to && link.shareNotes !== true;
+    const listed = new Set((block && Array.isArray(block.servers) ? block.servers : []).map((server) => server && String(server.guildId)));
+    const turnsOn = (link) => link && typeof link === "object" && link.from !== link.to && listed.has(link.from) && listed.has(link.to) && link.shareNotes !== true;
     const count = raw.filter(turnsOn).length;
     if (count) {
         const links = raw.map((link) => (turnsOn(link) ? { ...link, shareNotes: true } : link));

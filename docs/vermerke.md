@@ -51,8 +51,11 @@ server gets the same answer as for a person without notes, nothing says that a n
 - **The switch on** shows the existing shared notes of both sides, and shared shadowbans then count in the other
   server's setup proposal. The switch asks before it goes on and says so.
 - **Links of before:** `settingsMigration.migrateLinkShareNotes` turned the switch on once for every link that existed
-  then, so nothing got lost; the mark `linkShareNotes` in `migrations.json` keeps a switch turned off later from coming
-  back on. A link onto its own server gets no switch.
+  then between two listed servers, so nothing got lost; the mark `linkShareNotes` in `migrations.json` keeps a switch
+  turned off later from coming back on.
+- **No switch** on a link onto its own server or with a partner off the list: neither would share anything, and
+  `normalizeLinks` drops the field there. Removing a server therefore takes the switch off its links, and listing it
+  again shares nothing until someone turns the switch on and answers its question.
 - **Sharing without such a link** is allowed: the note stays `shared` and only A sees it until a link has the switch.
   The answers of `GET /api/vermerke` and `/person` carry `hasSharingServers` for the text in the dialog and the drawer.
 - Expiry, archive and removing for good work on the store of A and do not ask the rule. A full admin has no way

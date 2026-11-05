@@ -264,12 +264,13 @@ function migrated952(config, stored) {
     const own = (config.serverSettings || {})[first] || {};
     return { ...out, serverSettings: { ...config.serverSettings, [first]: { ...own, topItems: { tbc: legacy } } } };
 }
-// #1078: sharing Vermerke became a switch per link - the start turns it on once for the links of before,
-// a link onto its own server shares with nobody and gets none.
+// #1078: sharing Vermerke became a switch per link - the start turns it on once for the links of before
+// between two listed servers; a link onto its own server or off the list shares with nobody and gets none.
 function after1078(config) {
     const block = config.discordServers;
     if (!block || !Array.isArray(block.links)) return config;
-    const links = block.links.map((link) => (link.from === link.to ? link : { ...link, shareNotes: true }));
+    const listed = new Set((block.servers || []).map((server) => server.guildId));
+    const links = block.links.map((link) => (link.from !== link.to && listed.has(link.from) && listed.has(link.to) ? { ...link, shareNotes: true } : link));
     return { ...config, discordServers: { ...block, links } };
 }
 const golden = schemaOnly.map((g, i) => ({ ...g, config: after1078(migrated952(migrated925(after927(after924Migrated(afterCategoryVersions(afterPlanning(g.config, cases[i].config || {}), cases[i].config), cases[i].config), cases[i].config), cases[i].config), cases[i].config)) }));
@@ -569,6 +570,17 @@ describe("stores/settings/configSchema server federation (#890)", () => {
             const once = schema.normalizeDiscordServers({ servers, links: [{ from: A, to: B, channelId: C1, shareNotes: true }] });
             expect(once.links).toEqual([link(A, B, C1, { shareNotes: true })]);
             expect(schema.normalizeDiscordServers(once)).toEqual(once);
+        });
+
+        it("drops the Vermerke switch for a link onto its own server and a partner off the list (#1078)", () => {
+            const OFF = "1100000000000000099";
+            expect(schema.normalizeLinks([
+                { from: A, to: A, channelId: C1, shareNotes: true },
+                { from: A, to: OFF, channelId: C1, shareNotes: true },
+                { from: A, to: B, channelId: C1, shareNotes: true },
+            ], [A, B])).toEqual([
+                link(A, A, C1), link(A, OFF, C1), link(A, B, C1, { shareNotes: true }),
+            ]);
         });
 
         it("keeps language and versions through a second normalisation (idempotent)", () => {

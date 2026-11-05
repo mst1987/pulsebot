@@ -688,7 +688,9 @@ function checkServersAndLinks(sent, stored) {
             const versions = link.versions === undefined ? [] : link.versions;
             if (!Array.isArray(versions) || versions.some((v) => !versionIds.has(String(v)))) return { error: "Unbekannte Spielversion." };
             const entry = { from, to, channelId, lang, versions: [...new Set(versions.map(String))] };
-            // The switch "share Vermerke" (#1078): stored only when on, like normalizeLinks().
+            // The switch "share Vermerke" (#1078): stored only when on. normalizeLinks() drops it for a
+            // partner off the list and for a link onto its own server: only there the list after this
+            // save is known, also when a save sends the servers alone.
             if (link.shareNotes === true) entry.shareNotes = true;
             out.links.push(entry);
         }
