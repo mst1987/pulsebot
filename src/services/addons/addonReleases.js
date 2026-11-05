@@ -15,6 +15,8 @@
 const crypto = require("crypto");
 const { fetchLatestRelease } = require("../../classes/githubReleases");
 const { assetMatches, VERSION_IDS } = require("./addonConfig");
+const { userIsOrga } = require("../../config/permissions");
+const { serverIsTrusted } = require("../discord/roles/guildRoles");
 
 const CACHE_MS = 10 * 60 * 1000;
 const RETRY_MS = 2 * 60 * 1000;
@@ -88,9 +90,22 @@ async function releaseFor(addon, { config, now = Date.now(), force = false } = {
 }
 
 /**
+ * Whether `user` counts as orga for an orga-only addon on `guildId`: a full admin always, an orga
+ * role only on a server marked trusted (#1073) - on any other server its admin hands out that role.
+ * @param {object | null} user
+ * @param {string} guildId the server the request or click comes from
+ * @param {object} [config]
+ * @returns {boolean}
+ */
+function mayOpenOrgaOnly(user, guildId, config) {
+    if (!user) return false;
+    return user.isAdmin === true || (userIsOrga(user) && serverIsTrusted(guildId, config));
+}
+
+/**
  * The enabled addons of the config, optionally only those for one game version.
- * Addons marked `orgaOnly` are left out unless the caller is `orga` (a full
- * admin or an orga role, permissions.userIsOrga): hidden is the safe default.
+ * Addons marked `orgaOnly` are left out unless the caller is `orga`
+ * (mayOpenOrgaOnly): hidden is the safe default.
  */
 function enabledAddons(config, versionId = "", { orga = false } = {}) {
     const list = Array.isArray(config && config.addonDownloads) ? config.addonDownloads : [];
@@ -214,6 +229,6 @@ function resetAddonReleaseCache() {
 }
 
 module.exports = {
-    releaseFor, enabledAddons, addonVersions, addonCard, addonCards, addonDetail, publicAddon, resolveDownload, offeredAssets, kindOf, downloadPath,
+    releaseFor, mayOpenOrgaOnly, enabledAddons, addonVersions, addonCard, addonCards, addonDetail, publicAddon, resolveDownload, offeredAssets, kindOf, downloadPath,
     tokenOf, tokenFingerprint, resetAddonReleaseCache, CACHE_MS, RETRY_MS,
 };

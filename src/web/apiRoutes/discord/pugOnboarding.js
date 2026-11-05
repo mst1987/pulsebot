@@ -1,11 +1,11 @@
 // Roles & onboarding of a PuG server (#906, services/discord/pug/pugOnboarding.js,
 // docs/discord-servers.md): the version and class roles, the rights of the PuG categories
 // and the onboarding questions, compared with what Discord has, and taken over on request.
-// Full admins only (area `settings`, full: true): the button changes roles, category
-// rights and the server's onboarding in Discord.
+// Full admins, and the server-admin rank for its own server (area `settings`, serverAdmin: true):
+// the button changes roles, category rights and the server's onboarding in Discord.
 //
 // GET  /api/discord/pug-onboarding?guildId=<one of the servers>&categories=<id,id>
-//      (no guildId: of the servers with the switch "PuG-Server" the first with a PuG category,
+//      (no guildId: for the rank its own server; else of the servers with the switch "PuG-Server" the first with a PuG category,
 //       else the first marked one, else the first server; no categories: every PuG category, "" = none)
 //      → { data: Overview }   (offline: { guildId, guildName: "", online: false, applied };
 //        a server without the switch: { guildId, guildName, online, applied, notPugServer: true })
@@ -28,8 +28,9 @@ const pugOnboarding = require("../../../services/discord/pug/pugOnboarding");
 const str = (v) => String(v === undefined || v === null ? "" : v).trim();
 
 /** GET /api/discord/pug-onboarding */
-const getOverview = withUser({ full: true }, async ({ user, req, query, res }) => {
-    const guildId = str(query.get("guildId")) ? serverFromQuery(query, res, { user, req }) : (pugOnboarding.firstPugServer() || serverFromQuery(query, res, { user, req }));
+const getOverview = withUser({ serverAdmin: true }, async ({ user, req, query, res }) => {
+    const pick = !str(query.get("guildId")) && user.isAdmin ? pugOnboarding.firstPugServer() : null;
+    const guildId = pick || serverFromQuery(query, res, { user, req });
     if (guildId === null) return undefined;
     const raw = query.get("categories");
     const categoryIds = raw === null ? undefined : raw.split(",").map(str).filter(Boolean);
@@ -38,7 +39,7 @@ const getOverview = withUser({ full: true }, async ({ user, req, query, res }) =
 });
 
 /** POST /api/discord/pug-onboarding */
-const postApply = withUser({ full: true, csrf: true, body: true }, async ({ user, req, body, res }) => {
+const postApply = withUser({ serverAdmin: true, csrf: true, body: true }, async ({ user, req, body, res }) => {
     const guildId = serverFromQuery(new URLSearchParams({ guildId: str(body && body.guildId) }), res, { user, req });
     if (guildId === null) return undefined;
     try {

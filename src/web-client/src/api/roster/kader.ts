@@ -487,7 +487,7 @@ export function getKaderRoster(kaderId: string): Promise<KaderRosterState> {
     return get<KaderRosterState>(`/api/kader/roster?kader=${encodeURIComponent(kaderId)}`);
 }
 
-export function syncKaderRoster(kaderId: string): Promise<{ rosterId: string; added: number; skipped: number; kept: number; roleFailures: { userId: string; roleId: string; code: string }[] }> {
+export function syncKaderRoster(kaderId: string): Promise<{ rosterId: string; added: number; skipped: number; outsideServer: number; kept: number; roleFailures: { userId: string; roleId: string; code: string }[] }> {
     return send("POST", "/api/kader/roster/sync", { kaderId });
 }
 
@@ -499,8 +499,8 @@ export function getKaderRosterCategories(version = ""): Promise<{ categories: Ka
     return get<{ categories: KaderRosterCategory[] }>(`/api/rosters/options${version ? `?version=${encodeURIComponent(version)}` : ""}`);
 }
 
-/** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader", full admins). */
-export function createKaderRoster(kaderId: string, input: { name: string; categoryId?: string }): Promise<{ roster: { id: string; name: string }; initial: { added: number; skipped: number; roleFailures: unknown[] } }> {
+/** "Roster anlegen" from a Kader (POST /api/rosters/create, source "kader"). */
+export function createKaderRoster(kaderId: string, input: { name: string; categoryId?: string }): Promise<{ roster: { id: string; name: string }; initial: { added: number; skipped: number; outsideServer: number; roleFailures: unknown[] } }> {
     return send("POST", "/api/rosters/create", { source: "kader", kaderId, name: input.name, ...(input.categoryId ? { categoryId: input.categoryId } : {}) });
 }
 

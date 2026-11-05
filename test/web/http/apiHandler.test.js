@@ -100,6 +100,13 @@ describe("web/http/apiHandler withUser", () => {
         expect(fn).not.toHaveBeenCalled();
     });
 
+    it("lets a full admin through `full`", async () => {
+        mockUser = { id: "1", name: "Admin", isAdmin: true };
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        await call(withUser({ full: true }, fn), { json: {} });
+        expect(fn).toHaveBeenCalledTimes(1);
+    });
+
     it("lets a limited menu user through without `full`, and refuses them with it", async () => {
         mockUser = limited({ settings: { read: true, write: true } });
         const fn = jest.fn(({ res }) => res.end("{}"));
@@ -109,6 +116,34 @@ describe("web/http/apiHandler withUser", () => {
         expect(status(res)).toBe(403);
         expect(sent(res).error.message).toContain("Voll-Admins");
         expect(fn).toHaveBeenCalledTimes(1);
+    });
+
+    it("`serverAdmin` lets a full admin and the rank through, carries the mark and excludes `full`", async () => {
+        const fn = jest.fn(({ res }) => res.end("{}"));
+        const route = withUser({ serverAdmin: true }, fn);
+        expect(route.serverAdmin).toBe(true);
+        expect(withUser({ full: true }, fn).serverAdmin).toBeUndefined();
+        expect(() => withUser({ full: true, serverAdmin: true }, fn)).toThrow("exclude");
+
+        mockUser = limited({ settings: { read: true, write: true } });
+        const refused = await call(route, { json: {} });
+        expect(status(refused)).toBe(403);
+        expect(sent(refused).error).toEqual({ code: "forbidden", message: "Nur Server-Admins dürfen das." });
+        expect(fn).not.toHaveBeenCalled();
+
+        mockUser = null;
+        expect(status(await call(route, { json: {} }))).toBe(401);
+
+        mockUser = { ...limited({}), isServerAdmin: true };
+        await call(route, { json: {} });
+        expect(fn).toHaveBeenCalledTimes(1);
+
+        mockUser = { ...limited({}), isAdmin: true };
+        await call(route, { json: {} });
+        expect(fn).toHaveBeenCalledTimes(2);
+        // the rank opens nothing a full admin keeps
+        mockUser = { ...limited({}), isServerAdmin: true };
+        expect(status(await call(withUser({ full: true }, fn), { json: {} }))).toBe(403);
     });
 
     it("refuses a caller without write on the named area, naming the area", async () => {

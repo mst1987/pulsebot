@@ -12,7 +12,7 @@
 // the member areas — "signup" (every raider's own profile and signup, the base
 // access) or "history" (the loot importers, who had the sync tool page before).
 // An addon marked "orgaOnly" (Einstellungen -> Module -> Addons) is for the orga
-// only (permissions.userIsOrga): absent from the list for anyone else, 403
+// only (addonReleases.mayOpenOrgaOnly): absent from the list for anyone else, 403
 // orga_only on its download, before the limit and before GitHub is asked.
 // Every download is counted per account (30 per hour, downloadLimit.js) and
 // logged with who, what and when.
@@ -22,10 +22,9 @@ const { q } = require("../../http/apiParams");
 const { getConfig } = require("../../../stores/settings/configStore");
 const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { VERSIONS } = require("../../../config/gameVersions");
-const { addonCards, addonDetail, addonVersions, publicAddon, resolveDownload, tokenOf } = require("../../../services/addons/addonReleases");
+const { addonCards, addonDetail, addonVersions, mayOpenOrgaOnly, publicAddon, resolveDownload, tokenOf } = require("../../../services/addons/addonReleases");
 const { openAssetStream } = require("../../../classes/githubReleases");
 const { takeDownload, LIMIT } = require("../../../services/addons/downloadLimit");
-const { userIsOrga } = require("../../../config/permissions");
 const log = require("../../../logger").child("addons");
 
 const AREAS = ["signup", "history"];
@@ -53,7 +52,7 @@ const getAddons = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
     const { versionId, mainVersion } = resolveVersionQuery(q.str(query, "version"), { config });
     const canManage = !!user.isAdmin;
-    const orga = userIsOrga(user);
+    const orga = mayOpenOrgaOnly(user, user.guildId, config);
     const addons = await addonCards(config, versionId, { canManage, orga });
     ok(res, {
         versionId,
@@ -80,7 +79,7 @@ const versionRefs = (ids) => (ids || []).map((id) => ({ id, label: (VERSIONS.fin
 const getAddonDetail = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
     const canManage = !!user.isAdmin;
-    const addon = await addonDetail(config, q.str(query, "addon", { max: 60 }), { canManage, orga: userIsOrga(user) });
+    const addon = await addonDetail(config, q.str(query, "addon", { max: 60 }), { canManage, orga: mayOpenOrgaOnly(user, user.guildId, config) });
     if (!addon) return error(res, 404, "unknown_addon", "Dieses Addon gibt es nicht.");
     return ok(res, {
         canManage,
@@ -112,7 +111,7 @@ const downloadAddon = withUser({}, async ({ user, query, res }) => {
     const config = getConfig();
     const addonId = q.str(query, "addon", { max: 60 });
     const fileName = q.str(query, "asset", { max: 200 });
-    const target = await resolveDownload(config, addonId, fileName, { orga: userIsOrga(user) });
+    const target = await resolveDownload(config, addonId, fileName, { orga: mayOpenOrgaOnly(user, user.guildId, config) });
     if (target.code === "orga_only") log.warn(`download refused (orga only): ${addonId}/${fileName} by ${whoOf(user)}`);
     if (target.status) return error(res, target.status, target.code, target.message);
 

@@ -26,6 +26,10 @@
 // set its base access and grants, so they count there only on a server a full admin marked as trusted
 // (userAccess.sharedDataAccess).
 //
+// A handler built with withUser({ serverAdmin }) carries a mark too (#1073 part B, isServerAdminRoute): a
+// full admin or the server-admin rank of the active server, on something of that one server. Such a
+// route cannot be `sharedData` as well, the rank does not count there (checked at load).
+//
 // Paths are exact; the /api layer carries its parameters in the query and the
 // body (`/api/raids/detail?event=<id>`), never in the path.
 const MODULES = [
@@ -50,6 +54,7 @@ function collect(modules) {
             if (typeof r.handler !== "function") throw new Error(`apiRoutes/${name}.js: ${r.method} ${r.path} has no handler`);
             const key = `${r.method} ${r.path}`;
             if (seen.has(key)) throw new Error(`route registered twice: ${key}`);
+            if (r.sharedData && r.handler.serverAdmin === true) throw new Error(`apiRoutes/${name}.js: ${key} is sharedData and serverAdmin`);
             seen.add(key);
             routes.push(Object.freeze({ ...r, module: name }));
         }
@@ -83,10 +88,13 @@ const isOrgaScoped = (route) => !!(route && route.handler && route.handler.orgaS
  */
 const isOrgaRead = (route) => !!(route && route.handler && route.handler.orgaRead === true);
 
+/** Whether a route is open to the server-admin rank of the active server (#1073 part B, withUser({ serverAdmin })). */
+const isServerAdminRoute = (route) => !!(route && route.handler && route.handler.serverAdmin === true);
+
 /** The areas an entry names, always as an array (empty = none). */
 function areasOf(route) {
     if (!route || !route.area) return [];
     return Array.isArray(route.area) ? route.area : [route.area];
 }
 
-module.exports = { ROUTES, MODULES, find, methodsFor, areasOf, isOrgaScoped, isOrgaRead };
+module.exports = { ROUTES, MODULES, find, methodsFor, areasOf, isOrgaScoped, isOrgaRead, isServerAdminRoute };

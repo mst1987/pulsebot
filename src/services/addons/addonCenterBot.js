@@ -31,8 +31,8 @@ const store = require("../../stores/settings/addonCenterStore");
 const { resolveAccess } = require("../discord/members/userAccess");
 const { interactionGuildId } = require("../discord/servers/serverAccess");
 const { langOfInteraction } = require("../discord/botLanguage");
-const { userCanAny, userIsOrga } = require("../../config/permissions");
-const { enabledAddons, releaseFor, resolveDownload } = require("./addonReleases");
+const { userCanAny } = require("../../config/permissions");
+const { enabledAddons, mayOpenOrgaOnly, releaseFor, resolveDownload } = require("./addonReleases");
 const { assetMatches } = require("./addonConfig");
 const { takeDownload } = require("./downloadLimit");
 const { openAssetStream } = require("../../classes/githubReleases");
@@ -155,13 +155,14 @@ async function download(interaction, addonId, assetId = "") {
     const lang = langOfInteraction(interaction);
     const userId = str(interaction.user && interaction.user.id);
     // the rights on the server of the click (#925)
-    const user = { id: userId, ...(await resolveAccess(userId, { guildId: interactionGuildId(interaction) })) };
+    const guildId = interactionGuildId(interaction);
+    const user = { id: userId, ...(await resolveAccess(userId, { guildId })) };
     if (!userCanAny(user, AREAS, "read")) {
         log.warn(`download refused (no access): ${addonId} by ${whoOf(interaction)} via discord`);
         return interaction.editReply(denied(lang));
     }
     const config = getConfig();
-    const orga = userIsOrga(user);
+    const orga = mayOpenOrgaOnly(user, guildId, config);
     const addon = enabledAddons(config, "", { orga: true }).find((a) => a.id === str(addonId));
     if (!addon) return interaction.editReply(unavailable(lang));
     if (addon.orgaOnly && !orga) {

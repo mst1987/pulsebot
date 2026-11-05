@@ -68,8 +68,8 @@ async function eventRoles(guildId) {
 /**
  * The Bot-Befehle view's data: every command that carries its own access rule,
  * with the rule the code proposes (`defaultAccess`), the stored setting and the
- * buttons/selects/modals that inherit it. Full admins only — like the other
- * access settings, it shows who may do what.
+ * buttons/selects/modals that inherit it. Full admins and the server-admin rank:
+ * it shows who may do what on the active server.
  */
 function buildBotCommandList(commands, config) {
     const stored = normalizeBotCommandAccess(config.botCommandAccess);
@@ -98,7 +98,7 @@ function buildBotCommandList(commands, config) {
 }
 
 /** GET /api/bot-commands */
-const getBotCommands = withUser({ full: true }, async ({ req, res }) => {
+const getBotCommands = withUser({ serverAdmin: true }, async ({ req, res }) => {
     // the rules of the active server (#925): a command is judged by the rules and
     // the member roles of the server it is used on (botAccess.guardInteraction)
     const guildId = activeGuildFor(req) || "";

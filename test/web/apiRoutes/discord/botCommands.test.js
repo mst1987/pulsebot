@@ -8,7 +8,7 @@ jest.mock("../../../../src/services/discord/discord", () => ({
     fetchGuildMembersCached: jest.fn(async () => []),
 }));
 
-const { requireFullAdmin } = require("../../../../src/web/http/apiMiddleware");
+const { requireServerAdmin } = require("../../../../src/web/http/apiMiddleware");
 const { activeGuildFor } = require("../../../../src/web/http/activeGuild");
 const settingsStore = require("../../../../src/stores/settings/settingsStore");
 const discord = require("../../../../src/services/discord/discord");
@@ -20,7 +20,7 @@ const { mockRes, body } = require("../../../helpers/http");
 
 beforeEach(() => {
     jest.clearAllMocks();
-    requireFullAdmin.mockReturnValue({ id: "1", isAdmin: true });
+    requireServerAdmin.mockReturnValue({ id: "1", isAdmin: true });
     activeGuildFor.mockReturnValue("900000000000000001");
     settingsStore.getConfig.mockReturnValue({ guildId: "900000000000000001" });
 });
@@ -51,8 +51,8 @@ describe("buildBotCommandList", () => {
 });
 
 describe("GET /api/bot-commands", () => {
-    it("is for full admins only", async () => {
-        requireFullAdmin.mockReturnValue(null);
+    it("is for full admins and the rank only", async () => {
+        requireServerAdmin.mockReturnValue(null);
         const res = mockRes();
         await getBotCommands({}, res);
         expect(res.end).not.toHaveBeenCalled();

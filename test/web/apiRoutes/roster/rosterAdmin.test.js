@@ -14,6 +14,11 @@ jest.mock("../../../../src/web/http/auth", () => ({
     setActiveGuild: jest.fn(),
 }));
 jest.mock("../../../../src/web/http/activeGuild", () => ({ activeGuildFor: jest.fn(() => "g1") }));
+let mockTrusted = true;
+jest.mock("../../../../src/services/discord/roles/guildRoles", () => ({
+    ...jest.requireActual("../../../../src/services/discord/roles/guildRoles"),
+    serverIsTrusted: jest.fn(() => mockTrusted),
+}));
 jest.mock("../../../../src/services/roster/rosterRoleSync", () => ({
     applyMemberAdded: jest.fn(async () => ({ ok: true, results: [] })),
     applyMemberRemoved: jest.fn(async () => ({ ok: true, results: [] })),
@@ -83,6 +88,7 @@ afterAll(() => {
 });
 beforeEach(() => {
     jest.clearAllMocks();
+    mockTrusted = true;
     auth.checkCsrf.mockReturnValue(true);
     activeGuildFor.mockReturnValue("g1");
     discord.isOnline.mockReturnValue(true);
@@ -127,7 +133,7 @@ describe("POST /api/rosters/create", () => {
             name: "Donnerstag Raid", guildId: "g1", categoryId: CAT, versionId: "tbc", roleIds: [ROLE], trialRoleId: ROLE2,
             managers: { roleIds: [], userIds: [MANAGER.id] }, slots: { total: 25, tank: 3, healer: 6, bench: 3 }, signupOnly: true, createdBy: "1",
         }));
-        expect(data(res).initial).toEqual({ source: "none", added: 0, skipped: 0, roleFailures: [], error: null });
+        expect(data(res).initial).toEqual({ source: "none", added: 0, skipped: 0, outsideServer: 0, roleFailures: [], error: null });
     });
 
     it("answers 409 category_taken for a second roster of a category", async () => {
@@ -319,6 +325,33 @@ describe("POST /api/rosters/update - loot system and Loot-Council profile (#676)
         expect([status(detail), code(detail)]).toEqual([400, "invalid_loot_system"]);
     });
 
+    it("offers and accepts on a server without the mark only the default and what its rosters use (#1073)", async () => {
+        const foreign = councilProfilesStore.createProfile({ name: "Fremdes Profil" });
+        const own = councilProfilesStore.createProfile({ name: "Eigenes Profil" });
+        const other = rosterStore.createRoster({ guildId: "g1", name: "Zweites", categoryId: "", roleIds: [] });
+        expect(status(await post("/api/rosters/update", { rosterId: other.roster ? other.roster.id : other.id, lootProfileId: own.id }))).toBe(200);
+        const defaultId = councilProfilesStore.defaultProfileId();
+
+        mockTrusted = false;
+        mockUser = { ...MANAGER, guildId: "g1", isServerAdmin: true };
+        const names = (res) => data(res).lootProfiles.map((p) => p.id).sort();
+        expect(names(await get("/api/rosters/options"))).toEqual([defaultId, own.id].sort());
+        let res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: foreign.id });
+        expect([status(res), code(res)]).toEqual([400, "unknown_profile"]);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: own.id });
+        expect(status(res)).toBe(200);
+        res = await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: "" });
+        expect(status(res)).toBe(200);
+
+        mockUser = ADMIN;
+        expect(names(await get("/api/rosters/options"))).toContain(foreign.id);
+        expect(status(await post("/api/rosters/update", { rosterId: roster.id, lootProfileId: foreign.id }))).toBe(200);
+
+        mockTrusted = true;
+        mockUser = { ...MANAGER, guildId: "g1", isServerAdmin: true };
+        expect(names(await get("/api/rosters/options"))).toContain(foreign.id);
+    });
+
     it("lets a manager pick the profile but not the loot system", async () => {
         const p = councilProfilesStore.createProfile({ name: "PuG-Nacht" });
         mockUser = MANAGER;
@@ -355,6 +388,22 @@ describe("POST /api/rosters/delete", () => {
         expect(data(res)).toEqual({ rosterId: roster.id, deleted: true });
         expect(rosterStore.getRoster(roster.id)).toBeNull();
         expect(status(await post("/api/rosters/delete", { rosterId: roster.id }))).toBe(404);
+    });
+
+    it("refuses the rank of another server even when the roster passes as active", async () => {
+        const roster = rosterStore.createRoster({ name: "Fremd", guildId: "g1" });
+        mockUser = { ...MANAGER, guildId: "g2", isServerAdmin: true };
+        const res = await post("/api/rosters/delete", { rosterId: roster.id });
+        expect([status(res), code(res)]).toEqual([403, "admin_only"]);
+        expect(rosterStore.getRoster(roster.id)).not.toBeNull();
+    });
+
+    it("answers 404 when the store no longer finds the roster", async () => {
+        const roster = rosterStore.createRoster({ name: "Weg", guildId: "g1" });
+        const spy = jest.spyOn(rosterStore, "deleteRoster").mockReturnValueOnce(false);
+        const res = await post("/api/rosters/delete", { rosterId: roster.id });
+        spy.mockRestore();
+        expect([status(res), code(res)]).toEqual([404, "not_found"]);
     });
 
     it("a closed roster refuses every change with 409 roster_closed, a full admin may still delete it (#739)", async () => {

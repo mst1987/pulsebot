@@ -364,6 +364,17 @@
     "/api/system/backup/snapshot",
     "/api/system/status"
   ],
+  "serverAdmin": [
+    "GET /api/bot-commands",
+    "GET /api/discord/pug-onboarding",
+    "POST /api/discord/pug-onboarding",
+    "GET /api/settings/pug-invites",
+    "POST /api/settings/pug-invites",
+    "POST /api/settings/pug-invites/channel",
+    "GET /api/settings/talk-overview",
+    "POST /api/settings/talk-overview",
+    "POST /api/vermerke/delete"
+  ],
   "orgaRead": [
     "GET /api/raidplan",
     "GET /api/raidplan/link"

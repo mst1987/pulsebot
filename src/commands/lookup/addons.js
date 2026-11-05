@@ -6,10 +6,9 @@
 const { SlashCommandBuilder } = require("discord.js");
 const { getConfig } = require("../../stores/settings/configStore");
 const { addVersionOption, versionOfCommand, versionNote } = require("../../services/versions/commandVersion");
-const { userIsOrga } = require("../../config/permissions");
 const { resolveAccess } = require("../../services/discord/members/userAccess");
 const { interactionGuildId } = require("../../services/discord/servers/serverAccess");
-const { enabledAddons, releaseFor } = require("../../services/addons/addonReleases");
+const { enabledAddons, mayOpenOrgaOnly, releaseFor } = require("../../services/addons/addonReleases");
 const { webUrl, lookupReply, deferLookup, discordTime, clip } = require("../../utils/discord/botLookup");
 
 /** The status of one addon as the card says it. */
@@ -60,9 +59,10 @@ module.exports = {
         await deferLookup(interaction);
         const config = getConfig();
         const { versionId } = versionOfCommand(interaction, { config });
-        // orga-only addons only for the orga; a failed role lookup falls back to the base access (= not orga)
+        // orga-only addons only for the orga (an orga role only on a trusted server); a failed role lookup falls back to the base access (= not orga)
+        const guildId = interactionGuildId(interaction);
         const hasOrgaOnly = enabledAddons(config, versionId, { orga: true }).some((a) => a.orgaOnly);
-        const orga = hasOrgaOnly && userIsOrga(await resolveAccess(interaction.user.id, { guildId: interactionGuildId(interaction) }));
+        const orga = hasOrgaOnly && mayOpenOrgaOnly(await resolveAccess(interaction.user.id, { guildId }), guildId, config);
         const addons = enabledAddons(config, versionId, { orga });
         const results = await Promise.all(addons.map((addon) => releaseFor(addon, { config })));
         const { embed, link } = addonsCard(addons.map((addon, i) => ({ addon, result: results[i] })), versionId);

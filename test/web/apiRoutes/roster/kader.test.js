@@ -771,7 +771,7 @@ describe("web/apiRoutes/kader the raid roster (#658)", () => {
         const roster = rosterFrom(kaderId);
         const res = await post("/api/kader/roster/sync", { kaderId });
         expect(status(res)).toBe(200);
-        expect(body(res)).toEqual({ rosterId: roster.id, added: 1, skipped: 0, kept: 0, roleFailures: [] });
+        expect(body(res)).toEqual({ rosterId: roster.id, added: 1, skipped: 0, outsideServer: 0, kept: 0, roleFailures: [] });
         expect(rosterStore.getRoster(roster.id).members[U1]).toEqual(expect.objectContaining({ status: "core", chars: ["forever~aldric sturmwind"], by: LEAD }));
         const file = JSON.stringify(rosterStore.getRoster(roster.id));
         for (const marker of [MARK, "PRIVATE-NOTE", "wishes", "votes", "comments"]) expect(file).not.toContain(marker);
@@ -889,7 +889,7 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         expect(status(await post("/api/kader/takeover/role", { kaderId }))).toBe(404);
         res = await post("/api/kader/takeover", { kaderId, ...START, roster: { name: "Neu", categoryId: "" } });
         expect(status(res)).toBe(200);
-        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ roster: { name: "Neu", categoryId: "" } }), { actor: LEAD, createsRoster: true });
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ roster: { name: "Neu", categoryId: "" } }), { actor: LEAD, createsRoster: true, mayTakeIn: null });
     });
 
     it("a recorded takeover whose roster is gone creates none (404, no admin path)", async () => {
@@ -915,7 +915,7 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         res = await post("/api/kader/takeover", { kaderId, ...START });
         expect(status(res)).toBe(200);
         expect(body(res)).toEqual({ takeover: { roleId: "role1" }, steps: [], assigning: 1 });
-        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id, createsRoster: false });
+        expect(takeover.start).toHaveBeenCalledWith("g1", kaderId, expect.objectContaining({ confirm: true, baseRev: 3 }), { actor: writer.id, createsRoster: false, mayTakeIn: null });
     });
 
     it("the rights follow the roster a recorded takeover writes into, not the one linked now", async () => {
@@ -975,7 +975,7 @@ describe("web/apiRoutes/kader the takeover (docs/kaderplaner.md \"Übernahme\")"
         const { kaderId } = await linkedKader();
         let res = await post("/api/kader/takeover/role", { kaderId });
         expect([status(res), body(res)]).toEqual([200, { count: 2, away: 0 }]);
-        expect(takeover.pullRole).toHaveBeenCalledWith("g1", kaderId, { actor: LEAD });
+        expect(takeover.pullRole).toHaveBeenCalledWith("g1", kaderId, { actor: LEAD, mayTakeIn: null });
         takeover.pullRole.mockImplementationOnce(async () => { throw new AppError("not_taken", 409, "Noch nicht übernommen."); });
         res = await post("/api/kader/takeover/role", { kaderId });
         expect([status(res), body(res).error.code]).toEqual([409, "not_taken"]);

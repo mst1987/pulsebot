@@ -92,6 +92,8 @@ const READER = { id: "2", name: "Reader", isAdmin: false, access: { lootcouncil:
 const WRITER = { id: "3", name: "", isAdmin: false, access: { lootcouncil: { read: true, write: true } } };
 const OUTSIDER = { id: "4", name: "Outsider", isAdmin: false, access: { raids: { read: true, write: true } } };
 
+const MARKED = { discordServers: { servers: [{ guildId: "g1", trusted: true }], links: [] } };
+
 const url = (path, query = "") => new URL(`http://localhost${path}${query}`);
 
 /** Call a handler and hand back the response. */
@@ -113,7 +115,7 @@ beforeEach(() => {
     // clearAllMocks keeps a mockReturnValue of an earlier test: back to the defaults.
     lc.councilRoster.mockReturnValue({ rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {} });
     councilStore.listExcluded.mockReturnValue({});
-    getConfig.mockReturnValue({});
+    getConfig.mockReturnValue(MARKED);
     discord.listCategories.mockReturnValue([]);
     engine.isAvailable.mockReturnValue(true);
     specFor.mockReturnValue(null);
@@ -271,6 +273,28 @@ describe("write access on the POST handlers", () => {
 });
 
 describe("GET /api/lootcouncil", () => {
+    it("keeps the reason and author of the shared lists from a server without the mark, a full admin sees them (#1073)", async () => {
+        lc.councilRoster.mockReturnValue({
+            rows: [], avgLootCount: 0, bisTier: "t5", skipped: 0, categorySources: {}, setAside: ["k"],
+            weights: { classes: {}, at: 5, by: "author" },
+        });
+        councilStore.listExcluded.mockReturnValue({ k: { reason: "Ärger im Raid", by: "someone", at: 10 } });
+        getConfig.mockReturnValue({ discordServers: { servers: [{ guildId: "g1", trusted: false }], links: [] } });
+
+        mockUser = { ...READER, guildId: "g1", isServerAdmin: true };
+        const limited = body(await call(getLootCouncil));
+        expect(limited.excluded).toEqual([{ key: "k", reason: "", by: "", at: 10 }]);
+        expect(limited.weights).toEqual({ classes: {}, at: 5, by: "" });
+
+        mockUser = READER;
+        expect(body(await call(getLootCouncil)).excluded[0].reason).toBe("");
+
+        mockUser = ADMIN;
+        const full = body(await call(getLootCouncil));
+        expect(full.excluded).toEqual([{ key: "k", reason: "Ärger im Raid", by: "someone", at: 10 }]);
+        expect(full.weights.by).toBe("author");
+    });
+
     it("builds the whole picture from stored data with the filters from the query", async () => {
         const rows = [{ character: "Alpha", gear: { dropped: [] } }];
         lc.councilRoster.mockReturnValue({
@@ -281,7 +305,7 @@ describe("GET /api/lootcouncil", () => {
             newer: { reason: "break", at: 20 },
             undated: { reason: "?" },
         });
-        getConfig.mockReturnValue({ categoryIds: ["c1", "c2"] });
+        getConfig.mockReturnValue({ ...MARKED, categoryIds: ["c1", "c2"] });
         discord.listCategories.mockReturnValue([{ id: "c1", name: "Raids T5" }]);
         mockUser = READER;
 
@@ -289,7 +313,7 @@ describe("GET /api/lootcouncil", () => {
         expect(status(res)).toBe(200);
         expect(lc.councilRoster).toHaveBeenCalledWith({
             role: "caster", tierIds: ["t5", "t6"], contentIds: ["ssc"], categoryId: "c1", rosterId: "", bisTier: "", showBench: false, versionId: "tbc", guildId: "g1",
-            config: { categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
+            config: { ...MARKED, categoryIds: ["c1", "c2"] }, mainVersion: "tbc", charVersion: "tbc",
         });
         expect(lc.resolveContentFilter).toHaveBeenCalledWith({ tierIds: ["t5", "t6"], contentIds: ["ssc"] });
         expect(lc.bisGaps).toHaveBeenCalledWith(rows, { contentIds: ["ssc"], versionId: "tbc", guildId: "g1" });

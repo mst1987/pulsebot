@@ -56,7 +56,7 @@
 // caller's active server (#925): a raid of another server answers 404
 // "not_found" before any other check of the raid - rights hold per server, only
 // a full admin acts on every server (services/events/eventServer.js).
-const { requireAdmin, requireFullAdmin, requireCsrf } = require("./apiMiddleware");
+const { requireAdmin, requireFullAdmin, requireServerAdmin, requireCsrf } = require("./apiMiddleware");
 const { readJsonBody } = require("./apiBody");
 const { error } = require("./apiResponse");
 const { activeGuildFor } = require("./activeGuild");
@@ -107,6 +107,9 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
 /**
  * @param {object} opts
  * @param {boolean} [opts.full]   only a full admin (requireFullAdmin) — the access settings and the foreign credentials
+ * @param {boolean} [opts.serverAdmin]  a full admin or the server-admin rank of the ACTIVE server (requireServerAdmin,
+ *        #1073 part B). The handler still keeps what it touches on that server (serverQuery.js); the mark
+ *        also lets the rank past the gate on a route without areas (routeTable.isServerAdminRoute)
  * @param {boolean} [opts.orga]   only the orga (permissions.userIsOrga: full admin or an orga role) - an area
  *        right is no orga rank, raider roles hold some; 403 "orga_only" otherwise
  * @param {(body: object, query: URLSearchParams, req: object) => string|object|Array<string|object>} [opts.orgaScoped]
@@ -131,7 +134,8 @@ const LABELS = Object.fromEntries(AREAS.map((a) => [a.id, a.label]));
  */
 function withUser(opts, fn) {
     if (typeof opts === "function") { fn = opts; opts = {}; }
-    const { full = false, orga = false, orgaScoped = null, orgaRead = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null, onServer = null } = opts || {};
+    const { full = false, serverAdmin = false, orga = false, orgaScoped = null, orgaRead = null, globalByWrite = false, write = "", csrf = false, body = false, archived = null, onServer = null } = opts || {};
+    if (full && serverAdmin) throw new Error("withUser: full and serverAdmin exclude each other");
     if (onServer !== null && typeof onServer !== "function") throw new Error("withUser: onServer names the event(s) as (body, query) => id(s)");
     if (orgaScoped !== null && typeof orgaScoped !== "function") throw new Error("withUser: orgaScoped names the event(s) as (body, query) => id(s)");
     if (orgaRead !== null && typeof orgaRead !== "function") throw new Error("withUser: orgaRead names the event(s) as (body, query) => id(s)");
@@ -139,7 +143,8 @@ function withUser(opts, fn) {
     if (orgaScoped && orga) throw new Error("withUser: orga and orgaScoped exclude each other");
     if (globalByWrite && (!orgaScoped || !write)) throw new Error("withUser: globalByWrite needs orgaScoped and write");
     async function handler(req, res, url) {
-        const user = full ? requireFullAdmin(req, res) : requireAdmin(req, res);
+        const requireUser = full ? requireFullAdmin : serverAdmin ? requireServerAdmin : requireAdmin;
+        const user = requireUser(req, res);
         if (!user) return undefined;
         if (orga && !userIsOrga(user)) {
             error(res, 403, "orga_only", ORGA_ONLY);
@@ -192,6 +197,7 @@ function withUser(opts, fn) {
     }
     if (orgaScoped) handler.orgaScoped = true;
     if (orgaRead) handler.orgaRead = true;
+    if (serverAdmin) handler.serverAdmin = true;
     return handler;
 }
 

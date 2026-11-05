@@ -3,9 +3,9 @@
 // and the Discord member search of the "Mitglied hinzufügen" dialog.
 //
 // Area `roster` (write for the POSTs, read for the search) is the gate; a
-// change needs on top the right to manage that one roster - a full admin or
-// one of its managers (rosterAccess.canManageRosterLive), else 403
-// "not_manager". Every change writes a history line with the caller as actor
+// change needs on top the right to manage that one roster - a full admin, the
+// server-admin rank or one of its managers (rosterAccess.canManageRosterLive), else
+// 403 "not_manager". Every change writes a history line with the caller as actor
 // (rosterStore). Taking in gives the main role, trial also the trial role,
 // taking out takes every role of the roster (services/roster/rosterMembers.js).
 // Errors answer with a code the client translates (DE/EN).

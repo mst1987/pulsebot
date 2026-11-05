@@ -1,5 +1,5 @@
 const { checkAccess, levelFor, AREA_BY_PATH, UNGATED, ANY_AREA, TOKEN_AUTH } = require("../../../src/web/http/apiAccess");
-const { ROUTES, isOrgaScoped, isOrgaRead } = require("../../../src/web/http/routeTable");
+const { ROUTES, isOrgaScoped, isOrgaRead, isServerAdminRoute } = require("../../../src/web/http/routeTable");
 // The access table as it stood before the route table took over (#421):
 // every path with its area(s) and the three special sets, captured verbatim.
 const golden = require("./fixtures/apiAccess.golden.json");
@@ -312,6 +312,19 @@ describe("web/http/apiAccess", () => {
         // removing a mark opens that route to every Discord admin, so each one is a deliberate change here.
         it("marks exactly the routes of the golden master as sharedData", () => {
             expect(ROUTES.filter((r) => r.sharedData).map((r) => `${r.method} ${r.path}`).sort()).toEqual([...golden.sharedData].sort());
+        });
+
+        // `serverAdmin` (#1073 part B) opens a route to anyone holding the rank on their own server: each one is a deliberate change here.
+        it("marks exactly the routes of the golden master as serverAdmin, none of them sharedData", () => {
+            const marked = ROUTES.filter(isServerAdminRoute);
+            expect(marked.map((r) => `${r.method} ${r.path}`).sort()).toEqual([...golden.serverAdmin].sort());
+            for (const r of marked) expect(r.sharedData).toBeFalsy();
+        });
+
+        it("lets the rank past an area-less route only with the mark", () => {
+            const rank = { ...limited({ settings: { read: true, write: false } }), isServerAdmin: true };
+            for (const pathname of golden.adminOnly) expect(checkAccess(pathname, "GET", rank)).toMatchObject({ status: 403, code: "forbidden" });
+            expect(checkAccess("/api/not-registered", "GET", rank)).toMatchObject({ status: 403, code: "forbidden" });
         });
 
         it("never lets a user carrying the rank through a sharedData route", () => {

@@ -95,9 +95,40 @@ Access is **per area** (one admin-menu section) and **per level** (`read` = open
   - Abwesenheit und Anwesenheit anderer: nur Mitglieder und nur der eigene Server, auch in der Detailansicht der Übersicht (`GET /api/availability/overview/raider`). Ältere Einträge ohne Scope gelten für alle Server: Der Rang sieht und ändert sie nicht, nur die eigenen (Dialog, Vorschau, beide Übersichten, `PUT`, `DELETE`). In den Übersichten und im Dialog (`GET /api/availability?userId=`) zählt ein Eintrag nur als „auf diesem Server“, wenn der Server feststeht (`entryProvenOnServer`: Scope nennt ihn oder die Kategorie liegt nachweislich dort); ein Eintrag auf einer Kategorie ohne bekannten Server gilt wie einer ohne Scope: Der Rang sieht nur den eigenen, der Voll-Admin alle; die Orga sieht ihn in den Übersichten nur für ein sichtbares Konto, den Dialog erreicht sie ohnehin nur für solche Konten.
   - Uploads ohne Serverbezug zählen den Rang nicht: Levelhelper-Läufe (`orgaServersOf(..., rolesOnly)`), Klassen aus nachgelieferten Loot-Sessions (`tokenMayLearnClasses`: Maßstab ist, ob das Konto ohne Rang auf einem vertrauenswürdigen Server dort Orga wäre; bei einem Raid ohne bekannten Server zählt ein nicht markierter Server weder öffnend noch sperrend; eine gescheiterte Abfrage lernt nichts), dazu `POST /api/history/characters-resolve`.
   - Lesend sieht der Rang nur Eigenes: `knownCharacters` nur Namen der eigenen Kategorie; der Kaderplaner Profile und Log-Charaktere nur der Mitglieder des eigenen Servers (`limitSourceToServer`); `GET /api/history/char` den Charakter-Eintrag nur bei eigenem Loot und Ausrüstungshinweise nur aus eigenen Auswertungen. Ein Log per URL verknüpfen geht nur mit einem Log des aktiven Servers.
+  - Ins Roster nimmt der Rang allein nur Mitglieder des eigenen Servers auf, auf jedem Weg: von Hand (`not_on_server`), beim Anlegen aus Kader oder Raids, „Ins Roster übernehmen“, in der Kader-Übernahme und beim Nachziehen ihrer Rolle (`takeInLimit`, `web/http/serverQuery.js`). Die Massenwege überspringen andere Konten, die Kader-Wege weisen sie als `outsideServer` aus; ist die Mitgliederliste nicht lesbar, antworten sie 503 `members_unavailable`, bevor etwas geschieht. Ein Name aus den Raids wird nur einem Mitglied zugeordnet, und der Raids-Weg zählt andere Konten nicht: Ein Name mit fremdem Profil sieht aus wie ein unbekannter. Der Kader selbst nimmt jede ID an, zeigt dazu aber nur, was der Aufrufer selbst eingetragen hat. Wer zusätzlich ein Rollenrecht auf einem markierten Server hat, behält seinen Weg ohne diese Grenze (`onlyByRank`).
   - Wächter: `test/docs/rankScope.test.js` verlangt von jedem Handler auf Profil- und Charakter-Stores sowie auf Sheet-, Aufruf- und Recruitment-Vorlagen `sharedData`, eine Rang-Prüfung oder eine genannte Ausnahme. Er liest nur den Text der Routendateien und sieht keine Stores hinter Services.
 - **Wann der Rang nicht greift, in Kürze:** auf anderen Servern, auf `sharedData`-Routen, auf `adminOnly`- und Voll-Admin-Routen und den `ACCESS_KEYS`, auf einem nicht (mehr) eingetragenen Server, nach einer Nachprüfung ohne Antwort und in einer Sitzung, deren letzte Prüfung zu alt ist. Der Rang sagt außerdem wie jedes Bereichsrecht nichts über den Server der Daten: Routen, die `categoryId`, `userId` oder eine Listen-`id` aus der Anfrage nehmen, prüfen den Server selbst (`mayUseServer`, `other_server`).
 - **Nur an einer Stelle gespeichert:** Der Rang steht allein in `guildAccess.guilds[guildId]`, nie als eigenes Feld der Sitzung. `applyGuildAccess` und `userView` entfernen ein solches Feld, falls es doch eines gibt.
+
+### Was der Rang statt des Voll-Admins darf (#1073 Teil B)
+
+`requireServerAdmin` und `withUser({ serverAdmin: true })` lassen den Voll-Admin und den Rang **des aktiven Servers** durch, die Marke steht im Golden Master (`serverAdmin`). Sie sagt nichts über den Server der Daten: Der Handler prüft ein Ziel aus der Anfrage selbst (`mayUseServer`, `serverFromQuery`, `rankOnRosterServer`). Verknüpfungen betreffen zwei Server und verlangen den Rang auf beiden (`serverQuery.mayUseLink`, `auth.userForGuild`). Die Einstellungs-Routen in `settings.js` folgen in Abschnitt 2b; bis dahin bleiben sie, wie sie sind, und die `full`-Routen dort für den Rang gesperrt. Rollenrechte, `baseAccess` und `userPermissions` kann der Rang darum noch nicht setzen.
+
+| Route oder Stelle | Stufe | Grenze |
+|---|---|---|
+| `GET /api/bot-commands` | Server-Admin | aktiver Server |
+| `POST /api/vermerke/delete` | Server-Admin | aktiver Server |
+| `GET`/`POST /api/discord/pug-onboarding` | Server-Admin | `serverFromQuery` |
+| `GET /api/settings/pug-invites` | Server-Admin | Antwort auf eigene Server und Verknüpfungen gefiltert; nur der Voll-Admin stößt den Abgleich an |
+| `POST /api/settings/pug-invites` mit `guildId`, `POST …/pug-invites/channel` | Server-Admin | `mayUseServer`; der Kanal liegt auf dem Server |
+| `POST /api/settings/pug-invites` mit `key` | beide Server | `mayUseLink`, sonst `other_server` |
+| `GET`/`POST /api/settings/talk-overview` | beide Server | Liste gefiltert, sonst `other_server` |
+| `GET /api/rosters/options`, `POST /api/rosters/create` | Server-Admin | Kategorie und Rollen des eigenen Servers (`rankRefusal`); Loot-Profile siehe Vertrauenswürdige Server |
+| `POST /api/rosters/update`, `POST /api/rosters/delete` | Server-Admin | nur Roster des aktiven Servers, ein fremdes ist 404; auch geschlossene |
+| Roster-Mitglieder, Rollen, Zusammensetzung, Bild (`canManageRoster`) | Server-Admin | Roster ohne `guildId` zählt nicht (`rankOnRosterServer`) |
+| `GET` Kader-Stand (`canLink`, `canCreate`), `POST /api/kader/roster/link`, `GET`/`POST /api/kader/takeover`, `POST /api/kader/takeover/role` | Server-Admin | Roster und Rolle des aktiven Servers |
+| Quelle „jedes Profil“ im Kader (`kader.js`, `sourceFor`) | Voll-Admin | Mitglieder aller Server |
+| `GET`/`PUT`/`POST`/`DELETE /api/addon-center` | Voll-Admin | `adminOnly` |
+| `/api/system/status`, `/api/system/backup`, `POST /api/system/backup/snapshot` | Voll-Admin | `adminOnly` |
+| `GET`/`PUT /api/settings/server-plans` | Voll-Admin | `adminOnly`, Tarif vorerst |
+| `GET`/`POST /api/settings/version-launch` | Voll-Admin | `sharedData` + `full` |
+| `/api/settings/raidhelper-retirement`, `…/raidhelper-history-import`, `…/raidhelper-sync` | Voll-Admin | Umstieg gilt für alle |
+| `/api/session/view-as` | Voll-Admin | Ansicht als Rolle |
+| `DELETE /r/<id>` (`pageRoutes.deleteReportPage`) | Voll-Admin | globaler Report-Store |
+| Dashboard: Rollen-Abweichung und Backup (`system/dashboard.js`) | Voll-Admin | Daten aller Server |
+| Fremde Ziele: Kanal-Schnellanlage (`discord/channels.js`), Bank-Zuweisung (`loot/guildBank.js`), Inbox-Kandidaten fremder Server (`loot/history.js`), Raidplan fremder Raids, Raidplan-Bibliothek fremder Server, Widerruf fremder Sync-Schlüssel (`POST /api/profile/sync-keys/delete`), Profil-Suche über alle Server, Twitch-Rollensuche, Recruitment ohne aktiven Server, Addons verwalten | Voll-Admin | nur der Griff über den eigenen Server hinaus; der eigene Server bleibt offen |
+| Geschlossene Roster in `categoryOrga`, Upload-Schlüssel an Bank und Raid (`ingestServers`) | Voll-Admin | serverübergreifend |
+| `GET`/`PATCH /api/settings`, `GET …/item-search`, `GET …/category-switch`, `GET …/category-deactivate`, `POST …/category-close`, `GET …/archive-export`, `POST …/raidsheets`, `POST …/raidsheets/delete`, `GET …/discord-servers`, `GET …/role-sync`, `GET …/reminders`, `GET`/`POST …/ingest-tokens`, `POST …/ingest-tokens/delete`, `POST …/ingest-tokens/assign` | Abschnitt 2b | noch nicht eingestuft |
 
 ## Vertrauenswürdige Server (#1073, #1105)
 

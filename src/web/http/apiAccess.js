@@ -35,7 +35,7 @@
 // server (planRefusal). Full admins are not exempt there - a plan is about the server,
 // not the person, and tests and support should see what the server really gets.
 const { AREAS, userCanAny, userHasMenuAccess } = require("../../config/permissions");
-const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead } = require("./routeTable");
+const { ROUTES, find, areasOf, isOrgaScoped, isOrgaRead, isServerAdminRoute } = require("./routeTable");
 const categoryOrga = require("../../services/roster/categoryOrga");
 const { hasFeature } = require("../../services/plans/serverPlan");
 const { serverIsTrusted } = require("../../services/discord/roles/guildRoles");
@@ -111,9 +111,9 @@ function checkAccess(pathname, method, user) {
     // The path's areas, so a wrong method on a known path is refused for the
     // same reason as the right one and answered 405 only to those who may.
     const areas = route ? areasOf(route) : areasFor(pathname);
-    // Unknown endpoint (or one nobody listed): admins only.
+    // Unknown endpoint (or one nobody listed): admins only, the rank on a route marked for it.
     if (!areas.length) {
-        return user.isAdmin ? null : { status: 403, code: "forbidden", message: "Kein Zugang zu diesem Bereich." };
+        return user.isAdmin || (user.isServerAdmin && isServerAdminRoute(route)) ? null : { status: 403, code: "forbidden", message: "Kein Zugang zu diesem Bereich." };
     }
     const level = levelFor(method, route);
     // A route under "Alle Server" (#925, `scope: "all"`: Mein Profil, Addons) is

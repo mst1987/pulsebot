@@ -26,6 +26,7 @@ const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { userCan } = require("../../../config/permissions");
+const { onlyByRank } = require("../../http/serverQuery");
 const { bisGaps, candidateSplit, filterOptions, resolveContentFilter, itemView, bisSpecsView } = require("../../loot/lootCouncil");
 const { bisLists } = require("../../loot/bisLists");
 const { primeArmoryGear, clearArmoryFor } = require("../../../services/loot/armoryGear");
@@ -82,6 +83,9 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
     if (!userCan(user, "lootcouncil", "read")) return apiError(res, 403, "forbidden", "Kein Zugriff auf den Loot-Council.");
 
     const guildId = activeGuildFor(req);
+    // The set-aside list and the profiles are one store for every server: who wrote what, and why, does
+    // not leave it for somebody whose access only the server vouches for (#1073).
+    const rankOnly = onlyByRank(user, req, (roles) => userCan(roles, "lootcouncil", "read"));
     // The version the council looks at, the character filter and the rest of the
     // query: see councilQuery.js. A roster or category of another version than
     // the menu's is dropped there (#741/#563) and named in `council.dropped`.
@@ -132,7 +136,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         avgLootPoints,
         // The weighting the numbers were computed with (#668) — the need bar
         // is stacked in its shares, the loot points come from its classes.
-        weights,
+        weights: rankOnly && weights ? { ...weights, by: "" } : weights,
         // The bot's newest logs, so the log panel at a raider can offer them
         // to pick from instead of asking for a link every time.
         recentLogs: recentLogs(undefined, { guildId }),
@@ -143,7 +147,7 @@ const getLootCouncil = withUser({}, async ({ user, req, res, url }) => {
         // is nobody the Forever council planned without.
         excluded: Object.entries(councilStore.listExcluded())
             .filter(([key]) => setAsideKeys.has(key))
-            .map(([key, entry]) => ({ key, ...entry }))
+            .map(([key, entry]) => (rankOnly ? { key, ...entry, reason: "", by: "" } : { key, ...entry }))
             .sort((a, b) => (b.at || 0) - (a.at || 0)),
         gaps,
         focus,

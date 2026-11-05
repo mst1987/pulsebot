@@ -393,10 +393,11 @@ async function takeBack(rosterId, uid, roleId, { actor = "" } = {}) {
  * right before his turn - the orga can move players while the role is handed
  * out, and a player no longer planned is skipped (no result). The check runs
  * again after the role write: a player moved meanwhile has his turn taken back
- * (takeBack) and gets no result either. Never throws.
+ * (takeBack) and gets no result either. `mayTakeIn`: whom the caller may take into the roster (null:
+ * everybody), anybody else stays out as "missing", which "Rolle nachziehen" still names. Never throws.
  * @returns {Promise<Object<string, "ok"|"missing"|"failed">>}
  */
-async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP_MS, guildId = "", kaderId = "" } = {}) {
+async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP_MS, guildId = "", kaderId = "", mayTakeIn = null } = {}) {
     const results = {};
     for (const [i, player] of players.entries()) {
         const uid = player.userId;
@@ -406,6 +407,10 @@ async function handOut(rosterId, roleId, players, { actor = "", gapMs = ROLE_GAP
             const roster = rosterStore.getRoster(rosterId);
             if (!roster || roster.closedAt) {
                 results[uid] = "failed";
+                continue;
+            }
+            if (!roster.members[uid] && mayTakeIn && !mayTakeIn(uid)) {
+                results[uid] = "missing";
                 continue;
             }
             if (!roster.members[uid]) {
@@ -601,10 +606,11 @@ async function makeChannels(guild, plan, kader, roleId, orgaIds, steps) {
  * `roster` only counts for a Kader without a linked roster: the roster the
  * takeover creates (newRosterOf). `createsRoster` is what the caller checked
  * the rights for (true: no roster linked, a new one is made); a linked roster
- * that differs from it refuses (assertRosterPath).
- * @returns {Promise<{ takeover, steps: object[], assigning: number }>}
+ * that differs from it refuses (assertRosterPath). `mayTakeIn`: whom the caller may take into the
+ * roster (handOut); `outsideServer` counts the players it leaves out.
+ * @returns {Promise<{ takeover, steps: object[], assigning: number, outsideServer: number }>}
  */
-async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP_MS, createsRoster = false } = {}) {
+async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP_MS, createsRoster = false, mayTakeIn = null } = {}) {
     const gid = str(guildId);
     if (!body || body.confirm !== true) throw refuse("confirm_required", 400, "Bitte die Übernahme bestätigen.");
     if (body.baseRev === undefined || body.baseRev === null || body.baseRev === "") {
@@ -666,14 +672,15 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
         if (!saved) {
             // the Kader is gone (or no longer writable): nothing to hand out
             logger.warn(`takeover ${key}: record not saved, no roles handed out`);
-            return { takeover: null, steps, assigning: 0 };
+            return { takeover: null, steps, assigning: 0, outsideServer: 0 };
         }
+        const outsideServer = mayTakeIn ? kader.players.filter((p) => !mayTakeIn(p.userId) && !roster.members[p.userId]).length : 0;
         locked(gid, kader.id, async () => {
-            const results = await handOut(roster.id, roleId, kader.players, { actor, gapMs, guildId: gid, kaderId: kader.id });
+            const results = await handOut(roster.id, roleId, kader.players, { actor, gapMs, guildId: gid, kaderId: kader.id, mayTakeIn });
             kaderRoster.finishTakeover(gid, kader.id, results, { actor });
             logger.info(`takeover ${key}: ${Object.values(results).filter((r) => r === "ok").length}/${kader.players.length} roles given`);
         });
-        return { takeover: saved.takeover, steps, assigning: kader.players.length };
+        return { takeover: saved.takeover, steps, assigning: kader.players.length - outsideServer, outsideServer };
     } catch (e) {
         // every throw lies before the background job took the lock over
         running.delete(key);
@@ -685,10 +692,11 @@ async function start(guildId, kaderId, body = {}, { actor = "", gapMs = ROLE_GAP
  * "Rolle nachziehen": the role for every player still waiting for it
  * (kaderRoster.pendingOf) who is on the server, in the background like the
  * takeover. Players known to be away are skipped (`away`); with the member
- * list unknown everybody pending is tried.
+ * list unknown everybody pending is tried. Whom `mayTakeIn` refuses and no roster holds counts as
+ * away too (handOut).
  * @returns {Promise<{ count: number, away: number }>}
  */
-async function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS, timeoutMs = MEMBER_FETCH_MS } = {}) {
+async function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS, timeoutMs = MEMBER_FETCH_MS, mayTakeIn = null } = {}) {
     const gid = str(guildId);
     const kader = kaderRoster.takeoverPlayers(gid, kaderId);
     if (!kader) throw refuse("kader_not_found", 404, "Kader nicht gefunden.");
@@ -700,12 +708,13 @@ async function pullRole(guildId, kaderId, { actor = "", gapMs = ROLE_GAP_MS, tim
     const members = await membersOf(gid, guild, { timeoutMs });
     const pending = new Set(kader.pending);
     const waiting = kader.players.filter((p) => pending.has(p.userId));
-    const players = members ? waiting.filter((p) => members.has(p.userId)) : waiting;
+    const reachable = mayTakeIn ? waiting.filter((p) => roster.members[p.userId] || mayTakeIn(p.userId)) : waiting;
+    const players = members ? reachable.filter((p) => members.has(p.userId)) : reachable;
     const away = waiting.length - players.length;
     if (!players.length) return { count: 0, away };
     assertCanWrite(gid, kader, roster); // again: another pull may have started while the list loaded
     locked(gid, kader.id, async () => {
-        const results = await handOut(roster.id, roleId, players, { actor, gapMs, guildId: gid, kaderId: kader.id });
+        const results = await handOut(roster.id, roleId, players, { actor, gapMs, guildId: gid, kaderId: kader.id, mayTakeIn });
         kaderRoster.markRoleGiven(gid, kader.id, results, { actor });
     });
     return { count: players.length, away };

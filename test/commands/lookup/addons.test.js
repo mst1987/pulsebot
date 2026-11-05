@@ -21,7 +21,7 @@ beforeEach(() => {
     jest.clearAllMocks();
     resetAddonReleaseCache();
     resolveAccess.mockResolvedValue({ isAdmin: false, access: {} });
-    mockConfig = { addonDownloads: defaultAddons(), github: { token: "t" }, mainVersion: "forever" };
+    mockConfig = { addonDownloads: defaultAddons(), github: { token: "t" }, mainVersion: "forever", discordServers: { servers: [{ guildId: "guild-1", trusted: true }], links: [] } };
     fetchLatestRelease.mockImplementation(async ({ repo }) => {
         if (repo === "mst1987/professionkit") throw Object.assign(new Error("none"), { code: "no_release" });
         return release(repo === "mst1987/levelhelper" ? "0.3.0" : "1.14.0");
@@ -44,6 +44,18 @@ describe("/addons", () => {
         const orga = mockInteraction({ commandName: "addons" });
         await addons.execute(orga);
         expect(orga.editReply.mock.calls[0][0].embeds[0].description).toContain("**EventHelper Sync** · v1.14.0");
+        resolveAccess.mockResolvedValue({ isAdmin: true, access: {} });
+        const admin = mockInteraction({ commandName: "addons" });
+        await addons.execute(admin);
+        expect(admin.editReply.mock.calls[0][0].embeds[0].description).toContain("EventHelper Sync");
+    });
+
+    it("does not count a self-given orga role on an unmarked server, a full admin still counts", async () => {
+        mockConfig.discordServers.servers[0].trusted = false;
+        resolveAccess.mockResolvedValue({ isAdmin: false, isOrga: true, isServerAdmin: true, access: {} });
+        const orga = mockInteraction({ commandName: "addons" });
+        await addons.execute(orga);
+        expect(orga.editReply.mock.calls[0][0].embeds[0].description).not.toContain("EventHelper Sync");
         resolveAccess.mockResolvedValue({ isAdmin: true, access: {} });
         const admin = mockInteraction({ commandName: "addons" });
         await addons.execute(admin);
