@@ -1,5 +1,5 @@
-// Guard (#1072): the server-admin rank gives full rights on one server's data. Raider profiles and
-// the character list hold every server, so a route handler that reads or writes them must say what
+// Guard (#1072): the server-admin rank gives full rights on one server's data. Raider profiles, the
+// character list and the templates hold every server, so a route handler that reads or writes them must say what
 // the rank may do there: the route carries `sharedData: true` (apiAccess.js counts the roles alone),
 // the handler limits the rank itself (`onlyByRank`, `mayLearnClasses`, ...), or the handler is named in
 // ALLOWED below with the reason it shows nothing of another server.
@@ -21,6 +21,8 @@ const STORES = [
     },
     { module: "characterStore", calls: ["listCharacters", "saveCharacter", "characterMap"] },
     { module: "characterInfo", calls: ["resolveMissing", "rememberFromLoot"] },
+    // the sheet, call-out and recruitment templates: one list for every server until #1097
+    { module: "settingsStore", calls: ["listRaidsheets", "getRaidsheet", "listNotify", "getNotify", "listRecruitment", "getRecruitment"] },
 ];
 
 /** What in a handler (or a helper it calls) counts as limiting the rank. */
@@ -45,6 +47,8 @@ const ALLOWED = {
     "loot/lootCouncil.js:getExport": "characterMap gives only class and spec of the asked name (the gear behind it: see the follow-up in #1072)",
     "roster/profile.js:putProfile": "writes the caller's own profile (user.id); the list only drops unknown wish ids",
     "roster/profile.js:postProfileCharacter": "writes the caller's own profile (user.id)",
+    "system/settings.js:updateSettings": "versionSettingsPatch only checks that a sheet id exists, it hands no template out",
+    "system/settings.js:getCategoryDeactivate": "reads no template: the text check follows the word updateSettings out of a helper's comment",
 };
 
 function jsFiles(dir) {
@@ -139,5 +143,22 @@ describe("the server-admin rank on global stores (#1072)", () => {
     it("names no handler that does not need it any more", () => {
         const needed = new Set(unanswered(handlers));
         expect(Object.keys(ALLOWED).filter((id) => !needed.has(id))).toEqual([]);
+    });
+
+    it("sees the templates: what mixes them with a server's own data limits the rank, what manages them is marked", () => {
+        for (const id of ["system/settings.js:getSettings", "system/recruitment.js:getRecruitmentData", "events/raidDetail.js:postNotify", "events/raidDetail.js:postFill"]) {
+            expect(handlers.find((h) => h.id === id)).toMatchObject({ shared: false, ranked: true });
+        }
+        for (const id of ["events/notifyTemplates.js:getNotifyTemplates", "system/recruitment.js:postRecruitmentTemplate"]) {
+            expect(handlers.find((h) => h.id === id)).toMatchObject({ shared: true });
+        }
+    });
+
+    // src/web/events holds no route, so the scan above does not reach the two lists of the raid detail.
+    it("the raid detail view reads the template lists only behind templatesClosed", () => {
+        const view = fs.readFileSync(path.join(SRC, "web", "events", "raidDetailView.js"), "utf8");
+        const reads = [...view.matchAll(/^.*\b(?:listRaidsheets|listNotify)\(\).*$/gm)].map((m) => m[0]);
+        expect(reads).toHaveLength(2);
+        for (const line of reads) expect(line).toMatch(/templatesClosed \? \[\] :/);
     });
 });

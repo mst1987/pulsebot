@@ -512,6 +512,23 @@ describe("a raider's read (Oct 2026: raids of foreign categories and the orga's 
         expect(d.viewer).toEqual({ canOrga: true, canPlan: false, canSwitchPlan: false });
         expect(d.roles).toEqual([{ id: "r1", name: "Raider" }]);
     });
+
+    it("hands the templates to a role on a server with the mark, to a full admin everywhere, else none (#1073, until #1097)", async () => {
+        loadEventGroups.mockResolvedValue(groupsWith(ownEvent()));
+        getEvent.mockReturnValue({ status: "active", setup: null });
+        const lists = async (user) => {
+            const { notifyTemplates, raidsheets } = (await read(user, "eh-1")).body.data;
+            return { notifyTemplates, raidsheets: raidsheets.map((s) => s.id) };
+        };
+        const FILLED = { notifyTemplates: [{ id: "n1" }], raidsheets: ["sheet-kara"] };
+        const EMPTY = { notifyTemplates: [], raidsheets: [] };
+
+        settingsStore.getConfig.mockReturnValue({ discordServers: TRUSTED_G1 });
+        expect(await lists(ORGA_ROLE)).toEqual(FILLED);
+        settingsStore.getConfig.mockReturnValue({});
+        expect(await lists(ORGA_ROLE)).toEqual(EMPTY);
+        expect(await lists(ADMIN)).toEqual(FILLED);
+    });
 });
 
 // #729: the orga of a category (a manager of its current roster, no orga rank, no raider role of the category)
