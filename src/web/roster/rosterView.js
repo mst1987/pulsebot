@@ -50,7 +50,7 @@ const { buildAttendanceContext, attendanceForAccounts, categoryInfo, categoryNig
 const { canEditAnyAttendance } = require("../../services/characters/attendanceAccess");
 const { CLASS_COLORS, classSpecIconUrl } = require("../../utils/setup/setupView");
 const { characterKeyOf, nameKeyOf } = require("../../utils/loot/lootImport");
-const { canManageRosterLive, isRosterOrga } = require("../../services/roster/rosterAccess");
+const { canManageRosterLive, isRosterOrga, mayAdminRoster, mayCreateRosters } = require("../../services/roster/rosterAccess");
 const { userIsOrga } = require("../../config/permissions");
 const { trialEnding } = require("../../services/roster/rosterTrials");
 const { resolveMemberSpec, specContext, specChoices } = require("../../services/roster/memberSpec");
@@ -479,7 +479,7 @@ async function buildRosterOverview({ guildId = "", user = null, config = {} } = 
             return { id, name: names.get(id) || eventCategoryName(guildId, id) || id, versionId, versionLabel: versionLabel(versionId) };
         });
     // `isOrga`: the caller is orga in general (the all-characters link); each card has its own, for its roster
-    return { rosters, categoriesWithoutRoster, canCreate: !!(user && user.isAdmin === true), isOrga: userIsOrga(user) };
+    return { rosters, categoriesWithoutRoster, canCreate: mayCreateRosters(user), isOrga: userIsOrga(user) };
 }
 
 /**
@@ -546,7 +546,7 @@ async function buildRosterDetail({ guildId = "", id = "", user = null, config = 
         canEditAttendance: !!roster.categoryId && (canManage || canEditAnyAttendance(user)),
         membersKnown: !!discordData.members,
         canManage,
-        isAdmin: !!(user && user.isAdmin === true),
+        isAdmin: mayAdminRoster(user, roster),
         settings: canManage ? rosterSettingsView(roster, discordData, config) : null,
     };
 }

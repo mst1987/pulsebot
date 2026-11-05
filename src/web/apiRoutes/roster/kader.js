@@ -31,7 +31,7 @@ const { AppError } = require("../../http/apiResult");
 const { rulesFor } = require("../../../config/gameVersions");
 const { resolveVersionQuery, isVersionVisible, knownVersion, mainVersionFor } = require("../../../services/versions/mainVersion");
 const { rosterLootSystem } = require("../../../services/loot/lootSystem");
-const { canManageRosterLive } = require("../../../services/roster/rosterAccess");
+const { canManageRosterLive, mayCreateRosters } = require("../../../services/roster/rosterAccess");
 const { kaderRosterState, rosterOfKader, syncRosterFromKader, kaderLinkChoices, linkRosterToKader } = require("../../../services/roster/rosterCreate");
 const model = require("../../../services/kader/kaderModel");
 const players = require("../../../services/kader/kaderPlayers");
@@ -355,10 +355,10 @@ const getKaderRoster = withUser({}, async ({ req, res, query, user }) => {
     if (!state) return apiError(res, 404, "kader_not_found", "Kader nicht gefunden.");
     const roster = state.roster ? rosterStore.getRoster(state.roster.id) : null;
     const canSync = !!roster && userCan(user, "kader", "write") && await canManageRosterLive(user, roster).catch(() => false);
-    const canLink = user.isAdmin === true && userCan(user, "kader", "write");
+    const canLink = mayCreateRosters(user) && userCan(user, "kader", "write");
     // #676: "Zum Loot-Council" - only the roster id crosses, nothing of the Kader
     const lootCouncil = !!roster && userCan(user, "lootcouncil", "read") && rosterLootSystem(getConfig(), roster).system === "lootcouncil";
-    return ok(res, { ...state, canCreate: !roster && user.isAdmin === true, canSync, canLink, lootCouncil, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
+    return ok(res, { ...state, canCreate: !roster && mayCreateRosters(user), canSync, canLink, lootCouncil, rosters: canLink ? kaderLinkChoices(guildId, kaderId) : [] });
 });
 
 const LINK_STATUS = { kader_not_found: 404, not_found: 404, kader_taken: 409, kader_taken_over: 409, version_mismatch: 400 };
@@ -377,7 +377,7 @@ const LINK_MESSAGE = {
  * that afterwards. Answer: the state of GET /api/kader/roster.
  */
 const linkKaderRoster = withUser(WRITE, async ({ req, res, body, user }) => {
-    if (user.isAdmin !== true) return apiError(res, 403, "admin_only", "Nur Admins verknüpfen ein Roster.");
+    if (!mayCreateRosters(user)) return apiError(res, 403, "admin_only", "Nur Admins verknüpfen ein Roster.");
     const guildId = activeGuildFor(req);
     const kaderId = str(body, "kaderId");
     const result = linkRosterToKader(kaderId, str(body, "rosterId"), { guildId, actor: String(user.id || "") });
@@ -429,7 +429,7 @@ async function takeoverRights(user, guildId, kaderId) {
     const writer = userCan(user, "kader", "write");
     if (!roster) {
         const createsRoster = !!kader && !kader.takeover;
-        return { roster: null, createsRoster, may: createsRoster && writer && user.isAdmin === true };
+        return { roster: null, createsRoster, may: createsRoster && writer && mayCreateRosters(user) };
     }
     const may = writer && await canManageRosterLive(user, roster).catch(() => false);
     return { roster, createsRoster: false, may };
@@ -489,7 +489,7 @@ const startTakeover = withUser(WRITE, async ({ req, res, body, user }) => {
     const kaderId = str(body, "kaderId");
     const { roster, createsRoster, may } = await takeoverRights(user, guildId, kaderId);
     if (!roster && !createsRoster) return apiError(res, 404, "not_found", "Kein Roster zu diesem Kader.");
-    if (!may && createsRoster) return apiError(res, 403, "admin_only", "Ein neues Roster legen nur Voll-Admins an.");
+    if (!may && createsRoster) return apiError(res, 403, "admin_only", "Ein neues Roster legen nur Admins an.");
     if (!may) return apiError(res, 403, "not_manager", "Nur Manager dieses Rosters.");
     try {
         return ok(res, await rosterTakeover.start(guildId, kaderId, body, { actor: String(user.id || ""), createsRoster }));

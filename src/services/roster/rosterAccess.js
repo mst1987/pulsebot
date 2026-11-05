@@ -1,7 +1,8 @@
 // Who may manage one raid roster (#653, docs/roster-profile.md):
 //
-//   - a full admin (user.isAdmin) - every roster; only full admins create rosters
-//     and sets their managers,
+//   - a full admin (user.isAdmin) - every roster,
+//   - the server-admin rank (user.isServerAdmin) - the rosters of its active server, never
+//     one without a server; these two create rosters and set their managers,
 //   - an account listed in roster.managers.userIds,
 //   - a member holding one of roster.managers.roleIds on the roster's server.
 //
@@ -12,6 +13,15 @@ const discord = require("../discord/discord");
 const { userIsOrga } = require("../../config/permissions");
 
 const ids = (list) => (Array.isArray(list) ? list.map((v) => String(v)) : []);
+
+/** The rank holds for the active server only (`user.guildId`) and fails closed on a roster without a server. */
+const rankOnRosterServer = (user, roster) => !!(user && user.isServerAdmin === true && roster && roster.guildId && String(roster.guildId) === String(user.guildId));
+
+/** Whether `user` may change what only admins may change on `roster`: a full admin, or the rank on its server. */
+const mayAdminRoster = (user, roster) => !!user && (user.isAdmin === true || rankOnRosterServer(user, roster));
+
+/** Whether `user` may create rosters on the active server: a full admin, or the rank (it holds for that server). */
+const mayCreateRosters = (user) => !!user && (user.isAdmin === true || user.isServerAdmin === true);
 
 /**
  * Whether `user` may manage `roster`. `memberRoleIds` = the user's roles on the
@@ -25,6 +35,7 @@ function canManageRoster(user, roster, memberRoleIds) {
     if (!user) return false;
     if (user.isAdmin === true) return true;
     if (!roster) return false;
+    if (rankOnRosterServer(user, roster)) return true;
     const managers = roster.managers || {};
     const uid = String(user.id || "").trim();
     if (uid && ids(managers.userIds).includes(uid)) return true;
@@ -57,4 +68,4 @@ async function isRosterOrga(user, roster, opts) {
     return canManageRosterLive(user, roster, opts);
 }
 
-module.exports = { canManageRoster, canManageRosterLive, isRosterOrga };
+module.exports = { canManageRoster, canManageRosterLive, isRosterOrga, mayAdminRoster, mayCreateRosters };

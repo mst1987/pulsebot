@@ -2,23 +2,25 @@
 // docs/roster-profile.md "Roster anlegen und einstellen").
 //
 // Area `roster` is the gate (write for the POSTs, read for the GETs). On top:
-//   create, delete            full admins only, else 403 "admin_only"
-//   update                    full admins everything; a manager of that roster
+//   create, delete            full admins and the server-admin rank, else 403 "admin_only"
+//   update                    full admins and the rank everything; a manager of that roster
 //                             (rosterAccess.canManageRosterLive) its name, slots,
 //                             allowMultipleChars and signupOnly - a changed
 //                             admin-only field answers 403 "admin_only", anyone
 //                             else 403 "not_manager" (services/roster/rosterSettings.js)
 // A roster of another server than the active one is 404 "not_found" for
 // update, delete and composition (web/roster/activeRoster.js). A closed roster
-// (#739) answers update with 409 "roster_closed"; a full admin may still delete it.
+// (#739) answers update with 409 "roster_closed"; a full admin or the rank may still delete it.
+// The rank is not trusted with ids of other servers: see rankRefusal.
 // Errors answer with a code the client translates (DE/EN).
 const { ok, error: apiError } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const { userCan } = require("../../../config/permissions");
+const discord = require("../../../services/discord/discord");
 const rosterStore = require("../../../stores/roster/rosterStore");
 const { getConfig } = require("../../../stores/settings/settingsStore");
-const { canManageRosterLive } = require("../../../services/roster/rosterAccess");
+const { canManageRosterLive, mayAdminRoster, mayCreateRosters } = require("../../../services/roster/rosterAccess");
 const { createRosterWithSource, kaderExists, kaderFitsVersion, kaderTakenOver } = require("../../../services/roster/rosterCreate");
 const { resolveVersionQuery } = require("../../../services/versions/mainVersion");
 const { updateRosterSettings } = require("../../../services/roster/rosterSettings");
@@ -31,7 +33,7 @@ const str = (v) => (v === null || v === undefined ? "" : String(v)).trim();
 // A refusal's HTTP status; everything not listed is the caller's input (400).
 const STATUS_OF_CODE = {
     not_found: 404, kader_not_found: 404,
-    admin_only: 403, not_manager: 403,
+    admin_only: 403, not_manager: 403, other_server: 403,
     category_taken: 409, kader_taken: 409, kader_taken_over: 409, roster_closed: 409,
     pug_onboarding_role: 409, role_taken: 409,
 };
@@ -42,6 +44,7 @@ const MESSAGE_OF_CODE = {
     version_hidden: "Diese Spielversion ist ausgeblendet – ein Roster bekommt eine sichtbare Spielversion.",
     pug_onboarding_role: "Eine Rolle aus dem PuG-Onboarding holt sich jeder selbst – sie kann keine Roster-Rolle sein.",
     role_taken: "Diese Rolle gehört schon zu einem anderen Roster – eine Rolle kann nur zu einem offenen Roster gehören.",
+    other_server: "Diese Kategorie oder Rolle gehört nicht zu diesem Server.",
 };
 
 const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, MESSAGE_OF_CODE[code] || `Roster: ${code}`);
@@ -50,6 +53,22 @@ const refuse = (res, code) => apiError(res, STATUS_OF_CODE[code] || 400, code, M
 function knownRoleIds(guildId) {
     const roles = serverRoles(guildId);
     return roles.length ? new Set(roles.map((r) => r.id)) : null;
+}
+
+/**
+ * What the server-admin rank may not write into a roster of `guildId`, whatever the store accepts: a
+ * category the bot does not list on that server (`keepCategoryId`, the roster's own, stays allowed) and
+ * roles while the bot sees none of the server's, since then nothing tells a foreign role from an own one.
+ * Either would take the category or role away from another server (category_taken, role_taken).
+ * @returns {string | null} the refusal code
+ */
+function rankRefusal(user, guildId, body, keepCategoryId) {
+    if (user.isAdmin === true) return null;
+    const categoryId = str(body.categoryId);
+    if (categoryId && categoryId !== str(keepCategoryId) && !discord.listCategories(guildId).some((c) => c.id === categoryId)) return "other_server";
+    const managers = body.managers || {};
+    const namesRoles = [body.roleIds, managers.roleIds].some((list) => Array.isArray(list) && list.length) || !!str(body.trialRoleId);
+    return namesRoles && !knownRoleIds(guildId) ? "other_server" : null;
 }
 
 /**
@@ -66,19 +85,21 @@ const getRosterOptions = withUser({}, async ({ user, req, res, query }) => {
     const { versionId } = resolveVersionQuery(query && query.get("version"), { config });
     const options = rosterOptions({ guildId: activeGuildFor(req), config, canSeeKader: userCan(user, "kader", "read"), versionId });
     // #676: the Loot-Council profiles to pick from (names only) and whether "Profile verwalten" may link to the council
-    return ok(res, { ...options, isAdmin: user.isAdmin === true, canOpenCouncil: userCan(user, "lootcouncil", "read") });
+    return ok(res, { ...options, isAdmin: mayCreateRosters(user), canOpenCouncil: userCan(user, "lootcouncil", "read") });
 });
 
 /**
- * POST /api/rosters/create — a new roster on the active server (full admins).
+ * POST /api/rosters/create — a new roster on the active server (full admins, the rank).
  * Body: { name?, categoryId?, versionId?, roleIds?, trialRoleId?, managers?: { roleIds, userIds },
  *   slots?: { total, tank, healer, bench }, allowMultipleChars?, signupOnly?,
  *   source?: "role" | "kader" | "raids" | "none", kaderId? }.
  * Answer: { roster, initial: { source, added, skipped, roleFailures: [{ userId, roleId, code }], error } }.
  */
 const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
-    if (user.isAdmin !== true) return refuse(res, "admin_only");
+    if (!mayCreateRosters(user)) return refuse(res, "admin_only");
     const guildId = activeGuildFor(req);
+    const refusal = rankRefusal(user, guildId, body);
+    if (refusal) return refuse(res, refusal);
     const result = await createRosterWithSource(body, { guildId, actor: str(user.id), config: getConfig(), knownRoleIds: knownRoleIds(guildId) });
     if (!result.ok) return refuse(res, result.code);
     return ok(res, { roster: result.roster, initial: result.initial });
@@ -98,8 +119,10 @@ const postRosterCreate = withUser({ write: "roster", csrf: true, body: true }, a
 const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
     const roster = activeRoster(req, body.rosterId);
     if (!roster) return refuse(res, "not_found");
-    const isAdmin = user.isAdmin === true;
+    const isAdmin = mayAdminRoster(user, roster);
     if (!isAdmin && !(await canManageRosterLive(user, roster))) return refuse(res, "not_manager");
+    const refusal = isAdmin ? rankRefusal(user, roster.guildId, body, roster.categoryId) : null;
+    if (refusal) return refuse(res, refusal);
     // rosterId is no settings field - cleanSettings ignores it like any unknown field
     const result = updateRosterSettings(roster.id, body, {
         isAdmin, actor: str(user.id), knownRoleIds: knownRoleIds(roster.guildId), kaderKnown: (id) => kaderExists(roster.guildId, id),
@@ -112,14 +135,17 @@ const postRosterUpdate = withUser({ write: "roster", csrf: true, body: true }, a
 });
 
 /**
- * POST /api/rosters/delete — delete a roster (full admins). The Discord roles
+ * POST /api/rosters/delete — delete a roster (full admins, the rank). The Discord roles
  * stay where they are, nobody's roles are touched; the category's raider roles
  * in the settings keep the roster's last roles. Body: { rosterId }. Answer: { rosterId, deleted: true }.
  */
 const postRosterDelete = withUser({ write: "roster", csrf: true, body: true }, async ({ user, req, body, res }) => {
-    if (user.isAdmin !== true) return refuse(res, "admin_only");
+    if (!mayCreateRosters(user)) return refuse(res, "admin_only");
     const id = str(body.rosterId);
-    if (!activeRoster(req, id) || !rosterStore.deleteRoster(id)) return refuse(res, "not_found");
+    const roster = activeRoster(req, id);
+    if (!roster) return refuse(res, "not_found");
+    if (!mayAdminRoster(user, roster)) return refuse(res, "admin_only");
+    if (!rosterStore.deleteRoster(id)) return refuse(res, "not_found");
     return ok(res, { rosterId: id, deleted: true });
 });
 
