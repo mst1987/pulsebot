@@ -18,6 +18,7 @@ jest.mock("../../../src/stores/settings/settingsStore", () => ({
     listRaidsheets: jest.fn(() => [{ id: "s1", name: "Sheet", url: "https://example.com/sheet" }]),
     getRaidsheet: jest.fn(() => ({ id: "s1", name: "Sheet", url: "https://example.com/sheet" })),
     getNotify: jest.fn(() => ({ id: "n1", name: "Aufruf", content: "Komm" })),
+    listNotify: jest.fn(() => [{ id: "n1", name: "Aufruf", content: "Komm" }]),
     listRecruitment: jest.fn(() => [{ id: "t1", name: "Vorlage", content: "hi", versionId: "tbc" }]),
     getRecruitment: jest.fn(() => ({ id: "t1", name: "Vorlage", content: "hi", versionId: "tbc" })),
     listRecruitmentPosts: jest.fn(() => [
@@ -29,6 +30,11 @@ jest.mock("../../../src/stores/settings/settingsStore", () => ({
         other: { id: "other", guildId: "guild-2", channelId: "c2", messageId: "m2", templateId: "t1", versionId: "tbc" },
     })[id] || null),
 }));
+// the raid list behind GET /api/raids/detail: no other route of this file reads it
+jest.mock("../../../src/services/events/raidEventGroups", () => ({
+    ...jest.requireActual("../../../src/services/events/raidEventGroups"),
+    loadEventGroups: jest.fn(),
+}));
 
 const axios = require("axios");
 const settingsStore = require("../../../src/stores/settings/settingsStore");
@@ -36,6 +42,9 @@ const auth = require("../../../src/web/http/auth");
 const { handle } = require("../../../src/web/http/apiRouter");
 const discord = require("../../../src/services/discord/discord");
 const raidEventStore = require("../../../src/stores/events/raidEventStore");
+const rosterStore = require("../../../src/stores/roster/rosterStore");
+const { loadEventGroups } = require("../../../src/services/events/raidEventGroups");
+const { mainVersionFor } = require("../../../src/services/versions/mainVersion");
 const { makeClient, makeGuild } = require("../../helpers/discordClient");
 const { json, jsonRequest, mockRes, status } = require("../../helpers/http");
 
@@ -51,6 +60,8 @@ const config = (trusted) => ({
             rolePermissions: {
                 "role-orga": { raids: ALL, settings: ALL, recruitment: ALL },
                 "role-recruit": { recruitment: ALL },
+                "role-reader": { raids: { read: true, write: false } },
+                "role-menu": { recruitment: { read: true, write: false } },
             },
         },
     },
@@ -92,6 +103,15 @@ async function useTemplates(session) {
     for (const [pathname, body] of USE) out.push(await send(session, "POST", pathname, { body }));
     return out;
 }
+
+/** GET /api/raids/detail, through the router: the raid of USE with both template lists. */
+const detail = (session) => send(session, "GET", "/api/raids/detail", { query: "?event=e1" });
+
+const expectLists = (res, count) => {
+    expect(status(res)).toBe(200);
+    expect(json(res).data.notifyTemplates).toHaveLength(count);
+    expect(json(res).data.raidsheets).toHaveLength(count);
+};
 
 /** The 403 of the template check itself: the gate in front of it says "forbidden" too. */
 const expectClosed = (res) => {
@@ -203,6 +223,112 @@ describe("web/http/apiRouter: the templates of every server (#1073, until #1097)
             expect(data.templatesAvailable).toBe(false);
             expect(data.posts.map((p) => p.id)).toEqual(["own"]);
             (await useTemplates(session)).forEach(expectClosed);
+        });
+    });
+
+    describe("for the managers of the raid's category", () => {
+        const MANAGER_ACCOUNT = "850";
+        // both sources of the raid's category: the rights read it through the event list, as categoryOrga
+        // holds its own reference to the store's function
+        const raidIn = (categoryId) => {
+            raidEventStore.getRaidEvent.mockReturnValue({ id: "e1", guildId: "guild-1", categoryId });
+            loadEventGroups.mockResolvedValue({
+                groups: [{
+                    categoryId, categoryName: "Kara",
+                    events: [{ id: "e1", source: "raidhelper", title: "Kara", startTime: 4102444800, channelId: "c1", channelName: "kara", channelState: "ok", signupCount: 0, signUps: [] }],
+                }],
+                error: null,
+                stale: false,
+            });
+        };
+        const reads = () => settingsStore.getNotify.mock.calls.length + settingsStore.getRaidsheet.mock.calls.length;
+
+        beforeEach(() => {
+            raidIn("cat-1");
+            const roster = {
+                id: "r1", name: "Kader", categoryId: "cat-1", versionId: mainVersionFor({ categoryId: "cat-1" }), guildId: "guild-1", roleIds: [], members: {},
+                managers: { userIds: [MANAGER_ACCOUNT], roleIds: ["role-manager"] },
+            };
+            jest.spyOn(rosterStore, "listRosters").mockReturnValue([roster]);
+            jest.spyOn(rosterStore, "rosterForCategory").mockImplementation((categoryId) => (categoryId === "cat-1" ? roster : null));
+        });
+        afterEach(() => {
+            rosterStore.listRosters.mockRestore();
+            rosterStore.rosterForCategory.mockRestore();
+        });
+
+        // [what, account, roles]: the same manager in both ways the roster can name one, with a right
+        // of another area as the way into the menu: being a manager alone opens no menu
+        const MANAGERS = [["by role", "851", ["role-manager", "role-menu"]], ["by account", MANAGER_ACCOUNT, ["role-menu"]]];
+
+        describe("on a server with the mark", () => {
+            beforeEach(() => getConfig.mockReturnValue(config(true)));
+
+            it.each(MANAGERS)("the rank takes nothing from a manager %s: both templates and the lists", async (_how, id, roles) => {
+                const session = await login(id, roles, true);
+                await useTemplates(session);
+                expectBothRead();
+                expectLists(await detail(session), 1);
+            });
+
+            it.each(MANAGERS)("a manager %s without the rank keeps the templates", async (_how, id, roles) => {
+                const session = await login(id, roles);
+                await useTemplates(session);
+                expectBothRead();
+                // no `orgaRead` on this route: the page stays what the roles give, with or without this rule
+                expect(status(await detail(session))).toBe(403);
+            });
+
+            it("the rank opens nothing for the manager of another category", async () => {
+                raidIn("cat-2");
+                (await useTemplates(await login("852", ["role-manager"], true))).forEach(expectClosed);
+                expect(reads()).toBe(0);
+            });
+
+            it("the rank alone stays closed, in the lists as well", async () => {
+                const session = await login("853", [], true);
+                (await useTemplates(session)).forEach(expectClosed);
+                expectLists(await detail(session), 0);
+            });
+
+            it("reading the raids is not enough next to the rank: list and use answer alike", async () => {
+                const session = await login("854", ["role-reader"], true);
+                expectLists(await detail(session), 0);
+                (await useTemplates(session)).forEach(expectClosed);
+            });
+
+            it("reading the raids without the rank is the raider's page, which never held the lists", async () => {
+                expectLists(await detail(await login("855", ["role-reader"])), 0);
+                expect(settingsStore.listNotify).toHaveBeenCalled();
+            });
+
+            it("the orga by roles keeps them next to the rank", async () => {
+                const session = await login("856", ["role-orga"], true);
+                expectLists(await detail(session), 1);
+                await useTemplates(session);
+                expectBothRead();
+            });
+        });
+
+        describe("on a server without the mark", () => {
+            it.each(MANAGERS)("being a manager %s opens nothing, with the rank", async (_how, id, roles) => {
+                const session = await login(id, roles, true);
+                (await useTemplates(session)).forEach(expectClosed);
+                expectLists(await detail(session), 0);
+                expect(reads()).toBe(0);
+            });
+
+            it.each(MANAGERS)("being a manager %s opens nothing, without the rank", async (_how, id, roles) => {
+                (await useTemplates(await login(id, roles))).forEach(expectClosed);
+                expect(reads()).toBe(0);
+            });
+
+            it("a full admin keeps them", async () => {
+                const session = await login("857", ["role-full"]);
+                expectLists(await detail(session), 1);
+                await useTemplates(session);
+                expectBothRead();
+            });
         });
     });
 
