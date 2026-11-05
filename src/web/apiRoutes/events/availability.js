@@ -47,7 +47,7 @@ const absenceOverview = require("../../../services/signups/absenceOverview");
 const { raiderAttendance } = require("../../availability/raiderAttendance");
 const { entryCategoryIds, eventCategoryNames } = require("../../availability/entryCategories");
 const { entryServers, serverNames } = require("../../availability/entryServers");
-const { scopeOf, entryOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
+const { scopeOf, entryOnServer, entryProvenOnServer, specLabel, scopeView, charactersView } = require("../../../services/signups/availabilityScope");
 const { canEditAnyAttendance } = require("../../../services/characters/attendanceAccess");
 const { mayUseServer, mayUseChannel, channelOnCategoryServer, guildOfChannel, onlyByRank, raiderReachFor, visibleRaidersFor, outsideReach, membersUnavailable, MEMBERS_UNAVAILABLE, OTHER_SERVER, CHANNEL_OTHER_SERVER } = require("../../http/serverQuery");
 const { activeGuildFor } = require("../../http/activeGuild");
@@ -94,15 +94,18 @@ async function refusedOutOfReach(res, user, req, userId, rolesMay = isOrga) {
 }
 
 /**
- * What the orga's overview may list: an entry without a scope concerns every server, so it says
- * nothing about this one. The rank alone (#1072) reads none of them but the caller's own; other orga
- * those of raiders it may see anyway (#1077); a full admin all. An entry with a scope was already
- * matched to the active server by the overview.
+ * What the orga's overview may list: only an entry proven to be on the active server says something
+ * about this server. An entry without a scope concerns every server, and the overview also keeps one
+ * naming a category of unknown server (entryOnServer), so neither does. Of those the rank alone
+ * (#1072) reads only the caller's own; other orga those of raiders it may see anyway (#1077); a full
+ * admin all.
  */
 async function entryFilter(user, req) {
-    if (onlyByRank(user, req, userIsOrga)) return { showEntry: (e) => !!scopeOf(e) || str(e.userId) === str(user.id) };
+    const guildId = activeGuildFor(req);
+    const onServer = (e) => entryProvenOnServer(e, guildId);
+    if (onlyByRank(user, req, userIsOrga)) return { showEntry: (e) => onServer(e) || str(e.userId) === str(user.id) };
     const visible = await visibleRaidersFor(user, req);
-    return visible ? { showEntry: (e) => !!scopeOf(e) || visible.has(str(e.userId)) } : {};
+    return visible ? { showEntry: (e) => onServer(e) || visible.has(str(e.userId)) } : {};
 }
 
 /**

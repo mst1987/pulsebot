@@ -106,6 +106,65 @@ describe("GET /api/availability/overview (#1077)", () => {
     });
 });
 
+describe("GET /api/availability/overview: an entry naming a category of unknown server (#1077)", () => {
+    const LOST = "900000000000000001";
+    const HERE = "900000000000000002";
+    const RANK = { ...ORGA, id: "200000000000000020", isServerAdmin: true };
+    const lost = (userId, comment) => absence(userId, comment, { scope: [{ guildId: "", categoryIds: [LOST] }] });
+    const asRank = async (fn) => {
+        const spy = jest.spyOn(require("../../../../src/web/http/auth"), "getUserWithoutRank").mockReturnValue({ id: RANK.id, isAdmin: false, access: {} });
+        try {
+            return await fn();
+        } finally {
+            spy.mockRestore();
+        }
+    };
+
+    beforeEach(() => {
+        for (const e of store.listEntries()) store.removeEntry(e.id);
+        absence(SIGNED_OFF_HERE, "Umzug", { scope: [{ guildId: "g", categoryIds: [] }] });
+    });
+
+    it("keeps a stranger's entry from the orga, name and reason alike", async () => {
+        lost(FOREIGN, "Zahnarzt");
+        const res = await get("/api/availability/overview", ORGA);
+        expect(json(res).data.raiders.map((r) => r.userId)).toEqual([SIGNED_OFF_HERE]);
+        expect(JSON.stringify(json(res).data)).not.toContain("Zahnarzt");
+    });
+
+    it("keeps a stranger's entry from the rank alone", async () => {
+        lost(FOREIGN, "Zahnarzt");
+        expect(await asRank(() => overviewIds(RANK))).toEqual([SIGNED_OFF_HERE]);
+    });
+
+    it("keeps a member's entry from the rank alone, but shows the caller's own", async () => {
+        lost(MEMBER, "Urlaub");
+        lost(RANK.id, "Eigener");
+        expect(await asRank(() => overviewIds(RANK))).toEqual([RANK.id, SIGNED_OFF_HERE].sort());
+    });
+
+    it("still shows the orga a member or a raider signed up here with the same entry", async () => {
+        lost(MEMBER, "Urlaub");
+        expect(await overviewIds(ORGA)).toEqual([MEMBER, SIGNED_OFF_HERE].sort());
+    });
+
+    it("shows a full admin the stranger's entry", async () => {
+        lost(FOREIGN, "Zahnarzt");
+        expect(await overviewIds(ADMIN)).toEqual([FOREIGN, SIGNED_OFF_HERE].sort());
+    });
+
+    it("counts a category proven to lie on the active server like a scope on it, for the rank too", async () => {
+        const server = jest.spyOn(require("../../../../src/services/events/eventServer"), "guildOfCategory").mockImplementation((id) => (id === HERE ? "g" : ""));
+        try {
+            absence(FOREIGN, "Zahnarzt", { scope: [{ guildId: "", categoryIds: [HERE] }] });
+            expect(await overviewIds(ORGA)).toEqual([FOREIGN, SIGNED_OFF_HERE].sort());
+            expect(await asRank(() => overviewIds(RANK))).toEqual([FOREIGN, SIGNED_OFF_HERE].sort());
+        } finally {
+            server.mockRestore();
+        }
+    });
+});
+
 describe("GET /api/availability/overview/raider (#1077)", () => {
     const PATH = "/api/availability/overview/raider";
 
