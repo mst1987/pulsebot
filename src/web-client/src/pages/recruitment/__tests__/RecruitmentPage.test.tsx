@@ -149,7 +149,7 @@ describe("on a server without the templates (#1073, until #1097)", () => {
         await screen.findByRole("tablist");
         expect(screen.queryByRole("tab", { name: /Vorlagen/ })).not.toBeInTheDocument();
         expect(screen.queryByRole("button", { name: "Nachricht posten" })).not.toBeInTheDocument();
-        expect(screen.getByText(/stehen auf diesem Server noch nicht zur Verfügung/)).toBeInTheDocument();
+        expect(screen.getByText("Ohne Vorlagen")).toHaveAttribute("data-tip", expect.stringMatching(/stehen auf diesem Server noch nicht zur Verfügung/));
         expect(screen.getByRole("tab", { name: /Nachrichten/ })).toHaveAttribute("aria-selected", "true");
         expect(screen.getByRole("tab", { name: /Bewerbungen/ })).toBeInTheDocument();
     });

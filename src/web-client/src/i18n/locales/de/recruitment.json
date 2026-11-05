@@ -5,6 +5,7 @@
         "serverFallback": "Discord-Server",
         "title": "Recruitment",
         "postMessage": "Nachricht posten",
+        "templatesClosedBadge": "Ohne Vorlagen",
         "templatesClosed": "Vorlagen und neue Nachrichten stehen auf diesem Server noch nicht zur Verfügung: Vorlagen gelten bisher für alle Server."
     },
     "tabs": {

@@ -5,6 +5,7 @@
         "serverFallback": "Discord server",
         "title": "Recruitment",
         "postMessage": "Post message",
+        "templatesClosedBadge": "No templates",
         "templatesClosed": "Templates and new messages are not available on this server yet: templates still apply to all servers."
     },
     "tabs": {

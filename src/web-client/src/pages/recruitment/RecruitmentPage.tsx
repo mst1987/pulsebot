@@ -7,6 +7,7 @@ import { useContentVersion } from "../../hooks/useContentVersion";
 import { useCollectionEditor } from "../../lib/ui/collectionEditor";
 import { useToast } from "../../components/shell/Jobs";
 import { Button } from "../../components/ui/Button";
+import Badge from "../../components/ui/Badge";
 import PageHead from "../../components/ui/layout/PageHead";
 import WowIcon from "../../components/ui/icons/WowIcon";
 import "../../styles/recruitment.css";
@@ -125,10 +126,10 @@ export default function RecruitmentPage() {
                     <div className="rc-page">
                         <PageHead
                             icon={ICONS.page} tone="recruitment" kicker={data.guildName || t("recruitment.page.serverFallback")} title={t("recruitment.page.title")}
+                            meta={data.templatesAvailable ? undefined : <Badge tone="mid" tip={t("recruitment.page.templatesClosed")}>{t("recruitment.page.templatesClosedBadge")}</Badge>}
                             action={data.templatesAvailable ? <Button icon={ICONS.post} onClick={() => openPostDialog()}>{t("recruitment.page.postMessage")}</Button> : undefined}
                         />
                         <SubNav view={shownView} data={shown} onChange={switchView} />
-                        {!data.templatesAvailable && <p className="hint">{t("recruitment.page.templatesClosed")}</p>}
                         {shownView === "applications" && <ApplicationsTab data={shown} />}
                         {shownView === "templates" && (
                             <TemplatesTab data={shown} editor={templateEditor} onPost={openPostDialog} onChanged={afterChange} />
@@ -151,8 +152,8 @@ export default function RecruitmentPage() {
                                 onSaved={afterChange} onClose={postEditor.close}
                             />
                         )}
-                        {postEditor.open && !editingPost && data.templatesAvailable && (
-                            <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
+                        {postEditor.open && !editingPost && (
+                            data.templatesAvailable && <PostDialog data={data} presetTemplateId={presetTemplateId} onPosted={afterChange} onClose={postEditor.close} />
                         )}
                     </div>
                 );
