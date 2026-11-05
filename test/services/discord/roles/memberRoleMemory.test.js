@@ -19,6 +19,12 @@ describe("memberRolesRemembered", () => {
         expect(discord.memberRoleIds).toHaveBeenCalledWith("g1", "u1");
     });
 
+    it("hands a time limit on to the read", async () => {
+        discord.memberRoleIds.mockResolvedValue(["r1"]);
+        await memberRolesRemembered("g1", "u1", { now: NOW, waitMs: 250 });
+        expect(discord.memberRoleIds).toHaveBeenCalledWith("g1", "u1", { waitMs: 250 });
+    });
+
     it("stands in with the last read while it is young, then says unknown", async () => {
         discord.memberRoleIds.mockResolvedValueOnce(["r1"]);
         await memberRolesRemembered("g1", "u1", { now: NOW });

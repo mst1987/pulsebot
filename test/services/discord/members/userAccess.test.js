@@ -95,11 +95,20 @@ describe("services/discord/members/userAccess", () => {
             expect((await flagOf()).membershipUnknown).toBe(true);
         });
 
-        it.each([10004, 10007, 10013])("does not mark the server when fetching it says %i", async (code) => {
+        // 10004 and 50001 are what Discord answers for a server the bot is not on
+        it.each([10004, 50001])("does not mark the server when fetching it says %i", async (code) => {
             const client = makeClient({ guilds: [] });
             client.guilds.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("definite"), { code }));
             discord.setClient(client);
             expect((await flagOf()).membershipUnknown).toBeUndefined();
+        });
+
+        // 50013 is a permission of the moment, the member codes do not come from a guild route
+        it.each([50013, 10007, 10013])("marks the server when fetching it says %i", async (code) => {
+            const client = makeClient({ guilds: [] });
+            client.guilds.fetch = jest.fn().mockRejectedValue(Object.assign(new Error("passing"), { code }));
+            discord.setClient(client);
+            expect((await flagOf()).membershipUnknown).toBe(true);
         });
 
         it("marks every server when a lookup that had to answer fails", async () => {

@@ -16,12 +16,13 @@
 //
 // The two /raid routes are the one exception to "a page needs its active server" (#1074): links
 // into `/signups?event=` come from Discord messages and /e/<id>, whoever follows them. They are
-// bound to the one raid and ask the rights on the raid's own server (docs/signups.md). They open
-// no server: no switch, no list, no channel; what they answer stays within what /e/<id> shows.
+// bound to the one raid, ask the rights on the raid's own server and show it only to whom it is
+// visible (`raidVisibility`, docs/signups.md). They open no server: no switch, no list, no channel.
 const { ok, error: apiError, sendJson } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
 const { activeGuildFor } = require("../../http/activeGuild");
 const auth = require("../../http/auth");
+const { mayEnterGuild } = require("../../http/guildChoice");
 const { requireCsrf } = require("../../http/apiMiddleware");
 const { readJsonBody } = require("../../http/apiBody");
 const { archivedRefusal } = require("../../../services/events/eventArchive");
@@ -29,7 +30,9 @@ const { loadEventGroups } = require("../../../services/events/raidEventGroups");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const profiles = require("../../../stores/roster/raiderProfileStore");
 const { getEvent, isOwnEventId } = require("../../../stores/events/eventStore");
-const { listSignups } = require("../../../stores/events/signupStore");
+const { getSignup, listSignups } = require("../../../stores/events/signupStore");
+const { NAME_FETCH_MS } = require("../../../services/discord/discord");
+const { accessRule, canSignUp } = require("../../../services/signups/signupAccess");
 const { submitSignup, submitSignups, httpStatusFor, roleCounts } = require("../../../services/signups/signupService");
 const { memberEventList, profileForSignup, signupSummary } = require("../../signups/signupView");
 const { markMembersOnly, serverOf } = require("../../../services/signups/pugMembership");
@@ -196,11 +199,44 @@ function linkedRaid(req, rawId, level) {
 
 /**
  * The one refusal of a signup link: an unknown raid, a raid whose server gives the caller no
- * access and a raid hidden from them by role or roster read the same, so the answer says
- * nothing about which raids exist.
+ * access and a raid hidden from them by role or roster read the same. So the answer says nothing
+ * about the caller's access; that a raid exists is public through /e/<id> anyway. A raid that is
+ * visible keeps its own answers (`closed`, `deadline` and so on).
  */
 function raidUnavailable(res) {
     return apiError(res, 403, "raid_unavailable", "Dieser Raid ist für dich nicht verfügbar. Der Link kann veraltet sein, oder sein Server lässt deine Anmeldung nicht zu.");
+}
+
+/**
+ * Whether the raid of a signup link shows to the caller, the one rule of GET and PUT: their own
+ * signup, the orga of the raid's server, or a category of that server's raids they may sign up
+ * for. Roles that cannot be read count as not held, within a time limit, because this route also
+ * serves people who are no members. That is stricter than checkRaiderRole on the ordinary route,
+ * which lets them through and so is only safe for callers known to belong to the server.
+ * @returns {Promise<{ visible: boolean, roleIds: string[]|null, rolesUnknown: boolean }>}
+ */
+async function raidVisibility({ event, eventId, guildId, view }, config) {
+    const versionId = versionOfEvent(event, { config });
+    const { rule } = accessRule(event.categoryId, { config, versionId });
+    const roles = rule === "roles"
+        ? await viewerRoles(guildId, { id: view.id }, { waitMs: NAME_FETCH_MS })
+        : { roleIds: null, unknown: false };
+    const visible = !!getSignup(eventId, view.id)
+        || userIsOrga(view)
+        || canSignUp(event.categoryId, { userId: view.id, roleIds: roles.roleIds, config, versionId });
+    return { visible, roleIds: roles.roleIds, rolesUnknown: roles.unknown };
+}
+
+/**
+ * The answer for a raid that does not show. Whoever may enter its server learns that their roles
+ * could not be read, since "not available" would be untrue for them and tells them nothing new;
+ * everybody else gets the one refusal.
+ */
+function raidHidden(req, res, { guildId }, { rolesUnknown }) {
+    if (rolesUnknown && mayEnterGuild(auth.guildViewerOf(req), guildId)) {
+        return apiError(res, 503, "raid_roles_unknown", "Deine Discord-Rollen konnten gerade nicht gelesen werden. Versuch es gleich noch einmal.");
+    }
+    return raidUnavailable(res);
 }
 
 /** The session's account, or a 401 and null. */
@@ -222,13 +258,17 @@ async function getSignupRaid(req, res, url) {
     if (!raid) return raidUnavailable(res);
     const { eventId, guildId, view } = raid;
     const config = getConfig();
+    const seen = await raidVisibility(raid, config);
+    if (!seen.visible) return raidHidden(req, res, raid, seen);
+    // the list of the raid's server does not show a raid of a hidden version either
+    const archived = archivedRefusal(eventId);
+    if (archived) return apiError(res, archived.status, archived.code, archived.message);
     const { groups } = await loadEventGroups(guildId);
     // only this raid goes into the list, so no other can come out of it
     const own = (groups || []).map((g) => ({ ...g, events: (g.events || []).filter((e) => e.id === eventId) }));
-    const roles = await viewerRoles(guildId, { id: view.id });
     const profile = profiles.getProfile(view.id);
-    const { rows, rolesUnknown } = memberEventList(own, {
-        userId: view.id, guildId, config, roleIds: roles.roleIds, profile,
+    const { rows } = memberEventList(own, {
+        userId: view.id, guildId, config, roleIds: seen.roleIds, profile,
         // what "Alle Kategorien" is to the orga on that server's own page
         all: userIsOrga(view),
         byOrga: isGlobalRaidOrga(view),
@@ -243,7 +283,7 @@ async function getSignupRaid(req, res, url) {
         version: versionId,
         scope: "mine",
         canShowAll: false,
-        rolesUnknown: rolesUnknown && roles.unknown,
+        rolesUnknown: false,
         eventVersion: "",
         profile: profileForSignup(profile, { versionId }),
         ...pickerData(config),
@@ -258,6 +298,8 @@ async function putSignupRaid(req, res) {
     const body = (await readJsonBody(req)) || {};
     const raid = linkedRaid(req, body.eventId, "write");
     if (!raid) return raidUnavailable(res);
+    const seen = await raidVisibility(raid, getConfig());
+    if (!seen.visible) return raidHidden(req, res, raid, seen);
     const { eventId, event, view } = raid;
     const archived = archivedRefusal(eventId);
     if (archived) return apiError(res, archived.status, archived.code, archived.message);

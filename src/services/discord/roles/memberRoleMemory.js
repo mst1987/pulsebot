@@ -28,17 +28,17 @@ function prune(now) {
  * KEEP_MS (`stale: true`), else unknown (`roleIds: null`).
  * @param {string} guildId
  * @param {string} userId
- * @param {{ now?: number }} [opts]
+ * @param {{ now?: number, waitMs?: number }} [opts] `waitMs`: see discord.memberRoleIds
  * @returns {Promise<{ roleIds: string[]|null, stale: boolean }>}
  */
-async function memberRolesRemembered(guildId, userId, { now = Date.now() } = {}) {
+async function memberRolesRemembered(guildId, userId, { now = Date.now(), waitMs } = {}) {
     const gid = str(guildId);
     const uid = str(userId);
     const key = `${gid}:${uid}`;
     let ids = null;
     if (gid && uid) {
         try {
-            ids = await discord.memberRoleIds(gid, uid);
+            ids = await (waitMs === undefined ? discord.memberRoleIds(gid, uid) : discord.memberRoleIds(gid, uid, { waitMs }));
         } catch {
             ids = null;
         }

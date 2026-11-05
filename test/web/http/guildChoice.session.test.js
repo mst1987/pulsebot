@@ -39,6 +39,7 @@ const auth = require("../../../src/web/http/auth");
 const { handle } = require("../../../src/web/http/apiRouter");
 const { startWebServer } = require("../../../src/web/http/server");
 const { activeGuildFor } = require("../../../src/web/http/activeGuild");
+const { _resetForTests: _resetRoleMemory } = require("../../../src/services/discord/roles/memberRoleMemory");
 const { jsonRequest, mockRes, status, body } = require("../../helpers/http");
 const { makeClient, makeGuild, makeMember, discordError } = require("../../helpers/discordClient");
 
@@ -521,7 +522,7 @@ describe("the one raid behind a signup link (#1074)", () => {
         });
     });
 
-    describe("refusals say nothing about what exists", () => {
+    describe("refusals read the same, whatever the reason", () => {
         const withoutBase = () => ({
             ...CONFIG,
             serverSettings: { ...CONFIG.serverSettings, [FOREIGN]: { userPermissions: CONFIG.serverSettings[FOREIGN].userPermissions } },
@@ -656,6 +657,170 @@ describe("the one raid behind a signup link (#1074)", () => {
             expect(status(await saveRaid(sid, { eventId: further.id, ...NEW_CHARACTER }))).toBe(200);
             expect(signupStore.listSignups(first.id).map((s) => s.userId)).toEqual([BOTH]);
             expect(signupStore.listSignups(further.id)).toEqual([]);
+        });
+
+        it("refuses a body that names nothing", async () => {
+            const sid = await login(BOTH);
+            const res = await saveRaid(sid, null);
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+        });
+
+        it("reads with read alone, and saves only with write", async () => {
+            configStore.writeStored({
+                ...CONFIG,
+                serverSettings: { ...CONFIG.serverSettings, [FOREIGN]: { baseAccess: { signup: { read: true, write: false } } } },
+            });
+            const raid = raidOn(FOREIGN);
+            const sid = await login(BOTH);
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+            const res = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(res)).toBe(403);
+            expect(body(res).error.code).toBe("raid_unavailable");
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+
+        it("never names wish partners", async () => {
+            const raid = raidOn(FOREIGN);
+            const sid = await login(MEMBER);
+            expect(body(await openRaid(sid, raid.id)).events[0].wishPartners).toEqual([]);
+        });
+    });
+
+    describe("a raid of a hidden game version", () => {
+        it("answers archived to reading and to saving", async () => {
+            configStore.writeStored({ ...CONFIG, mainVersion: "forever", hideOtherVersions: true });
+            const raid = raidOn(FOREIGN, { versionId: "tbc" });
+            botOnBoth();
+            const sid = await login(BOTH);
+            const read = await openRaid(sid, raid.id);
+            expect(status(read)).toBe(409);
+            expect(body(read).error.code).toBe("archived");
+            const saved = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(saved)).toBe(409);
+            expect(body(saved).error.code).toBe("archived");
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+    });
+
+    // One rule for reading and saving: own signup, orga, or a category they may sign up for.
+    // Unknown roles refuse here, unlike checkRaiderRole on the ordinary route.
+    describe("who a raid shows to", () => {
+        const ROLE_CATEGORY = "777";
+        const ROLE = "888";
+        const withRoles = (over = {}) => configStore.writeStored({ ...CONFIG, categoryRoles: { [ROLE_CATEGORY]: [ROLE] }, ...over });
+        const failing = () => jest.fn(async () => { throw new Error("gateway timeout"); });
+
+        /** Reading and saving both get the one refusal, and nothing lands. */
+        async function expectHidden(sid, raid) {
+            const read = await openRaid(sid, raid.id);
+            expect(status(read)).toBe(403);
+            expect(body(read).error.code).toBe("raid_unavailable");
+            const saved = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(saved)).toBe(403);
+            expect(body(saved)).toEqual(body(read));
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        }
+
+        beforeEach(() => {
+            _resetRoleMemory();
+            withRoles();
+        });
+
+        it("hides a role category from a non-member", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            await expectHidden(await login(STRANGER), raid);
+        });
+
+        it("hides a role category when Discord does not answer", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(STRANGER);
+            botOnline(failing());
+            await expectHidden(sid, raid);
+        });
+
+        it("hides a role category without a bot", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(STRANGER);
+            discord.setClient(null);
+            await expectHidden(sid, raid);
+        });
+
+        it("hides a role category of a server the bot is not on", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(STRANGER);
+            discord.setClient(makeClient({ guilds: [makeGuild({ id: OWN })] }));
+            await expectHidden(sid, raid);
+        });
+
+        it("hides a category outside the server's event categories", async () => {
+            withRoles({ categoryIds: ["778"] });
+            const raid = raidOn(FOREIGN, { categoryId: "779" });
+            await expectHidden(await login(STRANGER), raid);
+        });
+
+        it("waits for the roles only as long as the page may", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(STRANGER);
+            const read = jest.spyOn(discord, "memberRoleIds").mockResolvedValue(null);
+            await expectHidden(sid, raid);
+            expect(read).toHaveBeenCalledWith(FOREIGN, STRANGER, { waitMs: discord.NAME_FETCH_MS });
+            read.mockRestore();
+        });
+
+        it("shows it to a holder of the role, who may save", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            discord.setClient(makeClient({ guilds: [
+                makeGuild({ id: OWN }),
+                makeGuild({ id: FOREIGN, members: [makeMember({ id: BOTH, roleIds: [ROLE] })] }),
+            ] }));
+            const sid = await login(BOTH);
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+            expect(status(await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER }))).toBe(200);
+        });
+
+        it("keeps it open for whoever holds a signup, also during an outage", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            discord.setClient(makeClient({ guilds: [
+                makeGuild({ id: OWN }),
+                makeGuild({ id: FOREIGN, members: [makeMember({ id: BOTH, roleIds: [ROLE] })] }),
+            ] }));
+            const sid = await login(BOTH);
+            expect(status(await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER }))).toBe(200);
+
+            _resetRoleMemory();
+            botOnline(failing());
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+            expect(status(await saveRaid(sid, { eventId: raid.id, character: "Nerathil", spec: "Mage-Frost", status: "absence" }))).toBe(200);
+            expect(signupStore.listSignups(raid.id).map((s) => s.status)).toEqual(["absence"]);
+        });
+
+        it("keeps it open for the orga, who sees why the button is off", async () => {
+            const raid = raidOn(FOREIGN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(ADMIN);
+            botOnline(failing());
+            expect(status(await openRaid(sid, raid.id))).toBe(200);
+        });
+
+        it("tells a member of the server that their roles could not be read", async () => {
+            const raid = raidOn(OWN, { categoryId: ROLE_CATEGORY });
+            const sid = await login(MEMBER);
+            _resetRoleMemory();
+            // a member the bot does not hold in its cache, or the fetch would never be asked
+            const own = makeGuild({ id: OWN, name: "Eigener Server" });
+            own.members.fetch = failing();
+            discord.setClient(makeClient({ guilds: [own] }));
+            const read = await openRaid(sid, raid.id);
+            expect(status(read)).toBe(503);
+            expect(body(read).error.code).toBe("raid_roles_unknown");
+            const saved = await saveRaid(sid, { eventId: raid.id, ...NEW_CHARACTER });
+            expect(status(saved)).toBe(503);
+            expect(signupStore.listSignups(raid.id)).toEqual([]);
+        });
+
+        it("refuses a member who surely holds no role", async () => {
+            const raid = raidOn(OWN, { categoryId: ROLE_CATEGORY });
+            await expectHidden(await login(MEMBER), raid);
         });
     });
 });
