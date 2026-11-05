@@ -250,6 +250,13 @@ dateigebundene Regeln nach `.claude/rules/` — nicht hierher und nicht in `CLAU
     bekäme. Beim Review alle Wege prüfen, auch GET und `auth: "token"`, und auch die, die ein Zielkonto erst
     in eine Liste bringen (fremde ID als Raider eintragen, danach ihr Profil lesen).
     `test/docs/rankScope.test.js` ist nur eine Textprüfung und ersetzt das nicht.
+29. `discordServers.links` steuert mit dem Schalter `shareNotes` die Sicht auf geteilte Vermerke (#1078),
+    in beiden Richtungen und unabhängig von `versions` (`guildRoles.noteSharingServerIds`). Wer Links
+    schreibt, anlegt oder ihre Rechte ändert (#1075, Selbst-Aktivierung), prüft beide Seiten, auch beim
+    Ändern von `to`, und testet die Vermerke-Sicht mit. Das Feld fehlt, wenn es aus ist: Wer einen Link
+    neu aufbaut, muss es mitnehmen (`normalizeLinks`). `shareNotes` gilt nur zwischen zwei gelisteten Servern:
+    `normalizeLinks` verwirft es sonst und am Selbstlink, Entfernen und Wiederaufnehmen eines Servers teilt
+    also nicht still. Wer die Serverliste öffnet (#1073, #1075, Selbst-Aktivierung), muss das erhalten.
 
 ## Fach-Agenten
 

@@ -6,8 +6,9 @@
 //
 // Rights hold per server (#925): everything works on the caller's active
 // server. An entry of another server is not there (404 not_found) - except a
-// shared one, which every server reads and none but its server of origin
-// changes; another server may hide it for itself (`/hide`).
+// shared one of a linked server (#1078, the store's one rule), which is read here
+// and changed by none but its server of origin; this server may hide it for
+// itself (`/hide`).
 //
 // GET /api/vermerke/short is the short form for every orga that plans a raid
 // (#981): the highest active level and the reasons with their counts - no text,
@@ -28,7 +29,7 @@ const notes = require("../../../stores/roster/userNotesStore");
 const { shortFor } = require("../../../services/vermerke/vermerkeShort");
 const { searchPeople, recentRaids, membersOf } = require("../../../services/vermerke/vermerkePeople");
 const { maySeeShort } = require("../../../services/vermerke/vermerkeAccess");
-const { serverLabel } = require("../../../services/discord/roles/guildRoles");
+const { serverLabel, noteSharingServerIds } = require("../../../services/discord/roles/guildRoles");
 const discord = require("../../../services/discord/discord");
 const { getConfig, saveConfig } = require("../../../stores/settings/settingsStore");
 const { IGNORE_KINDS } = require("../../../stores/roster/userSignalsStore");
@@ -103,7 +104,7 @@ function namer() {
 /**
  * GET /api/vermerke - every person with entries this server sees, one line each (no text): who wrote the
  * newest entry, how many come shared from another server, and `left` when the member list says the person
- * is no longer on the server (null when the list is not there).
+ * is no longer on the server (null when the list is not there). `hasSharingServers`: does sharing reach anyone?
  */
 const getList = withUser(async ({ req, res }) => {
     const guildId = guildOf(req, res);
@@ -132,7 +133,8 @@ const getList = withUser(async ({ req, res }) => {
     });
     people.sort((a, b) => b.lastAt - a.lastAt);
     // the server it is for, so a page that shows another server (Mitglieder) can tell
-    return ok(res, { guildId, guildName: serverNameOf(guildId, getConfig()), people });
+    const config = getConfig();
+    return ok(res, { guildId, guildName: serverNameOf(guildId, config), hasSharingServers: noteSharingServerIds(guildId, config).size > 0, people });
 });
 
 /** GET /api/vermerke/person?userId= - every entry of one person this server sees, with the notes. */
@@ -147,6 +149,7 @@ const getPerson = withUser(async ({ query, req, res }) => {
         userId,
         name: person.name,
         level: notes.activeLevelFor(guildId, userId),
+        hasSharingServers: noteSharingServerIds(guildId).size > 0,
         entries: person.entries.map((e) => entryView(e, names)).sort((a, b) => b.at - a.at),
     });
 });

@@ -76,7 +76,7 @@
         "last": "Latest",
         "lastTip": "Date of the newest note",
         "state": "Status",
-        "stateTip": "Left the server or shared from another server"
+        "stateTip": "Left the server or shared from a linked server"
     },
     "cell": {
         "lastBy": "By {name}",
@@ -86,7 +86,7 @@
             "one": "{count} shared note",
             "other": "{count} shared notes"
         },
-        "sharedSub": "Comes from another server and is read only here."
+        "sharedSub": "Comes from a linked server and is read only here."
     },
     "drawer": {
         "kicker": "Notes · {guild}",
@@ -108,7 +108,8 @@
         },
         "by": "{name} · {date}",
         "shared": "Shared",
-        "sharedOwnSub": "Every server sees this entry.",
+        "sharedOwnSub": "Servers that notes are shared with see this entry.",
+        "sharedOwnNoLink": "There is no server that notes are shared with: the entry is only visible here for now.",
         "fromServer": "From {server}",
         "otherServer": "another server",
         "fromServerSub": "Shared by {server}: read only here, only that server can change it.",
@@ -147,7 +148,7 @@
             "shared": "sharing"
         },
         "failed": "That did not work: {message}",
-        "activeTip": "What counts: this server's own entries and the shared entries of other servers, unless hidden here. Archived and expired ones do not count."
+        "activeTip": "What counts: this server's own entries and the shared entries of linked servers, unless hidden here. Archived and expired ones do not count."
     },
     "dialog": {
         "kickerNew": "New note",
@@ -178,8 +179,9 @@
         "raidsPick": "Pick a person first.",
         "raidSigned": "Was signed up",
         "raidNotSigned": "Was not signed up",
-        "shared": "Show on all servers",
-        "sharedTip": "Every linked server sees the entry with text and history; only this server can change it.",
+        "shared": "Share with linked servers",
+        "sharedTip": "Servers that a link shares notes with see the entry with text and history; only this server can change it. If the link is removed or its “Share notes” switch is turned off, it is gone from there at once.",
+        "sharedNoLink": "There is no server that notes are shared with: the entry stays visible only here until a link turns sharing on.",
         "save": "Save",
         "create": "Add note",
         "tooMany": "This person already has {max} notes stored – the archive counts too. A full admin has to delete an old entry for good first.",

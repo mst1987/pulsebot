@@ -92,7 +92,7 @@ export default function VermerkePage() {
             )}
             {dialog && (
                 <VermerkDialog
-                    guildId={data ? data.guildId : ""} preset={dialog} onClose={() => setDialog(null)}
+                    guildId={data ? data.guildId : ""} hasSharingServers={data ? data.hasSharingServers : undefined} preset={dialog} onClose={() => setDialog(null)}
                     onSaved={(userId) => { setDialog(null); changed(); if (userId !== openId) open(userId); }}
                 />
             )}

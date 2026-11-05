@@ -49,6 +49,8 @@ const OLD_MESSAGES = {
         { id: "e", guildSide: "event", channelId: "1600000000000000002", title: "Event", roles: [] },
     ],
 };
+// #1078: a link between two servers kept sharing Vermerke, the start turned its switch on once
+const EXPECTED_LINKS = [{ ...OLD_CONFIG.discordServers.links[0], shareNotes: true }, OLD_CONFIG.discordServers.links[1]];
 const EXPECTED_PAIRS = [
     { fromGuildId: EVENT, fromRoleId: R(1), toGuildId: TALK, toRoleId: R(2), direction: "toTarget" },
     { fromGuildId: EVENT, fromRoleId: R(3), toGuildId: TALK, toRoleId: R(4), direction: "toSource" },
@@ -75,7 +77,7 @@ describe("stores/settings/settingsMigration migrateDiscordFederation (#897)", ()
         const raw = stored(CONFIG_FILE);
         expect(raw.discordServers).toEqual({
             servers: [{ guildId: EVENT, label: "Raids" }, { guildId: THIRD, label: "" }, { guildId: TALK, label: "" }],
-            links: OLD_CONFIG.discordServers.links,
+            links: EXPECTED_LINKS,
         });
         // #924: the note channel is unknown to the stores, so it went to the first server
         expect(raw.serverSettings[EVENT]).toEqual({ signupNoteChannelId: "1400000000000000021" });
@@ -86,7 +88,7 @@ describe("stores/settings/settingsMigration migrateDiscordFederation (#897)", ()
         const after = stored(CONFIG_FILE);
         expect(after.adminRoleIds).toEqual([R(9)]);
         expect(after.discordServers.servers.map((s) => s.guildId)).toEqual([EVENT, THIRD, TALK]);
-        expect(after.discordServers.links).toEqual(OLD_CONFIG.discordServers.links);
+        expect(after.discordServers.links).toEqual(EXPECTED_LINKS);
         expect(after.roleSync).toEqual(EXPECTED_PAIRS);
         expect("talkGuildId" in after.discordServers).toBe(false);
         expect("talkPingChannelId" in after.discordServers).toBe(false);

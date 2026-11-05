@@ -548,7 +548,12 @@ function normalizeLinks(list, serverIds) {
         const key = `${from}:${to}`;
         if (seen.has(key)) continue;
         seen.add(key);
-        out.push({ from, to, channelId, lang: normalizeLinkLang(raw.lang), versions: normalizeLinkVersions(raw.versions) });
+        const link = { from, to, channelId, lang: normalizeLinkLang(raw.lang), versions: normalizeLinkVersions(raw.versions) };
+        // The switch "share Vermerke" (#1078): stored only when on, like `pug` on a server, and only
+        // between two different servers of the list. Every save passes here with the list after that
+        // save, so a target taken off loses the switch for good: listing it again shares nothing.
+        if (raw.shareNotes === true && from !== to && known.has(to)) link.shareNotes = true;
+        out.push(link);
     }
     return out;
 }

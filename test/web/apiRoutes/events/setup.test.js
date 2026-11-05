@@ -641,7 +641,25 @@ describe("Vermerke in the editor (#981)", () => {
         expect(body(saved).shadowbanInPool).toEqual([]);
     });
 
+    // g9 shares with the raid's server g1 only through a link with the switch on (#1078)
+    const linkedToG9 = (extra = { shareNotes: true }) => ({
+        discordServers: {
+            servers: [{ guildId: "g1", label: "" }, { guildId: "g9", label: "" }],
+            links: [{ from: "g9", to: "g1", channelId: "1400000000000000011", lang: "", versions: [], ...extra }],
+        },
+    });
+
+    it("ignores the shared shadowban of a linked server when the link does not share Vermerke", async () => {
+        mockConfig = linkedToG9({});
+        notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toContain("rogue");
+        expect(view.shadowbanInPool).toEqual([]);
+        expect(view.vermerke).toEqual({});
+    });
+
     it("leaves a warning, a hint, an expired and a hidden shadowban out of it", async () => {
+        mockConfig = linkedToG9();
         notes.addEntry("g1", "mage", { level: "shadowban", reason: "behavior", expiresAt: 1 }, by);
         const shared = notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
         notes.hideShared("g1", shared.id, { by: "boss" });
@@ -653,11 +671,20 @@ describe("Vermerke in the editor (#981)", () => {
         expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toEqual(expect.arrayContaining(["rogue", "lock"]));
     });
 
-    it("lets a shared shadowban of another server count", async () => {
-        notes.addEntry("g9", "mage", { level: "shadowban", reason: "behavior", shared: true }, by);
+    it("lets a shared shadowban of a linked server count", async () => {
+        mockConfig = linkedToG9();
+        notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
         const view = body(await call(route.postPropose, ORGA, { event: ID }));
-        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).not.toContain("mage");
-        expect(view.shadowbanInPool.map((p) => p.userId)).toEqual(["mage"]);
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).not.toContain("rogue");
+        expect(view.shadowbanInPool.map((p) => p.userId)).toEqual(["rogue"]);
+    });
+
+    it("ignores the shared shadowban of a server that is not linked: the proposal gives nothing away", async () => {
+        notes.addEntry("g9", "rogue", { level: "shadowban", reason: "behavior", shared: true }, by);
+        const view = body(await call(route.postPropose, ORGA, { event: ID }));
+        expect(view.setup.groups.flatMap((g) => g.slots.map((s) => s.userId))).toContain("rogue");
+        expect(view.shadowbanInPool).toEqual([]);
+        expect(view.vermerke).toEqual({});
     });
 
     it("names the person the same on the page load and on a write answer: the cached Discord name first", async () => {

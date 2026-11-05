@@ -2869,6 +2869,13 @@ describe("web/apiRoutes/settings", () => {
                     });
                 });
 
+                it("keeps the Vermerke switch of a link when it is on, and stores no field when it is not (#1078)", async () => {
+                    await save({ links: [{ ...link, shareNotes: true }, { ...link, to: "30000", channelId: "30001", shareNotes: "yes" }] });
+                    expect(settingsStore.saveConfig).toHaveBeenCalledWith({
+                        discordServers: { links: [{ ...link, shareNotes: true }, { ...link, to: "30000", channelId: "30001" }] },
+                    });
+                });
+
                 it("checks links sent alone against the stored servers", async () => {
                     await save({ links: [link] });
                     expect(settingsStore.saveConfig).toHaveBeenCalledWith({ discordServers: { links: [link] } });

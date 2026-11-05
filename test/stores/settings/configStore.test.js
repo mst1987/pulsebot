@@ -190,6 +190,39 @@ describe("stores/settings/configStore saveConfig", () => {
             expect(saved.discordServers.links).toEqual([{ from: A, to: B, channelId: CH, lang: "", versions: [] }]);
         });
 
+        // Vermerke are shared between two listed servers only, whatever the order of the save (#1078).
+        describe("the Vermerke switch of a link", () => {
+            const PLAIN = { from: A, to: B, channelId: CH, lang: "", versions: [] };
+            const SHARED = { ...PLAIN, shareNotes: true };
+            const both = [{ guildId: A }, { guildId: B }];
+
+            it("stays when the server and its link arrive in the same save", () => {
+                const saved = configStore.saveConfig({ discordServers: { servers: both, links: [SHARED] } });
+                expect(saved.discordServers.links).toEqual([SHARED]);
+                expect(configStore.getConfig().discordServers.links).toEqual([SHARED]);
+            });
+
+            it("is dropped for a partner off the list and for a link onto its own server", () => {
+                const saved = configStore.saveConfig({ discordServers: {
+                    servers: [{ guildId: A }],
+                    links: [SHARED, { ...SHARED, to: A }],
+                } });
+                expect(saved.discordServers.links).toEqual([PLAIN, { ...PLAIN, to: A }]);
+            });
+
+            it("is ignored when an old file still carries it for a server off the list", () => {
+                writeFile({ guildId: A, discordServers: { servers: [{ guildId: A }], links: [SHARED] } });
+                expect(configStore.getConfig().discordServers.links).toEqual([PLAIN]);
+            });
+
+            it("removing the server and listing it again shares nothing, without the question of the switch", () => {
+                configStore.saveConfig({ discordServers: { servers: both, links: [SHARED] } });
+                expect(configStore.saveConfig({ discordServers: { servers: [{ guildId: A }] } }).discordServers.links).toEqual([PLAIN]);
+                expect(configStore.saveConfig({ discordServers: { servers: both } }).discordServers.links).toEqual([PLAIN]);
+                expect(configStore.getConfig().discordServers.links).toEqual([PLAIN]);
+            });
+        });
+
         // an old stored talk field is read as a server once and then gone (#897)
         it("an old stored talk server becomes an ordinary server and can be removed", () => {
             const T = "1100000000000000024";

@@ -76,7 +76,7 @@
         "last": "Zuletzt",
         "lastTip": "Datum des neuesten Vermerks",
         "state": "Status",
-        "stateTip": "Server verlassen oder von einem anderen Server geteilt"
+        "stateTip": "Server verlassen oder von einem verknüpften Server geteilt"
     },
     "cell": {
         "lastBy": "Von {name}",
@@ -86,7 +86,7 @@
             "one": "{count} geteilter Vermerk",
             "other": "{count} geteilte Vermerke"
         },
-        "sharedSub": "Kommt von einem anderen Server und lässt sich hier nur lesen."
+        "sharedSub": "Kommt von einem verknüpften Server und lässt sich hier nur lesen."
     },
     "drawer": {
         "kicker": "Vermerke · {guild}",
@@ -108,7 +108,8 @@
         },
         "by": "{name} · {date}",
         "shared": "Geteilt",
-        "sharedOwnSub": "Alle Server sehen diesen Eintrag.",
+        "sharedOwnSub": "Server, mit denen Vermerke geteilt werden, sehen diesen Eintrag.",
+        "sharedOwnNoLink": "Es gibt keinen Server, mit dem Vermerke geteilt werden: Der Eintrag ist gerade nur hier sichtbar.",
         "fromServer": "Von {server}",
         "otherServer": "einem anderen Server",
         "fromServerSub": "Geteilt von {server}: hier nur lesbar, ändern kann ihn nur dieser Server.",
@@ -147,7 +148,7 @@
             "shared": "Teilen"
         },
         "failed": "Hat nicht geklappt: {message}",
-        "activeTip": "Es zählen die eigenen Einträge dieses Servers und die geteilten Einträge anderer Server, solange sie hier nicht ausgeblendet sind. Archivierte und abgelaufene zählen nicht."
+        "activeTip": "Es zählen die eigenen Einträge dieses Servers und die geteilten Einträge verknüpfter Server, solange sie hier nicht ausgeblendet sind. Archivierte und abgelaufene zählen nicht."
     },
     "dialog": {
         "kickerNew": "Neuer Vermerk",
@@ -178,8 +179,9 @@
         "raidsPick": "Erst eine Person wählen.",
         "raidSigned": "War angemeldet",
         "raidNotSigned": "War nicht angemeldet",
-        "shared": "Auf allen Servern zeigen",
-        "sharedTip": "Jeder verknüpfte Server sieht den Eintrag mit Text und Verlauf, ändern kann ihn nur dieser Server.",
+        "shared": "Mit verknüpften Servern teilen",
+        "sharedTip": "Server, mit denen eine Verknüpfung Vermerke teilt, sehen den Eintrag mit Text und Verlauf, ändern kann ihn nur dieser Server. Wird die Verknüpfung entfernt oder ihr Schalter „Vermerke teilen“ abgestellt, ist er dort sofort nicht mehr sichtbar.",
+        "sharedNoLink": "Es gibt keinen Server, mit dem Vermerke geteilt werden: Der Eintrag bleibt nur hier sichtbar, bis eine Verknüpfung das Teilen einschaltet.",
         "save": "Speichern",
         "create": "Vermerk anlegen",
         "tooMany": "Für diese Person sind schon {max} Vermerke gespeichert – das Archiv zählt mit. Ein Voll-Admin muss erst einen alten Eintrag endgültig löschen.",
