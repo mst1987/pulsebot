@@ -112,9 +112,16 @@ describe("services/versions/versionSettings", () => {
 
     describe("fillChar", () => {
         it("fills every placeholder and passes the result through the link check", () => {
-            expect(vs.fillChar("https://x.test/{char}/{char}", "A B")).toBe("https://x.test/A%20B/A%20B");
+            expect(vs.fillChar("https://x.test/{char}/{char}", "Nera")).toBe("https://x.test/Nera/Nera");
             expect(vs.fillChar("not a url {char}", "Nera")).toBe("");
             expect(vs.fillChar("", "Nera")).toBe("");
+        });
+
+        it("joins a first and last name with \"-\", the way Blizzard's armory finds them (Forever)", () => {
+            // Blizzard answers "Devi%20Ra" with 404, "Devi-Ra" with the character
+            expect(vs.fillChar("https://x.test/{char}", " Devi Ra ")).toBe("https://x.test/Devi-Ra");
+            expect(vs.fillChar("https://x.test/{char}", "Devi   Ra")).toBe("https://x.test/Devi-Ra");
+            expect(vs.fillChar("https://x.test/{char}", "Bärli Bär")).toBe("https://x.test/B%C3%A4rli-B%C3%A4r");
         });
     });
 

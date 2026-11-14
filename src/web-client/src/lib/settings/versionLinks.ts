@@ -87,10 +87,12 @@ export function blockProblems(block: VersionSettingsBlock): (keyof VersionSettin
 /**
  * Fill a {char} template; "" without template or name, or when the result is
  * no working link. {region}/{realm} (#553) take the version's region and
- * realm — a template needing one that is not set gives no link.
+ * realm — a template needing one that is not set gives no link. A name with a
+ * space (Forever's first and last name) goes in with "-", as Blizzard's armory
+ * needs it (the same rule as services/versions/versionSettings.js fillChar).
  */
 export function fillCharTemplate(tpl: string, character: string, place: { region?: string; realm?: string } = {}): string {
-    const name = character.trim();
+    const name = character.trim().replace(/\s+/g, "-");
     if (!tpl || !name) return "";
     const region = (place.region || "").trim();
     const realm = (place.realm || "").trim();

@@ -128,10 +128,15 @@ module.exports = {
     partyBuffs: buffs.partyBuffs,
     raidBuffs: buffs.raidBuffs,
     // Wowhead has a section of its own for Forever (www.wowhead.com/forever,
-    // #750). The beta's namespace, armory and log sites are not known (Epic
-    // #540 phase 2): once they are, they go here in the shape of classic.js'
-    // settingsDefaults, and the start-up migration fills the empty fields once.
+    // #750). Blizzard's own armory has Forever characters (checked Nov 2026):
+    //   armory  worldofwarcraft.blizzard.com/de-de/forever/<region>/armory/character/<first>-<last>
+    //           — no realm in the path, public without a login, only from
+    //           level 10; the name's space must be a "-" (versionSettings fillChar).
+    // The namespace and the log site are not known yet (Epic #540 phase 2).
+    // Forever was in versionDefaultsApplied before the armory came, so an
+    // existing install takes it with "Standardwerte übernehmen".
     settingsDefaults: {
+        armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
         wowheadPath: "forever",
     },
 };

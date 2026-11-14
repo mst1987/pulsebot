@@ -444,8 +444,11 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String), color: "#4da3ff", icon: "/versions/forever.png" });
                 // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
-                // Forever: only its Wowhead section (#750), no realm, armory or log site
-                expect(data.versionDefaults.forever).toMatchObject({ wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "", wclUrlTemplate: "" });
+                // Forever: its Wowhead section (#750) and Blizzard's armory, no realm or log site
+                expect(data.versionDefaults.forever).toMatchObject({
+                    wowheadPath: "forever", blizzardRealmSlug: "", blizzardNamespace: "", wclUrlTemplate: "",
+                    armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
+                });
                 // "Funktionen je Version" (#761): every version with every feature, from the one source
                 expect(data.versionCapabilities.features).toEqual(["logcheck", "lootCouncilBis", "simulation", "raidSheet", "softres", "armory", "wowheadLinks", "raidplanCatalog", "dungeonTimes"]);
                 expect(Object.keys(data.versionCapabilities.versions)).toEqual(["tbc", "classic", "forever"]);
