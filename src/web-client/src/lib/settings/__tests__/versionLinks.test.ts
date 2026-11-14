@@ -40,6 +40,11 @@ describe("lib/settings/versionLinks", () => {
         expect(isWebLink("javascript:alert(1)")).toBe(false);
     });
 
+    it("joins a first and last name with \"-\", the way Blizzard's armory finds them (Forever)", () => {
+        expect(fillCharTemplate("https://x.test/{char}", " Devi  Ra ")).toBe("https://x.test/Devi-Ra");
+        expect(fillCharTemplate("https://x.test/{char}", "Bärli Bär")).toBe("https://x.test/B%C3%A4rli-B%C3%A4r");
+    });
+
     it("names the fields the server would refuse, never an empty one", () => {
         expect(blockProblems(TBC)).toEqual([]);
         expect(blockProblems(emptyBlock())).toEqual([]);

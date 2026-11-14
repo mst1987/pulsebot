@@ -1364,7 +1364,7 @@ describe("web/apiRoutes/history", () => {
             expect(data).toMatchObject({ versionId: "tbc", versionIds: ["tbc"] });
         });
 
-        it("asks no armory and links nothing for a version without settings (#542, asked by ?version=)", async () => {
+        it("asks no armory for a version without Battle.net settings, links only its standard armory (#542, asked by ?version=)", async () => {
             mockIsConfigured.mockReturnValue(true);
             settingsStore.getConfig.mockReturnValue({ mainVersion: "forever", blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: {} });
             // Anna has loot of a Forever raid (its stored version, #737)
@@ -1375,8 +1375,11 @@ describe("web/apiRoutes/history", () => {
             delete raidEventStore.versionOfRaidEvent;
             expect(mockGetEquipment).not.toHaveBeenCalled();
             expect(mockGetCharacterSummary).not.toHaveBeenCalled();
+            // the link is Blizzard's Forever armory (a standard value, no namespace needed);
+            // the gear lookup stays off without a namespace
             expect(data).toMatchObject({
-                versionId: "forever", gearConfigured: false, armoryUrl: "", wclUrl: "", wowheadPath: "",
+                versionId: "forever", gearConfigured: false, wclUrl: "", wowheadPath: "",
+                armoryUrl: "https://worldofwarcraft.blizzard.com/de-de/forever/eu/armory/character/Anna",
                 gearError: "Armory für WoW Forever nicht eingerichtet (Einstellungen → Spielversion).",
             });
         });

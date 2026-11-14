@@ -236,12 +236,17 @@ describe("stores/settings/settingsMigration standard values and recruitment vers
         expect(config.versionDefaultsApplied).toEqual(["tbc", "classic", "forever"]);
         expect(config.versionSettings.classic).toMatchObject({ wowheadPath: "classic-own", softresEdition: "classic", blizzardNamespace: "profile-classic1x-eu", blizzardRealmSlug: "" });
         expect(config.versionSettings.tbc).toMatchObject({ blizzardRealmSlug: "thunderstrike", wowheadPath: "tbc", softresEdition: "tbc", blizzardNamespace: "profile-classicann-eu" });
-        // Forever gets its Wowhead section (#750), realm, armory and logs stay empty
-        expect(config.versionSettings.forever).toEqual({ ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever" });
-        // the links work with the TBC realm, and stay out for Classic without one
+        // Forever gets its Wowhead section (#750) and Blizzard's armory, realm and logs stay empty
+        expect(config.versionSettings.forever).toEqual({
+            ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever",
+            armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
+        });
+        // the links work with the TBC realm, and stay out for Classic without one;
+        // Forever's armory needs no realm
         const { versionLinks } = require("../../../src/services/versions/versionSettings");
         expect(versionLinks("tbc").wcl("Nera")).toBe("https://fresh.warcraftlogs.com/character/eu/thunderstrike/Nera");
         expect(versionLinks("classic").wcl("Nera")).toBe("");
+        expect(versionLinks("forever").armory("Devi Ra")).toBe("https://worldofwarcraft.blizzard.com/de-de/forever/eu/armory/character/Devi-Ra");
 
         fs.writeFileSync.mockClear();
         expect(migrateSettings(quiet)).toEqual({ changes: [] });

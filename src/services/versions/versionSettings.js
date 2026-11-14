@@ -8,7 +8,8 @@
 // TBC block is what the install used before (#542's migration hands the old
 // single values to it); the other versions start with their rule set's
 // standard values (#553, config/gameVersions settingsDefaults — Classic's are
-// checked, Forever has none yet), and only empty fields are ever filled.
+// checked, Forever has its Wowhead path and Blizzard's armory), and only empty
+// fields are ever filled.
 //
 // The Battle.net credentials (client id/secret) stay one pair for all versions
 // in `config.blizzard` — it is one API application.
@@ -90,13 +91,15 @@ function versionColor(versionId, opts = {}) {
  * Fill a {char} template; "" without template or name, or when the link would
  * not work (#539). {region} and {realm} (#553) take the version's Battle.net
  * region and realm — a template that needs one the version has not set gives
- * no link rather than one with a hole.
+ * no link rather than one with a hole. A name with a space (Forever's first
+ * and last name) goes in with "-": Blizzard's armory finds "devi-ra" but
+ * answers 404 for "Devi%20Ra"; names of the other versions have no space.
  * @param {string} template
  * @param {string} character
  * @param {{ region?: string, realm?: string }} [place]
  */
 function fillChar(template, character, { region = "", realm = "" } = {}) {
-    const name = str(character);
+    const name = str(character).replace(/\s+/g, "-");
     if (!template || !name) return "";
     const text = String(template);
     if ((text.includes("{region}") && !str(region)) || (text.includes("{realm}") && !str(realm))) return "";

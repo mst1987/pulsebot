@@ -49,7 +49,10 @@ function after542(config) {
         wowheadPath: "classic", softresEdition: "classic", raidsheetId: "", color: "",
     };
     return {
-        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: { ...EMPTY_BLOCK, blizzardRegion: "eu", wowheadPath: "forever" } },
+        ...config, blizzard: credentials, versionSettings: { tbc, classic, forever: {
+            ...EMPTY_BLOCK, blizzardRegion: "eu", wowheadPath: "forever",
+            armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
+        } },
         versionDefaultsApplied: ["tbc", "classic", "forever"],
     };
 }

@@ -10,8 +10,9 @@ describe("web/characters/charLinks", () => {
     });
 
     it("escapes a name instead of pasting it into the URL", () => {
-        // Ein Name mit Umlaut oder Leerzeichen darf den Link nicht zerlegen.
-        expect(armoryUrlFor("Bärli Bär")).toContain("B%C3%A4rli%20B%C3%A4r");
+        // Ein Name mit Umlaut oder Leerzeichen darf den Link nicht zerlegen;
+        // das Leerzeichen wird zum Bindestrich (so findet Blizzards Armory Forever-Namen).
+        expect(armoryUrlFor("Bärli Bär")).toContain("B%C3%A4rli-B%C3%A4r");
     });
 
     it("is empty rather than broken without a name", () => {
@@ -27,9 +28,9 @@ describe("web/characters/charLinks", () => {
 });
 
 describe("web/characters/charLinks je Spielversion (#543)", () => {
-    it("verlinkt jeden Charakter mit den Einstellungen seiner Version - ohne Forever-Vorlage kein Link", () => {
+    it("verlinkt jeden Charakter mit den Einstellungen seiner Version - ohne Forever-Log-Vorlage kein Log-Link", () => {
         expect(armoryUrlFor("Devihra", "tbc")).toContain("Devihra");
-        expect(armoryUrlFor("Devi Res", "forever")).toBe("");
+        expect(armoryUrlFor("Devi Res", "forever")).toBe("https://worldofwarcraft.blizzard.com/de-de/forever/eu/armory/character/Devi-Res");
         expect(wclUrlFor("Devi Res", "forever")).toBe("");
     });
 });
