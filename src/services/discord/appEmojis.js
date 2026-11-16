@@ -135,12 +135,20 @@ const SAFE_ICON = /^[a-z0-9_]{1,80}$/;
  */
 function addonEmojiCatalog(addons = []) {
     const out = [];
-    const seen = new Set();
+    const seen = new Map(); // emoji name -> addon id
     for (const addon of [...(Array.isArray(addons) ? addons : []), ...DEFAULT_ADDONS]) {
-        const name = addonEmojiName(addon && addon.id);
+        const id = String((addon && addon.id) || "");
+        const key = slug(id);
+        const name = addonEmojiName(id);
         const icon = String((addon && addon.icon) || "");
-        if (!validEmojiName(name) || !SAFE_ICON.test(icon) || seen.has(name)) continue;
-        seen.add(name);
+        if (!validEmojiName(name) || !SAFE_ICON.test(icon)) continue;
+        if (seen.has(name)) {
+            // the same addon again (a default the list overrides) is expected; two addons whose ids
+            // only differ past the 32 characters of a name share one emoji - the first one's icon
+            if (slug(seen.get(name)) !== key) console.warn(`[appEmojis] Addons ${seen.get(name)} und ${id} teilen das Emoji ${name}; es zeigt das Icon von ${seen.get(name)}.`);
+            continue;
+        }
+        seen.set(name, id);
         out.push({ name, icon, url: `${ICON_BASE}/${icon}.jpg` });
     }
     return out;

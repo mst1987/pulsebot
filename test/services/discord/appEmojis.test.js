@@ -57,6 +57,32 @@ describe("services/discord/appEmojis", () => {
         expect(appEmojis.addonEmojiCatalog()).toHaveLength(DEFAULT_ADDONS.length);
     });
 
+    it("lets a default addon's icon stand in for a list entry with an unsafe icon", () => {
+        const out = appEmojis.addonEmojiCatalog([{ id: "levelhelper", icon: "inv-misc-map02" }]);
+        const levelhelper = out.filter((e) => e.name === "eh_addon_levelhelper");
+        const fallback = DEFAULT_ADDONS.find((a) => a.id === "levelhelper").icon;
+        expect(levelhelper).toEqual([expect.objectContaining({ icon: fallback })]);
+    });
+
+    it("warns when two addons share an emoji name - the first one wins; an overridden default does not warn", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            const long = "a-very-long-addon-identifier-that-is-cut";
+            const out = appEmojis.addonEmojiCatalog([
+                { id: `${long}-one`, icon: "inv_misc_map02" },
+                { id: `${long}-two`, icon: "inv_misc_book_09" },
+                { id: "levelhelper", icon: "inv_misc_book_09" },
+            ]);
+            const shared = appEmojis.addonEmojiName(`${long}-one`);
+            expect(appEmojis.addonEmojiName(`${long}-two`)).toBe(shared);
+            expect(out.filter((e) => e.name === shared)).toEqual([expect.objectContaining({ icon: "inv_misc_map02" })]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(shared);
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it("names the letter tiles and role icons per emoji style — plain has none of its own", () => {
         expect(appEmojis.tileEmojiName("H")).toBe("eh_ta_h");
         expect(appEmojis.tileEmojiName("+", "gold")).toBe("eh_tg_plus");

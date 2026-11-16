@@ -15,7 +15,7 @@
 const fs = require("fs");
 const path = require("path");
 const { Routes } = require("discord.js");
-const { emojiCatalog, validEmojiName, loadAppEmojis } = require("./appEmojis");
+const { emojiCatalog, validEmojiName, loadAppEmojis, appEmojiMap } = require("./appEmojis");
 
 const MAX_BYTES = 256 * 1024;
 
@@ -94,19 +94,24 @@ async function ensureAppEmojis(client, {
     addons = [], catalog, fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`),
 } = {}) {
     const clientId = client && client.application && client.application.id;
+    const usedCatalog = catalog || emojiCatalog({ addons });
     let result;
     if (!clientId || !client.rest) {
         result = { error: "Bot-Anwendung unbekannt" };
     } else {
         try {
-            result = await syncAppEmojis({ rest: client.rest, clientId, catalog: catalog || emojiCatalog({ addons }), fetchImpl, readFile, log });
+            result = await syncAppEmojis({ rest: client.rest, clientId, catalog: usedCatalog, fetchImpl, readFile, log });
         } catch (e) {
             result = { error: e.message };
             console.warn(`[appEmojis] Abgleich fehlgeschlagen: ${e.message}`);
         }
     }
-    // Read afresh when something was created, so the new icons show without a restart.
-    const force = !!(result.created && result.created.length);
+    // Read afresh when something was created, so the new icons show without a restart - or when
+    // an emoji Discord has is not in the cache (a create whose answer was lost, made by the script).
+    const known = appEmojiMap();
+    const notCached = Array.isArray(result.missing) && usedCatalog
+        .some((e) => validEmojiName(e.name) && !result.missing.includes(e.name) && !known[e.name]);
+    const force = !!(result.created && result.created.length) || notCached;
     await loadAppEmojis(client, { force }).catch(() => {});
     return result;
 }

@@ -3,13 +3,14 @@
 const mockLog = { warn: jest.fn(), info: jest.fn(), debug: jest.fn(), error: jest.fn() };
 let mockReleases = {};
 let mockOnline = true;
+let mockApp = true;
 let mockChannels = {};
 const mockSend = jest.fn();
 const mockFetchMessage = jest.fn();
 
 jest.mock("../../../src/logger", () => ({ ...mockLog, child: () => mockLog }));
 jest.mock("../../../src/services/discord/discord", () => ({
-    getClient: () => ({ channels: { cache: { get: (id) => mockChannels[id] || null } } }),
+    getClient: () => ({ channels: { cache: { get: (id) => mockChannels[id] || null } }, application: mockApp ? { id: "app1" } : null, rest: {} }),
     isOnline: () => mockOnline,
     postPayload: jest.fn(),
     editPayload: jest.fn(),
@@ -63,6 +64,7 @@ beforeEach(() => {
     store.useFile(file);
     mockConfig = { addonDownloads: defaultAddons(), mainVersion: "forever", botLanguage: "de" };
     mockOnline = true;
+    mockApp = true;
     mockEmojiMap = {};
     mockChannels = { [CH]: { id: CH, parentId: "cat-forever", isThread: () => false } };
     mockReleases = { levelhelper: releaseOf("levelhelper", "0.3.0"), professionkit: releaseOf("professionkit", "0.2.0") };
@@ -567,7 +569,7 @@ describe("addonCenter startAddonCenter", () => {
     });
 });
 
-describe("addonCenter afterAddonListSaved", () => {
+describe("addonCenter syncAddonEmojis / afterAddonListSaved", () => {
     const crafthelper = () => ({ ...defaultAddons()[0], id: "pulse-crafthelper", name: "CraftHelper", icon: "trade_blacksmithing", assets: ["CraftHelper-*.zip"] });
 
     it("uploads the emoji of an added addon, then redraws the centre with it", async () => {
@@ -579,7 +581,7 @@ describe("addonCenter afterAddonListSaved", () => {
             mockEmojiMap = { eh_addon_pulsecrafthelper: { id: "555", name: "eh_addon_pulsecrafthelper" } };
             return { created: ["eh_addon_pulsecrafthelper"] };
         });
-        const res = await center.afterAddonListSaved({ config: mockConfig });
+        const res = await center.syncAddonEmojis({ config: mockConfig });
         expect(res.center).toBe("edited");
         const [client, opts] = ensureAppEmojis.mock.calls[0];
         expect(client.channels).toBeDefined(); // the bot's client (discord.getClient())
@@ -592,21 +594,78 @@ describe("addonCenter afterAddonListSaved", () => {
         mockConfig.addonDownloads = [crafthelper()];
         await center.postCenter({ now: NOW });
         discord.editPayload.mockClear();
-        const res = await center.afterAddonListSaved();
+        const res = await center.syncAddonEmojis();
         expect(res.center).toBe("unchanged");
         expect(ensureAppEmojis.mock.calls[0][1].catalog[0]).toMatchObject({ name: "eh_addon_pulsecrafthelper", icon: "trade_blacksmithing" });
         expect(discord.editPayload).not.toHaveBeenCalled();
     });
 
-    it("does nothing while the bot is offline", async () => {
+    it("uses the save's config for the catalogue only: the centre is drawn from the config as it is now", async () => {
+        mockConfig.addonDownloads = [...defaultAddons(), crafthelper()];
+        await center.postCenter({ now: NOW });
+        // an older, slower save: its list has no CraftHelper, the stored config has it
+        const older = { ...mockConfig, addonDownloads: defaultAddons() };
+        const res = await center.syncAddonEmojis({ config: older });
+        expect(ensureAppEmojis.mock.calls[0][1].catalog.map((e) => e.name)).not.toContain("eh_addon_pulsecrafthelper");
+        expect(res.center).toBe("unchanged"); // drawn from the current config, the same as posted
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
+    it("uploads without a ready client (reconnect) but redraws only while online", async () => {
+        await center.postCenter({ now: NOW });
         mockOnline = false;
-        expect(await center.afterAddonListSaved({ config: mockConfig })).toEqual({ skipped: "offline" });
+        expect(await center.syncAddonEmojis({ config: mockConfig })).toEqual({ emojis: { created: [] }, center: "offline" });
+        expect(ensureAppEmojis).toHaveBeenCalledTimes(1);
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
+    it("skips the upload without the bot's application", async () => {
+        mockApp = false;
+        const res = await center.syncAddonEmojis({ config: mockConfig });
+        expect(res.emojis).toEqual({ skipped: "offline" });
         expect(ensureAppEmojis).not.toHaveBeenCalled();
     });
 
     it("never throws when the sync fails - it only logs", async () => {
         ensureAppEmojis.mockRejectedValueOnce(new Error("Missing Access"));
-        await expect(center.afterAddonListSaved({ config: mockConfig })).resolves.toEqual({ error: "Missing Access" });
+        await expect(center.syncAddonEmojis({ config: mockConfig })).resolves.toEqual({ error: "Missing Access" });
         expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("Missing Access"));
+    });
+
+    describe("queue", () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+        const flush = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
+
+        it("makes one run of saves close together, with the config of the last one", async () => {
+            const first = { ...mockConfig, addonDownloads: defaultAddons() };
+            const last = { ...mockConfig, addonDownloads: [crafthelper()] };
+            center.afterAddonListSaved({ config: first });
+            jest.advanceTimersByTime(1000);
+            center.afterAddonListSaved({ config: last });
+            jest.advanceTimersByTime(1999);
+            expect(ensureAppEmojis).not.toHaveBeenCalled();
+            jest.advanceTimersByTime(1);
+            await flush();
+            expect(ensureAppEmojis).toHaveBeenCalledTimes(1);
+            expect(ensureAppEmojis.mock.calls[0][1].catalog[0].name).toBe("eh_addon_pulsecrafthelper");
+        });
+
+        it("never runs twice at once: a save during a run makes one more after it", async () => {
+            let release;
+            ensureAppEmojis.mockImplementationOnce(() => new Promise((resolve) => { release = () => resolve({ created: [] }); }));
+            center.afterAddonListSaved({ config: mockConfig });
+            jest.advanceTimersByTime(2000);
+            await flush();
+            expect(ensureAppEmojis).toHaveBeenCalledTimes(1);
+            center.afterAddonListSaved({ config: { ...mockConfig, addonDownloads: [crafthelper()] } });
+            jest.advanceTimersByTime(2000);
+            await flush();
+            expect(ensureAppEmojis).toHaveBeenCalledTimes(1); // still the first run
+            release();
+            await flush();
+            expect(ensureAppEmojis).toHaveBeenCalledTimes(2);
+            expect(ensureAppEmojis.mock.calls[1][1].catalog[0].name).toBe("eh_addon_pulsecrafthelper");
+        });
     });
 });

@@ -82,6 +82,28 @@ describe("services/discord/appEmojiSync ensureAppEmojis", () => {
         expect(part.created.every((n) => n.startsWith("eh_addon_"))).toBe(true);
     });
 
+    it("reads the cache afresh when Discord has an emoji the cache does not know (a lost create answer)", async () => {
+        const catalog = addonEmojiCatalog([{ id: "pulse-crafthelper", icon: "trade_blacksmithing" }]);
+        const client = fakeClient(catalog.map((e) => e.name));
+        // the cache was read before, without the addon emoji
+        client.fetchEmojis.mockResolvedValueOnce([{ id: "1", name: "eh_ui_tank" }]);
+        await ensureAppEmojis(client, { catalog: [], fetchImpl: okFetch, log: () => {} });
+        expect(appEmojiMap().eh_addon_pulsecrafthelper).toBeUndefined();
+
+        const out = await ensureAppEmojis(client, { catalog, fetchImpl: okFetch, log: () => {} });
+        expect(out.created).toEqual([]);
+        expect(client.fetchEmojis).toHaveBeenCalledTimes(2);
+        expect(appEmojiMap().eh_addon_pulsecrafthelper).toBeTruthy();
+    });
+
+    it("leaves a cache that knows every catalogue emoji alone", async () => {
+        const catalog = addonEmojiCatalog([{ id: "pulse-crafthelper", icon: "trade_blacksmithing" }]);
+        const client = fakeClient(catalog.map((e) => e.name));
+        await ensureAppEmojis(client, { catalog, fetchImpl: okFetch, log: () => {} });
+        await ensureAppEmojis(client, { catalog, fetchImpl: okFetch, log: () => {} });
+        expect(client.fetchEmojis).toHaveBeenCalledTimes(1);
+    });
+
     it("only logs a failed icon download", async () => {
         const client = fakeClient([]);
         const badFetch = jest.fn(async () => ({ ok: false, status: 404 }));
