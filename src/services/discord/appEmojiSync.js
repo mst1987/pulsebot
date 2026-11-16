@@ -8,6 +8,10 @@
 // (`--dry-run` lists only). Idempotent: it reads the application's emojis first
 // and creates only names that do not exist yet — an existing emoji is never
 // replaced or deleted.
+//
+// The addon icons of the download centre come from the configured addon list
+// (`addons`, config `addonDownloads`): the bot passes it at start, and
+// addonCenter.afterAddonListSaved runs the addon part again when the list is saved.
 const fs = require("fs");
 const path = require("path");
 const { Routes } = require("discord.js");
@@ -83,15 +87,19 @@ async function syncAppEmojis({
  * Never throws — without icons the messages fall back to text. Returns the
  * sync result, or `{ error }` when the sync itself could not run.
  * @param {object} client a ready discord.js Client
+ * @param {object} [opts] `addons`: the configured addon list (config `addonDownloads`) for the
+ *   addon icons; `catalog`: sync only these entries instead of the whole catalogue.
  */
-async function ensureAppEmojis(client, { fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`) } = {}) {
+async function ensureAppEmojis(client, {
+    addons = [], catalog, fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`),
+} = {}) {
     const clientId = client && client.application && client.application.id;
     let result;
     if (!clientId || !client.rest) {
         result = { error: "Bot-Anwendung unbekannt" };
     } else {
         try {
-            result = await syncAppEmojis({ rest: client.rest, clientId, fetchImpl, readFile, log });
+            result = await syncAppEmojis({ rest: client.rest, clientId, catalog: catalog || emojiCatalog({ addons }), fetchImpl, readFile, log });
         } catch (e) {
             result = { error: e.message };
             console.warn(`[appEmojis] Abgleich fehlgeschlagen: ${e.message}`);

@@ -121,23 +121,51 @@ const addonEmojiName = (addonId) => (addonId ? `${PREFIX}addon_${slug(addonId)}`
 /** Where the PNG of a styled emoji (tile or role) lives. */
 const styledFile = (name) => path.join(UI_DIR, `${name}.png`);
 
+// An addon icon the sync downloads: a plain WoW icon name only. The addon list
+// (addonConfig.normalizeIcon) also lets `'` and `-` through; such an icon gets
+// no emoji rather than an odd url.
+const SAFE_ICON = /^[a-z0-9_]{1,80}$/;
+
+/**
+ * The WoW icons of the addon download centre: `[{ name, icon, url }]`, one per
+ * addon with a valid name and a safe icon, the first of a name wins. `addons`
+ * is the configured list (config `addonDownloads`, Einstellungen -> Module ->
+ * Addons); the default addons follow it, so a fresh application has theirs
+ * even before anything is configured.
+ */
+function addonEmojiCatalog(addons = []) {
+    const out = [];
+    const seen = new Set();
+    for (const addon of [...(Array.isArray(addons) ? addons : []), ...DEFAULT_ADDONS]) {
+        const name = addonEmojiName(addon && addon.id);
+        const icon = String((addon && addon.icon) || "");
+        if (!validEmojiName(name) || !SAFE_ICON.test(icon) || seen.has(name)) continue;
+        seen.add(name);
+        out.push({ name, icon, url: `${ICON_BASE}/${icon}.jpg` });
+    }
+    return out;
+}
+
 /**
  * Every emoji the bot uses, with where its image comes from:
  * `[{ name, icon, url }]` for the WoW icons (specs and classes of the shared
  * rule set) and `[{ name, icon, file }]` for the flat UI icons — which carry
  * the four roles too since #320 — and `[{ name, tile, file }]` for the
  * letter tiles and the role icons of each emoji style (`tile` names what it
- * shows: "H", "+", "tank").
+ * shows: "H", "+", "tank"). `addons`: the configured addon list (see
+ * addonEmojiCatalog); without it only the default addons.
  */
-function emojiCatalog() {
+function emojiCatalog({ addons = [] } = {}) {
     const out = [];
     const add = (name, icon) => out.push({ name, icon, url: `${ICON_BASE}/${icon}.jpg` });
     for (const cls of buildClasses()) {
         add(classEmojiName(cls.id), cls.icon);
         for (const spec of cls.specs) add(specEmojiName(spec.key), spec.icon);
     }
-    // the default addons' WoW icons, for the addon download centre (an addon added later shows without one)
-    for (const addon of DEFAULT_ADDONS) add(addonEmojiName(addon.id), addon.icon);
+    // the WoW icons of the addon download centre: the configured addons and the defaults. An addon
+    // added in the settings gets its emoji when the list is saved (addonCenter.afterAddonListSaved)
+    // and at the next bot start; an icon changed later keeps the emoji already uploaded.
+    out.push(...addonEmojiCatalog(addons));
     for (const name of UI_ICONS) out.push({ name: uiEmojiName(name), icon: name, file: uiIconFile(name) });
     for (const style of Object.keys(EMOJI_STYLES).filter((s) => EMOJI_STYLES[s])) {
         for (const char of Object.keys(TITLE_TILES)) {
@@ -253,6 +281,6 @@ function resetAppEmojis() {
 module.exports = {
     ICON_BASE, PREFIX, UI_DIR, UI_ICONS, TITLE_TILES, EMOJI_STYLES, DEFAULT_EMOJI_STYLE, emojiStyleOf,
     specEmojiName, classEmojiName, uiEmojiName, addonEmojiName, roleUiEmojiName, statusEmojiName, uiIconFile,
-    tileEmojiName, roleEmojiName, styledFile, emojiCatalog, validEmojiName,
+    tileEmojiName, roleEmojiName, styledFile, addonEmojiCatalog, emojiCatalog, validEmojiName,
     emojiText, emojiOption, appEmojiMap, appEmojisLoaded, setAppEmojis, loadAppEmojis, emojiFor, resetAppEmojis,
 };

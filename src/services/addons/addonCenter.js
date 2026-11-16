@@ -18,11 +18,15 @@
 // anew when its message is gone (deleted in Discord: linkWatch.js tells
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
 // Nothing runs while no centre is posted or the bot is offline.
+//
+// A saved addon list (afterAddonListSaved, from PATCH /api/settings) uploads the
+// icon emoji of an addon added there and redraws the centre with it.
 const crypto = require("crypto");
 const store = require("../../stores/settings/addonCenterStore");
 const { getConfig } = require("../../stores/settings/configStore");
 const discord = require("../discord/discord");
-const { appEmojiMap } = require("../discord/appEmojis");
+const { appEmojiMap, addonEmojiCatalog } = require("../discord/appEmojis");
+const { ensureAppEmojis } = require("../discord/appEmojiSync");
 const { versionLabel } = require("../versions/versionSettings");
 const { serverLang } = require("../discord/botLanguage");
 const { categoryIdOfChannel } = require("../versions/commandVersion");
@@ -412,6 +416,29 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
     return { settings: saved.settings, center: store.getCenter() };
 }
 
+/**
+ * After the addon list was saved (Einstellungen -> Module -> Addons): upload the
+ * emojis of addons that have none yet (`eh_addon_<id>`), then redraw the centre,
+ * which shows them. Runs in the background of the save; never throws. An addon
+ * whose icon changed keeps the emoji already uploaded.
+ * @returns {Promise<{ emojis?: object, center?: string, skipped?: string, error?: string }>}
+ */
+async function afterAddonListSaved({ config } = {}) {
+    try {
+        if (!discord.isOnline()) return { skipped: "offline" };
+        const cfg = config || getConfig();
+        const emojis = await ensureAppEmojis(discord.getClient(), {
+            catalog: addonEmojiCatalog(cfg.addonDownloads),
+            log: (m) => log.info(str(m).trim()),
+        });
+        const center = await refreshCenter({ config: cfg });
+        return { emojis, center };
+    } catch (e) {
+        log.warn(`addon emojis not synced: ${str(e && e.message) || e}`);
+        return { error: str(e && e.message) || "error" };
+    }
+}
+
 let stopFn = null;
 
 /** Check every `intervalMs`, the first time `firstDelayMs` after the start (the bot is logged in by then). Idempotent. */
@@ -442,6 +469,6 @@ function stopAddonCenter() {
 
 module.exports = {
     FIRST_DELAY_MS, CHECK_MS, PING_TTL_MS, pingContent, expirePing, compareVersions, channelVersion, categoryVersion, centerAddons, centerEntries, currentPayload, payloadHash,
-    postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings,
+    postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings, afterAddonListSaved,
     startAddonCenter, stopAddonCenter,
 };

@@ -2,7 +2,7 @@
 // reads them into the cache. No call reaches Discord or zamimg — REST, fetch and
 // the client are doubles.
 const { ensureAppEmojis } = require("../../../src/services/discord/appEmojiSync");
-const { appEmojiMap, resetAppEmojis, emojiCatalog } = require("../../../src/services/discord/appEmojis");
+const { appEmojiMap, resetAppEmojis, emojiCatalog, addonEmojiCatalog } = require("../../../src/services/discord/appEmojis");
 const { makeClient } = require("../../helpers/discordClient");
 
 const okFetch = jest.fn(async () => ({
@@ -63,6 +63,33 @@ describe("services/discord/appEmojiSync ensureAppEmojis", () => {
         expect(out).toEqual({ error: "Missing Access" });
         expect(appEmojiMap()).toEqual({});
         warn.mockRestore();
+    });
+
+    it("creates the emoji of a configured addon - with the whole catalogue or only the addon part", async () => {
+        const addons = [{ id: "pulse-crafthelper", icon: "trade_blacksmithing" }];
+        const all = fakeClient(emojiCatalog().map((e) => e.name));
+        const out = await ensureAppEmojis(all, { addons, fetchImpl: okFetch, log: () => {} });
+        expect(out.created).toEqual(["eh_addon_pulsecrafthelper"]);
+        expect(okFetch).toHaveBeenCalledWith("https://wow.zamimg.com/images/wow/icons/medium/trade_blacksmithing.jpg");
+        // the new emoji is read into the cache at once (force reload)
+        expect(appEmojiMap().eh_addon_pulsecrafthelper).toBeTruthy();
+
+        resetAppEmojis();
+        const only = fakeClient([]);
+        const part = await ensureAppEmojis(only, { catalog: addonEmojiCatalog(addons), fetchImpl: okFetch, log: () => {} });
+        expect(part.created).toEqual(addonEmojiCatalog(addons).map((e) => e.name));
+        expect(part.created).toContain("eh_addon_pulsecrafthelper");
+        expect(part.created.every((n) => n.startsWith("eh_addon_"))).toBe(true);
+    });
+
+    it("only logs a failed icon download", async () => {
+        const client = fakeClient([]);
+        const badFetch = jest.fn(async () => ({ ok: false, status: 404 }));
+        const lines = [];
+        const catalog = addonEmojiCatalog([{ id: "pulse-crafthelper", icon: "trade_blacksmithing" }]).slice(0, 1);
+        const out = await ensureAppEmojis(client, { catalog, fetchImpl: badFetch, log: (m) => lines.push(m) });
+        expect(out.failed).toEqual([{ name: "eh_addon_pulsecrafthelper", error: "HTTP 404" }]);
+        expect(lines.some((l) => l.includes("FEHLER eh_addon_pulsecrafthelper"))).toBe(true);
     });
 
     it("does nothing without a ready application", async () => {

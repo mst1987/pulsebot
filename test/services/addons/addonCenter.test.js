@@ -21,7 +21,9 @@ jest.mock("../../../src/services/addons/addonReleases", () => ({
     ...jest.requireActual("../../../src/services/addons/addonReleases"),
     releaseFor: jest.fn(async (addon) => mockReleases[addon.id] || { state: "no_release", release: null }),
 }));
-jest.mock("../../../src/services/discord/appEmojis", () => ({ ...jest.requireActual("../../../src/services/discord/appEmojis"), appEmojiMap: () => ({}) }));
+let mockEmojiMap = {};
+jest.mock("../../../src/services/discord/appEmojis", () => ({ ...jest.requireActual("../../../src/services/discord/appEmojis"), appEmojiMap: () => mockEmojiMap }));
+jest.mock("../../../src/services/discord/appEmojiSync", () => ({ ensureAppEmojis: jest.fn(async () => ({ created: [] })) }));
 
 const { defaultAddons } = require("../../../src/services/addons/addonConfig");
 let mockConfig = {};
@@ -30,6 +32,7 @@ jest.mock("../../../src/stores/settings/configStore", () => ({ getConfig: () => 
 const fs = require("fs");
 const discord = require("../../../src/services/discord/discord");
 const store = require("../../../src/stores/settings/addonCenterStore");
+const { ensureAppEmojis } = require("../../../src/services/discord/appEmojiSync");
 const center = require("../../../src/services/addons/addonCenter");
 const { tempStoreFile } = require("../../helpers/tempStore");
 
@@ -60,6 +63,7 @@ beforeEach(() => {
     store.useFile(file);
     mockConfig = { addonDownloads: defaultAddons(), mainVersion: "forever", botLanguage: "de" };
     mockOnline = true;
+    mockEmojiMap = {};
     mockChannels = { [CH]: { id: CH, parentId: "cat-forever", isThread: () => false } };
     mockReleases = { levelhelper: releaseOf("levelhelper", "0.3.0"), professionkit: releaseOf("professionkit", "0.2.0") };
     discord.postPayload.mockResolvedValue(posted());
@@ -560,5 +564,49 @@ describe("addonCenter startAddonCenter", () => {
         } finally {
             jest.useRealTimers();
         }
+    });
+});
+
+describe("addonCenter afterAddonListSaved", () => {
+    const crafthelper = () => ({ ...defaultAddons()[0], id: "pulse-crafthelper", name: "CraftHelper", icon: "trade_blacksmithing", assets: ["CraftHelper-*.zip"] });
+
+    it("uploads the emoji of an added addon, then redraws the centre with it", async () => {
+        mockConfig.addonDownloads = [...defaultAddons(), crafthelper()];
+        await center.postCenter({ now: NOW });
+        discord.editPayload.mockClear();
+        ensureAppEmojis.mockImplementationOnce(async () => {
+            // the sync loads the new emoji into the cache before the centre is drawn
+            mockEmojiMap = { eh_addon_pulsecrafthelper: { id: "555", name: "eh_addon_pulsecrafthelper" } };
+            return { created: ["eh_addon_pulsecrafthelper"] };
+        });
+        const res = await center.afterAddonListSaved({ config: mockConfig });
+        expect(res.center).toBe("edited");
+        const [client, opts] = ensureAppEmojis.mock.calls[0];
+        expect(client.channels).toBeDefined(); // the bot's client (discord.getClient())
+        expect(opts.catalog.map((e) => e.name)).toContain("eh_addon_pulsecrafthelper");
+        expect(opts.catalog.every((e) => e.name.startsWith("eh_addon_"))).toBe(true);
+        expect(JSON.stringify(discord.editPayload.mock.calls[0][2])).toContain("<:eh_addon_pulsecrafthelper:555>");
+    });
+
+    it("reads the stored config without one, and leaves an unchanged centre alone", async () => {
+        mockConfig.addonDownloads = [crafthelper()];
+        await center.postCenter({ now: NOW });
+        discord.editPayload.mockClear();
+        const res = await center.afterAddonListSaved();
+        expect(res.center).toBe("unchanged");
+        expect(ensureAppEmojis.mock.calls[0][1].catalog[0]).toMatchObject({ name: "eh_addon_pulsecrafthelper", icon: "trade_blacksmithing" });
+        expect(discord.editPayload).not.toHaveBeenCalled();
+    });
+
+    it("does nothing while the bot is offline", async () => {
+        mockOnline = false;
+        expect(await center.afterAddonListSaved({ config: mockConfig })).toEqual({ skipped: "offline" });
+        expect(ensureAppEmojis).not.toHaveBeenCalled();
+    });
+
+    it("never throws when the sync fails - it only logs", async () => {
+        ensureAppEmojis.mockRejectedValueOnce(new Error("Missing Access"));
+        await expect(center.afterAddonListSaved({ config: mockConfig })).resolves.toEqual({ error: "Missing Access" });
+        expect(mockLog.warn).toHaveBeenCalledWith(expect.stringContaining("Missing Access"));
     });
 });

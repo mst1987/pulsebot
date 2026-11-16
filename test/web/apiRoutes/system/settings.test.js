@@ -78,6 +78,7 @@ jest.mock("../../../../src/services/categories/categoryNames", () => ({
     rememberCategories: jest.fn(),
 }));
 jest.mock("../../../../src/services/events/overview/raidOverview", () => ({ scheduleRefresh: jest.fn() }));
+jest.mock("../../../../src/services/addons/addonCenter", () => ({ afterAddonListSaved: jest.fn(async () => ({})) }));
 jest.mock("../../../../src/stores/loot/logStore", () => ({
     listLogs: jest.fn(() => []),
     listLogsForEvent: jest.fn(() => []),
@@ -1206,6 +1207,53 @@ describe("web/apiRoutes/settings", () => {
                 // the edit mark cannot be set from outside
                 await patch("/api/settings", { addonDownloadsCustomized: true });
                 expect(settingsStore.saveConfig.mock.calls.at(-1)[0]).toEqual({});
+            });
+
+            describe("addon emojis after a saved list", () => {
+                const { afterAddonListSaved } = require("../../../../src/services/addons/addonCenter");
+                const flush = () => new Promise((resolve) => setImmediate(resolve));
+                beforeEach(() => {
+                    auth.getUser.mockReturnValue({ id: "1", name: "Admin", isAdmin: true });
+                    auth.checkCsrf.mockReturnValue(true);
+                });
+
+                it("syncs the addon emojis in the background after a saved list and after a reset", async () => {
+                    let res = await patch("/api/settings", { addonDownloads: [{ name: "CraftHelper", repo: "mst1987/crafthelper", icon: "trade_blacksmithing" }] });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    await flush();
+                    expect(afterAddonListSaved).toHaveBeenCalledTimes(1);
+                    // the hook gets the config as saved (what saveConfig returned), the new list in it
+                    const { config } = afterAddonListSaved.mock.calls[0][0];
+                    const call = settingsStore.saveConfig.mock.calls.length - 1;
+                    expect(config).toBe(settingsStore.saveConfig.mock.results[call].value);
+                    expect(settingsStore.saveConfig.mock.calls[call][0].addonDownloads).toEqual([expect.objectContaining({ name: "CraftHelper", icon: "trade_blacksmithing" })]);
+                    res = await patch("/api/settings", { addonDownloadsReset: true });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    await flush();
+                    expect(afterAddonListSaved).toHaveBeenCalledTimes(2);
+                });
+
+                it("never waits for the sync and never fails the save over it", async () => {
+                    afterAddonListSaved.mockImplementationOnce(() => new Promise(() => {}));
+                    let res = await patch("/api/settings", { addonDownloads: [] });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    afterAddonListSaved.mockRejectedValueOnce(new Error("Missing Access"));
+                    res = await patch("/api/settings", { addonDownloads: [] });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    afterAddonListSaved.mockImplementationOnce(() => { throw new Error("sync"); });
+                    res = await patch("/api/settings", { addonDownloadsReset: true });
+                    expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
+                    await flush();
+                    expect(afterAddonListSaved).toHaveBeenCalledTimes(3);
+                });
+
+                it("leaves the emojis alone on a refused list and on other settings", async () => {
+                    await patch("/api/settings", { hideOtherVersions: true, addonDownloads: [] });
+                    await patch("/api/settings", { addonDownloads: [{ name: "", repo: "" }] });
+                    await patch("/api/settings", { github: { token: "github_pat_NEW" } });
+                    await flush();
+                    expect(afterAddonListSaved).not.toHaveBeenCalled();
+                });
             });
 
             it("keeps the GitHub token and the addon list from a non-admin settings user", async () => {

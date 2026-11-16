@@ -34,6 +34,7 @@ const pugRoleGuard = require("../../../services/discord/pug/pugRoleGuard");
 const languageChange = require("../../../services/discord/languageChange");
 const availabilityPanel = require("../../../services/signups/availabilityPanel");
 const raidOverview = require("../../../services/events/overview/raidOverview");
+const addonCenter = require("../../../services/addons/addonCenter");
 const { listKnownCategories } = require("../../../services/categories/categoryNames");
 const { normalizeLootSystem } = require("../../../services/loot/lootSystem");
 const { normalizeCategoryMessageLook } = require("../../../services/events/embedLook");
@@ -1453,6 +1454,11 @@ const updateSettings = withUser({ csrf: true, body: true }, async ({ body, req, 
     // A category taken into or out of the server overview: the overviews are redrawn after the
     // usual short pause (the same nudge an event change gives), not at the next sweep.
     if (stableJson(saved.categoryServerOverview || {}) !== stableJson(before.categoryServerOverview || {})) raidOverview.scheduleRefresh();
+    // A saved addon list (or its reset): the icon emoji of an addon added there is uploaded and the
+    // download centre redrawn with it - in the background, the save never waits for Discord.
+    if (partial.addonDownloads !== undefined) {
+        void Promise.resolve().then(() => addonCenter.afterAddonListSaved({ config: saved })).catch(() => {});
+    }
     // a switch may have changed the raider roles (#739: they mirror the new roster) - answer what is stored now
     const after = switchedCategories.length ? getConfig() : saved;
     ok(res, {
