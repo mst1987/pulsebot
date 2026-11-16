@@ -18,11 +18,15 @@
 // anew when its message is gone (deleted in Discord: linkWatch.js tells
 // onCenterMessageDeleted at once; while the bot was away, the next check finds it).
 // Nothing runs while no centre is posted or the bot is offline.
+//
+// A saved addon list (afterAddonListSaved, from PATCH /api/settings) uploads the
+// icon emoji of an addon added there and redraws the centre with it.
 const crypto = require("crypto");
 const store = require("../../stores/settings/addonCenterStore");
 const { getConfig } = require("../../stores/settings/configStore");
 const discord = require("../discord/discord");
-const { appEmojiMap } = require("../discord/appEmojis");
+const { appEmojiMap, addonEmojiCatalog } = require("../discord/appEmojis");
+const { ensureAppEmojis } = require("../discord/appEmojiSync");
 const { versionLabel } = require("../versions/versionSettings");
 const { serverLang } = require("../discord/botLanguage");
 const { categoryIdOfChannel } = require("../versions/commandVersion");
@@ -412,6 +416,71 @@ async function saveSettings(patch = {}, { by = "", config, now = Date.now() } = 
     return { settings: saved.settings, center: store.getCenter() };
 }
 
+/**
+ * Upload the emojis of addons that have none yet (`eh_addon_<id>`), then redraw the
+ * centre, which shows them. `config`: the config of the save, used for the emoji
+ * catalogue only - the centre is drawn from the config as it is now, so an older
+ * save can never draw an older list. Never throws. An addon whose icon changed keeps
+ * the emoji already uploaded.
+ * @returns {Promise<{ emojis?: object, center?: string, error?: string }>}
+ */
+async function syncAddonEmojis({ config } = {}) {
+    try {
+        const client = discord.getClient();
+        const cfg = config || getConfig();
+        // the upload only needs the application and its REST client, which outlive a reconnect
+        const emojis = client && client.application && client.rest
+            ? await ensureAppEmojis(client, { catalog: addonEmojiCatalog(cfg.addonDownloads), log: (m) => log.info(str(m).trim()) })
+            : { skipped: "offline" };
+        const center = discord.isOnline() ? await refreshCenter() : "offline";
+        return { emojis, center };
+    } catch (e) {
+        log.warn(`addon emojis not synced: ${str(e && e.message) || e}`);
+        return { error: str(e && e.message) || "error" };
+    }
+}
+
+// The runs after a save, one at a time (guildbank/itemEmojis.js does the same): saves within
+// ADDON_SYNC_DELAY_MS make one run, and a save during a run makes one more after it - two runs
+// side by side would both create the same emoji, and the second fails.
+const ADDON_SYNC_DELAY_MS = 2 * 1000;
+let addonTimer = null;
+let addonRun = null;
+let addonAgain = false;
+let addonConfig = null;
+
+function runAddonSync() {
+    addonTimer = null;
+    if (addonRun) {
+        addonAgain = true;
+        return addonRun;
+    }
+    addonRun = (async () => {
+        const config = addonConfig;
+        addonConfig = null;
+        return syncAddonEmojis({ config: config || undefined });
+    })().finally(() => {
+        addonRun = null;
+        if (addonAgain) {
+            addonAgain = false;
+            runAddonSync();
+        }
+    });
+    return addonRun;
+}
+
+/**
+ * After the addon list was saved (Einstellungen -> Module -> Addons): queue syncAddonEmojis,
+ * with the config of the latest save. Returns at once; the run follows in the background.
+ */
+function afterAddonListSaved({ config, delayMs = ADDON_SYNC_DELAY_MS } = {}) {
+    if (config) addonConfig = config;
+    clearTimeout(addonTimer);
+    addonTimer = setTimeout(() => { runAddonSync().catch(() => {}); }, delayMs);
+    if (addonTimer.unref) addonTimer.unref();
+    return addonTimer;
+}
+
 let stopFn = null;
 
 /** Check every `intervalMs`, the first time `firstDelayMs` after the start (the bot is logged in by then). Idempotent. */
@@ -430,6 +499,8 @@ function startAddonCenter({ firstDelayMs = FIRST_DELAY_MS, intervalMs = CHECK_MS
         if (interval) clearInterval(interval);
         clearTimeout(nudgeTimer);
         nudgeTimer = null;
+        clearTimeout(addonTimer);
+        addonTimer = null;
         stopFn = null;
     };
     return stopFn;
@@ -442,6 +513,6 @@ function stopAddonCenter() {
 
 module.exports = {
     FIRST_DELAY_MS, CHECK_MS, PING_TTL_MS, pingContent, expirePing, compareVersions, channelVersion, categoryVersion, centerAddons, centerEntries, currentPayload, payloadHash,
-    postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings,
+    postCenter, removeCenter, refreshCenter, checkVersions, runCheck, scheduleRefresh, onCenterMessageDeleted, saveSettings, syncAddonEmojis, afterAddonListSaved,
     startAddonCenter, stopAddonCenter,
 };

@@ -5,7 +5,8 @@
 //   node scripts/sync-app-emojis.js               create the missing emojis
 //   --dev                                         read .env.dev instead of .env
 //
-// The bot runs the same sync itself on start (src/services/discord/appEmojiSync.js), so this
+// The bot runs the same sync itself on start (src/services/discord/appEmojiSync.js), with the
+// same catalogue (the configured addons included), so this
 // is only needed to check or fill an application without starting the bot.
 // Idempotent: only names that do not exist yet are created. Requiring this file
 // does nothing; only running it talks to Discord.
@@ -26,8 +27,13 @@ async function main(argv) {
         console.error(`ERROR: DISCORDJS_BOT_TOKEN und CLIENT_ID müssen in ${envFile} stehen.`);
         process.exit(1);
     }
+    // Loaded after dotenv: config/variables reads the env at require time. The configured addon
+    // list (config addonDownloads) adds the icons of the download centre, as the bot does.
+    const { getConfig } = require("../src/stores/settings/settingsStore");
+    const { emojiCatalog } = require("../src/services/discord/appEmojis");
     const rest = new REST({ version: "10" }).setToken(token);
-    const result = await syncAppEmojis({ rest, clientId, dryRun: flags.dryRun });
+    const catalog = emojiCatalog({ addons: getConfig().addonDownloads || [] });
+    const result = await syncAppEmojis({ rest, clientId, catalog, dryRun: flags.dryRun });
     if (result.failed.length) process.exit(1);
 }
 

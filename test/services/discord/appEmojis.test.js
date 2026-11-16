@@ -23,6 +23,66 @@ describe("services/discord/appEmojis", () => {
         expect(appEmojis.emojiCatalog().find((e) => e.name === "eh_addon_levelhelper")).toMatchObject({ icon: "inv_misc_map02", url: expect.stringContaining("inv_misc_map02.jpg") });
     });
 
+    it("takes the addon icons from the configured list plus the defaults, one per name", () => {
+        const crafthelper = { id: "pulse-crafthelper", icon: "trade_blacksmithing" };
+        const catalog = appEmojis.emojiCatalog({ addons: [crafthelper] });
+        expect(catalog.find((e) => e.name === "eh_addon_pulsecrafthelper")).toEqual({
+            name: "eh_addon_pulsecrafthelper", icon: "trade_blacksmithing", url: "https://wow.zamimg.com/images/wow/icons/medium/trade_blacksmithing.jpg",
+        });
+        // the defaults stay, and the whole catalogue grows by exactly the one new addon
+        expect(catalog.find((e) => e.name === "eh_addon_levelhelper")).toBeTruthy();
+        expect(catalog).toHaveLength(appEmojis.emojiCatalog().length + 1);
+        expect(new Set(catalog.map((e) => e.name)).size).toBe(catalog.length);
+    });
+
+    it("dedupes a configured default addon against the defaults - the configured entry wins", () => {
+        const out = appEmojis.addonEmojiCatalog([{ id: "levelhelper", icon: "inv_misc_book_09" }]);
+        const levelhelper = out.filter((e) => e.name === "eh_addon_levelhelper");
+        expect(levelhelper).toEqual([expect.objectContaining({ icon: "inv_misc_book_09" })]);
+        expect(out).toHaveLength(DEFAULT_ADDONS.length);
+    });
+
+    it("gives an addon with an unsafe or missing icon no emoji, and no list only the defaults", () => {
+        const out = appEmojis.addonEmojiCatalog([
+            { id: "quote", icon: "inv_misc_head_dragon'01" },
+            { id: "dash", icon: "inv-misc-map02" },
+            { id: "upper", icon: "INV_Misc_Map02" },
+            { id: "noicon", icon: "" },
+            { icon: "inv_misc_map02" },
+            null,
+        ]);
+        expect(out.map((e) => e.name)).toEqual(appEmojis.addonEmojiCatalog().map((e) => e.name));
+        expect(appEmojis.addonEmojiCatalog("nonsense")).toEqual(appEmojis.addonEmojiCatalog());
+        expect(appEmojis.emojiCatalog({})).toEqual(appEmojis.emojiCatalog());
+        expect(appEmojis.addonEmojiCatalog()).toHaveLength(DEFAULT_ADDONS.length);
+    });
+
+    it("lets a default addon's icon stand in for a list entry with an unsafe icon", () => {
+        const out = appEmojis.addonEmojiCatalog([{ id: "levelhelper", icon: "inv-misc-map02" }]);
+        const levelhelper = out.filter((e) => e.name === "eh_addon_levelhelper");
+        const fallback = DEFAULT_ADDONS.find((a) => a.id === "levelhelper").icon;
+        expect(levelhelper).toEqual([expect.objectContaining({ icon: fallback })]);
+    });
+
+    it("warns when two addons share an emoji name - the first one wins; an overridden default does not warn", () => {
+        const warn = jest.spyOn(console, "warn").mockImplementation(() => {});
+        try {
+            const long = "a-very-long-addon-identifier-that-is-cut";
+            const out = appEmojis.addonEmojiCatalog([
+                { id: `${long}-one`, icon: "inv_misc_map02" },
+                { id: `${long}-two`, icon: "inv_misc_book_09" },
+                { id: "levelhelper", icon: "inv_misc_book_09" },
+            ]);
+            const shared = appEmojis.addonEmojiName(`${long}-one`);
+            expect(appEmojis.addonEmojiName(`${long}-two`)).toBe(shared);
+            expect(out.filter((e) => e.name === shared)).toEqual([expect.objectContaining({ icon: "inv_misc_map02" })]);
+            expect(warn).toHaveBeenCalledTimes(1);
+            expect(warn.mock.calls[0][0]).toContain(shared);
+        } finally {
+            warn.mockRestore();
+        }
+    });
+
     it("names the letter tiles and role icons per emoji style — plain has none of its own", () => {
         expect(appEmojis.tileEmojiName("H")).toBe("eh_ta_h");
         expect(appEmojis.tileEmojiName("+", "gold")).toBe("eh_tg_plus");

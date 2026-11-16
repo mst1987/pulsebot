@@ -82,7 +82,14 @@ client.on(Events.ClientReady, () => {
     console.log(messages.common.pulseBotReady);
     // The spec/class/role icons of the event message (#287): create the missing ones, then
     // read them; text icons until then.
-    ensureAppEmojis(client).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
+    // The addon icons of the download centre come from the configured addon list.
+    let addons = [];
+    try {
+        addons = require("./stores/settings/configStore.js").getConfig().addonDownloads || [];
+    } catch (error) {
+        logger.warn("addon list for the app emojis not read:", error.message);
+    }
+    ensureAppEmojis(client, { addons }).catch((error) => logger.warn("ensureAppEmojis failed:", error.message));
     // The guild bank items' icons (#633): whatever changed while the bot was offline.
     queueItemEmojiSync({ delay: 30 * 1000 });
     // The guild bank's open cards (#809): drawn again with today's buttons, so a card from an older

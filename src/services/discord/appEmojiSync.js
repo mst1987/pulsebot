@@ -8,10 +8,14 @@
 // (`--dry-run` lists only). Idempotent: it reads the application's emojis first
 // and creates only names that do not exist yet — an existing emoji is never
 // replaced or deleted.
+//
+// The addon icons of the download centre come from the configured addon list
+// (`addons`, config `addonDownloads`): the bot passes it at start, and
+// addonCenter.afterAddonListSaved runs the addon part again when the list is saved.
 const fs = require("fs");
 const path = require("path");
 const { Routes } = require("discord.js");
-const { emojiCatalog, validEmojiName, loadAppEmojis } = require("./appEmojis");
+const { emojiCatalog, validEmojiName, loadAppEmojis, appEmojiMap } = require("./appEmojis");
 
 const MAX_BYTES = 256 * 1024;
 
@@ -83,22 +87,31 @@ async function syncAppEmojis({
  * Never throws — without icons the messages fall back to text. Returns the
  * sync result, or `{ error }` when the sync itself could not run.
  * @param {object} client a ready discord.js Client
+ * @param {object} [opts] `addons`: the configured addon list (config `addonDownloads`) for the
+ *   addon icons; `catalog`: sync only these entries instead of the whole catalogue.
  */
-async function ensureAppEmojis(client, { fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`) } = {}) {
+async function ensureAppEmojis(client, {
+    addons = [], catalog, fetchImpl = fetch, readFile, log = (m) => console.log(`[appEmojis] ${m.trim()}`),
+} = {}) {
     const clientId = client && client.application && client.application.id;
+    const usedCatalog = catalog || emojiCatalog({ addons });
     let result;
     if (!clientId || !client.rest) {
         result = { error: "Bot-Anwendung unbekannt" };
     } else {
         try {
-            result = await syncAppEmojis({ rest: client.rest, clientId, fetchImpl, readFile, log });
+            result = await syncAppEmojis({ rest: client.rest, clientId, catalog: usedCatalog, fetchImpl, readFile, log });
         } catch (e) {
             result = { error: e.message };
             console.warn(`[appEmojis] Abgleich fehlgeschlagen: ${e.message}`);
         }
     }
-    // Read afresh when something was created, so the new icons show without a restart.
-    const force = !!(result.created && result.created.length);
+    // Read afresh when something was created, so the new icons show without a restart - or when
+    // an emoji Discord has is not in the cache (a create whose answer was lost, made by the script).
+    const known = appEmojiMap();
+    const notCached = Array.isArray(result.missing) && usedCatalog
+        .some((e) => validEmojiName(e.name) && !result.missing.includes(e.name) && !known[e.name]);
+    const force = !!(result.created && result.created.length) || notCached;
     await loadAppEmojis(client, { force }).catch(() => {});
     return result;
 }
