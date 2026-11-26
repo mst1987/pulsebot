@@ -127,17 +127,40 @@ describe("services/versions/versionSettings", () => {
 
     describe("blizzardFor", () => {
         it("builds a client with the version's region, realm and namespace", () => {
+            const out = vs.blizzardFor("tbc", { config: config() });
+            expect(out.reason).toBe("");
+            expect(Blizzard).toHaveBeenCalledWith({
+                clientId: "id", clientSecret: "secret", region: "eu", realmSlug: "thunderstrike", realmless: false,
+                namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc",
+            });
+            expect(out).toMatchObject({ versionId: "tbc", namespace: "profile-classicann-eu", realmSlug: "thunderstrike" });
+        });
+
+        it("builds Forever's client without a realm: its characters have none, a stored realm is ignored", () => {
             const cfg = config({ versionSettings: normalizeVersionSettings({ tbc: TBC, forever: FOREVER }) });
             const out = vs.blizzardFor("forever", { config: cfg });
             expect(out.reason).toBe("");
             expect(Blizzard).toHaveBeenCalledWith({
-                clientId: "id", clientSecret: "secret", region: "eu", realmSlug: "everlook", namespace: "profile-forever-eu",
+                clientId: "id", clientSecret: "secret", region: "eu", realmSlug: "", realmless: true, namespace: "profile-forever-eu",
                 versionId: "forever", wowheadPath: "forever",
             });
-            expect(out).toMatchObject({ versionId: "forever", namespace: "profile-forever-eu", realmSlug: "everlook" });
+            expect(out).toMatchObject({ versionId: "forever", namespace: "profile-forever-eu", realmSlug: "" });
         });
 
-        it("builds no client for a version without a realm, and says which one", () => {
+        it("builds Forever's client from region and namespace alone", () => {
+            const cfg = config({ versionSettings: normalizeVersionSettings({ tbc: TBC, forever: { ...FOREVER, blizzardRealmSlug: "" } }) });
+            const out = vs.blizzardFor("forever", { config: cfg });
+            expect(out.reason).toBe("");
+            expect(Blizzard).toHaveBeenCalledWith(expect.objectContaining({ realmSlug: "", realmless: true, namespace: "profile-forever-eu" }));
+        });
+
+        it("still asks TBC for a realm", () => {
+            const cfg = config({ versionSettings: normalizeVersionSettings({ tbc: { ...TBC, blizzardRealmSlug: "" } }) });
+            expect(vs.blizzardFor("tbc", { config: cfg })).toMatchObject({ client: null, reason: "version_not_configured" });
+            expect(Blizzard).not.toHaveBeenCalled();
+        });
+
+        it("builds no client for a version without a namespace, and says which one", () => {
             const out = vs.blizzardFor("forever", { config: config() });
             expect(out.client).toBeNull();
             expect(out.reason).toBe("version_not_configured");

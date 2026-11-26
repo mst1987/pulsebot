@@ -249,6 +249,13 @@ describe("config/gameVersions", () => {
     });
 
     describe("lookups", () => {
+        it("knows which versions have realms: Forever has rulesets instead, an unknown id counts as one with realms", () => {
+            expect(gv.hasRealms("tbc")).toBe(true);
+            expect(gv.hasRealms("classic")).toBe(true);
+            expect(gv.hasRealms("forever")).toBe(false);
+            expect(gv.hasRealms("nope")).toBe(true);
+        });
+
         it("answers the role of a spec", () => {
             expect(gv.roleOfSpec("Druid-Guardian")).toBe("tank");
             expect(gv.roleOfSpec("Hunter-Survival", "classic")).toBe("ranged");

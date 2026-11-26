@@ -142,9 +142,13 @@ describe("stores/settings/versionSettingsSchema", () => {
         });
 
         it("gives Forever its Wowhead path (#750) and Blizzard's armory, an unknown version nothing", () => {
-            expect(schema.defaultBlock("forever")).toEqual({ ...schema.normalizeBlock({}), blizzardRegion: "eu", armoryUrlTemplate: FOREVER_ARMORY, wowheadPath: "forever" });
+            expect(schema.defaultBlock("forever")).toEqual({
+                ...schema.normalizeBlock({}), blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu", armoryUrlTemplate: FOREVER_ARMORY, wowheadPath: "forever",
+            });
+            // the profile namespace follows the region (Forever's API, 2026-11-26)
+            expect(schema.defaultBlock("forever", { region: "us" }).blizzardNamespace).toBe("profile-forever-us");
             expect(schema.defaultBlock("wotlk")).toEqual(schema.normalizeBlock({}));
-            expect(schema.settingsDefaultsOf("forever")).toEqual({ armoryUrlTemplate: FOREVER_ARMORY, wowheadPath: "forever" });
+            expect(schema.settingsDefaultsOf("forever")).toEqual({ blizzardNamespace: "profile-forever-{region}", armoryUrlTemplate: FOREVER_ARMORY, wowheadPath: "forever" });
             expect(schema.versionsWithDefaults()).toEqual(["tbc", "classic", "forever"]);
         });
 
@@ -161,7 +165,7 @@ describe("stores/settings/versionSettingsSchema", () => {
             expect(block).toMatchObject({ wowheadPath: "classic-custom", blizzardRealmSlug: "firemaw", softresEdition: "classic", blizzardNamespace: "profile-classic1x-eu" });
             expect(filled).toEqual(["blizzardRegion", "blizzardNamespace", "armoryUrlTemplate", "wclUrlTemplate", "softresEdition"]);
             expect(schema.fillDefaults(schema.defaultBlock("classic"), "classic").filled).toEqual([]);
-            expect(schema.fillDefaults({}, "forever").filled).toEqual(["blizzardRegion", "armoryUrlTemplate", "wowheadPath"]);
+            expect(schema.fillDefaults({}, "forever").filled).toEqual(["blizzardRegion", "blizzardNamespace", "armoryUrlTemplate", "wowheadPath"]);
             expect(schema.fillDefaults({}, "wotlk")).toEqual({ block: schema.normalizeBlock({}), filled: [] });
         });
 

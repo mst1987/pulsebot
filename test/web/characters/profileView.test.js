@@ -199,7 +199,7 @@ describe("lookupArmory", () => {
         mockBlizzard.getCharacterSummary.mockResolvedValueOnce({ className: "MAGE", level: 70, guild: "Pulse" });
         const out = await lookupArmory("Frosty", "Die Aldor");
         // the realm of the main version (#542): the TBC block read from the old values
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "id", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", realmless: false, namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
         expect(mockBlizzard.getCharacterSummary).toHaveBeenCalledWith("Frosty", { realmSlug: "die-aldor" });
         expect(out).toEqual({ url: armoryUrlFor("Frosty"), fetched: true, className: "Mage", level: 70, guild: "Pulse" });
     });
@@ -225,10 +225,24 @@ describe("lookupArmory", () => {
     it("builds the client with the TBC realm and no credentials when no Blizzard config is stored", async () => {
         getConfig.mockReturnValueOnce({});
         await lookupArmory("Frosty");
-        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
+        expect(Blizzard).toHaveBeenCalledWith({ clientId: "", clientSecret: "", ...{ region: "eu", realmSlug: "thunderstrike", realmless: false, namespace: "profile-classicann-eu", versionId: "tbc", wowheadPath: "tbc" } });
     });
 
-    it("asks nobody for a version without a realm (#542) and keeps the link empty without a template", async () => {
+    it("asks Forever's profile API without a realm, whatever realm the profile names", async () => {
+        const forever = { blizzardRegion: "eu", blizzardRealmSlug: "", blizzardNamespace: "profile-forever-eu", armoryUrlTemplate: "" };
+        getConfig.mockReturnValueOnce({ blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: { forever } });
+        mockBlizzard.realmless = true;
+        try {
+            mockBlizzard.getCharacterSummary.mockResolvedValueOnce({ className: "Mage", level: 12, guild: "" });
+            const out = await lookupArmory("Devi Ra", "Die Aldor", "forever");
+            expect(Blizzard).toHaveBeenCalledWith(expect.objectContaining({ realmSlug: "", realmless: true, namespace: "profile-forever-eu", versionId: "forever" }));
+            expect(out).toMatchObject({ fetched: true, className: "Mage", level: 12 });
+        } finally {
+            delete mockBlizzard.realmless;
+        }
+    });
+
+    it("asks nobody for a version without a namespace (#542) and keeps the link empty without a template", async () => {
         const forever = { blizzardRegion: "", blizzardRealmSlug: "", blizzardNamespace: "", armoryUrlTemplate: "" };
         getConfig.mockReturnValueOnce({ blizzard: { clientId: "id", clientSecret: "s" }, versionSettings: { forever } });
         const out = await lookupArmory("Frosty", "", "forever");

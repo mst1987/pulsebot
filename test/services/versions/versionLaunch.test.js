@@ -144,6 +144,15 @@ describe("fieldStates", () => {
         });
     });
 
+    it("Forever's realm field is set by region and namespace alone (no realms), TBC still asks for its realm", () => {
+        mockConfig.versionSettings.forever = { ...mockConfig.versionSettings.forever, blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu" };
+        const forever = Object.fromEntries(launch.fieldStates("forever", mockConfig).map((f) => [f.field, f.state]));
+        expect(forever.realm).toBe("set");
+        mockConfig.versionSettings.tbc = { ...mockConfig.versionSettings.tbc, blizzardRealmSlug: "" };
+        const tbc = Object.fromEntries(launch.fieldStates("tbc", mockConfig).map((f) => [f.field, f.state]));
+        expect(tbc.realm).toBe("missing");
+    });
+
     it("an empty field of a feature switched off is not needed", () => {
         mockConfig.versionSettings.forever.disabled = ["armory", "softres"];
         const states = Object.fromEntries(launch.fieldStates("forever", mockConfig).map((f) => [f.field, [f.state, f.reason]]));

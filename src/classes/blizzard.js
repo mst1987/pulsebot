@@ -127,12 +127,17 @@ class Blizzard {
      * @param {string} [opts.locale]     API locale (default "en_GB")
      * @param {string} [opts.versionId]  game version of the realm (default "tbc"): only TBC knows the gem-name table
      * @param {string} [opts.wowheadPath] Wowhead section for item lookups (default: TBC's)
+     * @param {boolean} [opts.realmless] the version has no realms (Forever, gameVersions.hasRealms):
+     *   the profile path is /profile/wow/character/<first>-<last> without a realm segment
      */
     constructor(opts = {}) {
         this.clientId = opts.clientId || process.env.BLIZZARD_CLIENT_ID || "";
         this.clientSecret = opts.clientSecret || process.env.BLIZZARD_CLIENT_SECRET || "";
         this.region = (opts.region || process.env.BLIZZARD_REGION || "eu").toLowerCase();
-        this.realmSlug = (opts.realmSlug || process.env.BLIZZARD_REALM || "thunderstrike").toLowerCase();
+        // A realmless version (Forever) has no realm at all - neither the env
+        // bootstrap nor the Thunderstrike default may slip into its path.
+        this.realmless = Boolean(opts.realmless);
+        this.realmSlug = this.realmless ? "" : (opts.realmSlug || process.env.BLIZZARD_REALM || "thunderstrike").toLowerCase();
         // An explicit namespace (from config/env) always wins; otherwise it is
         // derived from the effective region so a per-call region override still
         // works. `this.namespace` is the resolved default for the instance region.
@@ -199,7 +204,7 @@ class Blizzard {
     // a same-named character from a different Classic line (→ wrong-era gear).
     _resolve(opts = {}) {
         const region = (opts.region || this.region || "eu").toLowerCase();
-        const realm = (opts.realmSlug || this.realmSlug || "").toLowerCase();
+        const realm = this.realmless ? "" : (opts.realmSlug || this.realmSlug || "").toLowerCase();
         const namespace = opts.namespace
             || (this._namespaceExplicit ? this.namespace : `profile-classicann-${region}`);
         return { region, realm, namespace, host: `https://${region}.api.blizzard.com` };
@@ -211,8 +216,8 @@ class Blizzard {
         if (!this.isConfigured()) { this.lastError = { reason: "not_configured" }; return null; }
         if (!characterName) { this.lastError = { reason: "no_name" }; return null; }
         const { realm, namespace, host } = this._resolve(opts);
-        const name = encodeURIComponent(String(characterName).trim().toLowerCase());
-        const url = `${host}/profile/wow/character/${encodeURIComponent(realm)}/${name}${subPath}`;
+        const url = `${host}/profile/wow/character/${this._characterPath(characterName, realm)}${subPath}`;
+        const who = this.realmless ? String(characterName) : `${characterName}@${realm}`;
         try {
             const token = await this.getToken();
             const res = await this.http.get(url, {
@@ -225,10 +230,20 @@ class Blizzard {
             const status = err.status || null;
             this.lastError = { status, message: (err.code || err.message || "unbekannt"), namespace };
             console.warn(
-                `Blizzard profile lookup failed for ${characterName}@${realm} [${namespace}]${subPath} (${status || err.code || err.message}) — falling back.`
+                `Blizzard profile lookup failed for ${who} [${namespace}]${subPath} (${status || err.code || err.message}) — falling back.`
             );
             return null;
         }
+    }
+
+    // The character part of the profile path. With realms "<realm>/<name>";
+    // realmless (Forever) the slug "<first>-<last>": lowercase, the space(s)
+    // between the names as one "-" ("Devi Re" -> "devi-re"), letters such as
+    // umlauts percent-encoded as UTF-8 like any other path segment.
+    _characterPath(characterName, realm) {
+        const lower = String(characterName).trim().toLowerCase();
+        if (this.realmless) return encodeURIComponent(lower.replace(/\s+/g, "-"));
+        return `${encodeURIComponent(realm)}/${encodeURIComponent(lower)}`;
     }
 
     /**
@@ -348,13 +363,16 @@ class Blizzard {
      * lastLogin (epoch ms), className, faction, namespace }. Lets the UI show
      * whether the profile data is the right character and how fresh it is (a
      * level 60/80 result on a level-70 TBC char reveals a wrong-namespace hit).
+     * Realmless (Forever) the answer has no `realm` (it stays "") and `name`
+     * is the first name only; the name shown is then "<name> <surname>".
      * Returns null on failure.
      */
     async getCharacterSummary(characterName, opts = {}) {
         const data = await this._getCharacter(characterName, "", opts);
         if (!data) return null;
+        const fullName = data.name && data.surname ? `${data.name} ${data.surname}` : data.name;
         return {
-            name: data.name || characterName,
+            name: fullName || characterName,
             realm: (data.realm && data.realm.name) || "",
             level: data.level || null,
             itemLevel: (data.average_item_level ?? data.equipped_item_level) || null,

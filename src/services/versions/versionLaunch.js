@@ -19,7 +19,7 @@
 // `loadChecklist(versionId)` gathers the inputs, each best-effort.
 const { getConfig, saveConfig, allRaidTemplates } = require("../../stores/settings/settingsStore");
 const { VERSION_LAUNCH_MANUAL } = require("../../stores/settings/configSchema");
-const { VERSIONS, rulesFor, instance } = require("../../config/gameVersions");
+const { VERSIONS, rulesFor, instance, hasRealms } = require("../../config/gameVersions");
 const { knownVersion } = require("./mainVersion");
 const { featureState } = require("./versionCapabilities");
 const { normalizeBlock, versionSettingsOf } = require("../../stores/settings/versionSettingsSchema");
@@ -43,7 +43,8 @@ const OPTIONAL = new Set(["mainVersion"]);
  * one serves (config/versionFeatures.js) and when it counts as filled.
  */
 const FIELDS = Object.freeze([
-    { field: "realm", feature: "armory", filled: (b) => !!(b.blizzardRegion && b.blizzardRealmSlug && b.blizzardNamespace) },
+    // a version without realms (Forever, gameVersions.hasRealms) asks the API without one
+    { field: "realm", feature: "armory", filled: (b, id) => !!(b.blizzardRegion && (b.blizzardRealmSlug || !hasRealms(id)) && b.blizzardNamespace) },
     { field: "armory", feature: "armory", filled: (b) => !!b.armoryUrlTemplate },
     { field: "wcl", feature: "logcheck", filled: (b) => !!b.wclUrlTemplate },
     { field: "wowhead", feature: "wowheadLinks", filled: (b) => !!b.wowheadPath },
@@ -78,7 +79,7 @@ function fieldStates(versionId, config) {
     const map = isMap(config.versionSettings) ? config.versionSettings : versionSettingsOf(config);
     const block = normalizeBlock(map[versionId]);
     return FIELDS.map(({ field, feature, filled }) => {
-        if (filled(block)) return { field, feature, state: "set", reason: "" };
+        if (filled(block, versionId)) return { field, feature, state: "set", reason: "" };
         const cap = featureState(versionId, feature, { config });
         // switched off: the capability names "disabled" only for a possible feature, `enabled` always says it
         if (cap.reason === "disabled" || (!cap.enabled && !/^unknown_/.test(cap.reason))) return { field, feature, state: "notNeeded", reason: "disabled" };

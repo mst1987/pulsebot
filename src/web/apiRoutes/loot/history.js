@@ -1007,7 +1007,9 @@ const getHistoryChar = withUser({}, async ({ user, req, res, url }) => {
         gear = loaded.gear;
         if (gear === null) {
             const e = loaded.error || {};
-            if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bz.realmSlug}"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.`;
+            // Forever (no realms): the path is "<first>-<last>", a character shows from level 10 after a logout.
+            if (e.status === 404 && client.realmless) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Vor- und Nachnamen prüfen — Charaktere erscheinen erst ab Stufe 10 und nach einem Logout.`;
+            else if (e.status === 404) gearError = `Charakter „${name}" nicht in der Blizzard-API gefunden (404, Namespace ${gearNamespace}). Realm-Slug „${bz.realmSlug}"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.`;
             else if (e.status === 403) gearError = "Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.";
             else if (e.status === 401) gearError = "Authentifizierung fehlgeschlagen (401) — Battle.net Client-ID/Secret prüfen.";
             else if (e.status) gearError = `Blizzard-API-Fehler (${e.status}).`;

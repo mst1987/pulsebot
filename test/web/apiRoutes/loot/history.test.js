@@ -152,6 +152,7 @@ const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
 const mockGetEquipment = jest.fn(() => Promise.resolve(null));
 const mockResolve = jest.fn(() => ({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" }));
 let mockLastError = null;
+let mockRealmless = false;
 jest.mock("../../../../src/classes/blizzard", () =>
     jest.fn().mockImplementation(() => ({
         isConfigured: mockIsConfigured,
@@ -159,6 +160,7 @@ jest.mock("../../../../src/classes/blizzard", () =>
         getEquipment: mockGetEquipment,
         _resolve: mockResolve,
         get lastError() { return mockLastError; },
+        get realmless() { return mockRealmless; },
     })));
 jest.mock("../../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
@@ -1485,6 +1487,22 @@ describe("web/apiRoutes/history", () => {
                 "Charakter „Anna\" nicht in der Blizzard-API gefunden (404, Namespace profile-classicann-eu). "
                 + "Realm-Slug „thunderstrike\"/Schreibweise prüfen oder den Namespace in Einstellungen → Spielversion ändern.",
             );
+        });
+
+        it("names first and last name instead of a realm in the 404 of a version without realms (Forever)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 404 };
+            mockRealmless = true;
+            settingsStore.getConfig.mockReturnValue({ blizzard: { region: "eu" } });
+            try {
+                const res = await get("/api/history/char", { name: "Devi Re" });
+                expect(json(res).data.gearError).toContain("Vor- und Nachnamen prüfen");
+                expect(json(res).data.gearError).toContain("ab Stufe 10 und nach einem Logout");
+                expect(json(res).data.gearError).not.toContain("Realm-Slug");
+            } finally {
+                mockRealmless = false;
+            }
         });
 
         it("builds the 403 gearError", async () => {

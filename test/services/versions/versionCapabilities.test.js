@@ -183,6 +183,16 @@ describe("services/versions/versionCapabilities — the readers", () => {
         expect(blizzardFor("forever", { config: config() })).toMatchObject({ client: null, reason: "version_not_configured" });
     });
 
+    it("armory: Forever needs no realm (profile-forever-<region>, no realm segment), TBC still does", () => {
+        const forever = config({}, { blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu" });
+        expect(caps.featureState("forever", "armory", { config: forever })).toMatchObject({ possible: true, on: true });
+        expect(caps.featureState("forever", "armory", { config: config() }).message)
+            .toBe("Armory für WoW Forever nicht eingerichtet (Region, Namespace).");
+        const tbc = caps.featureState("tbc", "armory", { config: config({ blizzardRealmSlug: "" }) });
+        expect(tbc).toMatchObject({ possible: false, reason: "armory_not_configured" });
+        expect(tbc.message).toContain("(Region, Realm, Namespace)");
+    });
+
     it("raid plan catalog: on for TBC and for a plan without a known version, off when switched off", () => {
         expect(caps.catalogEnabled("tbc", { config: config() })).toBe(true);
         expect(caps.catalogEnabled("tbc", { config: OFF })).toBe(false);
