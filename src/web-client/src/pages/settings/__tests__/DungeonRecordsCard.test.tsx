@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import DungeonRecordsCard, { type DungeonRecords } from "../DungeonRecordsCard";
 import { draftChanges } from "../../../lib/settings/settingsLogic";
+import { featureOffInDraft, featureOnAnywhere, shownVersions, type CapabilityMatrix } from "../../../lib/settings/versionFeatures";
 import { toDraft } from "../settingsDraft";
 import type { AdminConfig } from "../../../api";
 
@@ -24,6 +25,36 @@ describe("DungeonRecordsCard", () => {
         expect(screen.getByText("Ohne Kanal wird nichts gepostet.")).toBeInTheDocument();
         await user.selectOptions(screen.getByRole("combobox"), "123456789012345678");
         expect(onChange).toHaveBeenLastCalledWith({ post: true, channelId: "123456789012345678" });
+    });
+
+    it("says so while the dungeon best times are on for no version", () => {
+        const { rerender } = render(<DungeonRecordsCard value={{ post: true, channelId: "" }} channels={CHANNELS} onChange={vi.fn()} />);
+        expect(screen.queryByText(/für keine sichtbare Spielversion eingeschaltet/)).toBeNull();
+        rerender(<DungeonRecordsCard value={{ post: true, channelId: "" }} channels={CHANNELS} onChange={vi.fn()} featureOff />);
+        expect(screen.getByText(/für keine sichtbare Spielversion eingeschaltet/)).toHaveTextContent("Einstellungen → Spielversion");
+    });
+
+    it("finds the feature on for some version with the draft's lists", () => {
+        const cell = (possible: boolean) => ({ possible, enabled: true, on: possible, reason: "", message: "", missing: [] });
+        const matrix: CapabilityMatrix = { features: ["dungeonTimes"], versions: { a: { dungeonTimes: cell(false) }, b: { dungeonTimes: cell(true) } } };
+        expect(featureOnAnywhere(matrix, "dungeonTimes", {})).toBe(true);
+        expect(featureOnAnywhere(matrix, "dungeonTimes", { b: ["dungeonTimes"] })).toBe(false);
+        expect(featureOnAnywhere(undefined, "dungeonTimes")).toBe(false);
+    });
+
+    it("counts only the versions the draft shows (Andere Versionen ausblenden)", () => {
+        const cell = (possible: boolean) => ({ possible, enabled: true, on: possible, reason: "", message: "", missing: [] });
+        const matrix: CapabilityMatrix = { features: ["dungeonTimes"], versions: { a: { dungeonTimes: cell(false) }, b: { dungeonTimes: cell(true) } } };
+        expect(shownVersions(matrix, "a", false)).toEqual(["a", "b"]);
+        expect(shownVersions(matrix, "a", true)).toEqual(["a"]);
+        const draft = { versionDisabled: {}, mainVersion: "a", hideOtherVersions: false };
+        expect(featureOffInDraft(matrix, "dungeonTimes", draft)).toBe(false);
+        // on only for b, and b is hidden: off for the page
+        expect(featureOffInDraft(matrix, "dungeonTimes", { ...draft, hideOtherVersions: true })).toBe(true);
+        expect(featureOffInDraft(matrix, "dungeonTimes", { ...draft, mainVersion: "b", hideOtherVersions: true })).toBe(false);
+        expect(featureOffInDraft(matrix, "dungeonTimes", { ...draft, versionDisabled: { b: ["dungeonTimes"] } })).toBe(true);
+        // no matrix yet: claim nothing
+        expect(featureOffInDraft(undefined, "dungeonTimes", draft)).toBe(false);
     });
 
     it("reads the setting into the draft and names a change in the save bar", () => {

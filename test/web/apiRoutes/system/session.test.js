@@ -292,7 +292,7 @@ describe("web/apiRoutes/session", () => {
             expect(res.writeHead).toHaveBeenCalledWith(200, expect.any(Object));
             const data = json(res).data;
             // a full admin may look at the menu as a role ("Ansicht als Rolle")
-            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isServerAdmin: false, isOrga: true, orgaCategories: [], planFeatures: [], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
+            expect(data.user).toEqual({ id: "42", name: "Anna", isAdmin: true, isServerAdmin: false, isOrga: true, orgaCategories: [], planFeatures: [], versionFeatures: ["dungeonTimes"], access: fullAccess(), allAccess: fullAccess(), canViewAs: true, audience: expect.any(Object), orgaRoles: [] });
             // a full admin gets who sees every area
             expect(Object.keys(data.user.audience)).toEqual(AREA_IDS);
             expect(data.csrfToken).toBe("csrf-abc");
@@ -309,6 +309,34 @@ describe("web/apiRoutes/session", () => {
             await handle("/api/session", { method: "GET" }, res);
             expect(serverFeatures).toHaveBeenCalledWith("g7");
             expect(json(res).data.user.planFeatures).toEqual(["test"]);
+        });
+
+        it("names the version features of the menu that are on for some version, none while switched off", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            let res = mockRes();
+            await handle("/api/session", { method: "GET" }, res);
+            expect(json(res).data.user.versionFeatures).toEqual(["dungeonTimes"]);
+            try {
+                settingsStore.getConfig.mockReturnValue({ versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+                res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user.versionFeatures).toEqual([]);
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
+
+        it("counts only the versions shown: on for a hidden version only, the entry stays hidden", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            try {
+                // Forever has the dungeon best times on, but only TBC is shown
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                const res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user.versionFeatures).toEqual([]);
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
         });
 
         it("sends the Discord picture of the login, else the one the bot knows", async () => {

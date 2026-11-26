@@ -136,6 +136,34 @@ describe("Dungeon-Bestzeiten", () => {
         expect(screen.queryByRole("table")).toBeNull();
     });
 
+    it("shows only a quiet hint while the feature is switched off for the version, in both languages", async () => {
+        const off = board({
+            dungeons: [], players: [], characters: [], totals: { runs: 0, characters: 0 }, updatedAt: 0, off: true, offReason: "disabled",
+        });
+        vi.mocked(api.getDungeonBoard).mockResolvedValue(off);
+        renderPage(<DungeonsPage />, { route: "/roster/dungeons", content: twoVersions() });
+        expect(await screen.findByRole("heading", { name: "Dungeon-Bestzeiten sind für Forever ausgeschaltet" })).toBeInTheDocument();
+        expect(screen.getByText("Einschalten unter Einstellungen → Spielversion.")).toBeInTheDocument();
+        expect(screen.queryByRole("table")).toBeNull();
+        expect(screen.queryByRole("tablist")).toBeNull();
+        expect(screen.queryByText(/Noch keine Dungeon-Läufe/)).toBeNull();
+        switchLang("en");
+        renderPage(<DungeonsPage />, { route: "/roster/dungeons", content: twoVersions() });
+        // the language switch re-renders the first page too
+        expect((await screen.findAllByRole("heading", { name: "Dungeon best times are switched off for Forever" })).length).toBeGreaterThan(0);
+        expect(screen.getAllByText("Switch them on under Settings → Game version.").length).toBeGreaterThan(0);
+    });
+
+    it("says a version has no dungeon best times at all, naming the versions that have some", async () => {
+        vi.mocked(api.getDungeonBoard).mockResolvedValue(board({
+            versionId: "tbc", dungeons: [], players: [], characters: [], totals: { runs: 0, characters: 0 }, updatedAt: 0,
+            off: true, offReason: "no_dungeon_times", otherVersions: ["Forever"],
+        }));
+        renderPage(<DungeonsPage />, { route: "/roster/dungeons", content: twoVersions() });
+        expect(await screen.findByRole("heading", { name: "Für TBC gibt es keine Dungeon-Bestzeiten" })).toBeInTheDocument();
+        expect(screen.getByText("Daten gibt es für: Forever (oben umschalten).")).toBeInTheDocument();
+    });
+
     it("says so when a version has points but no runs", async () => {
         vi.mocked(api.getDungeonBoard).mockResolvedValue(board({ dungeons: [], players: [], totals: { runs: 0, characters: 2 } }));
         renderPage(<DungeonsPage />, { route: "/roster/dungeons" });

@@ -66,6 +66,29 @@ describe("menu entries behind a plan feature (#1080)", () => {
     });
 });
 
+describe("menu entries behind a game-version feature", () => {
+    const dungeons = MENU.find((e) => e.id === "dungeons")!;
+
+    it("asks Dungeon-Bestzeiten for the feature dungeonTimes", () => {
+        expect(dungeons.versionFeature).toBe("dungeonTimes");
+    });
+
+    it("hides the entry while the feature is on for no version, shows it while on for one", () => {
+        expect(mayOpen({ ...everyArea, versionFeatures: [] }, dungeons)).toBe(false);
+        expect(mayOpen({ id: "1", name: "A", isAdmin: true, access: {}, versionFeatures: [] }, dungeons)).toBe(false);
+        expect(mayOpen({ ...everyArea, versionFeatures: ["dungeonTimes"] }, dungeons)).toBe(true);
+        // a session without the list hides nothing; an entry without the field is left alone
+        expect(mayOpen(everyArea, dungeons)).toBe(true);
+        expect(mayOpen({ ...everyArea, versionFeatures: [] }, MENU.find((e) => e.id === "roster")!)).toBe(true);
+    });
+
+    it("leaves it out of the Roster family's rail while it is hidden", () => {
+        const ids = (u: SessionUser) => menuLines(u).find((l) => l.top.id === "roster")!.hrefs;
+        expect(ids({ ...everyArea, versionFeatures: ["dungeonTimes"] })).toContain("/roster/dungeons");
+        expect(ids({ ...everyArea, versionFeatures: [] })).not.toContain("/roster/dungeons");
+    });
+});
+
 describe("Alle Server › Einstellungen (#957)", () => {
     const settingsAll = MENU.find((e) => e.id === "settingsAll")!;
 

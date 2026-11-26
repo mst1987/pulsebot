@@ -351,6 +351,7 @@ Unter **Roster** (Icon-Leiste) bzw. für Mitglieder als eigener Menüpunkt: die 
 - **Gesamtwertung:** Spieler nach Gold, Silber und Bronze, dazu die Dungeons mit Gold.
 - **Erfolgspunkte:** Charaktere nach Erfolgspunkten.
 - Alle Tabellen lassen sich per Klick auf die Spalte sortieren. Ein neuer Gildenrekord kann automatisch in einen Kanal gepostet werden (Einstellungen → Dungeon-Bestzeiten, standardmäßig aus).
+- **Ein- und ausschalten** unter Einstellungen → Spielversion („Dungeon-Bestzeiten“). Ist es für eine Version aus, zeigt die Seite nur einen Hinweis, `/bestzeiten` antwortet mit einem Hinweis und Rekorde werden nicht gepostet; ist es für keine Version an, verschwindet auch der Menüpunkt. Hochgeladene Läufe bleiben gespeichert.
 
 ## Addons
 

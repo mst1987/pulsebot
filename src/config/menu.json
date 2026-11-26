@@ -10,7 +10,7 @@
     { "id": "history", "label": "Historie & Loot", "href": "/history", "group": "Raids", "areas": ["history", "loot"], "icon": "loot" },
     { "id": "lootcouncil", "label": "Loot-Council", "href": "/lootcouncil", "group": "Raids", "areas": ["lootcouncil"], "icon": "lootcouncil" },
     { "id": "roster", "label": "Roster", "href": "/roster", "group": "Gilde", "areas": ["roster"], "icon": "roster" },
-    { "id": "dungeons", "label": "Dungeon-Bestzeiten", "href": "/roster/dungeons", "group": "Gilde", "areas": ["roster", "signup"], "icon": "bestTimes", "area": "roster", "sub": true },
+    { "id": "dungeons", "label": "Dungeon-Bestzeiten", "href": "/roster/dungeons", "group": "Gilde", "areas": ["roster", "signup"], "icon": "bestTimes", "area": "roster", "sub": true, "versionFeature": "dungeonTimes" },
     { "id": "kader", "label": "Kaderplaner", "href": "/kader", "group": "Gilde", "areas": ["kader"], "icon": "kader" },
     { "id": "vermerke", "label": "Vermerke", "href": "/vermerke", "group": "Gilde", "areas": ["vermerke"], "neutral": true, "icon": "vermerke" },
     { "id": "recruitment", "label": "Recruitment", "href": "/recruitment", "group": "Gilde", "areas": ["recruitment"], "icon": "recruitment" },

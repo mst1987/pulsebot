@@ -39,6 +39,8 @@ export type SessionUser = {
     orgaCategories?: string[];
     /** The features the plan of the active server unlocks (docs/server-plans.md); a menu entry's `feature` asks them. */
     planFeatures?: string[];
+    /** The game-version features on for at least one version, of those the menu asks (menu.json `versionFeature`). */
+    versionFeatures?: string[];
     /** The names of the orga roles (admin roles left out) — the orga zones name them. */
     orgaRoles?: string[];
 };

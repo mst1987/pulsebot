@@ -30,8 +30,10 @@
 // /api/raids/fill, /fillsetup), softres (the raid detail, POST /api/raids/softres),
 // the armory (versionSettings.blizzardFor), the Wowhead links (versionSettings.
 // versionLinks, the guild bank's links), the raid plan catalog (catalogEnabled:
-// the plan's catalog and the assignment suggestions) and the dungeon times of the
-// profile (services/characters/profileRaiding.js). Einstellungen → Spielversion
+// the plan's catalog and the assignment suggestions) and the dungeon times (the
+// profile in services/characters/profileRaiding.js, GET /api/dungeons, /bestzeiten,
+// the record posts in services/dungeons/dungeonRecords.js and, through
+// featuresOnAnywhere, the menu entry "Dungeon-Bestzeiten"). Einstellungen → Spielversion
 // shows the matrix (capabilityMatrix, GET /api/settings).
 //
 // Deliberately low in the require graph (test/web/noCycles.test.js): data, the
@@ -219,6 +221,22 @@ function versionCapabilities(versionId, opts = {}) {
 }
 
 /**
+ * The features that are on for at least one version of a rule set — the menu's
+ * `versionFeature` (config/menu.json, GET /api/session): an entry whose feature is
+ * on nowhere is hidden.
+ * @param {{ config?: object, features?: string[], versions?: string[] }} [opts]  `features`: only these are asked
+ *   (default every one); `versions`: only these versions count (default every one). The caller hands in
+ *   mainVersion.visibleVersions(), which this module may not require (noCycles), so a hidden version does not count.
+ * @returns {string[]} in VERSION_FEATURES order
+ */
+function featuresOnAnywhere(opts = {}) {
+    const config = configOf(opts.config);
+    const asked = Array.isArray(opts.features) ? VERSION_FEATURES.filter((f) => opts.features.includes(f)) : VERSION_FEATURES;
+    const ids = VERSIONS.map((v) => v.id).filter((id) => !Array.isArray(opts.versions) || opts.versions.includes(id));
+    return asked.filter((f) => ids.some((id) => featureOn(id, f, { config })));
+}
+
+/**
  * The matrix of Einstellungen → Spielversion → "Funktionen je Version": every
  * version of a rule set with every feature (GET /api/settings).
  * @param {{ config?: object }} [opts]
@@ -304,6 +322,6 @@ function catalogEnabled(versionId, opts) {
 
 module.exports = {
     FEATURES: VERSION_FEATURES, FEATURE_NAMES,
-    versionCapabilities, featureState, featureOn, capabilityMatrix,
+    versionCapabilities, featureState, featureOn, featuresOnAnywhere, capabilityMatrix,
     logcheckCapability, wclApiSite, councilContent, sheetOffered, sheetVersionRefusal, catalogEnabled,
 };
