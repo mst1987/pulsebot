@@ -232,6 +232,8 @@ export type HistoryCharData = {
     gearError: string;
     charSummary: CharSummary | null;
     gearNamespace: string;
+    /** The level cap of the version (TBC 70, Classic 60); 0/absent = none (Forever), no level warning. */
+    expectedLevel?: number;
     info: CharInfo | null;
     /** The newest CLA evaluation's gear findings, or null if the character
      *  isn't in any of the stored evaluations. */

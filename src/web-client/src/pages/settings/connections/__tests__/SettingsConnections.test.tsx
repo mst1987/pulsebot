@@ -193,6 +193,48 @@ describe("SettingsConnections — upload keys per server (#994)", () => {
         });
     });
 
+    describe("the Battle.net card's realm", () => {
+        const VERSIONS = [
+            { id: "tbc", label: "TBC", short: "TBC", realms: true },
+            { id: "forever", label: "Forever", short: "Forever", realms: false },
+        ];
+        function showRealm(mainVersion: string, versionSettings: Record<string, unknown>) {
+            const data = settings();
+            renderPage(
+                <ConnectionsSection
+                    data={{ ...data, gameVersions: VERSIONS, config: { ...data.config, mainVersion, versionSettings } as unknown as AdminConfig }}
+                    tokens={[]}
+                    tokenServers={SERVERS}
+                    onConfig={vi.fn()}
+                    onTokensChanged={vi.fn()}
+                    icon="settings"
+                    crumb="Einstellungen"
+                />,
+            );
+        }
+
+        it("names region and realm of a version with realms", () => {
+            showRealm("tbc", { tbc: { blizzardRegion: "eu", blizzardRealmSlug: "thunderstrike" } });
+            expect(screen.getByText("eu · thunderstrike")).toBeInTheDocument();
+        });
+
+        it("says 'keine Realms' for a version without realms (Forever) instead of a missing realm", () => {
+            showRealm("forever", { forever: { blizzardRegion: "eu", blizzardRealmSlug: "" } });
+            expect(screen.getByText("eu · keine Realms")).toBeInTheDocument();
+            expect(screen.queryByText(/Hauptversion ohne Realm/)).not.toBeInTheDocument();
+        });
+
+        it("says it in English too", async () => {
+            await switchLang("en");
+            try {
+                showRealm("forever", { forever: { blizzardRegion: "eu" } });
+                expect(screen.getByText("eu · no realms")).toBeInTheDocument();
+            } finally {
+                await switchLang("de");
+            }
+        });
+    });
+
     describe("in English", () => {
         beforeEach(() => switchLang("en"));
         afterEach(() => switchLang("de"));

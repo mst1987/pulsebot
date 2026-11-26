@@ -163,8 +163,11 @@ const POSSIBLE = {
         const s = blockOf(id, config);
         // Forever has rulesets, not realms: its profile path has no realm segment.
         const realms = hasRealms(id);
-        return s.blizzardRegion && (s.blizzardRealmSlug || !realms) && s.blizzardNamespace
-            ? YES : no("armory_not_configured", `Armory für ${labelOf(id)} nicht eingerichtet (${realms ? "Region, Realm, Namespace" : "Region, Namespace"}).`);
+        if (s.blizzardRegion && (s.blizzardRealmSlug || !realms) && s.blizzardNamespace) return YES;
+        // its own code, so the page can name the fields the version really needs
+        return realms
+            ? no("armory_not_configured", `Armory für ${labelOf(id)} nicht eingerichtet (Region, Realm, Namespace).`)
+            : no("armory_not_configured_realmless", `Armory für ${labelOf(id)} nicht eingerichtet (Region, Namespace).`);
     },
     wowheadLinks: (id, config) => (blockOf(id, config).wowheadPath
         ? YES : no("no_wowhead_path", `Für ${labelOf(id)} ist kein Wowhead-Pfad eingetragen.`)),
@@ -187,7 +190,7 @@ function disabledMessage(versionId, feature) {
  *   reason: string, message: string, missing: string[], also: string[] }}
  *   `reason` "" when on, "disabled" when switched off, else why it is not possible
  *   ("unknown_version", "no_rules", "rules_not_ready", "no_site", "no_bis_data", "no_sim_data",
- *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "no_wowhead_path",
+ *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "armory_not_configured_realmless", "no_wowhead_path",
  *   "no_catalog_entries", "no_dungeon_times", "unknown_feature"); `message` the German text for it; `also` further reasons
  *   the matrix names beside it (logcheck: rules not ready and no Warcraft-Logs site)
  */

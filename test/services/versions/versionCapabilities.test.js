@@ -47,7 +47,8 @@ describe("services/versions/versionCapabilities — the matrix", () => {
             simulation: "nicht möglich (no_sim_data)",
             raidSheet: "nicht möglich (no_sheet_layout)",
             softres: "nicht möglich (no_softres_edition)",
-            armory: "nicht möglich (armory_not_configured)",
+            // its own code: Forever needs no realm, so the page names only region and namespace
+            armory: "nicht möglich (armory_not_configured_realmless)",
             wowheadLinks: "an",
             raidplanCatalog: "nicht möglich (no_catalog_entries)",
             dungeonTimes: "an",
@@ -186,8 +187,8 @@ describe("services/versions/versionCapabilities — the readers", () => {
     it("armory: Forever needs no realm (profile-forever-<region>, no realm segment), TBC still does", () => {
         const forever = config({}, { blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu" });
         expect(caps.featureState("forever", "armory", { config: forever })).toMatchObject({ possible: true, on: true });
-        expect(caps.featureState("forever", "armory", { config: config() }).message)
-            .toBe("Armory für WoW Forever nicht eingerichtet (Region, Namespace).");
+        expect(caps.featureState("forever", "armory", { config: config() }))
+            .toMatchObject({ possible: false, reason: "armory_not_configured_realmless", message: "Armory für WoW Forever nicht eingerichtet (Region, Namespace)." });
         const tbc = caps.featureState("tbc", "armory", { config: config({ blizzardRealmSlug: "" }) });
         expect(tbc).toMatchObject({ possible: false, reason: "armory_not_configured" });
         expect(tbc.message).toContain("(Region, Realm, Namespace)");

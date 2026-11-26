@@ -183,6 +183,22 @@ describe("services/loot/armoryGear", () => {
             expect(armoryItemInSlot("Devihra", 12, { versionId: "tbc", guildId: G2 })).toBeNull();
             expect(armoryItemInSlot("Brokk", 12, { versionId: "tbc", guildId: G2 }).itemId).toBe("29370");
         });
+
+        it("asks a version without realms (Forever) without one, even with a server's own realm set", async () => {
+            mockGetConfig.mockReturnValue({
+                blizzard: { clientId: "id", clientSecret: "secret" },
+                versionSettings: { forever: { blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu" } },
+                serverSettings: { [G1]: { versionOverrides: { forever: { blizzardRealmSlug: "stray-realm" } } } },
+            });
+            mockGetEquipment.mockResolvedValue([equipped("TRINKET_1", 29370)]);
+            const Blizzard = require("../../../src/classes/blizzard");
+            await primeArmoryGear(["Devihra"], { versionId: "forever", guildId: G1 });
+            expect(Blizzard).toHaveBeenCalledWith(expect.objectContaining({ realmless: true, realmSlug: "" }));
+            // the stray realm does not split the cache: the server without it reads the same answer
+            await primeArmoryGear(["Devihra"], { versionId: "forever", guildId: G2 });
+            expect(mockGetEquipment).toHaveBeenCalledTimes(1);
+            expect(armoryItemInSlot("Devihra", 12, { versionId: "forever", guildId: G2 }).itemId).toBe("29370");
+        });
     });
 
     describe("armoryItemInSlot", () => {

@@ -184,7 +184,7 @@ export function VersionSettingsCard({ versions, mainVersion, value, defaults = {
     );
 }
 
-export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string; /** the version's launcher icon (#951) */ icon?: string };
+export type GameVersionOption = { id: string; label: string; short: string; /** the rule set's colour (#742) */ color?: string; /** the version's launcher icon (#951) */ icon?: string; /** false: the armory API has no realms (Forever) */ realms?: boolean };
 
 /**
  * Alle Server › Einstellungen › Spielversion (#541, #957): the bot's main

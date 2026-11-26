@@ -1409,6 +1409,7 @@ describe("web/apiRoutes/history", () => {
                 gearError: "",
                 charSummary: null,
                 gearNamespace: "profile-classicann-eu",
+                expectedLevel: 70,
                 versionId: "tbc",
                 wowheadPath: "tbc",
                 info: null,
@@ -1513,6 +1514,20 @@ describe("web/apiRoutes/history", () => {
             const res = await get("/api/history/char", { name: "Anna" });
 
             expect(json(res).data.gearError).toBe("Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.");
+        });
+
+        it("names the namespace instead of a realm in the 403 of a version without realms (Forever)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 403 };
+            mockRealmless = true;
+            try {
+                const res = await get("/api/history/char", { name: "Devi Re" });
+                expect(json(res).data.gearError).toContain("403");
+                expect(json(res).data.gearError).not.toContain("Realm");
+            } finally {
+                mockRealmless = false;
+            }
         });
 
         it("builds the 401 gearError", async () => {

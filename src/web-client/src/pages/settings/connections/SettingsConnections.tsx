@@ -50,9 +50,18 @@ function since(ms: number): string {
     return translate("settings.connections.since.days", { count: Math.round(hours / 24) });
 }
 
-/** "eu · thunderstrike" of the main version's block, or "nicht eingerichtet" (#542). */
-function mainRealm(c: SettingsData["config"]): string {
-    const block = (c.versionSettings || {})[c.mainVersion || "tbc"];
+/**
+ * "eu · thunderstrike" of the main version's block, or "nicht eingerichtet" (#542);
+ * a version without realms (Forever, `realms: false` from the server) shows "eu · keine Realms".
+ */
+function mainRealm(data: SettingsData): string {
+    const c = data.config;
+    const versionId = c.mainVersion || "tbc";
+    const block = (c.versionSettings || {})[versionId];
+    const version = (data.gameVersions || []).find((v) => v.id === versionId);
+    if (version && version.realms === false) {
+        return `${block?.blizzardRegion || "?"} · ${translate("settings.connections.noRealms")}`;
+    }
     if (!block || !block.blizzardRealmSlug) return translate("settings.connections.realmNotSet");
     return `${block.blizzardRegion || "?"} · ${block.blizzardRealmSlug}`;
 }
@@ -84,7 +93,7 @@ function cards(data: SettingsData, tokens: IngestToken[] | null): Card[] {
             tipSub: t("settings.connections.battlenetSub"),
             rows: [
                 // the realm of the main version (#542); set per version under Spielversion
-                ["Realm", mainRealm(c)],
+                ["Realm", mainRealm(data)],
                 ["Secret", secret(c.blizzard.hasClientSecret)],
             ],
         },

@@ -54,7 +54,7 @@ const FIELDS = Object.freeze([
 // A feature is "not possible" for one of these only because a field is empty —
 // that field is then still needed. Every other reason (the rule set has no data
 // for it) makes an empty field fine.
-const SETTINGS_REASONS = new Set(["no_site", "no_softres_edition", "armory_not_configured", "no_wowhead_path"]);
+const SETTINGS_REASONS = new Set(["no_site", "no_softres_edition", "armory_not_configured", "armory_not_configured_realmless", "no_wowhead_path"]);
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -78,7 +78,9 @@ function safely(read, fallback) {
 function fieldStates(versionId, config) {
     const map = isMap(config.versionSettings) ? config.versionSettings : versionSettingsOf(config);
     const block = normalizeBlock(map[versionId]);
-    return FIELDS.map(({ field, feature, filled }) => {
+    return FIELDS.map(({ field: key, feature, filled }) => {
+        // without realms (Forever) the field is the armory lookup's region and namespace — not called "realm"
+        const field = key === "realm" && !hasRealms(versionId) ? "armoryApi" : key;
         if (filled(block, versionId)) return { field, feature, state: "set", reason: "" };
         const cap = featureState(versionId, feature, { config });
         // switched off: the capability names "disabled" only for a possible feature, `enabled` always says it

@@ -45,7 +45,7 @@ const {
 } = require("../../../config/permissions");
 const { normalizeBotCommandAccess } = require("../../../config/botCommands");
 const { normalizeAddonList, defaultAddons } = require("../../../services/addons/addonConfig");
-const { VERSIONS } = require("../../../config/gameVersions");
+const { VERSIONS, hasRealms } = require("../../../config/gameVersions");
 const versionSettings = require("../../../services/versions/versionSettings");
 const { capabilityMatrix } = require("../../../services/versions/versionCapabilities");
 const { isVersionFeature, normalizeDisabled } = require("../../../config/versionFeatures");
@@ -524,7 +524,8 @@ const getSettings = withUser({}, async ({ user, req, res }) => {
         // settings user needs no raid rights to pick one.
         raidTemplates: listRaidTemplates(guildId).map((t) => ({ id: t.id, name: t.name, versionId: t.versionId, size: t.size })),
         // Einstellungen → Spielversion (#541): the versions to pick from, names only.
-        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, icon: v.icon || "", color: defaultColorOf(v.id) })),
+        // `realms: false` = the version has no realms (Forever): the pages say so instead of asking for one.
+        gameVersions: VERSIONS.map((v) => ({ id: v.id, label: v.label, short: v.short, icon: v.icon || "", color: defaultColorOf(v.id), realms: hasRealms(v.id) })),
         // The standard values per version (#553) for "Standardwerte übernehmen";
         // an all-empty block = the version has none yet (Forever).
         versionDefaults: defaultVersionSettings(config.versionSettings),

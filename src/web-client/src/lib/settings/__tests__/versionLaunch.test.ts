@@ -47,6 +47,9 @@ describe("versionLaunch wording (#745)", () => {
             "Fehlt: Realm",
             "Leer, nicht nötig: Warcraft Logs (für die Version nicht möglich), Softres (ausgeschaltet)",
         ]);
+        // a version without realms (Forever) misses its armory lookup, never a "Realm"
+        const forever: LaunchItem = { ...base, id: "versionSettings", kind: "auto", status: "open", fields: [{ field: "armoryApi", state: "missing", reason: "" }] };
+        expect(itemDetails(forever, list())).toEqual(["Fehlt: Armory-Abfrage (Region, Namespace; keine Realms)"]);
         const templates: LaunchItem = { ...base, id: "templates", kind: "auto", status: "done", count: 1, names: ["Barrow"], incomplete: ["Barrow Deeps"] };
         expect(itemTip(templates, list())).toContain("Bosse eintragen, sobald bekannt: Barrow Deeps");
         const rosters: LaunchItem = { ...base, id: "rosters", kind: "auto", status: "open", categories: 1, problems: [{ categoryId: "c2", name: "Mittwoch", rosterId: "r", problems: ["noRoles", "noManagers"] }] };

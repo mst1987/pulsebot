@@ -95,7 +95,8 @@ export function GearSection({ data, onOpen }: { data: HistoryCharData; onOpen: (
     const high = issues.filter((i) => i.severity === "high").length;
     const gear = Array.isArray(data.gear) ? data.gear.filter((g) => !NO_RAID_VALUE.has(g.slot)) : [];
     const bySlot = new Map(gear.map((g) => [g.slot, g]));
-    const wrongLevel = !!(s && s.level && s.level !== 70);
+    // Only a version with a level cap (the server sends it) can tell a wrong-namespace hit by its level.
+    const wrongLevel = !!(s && s.level && data.expectedLevel && s.level !== data.expectedLevel);
 
     const reportName = report ? (report.reportTitle || report.zone || t("history.gear.reportFallback")) : "";
     const crumb = [

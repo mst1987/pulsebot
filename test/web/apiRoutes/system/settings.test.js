@@ -442,7 +442,8 @@ describe("web/apiRoutes/settings", () => {
                 expect(data.areas.map((a) => a.id)).toEqual(AREA_IDS);
                 // Einstellungen → Spielversion (#541) picks from these
                 expect(data.gameVersions.map((v) => v.id)).toEqual(["tbc", "classic", "forever"]);
-                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String), color: "#4da3ff", icon: "/versions/forever.png" });
+                expect(data.gameVersions[2]).toEqual({ id: "forever", label: expect.any(String), short: expect.any(String), color: "#4da3ff", icon: "/versions/forever.png", realms: false });
+                expect(data.gameVersions[0].realms).toBe(true);
                 // "Standardwerte übernehmen" (#553): Classic has checked values, Forever none yet
                 expect(data.versionDefaults.classic).toMatchObject({ wowheadPath: "classic", softresEdition: "classic", blizzardRealmSlug: "" });
                 // Forever: its Wowhead section (#750), Blizzard's armory and profile namespace, no realm or log site

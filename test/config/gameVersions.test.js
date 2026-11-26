@@ -256,6 +256,13 @@ describe("config/gameVersions", () => {
             expect(gv.hasRealms("nope")).toBe(true);
         });
 
+        it("knows the level cap of a version: TBC 70, Classic 60, none for Forever or an unknown id", () => {
+            expect(gv.characterLevelMaxOf("tbc")).toBe(70);
+            expect(gv.characterLevelMaxOf("classic")).toBe(60);
+            expect(gv.characterLevelMaxOf("forever")).toBe(0);
+            expect(gv.characterLevelMaxOf("nope")).toBe(0);
+        });
+
         it("answers the role of a spec", () => {
             expect(gv.roleOfSpec("Druid-Guardian")).toBe("tank");
             expect(gv.roleOfSpec("Hunter-Survival", "classic")).toBe("ranged");

@@ -143,6 +143,8 @@ module.exports = {
     // Main professions for "Mein Profil" (Berufe): TBC's without Jewelcrafting, up to 300.
     professions: CLASSIC_PROFESSIONS,
     professionSkillMax: 300,
+    // The level cap; see tbc.js.
+    characterLevelMax: 60,
     // The raid plan's assignment types this version has not (#751, services/raidplan/raidplanConstants.js):
     // Misdirection is new in TBC - Classic's hunter has no such spell.
     raidplanTypesLeftOut: ["md"],

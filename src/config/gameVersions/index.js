@@ -52,6 +52,16 @@ function hasRealms(versionId) {
     return !(rules && rules.realms === false);
 }
 
+/**
+ * The level cap of a version (TBC 70, Classic 60), or 0 when its rule set names
+ * none (Forever): the character page only warns about a wrong profile namespace
+ * when this is set and the Blizzard profile's level differs from it.
+ */
+function characterLevelMaxOf(versionId) {
+    const rules = rulesFor(versionId);
+    return (rules && Number(rules.characterLevelMax)) || 0;
+}
+
 /** The rule set of a version, or null for an unknown id. */
 function rulesFor(versionId) {
     return BY_ID.get(String(versionId || "")) || null;
@@ -240,7 +250,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, professionsOf, hasSheetLayout, hasRealms, instance, instanceById, spec, roleOfSpec,
+    rulesFor, professionsOf, hasSheetLayout, hasRealms, characterLevelMaxOf, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, iconOf, examplesOf, publicVersions,
 };
