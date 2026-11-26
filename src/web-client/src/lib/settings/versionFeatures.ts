@@ -44,6 +44,11 @@ export function cellState(cell: FeatureCell | undefined, feature: string, disabl
     return disabled.includes(feature) ? "off" : "on";
 }
 
+/** Whether a feature is on for at least one version with the draft's lists (false without a matrix). */
+export function featureOnAnywhere(matrix: CapabilityMatrix | undefined, feature: string, disabled: Record<string, string[]> = {}): boolean {
+    return Object.entries(matrix?.versions || {}).some(([id, cells]) => cellState(cells[feature], feature, disabled[id]) === "on");
+}
+
 /** The list with one feature switched on (taken out) or off (put in), in the matrix order. */
 export function setFeature(disabled: string[], feature: string, on: boolean, order: string[]): string[] {
     const next = new Set(disabled);

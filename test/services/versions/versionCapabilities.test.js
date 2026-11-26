@@ -89,6 +89,23 @@ describe("services/versions/versionCapabilities — the matrix", () => {
         expect(off).toMatchObject({ possible: false, enabled: false, reason: "no_sheet_layout" });
     });
 
+    it("names the features on for at least one version (the menu's versionFeature)", () => {
+        expect(caps.featuresOnAnywhere({ config: config() })).toContain("dungeonTimes");
+        // switched off for Forever, the only version with dungeon best times: on nowhere
+        const off = caps.featuresOnAnywhere({ config: config({}, { disabled: ["dungeonTimes"] }) });
+        expect(off).not.toContain("dungeonTimes");
+        expect(off).toContain("wowheadLinks");
+        // only the features asked for, in the list's order
+        expect(caps.featuresOnAnywhere({ config: config(), features: ["dungeonTimes", "teleport", "wowheadLinks"] }))
+            .toEqual(["wowheadLinks", "dungeonTimes"]);
+    });
+
+    it("knows every versionFeature the menu asks for", () => {
+        const asked = require("../../../src/config/menu.json").map((e) => e.versionFeature).filter(Boolean);
+        expect(asked).toContain("dungeonTimes");
+        for (const f of asked) expect(VERSION_FEATURES).toContain(f);
+    });
+
     it("answers an unknown version or feature with nothing possible", () => {
         expect(caps.featureState("wotlk", "logcheck", { config: config() })).toMatchObject({ on: false, reason: "unknown_version" });
         expect(caps.featureState("tbc", "teleport", { config: config() })).toMatchObject({ on: false, reason: "unknown_feature" });

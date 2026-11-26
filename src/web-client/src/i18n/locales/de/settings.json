@@ -1713,7 +1713,8 @@
         "postTip": "Ein Gold-Lauf, der jetzt der schnellste seines Dungeons ist, kommt als Karte in den Kanal. Nur Läufe der letzten drei Tage, höchstens drei je Upload.",
         "channel": "Kanal für Gildenrekorde",
         "channelSub": "Hier postet der Bot jeden neuen Gildenrekord, in der Bot-Sprache.",
-        "noChannel": "Ohne Kanal wird nichts gepostet."
+        "noChannel": "Ohne Kanal wird nichts gepostet.",
+        "featureOff": "Dungeon-Bestzeiten sind für keine Spielversion eingeschaltet: Seite und /bestzeiten sind aus, gepostet wird nichts. Einschalten unter Einstellungen → Spielversion."
     },
     "wclGuilds": {
         "title": "Warcraft-Logs-Gilde",

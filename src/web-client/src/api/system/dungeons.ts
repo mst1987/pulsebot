@@ -65,8 +65,14 @@ export type DungeonBoardData = {
     totals: { runs: number; characters: number };
     /** ms of the last upload, 0 = none */
     updatedAt: number;
-    /** Short names of the other versions that have data (for the empty page). */
+    /** Short names of the other versions that have data and the feature on (for the empty page). */
     otherVersions: string[];
+    /**
+     * The feature "dungeonTimes" is off for this version: the tables come empty. `offReason` "disabled" when
+     * the orga switched it off (Einstellungen → Spielversion), else why it is not possible ("no_dungeon_times").
+     */
+    off?: boolean;
+    offReason?: string;
 };
 
 export function getDungeonBoard(version = ""): Promise<DungeonBoardData> {

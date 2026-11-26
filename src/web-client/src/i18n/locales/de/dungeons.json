@@ -28,6 +28,12 @@
         "text": "Die Zeiten kommen aus dem Addon LevelHelper: Das Sync-Tool lädt die Gruppenläufe und Erfolgspunkte hoch, sobald es läuft.",
         "otherVersions": "Daten gibt es für: {versions} (oben umschalten)."
     },
+    "off": {
+        "disabledTitle": "Dungeon-Bestzeiten sind für {version} ausgeschaltet",
+        "disabledText": "Einschalten unter Einstellungen → Spielversion.",
+        "noneTitle": "Für {version} gibt es keine Dungeon-Bestzeiten",
+        "noneText": "Die Zeiten kommen aus dem Addon LevelHelper, und das gibt es für diesen Client nicht."
+    },
     "medal": {
         "gold": "Gold",
         "silver": "Silber",

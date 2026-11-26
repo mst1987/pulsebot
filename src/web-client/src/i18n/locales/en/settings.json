@@ -1713,7 +1713,8 @@
         "postTip": "A gold run that is now the fastest of its dungeon goes into the channel as a card. Only runs of the last three days, at most three per upload.",
         "channel": "Channel for guild records",
         "channelSub": "The bot posts every new guild record here, in the bot language.",
-        "noChannel": "Without a channel nothing is posted."
+        "noChannel": "Without a channel nothing is posted.",
+        "featureOff": "Dungeon best times are on for no game version: the page and /bestzeiten are off, nothing is posted. Switch them on under Settings → Game version."
     },
     "wclGuilds": {
         "title": "Warcraft Logs guild",

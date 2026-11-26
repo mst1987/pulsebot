@@ -28,6 +28,12 @@
         "text": "The times come from the LevelHelper addon: the sync tool uploads the group runs and achievement points once it runs.",
         "otherVersions": "There is data for: {versions} (switch at the top)."
     },
+    "off": {
+        "disabledTitle": "Dungeon best times are switched off for {version}",
+        "disabledText": "Switch them on under Settings → Game version.",
+        "noneTitle": "There are no dungeon best times for {version}",
+        "noneText": "The times come from the LevelHelper addon, and it does not exist for this client."
+    },
     "medal": {
         "gold": "Gold",
         "silver": "Silver",

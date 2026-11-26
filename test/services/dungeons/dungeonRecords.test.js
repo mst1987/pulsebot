@@ -66,6 +66,16 @@ describe("postNewRecords", () => {
         expect(discord.postPayload).not.toHaveBeenCalled();
     });
 
+    it("posts nothing while the feature „dungeonTimes“ is off for the version", async () => {
+        store.update((doc) => { doc.runs.push(run()); });
+        const off = on({ versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+        expect(await postNewRecords({ versionId: "forever", touched: ["dr_new"] }, { config: off, now: NOW })).toBe(0);
+        // a version without dungeon best times (no LevelHelper) posts nothing either
+        expect(await postNewRecords({ versionId: "tbc", touched: ["dr_new"] }, { config: on(), now: NOW })).toBe(0);
+        expect(discord.postPayload).not.toHaveBeenCalled();
+        expect(store.listRuns()[0].recordPostedAt).toBe(0);
+    });
+
     it("logs a failed post and leaves the run unmarked", async () => {
         store.update((doc) => { doc.runs.push(run()); });
         discord.postPayload.mockRejectedValue(new Error("Missing Access"));

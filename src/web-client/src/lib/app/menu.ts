@@ -57,6 +57,12 @@ export type MenuEntry = {
      * without it the entry is hidden, for full admins too. The server refuses the route as well.
      */
     feature?: string;
+    /**
+     * a game-version feature (src/config/versionFeatures.js): the entry is hidden while that feature is on for
+     * no version (session `versionFeatures`; "Dungeon-Bestzeiten" asks "dungeonTimes"). The page itself still
+     * answers per version.
+     */
+    versionFeature?: string;
 };
 
 export const MENU: MenuEntry[] = MENU_JSON as MenuEntry[];
@@ -77,10 +83,12 @@ export function isNeutralPage(entry: MenuEntry | undefined, pathname: string): b
  * Whether the account may open an entry: one of its areas, or full admin for an
  * adminOnly entry. An entry under "Alle Server" goes by the rights on any server,
  * every other one by those on the active server (#925). An entry with a `feature`
- * also needs that feature on the active server; a session without the list hides nothing.
+ * also needs that feature on the active server, one with a `versionFeature` that feature on
+ * for some game version; a session without the list hides nothing.
  */
 export function mayOpen(user: SessionUser | null, entry: MenuEntry): boolean {
     if (entry.feature && user?.planFeatures && !user.planFeatures.includes(entry.feature)) return false;
+    if (entry.versionFeature && user?.versionFeatures && !user.versionFeatures.includes(entry.versionFeature)) return false;
     if (entry.adminOnly) return !!(user && user.isAdmin);
     return entry.scope === "all" ? canAccessAnywhere(user, entry.areas) : canAccessAny(user, entry.areas);
 }

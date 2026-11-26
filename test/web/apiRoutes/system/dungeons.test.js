@@ -41,20 +41,31 @@ beforeEach(() => {
 });
 
 describe("GET /api/dungeons", () => {
-    it("answers the main version without ?version=, with the other versions that have data", async () => {
+    it("answers the main version without ?version=, never a mix, naming no version without the feature", async () => {
         const data = body(await get("/api/dungeons"));
         expect(data.versionId).toBe("forever");
+        expect(data.off).toBeUndefined();
         expect(data.dungeons.map((d) => d.dungeon)).toEqual(["The Deadmines"]);
         expect(data.players[0]).toMatchObject({ name: "Devira", gold: 1, classId: "Paladin" });
         expect(data.characters[0]).toMatchObject({ name: "Devira", points: 340 });
-        expect(data.otherVersions).toEqual(["TBC"]);
+        // TBC has stored runs but no dungeon best times (no LevelHelper): not offered
+        expect(data.otherVersions).toEqual([]);
     });
 
-    it("answers the version asked for, never a mix", async () => {
+    it("answers a version without dungeon best times empty and off, its stored runs untouched", async () => {
         const data = body(await get("/api/dungeons", { version: "tbc" }));
-        expect(data.versionId).toBe("tbc");
-        expect(data.dungeons.map((d) => d.dungeon)).toEqual(["Shadow Labyrinth"]);
-        expect(data.characters).toEqual([]);
+        expect(data).toMatchObject({ versionId: "tbc", off: true, offReason: "no_dungeon_times", dungeons: [], players: [], characters: [] });
+        expect(store.listRuns("tbc")).toHaveLength(1);
+    });
+
+    it("answers off with the reason \"disabled\" while the orga switched the feature off", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+        const res = await get("/api/dungeons");
+        expect(status(res)).toBe(200);
+        expect(body(res)).toMatchObject({
+            versionId: "forever", off: true, offReason: "disabled", dungeons: [], players: [], characters: [],
+            totals: { runs: 0, characters: 0 }, otherVersions: [],
+        });
     });
 
     it("answers only the main version while the other versions are hidden", async () => {
@@ -75,7 +86,8 @@ describe("GET /api/dungeons", () => {
 
     it("answers an empty board for a version without data", async () => {
         store.update(() => ({ runs: [], characters: [] }));
-        const data = body(await get("/api/dungeons", { version: "classic" }));
-        expect(data).toMatchObject({ versionId: "classic", dungeons: [], players: [], characters: [], totals: { runs: 0, characters: 0 }, otherVersions: [] });
+        const data = body(await get("/api/dungeons", { version: "forever" }));
+        expect(data).toMatchObject({ versionId: "forever", dungeons: [], players: [], characters: [], totals: { runs: 0, characters: 0 }, otherVersions: [] });
+        expect(data.off).toBeUndefined();
     });
 });

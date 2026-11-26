@@ -9,6 +9,7 @@ jest.mock("../../../src/stores/settings/configStore", () => ({
 const { MessageFlags } = require("discord.js");
 const command = require("../../../src/commands/lookup/bestzeiten");
 const { langOfInteraction } = require("../../../src/services/discord/botLanguage");
+const { getConfig } = require("../../../src/stores/settings/configStore");
 const store = require("../../../src/stores/roster/dungeonRunStore");
 const { mockInteraction } = require("../../helpers/mockInteraction");
 const { memberMayRun } = require("../../helpers/botCommandAccess");
@@ -26,6 +27,7 @@ afterAll(() => store.useFile(null));
 beforeEach(() => {
     jest.clearAllMocks();
     langOfInteraction.mockReturnValue("de");
+    getConfig.mockReturnValue({ mainVersion: "forever" });
     store.update(() => ({
         runs: [
             run(),
@@ -76,11 +78,29 @@ describe("/bestzeiten", () => {
         expect(text).toContain("**Dungeons** 2");
     });
 
-    it("answers for the version picked in the command", async () => {
-        const i = mockInteraction({ options: { version: "tbc" } });
+    it("answers for the version picked in the command, a version without dungeon best times with a hint", async () => {
+        getConfig.mockReturnValue({ mainVersion: "tbc" });
+        let i = mockInteraction({ options: { version: "forever" } });
         await command.execute(i);
-        expect(cardText(reply(i))).toContain("TBC");
-        expect(cardText(reply(i))).toContain("**Dungeons** 1");
+        expect(cardText(reply(i))).toContain("**Dungeons** 2");
+        // TBC has no LevelHelper: its stored runs are not shown
+        i = mockInteraction({ options: { version: "tbc" } });
+        await command.execute(i);
+        expect(reply(i)).toEqual({ content: expect.stringMatching(/^Für TBC.* gibt es keine Dungeon-Bestzeiten\.$/), flags: MessageFlags.Ephemeral });
+    });
+
+    it("answers only an ephemeral hint and completes nothing while the feature is switched off", async () => {
+        getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+        let i = mockInteraction({ options: { dungeon: "the deadmines" } });
+        await command.execute(i);
+        expect(reply(i)).toEqual({ content: expect.stringMatching(/^Dungeon-Bestzeiten sind für .*Forever.* ausgeschaltet\.$/), flags: MessageFlags.Ephemeral });
+        langOfInteraction.mockReturnValue("en");
+        i = mockInteraction({ options: {} });
+        await command.execute(i);
+        expect(reply(i).content).toMatch(/^Dungeon best times are switched off for .*Forever.*\.$/);
+        i = mockInteraction({ focused: { name: "dungeon", value: "" } });
+        await command.autocomplete(i);
+        expect(i.respond).toHaveBeenCalledWith([]);
     });
 
     it("completes the stored dungeon names of the version", async () => {

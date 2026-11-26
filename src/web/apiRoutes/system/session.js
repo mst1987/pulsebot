@@ -18,6 +18,8 @@ const { contentVersions } = require("../../../services/versions/contentVersions"
 const { areaAudience, orgaRoleNames } = require("../../http/areaAudience");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
 const { serverFeatures } = require("../../../services/plans/serverPlan");
+const { featuresOnAnywhere } = require("../../../services/versions/versionCapabilities");
+const { MENU } = require("../../../config/menu");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
  * caller may see (per-area access) and — for menu users — the guilds they may
@@ -59,6 +61,9 @@ async function getSession(req, res) {
                 // The features the plan of the active server unlocks (docs/server-plans.md), for the
                 // menu's `feature`; the server refuses for real (apiAccess.planRefusal).
                 ...(hasMenu ? { planFeatures: serverFeatures(activeGuildFor(req)) } : {}),
+                // The game-version features the menu asks for (menu.json `versionFeature`) that are on for at
+                // least one version: the client hides an entry whose feature is on nowhere ("Dungeon-Bestzeiten").
+                ...(hasMenu ? { versionFeatures: menuVersionFeatures() } : {}),
                 // Who sees each area the caller may open (areaAudience.js): the client marks an area
                 // only admins and orga roles open as "Orga-Bereich" and names those orga roles.
                 ...audienceFields(user, req),
@@ -73,6 +78,12 @@ async function getSession(req, res) {
         // hidden, and the versions it offers (only those with data or a category).
         content: hasMenu ? contentVersions() : null,
     });
+}
+
+/** The menu's version features (menu.json `versionFeature`) on for at least one version. */
+function menuVersionFeatures() {
+    const asked = [...new Set(MENU.map((e) => e.versionFeature).filter(Boolean))];
+    return featuresOnAnywhere({ config: getConfig(), features: asked });
 }
 
 /** The category ids the caller is the orga of through a roster; best-effort, [] on failure ("Ansicht als": the viewed roles'). */

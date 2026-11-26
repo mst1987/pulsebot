@@ -9,6 +9,8 @@
 // Only the content switch's version (#741): the server answers one version
 // (GET /api/dungeons?version=), without data the empty page names the
 // versions that have some. Readable with "roster" or every member's "signup".
+// While the version feature "dungeonTimes" is off (Einstellungen → Spielversion)
+// the server answers `off` and the page shows only a quiet hint.
 import { useMemo } from "react";
 import { useOutletContext } from "react-router-dom";
 import { getDungeonBoard, type DungeonBoardData } from "../../api";
@@ -34,6 +36,20 @@ function EmptyBoard({ version, others }: { version: string; others: string[] }) 
             <WowIcon name={DUNGEON_ICON} size={48} />
             <h2>{version ? t("dungeons.empty.versionTitle", { version }) : t("dungeons.empty.title")}</h2>
             <p>{t("dungeons.empty.text")}</p>
+            {others.length > 0 && <p>{t("dungeons.empty.otherVersions", { versions: others.join(", ") })}</p>}
+        </div>
+    );
+}
+
+/** The feature is off for this version: switched off by the orga, or none for its client. */
+function OffBoard({ version, reason, others }: { version: string; reason: string; others: string[] }) {
+    const t = useT();
+    const disabled = reason === "disabled";
+    return (
+        <div className="dg-empty empty">
+            <WowIcon name={DUNGEON_ICON} size={48} />
+            <h2>{t(disabled ? "dungeons.off.disabledTitle" : "dungeons.off.noneTitle", { version })}</h2>
+            <p>{t(disabled ? "dungeons.off.disabledText" : "dungeons.off.noneText")}</p>
             {others.length > 0 && <p>{t("dungeons.empty.otherVersions", { versions: others.join(", ") })}</p>}
         </div>
     );
@@ -110,6 +126,14 @@ export default function DungeonsPage() {
     let body;
     if (board.error && !board.data) body = <div className="empty">{board.error.message}</div>;
     else if (!board.data) body = <RaidLoader text={t("dungeons.loading")} />;
+    else if (board.data.off) {
+        body = (
+            <>
+                <PageHead icon={DUNGEON_ICON} tone="roster" kicker={versionShort} title={t("dungeons.title")} />
+                <OffBoard version={versionShort} reason={board.data.offReason || ""} others={board.data.otherVersions} />
+            </>
+        );
+    }
     else if (!board.data.totals.runs && !board.data.totals.characters) {
         body = (
             <>

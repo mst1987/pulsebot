@@ -50,6 +50,8 @@ describe("one menu for both front ends", () => {
                 ...(entry.landing ? { landing: expect.stringMatching(/^\//) } : {}),
                 // a page without a server stands under "Alle Server" (#918)
                 ...(entry.scope ? { scope: "all" } : {}),
+                // hidden when a game-version feature is off for every version (Dungeon-Bestzeiten)
+                ...(entry.versionFeature ? { versionFeature: expect.stringMatching(/^[a-zA-Z]+$/) } : {}),
                 id: expect.stringMatching(/^[a-zA-Z]+$/),
                 label: expect.any(String),
                 href: expect.stringMatching(/^\//),

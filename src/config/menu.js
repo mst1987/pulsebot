@@ -22,6 +22,11 @@
 //   icon     — a key of the app's own icon set drawn in front of the label (#951):
 //              a glyph of uiIcons.json or a brand mark ("discord"), see
 //              uiIconSvg.js; wowIconUrl below stays for game content (bosses, items …)
+//   feature  — optional: the server PLAN feature the entry needs (docs/server-plans.md)
+//   versionFeature — optional: a game-version feature (config/versionFeatures.js);
+//              the entry is hidden while that feature is on for no version
+//              (versionCapabilities.featuresOnAnywhere, GET /api/session
+//              `versionFeatures`) — "Dungeon-Bestzeiten" asks "dungeonTimes"
 const MENU = require("./menu.json");
 
 const ICON_BASE = "https://wow.zamimg.com/images/wow/icons";

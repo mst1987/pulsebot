@@ -26,4 +26,6 @@ module.exports = {
     "New guild record": "Neuer Gildenrekord",
     "Group": "Gruppe",
     "Date": "Datum",
+    "Dungeon best times are switched off for {version}.": "Dungeon-Bestzeiten sind für {version} ausgeschaltet.",
+    "There are no dungeon best times for {version}.": "Für {version} gibt es keine Dungeon-Bestzeiten.",
 };
