@@ -51,7 +51,7 @@ import VersionLaunchCard from "./versions/VersionLaunchCard";
 import ServerVersionLinksSection from "./versions/ServerVersionLinksSection";
 import TopItemsSection from "./versions/TopItemsSection";
 import SettingsTwitch from "./discord/SettingsTwitch";
-import { featureOnAnywhere, withDisabled } from "../../lib/settings/versionFeatures";
+import { featureOffInDraft, withDisabled } from "../../lib/settings/versionFeatures";
 import { useContentVersion } from "../../hooks/useContentVersion";
 import { XIcon, SaveIcon } from "../../components/ui/icons/icons";
 
@@ -737,7 +737,7 @@ export default function SettingsPage({ scope = "server" }: { scope?: SettingsSco
                         value={draft.dungeonRecords}
                         channels={channels}
                         onChange={(dungeonRecords) => patch({ dungeonRecords })}
-                        featureOff={!!data.versionCapabilities && !featureOnAnywhere(data.versionCapabilities, "dungeonTimes", draft.versionDisabled)}
+                        featureOff={featureOffInDraft(data.versionCapabilities, "dungeonTimes", draft)}
                     />
                 </>
             );

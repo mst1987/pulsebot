@@ -1461,7 +1461,7 @@
             "armory": "Ausrüstung und Charakterdaten von Battle.net abrufen.",
             "wowheadLinks": "Links auf Wowhead für Items und Zauber.",
             "raidplanCatalog": "Mobs und Zauber des Katalogs im Raidplan.",
-            "dungeonTimes": "Dungeon-Bestzeiten aus dem Addon LevelHelper je Charakter in „Mein Profil“."
+            "dungeonTimes": "Dungeon-Bestzeiten aus dem Addon LevelHelper: je Charakter in „Mein Profil“, die Seite Dungeon-Bestzeiten, /bestzeiten und die Posts neuer Gildenrekorde. Ausgeschaltet ist all das weg; der Upload aus dem Addon läuft weiter."
         },
         "reason": {
             "disabled": "Für {version} ausgeschaltet.",
@@ -1714,7 +1714,7 @@
         "channel": "Kanal für Gildenrekorde",
         "channelSub": "Hier postet der Bot jeden neuen Gildenrekord, in der Bot-Sprache.",
         "noChannel": "Ohne Kanal wird nichts gepostet.",
-        "featureOff": "Dungeon-Bestzeiten sind für keine Spielversion eingeschaltet: Seite und /bestzeiten sind aus, gepostet wird nichts. Einschalten unter Einstellungen → Spielversion."
+        "featureOff": "Dungeon-Bestzeiten sind für keine sichtbare Spielversion eingeschaltet: Seite und /bestzeiten sind aus, gepostet wird nichts. Einschalten unter Einstellungen → Spielversion."
     },
     "wclGuilds": {
         "title": "Warcraft-Logs-Gilde",

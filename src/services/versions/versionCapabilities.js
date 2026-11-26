@@ -224,13 +224,16 @@ function versionCapabilities(versionId, opts = {}) {
  * The features that are on for at least one version of a rule set — the menu's
  * `versionFeature` (config/menu.json, GET /api/session): an entry whose feature is
  * on nowhere is hidden.
- * @param {{ config?: object, features?: string[] }} [opts]  `features`: only these are asked (default every one)
+ * @param {{ config?: object, features?: string[], versions?: string[] }} [opts]  `features`: only these are asked
+ *   (default every one); `versions`: only these versions count (default every one). The caller hands in
+ *   mainVersion.visibleVersions(), which this module may not require (noCycles), so a hidden version does not count.
  * @returns {string[]} in VERSION_FEATURES order
  */
 function featuresOnAnywhere(opts = {}) {
     const config = configOf(opts.config);
     const asked = Array.isArray(opts.features) ? VERSION_FEATURES.filter((f) => opts.features.includes(f)) : VERSION_FEATURES;
-    return asked.filter((f) => VERSIONS.some((v) => featureOn(v.id, f, { config })));
+    const ids = VERSIONS.map((v) => v.id).filter((id) => !Array.isArray(opts.versions) || opts.versions.includes(id));
+    return asked.filter((f) => ids.some((id) => featureOn(id, f, { config })));
 }
 
 /**

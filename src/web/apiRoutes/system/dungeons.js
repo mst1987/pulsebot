@@ -12,14 +12,16 @@
 // Einstellungen → Spielversion) the answer is still 200, but with empty tables and
 // `off: true` — `offReason` "disabled" when the orga switched it off, else why it is
 // not possible ("no_dungeon_times": no LevelHelper for that client); the page shows
-// a hint instead of the tables. `otherVersions` then and always names only versions
-// with the feature on. The upload (POST /api/ingest/levelhelper) keeps storing.
+// a hint instead of the tables. `otherVersions` then and always names only shown
+// versions with the feature on; for "no_dungeon_times" every such version, data or
+// not (the hint points to where the feature is). The upload (POST
+// /api/ingest/levelhelper) keeps storing.
 //
 // Readable with "roster" (the orga) or "signup" (every member's base access):
 // a guild leaderboard is for the whole guild. Nothing on the page writes.
 const { ok } = require("../../http/apiResponse");
 const { withUser } = require("../../http/apiHandler");
-const { resolveVersionQuery, isVersionVisible } = require("../../../services/versions/mainVersion");
+const { resolveVersionQuery, isVersionVisible, visibleVersions } = require("../../../services/versions/mainVersion");
 const { versionShort } = require("../../../services/versions/versionTag");
 const { getConfig } = require("../../../stores/settings/settingsStore");
 const { dungeonBoard, versionsWithData } = require("../../../services/dungeons/dungeonBoard");
@@ -29,10 +31,12 @@ const { featureState, featureOn } = require("../../../services/versions/versionC
 const getDungeons = withUser(async ({ res, query }) => {
     const config = getConfig();
     const { versionId } = resolveVersionQuery(query.get("version"), { config });
-    const otherVersions = versionsWithData()
+    const state = featureState(versionId, "dungeonTimes", { config });
+    // A client without the feature: name where it is, with data or not; else only versions with data.
+    const candidates = state.reason === "no_dungeon_times" ? visibleVersions(config) : versionsWithData();
+    const otherVersions = candidates
         .filter((v) => v !== versionId && isVersionVisible(v, config) && featureOn(v, "dungeonTimes", { config }))
         .map(versionShort);
-    const state = featureState(versionId, "dungeonTimes", { config });
     if (!state.on) {
         return ok(res, {
             versionId, dungeons: [], players: [], characters: [], totals: { runs: 0, characters: 0 }, updatedAt: 0,

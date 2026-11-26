@@ -44,9 +44,36 @@ export function cellState(cell: FeatureCell | undefined, feature: string, disabl
     return disabled.includes(feature) ? "off" : "on";
 }
 
-/** Whether a feature is on for at least one version with the draft's lists (false without a matrix). */
-export function featureOnAnywhere(matrix: CapabilityMatrix | undefined, feature: string, disabled: Record<string, string[]> = {}): boolean {
-    return Object.entries(matrix?.versions || {}).some(([id, cells]) => cellState(cells[feature], feature, disabled[id]) === "on");
+/**
+ * Whether a feature is on for at least one version with the draft's lists (false without a matrix).
+ * `shown`: only these versions count (default every one), see shownVersions().
+ */
+export function featureOnAnywhere(matrix: CapabilityMatrix | undefined, feature: string, disabled: Record<string, string[]> = {}, shown?: string[]): boolean {
+    return Object.entries(matrix?.versions || {})
+        .filter(([id]) => !shown || shown.includes(id))
+        .some(([id, cells]) => cellState(cells[feature], feature, disabled[id]) === "on");
+}
+
+/**
+ * The versions a list shows with the draft (server: mainVersion.visibleVersions): every column of the
+ * matrix, or only the main version while "Andere Versionen ausblenden" is on.
+ */
+export function shownVersions(matrix: CapabilityMatrix | undefined, mainVersion: string, hideOthers: boolean): string[] {
+    const ids = Object.keys(matrix?.versions || {});
+    return hideOthers ? ids.filter((id) => id === mainVersion) : ids;
+}
+
+/**
+ * Whether a feature is on for no shown version with the draft (the hint of Einstellungen → Dungeon-Bestzeiten);
+ * false without a matrix, so nothing is claimed before it loaded.
+ */
+export function featureOffInDraft(
+    matrix: CapabilityMatrix | undefined,
+    feature: string,
+    draft: { versionDisabled: Record<string, string[]>; mainVersion: string; hideOtherVersions: boolean },
+): boolean {
+    if (!matrix) return false;
+    return !featureOnAnywhere(matrix, feature, draft.versionDisabled, shownVersions(matrix, draft.mainVersion, draft.hideOtherVersions));
 }
 
 /** The list with one feature switched on (taken out) or off (put in), in the matrix order. */

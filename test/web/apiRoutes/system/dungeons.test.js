@@ -17,6 +17,7 @@ jest.mock("../../../../src/stores/settings/settingsStore", () => ({
 const { getUser } = require("../../../../src/web/http/auth");
 const { getConfig } = require("../../../../src/stores/settings/settingsStore");
 const store = require("../../../../src/stores/roster/dungeonRunStore");
+const { versionShort } = require("../../../../src/services/versions/versionTag");
 const { tempStoreFile } = require("../../../helpers/tempStore");
 const { get } = routerClient(require("../../../../src/web/apiRoutes/system/dungeons"));
 
@@ -56,6 +57,13 @@ describe("GET /api/dungeons", () => {
         const data = body(await get("/api/dungeons", { version: "tbc" }));
         expect(data).toMatchObject({ versionId: "tbc", off: true, offReason: "no_dungeon_times", dungeons: [], players: [], characters: [] });
         expect(store.listRuns("tbc")).toHaveLength(1);
+        // names where the feature is, even without data there
+        store.update(() => ({ runs: [], characters: [] }));
+        const empty = body(await get("/api/dungeons", { version: "tbc" }));
+        expect(empty.otherVersions).toEqual([versionShort("forever")]);
+        // but not a version switched off
+        getConfig.mockReturnValue({ mainVersion: "forever", versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+        expect(body(await get("/api/dungeons", { version: "tbc" })).otherVersions).toEqual([]);
     });
 
     it("answers off with the reason \"disabled\" while the orga switched the feature off", async () => {

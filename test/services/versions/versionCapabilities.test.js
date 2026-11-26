@@ -98,6 +98,9 @@ describe("services/versions/versionCapabilities — the matrix", () => {
         // only the features asked for, in the list's order
         expect(caps.featuresOnAnywhere({ config: config(), features: ["dungeonTimes", "teleport", "wowheadLinks"] }))
             .toEqual(["wowheadLinks", "dungeonTimes"]);
+        // only the versions handed in count (the shown ones): TBC alone has no dungeon best times
+        expect(caps.featuresOnAnywhere({ config: config(), versions: ["tbc"] })).not.toContain("dungeonTimes");
+        expect(caps.featuresOnAnywhere({ config: config(), versions: ["tbc", "forever"] })).toContain("dungeonTimes");
     });
 
     it("knows every versionFeature the menu asks for", () => {

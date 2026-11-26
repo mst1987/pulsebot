@@ -316,10 +316,27 @@ describe("web/apiRoutes/session", () => {
             let res = mockRes();
             await handle("/api/session", { method: "GET" }, res);
             expect(json(res).data.user.versionFeatures).toEqual(["dungeonTimes"]);
-            settingsStore.getConfig.mockReturnValueOnce({ versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
-            res = mockRes();
-            await handle("/api/session", { method: "GET" }, res);
-            expect(json(res).data.user.versionFeatures).toEqual([]);
+            try {
+                settingsStore.getConfig.mockReturnValue({ versionSettings: { forever: { disabled: ["dungeonTimes"] } } });
+                res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user.versionFeatures).toEqual([]);
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
+        });
+
+        it("counts only the versions shown: on for a hidden version only, the entry stays hidden", async () => {
+            auth.getUser.mockReturnValue({ id: "42", name: "Anna", isAdmin: true });
+            try {
+                // Forever has the dungeon best times on, but only TBC is shown
+                settingsStore.getConfig.mockReturnValue({ mainVersion: "tbc", hideOtherVersions: true });
+                const res = mockRes();
+                await handle("/api/session", { method: "GET" }, res);
+                expect(json(res).data.user.versionFeatures).toEqual([]);
+            } finally {
+                settingsStore.getConfig.mockReturnValue({});
+            }
         });
 
         it("sends the Discord picture of the login, else the one the bot knows", async () => {

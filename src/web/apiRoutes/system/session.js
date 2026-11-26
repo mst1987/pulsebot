@@ -19,6 +19,7 @@ const { areaAudience, orgaRoleNames } = require("../../http/areaAudience");
 const { orgaCategoryIds, requestCache } = require("../../../services/roster/categoryOrga");
 const { serverFeatures } = require("../../../services/plans/serverPlan");
 const { featuresOnAnywhere } = require("../../../services/versions/versionCapabilities");
+const { visibleVersions } = require("../../../services/versions/mainVersion");
 const { MENU } = require("../../../config/menu");
 
 /** GET /api/session — who the caller is (if anyone), their CSRF token, what the
@@ -83,7 +84,9 @@ async function getSession(req, res) {
 /** The menu's version features (menu.json `versionFeature`) on for at least one version. */
 function menuVersionFeatures() {
     const asked = [...new Set(MENU.map((e) => e.versionFeature).filter(Boolean))];
-    return featuresOnAnywhere({ config: getConfig(), features: asked });
+    const config = getConfig();
+    // Only the versions shown: with "Andere Versionen ausblenden" on, a hidden version's feature opens nothing.
+    return featuresOnAnywhere({ config, features: asked, versions: visibleVersions(config) });
 }
 
 /** The category ids the caller is the orga of through a roster; best-effort, [] on failure ("Ansicht als": the viewed roles'). */
