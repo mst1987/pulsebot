@@ -19,6 +19,7 @@
 
 const { getConfig } = require("../../stores/settings/settingsStore");
 const { blizzardFor, settingsForVersion } = require("../versions/versionSettings");
+const { hasRealms } = require("../../config/gameVersions");
 const { situationalItem } = require("../../config/data/situationalItems");
 const { isPvpItem } = require("./gearProfile");
 const wowsims = require("../../config/wowsims");
@@ -59,7 +60,9 @@ function placeOf(scope, config) {
     if (memo !== undefined) return memo;
     const { versionId, guildId } = scope || {};
     const s = settingsForVersion(versionId, { config: config || getConfig(), guildId });
-    const place = [s.blizzardRegion, s.blizzardRealmSlug, s.blizzardNamespace].join("|");
+    // a version without realms (Forever) asks without one, as blizzardFor does: a stray realm must not split the cache
+    const realm = hasRealms(s.versionId) ? s.blizzardRealmSlug : "";
+    const place = [s.blizzardRegion, realm, s.blizzardNamespace].join("|");
     if (scope && typeof scope === "object") placeMemo.set(scope, place);
     return place;
 }

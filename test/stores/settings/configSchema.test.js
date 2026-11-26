@@ -231,7 +231,15 @@ function after921(config, stored = {}) {
 }
 // The Twitch announcements add the app credentials, empty by default; the streamers live in the server settings.
 const afterTwitch = (config) => ({ ...config, twitch: { clientId: "", clientSecret: "" } });
-const schemaOnly = frozen.map((g, i) => ({ ...g, config: afterTwitch(after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterTempVoice(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))))), cases[i].config), cases[i].config))) }));
+// Forever's profile API (2026-11-26): its standard values gained the namespace "profile-forever-{region}",
+// written out with the block's region - an empty namespace of before is filled with it.
+function afterForeverArmory(config) {
+    const forever = config.versionSettings && config.versionSettings.forever;
+    if (!forever || forever.blizzardNamespace) return config;
+    const namespace = `profile-forever-${forever.blizzardRegion || "eu"}`;
+    return { ...config, versionSettings: { ...config.versionSettings, forever: { ...forever, blizzardNamespace: namespace } } };
+}
+const schemaOnly = frozen.map((g, i) => ({ ...g, config: afterForeverArmory(afterTwitch(after952(after925(after921(after924(after917(after897(after896(after894(after890(afterAddons(afterDungeonRecords(afterTempVoice(afterSignupCharacters(afterVisuals(afterLaunch(afterEras(afterOrgaRoles(after691(after542(g.config)))))))))))))))), cases[i].config), cases[i].config)))) }));
 // #927: the start hands Raid-Helper to the server it ran for (the stored raidhelperServerId, else the first
 // server) with the old switch and the .env key (`envKey`, the key itself is never copied) - only for a
 // stored file naming that id; every other server keeps no block and so has Raid-Helper off.

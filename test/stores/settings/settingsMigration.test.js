@@ -236,9 +236,9 @@ describe("stores/settings/settingsMigration standard values and recruitment vers
         expect(config.versionDefaultsApplied).toEqual(["tbc", "classic", "forever"]);
         expect(config.versionSettings.classic).toMatchObject({ wowheadPath: "classic-own", softresEdition: "classic", blizzardNamespace: "profile-classic1x-eu", blizzardRealmSlug: "" });
         expect(config.versionSettings.tbc).toMatchObject({ blizzardRealmSlug: "thunderstrike", wowheadPath: "tbc", softresEdition: "tbc", blizzardNamespace: "profile-classicann-eu" });
-        // Forever gets its Wowhead section (#750) and Blizzard's armory, realm and logs stay empty
+        // Forever gets its Wowhead section (#750), Blizzard's armory and profile namespace, realm and logs stay empty
         expect(config.versionSettings.forever).toEqual({
-            ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever",
+            ...EMPTY, blizzardRegion: "eu", wowheadPath: "forever", blizzardNamespace: "profile-forever-eu",
             armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
         });
         // the links work with the TBC realm, and stay out for Classic without one;

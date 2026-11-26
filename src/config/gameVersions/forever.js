@@ -132,11 +132,20 @@ module.exports = {
     //   armory  worldofwarcraft.blizzard.com/de-de/forever/<region>/armory/character/<first>-<last>
     //           — no realm in the path, public without a login, only from
     //           level 10; the name's space must be a "-" (versionSettings fillChar).
-    // The namespace and the log site are not known yet (Epic #540 phase 2).
+    // The profile API (checked 26.11.2026): namespace profile-forever-<region>,
+    // GET /profile/wow/character/<first>-<last> — no realm segment (Forever has
+    // rulesets, not realms; the realm index is a 404), the summary has no
+    // `realm` but `surname` and `ruleset`, `name` is the first name only.
+    // /equipment and /professions answer 200, characters from level 10 and
+    // after a logout. The log site is not known yet (Epic #540 phase 2).
     // Forever was in versionDefaultsApplied before the armory came, so an
-    // existing install takes it with "Standardwerte übernehmen".
+    // existing install takes these with "Standardwerte übernehmen".
     settingsDefaults: {
+        blizzardNamespace: "profile-forever-{region}",
         armoryUrlTemplate: "https://worldofwarcraft.blizzard.com/de-de/forever/{region}/armory/character/{char}",
         wowheadPath: "forever",
     },
+    // No realms (rulesets instead): the profile API path has no realm segment
+    // and the armory gear lookup needs no realm (gameVersions.hasRealms).
+    realms: false,
 };

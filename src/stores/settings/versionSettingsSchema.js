@@ -145,7 +145,7 @@ function versionsWithDefaults() {
  * install's, not the version's: the one handed in (the block's own), else the
  * bootstrap region (BLIZZARD_REGION / config/defaults.js), else "eu"; a
  * {region} in the namespace is written out with it. A version without
- * defaults (Forever for now) gets an all-empty block — nothing to take over.
+ * defaults (an unknown id) gets an all-empty block — nothing to take over.
  * @param {string} versionId
  * @param {{ region?: string }} [opts]
  */

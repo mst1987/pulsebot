@@ -40,6 +40,28 @@ function hasSheetLayout(versionId) {
     return Boolean(rules && rules.sheetLayout);
 }
 
+/**
+ * Whether the version's characters live on realms: true unless the rule set
+ * says `realms: false` (Forever has rulesets instead). Without realms the
+ * Blizzard profile path has no realm segment and the armory gear lookup needs
+ * no realm slug (classes/blizzard.js, services/versions/versionCapabilities.js).
+ * An unknown id keeps realms, like the Classic lines.
+ */
+function hasRealms(versionId) {
+    const rules = rulesFor(versionId);
+    return !(rules && rules.realms === false);
+}
+
+/**
+ * The level cap of a version (TBC 70, Classic 60), or 0 when its rule set names
+ * none (Forever): the character page only warns about a wrong profile namespace
+ * when this is set and the Blizzard profile's level differs from it.
+ */
+function characterLevelMaxOf(versionId) {
+    const rules = rulesFor(versionId);
+    return (rules && Number(rules.characterLevelMax)) || 0;
+}
+
 /** The rule set of a version, or null for an unknown id. */
 function rulesFor(versionId) {
     return BY_ID.get(String(versionId || "")) || null;
@@ -228,7 +250,7 @@ function publicVersions() {
 
 module.exports = {
     VERSIONS, DEFAULT_VERSION, LEGACY_VERSION, ROLES,
-    rulesFor, professionsOf, hasSheetLayout, instance, instanceById, spec, roleOfSpec,
+    rulesFor, professionsOf, hasSheetLayout, hasRealms, characterLevelMaxOf, instance, instanceById, spec, roleOfSpec,
     defaultComposition, compositionFor, finalBossesOf, bossesOf,
     instanceForBoss, instanceForZone, iconOf, examplesOf, publicVersions,
 };

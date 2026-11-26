@@ -188,6 +188,26 @@ describe("HistoryCharPage — gear", () => {
         expect(search().get("item")).toBeNull();
     });
 
+    const summary = (level: number) => ({
+        name: "Alpha", realm: "", level, itemLevel: null, lastLogin: null, className: "", faction: "", namespace: "",
+    });
+
+    it("warns about a wrong namespace when the level differs from the version's cap (TBC 70)", async () => {
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ charSummary: summary(60), expectedLevel: 70, versionId: "tbc" }));
+        expect(screen.getByText(/Die Blizzard-API meldet/)).toBeInTheDocument();
+        expect(screen.getByText("Level 60")).toBeInTheDocument();
+    });
+
+    it("does not warn at the cap", async () => {
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ charSummary: summary(70), expectedLevel: 70, versionId: "tbc" }));
+        expect(screen.queryByText(/Die Blizzard-API meldet/)).not.toBeInTheDocument();
+    });
+
+    it("never warns about the level for a version without a cap (Forever)", async () => {
+        await openPage("/roster/char?name=Alpha", adminUser(), charData({ charSummary: summary(12), expectedLevel: 0, versionId: "forever" }));
+        expect(screen.queryByText(/Die Blizzard-API meldet/)).not.toBeInTheDocument();
+    });
+
     it("opens the modal straight from a link", async () => {
         await openPage("/roster/char?name=Alpha&item=CHEST");
         const dialog = screen.getByRole("dialog");

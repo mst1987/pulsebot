@@ -76,6 +76,9 @@ module.exports = {
     // Main professions for "Mein Profil" (Berufe, gameVersions/professions.js) and their highest skill.
     professions: TBC_PROFESSIONS,
     professionSkillMax: 375,
+    // The level cap (gameVersions.characterLevelMaxOf): a Blizzard profile on another level is
+    // likely the wrong namespace - the character page warns. A version without it never warns.
+    characterLevelMax: 70,
     // The Google raid sheet (utils/setup/fillSetup.js) is laid out for TBC raids only (#751).
     sheetLayout: true,
     // The loot council's content data (#748): BiS lists (Wowhead), the item table (stats, slots, wear rules),

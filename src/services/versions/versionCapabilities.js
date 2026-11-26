@@ -19,7 +19,8 @@
 //   simulation       the rule set has no `councilContent.sim` (WoWSims)
 //   raidSheet        the rule set has no `sheetLayout` (the Google raid sheet is TBC's)
 //   softres          no softres edition in the version's settings
-//   armory           region, realm or namespace missing in the version's settings
+//   armory           region, realm or namespace missing in the version's settings (a version
+//                    without realms, gameVersions.hasRealms, needs no realm)
 //   wowheadLinks     no Wowhead path in the version's settings
 //   raidplanCatalog  no mob or spell of the catalog belongs to the version
 //   dungeonTimes     the rule set has no `dungeonTimes` (no LevelHelper addon for its client)
@@ -41,7 +42,7 @@
 // never one of its readers. So the settings block is read here from the config
 // directly (the same normaliser settingsForVersion uses), not through versionSettings.js.
 const { VERSION_FEATURES, isVersionFeature } = require("../../config/versionFeatures");
-const { VERSIONS, rulesFor, hasSheetLayout } = require("../../config/gameVersions");
+const { VERSIONS, rulesFor, hasSheetLayout, hasRealms } = require("../../config/gameVersions");
 const { normalizeBlock, versionSettingsOf, wclSiteOf } = require("../../stores/settings/versionSettingsSchema");
 const { logcheckRules } = require("../../utils/logcheck/rules");
 const catalogStore = require("../../stores/raidplan/raidplanCatalogStore");
@@ -160,8 +161,13 @@ const POSSIBLE = {
         ? YES : no("no_softres_edition", `Für ${labelOf(id)} ist keine Softres-Edition eingetragen.`)),
     armory(id, config) {
         const s = blockOf(id, config);
-        return s.blizzardRegion && s.blizzardRealmSlug && s.blizzardNamespace
-            ? YES : no("armory_not_configured", `Armory für ${labelOf(id)} nicht eingerichtet (Region, Realm, Namespace).`);
+        // Forever has rulesets, not realms: its profile path has no realm segment.
+        const realms = hasRealms(id);
+        if (s.blizzardRegion && (s.blizzardRealmSlug || !realms) && s.blizzardNamespace) return YES;
+        // its own code, so the page can name the fields the version really needs
+        return realms
+            ? no("armory_not_configured", `Armory für ${labelOf(id)} nicht eingerichtet (Region, Realm, Namespace).`)
+            : no("armory_not_configured_realmless", `Armory für ${labelOf(id)} nicht eingerichtet (Region, Namespace).`);
     },
     wowheadLinks: (id, config) => (blockOf(id, config).wowheadPath
         ? YES : no("no_wowhead_path", `Für ${labelOf(id)} ist kein Wowhead-Pfad eingetragen.`)),
@@ -184,7 +190,7 @@ function disabledMessage(versionId, feature) {
  *   reason: string, message: string, missing: string[], also: string[] }}
  *   `reason` "" when on, "disabled" when switched off, else why it is not possible
  *   ("unknown_version", "no_rules", "rules_not_ready", "no_site", "no_bis_data", "no_sim_data",
- *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "no_wowhead_path",
+ *   "no_sheet_layout", "no_softres_edition", "armory_not_configured", "armory_not_configured_realmless", "no_wowhead_path",
  *   "no_catalog_entries", "no_dungeon_times", "unknown_feature"); `message` the German text for it; `also` further reasons
  *   the matrix names beside it (logcheck: rules not ready and no Warcraft-Logs site)
  */

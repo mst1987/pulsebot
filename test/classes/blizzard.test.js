@@ -377,6 +377,68 @@ describe("classes/Blizzard", () => {
         });
     });
 
+    // WoW Forever (2026-11-26): no realms, /profile/wow/character/<first>-<last>, namespace profile-forever-<region>;
+    // the summary has no realm, `name` is the first name only and `surname` the last one.
+    describe("without realms (Forever)", () => {
+        function forever(over = {}) {
+            return new Blizzard({
+                clientId: "id", clientSecret: "secret", region: "eu", namespace: "profile-forever-eu",
+                realmless: true, versionId: "forever", wowheadPath: "forever", ...over,
+            });
+        }
+        const token = () => axios.post.mockResolvedValue({ data: { access_token: "tok", expires_in: 3600 } });
+
+        it("keeps no realm, not even Thunderstrike as a fallback or a stored one", () => {
+            expect(forever().realmSlug).toBe("");
+            expect(forever({ realmSlug: "everlook" }).realmSlug).toBe("");
+            expect(forever().realmless).toBe(true);
+            expect(new Blizzard({ clientId: "a", clientSecret: "b" }).realmless).toBe(false);
+        });
+
+        it("asks the path without a realm, first and last name joined with \"-\" and lowercased", async () => {
+            token();
+            axios.get.mockResolvedValue({ data: { equipped_items: [] } });
+            await forever().getEquipment("Devi Re");
+            const [url, cfg] = axios.get.mock.calls[0];
+            expect(url).toBe("https://eu.api.blizzard.com/profile/wow/character/devi-re/equipment");
+            expect(cfg.params).toEqual({ namespace: "profile-forever-eu", locale: "en_GB" });
+        });
+
+        it("encodes umlauts and ignores a realm handed in", async () => {
+            token();
+            axios.get.mockResolvedValue({ data: { name: "Bärli", surname: "Bär" } });
+            await forever().getCharacterSummary("  Bärli   Bär ", { realmSlug: "die-aldor" });
+            expect(axios.get.mock.calls[0][0]).toBe("https://eu.api.blizzard.com/profile/wow/character/b%C3%A4rli-b%C3%A4r");
+        });
+
+        it("names the character with first and last name, the realm stays empty", async () => {
+            token();
+            axios.get.mockResolvedValue({ data: {
+                name: "Devi", surname: "Re", level: 12, ruleset: { type: "FRESH" }, character_class: { name: "Mage" },
+            } });
+            const s = await forever().getCharacterSummary("Devi Re");
+            expect(s).toMatchObject({ name: "Devi Re", level: 12, className: "Mage", realm: "", namespace: "profile-forever-eu" });
+        });
+
+        it("warns without an @realm on a failure", async () => {
+            token();
+            axios.get.mockRejectedValue({ response: { status: 404 } });
+            const c = forever();
+            expect(await c.getCharacterSummary("Devi Re")).toBeNull();
+            expect(c.lastError).toMatchObject({ status: 404 });
+            const text = console.warn.mock.calls.map((call) => call.join(" ")).join("\n");
+            expect(text).toContain("Devi Re [profile-forever-eu]");
+            expect(text).not.toContain("@");
+        });
+
+        it("keeps TBC's path with its realm", async () => {
+            token();
+            axios.get.mockResolvedValue({ data: { name: "Foo" } });
+            await new Blizzard({ clientId: "id", clientSecret: "secret", realmSlug: "thunderstrike" }).getCharacterSummary("Foo Bar");
+            expect(axios.get.mock.calls[0][0]).toBe("https://eu.api.blizzard.com/profile/wow/character/thunderstrike/foo%20bar");
+        });
+    });
+
     describe("transport (classes/httpClient)", () => {
         const configured = () => new Blizzard({ clientId: "id", clientSecret: "secret" });
 

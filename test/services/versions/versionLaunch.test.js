@@ -135,7 +135,7 @@ describe("fieldStates", () => {
     it("Forever today: Wowhead set, realm, armory and softres needed, logs and raidsheet not possible", () => {
         const states = Object.fromEntries(launch.fieldStates("forever", mockConfig).map((f) => [f.field, [f.state, f.reason]]));
         expect(states).toEqual({
-            realm: ["missing", ""],
+            armoryApi: ["missing", ""],
             armory: ["missing", ""],
             wcl: ["notNeeded", "rules_not_ready"],
             wowhead: ["set", ""],
@@ -144,10 +144,20 @@ describe("fieldStates", () => {
         });
     });
 
+    it("Forever's armory field (armoryApi, no realms) is set by region and namespace alone, TBC still asks for its realm", () => {
+        mockConfig.versionSettings.forever = { ...mockConfig.versionSettings.forever, blizzardRegion: "eu", blizzardNamespace: "profile-forever-eu" };
+        const forever = Object.fromEntries(launch.fieldStates("forever", mockConfig).map((f) => [f.field, f.state]));
+        expect(forever.armoryApi).toBe("set");
+        expect(forever.realm).toBeUndefined();
+        mockConfig.versionSettings.tbc = { ...mockConfig.versionSettings.tbc, blizzardRealmSlug: "" };
+        const tbc = Object.fromEntries(launch.fieldStates("tbc", mockConfig).map((f) => [f.field, f.state]));
+        expect(tbc.realm).toBe("missing");
+    });
+
     it("an empty field of a feature switched off is not needed", () => {
         mockConfig.versionSettings.forever.disabled = ["armory", "softres"];
         const states = Object.fromEntries(launch.fieldStates("forever", mockConfig).map((f) => [f.field, [f.state, f.reason]]));
-        expect(states.realm).toEqual(["notNeeded", "disabled"]);
+        expect(states.armoryApi).toEqual(["notNeeded", "disabled"]);
         expect(states.armory).toEqual(["notNeeded", "disabled"]);
         expect(states.softres).toEqual(["notNeeded", "disabled"]);
     });

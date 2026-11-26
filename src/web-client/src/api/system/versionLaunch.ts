@@ -7,7 +7,7 @@ import { get, send } from "../client";
 
 export type LaunchStatus = "done" | "open";
 export type LaunchMark = { at: number; byName: string };
-export type LaunchFieldState = { field: "realm" | "armory" | "wcl" | "wowhead" | "softres" | "raidsheet"; state: "set" | "missing" | "notNeeded"; reason: string };
+export type LaunchFieldState = { field: "realm" | "armoryApi" | "armory" | "wcl" | "wowhead" | "softres" | "raidsheet"; state: "set" | "missing" | "notNeeded"; reason: string };
 export type LaunchCategoryRef = { id: string; name: string };
 
 type Base<I extends string> = { id: I; status: LaunchStatus; optional: boolean; mark: LaunchMark | null };

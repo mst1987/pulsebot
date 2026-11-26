@@ -19,7 +19,7 @@
 // `loadChecklist(versionId)` gathers the inputs, each best-effort.
 const { getConfig, saveConfig, allRaidTemplates } = require("../../stores/settings/settingsStore");
 const { VERSION_LAUNCH_MANUAL } = require("../../stores/settings/configSchema");
-const { VERSIONS, rulesFor, instance } = require("../../config/gameVersions");
+const { VERSIONS, rulesFor, instance, hasRealms } = require("../../config/gameVersions");
 const { knownVersion } = require("./mainVersion");
 const { featureState } = require("./versionCapabilities");
 const { normalizeBlock, versionSettingsOf } = require("../../stores/settings/versionSettingsSchema");
@@ -43,7 +43,8 @@ const OPTIONAL = new Set(["mainVersion"]);
  * one serves (config/versionFeatures.js) and when it counts as filled.
  */
 const FIELDS = Object.freeze([
-    { field: "realm", feature: "armory", filled: (b) => !!(b.blizzardRegion && b.blizzardRealmSlug && b.blizzardNamespace) },
+    // a version without realms (Forever, gameVersions.hasRealms) asks the API without one
+    { field: "realm", feature: "armory", filled: (b, id) => !!(b.blizzardRegion && (b.blizzardRealmSlug || !hasRealms(id)) && b.blizzardNamespace) },
     { field: "armory", feature: "armory", filled: (b) => !!b.armoryUrlTemplate },
     { field: "wcl", feature: "logcheck", filled: (b) => !!b.wclUrlTemplate },
     { field: "wowhead", feature: "wowheadLinks", filled: (b) => !!b.wowheadPath },
@@ -53,7 +54,7 @@ const FIELDS = Object.freeze([
 // A feature is "not possible" for one of these only because a field is empty —
 // that field is then still needed. Every other reason (the rule set has no data
 // for it) makes an empty field fine.
-const SETTINGS_REASONS = new Set(["no_site", "no_softres_edition", "armory_not_configured", "no_wowhead_path"]);
+const SETTINGS_REASONS = new Set(["no_site", "no_softres_edition", "armory_not_configured", "armory_not_configured_realmless", "no_wowhead_path"]);
 
 const str = (v) => (v === undefined || v === null ? "" : String(v)).trim();
 const isMap = (v) => v && typeof v === "object" && !Array.isArray(v);
@@ -77,8 +78,10 @@ function safely(read, fallback) {
 function fieldStates(versionId, config) {
     const map = isMap(config.versionSettings) ? config.versionSettings : versionSettingsOf(config);
     const block = normalizeBlock(map[versionId]);
-    return FIELDS.map(({ field, feature, filled }) => {
-        if (filled(block)) return { field, feature, state: "set", reason: "" };
+    return FIELDS.map(({ field: key, feature, filled }) => {
+        // without realms (Forever) the field is the armory lookup's region and namespace — not called "realm"
+        const field = key === "realm" && !hasRealms(versionId) ? "armoryApi" : key;
+        if (filled(block, versionId)) return { field, feature, state: "set", reason: "" };
         const cap = featureState(versionId, feature, { config });
         // switched off: the capability names "disabled" only for a possible feature, `enabled` always says it
         if (cap.reason === "disabled" || (!cap.enabled && !/^unknown_/.test(cap.reason))) return { field, feature, state: "notNeeded", reason: "disabled" };

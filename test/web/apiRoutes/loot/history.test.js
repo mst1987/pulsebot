@@ -152,6 +152,7 @@ const mockGetCharacterSummary = jest.fn(() => Promise.resolve(null));
 const mockGetEquipment = jest.fn(() => Promise.resolve(null));
 const mockResolve = jest.fn(() => ({ region: "eu", realm: "thunderstrike", namespace: "profile-classicann-eu" }));
 let mockLastError = null;
+let mockRealmless = false;
 jest.mock("../../../../src/classes/blizzard", () =>
     jest.fn().mockImplementation(() => ({
         isConfigured: mockIsConfigured,
@@ -159,6 +160,7 @@ jest.mock("../../../../src/classes/blizzard", () =>
         getEquipment: mockGetEquipment,
         _resolve: mockResolve,
         get lastError() { return mockLastError; },
+        get realmless() { return mockRealmless; },
     })));
 jest.mock("../../../../src/utils/loot/lootImport", () => {
     class LootParseError extends Error {}
@@ -1407,6 +1409,7 @@ describe("web/apiRoutes/history", () => {
                 gearError: "",
                 charSummary: null,
                 gearNamespace: "profile-classicann-eu",
+                expectedLevel: 70,
                 versionId: "tbc",
                 wowheadPath: "tbc",
                 info: null,
@@ -1487,6 +1490,22 @@ describe("web/apiRoutes/history", () => {
             );
         });
 
+        it("names first and last name instead of a realm in the 404 of a version without realms (Forever)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 404 };
+            mockRealmless = true;
+            settingsStore.getConfig.mockReturnValue({ blizzard: { region: "eu" } });
+            try {
+                const res = await get("/api/history/char", { name: "Devi Re" });
+                expect(json(res).data.gearError).toContain("Vor- und Nachnamen prüfen");
+                expect(json(res).data.gearError).toContain("ab Stufe 10 und nach einem Logout");
+                expect(json(res).data.gearError).not.toContain("Realm-Slug");
+            } finally {
+                mockRealmless = false;
+            }
+        });
+
         it("builds the 403 gearError", async () => {
             mockIsConfigured.mockReturnValue(true);
             mockGetEquipment.mockResolvedValue(null);
@@ -1495,6 +1514,20 @@ describe("web/apiRoutes/history", () => {
             const res = await get("/api/history/char", { name: "Anna" });
 
             expect(json(res).data.gearError).toBe("Zugriff verweigert (403) — die Profile-API ist für diesen Realm evtl. nicht freigegeben.");
+        });
+
+        it("names the namespace instead of a realm in the 403 of a version without realms (Forever)", async () => {
+            mockIsConfigured.mockReturnValue(true);
+            mockGetEquipment.mockResolvedValue(null);
+            mockLastError = { status: 403 };
+            mockRealmless = true;
+            try {
+                const res = await get("/api/history/char", { name: "Devi Re" });
+                expect(json(res).data.gearError).toContain("403");
+                expect(json(res).data.gearError).not.toContain("Realm");
+            } finally {
+                mockRealmless = false;
+            }
         });
 
         it("builds the 401 gearError", async () => {

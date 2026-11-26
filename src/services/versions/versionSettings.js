@@ -19,7 +19,7 @@
 // settingsForVersion), else the main version (mainVersionFor). Every link goes
 // through versionLinks() and linkCheck.externalLink (#539), so a half-filled
 // template yields no link rather than a broken one.
-const { rulesFor } = require("../../config/gameVersions");
+const { rulesFor, hasRealms } = require("../../config/gameVersions");
 const { wowheadItemId } = require("../../config/data/wowheadItemAliases");
 const schema = require("../../stores/settings/versionSettingsSchema");
 const { knownVersion, mainVersionFor } = require("./mainVersion");
@@ -164,6 +164,7 @@ function versionLabel(versionId) {
  * A Battle.net client for a version's realm, or why there is none:
  *   { client, versionId, namespace, realmSlug, region, reason: "" }       ready to ask
  *   { client: null, reason: "version_not_configured", message }          the version has no region/realm/namespace
+ *                                                                        (no realm needed without realms: Forever, gameVersions.hasRealms)
  *   { client: null, reason: "feature_off", message }                     the armory lookup is switched off for it (#761)
  *   { client: null, reason: "not_configured", message }                  no client id/secret
  * Whether the version may ask at all is the feature "armory" of versionCapabilities.js.
@@ -174,7 +175,8 @@ function blizzardFor(versionId, opts = {}) {
     const cfg = configOf(opts.config);
     const s = settingsForVersion(versionId, { config: cfg, guildId: opts.guildId });
     const creds = cfg.blizzard && typeof cfg.blizzard === "object" ? cfg.blizzard : {};
-    const base = { versionId: s.versionId, namespace: s.blizzardNamespace, realmSlug: s.blizzardRealmSlug, region: s.blizzardRegion };
+    const realmless = !hasRealms(s.versionId);
+    const base = { versionId: s.versionId, namespace: s.blizzardNamespace, realmSlug: realmless ? "" : s.blizzardRealmSlug, region: s.blizzardRegion };
     const armory = capabilities.featureState(s.versionId, "armory", { config: cfg });
     if (!armory.possible) {
         return { ...base, client: null, reason: "version_not_configured", message: `Armory für ${versionLabel(s.versionId)} nicht eingerichtet (Einstellungen → Spielversion).` };
@@ -185,7 +187,8 @@ function blizzardFor(versionId, opts = {}) {
         clientId: creds.clientId || "",
         clientSecret: creds.clientSecret || "",
         region: s.blizzardRegion,
-        realmSlug: s.blizzardRealmSlug,
+        realmSlug: base.realmSlug,
+        realmless,
         namespace: s.blizzardNamespace,
         versionId: s.versionId,
         wowheadPath: s.wowheadPath,

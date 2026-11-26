@@ -179,6 +179,26 @@ describe("ServerVersionLinksSection (#923)", () => {
         expect(screen.getByText(/In den Links wirkt der Realm nur, wenn die Vorlage \{realm\} enth/)).toBeInTheDocument();
     });
 
+    it("does not claim the armory lookup uses the realm of a version without realms (Forever)", async () => {
+        const user = userEvent.setup();
+        renderPage(
+            <ServerVersionLinksSection
+                versions={[VERSIONS[0], { ...VERSIONS[1], realms: false }]} mainVersion="forever" standard={STANDARD} saved={{ forever: { blizzardRealmSlug: "x" } }}
+                serverName="Pulse Raids" guildId={G1} onSaved={vi.fn()}
+            />,
+        );
+        expect(screen.getByText(/Die Armory-Abfrage dieser Version kommt ohne Realm aus/)).toBeInTheDocument();
+        expect(screen.queryByText(/nutzt ihn immer/)).not.toBeInTheDocument();
+        // TBC keeps its realm in the lookup
+        await user.click(screen.getByRole("radio", { name: "TBC" }));
+        await user.click(switchOf(/realm/));
+        await user.click(switchOf(/armory/));
+        const input = screen.getByRole("textbox", { name: "Armory-Link" });
+        await user.clear(input);
+        await user.type(input, "https://own.test/{{char}");
+        expect(screen.getByText(/nutzt ihn immer/)).toBeInTheDocument();
+    });
+
     it("speaks English", async () => {
         await inLang("en", () => {
             show();

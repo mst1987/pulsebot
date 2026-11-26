@@ -157,7 +157,8 @@ export default function ServerVersionLinksSection({ versions, mainVersion, stand
                                         <div className="field-error" role="alert">{t("settings.serverVersionLinks.empty")}</div>
                                     )}
                                     {(field === "blizzardRealmSlug" || field === "blizzardRegion") && !placeInLinks(used, field) && (
-                                        <p className="gv-hint">{t(`settings.serverVersionLinks.placeHint.${field}`)}</p>
+                                        // a version without realms (Forever) asks the armory API without one
+                                        <p className="gv-hint">{t(`settings.serverVersionLinks.placeHint.${field}${field === "blizzardRealmSlug" && version.realms === false ? "Realmless" : ""}`)}</p>
                                     )}
                                 </div>
                             </OwnValue>

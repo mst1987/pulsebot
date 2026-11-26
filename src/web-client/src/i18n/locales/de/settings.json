@@ -789,6 +789,7 @@
         "keep": "Behalten",
         "secretNote": "Wird nie wieder angezeigt, nur ersetzt oder gelöscht.",
         "realmNotSet": "je Spielversion (Hauptversion ohne Realm)",
+        "noRealms": "keine Realms",
         "githubTitle": "GitHub (Addons)",
         "githubTip": "GitHub-Token für die Addon-Downloads",
         "githubSub": "Liest die Releases der privaten Addon-Repos (LevelHelper, ProfessionKit). Öffentliche Repos gehen auch ohne. Der Token verlässt den Server nie, die Mitglieder laden über den EventHelper.",
@@ -1475,6 +1476,7 @@
             "no_sheet_layout": "Kein Raidsheet-Layout für {version}.",
             "no_softres_edition": "Keine Softres-Edition für {version} eingetragen.",
             "armory_not_configured": "Armory für {version} nicht eingerichtet (Region, Realm, Namespace).",
+            "armory_not_configured_realmless": "Armory für {version} nicht eingerichtet (Region, Namespace).",
             "no_wowhead_path": "Kein Wowhead-Pfad für {version} eingetragen.",
             "no_catalog_entries": "Keine Katalog-Einträge für {version}.",
             "no_dungeon_times": "Keine Dungeon-Bestzeiten für {version} (kein LevelHelper)."
@@ -1596,6 +1598,7 @@
         },
         "fields": {
             "realm": "Realm",
+            "armoryApi": "Armory-Abfrage (Region, Namespace; keine Realms)",
             "armory": "Armory-Link",
             "wcl": "Warcraft Logs",
             "wowhead": "Wowhead",
@@ -1918,6 +1921,7 @@
         "emptyBlocked": "Speichern geht erst, wenn jeder eingeschaltete Wert gefüllt ist.",
         "placeHint": {
             "blizzardRealmSlug": "In den Links wirkt der Realm nur, wenn die Vorlage {realm} enthält. Die Armory-Abfrage nutzt ihn immer.",
+            "blizzardRealmSlugRealmless": "In den Links wirkt der Realm nur, wenn die Vorlage {realm} enthält. Die Armory-Abfrage dieser Version kommt ohne Realm aus.",
             "blizzardRegion": "In den Links wirkt die Region nur, wenn die Vorlage {region} enthält. Die Armory-Abfrage nutzt sie immer."
         }
     }
